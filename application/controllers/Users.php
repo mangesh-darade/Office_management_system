@@ -17,7 +17,7 @@ class Users extends CI_Controller {
         $q = trim($this->input->get('q', true) ?: '');
         $data['title'] = 'Users';
         $data['q'] = $q;
-        $data['rows'] = $this->users->list($q, 250);
+        $data['rows'] = $this->users->list_users($q, 250);
         $this->load->view('users/index', $data);
     }
 

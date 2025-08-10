@@ -1,8 +1,12 @@
 <?php
 // Sidebar partial for full-width pages
 $active = strtolower($this->uri->segment(1) ?: 'dashboard');
+// Only render sidebar for authenticated users
+if (!(int)$this->session->userdata('user_id')) {
+  return; // do not output sidebar when not logged in
+}
 ?>
-<aside class="col-12 col-md-3 col-lg-2 sidebar-left">
+<aside class="d-none d-md-block col-md-3 col-lg-2 sidebar-left">
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>

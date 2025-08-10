@@ -39,8 +39,25 @@ class Call_model extends CI_Model {
             'status'=>'initiated',
         ]);
         $call_id = (int)$this->db->insert_id();
-        // creator joins by default
-        @$this->db->insert('call_participants', ['call_id'=>$call_id,'user_id'=>$initiator_id,'joined_at'=>date('Y-m-d H:i:s')]);
+        // Add all conversation participants to this call (so they can be discovered by global polling)
+        try {
+            $users = $this->db->select('user_id')->from('conversation_participants')->where('conversation_id', (int)$conversation_id)->get()->result();
+            if ($users) {
+                foreach ($users as $u) {
+                    @$this->db->insert('call_participants', [
+                        'call_id' => $call_id,
+                        'user_id' => (int)$u->user_id,
+                        'joined_at' => null,
+                    ]);
+                }
+            } else {
+                // Fallback: at least add initiator
+                @$this->db->insert('call_participants', ['call_id'=>$call_id,'user_id'=>$initiator_id,'joined_at'=>date('Y-m-d H:i:s')]);
+            }
+        } catch (Exception $e) {
+            // Ensure initiator is present on any failure
+            @$this->db->insert('call_participants', ['call_id'=>$call_id,'user_id'=>$initiator_id,'joined_at'=>date('Y-m-d H:i:s')]);
+        }
         return $call_id;
     }
 

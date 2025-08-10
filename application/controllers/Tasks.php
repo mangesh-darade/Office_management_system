@@ -214,11 +214,11 @@ class Tasks extends CI_Controller {
             $inserted = 0;
             while (($row = fgetcsv($handle)) !== false) {
                 $data = [
-                    'project_id' => isset($map['project_id']) ? (int)($row[$map['project_id']] ?? 0) : null,
-                    'title' => $row[$map['title']] ?? null,
-                    'description' => $row[$map['description']] ?? null,
-                    'assigned_to' => isset($map['assigned_to']) ? (int)($row[$map['assigned_to']] ?? 0) : null,
-                    'status' => $row[$map['status']] ?? 'pending',
+                    'project_id' => isset($map['project_id']) ? (int)(isset($row[$map['project_id']]) ? $row[$map['project_id']] : 0) : null,
+                    'title' => isset($map['title']) && isset($row[$map['title']]) ? $row[$map['title']] : null,
+                    'description' => isset($map['description']) && isset($row[$map['description']]) ? $row[$map['description']] : null,
+                    'assigned_to' => isset($map['assigned_to']) ? (int)(isset($row[$map['assigned_to']]) ? $row[$map['assigned_to']] : 0) : null,
+                    'status' => isset($map['status']) && isset($row[$map['status']]) ? $row[$map['status']] : 'pending',
                     'created_by' => $user_id,
                 ];
                 if (!empty($data['title'])) { $this->db->insert('tasks', $data); $inserted++; }

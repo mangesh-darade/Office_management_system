@@ -134,6 +134,8 @@ $route['calls/start/(:num)'] = 'calls/start/$1';
 $route['calls/signal/(:num)'] = 'calls/signal/$1';
 $route['calls/poll/(:num)'] = 'calls/poll_signals/$1';
 $route['calls/end/(:num)'] = 'calls/end/$1';
+$route['calls/incoming/(:num)'] = 'calls/poll_incoming/$1';
+$route['calls/incoming-any'] = 'calls/poll_incoming_any';
 
 // Mail (SMTP test & UI)
 $route['mail'] = 'mail/index';

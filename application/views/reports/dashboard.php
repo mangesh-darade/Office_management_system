@@ -57,9 +57,9 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     (function(){
-      const taskStatus = <?php echo json_encode($task_status ?? []); ?>;
-      const projStatus = <?php echo json_encode($projects_progress ?? []); ?>;
-      const leavesMonthly = <?php echo json_encode($leaves_monthly ?? []); ?>;
+      const taskStatus = <?php echo json_encode(isset($task_status) ? $task_status : []); ?>;
+      const projStatus = <?php echo json_encode(isset($projects_progress) ? $projects_progress : []); ?>;
+      const leavesMonthly = <?php echo json_encode(isset($leaves_monthly) ? $leaves_monthly : []); ?>;
 
       const toChartData = (rows, labelKey, valueKey) => ({
         labels: rows.map(r => r[labelKey]),

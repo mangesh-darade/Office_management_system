@@ -26,9 +26,9 @@
             <?php 
               $name = '';
               if (!empty($r->first_name) || !empty($r->last_name)) {
-                $name = trim(($r->first_name ?? '').' '.($r->last_name ?? ''));
+                $name = trim((isset($r->first_name) ? $r->first_name : '').' '.(isset($r->last_name) ? $r->last_name : ''));
               }
-              if ($name === '') { $name = $r->email ?? '—'; }
+              if ($name === '') { $name = isset($r->email) && $r->email !== '' ? $r->email : '—'; }
             ?>
             <tr>
               <td><?php echo htmlspecialchars($name); ?></td>

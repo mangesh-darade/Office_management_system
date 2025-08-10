@@ -23,9 +23,24 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | a PHP script and you can easily do that on your own.
 |
 */
-$root  = "http://".$_SERVER['HTTP_HOST'];
-$root .= str_replace(basename($_SERVER['SCRIPT_NAME']),"",$_SERVER['SCRIPT_NAME']);
-$config['base_url']    = $root;
+// PHP 5.6–compatible HTTPS detection (supports reverse proxy)
+$__is_https = false;
+if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+    $__is_https = true;
+} elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+    $__is_https = true;
+} elseif (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) {
+    $__is_https = true;
+}
+$__scheme = $__is_https ? 'https' : 'http';
+$__host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+$__base  = $__scheme.'://'. $__host;
+$__base .= str_replace(basename($_SERVER['SCRIPT_NAME']), "", $_SERVER['SCRIPT_NAME']);
+$config['base_url'] = $__base;
+// Set secure cookies when HTTPS is detected
+$config['cookie_secure'] = $__is_https ? TRUE : FALSE;
+// Make cookies HttpOnly to mitigate XSS
+$config['cookie_httponly'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -387,12 +402,17 @@ $config['encryption_key'] = '';
 */
 $config['sess_driver'] = 'files';
 $config['sess_cookie_name'] = 'ci_session';
-$config['sess_samesite'] = 'Lax';
 $config['sess_expiration'] = 7200;
-$config['sess_save_path'] = NULL;
+// Save sessions inside the app for both local and server. Ensure this directory exists and is writable.
+$config['sess_save_path'] = APPPATH.'cache/sessions';
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
 $config['sess_regenerate_destroy'] = FALSE;
+
+// Ensure encryption key is set; replace with a strong random string in production
+if (empty($config['encryption_key'])) {
+    $config['encryption_key'] = 'CHANGE_ME_TO_A_RANDOM_32_PLUS_CHAR_SECRET_KEY';
+}
 
 /*
 |--------------------------------------------------------------------------

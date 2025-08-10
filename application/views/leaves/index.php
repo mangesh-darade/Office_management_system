@@ -23,7 +23,7 @@
             <form method="post" action="<?php echo site_url('leaves/test-email'); ?>" class="row gy-2 gx-2 align-items-end">
               <div class="col-12 col-sm-8">
                 <label class="form-label">Recipient Email</label>
-                <input type="email" name="to" value="<?php echo htmlspecialchars($this->session->userdata('email') ?? ''); ?>" class="form-control" placeholder="name@example.com">
+                <input type="email" name="to" value="<?php $__em = $this->session->userdata('email'); echo htmlspecialchars(!empty($__em) ? $__em : ''); ?>" class="form-control" placeholder="name@example.com">
               </div>
               <div class="col-12 col-sm-auto">
                 <button type="submit" class="btn btn-primary">Send Test Email</button>

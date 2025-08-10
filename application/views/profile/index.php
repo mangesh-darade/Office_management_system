@@ -24,7 +24,7 @@
               if (!empty($user) && !empty($user->name)) {
                 $displayName = (string)$user->name;
               } elseif (!empty($employee) && (!empty($employee->first_name) || !empty($employee->last_name))) {
-                $displayName = trim(($employee->first_name ?? '').' '.($employee->last_name ?? ''));
+                $displayName = trim((isset($employee->first_name) ? $employee->first_name : '').' '.(isset($employee->last_name) ? $employee->last_name : ''));
               } elseif (!empty($user) && !empty($user->email)) {
                 $displayName = (string)$user->email;
               } else {
@@ -39,16 +39,16 @@
               <div class="fw-semibold">
                 <?php echo htmlspecialchars($displayName); ?>
               </div>
-              <div class="text-muted small">Role: <?php echo htmlspecialchars($user->role ?? 'member'); ?></div>
+              <div class="text-muted small">Role: <?php echo htmlspecialchars(isset($user->role) ? $user->role : 'member'); ?></div>
             </div>
           </div>
           <div class="small text-muted">Email</div>
-          <div class="mb-3"><?php echo htmlspecialchars($user->email ?? ''); ?></div>
+          <div class="mb-3"><?php echo htmlspecialchars(isset($user->email) ? $user->email : ''); ?></div>
           <?php if(!empty($employee)): ?>
             <div class="small text-muted">Department</div>
-            <div class="mb-2"><?php echo htmlspecialchars($employee->department ?? '-'); ?></div>
+            <div class="mb-2"><?php echo htmlspecialchars(isset($employee->department) ? $employee->department : '-'); ?></div>
             <div class="small text-muted">Designation</div>
-            <div class="mb-2"><?php echo htmlspecialchars($employee->designation ?? '-'); ?></div>
+            <div class="mb-2"><?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : '-'); ?></div>
           <?php endif; ?>
         </div>
       </div>

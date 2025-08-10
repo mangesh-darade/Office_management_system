@@ -33,7 +33,7 @@ class User_model extends CI_Model {
     /**
      * List users with optional simple search by name/email. Limit default 250.
      */
-    public function list($q = '', $limit = 250){
+    public function list_users($q = '', $limit = 250){
         $this->db->from($this->table);
         if ($q !== ''){
             $this->db->group_start();

@@ -89,11 +89,11 @@ class Projects extends CI_Controller {
             $inserted = 0;
             while (($row = fgetcsv($handle)) !== false) {
                 $data = [
-                    'code' => $row[$map['code']] ?? null,
-                    'name' => $row[$map['name']] ?? null,
-                    'status' => $row[$map['status']] ?? 'planned',
-                    'start_date' => $row[$map['start_date']] ?? null,
-                    'end_date' => $row[$map['end_date']] ?? null,
+                    'code' => (isset($map['code']) && isset($row[$map['code']])) ? $row[$map['code']] : null,
+                    'name' => (isset($map['name']) && isset($row[$map['name']])) ? $row[$map['name']] : null,
+                    'status' => (isset($map['status']) && isset($row[$map['status']])) ? $row[$map['status']] : 'planned',
+                    'start_date' => (isset($map['start_date']) && isset($row[$map['start_date']])) ? $row[$map['start_date']] : null,
+                    'end_date' => (isset($map['end_date']) && isset($row[$map['end_date']])) ? $row[$map['end_date']] : null,
                 ];
                 if (!empty($data['name'])) { $this->db->insert('projects', $data); $inserted++; }
             }

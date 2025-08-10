@@ -110,14 +110,14 @@ class Employees extends CI_Controller {
             $rows = [];
             while (($data = fgetcsv($handle)) !== false) {
                 $rows[] = [
-                    'emp_code' => $data[$map['emp_code']] ?? null,
-                    'first_name' => $data[$map['first_name']] ?? null,
-                    'last_name' => $data[$map['last_name']] ?? null,
-                    'email' => $data[$map['email']] ?? null,
-                    'department' => $data[$map['department']] ?? null,
-                    'designation' => $data[$map['designation']] ?? null,
-                    'phone' => $data[$map['phone']] ?? null,
-                    'join_date' => $data[$map['join_date']] ?? null,
+                    'emp_code' => (isset($map['emp_code']) && isset($data[$map['emp_code']])) ? $data[$map['emp_code']] : null,
+                    'first_name' => (isset($map['first_name']) && isset($data[$map['first_name']])) ? $data[$map['first_name']] : null,
+                    'last_name' => (isset($map['last_name']) && isset($data[$map['last_name']])) ? $data[$map['last_name']] : null,
+                    'email' => (isset($map['email']) && isset($data[$map['email']])) ? $data[$map['email']] : null,
+                    'department' => (isset($map['department']) && isset($data[$map['department']])) ? $data[$map['department']] : null,
+                    'designation' => (isset($map['designation']) && isset($data[$map['designation']])) ? $data[$map['designation']] : null,
+                    'phone' => (isset($map['phone']) && isset($data[$map['phone']])) ? $data[$map['phone']] : null,
+                    'join_date' => (isset($map['join_date']) && isset($data[$map['join_date']])) ? $data[$map['join_date']] : null,
                 ];
             }
             fclose($handle);

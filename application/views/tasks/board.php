@@ -45,7 +45,7 @@
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-2 xsmall text-muted">
                       <span>#<?php echo (int)$t->id; ?></span>
-                      <span class="badge rounded-pill bg-light text-dark">Assignee: <?php echo (int)($t->assigned_to ?? 0); ?></span>
+                      <span class="badge rounded-pill bg-light text-dark">Assignee: <?php echo (int)(isset($t->assigned_to) ? $t->assigned_to : 0); ?></span>
                     </div>
                   </div>
                 <?php endforeach; ?>

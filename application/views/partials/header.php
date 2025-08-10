@@ -28,10 +28,13 @@
 <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
   <div class="container-fluid px-3">
     <a class="navbar-brand" href="<?php echo site_url('dashboard'); ?>">OfficeMgmt</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbars" aria-controls="navbars" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
+    <?php if ((int)$this->session->userdata('user_id')): ?>
+    <!-- Mobile sidebar toggle (single button on mobile) -->
+    <button class="btn btn-outline-light d-inline-flex d-md-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Open menu">
+      <i class="bi bi-list"></i>
     </button>
-    <div class="collapse navbar-collapse" id="navbars">
+    <?php endif; ?>
+    <div class="navbar-collapse">
       <div class="me-auto"></div>
       <div class="d-flex">
         <?php if($this->session->userdata('user_id')): ?>
@@ -59,6 +62,146 @@
   </div>
 </nav>
 <?php endif; ?>
+<?php
+// Render mobile offcanvas sidebar when user is logged in and sidebar is enabled
+$__with_sidebar = array_key_exists('with_sidebar', get_defined_vars()) ? (bool)$with_sidebar : true;
+if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
+<div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="mobileSidebarLabel">Menu</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    <nav class="nav flex-column gap-1 p-3">
+      <?php $active = strtolower($this->uri->segment(1) ?: 'dashboard'); ?>
+      <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+      <a class="nav-link sidebar-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
+      <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail</a>
+      <a class="nav-link sidebar-link <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
+      <a class="nav-link sidebar-link <?php echo $active==='employees'?'active':''; ?>" href="<?php echo site_url('employees'); ?>"><i class="bi bi-people me-2"></i>Employees</a>
+      <a class="nav-link sidebar-link <?php echo $active==='tasks'?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Tasks</a>
+      <?php if(function_exists('has_module_access') && has_module_access('chats')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='chats'?'active':''; ?>" href="<?php echo site_url('chats/app'); ?>"><i class="bi bi-chat-dots me-2"></i>Chats</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+      <?php endif; ?>
+      <a class="nav-link sidebar-link <?php echo $active==='reports'?'active':''; ?>" href="<?php echo site_url('reports'); ?>"><i class="bi bi-graph-up me-2"></i>Reports</a>
+      <hr class="my-2 border-secondary">
+      <a class="nav-link sidebar-link text-danger" href="<?php echo site_url('logout'); ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+    </nav>
+  </div>
+  <div class="offcanvas-footer small text-muted px-3 pb-3">OfficeMgmt</div>
+</div>
+<?php endif; ?>
+<!-- Global Incoming Call Modal -->
+<div class="modal fade" id="incomingCallModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-primary text-white">
+        <h6 class="modal-title"><i class="bi bi-telephone-inbound me-2"></i>Incoming Call</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+            <i class="bi bi-person-video3"></i>
+          </div>
+          <div>
+            <div class="fw-semibold" id="incomingCallFrom">Someone is calling…</div>
+            <div class="text-muted small">Conversation <span id="incomingConvId"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger" id="btnGlobalReject"><i class="bi bi-telephone-x me-1"></i>Reject</button>
+        <a href="#" class="btn btn-success" id="btnGlobalAccept"><i class="bi bi-telephone-inbound me-1"></i>Accept</a>
+      </div>
+    </div>
+  </div>
+  <audio id="incomingRingAudio" loop>
+    <source src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA..." type="audio/mp3">
+  </audio>
+  <script>
+  (function(){
+    try{
+      const site = '<?php echo rtrim(site_url(), "/"); ?>/';
+      const me = <?php echo (int)$this->session->userdata('user_id'); ?>;
+      if (!me) return; // not logged in
+      // Persist last processed signal id across refresh to avoid replaying old offers
+      var sinceKey = 'globalIncomingSinceId';
+      var seenCallsKey = 'globalSeenCallIds';
+      function loadSince(){ try { return parseInt(localStorage.getItem(sinceKey)||'0',10)||0; } catch(e){ return 0; } }
+      function saveSince(v){ try { localStorage.setItem(sinceKey, String(v||0)); } catch(e){} }
+      function loadSeen(){ try { var a = JSON.parse(localStorage.getItem(seenCallsKey)||'[]'); return Array.isArray(a)? new Set(a.slice(-50)) : new Set(); } catch(e){ return new Set(); } }
+      function saveSeen(set){ try { localStorage.setItem(seenCallsKey, JSON.stringify(Array.from(set).slice(-50))); } catch(e){} }
+      var sinceId = loadSince(); var globalTimer = null; var lastSignal = null; var seenCallIds = loadSeen();
+      var modalEl = document.getElementById('incomingCallModal');
+      var incomingConvIdEl = document.getElementById('incomingConvId');
+      var incomingFromEl = document.getElementById('incomingCallFrom');
+      var btnAccept = document.getElementById('btnGlobalAccept');
+      var btnReject = document.getElementById('btnGlobalReject');
+      var ringEl = document.getElementById('incomingRingAudio');
+      var bsModal = null;
+      function ensureModal(){
+        try { if (!bsModal && window.bootstrap && window.bootstrap.Modal) { bsModal = new bootstrap.Modal(modalEl, { backdrop:'static', keyboard:false }); } } catch(e){}
+      }
+      function startRing(){ try { ringEl && ringEl.play && ringEl.play().catch(()=>{}); } catch(e){} }
+      function stopRing(){ try { ringEl && ringEl.pause && (ringEl.currentTime=0); } catch(e){} }
+      function showIncoming(sig){
+        lastSignal = sig;
+        incomingConvIdEl.textContent = String(sig.conversation_id || '');
+        incomingFromEl.textContent = sig.from_email ? ('Incoming call from ' + sig.from_email) : 'Incoming call';
+        btnAccept.href = site + 'chats/conversation/' + (sig.conversation_id||'');
+        ensureModal();
+        try { if (bsModal) bsModal.show(); else modalEl.style.display='block'; } catch(e){}
+        startRing();
+      }
+      function hideIncoming(){
+        stopRing();
+        try { if (bsModal) bsModal.hide(); else modalEl.style.display='none'; } catch(e){}
+      }
+      async function poll(){
+        if (document.hidden) { /* still poll to be responsive */ }
+        try{
+          const url = new URL(site + 'calls/incoming-any');
+          url.searchParams.set('since_id', sinceId);
+          const r = await fetch(url);
+          const j = await r.json();
+          if (j && j.ok && j.signals && j.signals.length){
+            j.signals.forEach(function(s){
+              var sid = parseInt(s.id,10)||0; if (sid>sinceId) { sinceId=sid; saveSince(sinceId); }
+              // Dedupe per call_id so popup doesn't repeat
+              var cid = parseInt(s.call_id||0,10)||0;
+              if (cid && seenCallIds.has(cid)) { return; }
+              // only show one at a time
+              if (!lastSignal) { showIncoming(s); }
+            });
+          }
+        }catch(e){}
+      }
+      function ensurePolling(){
+        try { if (globalTimer) clearInterval(globalTimer); globalTimer = setInterval(poll, 3000); } catch(e){}
+      }
+      ensurePolling(); poll();
+      btnReject && btnReject.addEventListener('click', async function(){
+        try{
+          if (lastSignal && lastSignal.call_id){ await fetch(site + 'calls/end/' + lastSignal.call_id, { method:'POST' }); }
+        }catch(e){}
+        // Mark this call as seen so it won't pop again
+        try { if (lastSignal && lastSignal.call_id){ seenCallIds.add(parseInt(lastSignal.call_id,10)); saveSeen(seenCallIds); } } catch(e){}
+        hideIncoming(); lastSignal=null;
+      });
+      btnAccept && btnAccept.addEventListener('click', function(){
+        // Mark as seen; Chats app will handle accept
+        try { if (lastSignal && lastSignal.call_id){ seenCallIds.add(parseInt(lastSignal.call_id,10)); saveSeen(seenCallIds); } } catch(e){}
+      });
+      // If user navigates to Chats via Accept, the Chats app will handle actual accept signaling
+      modalEl.addEventListener('hidden.bs.modal', function(){ stopRing(); });
+    }catch(e){}
+  })();
+  </script>
+</div>
 <?php if (empty($hide_navbar)): ?>
 <div id="toast-container">
   <?php if($this->session->flashdata('success')): ?>

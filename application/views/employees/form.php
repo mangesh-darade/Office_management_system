@@ -1,14 +1,12 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Employee</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="p-4">
-<div class="container">
-  <h1 class="h4 mb-3"><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Employee</h1>
+<?php $this->load->view('partials/header', ['title' => (($action === 'edit') ? 'Edit' : 'Create').' Employee']); ?>
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+    <h1 class="h4 mb-2 mb-sm-0"><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Employee</h1>
+    <a class="btn btn-secondary" href="<?php echo site_url('employees'); ?>">Back</a>
+  </div>
+  <div class="card shadow-soft">
+    <div class="card-body">
+  
+  
   <form method="post">
     <div class="row g-3">
       <?php if ($action === 'create'): ?>
@@ -20,32 +18,32 @@
       <?php endif; ?>
       <div class="col-md-6">
         <label class="form-label">Employee Code</label>
-        <input type="text" name="emp_code" class="form-control" value="<?php echo htmlspecialchars($employee->emp_code ?? ''); ?>" required>
+        <input type="text" name="emp_code" class="form-control" value="<?php echo htmlspecialchars(isset($employee->emp_code) ? $employee->emp_code : ''); ?>" required>
       </div>
       <div class="col-md-6">
         <label class="form-label">First Name</label>
-        <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars($employee->first_name ?? ''); ?>" required>
+        <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars(isset($employee->first_name) ? $employee->first_name : ''); ?>" required>
       </div>
       <div class="col-md-6">
         <label class="form-label">Last Name</label>
-        <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars($employee->last_name ?? ''); ?>">
+        <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars(isset($employee->last_name) ? $employee->last_name : ''); ?>">
       </div>
       <div class="col-md-6">
         <label class="form-label">Department</label>
-        <input type="text" name="department" class="form-control" value="<?php echo htmlspecialchars($employee->department ?? ''); ?>">
+        <input type="text" name="department" class="form-control" value="<?php echo htmlspecialchars(isset($employee->department) ? $employee->department : ''); ?>">
       </div>
       <div class="col-md-6">
         <label class="form-label">Designation</label>
-        <input type="text" name="designation" class="form-control" value="<?php echo htmlspecialchars($employee->designation ?? ''); ?>">
+        <input type="text" name="designation" class="form-control" value="<?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : ''); ?>">
       </div>
       <div class="col-md-6">
         <label class="form-label">Reporting To (User ID)</label>
-        <input type="number" name="reporting_to" class="form-control" value="<?php echo htmlspecialchars($employee->reporting_to ?? ''); ?>">
+        <input type="number" name="reporting_to" class="form-control" value="<?php echo htmlspecialchars(isset($employee->reporting_to) ? $employee->reporting_to : ''); ?>">
       </div>
       <div class="col-md-6">
         <label class="form-label">Employment Type</label>
         <select name="employment_type" class="form-select">
-          <?php $et = $employee->employment_type ?? 'full_time'; ?>
+          <?php $et = isset($employee->employment_type) ? $employee->employment_type : 'full_time'; ?>
           <option value="full_time" <?php echo $et==='full_time'?'selected':''; ?>>Full time</option>
           <option value="part_time" <?php echo $et==='part_time'?'selected':''; ?>>Part time</option>
           <option value="contract" <?php echo $et==='contract'?'selected':''; ?>>Contract</option>
@@ -54,11 +52,11 @@
       </div>
       <div class="col-md-6">
         <label class="form-label">Join Date</label>
-        <input type="date" name="join_date" class="form-control" value="<?php echo htmlspecialchars($employee->join_date ?? ''); ?>">
+        <input type="date" name="join_date" class="form-control" value="<?php echo htmlspecialchars(isset($employee->join_date) ? $employee->join_date : ''); ?>">
       </div>
       <div class="col-md-6">
         <label class="form-label">Phone</label>
-        <input type="text" name="phone" class="form-control" value="<?php echo htmlspecialchars($employee->phone ?? ''); ?>">
+        <input type="text" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($employee->phone) ? $employee->phone : ''); ?>">
       </div>
     </div>
     <div class="mt-4 d-flex gap-2">
@@ -66,6 +64,7 @@
       <a class="btn btn-secondary" href="<?php echo site_url('employees'); ?>">Cancel</a>
     </div>
   </form>
-</div>
-</body>
-</html>
+  
+    </div>
+  </div>
+<?php $this->load->view('partials/footer'); ?>

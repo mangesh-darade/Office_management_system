@@ -9,17 +9,17 @@ $action = isset($action) && is_array($action) ? $action : null;
     <?php foreach ($chips as $c): ?>
       <span class="chip">
         <?php if (!empty($c['icon'])): ?><i class="<?php echo htmlspecialchars($c['icon']); ?>"></i><?php endif; ?>
-        <?php echo htmlspecialchars($c['text'] ?? ''); ?>
+        <?php echo htmlspecialchars(isset($c['text']) ? $c['text'] : ''); ?>
       </span>
     <?php endforeach; ?>
     <h1 class="h5 mb-0 title"><?php echo htmlspecialchars($title); ?></h1>
   </div>
   <?php if ($action): ?>
     <?php 
-      $actionClass = trim((string)($action['class'] ?? 'btn-primary'));
+      $actionClass = trim((string)(isset($action['class']) ? $action['class'] : 'btn-primary'));
     ?>
-    <a href="<?php echo htmlspecialchars($action['href'] ?? '#'); ?>" class="btn btn-sm <?php echo htmlspecialchars($actionClass); ?>">
-      <?php echo htmlspecialchars($action['label'] ?? ''); ?>
+    <a href="<?php echo htmlspecialchars(isset($action['href']) ? $action['href'] : '#'); ?>" class="btn btn-sm <?php echo htmlspecialchars($actionClass); ?>">
+      <?php echo htmlspecialchars(isset($action['label']) ? $action['label'] : ''); ?>
     </a>
   <?php endif; ?>
 </div>

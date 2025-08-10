@@ -1,4 +1,4 @@
-<?php $this->load->view('partials/header', ['title' => ($title ?? 'Users'), 'active' => 'users']); ?>
+<?php $this->load->view('partials/header', array('title' => (isset($title) ? $title : 'Users'), 'active' => 'users')); ?>
 <div class="row g-3">
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -7,7 +7,7 @@
     </div>
     <form class="row g-2 mb-3" method="get" action="<?php echo site_url('users'); ?>">
       <div class="col-auto">
-        <input type="text" name="q" value="<?php echo htmlspecialchars($q ?? ''); ?>" class="form-control" placeholder="Search name or email">
+        <input type="text" name="q" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" class="form-control" placeholder="Search name or email">
       </div>
       <div class="col-auto">
         <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
@@ -32,11 +32,11 @@
               <?php if (!empty($rows)) foreach ($rows as $r): ?>
                 <tr>
                   <td>#<?php echo (int)$r->id; ?></td>
-                  <td><?php echo htmlspecialchars($r->name ?? ''); ?></td>
-                  <td><?php echo htmlspecialchars($r->email ?? ''); ?></td>
-                  <td><span class="badge bg-secondary"><?php echo htmlspecialchars($r->role ?? 'user'); ?></span></td>
+                  <td><?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?></td>
+                  <td><?php echo htmlspecialchars(isset($r->email) ? $r->email : ''); ?></td>
+                  <td><span class="badge bg-secondary"><?php echo htmlspecialchars(isset($r->role) ? $r->role : 'user'); ?></span></td>
                   <td>
-                    <?php if ((int)($r->status ?? 0) === 1): ?>
+                    <?php if (((isset($r->status) ? (int)$r->status : 0)) === 1): ?>
                       <span class="badge bg-success">Active</span>
                     <?php else: ?>
                       <span class="badge bg-secondary">Inactive</span>

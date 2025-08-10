@@ -74,8 +74,8 @@ class Mail extends CI_Controller {
 
         // Handle single attachment field named 'attachment'
         if (!empty($_FILES['attachment']) && isset($_FILES['attachment']['tmp_name']) && is_uploaded_file($_FILES['attachment']['tmp_name'])) {
-            $name = $_FILES['attachment']['name'] ?? 'attachment';
-            $type = $_FILES['attachment']['type'] ?? '';
+            $name = isset($_FILES['attachment']['name']) ? $_FILES['attachment']['name'] : 'attachment';
+            $type = isset($_FILES['attachment']['type']) ? $_FILES['attachment']['type'] : '';
             $this->email->attach($_FILES['attachment']['tmp_name'], 'attachment', $name, $type);
         }
 

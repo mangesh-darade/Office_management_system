@@ -154,6 +154,8 @@
   const site = '<?php echo rtrim(site_url(), "/"); ?>/';
   const userId = <?php echo (int)$user_id; ?>;
   let convoId = 0; let lastId = 0; let pollTimer = null; let signalTimer = null;
+  // Incoming call polling state
+  let incomingSinceId = 0; let incomingTimer = null;
   const lastNotified = {}; // per-conversation last notified message id
 
   const convoList = document.getElementById('convoList');
@@ -177,6 +179,10 @@
   const btnRecord = document.getElementById('btnRecord');
   const btnReminder = document.getElementById('btnReminder');
   const btnAttach = document.getElementById('btnAttach');
+  // Helpers for remote server robustness
+  function isUnauthorizedResponse(r){ try { return r && r.status===401; } catch(e){ return false; } }
+  async function parseJsonSafe(r){ try { return await r.json(); } catch(e){ return null; } }
+  function handleUnauthorized(r){ if (isUnauthorizedResponse(r)) { try { window.location = site + 'login'; } catch(e){} return true; } return false; }
 
   // Ringing (WebAudio) helpers
   let ringCtx = null, ringOsc = null, ringGain = null;
@@ -305,9 +311,12 @@
       updateHeader({ id, type, title, members });
       setUnread(id, 0);
       if (typeof setFormEnabled === 'function') { setFormEnabled(true); }
+      // Reset incoming offer polling state for this convo
+      incomingSinceId = 0;
       // Fetch & poll
       fetchMessages();
       if (typeof ensurePolling === 'function') { ensurePolling(); }
+      if (typeof ensureIncomingPolling === 'function') { ensureIncomingPolling(); }
     } catch(e) {
       console.warn('selectConvo error', e);
     }
@@ -634,6 +643,42 @@
     } catch(e) { console.warn('ensurePolling error', e); }
   }
 
+  // Poll for incoming call offers when no active call is established
+  async function pollIncomingOffers(){
+    if (!convoId || callId) return; // only when idle
+    try {
+      const url = new URL(site + 'calls/incoming/' + convoId);
+      url.searchParams.set('since_id', incomingSinceId);
+      const r = await fetch(url);
+      if (handleUnauthorized(r)) return;
+      const j = await parseJsonSafe(r);
+      if (j && j.ok && j.signals && j.signals.length) {
+        j.signals.forEach(function(s){
+          const sid = parseInt(s.id,10);
+          incomingSinceId = Math.max(incomingSinceId, sid);
+          // Prepare UI and state for incoming offer
+          callId = parseInt(s.call_id,10) || null;
+          pendingRemoteOffer = s.payload; // JSON string
+          if (s.from_email) { setStatus('Incoming call from ' + s.from_email + '...'); }
+          else { setStatus('Incoming call...'); }
+          if (btnAcceptCall) btnAcceptCall.classList.remove('d-none');
+          if (btnRejectCall) btnRejectCall.classList.remove('d-none');
+          if (btnCallToggle) btnCallToggle.classList.add('d-none');
+          startRinging('in');
+          // Start polling full signaling for this call so we can receive ICE, etc.
+          if (signalTimer) clearInterval(signalTimer);
+          signalTimer = setInterval(pollSignals, 2000);
+        });
+      }
+    } catch(e) { /* ignore transient errors */ }
+  }
+  function ensureIncomingPolling(){
+    try {
+      if (incomingTimer) clearInterval(incomingTimer);
+      incomingTimer = setInterval(pollIncomingOffers, 2500);
+    } catch(e) { console.warn('ensureIncomingPolling error', e); }
+  }
+
   // Update conversation list preview and reorder to top on new activity
   function updateConvoPreview(m){
     try {
@@ -756,12 +801,14 @@
     try {
       setStatus('Starting call...');
       const r = await fetch(site + 'calls/start/' + convoId, { method:'POST' });
-      const j = await r.json(); if (!j.ok) throw new Error('start failed');
+      if (handleUnauthorized(r)) return;
+      const j = await parseJsonSafe(r); if (!j || !j.ok) throw new Error('start failed');
       callId = j.call_id; signalSince = 0; btnEndCall.disabled = false;
       await initPeer();
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'offer', payload: JSON.stringify(offer) }) });
+      const rs = await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'offer', payload: JSON.stringify(offer) }) });
+      if (handleUnauthorized(rs)) return;
       setStatus('Waiting for answer...');
       if (signalTimer) clearInterval(signalTimer);
       signalTimer = setInterval(pollSignals, 2000);
@@ -774,6 +821,8 @@
   let pendingRemoteOffer = null;
   async function handleSignal(sig){
     if (sig.type==='offer') {
+      // Ignore our own offer so caller doesn't see Accept/Reject on their device
+      try { if (parseInt(sig.from_user_id||0,10) === userId) { return; } } catch(e){}
       // Incoming call: prompt accept/reject, play ring
       try {
         pendingRemoteOffer = sig.payload;
@@ -784,7 +833,7 @@
         startRinging('in');
       } catch(e){}
     } else if (sig.type==='answer') {
-      await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload)));
+      try { await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload))); } catch(e){ return; }
       setStatus('Connected');
       stopRinging();
     } else if (sig.type==='ice') {
@@ -797,16 +846,19 @@
     try {
       const url = new URL(site + 'calls/poll/' + callId);
       url.searchParams.set('since_id', signalSince);
-      const r = await fetch(url); const j = await r.json();
+      const r = await fetch(url);
+      if (handleUnauthorized(r)) return;
+      const j = await parseJsonSafe(r);
       if (j.ok && j.signals) { j.signals.forEach(s=>{ signalSince = Math.max(signalSince, parseInt(s.id,10)); handleSignal(s); }); }
     } catch(e){}
   }
 
   async function endCall(){
-    if (callId) { await fetch(site + 'calls/end/' + callId, { method:'POST' }); }
+    if (callId) { try { const re = await fetch(site + 'calls/end/' + callId, { method:'POST' }); if (handleUnauthorized(re)) return; } catch(e){} }
     if (pc) { pc.getSenders().forEach(s=>{ try { s.track && s.track.stop(); } catch(e){} }); pc.close(); pc=null; }
     callId = null; btnEndCall.disabled = true; setStatus('Idle');
     if (signalTimer) clearInterval(signalTimer);
+    if (incomingTimer) clearInterval(incomingTimer);
     stopRinging();
     // Reset mic state
     btnToggleMic.disabled = true;
@@ -835,7 +887,8 @@
       await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(pendingRemoteOffer)));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'answer', payload: JSON.stringify(answer) }) });
+      const ra = await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'answer', payload: JSON.stringify(answer) }) });
+      if (handleUnauthorized(ra)) return;
       setStatus('Connected');
       stopRinging();
       if (signalTimer) { clearInterval(signalTimer); }

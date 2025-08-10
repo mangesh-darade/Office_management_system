@@ -6,7 +6,7 @@
   <form class="mb-3" method="get" action="<?php echo site_url('employees'); ?>">
     <div class="row g-2">
       <div class="col-12 col-sm-8 col-lg-6">
-        <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars($q ?? ''); ?>" placeholder="Search by code, name, email">
+        <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" placeholder="Search by code, name, email">
       </div>
       <div class="col-12 col-sm-auto">
         <button class="btn btn-outline-secondary w-100" type="submit">Search</button>
@@ -34,10 +34,10 @@
             <tr>
               <td><?php echo (int)$e->id; ?></td>
               <td><span class="badge bg-primary-subtle text-primary"><?php echo htmlspecialchars($e->emp_code); ?></span></td>
-              <td><?php echo htmlspecialchars(trim(($e->first_name ?? '').' '.($e->last_name ?? ''))); ?></td>
-              <td class="d-none d-md-table-cell"><?php echo htmlspecialchars($e->email ?? ''); ?></td>
-              <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars($e->department ?? ''); ?></td>
-              <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars($e->designation ?? ''); ?></td>
+              <td><?php echo htmlspecialchars(trim((isset($e->first_name) ? $e->first_name : '').' '.(isset($e->last_name) ? $e->last_name : ''))); ?></td>
+              <td class="d-none d-md-table-cell"><?php echo htmlspecialchars(isset($e->email) ? $e->email : ''); ?></td>
+              <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars(isset($e->department) ? $e->department : ''); ?></td>
+              <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars(isset($e->designation) ? $e->designation : ''); ?></td>
               <td class="text-end table-actions">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('employees/'.$e->id); ?>"><i class="bi bi-eye"></i></a>
                 <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('employees/'.$e->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
