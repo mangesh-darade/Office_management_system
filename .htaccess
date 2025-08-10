@@ -1,0 +1,32 @@
+# Serve index.php by default
+DirectoryIndex index.php
+
+# Avoid content-negotiation 404s in subfolders
+Options -MultiViews
+
+# Fallback to index.php even if mod_rewrite is disabled
+<IfModule !mod_rewrite.c>
+  FallbackResource index.php
+</IfModule>
+
+# Enable URL rewriting for CodeIgniter 3 (remove index.php)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Adjust the RewriteBase to your subfolder
+    RewriteBase /Office_management_system/
+
+    # If the request is for an existing file or directory, serve it directly
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Otherwise route to index.php
+    RewriteRule ^(.*)$ index.php/$1 [L]
+</IfModule>
+
+# Security headers (optional but recommended)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>

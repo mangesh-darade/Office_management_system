@@ -1,0 +1,114 @@
+/* App custom styles */
+:root {
+  --brand: #0d6efd;
+  --brand-600: #0b5ed7;
+  --indigo: #4f46e5;
+  --teal: #14b8a6;
+  --amber: #f59e0b;
+  /* Navbar/Sidebar theme */
+  --navbar-bg: #0b1b2b;        /* change this to recolor both navbar and sidebar */
+  --navbar-text: #eaf2ff;
+  --sidebar-bg: var(--navbar-bg);
+  --navbar-h: 56px;            /* keep sidebar aligned with navbar height */
+}
+
+body { background-color: #f5f7fb; }
+.navbar-brand { font-weight: 700; letter-spacing: .2px; }
+.card { border: 0; border-radius: .75rem; }
+.card .card-title { font-weight: 600; }
+.shadow-soft { box-shadow: 0 0.5rem 1rem rgba(0,0,0,.08)!important; }
+
+/* Dashboard cards */
+.card .btn { border-radius: .5rem; }
+.card:hover { transform: translateY(-2px); transition: transform .15s ease; }
+
+/* Tables */
+.table thead th { color: #6c757d; font-weight: 600; border-bottom-width: 1px; }
+.table td, .table th { vertical-align: middle; }
+.table-actions .btn { margin-right: .25rem; }
+
+/* Footer spacing */
+main > .container { min-height: calc(100vh - 64px - 40px); }
+
+/* Toast container */
+#toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1080; }
+.toast { border-radius: .5rem; }
+
+/* Subtle animations & helpers */
+.fade-in { animation: fadeIn .3s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.hover-lift { transition: transform .15s ease, box-shadow .15s ease; }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.05); }
+.xsmall { font-size: .78rem; }
+.text-truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Standard line clamp utility for compatibility */
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-clamp: 2; }
+
+/* Kanban */
+.kanban-column { min-height: 200px; border: 1px dashed rgba(0,0,0,.08); border-radius: .5rem; padding: .5rem; background: #fff; }
+.kanban-card { background: #fff; border: 1px solid rgba(0,0,0,.06); border-radius: .5rem; padding: .5rem .6rem; margin-bottom: .5rem; cursor: grab; }
+.kanban-card:active { cursor: grabbing; }
+.board-responsive .card { height: 100%; }
+
+/* Sidebar layout - dark theme */
+.sidebar-left {
+  background: var(--sidebar-bg);
+  min-height: calc(100vh - var(--navbar-h));
+  position: sticky;
+  top: var(--navbar-h);
+}
+.sidebar-inner { padding: 1rem; }
+.sidebar-inner { padding: .6rem .75rem; }
+.brand-chip { width: 28px; height: 28px; border-radius: .5rem; background: #0d6efd; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.sidebar-nav .nav-link { color: #cdd7e5; }
+.sidebar-link {
+  color: #cdd7e5;
+  border-radius: .5rem;
+}
+.sidebar-link:hover { background: #11263b; color: #ffffff; }
+.sidebar-link.active { background: #12304b; color: #ffffff; font-weight: 600; }
+.sidebar-link i { opacity: .95; }
+
+@media (max-width: 767.98px) {
+  .sidebar-left { position: relative; top: 0; min-height: auto; }
+}
+
+/* Hero section for reports */
+.hero-report {
+  background: radial-gradient(1200px 500px at 10% -10%, rgba(79,70,229,.35), transparent 60%),
+              linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
+}
+.hero-blob {
+  width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.6), rgba(255,255,255,.1));
+  filter: blur(2px); display: inline-block; transform: rotate(15deg);
+}
+
+/* Icon circle helper */
+.icon-circle { width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+.bg-indigo { background-color: var(--indigo) !important; }
+.bg-teal { background-color: var(--teal) !important; }
+
+/* Page header */
+.page-header { background: #ffffff; border: 1px solid #e9edf3; border-radius: .75rem; padding: .8rem 1rem; margin-bottom: .75rem; }
+.page-header .title { font-weight: 600; }
+.page-header .chip { display: inline-flex; align-items: center; gap: .5rem; background: #e7f1ff; color: #0b5ed7; padding: .25rem .6rem; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+
+/* Quick action cards */
+.quick-card { border: 1px solid #e9edf3; }
+.quick-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,.07); }
+.bg-amber { background-color: var(--amber) !important; }
+
+/* Colored Navbar that syncs with sidebar */
+.app-navbar {
+  background-color: var(--navbar-bg) !important;
+}
+.app-navbar { padding-top: .375rem; padding-bottom: .375rem; min-height: var(--navbar-h); position: sticky; top: 0; z-index: 1030; display: flex; align-items: center; margin-bottom: 0; }
+.app-navbar .navbar-brand,
+.app-navbar .nav-link,
+.app-navbar .dropdown-item,
+.app-navbar .navbar-text { color: var(--navbar-text) !important; }
+.app-navbar .nav-link:hover { color: #ffffff !important; }
+.app-navbar .dropdown-menu { border: 0; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+.app-navbar .dropdown-item:hover { background: rgba(255,255,255,.08); }
+.bg-amber { background-color: var(--amber) !important; }
