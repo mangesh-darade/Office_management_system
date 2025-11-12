@@ -10,6 +10,10 @@
         <?php endif; ?>
         <form method="post" novalidate>
           <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" name="name" class="form-control" placeholder="Your full name">
+          </div>
+          <div class="mb-3">
             <label class="form-label">Email</label>
             <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
           </div>

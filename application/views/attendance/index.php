@@ -29,16 +29,22 @@
                 $name = trim((isset($r->first_name) ? $r->first_name : '').' '.(isset($r->last_name) ? $r->last_name : ''));
               }
               if ($name === '') { $name = isset($r->email) && $r->email !== '' ? $r->email : '—'; }
+              // Schema-aware fields
+              $d = isset($r->att_date) ? $r->att_date : (isset($r->date) ? $r->date : '');
+              $cin = isset($r->punch_in) ? $r->punch_in : (isset($r->check_in) ? $r->check_in : '');
+              $cout = isset($r->punch_out) ? $r->punch_out : (isset($r->check_out) ? $r->check_out : '');
+              $notes = isset($r->notes) ? $r->notes : '';
+              $file = isset($r->attachment_path) ? $r->attachment_path : '';
             ?>
             <tr>
               <td><?php echo htmlspecialchars($name); ?></td>
-              <td><?php echo htmlspecialchars($r->date); ?></td>
-              <td><?php echo htmlspecialchars($r->check_in); ?></td>
-              <td><?php echo htmlspecialchars($r->check_out); ?></td>
-              <td><?php echo htmlspecialchars($r->notes); ?></td>
+              <td><?php echo htmlspecialchars($d); ?></td>
+              <td><?php echo htmlspecialchars($cin); ?></td>
+              <td><?php echo htmlspecialchars($cout); ?></td>
+              <td><?php echo htmlspecialchars($notes); ?></td>
               <td>
-                <?php if(!empty($r->attachment_path)): ?>
-                  <a class="btn btn-outline-secondary btn-sm" title="Download" href="<?php echo base_url($r->attachment_path); ?>" target="_blank"><i class="bi bi-download"></i></a>
+                <?php if(!empty($file)): ?>
+                  <a class="btn btn-outline-secondary btn-sm" title="Download" href="<?php echo base_url($file); ?>" target="_blank"><i class="bi bi-download"></i></a>
                 <?php else: ?>
                   <span class="text-muted">—</span>
                 <?php endif; ?>

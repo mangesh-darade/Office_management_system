@@ -19,7 +19,8 @@
       <form method="post" enctype="multipart/form-data" class="row g-3">
         <div class="col-12 col-md-4">
           <label class="form-label">Date</label>
-          <input type="date" name="date" class="form-control" value="<?php echo htmlspecialchars($att->date); ?>" required>
+          <?php $dateVal = isset($att->att_date) ? $att->att_date : (isset($att->date) ? $att->date : ''); ?>
+          <input type="date" name="date" class="form-control" value="<?php echo htmlspecialchars($dateVal); ?>" required>
         </div>
         <div class="col-6 col-md-4">
           <label class="form-label d-flex justify-content-between align-items-center">
@@ -27,7 +28,8 @@
             <button type="button" class="btn btn-sm btn-outline-primary" id="btnNowIn" title="Set to current time">Now</button>
           </label>
           <div class="input-group">
-            <input type="time" name="check_in" class="form-control" value="<?php echo htmlspecialchars($att->check_in); ?>">
+            <?php $inVal = isset($att->punch_in) ? $att->punch_in : (isset($att->check_in) ? $att->check_in : ''); ?>
+            <input type="time" name="check_in" class="form-control" value="<?php echo htmlspecialchars($inVal); ?>">
           </div>
         </div>
         <div class="col-6 col-md-4">
@@ -36,16 +38,17 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" id="btnNowOut" title="Set to current time">Now</button>
           </label>
           <div class="input-group">
-            <input type="time" name="check_out" class="form-control" value="<?php echo htmlspecialchars($att->check_out); ?>">
+            <?php $outVal = isset($att->punch_out) ? $att->punch_out : (isset($att->check_out) ? $att->check_out : ''); ?>
+            <input type="time" name="check_out" class="form-control" value="<?php echo htmlspecialchars($outVal); ?>">
           </div>
         </div>
         <div class="col-12">
           <label class="form-label">Notes</label>
-          <textarea name="notes" class="form-control" rows="3" placeholder="Any notes..."><?php echo htmlspecialchars($att->notes); ?></textarea>
+          <textarea name="notes" class="form-control" rows="3" placeholder="Any notes..."><?php echo htmlspecialchars(isset($att->notes) ? $att->notes : ''); ?></textarea>
         </div>
         <div class="col-12">
           <label class="form-label">Attachment</label>
-          <?php if(!empty($att->attachment_path)): ?>
+          <?php if(isset($att->attachment_path) && !empty($att->attachment_path)): ?>
             <div class="mb-2">
               <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url($att->attachment_path); ?>" target="_blank" title="View current file"><i class="bi bi-paperclip"></i> Current file</a>
             </div>
@@ -62,8 +65,8 @@
   <script>
     (function(){
       function pad(n){ return (n<10?'0':'')+n; }
-      function currentTimeStr(){ const d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
-      function tick(){ try { const d=new Date(); document.getElementById('liveClock').textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); } catch(e){} }
+      function currentTimeStr(){ var d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+      function tick(){ try { var d=new Date(); document.getElementById('liveClock').textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); } catch(e){} }
       document.addEventListener('DOMContentLoaded', function(){
         try { tick(); setInterval(tick, 1000); } catch(e){}
         var inEl = document.querySelector('input[name="check_in"]');

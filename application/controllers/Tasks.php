@@ -11,8 +11,85 @@ class Tasks extends CI_Controller {
     }
 
     public function index() {
-        $tasks = $this->Task_model->all();
-        $this->load->view('tasks/list', ['tasks' => $tasks]);
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = ($role_id === 1);
+
+        // Filters from GET
+        $project_filter = trim((string)$this->input->get('project_id'));
+        $assignee_filter = trim((string)$this->input->get('assigned_to'));
+        $status_filter = trim((string)$this->input->get('status'));
+        $priority_filter = trim((string)$this->input->get('priority'));
+
+        $this->db->from('tasks t');
+        $select = ['t.*'];
+        // Join projects for name if available
+        if ($this->db->table_exists('projects')) {
+            if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+            $this->db->join('projects p','p.id = t.project_id','left');
+        }
+        if ($this->db->table_exists('users')) {
+            $select[] = 'u.email AS assignee_email';
+            if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
+            if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+            $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+        }
+        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+            if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+            $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+        }
+        $this->db->select(implode(',', $select));
+        if (!$is_admin && $user_id) {
+            $this->db->where('t.assigned_to', $user_id);
+        }
+        // Apply filters
+        if ($project_filter !== '') { $this->db->where('t.project_id', (int)$project_filter); }
+        if ($is_admin && $assignee_filter !== '') { $this->db->where('t.assigned_to', (int)$assignee_filter); }
+        if ($status_filter !== '') { $this->db->where('t.status', $status_filter); }
+        if ($priority_filter !== '' && $this->db->field_exists('priority','tasks')) { $this->db->where('t.priority', $priority_filter); }
+        $this->db->order_by('t.id','DESC');
+        $tasks = $this->db->get()->result();
+
+        // Dropdown data
+        $projects = [];
+        if ($this->db->table_exists('projects')) {
+            $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result();
+        }
+        $assignees = [];
+        if ($is_admin) {
+            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                $sel = ['users.id','users.email'];
+                $hasEmpName3 = $this->db->field_exists('name','employees');
+                if ($hasEmpName3) { $sel[] = 'employees.name AS emp_name'; }
+                if ($this->db->field_exists('full_name','users')) { $sel[] = 'users.full_name'; }
+                if ($this->db->field_exists('name','users')) { $sel[] = 'users.name'; }
+                $this->db->select(implode(',', $sel))
+                         ->from('users')
+                         ->join('employees','employees.user_id = users.id','left');
+                if ($hasEmpName3) {
+                    $this->db->order_by('employees.name IS NULL ASC', '', false)
+                             ->order_by('employees.name','ASC');
+                }
+                $this->db->order_by('users.email','ASC');
+                $assignees = $this->db->get()->result();
+            } else if ($this->db->table_exists('users')) {
+                $sel = ['id','email'];
+                if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+                if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                $assignees = $this->db->select(implode(',', $sel))->from('users')->order_by('email','ASC')->get()->result();
+            }
+        }
+
+        $this->load->view('tasks/list', [
+            'tasks' => $tasks,
+            'is_admin' => $is_admin,
+            'projects' => $projects,
+            'assignees' => $assignees,
+            'filter_project_id' => $project_filter,
+            'filter_assigned_to' => $assignee_filter,
+            'filter_status' => $status_filter,
+            'filter_priority' => $priority_filter,
+        ]);
     }
 
     // GET /tasks/create, POST /tasks/create
@@ -53,6 +130,31 @@ class Tasks extends CI_Controller {
             }
             $this->db->insert('tasks', $data);
             $id = $this->db->insert_id();
+            $this->load->helper('activity');
+            log_activity('tasks', 'created', (int)$id, 'Task: '.(string)$data['title']);
+            // Auto reminder to assignee if set
+            if (isset($data['assigned_to']) && !empty($data['assigned_to'])){
+                $assignee_id = (int)$data['assigned_to'];
+                $email = '';
+                if ($this->db->table_exists('users')){
+                    $row = $this->db->select('email')->from('users')->where('id', $assignee_id)->get()->row();
+                    if ($row && isset($row->email)) { $email = $row->email; }
+                }
+                if ($email !== ''){
+                    $this->load->model('Reminder_model','reminders');
+                    $this->reminders->ensure_schema();
+                    $subject = 'Task assigned: '.(string)$data['title'];
+                    $body = 'You have been assigned a task: '.(string)$data['title'].'\n\nOpen: '.site_url('tasks/'.$id);
+                    $this->reminders->enqueue([
+                        'user_id' => $assignee_id,
+                        'email' => $email,
+                        'type' => 'task_assigned',
+                        'subject' => $subject,
+                        'body' => $body,
+                        'send_at' => date('Y-m-d H:i:00')
+                    ]);
+                }
+            }
             $this->session->set_flashdata('success', 'Task created');
             redirect('tasks/'.$id);
             return;
@@ -64,11 +166,12 @@ class Tasks extends CI_Controller {
             $select = ['users.id','users.email'];
             if ($this->db->field_exists('name','users')) { $select[] = 'users.name'; }
             if ($this->db->field_exists('full_name','users')) { $select[] = 'users.full_name'; }
-            if ($this->db->field_exists('name','employees')) { $select[] = 'employees.name AS emp_name'; }
+            $hasEmpName = $this->db->field_exists('name','employees');
+            if ($hasEmpName) { $select[] = 'employees.name AS emp_name'; }
             $this->db->select(implode(',', $select))
                      ->from('users')
                      ->join('employees','employees.user_id = users.id','left');
-            if ($this->db->field_exists('name','employees')) {
+            if ($hasEmpName) {
                 $this->db->order_by('employees.name IS NULL ASC', '', false)
                          ->order_by('employees.name','ASC');
             }
@@ -133,6 +236,8 @@ class Tasks extends CI_Controller {
                 }
             }
             $this->db->where('id', (int)$id)->update('tasks', $data);
+            $this->load->helper('activity');
+            log_activity('tasks', 'updated', (int)$id, 'Task: '.(string)$data['title']);
             $this->session->set_flashdata('success', 'Task updated');
             redirect('tasks/'.$id);
             return;
@@ -143,13 +248,16 @@ class Tasks extends CI_Controller {
             $select = ['users.id','users.email'];
             if ($this->db->field_exists('name','users')) { $select[] = 'users.name'; }
             if ($this->db->field_exists('full_name','users')) { $select[] = 'users.full_name'; }
-            if ($this->db->field_exists('name','employees')) { $select[] = 'employees.name AS emp_name'; }
+            $hasEmpName2 = $this->db->field_exists('name','employees');
+            if ($hasEmpName2) { $select[] = 'employees.name AS emp_name'; }
             $this->db->select(implode(',', $select))
                      ->from('users')
-                     ->join('employees','employees.user_id = users.id','left')
-                     ->order_by('employees.name IS NULL ASC', '', false)
-                     ->order_by('employees.name','ASC')
-                     ->order_by('users.email','ASC');
+                     ->join('employees','employees.user_id = users.id','left');
+            if ($hasEmpName2) {
+                $this->db->order_by('employees.name IS NULL ASC', '', false)
+                         ->order_by('employees.name','ASC');
+            }
+            $this->db->order_by('users.email','ASC');
             $users = $this->db->get()->result();
         } else {
             $userSelect = ['id','email'];
@@ -167,6 +275,8 @@ class Tasks extends CI_Controller {
     public function delete($id)
     {
         $this->db->where('id', (int)$id)->delete('tasks');
+        $this->load->helper('activity');
+        log_activity('tasks', 'deleted', (int)$id, 'Task deleted');
         $this->session->set_flashdata('success', 'Task deleted');
         redirect('tasks');
     }
@@ -192,6 +302,8 @@ class Tasks extends CI_Controller {
             return $this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Invalid input']));
         }
         $this->db->where('id',$id)->update('tasks',['status'=>$status]);
+        $this->load->helper('activity');
+        log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$status);
         return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true]));
     }
 
@@ -229,5 +341,81 @@ class Tasks extends CI_Controller {
             return;
         }
         $this->load->view('tasks/import');
+    }
+
+    // POST /tasks/{task_id}/comment
+    public function add_comment($task_id)
+    {
+        $task_id = (int)$task_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        if (!$user_id) { redirect('login'); return; }
+        if ($this->input->method() !== 'post') { show_404(); }
+
+        $task = $this->db->where('id', $task_id)->get('tasks')->row();
+        if (!$task) { show_404(); }
+        $comment = trim((string)$this->input->post('comment'));
+        if ($comment === '') {
+            $this->session->set_flashdata('error', 'Comment cannot be empty.');
+            redirect('tasks/'.$task_id);
+            return;
+        }
+        $this->Task_model->add_comment($task_id, $user_id, $comment);
+        $this->load->helper('activity');
+        log_activity('tasks', 'commented', (int)$task_id, mb_substr($comment, 0, 120));
+
+        // Notify assignee if exists and not self
+        if (isset($task->assigned_to) && (int)$task->assigned_to > 0 && (int)$task->assigned_to !== $user_id && $this->db->table_exists('notifications')) {
+            $this->db->insert('notifications', [
+                'user_id' => (int)$task->assigned_to,
+                'type' => 'task_assigned',
+                'title' => 'New comment on task #'.$task_id,
+                'body' => mb_substr($comment, 0, 200),
+                'channel' => 'in_app',
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+        }
+
+        $this->session->set_flashdata('success', 'Comment added.');
+        redirect('tasks/'.$task_id);
+    }
+
+    // GET /tasks/{task_id}/comments (AJAX JSON)
+    public function get_comments($task_id)
+    {
+        $task_id = (int)$task_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        if (!$user_id) { $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'unauthorized'])); return; }
+        $task = $this->db->where('id', $task_id)->get('tasks')->row();
+        if (!$task) { $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'not_found'])); return; }
+        $rows = $this->Task_model->get_task_comments($task_id);
+        $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true,'comments'=>$rows]));
+    }
+
+    // POST /tasks/comment/{comment_id}/delete or GET mapped route
+    public function delete_comment($comment_id)
+    {
+        $comment_id = (int)$comment_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!$user_id) { redirect('login'); return; }
+
+        // If admin, allow delete unconditionally
+        if ($role_id === 1) {
+            $this->db->where('id', $comment_id)->delete('task_comments');
+            $this->session->set_flashdata('success', 'Comment deleted.');
+            // Try to redirect back to task if known
+            $ref = $this->input->get('ref');
+            if ($ref) { redirect($ref); return; }
+            redirect('tasks');
+            return;
+        }
+
+        // Owner-only delete
+        $ok = $this->Task_model->delete_comment($comment_id, $user_id);
+        if ($ok) { $this->session->set_flashdata('success', 'Comment deleted.'); }
+        else { $this->session->set_flashdata('error', 'Cannot delete this comment.'); }
+        $ref = $this->input->get('ref');
+        if ($ref) { redirect($ref); return; }
+        redirect('tasks');
     }
 }

@@ -28,6 +28,8 @@ class Projects extends CI_Controller {
             ];
             $this->db->insert('projects', $data);
             $id = $this->db->insert_id();
+            $this->load->helper('activity');
+            log_activity('projects', 'created', (int)$id, 'Project: '.(string)$data['name']);
             $this->session->set_flashdata('success', 'Project created');
             redirect('projects/'.$id);
             return;
@@ -57,6 +59,8 @@ class Projects extends CI_Controller {
                 'end_date' => $this->input->post('end_date') ?: null,
             ];
             $this->db->where('id', (int)$id)->update('projects', $data);
+            $this->load->helper('activity');
+            log_activity('projects', 'updated', (int)$id, 'Project: '.(string)$data['name']);
             $this->session->set_flashdata('success', 'Project updated');
             redirect('projects/'.$id);
             return;
@@ -68,6 +72,8 @@ class Projects extends CI_Controller {
     public function delete($id)
     {
         $this->db->where('id', (int)$id)->delete('projects');
+        $this->load->helper('activity');
+        log_activity('projects', 'deleted', (int)$id, 'Project deleted');
         $this->session->set_flashdata('success', 'Project deleted');
         redirect('projects');
     }
@@ -103,5 +109,90 @@ class Projects extends CI_Controller {
             return;
         }
         $this->load->view('projects/import');
+    }
+
+    // GET /projects/{id}/members
+    public function manage_members($project_id)
+    {
+        $project_id = (int)$project_id;
+        $project = $this->db->where('id', $project_id)->get('projects')->row();
+        if (!$project) { show_404(); }
+
+        // Fetch members
+        $this->load->model('Project_model');
+        $members = $this->Project_model->get_project_members($project_id);
+
+        // Basic search for adding members
+        $q = trim((string)$this->input->get('q'));
+        $users = [];
+        if ($q !== ''){
+            $this->db->select('id, email');
+            if ($this->db->field_exists('name','users')) { $this->db->select('name'); }
+            $this->db->from('users');
+            $this->db->group_start()
+                     ->like('email', $q)
+                     ->or_like('name', $q)
+                     ->group_end()
+                     ->order_by('email','ASC');
+            $users = $this->db->get()->result();
+        }
+
+        $this->load->view('projects/members', [
+            'project' => $project,
+            'members' => $members,
+            'users' => $users,
+            'q' => $q,
+        ]);
+    }
+
+    // POST /projects/{id}/add-member
+    public function add_member($project_id)
+    {
+        $project_id = (int)$project_id;
+        $user_id = (int)$this->input->post('user_id');
+        $role = trim((string)$this->input->post('role')) ?: 'member';
+        if (!$user_id) { $this->session->set_flashdata('error', 'Select a user.'); redirect('projects/'.$project_id.'/members'); return; }
+
+        $this->load->model('Project_model');
+        $ok = $this->Project_model->add_member($project_id, $user_id, $role);
+        if ($ok) { $this->load->helper('activity'); log_activity('projects', 'assigned', $project_id, 'Added member user#'.$user_id.' as '.$role); }
+        if ($ok) { $this->session->set_flashdata('success', 'Member added.'); }
+        else { $this->session->set_flashdata('error', 'Failed to add member.'); }
+        redirect('projects/'.$project_id.'/members');
+    }
+
+    // POST /projects/{id}/remove-member/{user_id}
+    public function remove_member($project_id, $user_id)
+    {
+        $project_id = (int)$project_id; $user_id = (int)$user_id;
+        // Allow only admin or project creator (if column exists)
+        $role_id = (int)$this->session->userdata('role_id');
+        if ($role_id !== 1) {
+            $project = $this->db->where('id', $project_id)->get('projects')->row();
+            if (!$project) { show_404(); }
+            if ($this->db->field_exists('created_by','projects')){
+                $me = (int)$this->session->userdata('user_id');
+                if ((int)$project->created_by !== $me) { show_error('Forbidden', 403); }
+            }
+        }
+        $this->load->model('Project_model');
+        $ok = $this->Project_model->remove_member($project_id, $user_id);
+        if ($ok) { $this->load->helper('activity'); log_activity('projects', 'updated', $project_id, 'Removed member user#'.$user_id); }
+        if ($ok) { $this->session->set_flashdata('success', 'Member removed.'); }
+        else { $this->session->set_flashdata('error', 'Failed to remove member.'); }
+        redirect('projects/'.$project_id.'/members');
+    }
+
+    // POST /projects/{id}/member/{user_id}/role
+    public function update_member_role($project_id, $user_id)
+    {
+        $project_id = (int)$project_id; $user_id = (int)$user_id;
+        $role = trim((string)$this->input->post('role')) ?: 'member';
+        $this->load->model('Project_model');
+        $ok = $this->Project_model->update_member_role($project_id, $user_id, $role);
+        if ($ok) { $this->load->helper('activity'); log_activity('projects', 'updated', $project_id, 'Changed role of user#'.$user_id.' to '.$role); }
+        if ($ok) { $this->session->set_flashdata('success', 'Role updated.'); }
+        else { $this->session->set_flashdata('error', 'Failed to update role.'); }
+        redirect('projects/'.$project_id.'/members');
     }
 }

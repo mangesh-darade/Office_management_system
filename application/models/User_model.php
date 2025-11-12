@@ -53,7 +53,12 @@ class User_model extends CI_Model {
     }
 
     public function delete($id){
-        $this->db->where('id', (int)$id);
-        return $this->db->delete($this->table);
+        // Prefer soft delete to avoid FK constraint errors
+        if ($this->db->field_exists('status', $this->table)){
+            $this->db->where('id', (int)$id);
+            return $this->db->update($this->table, array('status' => 'inactive'));
+        }
+        // If no status column, do not hard-delete to avoid FK crashes
+        return false;
     }
 }

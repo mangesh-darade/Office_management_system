@@ -24,19 +24,37 @@ class Employees extends CI_Controller {
     public function create()
     {
         if ($this->input->method() === 'post') {
+            $dept_id = $this->input->post('department_id');
+            $desg_id = $this->input->post('designation_id');
+            $dept_name = trim($this->input->post('department'));
+            $desg_name = trim($this->input->post('designation'));
+            if ($dept_id && $this->db->table_exists('departments')){
+                $d = $this->db->select('dept_name')->from('departments')->where('id', (int)$dept_id)->get()->row();
+                if ($d) { $dept_name = $d->dept_name; }
+            }
+            if ($desg_id && $this->db->table_exists('designations')){
+                $d = $this->db->select('designation_name')->from('designations')->where('id', (int)$desg_id)->get()->row();
+                if ($d) { $desg_name = $d->designation_name; }
+            }
             $payload = [
                 'user_id' => (int)$this->input->post('user_id'),
                 'emp_code' => trim($this->input->post('emp_code')),
                 'first_name' => trim($this->input->post('first_name')),
                 'last_name' => trim($this->input->post('last_name')),
-                'department' => trim($this->input->post('department')),
-                'designation' => trim($this->input->post('designation')),
+                'department' => $dept_name,
+                'designation' => $desg_name,
                 'reporting_to' => $this->input->post('reporting_to') !== '' ? (int)$this->input->post('reporting_to') : null,
                 'employment_type' => $this->input->post('employment_type') ?: 'full_time',
                 'join_date' => $this->input->post('join_date') ?: null,
                 'phone' => trim($this->input->post('phone')),
             ];
             $id = $this->Employee_model->create($payload);
+            $this->load->helper('activity');
+            $fn = isset($payload['first_name']) ? $payload['first_name'] : '';
+            $ln = isset($payload['last_name']) ? $payload['last_name'] : '';
+            $name = trim($fn.' '.$ln);
+            $desc = $name !== '' ? ('Employee: '.$name) : ('Employee code: '.$payload['emp_code']);
+            log_activity('employees', 'created', (int)$id, $desc);
             $this->session->set_flashdata('success', 'Employee created');
             redirect('employees/'.$id);
             return;
@@ -59,18 +77,36 @@ class Employees extends CI_Controller {
         if (!$employee) show_404();
 
         if ($this->input->method() === 'post') {
+            $dept_id = $this->input->post('department_id');
+            $desg_id = $this->input->post('designation_id');
+            $dept_name = trim($this->input->post('department'));
+            $desg_name = trim($this->input->post('designation'));
+            if ($dept_id && $this->db->table_exists('departments')){
+                $d = $this->db->select('dept_name')->from('departments')->where('id', (int)$dept_id)->get()->row();
+                if ($d) { $dept_name = $d->dept_name; }
+            }
+            if ($desg_id && $this->db->table_exists('designations')){
+                $d = $this->db->select('designation_name')->from('designations')->where('id', (int)$desg_id)->get()->row();
+                if ($d) { $desg_name = $d->designation_name; }
+            }
             $payload = [
                 'emp_code' => trim($this->input->post('emp_code')),
                 'first_name' => trim($this->input->post('first_name')),
                 'last_name' => trim($this->input->post('last_name')),
-                'department' => trim($this->input->post('department')),
-                'designation' => trim($this->input->post('designation')),
+                'department' => $dept_name,
+                'designation' => $desg_name,
                 'reporting_to' => $this->input->post('reporting_to') !== '' ? (int)$this->input->post('reporting_to') : null,
                 'employment_type' => $this->input->post('employment_type') ?: 'full_time',
                 'join_date' => $this->input->post('join_date') ?: null,
                 'phone' => trim($this->input->post('phone')),
             ];
             $this->Employee_model->update((int)$id, $payload);
+            $this->load->helper('activity');
+            $fn = isset($payload['first_name']) ? $payload['first_name'] : '';
+            $ln = isset($payload['last_name']) ? $payload['last_name'] : '';
+            $name = trim($fn.' '.$ln);
+            $desc = $name !== '' ? ('Employee: '.$name) : ('Employee #'.(int)$id);
+            log_activity('employees', 'updated', (int)$id, $desc);
             $this->session->set_flashdata('success', 'Employee updated');
             redirect('employees/'.$id);
             return;
@@ -82,6 +118,8 @@ class Employees extends CI_Controller {
     public function delete($id)
     {
         $this->Employee_model->delete((int)$id);
+        $this->load->helper('activity');
+        log_activity('employees', 'deleted', (int)$id, 'Employee deleted');
         $this->session->set_flashdata('success', 'Employee deleted');
         redirect('employees');
     }
@@ -128,6 +166,8 @@ class Employees extends CI_Controller {
                     $inserted++;
                 }
             }
+            $this->load->helper('activity');
+            log_activity('employees', 'created', null, 'Imported '.$inserted.' employees');
             $this->session->set_flashdata('success', "Imported $inserted employees");
             redirect('employees');
             return;

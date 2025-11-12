@@ -35,17 +35,26 @@ class Attendance extends CI_Controller {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
 
-            $data = [
-                'user_id' => $user_id,
-                'date' => $this->input->post('date') ?: date('Y-m-d'),
-                'check_in' => $this->input->post('check_in') ?: null,
-                'check_out' => $this->input->post('check_out') ?: null,
-                'notes' => trim($this->input->post('notes') ?: ''),
-                'attachment_path' => null,
-            ];
+            // Map to schema columns (supports both legacy and installer schema)
+            $col_date = $this->db->field_exists('att_date','attendance') ? 'att_date' : 'date';
+            $col_in   = $this->db->field_exists('punch_in','attendance') ? 'punch_in' : 'check_in';
+            $col_out  = $this->db->field_exists('punch_out','attendance') ? 'punch_out' : 'check_out';
+
+            $data = [ 'user_id' => $user_id ];
+            $data[$col_date] = $this->input->post('date') ?: date('Y-m-d');
+            $data[$col_in]   = $this->input->post('check_in') ?: null;
+            $data[$col_out]  = $this->input->post('check_out') ?: null;
+
+            // Optional columns if present in schema
+            if ($this->db->field_exists('notes','attendance')) {
+                $data['notes'] = trim($this->input->post('notes') ?: '');
+            }
+            if ($this->db->field_exists('attachment_path','attendance')) {
+                $data['attachment_path'] = null;
+            }
 
             // Handle attachment upload (optional)
-            if (!empty($_FILES['attachment']['name'])) {
+            if ($this->db->field_exists('attachment_path','attendance') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/attendance/';
                 if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
                 $config = [
@@ -65,9 +74,19 @@ class Attendance extends CI_Controller {
                 }
             }
 
-            // Persist
-            $this->db->insert('attendance', $data);
-            $this->session->set_flashdata('success', 'Attendance saved');
+            // Persist (upsert-like): if a record for this user+date exists, update instead of insert
+            $this->db->from('attendance')
+                     ->where('user_id', (int)$user_id)
+                     ->where($col_date, $data[$col_date])
+                     ->limit(1);
+            $existing = $this->db->get()->row();
+            if ($existing) {
+                $this->db->where('id', (int)$existing->id)->update('attendance', $data);
+                $this->session->set_flashdata('success', 'Attendance updated for existing date');
+            } else {
+                $this->db->insert('attendance', $data);
+                $this->session->set_flashdata('success', 'Attendance saved');
+            }
             redirect('attendance');
             return;
         }
@@ -80,14 +99,19 @@ class Attendance extends CI_Controller {
         $att = $this->db->where('id', (int)$id)->get('attendance')->row();
         if (!$att) { show_404(); }
         if ($this->input->method() === 'post') {
-            $data = [
-                'date' => $this->input->post('date') ?: $att->date,
-                'check_in' => $this->input->post('check_in') ?: null,
-                'check_out' => $this->input->post('check_out') ?: null,
-                'notes' => trim($this->input->post('notes') ?: ''),
-            ];
+            $col_date = $this->db->field_exists('att_date','attendance') ? 'att_date' : 'date';
+            $col_in   = $this->db->field_exists('punch_in','attendance') ? 'punch_in' : 'check_in';
+            $col_out  = $this->db->field_exists('punch_out','attendance') ? 'punch_out' : 'check_out';
+
+            $data = [];
+            $data[$col_date] = $this->input->post('date') ?: (isset($att->$col_date) ? $att->$col_date : date('Y-m-d'));
+            $data[$col_in]   = $this->input->post('check_in') ?: null;
+            $data[$col_out]  = $this->input->post('check_out') ?: null;
+            if ($this->db->field_exists('notes','attendance')) {
+                $data['notes'] = trim($this->input->post('notes') ?: '');
+            }
             // Optional new attachment
-            if (!empty($_FILES['attachment']['name'])) {
+            if ($this->db->field_exists('attachment_path','attendance') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/attendance/';
                 if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
                 $config = [

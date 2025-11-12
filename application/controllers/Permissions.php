@@ -8,6 +8,26 @@ class Permissions extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','form']);
         $this->load->library(['session']);
+        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        // Admin only
+        $role_id = (int)$this->session->userdata('role_id');
+        if ($role_id !== 1) { show_error('You do not have permission to access this page.', 403); }
+        $this->ensure_schema();
+    }
+
+    private function ensure_schema()
+    {
+        if (!$this->db->table_exists('permissions')) {
+            $sql = "CREATE TABLE `permissions` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `role_id` int(11) NOT NULL,
+                `module` varchar(100) NOT NULL,
+                `can_access` tinyint(1) NOT NULL DEFAULT '0',
+                PRIMARY KEY (`id`),
+                KEY `idx_role_module` (`role_id`,`module`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $this->db->query($sql);
+        }
     }
 
     private function roles()
@@ -24,42 +44,38 @@ class Permissions extends CI_Controller {
     private function modules()
     {
         return [
-            'dashboard'    => 'Dashboard',
-            'employees'    => 'Employees',
-            'projects'     => 'Projects',
-            'tasks'        => 'Tasks',
-            'attendance'   => 'Attendance',
-            'leaves'       => 'Leaves',
-            'notifications'=> 'Notifications',
-            'reports'      => 'Reports',
-            'permissions'  => 'Permission Manager',
+            'dashboard'      => 'Dashboard',
+            'employees'      => 'Employees',
+            'projects'       => 'Projects',
+            'tasks'          => 'Tasks',
+            'attendance'     => 'Attendance',
+            'leaves'         => 'Leaves',
+            'notifications'  => 'Notifications',
+            'reports'        => 'Reports',
+            'departments'    => 'Departments',
+            'designations'   => 'Designations',
+            'timesheets'     => 'Timesheets',
+            'announcements'  => 'Announcements',
+            'settings'       => 'Settings',
+            'activity'       => 'Activity Logs',
+            'permissions'    => 'Permission Manager',
             // Chat related
-            'chats'        => 'Chats',
+            'chats'          => 'Chats',
             'chats.grouping' => 'Chat Grouping',
-            'calls'        => 'Calls',
+            'calls'          => 'Calls',
             // Back-compat if previously stored as 'chat'
-            'chat'         => 'Chat (legacy key)',
+            'chat'           => 'Chat (legacy key)',
         ];
     }
 
     public function index()
     {
-        // Only allow Manager (2) and Lead (3) as per AuthHook default
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [2,3], true)) {
-            show_error('You do not have permission to access this page.', 403);
-        }
-
-        if (!$this->db->table_exists('permissions')) {
-            $this->session->set_flashdata('error', 'Permissions table does not exist. Please run the provided SQL to create it.');
-        }
+        // Admin-only enforced in __construct
 
         $existing = [];
-        if ($this->db->table_exists('permissions')) {
-            $res = $this->db->get('permissions')->result();
-            foreach ($res as $row) {
-                $existing[(int)$row->role_id][strtolower($row->module)] = (int)$row->can_access;
-            }
+        $res = $this->db->get('permissions')->result();
+        foreach ($res as $row) {
+            $existing[(int)$row->role_id][strtolower($row->module)] = (int)$row->can_access;
         }
 
         $data = [
@@ -72,15 +88,7 @@ class Permissions extends CI_Controller {
 
     public function save()
     {
-        // Only allow Manager (2) and Lead (3)
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [2,3], true)) {
-            show_error('You do not have permission to perform this action.', 403);
-        }
-
-        if (!$this->db->table_exists('permissions')) {
-            show_error('Permissions table is missing. Create it first.', 500);
-        }
+        // Admin-only enforced in __construct
 
         $roles = $this->roles();
         $modules = $this->modules();
@@ -105,3 +113,4 @@ class Permissions extends CI_Controller {
         redirect('permissions');
     }
 }
+

@@ -47,6 +47,7 @@ class Auth extends CI_Controller {
 
     public function register(){
         if ($this->input->method() === 'post') {
+            $full_name = trim($this->input->post('name'));
             $email = trim($this->input->post('email'));
             $password = (string)$this->input->post('password');
             $role_id = (int)$this->input->post('role_id');
@@ -61,13 +62,29 @@ class Auth extends CI_Controller {
                 redirect('auth/register');
                 return;
             }
-            $id = $this->User_model->create([
+            $data = array(
                 'email' => $email,
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
                 'role_id' => $role_id,
                 'status' => 'active',
                 'created_at' => date('Y-m-d H:i:s')
-            ]);
+            );
+            // Attempt to persist name into available schema fields
+            if ($full_name !== ''){
+                // If single 'name' column exists
+                if ($this->db->field_exists('name','users')) { $data['name'] = $full_name; }
+                // Else try first_name/last_name split if present
+                else if ($this->db->field_exists('first_name','users') || $this->db->field_exists('last_name','users')) {
+                    $parts = preg_split('/\s+/', $full_name);
+                    $first = isset($parts[0]) ? $parts[0] : '';
+                    $last = '';
+                    if (count($parts) > 1) { $last = trim(implode(' ', array_slice($parts, 1))); }
+                    if ($this->db->field_exists('first_name','users')) { $data['first_name'] = $first; }
+                    if ($this->db->field_exists('last_name','users')) { $data['last_name'] = $last; }
+                    if ($this->db->field_exists('full_name','users')) { $data['full_name'] = $full_name; }
+                }
+            }
+            $id = $this->User_model->create($data);
             $this->session->set_flashdata('success', 'Account created. Please login.');
             redirect('auth/login');
             return;
