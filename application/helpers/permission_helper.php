@@ -19,6 +19,7 @@ if (!function_exists('has_module_access')) {
             'notifications' => [1,2,3,4],
             'reports'   => [1,2,3],
             'permissions' => [1],
+            'db' => [1],
             // Client requirements suite
             'clients' => [1,2,3],
             'requirements' => [1,2,3],

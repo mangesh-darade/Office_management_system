@@ -166,6 +166,15 @@ $route['settings/update'] = 'settings/update';
 $route['settings/upload-logo'] = 'settings/upload_logo';
 $route['settings/test-email'] = 'settings/test_email';
 
+// DB Manager (MVC + AJAX)
+$route['db'] = 'db/index';
+$route['db/queries/list'] = 'db/list_queries';
+$route['db/queries/save'] = 'db/save_query';
+$route['db/queries/update/(:num)'] = 'db/update_query/$1';
+$route['db/queries/delete/(:num)'] = 'db/delete_query/$1';
+$route['db/queries/export/(:num)'] = 'db/export_saved_query/$1';
+$route['db/queries/export-bulk'] = 'db/export_bulk_saved_queries';
+
 // Timesheets
 $route['timesheets'] = 'timesheets/index';
 $route['timesheets/submit'] = 'timesheets/submit';

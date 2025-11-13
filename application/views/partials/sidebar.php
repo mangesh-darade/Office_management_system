@@ -50,6 +50,9 @@ if (!(int)$this->session->userdata('user_id')) {
       if(function_exists('has_module_access') && has_module_access('permissions')): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
+      <?php if(has_module_access('db')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='db'?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
+      <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permissions</a>
       <?php if(has_module_access('settings')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>Settings</a>

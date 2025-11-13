@@ -54,6 +54,7 @@ class AuthHook {
             'notifications' => [1,2,3,4],
             'reports'   => [1,2,3],   // admin, hr, lead
             'permissions' => [2,3],   // HR/Manager (2) and Lead (3)
+            'db'        => [1],
             'chats'     => [1,2,3,4], // all roles (default)
             'calls'     => [1,2,3,4], // all roles (default)
         ];
