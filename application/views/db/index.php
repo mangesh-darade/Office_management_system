@@ -1,7 +1,10 @@
 <?php $this->load->view('partials/header', ['title' => 'DB Manager']); ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">DB Manager</h1>
-  <a class="btn btn-secondary btn-sm" href="<?php echo site_url('dashboard'); ?>">Back</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary btn-sm" href="<?php echo site_url('db/compare'); ?>">DB Compare</a>
+    <a class="btn btn-secondary btn-sm" href="<?php echo site_url('dashboard'); ?>">Back</a>
+  </div>
 </div>
 <?php if (!has_module_access('db')) { echo '<div class="alert alert-danger">Forbidden</div>'; $this->load->view('partials/footer'); return; } ?>
 <?php if ($error): ?>
@@ -289,6 +292,44 @@
     </div>
   </div>
 </div>
+
+<!-- DB Compare Modal (fullscreen) -->
+<div class="modal fade" id="compareModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">DB Compare with SQL File</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="container-fluid">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">SQL File Path</label>
+              <input class="form-control" id="cmpFilePath" placeholder="C:\\path\\to\\dump.sql" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Target Database (name)</label>
+              <input class="form-control" id="cmpDatabase" placeholder="database_name" />
+            </div>
+          </div>
+          <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-outline-primary" id="btnScanDiff">Scan Differences</button>
+            <button class="btn btn-success" id="btnMergeAll" disabled>Merge Missing (Create/Add)</button>
+          </div>
+          <hr />
+          <div id="cmpResults">
+            <div class="text-muted">Run a scan to see differences.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 function addCol(){
   var container = document.getElementById('cols');
@@ -337,6 +378,37 @@ function showToast(msg, variant){
 // Global loader helpers
 function showLoader(){ try{ var el=document.getElementById('globalLoader'); if (el) el.hidden=false; }catch(e){} }
 function hideLoader(){ try{ var el=document.getElementById('globalLoader'); if (el) el.hidden=true; }catch(e){} }
+// DB Compare modal open/fill
+(function(){
+  var btn = document.getElementById('btnDbCompare');
+  var modalEl = document.getElementById('compareModal');
+  function prefill(){
+    try{
+      var fp = document.getElementById('sqlFilePath');
+      var dbNameEl = document.getElementById('fileDbName');
+      var inFile = document.getElementById('cmpFilePath');
+      var inDb = document.getElementById('cmpDatabase');
+      if (inFile && fp) inFile.value = fp.value || '';
+      if (inDb) inDb.value = (dbNameEl && dbNameEl.textContent) ? dbNameEl.textContent : '';
+    }catch(e){}
+  }
+  // Prefill when modal is about to show (Bootstrap)
+  if (modalEl){ modalEl.addEventListener('show.bs.modal', prefill); }
+  // Fallback: if Bootstrap JS isn't present, manually show on click and prefill
+  if (btn){ btn.addEventListener('click', function(e){
+    if (!(window.bootstrap && window.bootstrap.Modal)){
+      e.preventDefault();
+      prefill();
+      try{
+        modalEl.classList.add('show');
+        modalEl.style.display = 'block';
+        modalEl.removeAttribute('aria-hidden');
+        // rudimentary backdrop
+        var bd = document.createElement('div'); bd.className='modal-backdrop fade show'; document.body.appendChild(bd);
+      }catch(err){}
+    }
+  }); }
+})();
 // Row actions: Show and Edit
 // AJAX DataTable for saved queries
 (function(){
@@ -441,7 +513,12 @@ function hideLoader(){ try{ var el=document.getElementById('globalLoader'); if (
       document.getElementById('showSql').textContent = sql;
       document.getElementById('showExportLink').href = '<?php echo site_url('db/queries/export/'); ?>'+id;
       var copyBtn = document.getElementById('showCopyBtn');
-      if (copyBtn){ copyBtn.onclick = function(){ var text = document.getElementById('showSql').textContent || ''; try{ navigator.clipboard.writeText(text); showToast('Query copied'); }catch(e){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); showToast('Query copied'); }catch(e2){} document.body.removeChild(ta);} }; }
+      if (copyBtn){
+        copyBtn.onclick = function(){
+          var text = document.getElementById('showSql').textContent || '';
+          try{ navigator.clipboard.writeText(text); showToast('Query copied'); }catch(e){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); showToast('Query copied'); }catch(e2){} document.body.removeChild(ta);}        
+        };
+      }
       try{ bsShow.show(); }catch(e){ showModal.style.display='block'; }
     }
     var btnEdit = ev.target.closest('#savedQueriesTable .btn-edit');
@@ -565,7 +642,7 @@ function hideLoader(){ try{ var el=document.getElementById('globalLoader'); if (
     });
   }
   // if (btnAppend){ btnAppend.addEventListener('click', function(e){ e.preventDefault(); var fp=(filePathInput&&filePathInput.value)||''; var db=(dbNameEl&&dbNameEl.textContent)||''; var creating = !!(createChk && createChk.checked); var tb = creating ? (newTableInput && newTableInput.value || '').trim() : (tableSel && tableSel.value || ''); var sql=(document.getElementById('fileSqlText').value||'').trim(); if (!fp||!sql){ showToast('File path and SQL required','danger'); return; } if (creating && !tb){ showToast('New table name required','danger'); return; } if (!creating && !tb){ showToast('Select a table or choose Create new','danger'); return; } showLoader(); var body = 'file_path='+encodeURIComponent(fp)+'&database='+encodeURIComponent(db)+'&table='+encodeURIComponent(tb)+'&sql_text='+encodeURIComponent(sql)+'&create_new='+(creating? '1':'0'); fetch('<?php echo site_url('db/append_to_sql_file'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body }).then(function(r){ return r.json(); }).then(function(j){ if (j && j.success){ showToast(creating ? 'Table created' : 'Appended'); document.getElementById('fileSqlText').value=''; if (creating){ try{ loadFile(); }catch(e){} } } else { showToast(j && j.message ? j.message : 'Failed','danger'); } }).catch(function(){ showToast('Failed','danger'); }).finally(function(){ hideLoader(); }); }); }
- if (btnAppend) {
+  if (btnAppend) {
   btnAppend.addEventListener('click', function (e) {
     e.preventDefault();
 
@@ -633,6 +710,55 @@ function hideLoader(){ try{ var el=document.getElementById('globalLoader'); if (
   });
 }
   if (filePathInput && filePathInput.value){ setTimeout(loadFile, 200); }
+})();
+
+// Compare Scan and Merge handlers
+(function(){
+  var btnScan = document.getElementById('btnScanDiff');
+  var btnMerge = document.getElementById('btnMergeAll');
+  var inputFile = document.getElementById('cmpFilePath');
+  var inputDb = document.getElementById('cmpDatabase');
+  var results = document.getElementById('cmpResults');
+  function renderOps(j){
+    if (!results) return;
+    if (!j || !j.success){ results.innerHTML = '<div class="text-danger">'+ (j && j.message ? j.message : 'Failed to scan') +'</div>'; return; }
+    var ops = j.ops||[];
+    if (!ops.length){ results.innerHTML = '<div class="alert alert-success">No differences. Schema is up to date.</div>'; btnMerge.disabled = true; return; }
+    btnMerge.disabled = false;
+    var html = [];
+    html.push('<div class="small text-muted mb-2">Database: '+ (j.database||'') +' • Operations: '+ops.length+'</div>');
+    html.push('<div class="list-group">');
+    ops.forEach(function(op, idx){
+      var title = op.type === 'create_table' ? ('Create table `'+op.table+'`') : ('Add column `'+op.column+'` to `'+op.table+'`');
+      html.push('<div class="list-group-item">');
+      html.push('<div class="fw-semibold">'+title+'</div>');
+      html.push('<pre class="bg-light border rounded p-2 small" style="white-space:pre-wrap">'+ (op.sql||'') +'</pre>');
+      html.push('</div>');
+    });
+    html.push('</div>');
+    results.innerHTML = html.join('');
+  }
+  if (btnScan){ btnScan.addEventListener('click', function(){
+    var fp = (inputFile && inputFile.value)||''; var db = (inputDb && inputDb.value)||'';
+    if (!fp || !db){ showToast('Provide file path and database','danger'); return; }
+    showLoader();
+    fetch('<?php echo site_url('db/compare/scan'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'file_path='+encodeURIComponent(fp)+'&database='+encodeURIComponent(db) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ renderOps(j); })
+      .catch(function(){ results && (results.innerHTML = '<div class="text-danger">Failed</div>'); })
+      .finally(function(){ hideLoader(); });
+  }); }
+  if (btnMerge){ btnMerge.addEventListener('click', function(){
+    var fp = (inputFile && inputFile.value)||''; var db = (inputDb && inputDb.value)||'';
+    if (!fp || !db){ showToast('Provide file path and database','danger'); return; }
+    if (!confirm('Apply all missing changes? This will CREATE tables and ADD columns.')) return;
+    showLoader();
+    fetch('<?php echo site_url('db/compare/merge'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'file_path='+encodeURIComponent(fp)+'&database='+encodeURIComponent(db) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if (j && j.success){ showToast('Applied '+(j.applied||0)+' change(s)'); } else { showToast((j&&j.message)||'Failed','danger'); } })
+      .catch(function(){ showToast('Failed','danger'); })
+      .finally(function(){ hideLoader(); });
+  }); }
 })();
 </script>
 <?php $this->load->view('partials/footer'); ?>

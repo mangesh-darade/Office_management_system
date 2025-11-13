@@ -170,10 +170,17 @@ $route['settings/test-email'] = 'settings/test_email';
 $route['db'] = 'db/index';
 $route['db/queries/list'] = 'db/list_queries';
 $route['db/queries/save'] = 'db/save_query';
-$route['db/queries/update/(:num)'] = 'db/update_query/$1';
-$route['db/queries/delete/(:num)'] = 'db/delete_query/$1';
-$route['db/queries/export/(:num)'] = 'db/export_saved_query/$1';
+$route['db/queries/update/(\d+)'] = 'db/update_query/$1';
+$route['db/queries/delete/(\d+)'] = 'db/delete_query/$1';
+$route['db/queries/export/(\d+)'] = 'db/export_saved_query/$1';
 $route['db/queries/export-bulk'] = 'db/export_bulk_saved_queries';
+$route['db/queries/revert/(\d+)'] = 'db/revert_query/$1';
+// DB Compare
+$route['db/compare'] = 'db/compare';
+$route['db/compare/scan'] = 'db/compare_scan';
+$route['db/compare/merge'] = 'db/compare_merge';
+$route['db/compare/update-file-missing'] = 'db/compare_update_file_missing';
+$route['db/databases'] = 'db/list_databases';
 
 // Timesheets
 $route['timesheets'] = 'timesheets/index';

@@ -11,6 +11,557 @@ class Db extends CI_Controller {
         $this->ensure_dm_manager_table();
     }
 
+    // POST: file_path, database, optional host/user/pass => append DB-only items to the SQL file
+    public function compare_update_file_missing(){
+        $file = (string)$this->input->post('file_path');
+        $dbName = trim((string)$this->input->post('database'));
+        $host = $this->input->post('host');
+        $port = $this->input->post('port');
+        $user = $this->input->post('user');
+        $pass = $this->input->post('pass');
+        if ($file === '' || $dbName === ''){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'File path and database are required']); return;
+        }
+        // Reuse scan logic to compute DB-only SQL
+        try {
+            if ($host && $user !== null){
+                $target = $this->connect_custom($host, $user, (string)$pass, $dbName, $port);
+            } else {
+                $target = $this->connect_to($dbName);
+            }
+        } catch (Exception $e){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to connect target DB: '.$e->getMessage()]); return;
+        }
+        // Parse file schema
+        $schema = $this->parse_sql_schema($file);
+        // Existing DB structure
+        $tables = [];
+        $tableNameMap = [];
+        $tableTypeMap = [];
+        $q = $target->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$dbName]);
+        foreach ($q->result() as $r){ $tables[strtolower($r->TABLE_NAME)] = true; $tableNameMap[strtolower($r->TABLE_NAME)] = $r->TABLE_NAME; $tableTypeMap[strtolower($r->TABLE_NAME)] = strtoupper((string)$r->TABLE_TYPE); }
+        $cols = [];
+        if (!empty($tables)){
+            $rs = $target->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$dbName]);
+            foreach ($rs->result() as $r){ $t = strtolower($r->TABLE_NAME); $c = strtolower($r->COLUMN_NAME); if (!isset($cols[$t])) $cols[$t] = []; $cols[$t][$c] = true; }
+        }
+        $fileTablesLower = [];
+        foreach ($schema['tables'] as $t => $meta){ $fileTablesLower[strtolower($t)] = $t; }
+        // Compute DB-only
+        $dbOnlyTables = [];
+        $dbOnlyColumns = [];
+        foreach ($tables as $tLower => $_){
+            if (!isset($fileTablesLower[$tLower])){
+                $dbOnlyTables[] = isset($tableNameMap[$tLower]) ? $tableNameMap[$tLower] : $tLower;
+                continue;
+            }
+            $meta = isset($schema['tables'][$fileTablesLower[$tLower]]) ? $schema['tables'][$fileTablesLower[$tLower]] : null;
+            $fileCols = $meta ? array_keys($meta['columns']) : [];
+            $fileColsMap = [];
+            foreach ($fileCols as $fc){ $fileColsMap[strtolower($fc)] = true; }
+            // Skip columns comparison for views
+            if (isset($tableTypeMap[$tLower]) && $tableTypeMap[$tLower] === 'VIEW'){ continue; }
+            $dbCols = isset($cols[$tLower]) ? array_keys($cols[$tLower]) : [];
+            foreach ($dbCols as $dc){ if (!isset($fileColsMap[$dc])) { $dbOnlyColumns[] = ['table' => (isset($tableNameMap[$tLower])?$tableNameMap[$tLower]:$fileTablesLower[$tLower]), 'column' => $dc]; } }
+        }
+        // Build SQL for DB-only items
+        $appendParts = [];
+        $tablesAdded = 0; $columnsAdded = 0;
+        foreach ($dbOnlyTables as $tblName){
+            try {
+                $res = $target->query('SHOW CREATE TABLE `'.$tblName.'`');
+                if ($res && $res->num_rows() > 0){
+                    $row = $res->row_array();
+                    $sqlCreate = '';
+                    if (isset($row['Create Table'])){ $sqlCreate = $row['Create Table']; }
+                    else { $vals = array_values($row); if (isset($vals[1])) $sqlCreate = $vals[1]; }
+                    if ($sqlCreate !== ''){ $appendParts[] = rtrim($sqlCreate, "; \r\n").";"; $tablesAdded++; }
+                }
+            } catch (Exception $e) { /* ignore */ }
+        }
+        foreach ($dbOnlyColumns as $it){
+            $tName = $it['table']; $cName = $it['column'];
+            try {
+                $ci = $target->query('SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1', [$dbName, $tName, $cName]);
+                if ($ci && $ci->num_rows() > 0){
+                    $row = $ci->row_array();
+                    // Skip generated columns as we cannot reconstruct the AS(...) expression from information_schema
+                    if (!empty($row['EXTRA']) && stripos($row['EXTRA'], 'GENERATED') !== false){
+                        continue;
+                    }
+                    $defParts = [];
+                    $defParts[] = '`'.$row['COLUMN_NAME'].'`';
+                    $defParts[] = $row['COLUMN_TYPE'];
+                    if (!empty($row['CHARACTER_SET_NAME'])){ $defParts[] = 'CHARACTER SET '.$row['CHARACTER_SET_NAME']; }
+                    if (!empty($row['COLLATION_NAME'])){ $defParts[] = 'COLLATE '.$row['COLLATION_NAME']; }
+                    $nullable = strtoupper($row['IS_NULLABLE']) === 'YES';
+                    $defParts[] = $nullable ? 'NULL' : 'NOT NULL';
+                    if (!is_null($row['COLUMN_DEFAULT'])){
+                        $def = $row['COLUMN_DEFAULT'];
+                        $upper = strtoupper($def);
+                        $isNumeric = is_numeric($def);
+                        $isFunc = in_array($upper, ['CURRENT_TIMESTAMP','CURRENT_TIMESTAMP()','NOW()'], true);
+                        if ($isFunc){ $defParts[] = 'DEFAULT '.$upper; }
+                        else if ($isNumeric){ $defParts[] = 'DEFAULT '.$def; }
+                        else if ($def === 'NULL'){ $defParts[] = 'DEFAULT NULL'; }
+                        else { $defParts[] = "DEFAULT '".str_replace("'","''", $def)."'"; }
+                    } else if ($nullable){ /* DEFAULT NULL optional */ }
+                    if (!empty($row['EXTRA'])){ $defParts[] = $row['EXTRA']; }
+                    $colDef = implode(' ', array_filter($defParts));
+                    $appendParts[] = 'ALTER TABLE `'.$tName.'` ADD COLUMN '.$colDef.';';
+                    $columnsAdded++;
+                }
+            } catch (Exception $e) { /* ignore */ }
+        }
+        if (empty($appendParts)){
+            header('Content-Type: application/json'); echo json_encode(['success'=>true,'tables'=>0,'columns'=>0,'message'=>'No DB-only items']); return;
+        }
+        // Append to file
+        $hdr = "\n\n-- Added by DB Compare on ".date('Y-m-d H:i:s')." for database `".$dbName."`\n";
+        $content = $hdr.implode("\n\n", $appendParts)."\n";
+        $ok = @file_put_contents($file, $content, FILE_APPEND|LOCK_EX);
+        if ($ok === false){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to write to file']); return; }
+        header('Content-Type: application/json'); echo json_encode(['success'=>true,'tables'=>$tablesAdded,'columns'=>$columnsAdded]); return;
+    }
+
+    private function normalize_column_def($def){
+        $s = trim((string)$def);
+        // Strip trailing comma if present
+        $s = preg_replace('/,\s*$/', '', $s);
+        // Replace zero-date defaults
+        $s = preg_replace(
+            '/\b(timestamp|datetime|date)\b\s+NOT\s+NULL\s+DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
+            '$1 NULL DEFAULT NULL',
+            $s
+        );
+        $s = preg_replace(
+            '/DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
+            'DEFAULT NULL',
+            $s
+        );
+        return $s;
+    }
+
+    // Build a conservative CREATE TABLE from parsed column defs as a fallback
+    private function build_create_sql_from_columns($table, $meta){
+        $cols = [];
+        if (isset($meta['columns']) && is_array($meta['columns'])){
+            foreach ($meta['columns'] as $c => $def){
+                $cols[] = $this->normalize_column_def($def);
+            }
+        }
+        // If we have an auto-increment id column but no explicit PK, add a primary key on id
+        $hasId = false; $hasPk = false;
+        foreach ($cols as $line){
+            if (preg_match('/^`?id`?\b/i', $line)){ $hasId = true; if (stripos($line,'auto_increment') !== false){ /* ok */ } }
+            if (preg_match('/^primary\s+key\b/i', $line)){ $hasPk = true; }
+        }
+        if ($hasId && !$hasPk){ $cols[] = 'PRIMARY KEY (`id`)'; }
+        $body = implode(",\n  ", $cols);
+        $sql = "CREATE TABLE `".$table."` (\n  ".$body."\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        return $sql;
+    }
+
+    // Build a custom DB connection with explicit server params
+    private function connect_custom($hostname, $username, $password, $database, $port = null){
+        $driver   = property_exists($this->db, 'dbdriver') ? $this->db->dbdriver : 'mysqli';
+        $char_set = property_exists($this->db, 'char_set') ? $this->db->char_set : 'utf8';
+        $dbcollat = property_exists($this->db, 'dbcollat') ? $this->db->dbcollat : 'utf8_general_ci';
+        $params = [
+            'hostname' => $hostname,
+            'username' => $username,
+            'password' => $password,
+            'database' => $database,
+            'dbdriver' => $driver,
+            'char_set' => $char_set,
+            'dbcollat' => $dbcollat,
+            'pconnect' => FALSE,
+            'db_debug' => (ENVIRONMENT !== 'production'),
+            'cache_on' => FALSE,
+            'cachedir' => '',
+            'save_queries' => TRUE,
+        ];
+        if (!empty($port)) { $params['port'] = (int)$port; }
+        return $this->load->database($params, TRUE);
+    }
+
+    // List available databases on the server (for dropdown)
+    public function list_databases(){
+        // Optional remote server params
+        $host = $this->input->post('host') ?: $this->input->get('host');
+        $port = $this->input->post('port') ?: $this->input->get('port');
+        $user = $this->input->post('user') ?: $this->input->get('user');
+        $pass = $this->input->post('pass') ?: $this->input->get('pass');
+        try {
+            if ($host && $user !== null){
+                $tmp = $this->connect_custom($host, $user, (string)$pass, '', $port);
+                $res = $tmp->query('SHOW DATABASES');
+            } else {
+                $res = $this->db->query('SHOW DATABASES');
+            }
+            $dbs = [];
+            foreach ($res->result_array() as $row){
+                $vals = array_values($row);
+                $name = isset($row['Database']) ? $row['Database'] : (isset($vals[0]) ? $vals[0] : '');
+                if ($name === '') continue;
+                // Exclude system schemas
+                if (in_array(strtolower($name), ['information_schema','mysql','performance_schema','sys'], true)) continue;
+                $dbs[] = $name;
+            }
+            sort($dbs, SORT_NATURAL|SORT_FLAG_CASE);
+            header('Content-Type: application/json'); echo json_encode(['success'=>true,'databases'=>$dbs]); return;
+        } catch (Exception $e){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); return;
+        }
+    }
+
+    // Parse CREATE TABLE blocks from a .sql file to extract database name, tables, and column definitions
+    private function parse_sql_schema($path){
+        $res = ['database'=>'', 'tables'=>[]];
+        if (!is_file($path)) { return $res; }
+        $fh = @fopen($path, 'r'); if (!$fh) { return $res; }
+        $currentTable = '';
+        $inCreate = false; $buffer = '';
+        while (!feof($fh)){
+            $line = fgets($fh);
+            if ($line === false) { break; }
+            $trim = rtrim($line, "\r\n");
+            if ($res['database'] === '' && preg_match('/^\s*--\s*Database:\s*`([^`]+)`/i', $trim, $m)){
+                $res['database'] = $m[1];
+            }
+            // Recognize phpMyAdmin section header to at least register table presence
+            if (!$inCreate && preg_match('/^\s*--\s*Table structure for table\s+`([^`]+)`/i', $trim, $hm)){
+                $tname = $hm[1];
+                if (!isset($res['tables'][$tname])){ $res['tables'][$tname] = ['columns'=>[], 'create_sql'=>'']; }
+            }
+            // Recognize DROP TABLE IF EXISTS [`db`.]`table` as a hint the table exists in file
+            if (!$inCreate && preg_match('/^\s*DROP\s+TABLE\s+IF\s+EXISTS\s+(?:`[^`]+`\.)?`?([A-Za-z0-9_]+)`?/i', $trim, $dm)){
+                $tname = $dm[1];
+                if (!isset($res['tables'][$tname])){ $res['tables'][$tname] = ['columns'=>[], 'create_sql'=>'']; }
+            }
+            // Recognize CREATE TABLE [IF NOT EXISTS] [`db`.]`table`
+            if (!$inCreate && preg_match('/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`[^`]+`\.)?`?([A-Za-z0-9_]+)`?/i', $trim, $m)){
+                $inCreate = true; $currentTable = $m[1]; $buffer = $line; if (!isset($res['tables'][$currentTable])){ $res['tables'][$currentTable] = ['columns'=>[], 'create_sql'=>'']; }
+                continue;
+            }
+            if ($inCreate){
+                $buffer .= $line;
+                // End of CREATE TABLE when we meet a line ending with ';'
+                if (strpos($trim, ';') !== false && preg_match('/\)\s*[^;]*;\s*$/', $trim)){
+                    // Extract column lines between first '(' and the closing ')'
+                    $inner = $buffer;
+                    $res['tables'][$currentTable]['create_sql'] = $buffer;
+                    $posOpen = strpos($inner, '(');
+                    $posClose = strrpos($inner, ')');
+                    if ($posOpen !== false && $posClose !== false && $posClose > $posOpen){
+                        $inside = substr($inner, $posOpen+1, $posClose-$posOpen-1);
+                        $lines = preg_split('/\r?\n/', $inside);
+                        foreach ($lines as $ln){
+                            $ln = trim($ln);
+                            if ($ln === '' || preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\s+|CONSTRAINT|FOREIGN\s+KEY|INDEX)\b/i',$ln)) { continue; }
+                            $ln = rtrim($ln, ",; ");
+                            if (preg_match('/^`?([A-Za-z_][A-Za-z0-9_]*)`?\s+(.+)$/', $ln, $mm)){
+                                $col = $mm[1];
+                                $res['tables'][$currentTable]['columns'][strtolower($col)] = $ln;
+                            }
+                        }
+                    }
+                    $inCreate = false; $currentTable = ''; $buffer = '';
+                }
+                continue;
+            }
+            // Also parse ALTER TABLE ... ADD COLUMN ... statements present anywhere in the file
+            if (!$inCreate){
+                // Recognize ALTER TABLE [`db`.]`table` ADD COLUMN ...;
+                if (preg_match('/^\s*ALTER\s+TABLE\s+(?:`[^`]+`\.)?`?([A-Za-z0-9_]+)`?\s+ADD\s+COLUMN\s+(.*?);\s*$/i', $trim, $am)){
+                    $t = $am[1];
+                    // Normalize single column add; ignore complex multiple add with commas until ';'
+                    $def = trim($am[2]);
+                    // If the ALTER includes multiple clauses (", ADD KEY ..."), cut at first top-level comma
+                    $defClean = $def; $paren=0; $inBack=false; $len = strlen($def);
+                    for ($i=0; $i<$len; $i++){
+                        $ch = $def[$i];
+                        if ($ch==='`'){ $inBack = !$inBack; continue; }
+                        if (!$inBack){
+                            if ($ch==='('){ $paren++; }
+                            elseif ($ch===')' && $paren>0){ $paren--; }
+                            elseif ($ch===',' && $paren===0){ $defClean = trim(substr($def,0,$i)); break; }
+                        }
+                    }
+                    $def = $defClean;
+                    // Skip if what remains is a key/index/constraint fragment
+                    if (preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\s+|CONSTRAINT|FOREIGN\s+KEY|INDEX)\b/i', $def)){
+                        continue;
+                    }
+                    // Extract column name from definition
+                    if (preg_match('/^`?([A-Za-z_][A-Za-z0-9_]*)`?\s+(.+)$/', $def, $cm)){
+                        $col = strtolower($cm[1]);
+                        if (!isset($res['tables'][$t])){ $res['tables'][$t] = ['columns'=>[], 'create_sql'=>'']; }
+                        $res['tables'][$t]['columns'][$col] = $def;
+                    }
+                }
+            }
+        }
+        fclose($fh);
+        return $res;
+    }
+
+    // Clean up CREATE TABLE SQL: remove inline -- comments and trailing comma before closing ) and ensure semicolon
+    private function normalize_create_sql($sql){
+        $s = (string)$sql;
+        // Normalize newlines
+        $s = str_replace("\r", '', $s);
+        // Remove block comments /* ... */ first
+        $s = preg_replace('/\/\*.*?\*\//s', '', $s);
+        // Remove inline comments that appear between comma-separated column defs: ", -- comment ... ," or ", -- comment ...)"
+        // Keep the comma (separator) while stripping the comment chunk until next comma or closing parenthesis
+        $s = preg_replace('/,\s*--.*?(?=,|\))/s', ',', $s);
+        // Remove any remaining -- comments to end of line (safe when true line breaks exist)
+        $s = preg_replace('/\s--.*$/m', '', $s);
+        // Collapse multiple spaces
+        $s = preg_replace('/[\t ]+/', ' ', $s);
+        // Remove trailing comma before closing parenthesis inside the definition (repeat a few times just in case)
+        for ($i=0; $i<3; $i++){
+            $s = preg_replace('/,\s*\)/', ')', $s);
+        }
+        // Also trim commas before ENGINE or options if malformed
+        $s = preg_replace('/,\s*(\)\s*ENGINE)/i', '$1', $s);
+        // Fix malformed extra parenthesis after GENERATED columns, e.g., ") STORED) NOT NULL" -> ") STORED NOT NULL"
+        $s = preg_replace('/\)\s*(STORED|VIRTUAL)\)\s+NOT\s+NULL/i', ') $1 NOT NULL', $s);
+        // Replace invalid zero-date defaults that break under NO_ZERO_DATE/NO_ZERO_IN_DATE
+        // e.g., `timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'` -> `timestamp NULL DEFAULT NULL`
+        $s = preg_replace(
+            '/\b(timestamp|datetime|date)\b\s+NOT\s+NULL\s+DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
+            '$1 NULL DEFAULT NULL',
+            $s
+        );
+        // If any remaining DEFAULT '0000-...' without NOT NULL, change to DEFAULT NULL
+        $s = preg_replace(
+            '/DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
+            'DEFAULT NULL',
+            $s
+        );
+        $s = trim($s);
+        if ($s !== '' && substr(rtrim($s), -1) !== ';'){ $s .= ';'; }
+        return $s;
+    }
+
+    // POST: file_path, database => compute missing tables/columns and propose SQL
+    public function compare_scan(){
+        $file = (string)$this->input->post('file_path');
+        $dbName = trim((string)$this->input->post('database'));
+        $host = $this->input->post('host');
+        $port = $this->input->post('port');
+        $user = $this->input->post('user');
+        $pass = $this->input->post('pass');
+        if ($file === '' || !is_file($file) || $dbName === ''){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'File path and database are required']); return;
+        }
+        $schema = $this->parse_sql_schema($file);
+        try {
+            if ($host && $user !== null){
+                $target = $this->connect_custom($host, $user, (string)$pass, $dbName, $port);
+            } else {
+                $target = $this->connect_to($dbName);
+            }
+        } catch (Exception $e){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to connect target DB: '.$e->getMessage()]); return;
+        }
+        // Load existing tables and columns from information_schema
+        $tables = [];
+        $tableNameMap = [];
+        $tableTypeMap = [];
+        $q = $target->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$dbName]);
+        foreach ($q->result() as $r){
+            $lower = strtolower($r->TABLE_NAME);
+            $tables[$lower] = true;
+            $tableNameMap[$lower] = $r->TABLE_NAME;
+            $tableTypeMap[$lower] = strtoupper((string)$r->TABLE_TYPE);
+        }
+        $cols = [];
+        if (!empty($tables)){
+            $rs = $target->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$dbName]);
+            foreach ($rs->result() as $r){ $t = strtolower($r->TABLE_NAME); $c = strtolower($r->COLUMN_NAME); if (!isset($cols[$t])) $cols[$t] = []; $cols[$t][$c] = true; }
+        }
+        $ops = [];
+        $fileTablesLower = [];
+        foreach ($schema['tables'] as $t => $meta){ $fileTablesLower[strtolower($t)] = $t; }
+        // Missing in DB (proposed actions)
+        foreach ($schema['tables'] as $t => $meta){
+            $tLower = strtolower($t);
+            if (!isset($tables[$tLower])){
+                $rawSql = $meta['create_sql'] ?: ("CREATE TABLE `".$t."` (\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+                $norm = $this->normalize_create_sql($rawSql);
+                // If normalized SQL still looks malformed, rebuild from columns
+                if (preg_match('/\)\s+NOT\s+NULL,\s/i', $norm) || preg_match('/\(\s*\)\s*ENGINE/i', $norm)){
+                    $norm = $this->build_create_sql_from_columns($t, $meta);
+                }
+                $ops[] = [ 'type' => 'create_table', 'table' => $t, 'sql' => $norm ];
+                continue;
+            }
+            // Skip altering views
+            if (isset($tableTypeMap[$tLower]) && $tableTypeMap[$tLower] === 'VIEW'){ continue; }
+            $existingCols = isset($cols[$tLower]) ? $cols[$tLower] : [];
+            foreach ($meta['columns'] as $c => $defLine){
+                // Skip if definition looks like an index/constraint accidentally captured
+                $defTrim = trim((string)$defLine);
+                if ($defTrim === '' || preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\b|CONSTRAINT\b|FOREIGN\s+KEY|INDEX\b)/i', $defTrim)){
+                    continue;
+                }
+                // Skip generated columns when adding via ALTER (safer to keep them in CREATE only)
+                if (preg_match('/\bGENERATED\b/i', $defTrim) || preg_match('/\bAS\s*\(/i', $defTrim)){
+                    continue;
+                }
+                if (!isset($existingCols[$c])){
+                    // Defensive re-check against information_schema to avoid false positives
+                    $chk = $target->query(
+                        "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1",
+                        [$dbName, $t, $c]
+                    );
+                    if ($chk && $chk->num_rows() > 0){ continue; }
+                    $defNorm = $this->normalize_column_def($defLine);
+                    $ops[] = [ 'type' => 'add_column', 'table' => $t, 'column' => $c, 'sql' => 'ALTER TABLE `'.$t.'` ADD COLUMN '.$defNorm.';' ];
+                }
+            }
+        }
+        // Present in DB but missing in File (informational + SQL to update file)
+        $dbOnlyTables = [];
+        $dbOnlyColumns = [];
+        foreach ($tables as $tLower => $_){
+            if (!isset($fileTablesLower[$tLower])){
+                $dbOnlyTables[] = isset($tableNameMap[$tLower]) ? $tableNameMap[$tLower] : $tLower;
+                continue;
+            }
+            $meta = isset($schema['tables'][$fileTablesLower[$tLower]]) ? $schema['tables'][$fileTablesLower[$tLower]] : null;
+            $fileCols = $meta ? array_keys($meta['columns']) : [];
+            $fileColsMap = [];
+            foreach ($fileCols as $fc){ $fileColsMap[strtolower($fc)] = true; }
+            $dbCols = isset($cols[$tLower]) ? array_keys($cols[$tLower]) : [];
+            foreach ($dbCols as $dc){ if (!isset($fileColsMap[$dc])) { $dbOnlyColumns[] = ['table' => (isset($tableNameMap[$tLower])?$tableNameMap[$tLower]:$fileTablesLower[$tLower]), 'column' => $dc]; } }
+        }
+        // Build SQL for DB-only items (so user can update the master file):
+        $dbOnlyTablesSql = [];
+        foreach ($dbOnlyTables as $tblName){
+            try {
+                $res = $target->query('SHOW CREATE TABLE `'.$tblName.'`');
+                if ($res && $res->num_rows() > 0){
+                    $row = $res->row_array();
+                    $sqlCreate = '';
+                    if (isset($row['Create Table'])){ $sqlCreate = $row['Create Table']; }
+                    else { $vals = array_values($row); if (isset($vals[1])) $sqlCreate = $vals[1]; }
+                    if ($sqlCreate !== ''){ $dbOnlyTablesSql[] = rtrim($sqlCreate, "; \r\n").";"; }
+                }
+            } catch (Exception $e) { /* ignore */ }
+        }
+        $dbOnlyColumnsSql = [];
+        foreach ($dbOnlyColumns as $it){
+            $tName = $it['table']; $cName = $it['column'];
+            try {
+                $ci = $target->query('SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1', [$dbName, $tName, $cName]);
+                if ($ci && $ci->num_rows() > 0){
+                    $row = $ci->row_array();
+                    $defParts = [];
+                    $defParts[] = '`'.$row['COLUMN_NAME'].'`';
+                    $defParts[] = $row['COLUMN_TYPE'];
+                    if (!empty($row['CHARACTER_SET_NAME'])){ $defParts[] = 'CHARACTER SET '.$row['CHARACTER_SET_NAME']; }
+                    if (!empty($row['COLLATION_NAME'])){ $defParts[] = 'COLLATE '.$row['COLLATION_NAME']; }
+                    $nullable = strtoupper($row['IS_NULLABLE']) === 'YES';
+                    $defParts[] = $nullable ? 'NULL' : 'NOT NULL';
+                    // Default handling
+                    if (!is_null($row['COLUMN_DEFAULT'])){
+                        $def = $row['COLUMN_DEFAULT'];
+                        $upper = strtoupper($def);
+                        $isNumeric = is_numeric($def);
+                        $isFunc = in_array($upper, ['CURRENT_TIMESTAMP','CURRENT_TIMESTAMP()','NOW()'], true);
+                        if ($isFunc){ $defParts[] = 'DEFAULT '.$upper; }
+                        else if ($isNumeric){ $defParts[] = 'DEFAULT '.$def; }
+                        else if ($def === 'NULL'){ $defParts[] = 'DEFAULT NULL'; }
+                        else { $defParts[] = "DEFAULT '".str_replace("'","''", $def)."'"; }
+                    } else if ($nullable){
+                        // DEFAULT NULL is optional when NULL allowed; omit
+                    }
+                    if (!empty($row['EXTRA'])){ $defParts[] = $row['EXTRA']; }
+                    $colDef = implode(' ', array_filter($defParts));
+                    $dbOnlyColumnsSql[] = 'ALTER TABLE `'.$tName.'` ADD COLUMN '.$colDef.';';
+                }
+            } catch (Exception $e) { /* ignore */ }
+        }
+        $resp = [ 'success'=>true, 'database'=>$dbName, 'file_path'=>$file, 'ops'=>$ops, 'db_only'=>['tables'=>$dbOnlyTables, 'columns'=>$dbOnlyColumns], 'db_only_sql' => ['tables'=>$dbOnlyTablesSql, 'columns'=>$dbOnlyColumnsSql] ];
+        header('Content-Type: application/json'); echo json_encode($resp); return;
+    }
+
+    // POST: file_path, database, apply_all=1 => execute proposed operations (create table / add column)
+    public function compare_merge(){
+        $file = (string)$this->input->post('file_path');
+        $dbName = trim((string)$this->input->post('database'));
+        $host = $this->input->post('host');
+        $port = $this->input->post('port');
+        $user = $this->input->post('user');
+        $pass = $this->input->post('pass');
+        if ($file === '' || !is_file($file) || $dbName === ''){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'File path and database are required']); return;
+        }
+        $scan = $this->compare_scan_internal($file, $dbName);
+        if (!$scan['success']){ header('Content-Type: application/json'); echo json_encode($scan); return; }
+        try {
+            if ($host && $user !== null){
+                $target = $this->connect_custom($host, $user, (string)$pass, $dbName, $port);
+            } else {
+                $target = $this->connect_to($dbName);
+            }
+            $target->trans_begin();
+            foreach ($scan['ops'] as $op){
+                $target->query($op['sql']);
+            }
+            if ($target->trans_status() === FALSE){ $target->trans_rollback(); header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Transaction failed']); return; }
+            $target->trans_commit();
+            header('Content-Type: application/json'); echo json_encode(['success'=>true,'applied'=>count($scan['ops'])]); return;
+        } catch (Exception $e){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); return;
+        }
+    }
+
+    // Internal helper to reuse scan logic for merge
+    private function compare_scan_internal($file, $dbName){
+        if ($file === '' || !is_file($file) || $dbName === ''){ return ['success'=>false,'message'=>'Invalid inputs']; }
+        $schema = $this->parse_sql_schema($file);
+        try { $target = $this->connect_to($dbName); } catch (Exception $e){ return ['success'=>false,'message'=>'Failed to connect target DB: '.$e->getMessage()]; }
+        $tables = [];
+        $q = $target->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$dbName]);
+        $tableTypeMap = [];
+        foreach ($q->result() as $r){ $tables[strtolower($r->TABLE_NAME)] = true; $tableTypeMap[strtolower($r->TABLE_NAME)] = strtoupper((string)$r->TABLE_TYPE); }
+        $cols = [];
+        $rs = $target->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$dbName]);
+        foreach ($rs->result() as $r){ $t = strtolower($r->TABLE_NAME); $c = strtolower($r->COLUMN_NAME); if (!isset($cols[$t])) $cols[$t] = []; $cols[$t][$c] = true; }
+        $ops = [];
+        foreach ($schema['tables'] as $t => $meta){
+            $tLower = strtolower($t);
+            if (!isset($tables[$tLower])){
+                $rawSql = $meta['create_sql'] ?: ("CREATE TABLE `".$t."` (\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+                $norm = $this->normalize_create_sql($rawSql);
+                if (preg_match('/\)\s+NOT\s+NULL,\s/i', $norm) || preg_match('/\(\s*\)\s*ENGINE/i', $norm)){
+                    $norm = $this->build_create_sql_from_columns($t, $meta);
+                }
+                $ops[] = [ 'type'=>'create_table','table'=>$t,'sql'=>$norm ];
+                continue;
+            }
+            // Skip altering views
+            if (isset($tableTypeMap[$tLower]) && $tableTypeMap[$tLower] === 'VIEW'){ continue; }
+            $existingCols = isset($cols[$tLower]) ? $cols[$tLower] : [];
+            foreach ($meta['columns'] as $c => $defLine){
+                // Skip accidental index/constraint lines
+                $defTrim = trim((string)$defLine);
+                if ($defTrim === '' || preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\b|CONSTRAINT\b|FOREIGN\s+KEY|INDEX\b)/i', $defTrim)){
+                    continue;
+                }
+                if (preg_match('/\bGENERATED\b/i', $defTrim) || preg_match('/\bAS\s*\(/i', $defTrim)){
+                    continue;
+                }
+                if (!isset($existingCols[$c])){ $ops[] = [ 'type'=>'add_column','table'=>$t,'column'=>$c,'sql'=>'ALTER TABLE `'.$t.'` ADD COLUMN '.$this->normalize_column_def($defLine).';' ]; }
+            }
+        }
+        return ['success'=>true,'ops'=>$ops,'database'=>$dbName];
+    }
 
     // UI
     public function index(){
@@ -94,6 +645,29 @@ class Db extends CI_Controller {
             'filter_assigned_to' => $filter_assigned_to,
             'saved_queries' => $saved_queries,
             'new_id' => (int)$this->session->flashdata('db_new_id'),
+            'sql_file_default' => $default_sql_path,
+        ]);
+    }
+
+    // Full-screen Compare page
+    public function compare(){
+        // Determine default SQL file path dynamically (same as index)
+        $default_sql_path = '';
+        $hint = (string)$this->input->get('sql_file_path');
+        if ($hint !== '' && @is_file($hint)) { $default_sql_path = $hint; }
+        if ($default_sql_path === ''){
+            $candidates = @glob(FCPATH.'*.sql');
+            if (is_array($candidates) && count($candidates) > 0){
+                @usort($candidates, function($a,$b){
+                    $ma = @filemtime($a); if ($ma === false) { $ma = 0; }
+                    $mb = @filemtime($b); if ($mb === false) { $mb = 0; }
+                    if ($mb == $ma) return 0;
+                    return ($mb < $ma) ? -1 : 1;
+                });
+                $default_sql_path = $candidates[0];
+            }
+        }
+        $this->load->view('db/compare', [
             'sql_file_default' => $default_sql_path,
         ]);
     }
