@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Db extends CI_Controller {
-    private $dm_table = 'employmanagement.dm_manager';
+    private $dm_table = 'dm_manager';
     public function __construct(){
         parent::__construct();
         $this->load->database();
@@ -61,6 +61,23 @@ class Db extends CI_Controller {
             $this->db->order_by('id','DESC');
             $saved_queries = $this->db->get()->result();
         }
+        // Determine default SQL file path dynamically
+        $default_sql_path = '';
+        $hint = (string)$this->input->get('sql_file_path');
+        if ($hint !== '' && @is_file($hint)) { $default_sql_path = $hint; }
+        if ($default_sql_path === ''){
+            $candidates = @glob(FCPATH.'*.sql');
+            if (is_array($candidates) && count($candidates) > 0){
+                @usort($candidates, function($a,$b){
+                    $ma = @filemtime($a); if ($ma === false) { $ma = 0; }
+                    $mb = @filemtime($b); if ($mb === false) { $mb = 0; }
+                    if ($mb == $ma) return 0;
+                    return ($mb < $ma) ? -1 : 1; // sort desc by mtime
+                });
+                $default_sql_path = $candidates[0];
+            }
+        }
+
         $this->load->view('db/index', [
             'projects' => $projects,
             'assignees' => $assignees,
@@ -77,6 +94,7 @@ class Db extends CI_Controller {
             'filter_assigned_to' => $filter_assigned_to,
             'saved_queries' => $saved_queries,
             'new_id' => (int)$this->session->flashdata('db_new_id'),
+            'sql_file_default' => $default_sql_path,
         ]);
     }
 
@@ -103,7 +121,13 @@ class Db extends CI_Controller {
         // Base select depending on table
         $rows = [];
         if (true){
-            $this->db->select('dm.id, dm.project_id, dm.assign_id, dm.version, dm.title, dm.squary', false)
+            // Build select with optional revert metadata if columns exist
+            $tblParts = explode('.', $this->dm_table);
+            $baseTbl = end($tblParts);
+            $selects = ['dm.id', 'dm.project_id', 'dm.assign_id', 'dm.version', 'dm.title', 'dm.squary'];
+            if ($this->db->field_exists('file_path', $baseTbl)) { $selects[] = 'dm.file_path'; }
+            if ($this->db->field_exists('backup_path', $baseTbl)) { $selects[] = 'dm.backup_path'; }
+            $this->db->select(implode(', ', $selects), false)
                      ->from($this->dm_table.' dm');
             if ($filter_project_id) { $this->db->where('dm.project_id', $filter_project_id); }
             if ($filter_version !== '') { $this->db->where('dm.version', $filter_version); }
@@ -147,6 +171,7 @@ class Db extends CI_Controller {
                 .'<a href="'.site_url('db/queries/export/'.$id).'" class="btn btn-outline-dark" title="Export" aria-label="Export"><i class="bi bi-download"></i></a>'
                 .'<button type="button" class="btn btn-outline-primary btn-edit" title="Edit" aria-label="Edit" data-id="'.$id.'" data-title="'.$titleEsc.'" data-version="'.$verEsc.'" data-project="'.$pid.'" data-assigned="'.$assigned.'" data-sql="'.$sqlEsc.'"><i class="bi bi-pencil"></i></button>'
                 .'<button type="button" class="btn btn-outline-success btn-copy" title="Copy" aria-label="Copy" data-sql="'.$sqlEsc.'"><i class="bi bi-clipboard"></i></button>'
+                .'<button type="button" class="btn btn-outline-warning btn-revert" title="Revert" aria-label="Revert" data-id="'.$id.'"><i class="bi bi-arrow-counterclockwise"></i></button>'
                 .'<a href="'.site_url('db/queries/delete/'.$id).'" class="btn btn-outline-danger" title="Delete" aria-label="Delete" onclick="return confirm(\'Delete this saved query?\')"><i class="bi bi-trash"></i></a>'
                 .'</div>';
             $row[] = $actions;
@@ -219,6 +244,21 @@ class Db extends CI_Controller {
             INDEX (`project_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         // Backward-compat: if old saved_queries exists but dm_manager doesn't, no migration here (out of scope)
+        // Ensure optional metadata columns exist for revert support
+        $tblParts = explode('.', $this->dm_table);
+        $baseTbl = end($tblParts);
+        if (!$this->db->field_exists('file_path', $baseTbl)){
+            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `file_path` VARCHAR(500) NULL AFTER `squary`");
+        }
+        if (!$this->db->field_exists('backup_path', $baseTbl)){
+            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `backup_path` VARCHAR(500) NULL AFTER `file_path`");
+        }
+        if (!$this->db->field_exists('database_name', $baseTbl)){
+            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `database_name` VARCHAR(191) NULL AFTER `backup_path`");
+        }
+        if (!$this->db->field_exists('table_name', $baseTbl)){
+            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `table_name` VARCHAR(191) NULL AFTER `database_name`");
+        }
     }
 
     private function escape_ident($name){
@@ -310,6 +350,311 @@ class Db extends CI_Controller {
         $this->db->where('id',$id)->delete($this->dm_table);
         $this->session->set_flashdata('db_info','Query deleted.');
         redirect('db');
+    }
+
+    public function file_tables(){
+        $path = (string)$this->input->post('file_path');
+        $resp = ['database'=>'','tables'=>[]];
+        if ($path === '' || !is_file($path)){
+            header('Content-Type: application/json'); echo json_encode($resp); exit;
+        }
+        $tables = [];
+        $db = '';
+        $fh = @fopen($path, 'r');
+        if ($fh){
+            while (!feof($fh)){
+                $line = fgets($fh, 4096);
+                if ($db === '' && preg_match('/^\s*--\s*Database:\s*`([^`]+)`/i', $line, $m)) { $db = $m[1]; }
+                if (preg_match('/^\s*--\s*Table structure for table\s+`([^`]+)`/i', $line, $m)) { $tables[$m[1]] = true; continue; }
+                if (preg_match('/^\s*CREATE\s+TABLE\s+`?([A-Za-z0-9_]+)`?/i', $line, $m)) { $tables[$m[1]] = true; }
+                if (count($tables) > 0 && $db !== '' && ftell($fh) > 1024*1024) { }
+            }
+            fclose($fh);
+        }
+        $resp['database'] = $db;
+        $resp['tables'] = array_values(array_keys($tables));
+        header('Content-Type: application/json'); echo json_encode($resp); exit;
+    }
+
+    public function append_to_sql_file(){
+        $path = (string)$this->input->post('file_path');
+        $db = trim((string)$this->input->post('database'));
+        $table = trim((string)$this->input->post('table'));
+        $sql = trim((string)$this->input->post('sql_text'));
+        $create_new = (string)$this->input->post('create_new') === '1';
+        // Optional metadata to save into dm_manager
+        $project_id   = $this->input->post('project_id') !== null && $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null;
+        $assigned_to  = $this->input->post('assigned_to') !== null && $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null;
+        $version_tag  = $this->input->post('version') !== null ? trim((string)$this->input->post('version')) : '';
+        $title_text   = $this->input->post('title') !== null ? trim((string)$this->input->post('title')) : '';
+        $ok = false; $msg = ''; $new_dm_id = 0;
+        if ($path !== '' && is_file($path) && $sql !== '' && $table !== ''){
+            // Normalize proposed column lines
+            $linesIn = preg_split('/\r?\n/', $sql);
+            $colLines = [];
+            $proposedNames = [];
+            foreach ($linesIn as $ln){
+                $ln = trim($ln);
+                if ($ln === '') continue;
+                // Skip comments and non-column directives
+                if (preg_match('/^(--|#|\/\*)/',$ln)) continue;
+                if (preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\s+|CONSTRAINT|FOREIGN\s+KEY|INDEX)\b/i',$ln)) continue;
+                if (preg_match('/^(CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|SELECT|WITH|USE|SET|BEGIN|END)\b/i',$ln)) continue;
+                if ($ln === ')' || $ln === ');') continue;
+                // Remove trailing comma/semicolon for normalization; we add commas ourselves later
+                $ln = rtrim($ln, ";, ");
+                // Accept only valid column definition lines: identifier + type
+                if (!preg_match('/^`?([A-Za-z_][A-Za-z0-9_]*)`?\s+([A-Za-z]+(?:\s*\([^)]*\))?)/i', $ln, $mm)){
+                    continue;
+                }
+                // Extract normalized column name
+                $proposedNames[strtolower($mm[1])] = true;
+                $colLines[] = '  '.$ln.','; // two-space indent + ensure comma
+            }
+            if (empty($colLines)){
+                header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'No valid column lines provided.']); return; }
+
+            // If creating a new table, ensure the table does not already exist in file and then append a CREATE TABLE block
+            if ($create_new){
+                $ifNotExists = (string)$this->input->post('if_not_exists') === '1';
+                $engine = trim((string)$this->input->post('engine')) ?: 'InnoDB';
+                $charset = trim((string)$this->input->post('charset')) ?: 'utf8mb4';
+                // Scan for existing table
+                $fhScan = @fopen($path,'r');
+                if (!$fhScan){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to read file.']); return; }
+                $exists = false;
+                $headerRegex = '/^\s*--\s*Table structure for table\s+`'.preg_quote($table,'/').'`\s*$/i';
+                $createRegex = '/^\s*CREATE\s+TABLE\s+`?'.preg_quote($table,'/').'`?\b/i';
+                while (!feof($fhScan)){
+                    $line = fgets($fhScan);
+                    if ($line === false) break;
+                    $trim = rtrim($line, "\r\n");
+                    if (preg_match($headerRegex, $trim) || preg_match($createRegex, $trim)) { $exists = true; break; }
+                }
+                fclose($fhScan);
+                if ($exists){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Table already exists in file.']); return; }
+
+                // Build CREATE TABLE block using normalized column lines (last line without trailing comma)
+                $insertHeader = "\n  -- Added by DB Manager on ".date('Y-m-d H:i:s')."\n";
+                $colLinesCreate = $colLines;
+                if (!empty($colLinesCreate)){
+                    $last = array_pop($colLinesCreate);
+                    $last = rtrim($last);
+                    $last = rtrim($last, ", ");
+                    $colLinesCreate[] = $last; // without trailing comma
+                }
+                $createSQL = "CREATE TABLE ".($ifNotExists?"IF NOT EXISTS ":"")."`".$table."` (\n".implode("\n", $colLinesCreate)."\n) ENGINE=".$engine." DEFAULT CHARSET=".$charset.";\n";
+                $block  = "\n\n-- Database: ".($db!==''?"`$db`":"")." | New Table: ".($table!==''?"`$table`":"")." | ".date('Y-m-d H:i:s')."\n".$insertHeader.$createSQL;
+
+                // Write to temp by copying original then appending block
+                $fhIn = @fopen($path,'r'); if (!$fhIn){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to read file.']); return; }
+                $dir = dirname($path);
+                $tmp = $dir.DIRECTORY_SEPARATOR.'tmp_'.uniqid('sql_', true).'.sql';
+                $fhOut = @fopen($tmp,'w'); if (!$fhOut){ fclose($fhIn); header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to open temp file.']); return; }
+                while (!feof($fhIn)){
+                    $chunk = fread($fhIn, 8192);
+                    if ($chunk === false) break;
+                    fwrite($fhOut, $chunk);
+                }
+                fwrite($fhOut, $block);
+                fclose($fhIn); fflush($fhOut); fclose($fhOut);
+
+                // Backup and replace
+                $backupPath = $path.'.bak_'.date('Ymd_His');
+                @copy($path, $backupPath);
+                $ok = @rename($tmp, $path);
+                if (!$ok){ @unlink($tmp); $msg = 'Failed to replace original file.'; }
+                if ($ok){
+                    // Save full CREATE SQL in dm_manager
+                    $data = [
+                        'project_id' => $project_id,
+                        'assign_id'  => $assigned_to,
+                        'version'    => ($version_tag !== '' ? $version_tag : null),
+                        'title'      => ($title_text !== '' ? $title_text : ('Create table `'.$table.'`')),
+                        'squary'     => $createSQL,
+                        'file_path'  => $path,
+                        'backup_path'=> $backupPath,
+                        'database_name' => ($db !== '' ? $db : null),
+                        'table_name' => ($table !== '' ? $table : null),
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ];
+                    $this->db->insert($this->dm_table, $data);
+                    $new_dm_id = (int)$this->db->insert_id();
+                }
+                header('Content-Type: application/json'); echo json_encode(['success'=>$ok,'message'=>$msg,'new_id'=>$new_dm_id]); return;
+            }
+
+            // First pass: pre-scan to find existing columns and check duplicates
+            $fh1 = @fopen($path,'r');
+            if (!$fh1){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to read file.']); return; }
+            $targetHeaderRegex = '/^\s*--\s*Table structure for table\s+`'.preg_quote($table, '/') .'`\s*$/i';
+            $nextSectionRegex  = '/^\s*--\s*Table structure for table\s+`[^`]+`\s*$|^\s*--\s*Database:\s*`[^`]+`\s*$/i';
+            $createTableRegex  = '/^\s*CREATE\s+TABLE\s+.*`'.preg_quote($table,'/').'`.*\(/i';
+            $foundHeader=false; $inCreate=false; $existingCols = [];
+            while (!feof($fh1)){
+                $line = fgets($fh1); if ($line===false) break; $trim=rtrim($line,"\r\n");
+                if (!$foundHeader && preg_match($targetHeaderRegex,$trim)){ $foundHeader=true; continue; }
+                if ($foundHeader && preg_match($createTableRegex,$trim)){ $inCreate=true; continue; }
+                if ($inCreate){
+                    // Stop when constraints or closing ) reached
+                    if (preg_match('/^\s*PRIMARY\s+KEY|^\s*UNIQUE\s+KEY|^\s*KEY\s+|^\s*CONSTRAINT|^\s*\)\s*/i',$trim)){
+                        break;
+                    }
+                    if (preg_match('/^\s*`([^`]+)`\s+/',$trim,$mcol)){
+                        $existingCols[strtolower($mcol[1])] = true;
+                    }
+                }
+                if ($foundHeader && !$inCreate && preg_match($nextSectionRegex,$trim)){
+                    // no CREATE found in this section
+                    break;
+                }
+            }
+            fclose($fh1);
+            // Duplicate check
+            $dups = [];
+            foreach ($proposedNames as $nm => $_){ if (isset($existingCols[$nm])) $dups[] = $nm; }
+            if (!empty($dups)){
+                header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Duplicate column(s): '.implode(', ',$dups)]); return;
+            }
+
+            // Second pass: write with insertion
+            $fh = @fopen($path, 'r');
+            if (!$fh){ $msg = 'Failed to read file.'; header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>$msg]); exit; }
+            $dir = dirname($path);
+            $tmp = $dir.DIRECTORY_SEPARATOR.'tmp_'.uniqid('sql_', true).'.sql';
+            $out = @fopen($tmp, 'w');
+            if (!$out){ fclose($fh); $msg = 'Failed to open temp file.'; header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>$msg]); exit; }
+            $insertHeader = "\n  -- Added by DB Manager on ".date('Y-m-d H:i:s')."\n";
+
+            $foundHeader = false; $inserted = false; $prevWasHeader = false;
+            $inTargetCreate = false; $prevLine = null; $withinTargetSection=false;
+
+            while (!feof($fh)){
+                $line = fgets($fh);
+                if ($line === false) { break; }
+                $trim = rtrim($line, "\r\n");
+
+                // Detect the phpMyAdmin table section header
+                if (preg_match($targetHeaderRegex, $trim)){
+                    $foundHeader = true; $withinTargetSection = true; $prevWasHeader = true;
+                }
+
+                // Write header line
+                if ($prevWasHeader){ fwrite($out, $line); $prevWasHeader = false; continue; }
+
+                // Detect start of CREATE TABLE for the selected table
+                if ($withinTargetSection && !$inTargetCreate && preg_match($createTableRegex, $trim)){
+                    $inTargetCreate = true;
+                    // We will delay writing by one line to be able to add comma if needed before ')'
+                    $prevLine = $line; // hold the first line inside the block (CREATE ... line) to write later
+                    continue;
+                }
+
+                if ($inTargetCreate){
+                    // If we hit a boundary where columns/constraints end
+                    $isBoundary = preg_match('/^\s*PRIMARY\s+KEY|^\s*UNIQUE\s+KEY|^\s*KEY\s+|^\s*CONSTRAINT|^\s*\)\s*/i', $trim) === 1;
+                    if ($isBoundary && !$inserted){
+                        // Ensure previous line ends with comma when boundary is ')' only (when there were no constraints)
+                        $prevTrim = rtrim($prevLine, "\r\n");
+                        if (preg_match('/^\s*\)\s*/', $trim)){
+                            if (!preg_match('/,\s*$/', $prevTrim)){
+                                $prevLine = rtrim($prevTrim).",\n"; // add comma and newline
+                            }
+                        }
+                        // Write the line before boundary
+                        fwrite($out, $prevLine);
+                        // Insert our columns
+                        fwrite($out, $insertHeader.implode("\n", $colLines)."\n");
+                        $inserted = true;
+                        // Now write the boundary line
+                        fwrite($out, $line);
+                        $prevLine = null;
+                        continue;
+                    }
+                    // Normal flow inside create: write previous cached line and shift window
+                    if ($prevLine !== null){ fwrite($out, $prevLine); }
+                    $prevLine = $line;
+                    continue;
+                }
+
+                // Outside target create: if we detect next section and didn't insert (in case header found but create not), insert before boundary
+                if ($withinTargetSection && !$inserted && preg_match($nextSectionRegex, $trim)){
+                    // Fallback if CREATE TABLE not found; insert only normalized column lines beneath section
+                    $fallbackBlock  = "\n\n-- Database: ".($db!==''?"`$db`":"")." | Table: ".($table!==''?"`$table`":"")." | ".date('Y-m-d H:i:s')."\n".$insertHeader.implode("\n", $colLines)."\n";
+                    fwrite($out, $fallbackBlock);
+                    $inserted = true;
+                    $withinTargetSection = false; // leaving section
+                }
+
+                // Default write
+                fwrite($out, $line);
+            }
+
+            // Flush any pending prevLine
+            if ($inTargetCreate && $prevLine !== null){
+                // If we never encountered boundary, append columns before writing prevLine
+                if (!$inserted){
+                    fwrite($out, $insertHeader.implode("\n", $colLines)."\n");
+                    $inserted = true;
+                }
+                fwrite($out, $prevLine);
+            }
+
+            // If table section not found at all, just append at end as fallback
+            if (!$inserted){
+                $tailBlock  = "\n\n-- Database: ".($db!==''?"`$db`":"")." | Table: ".($table!==''?"`$table`":"")." | ".date('Y-m-d H:i:s')."\n".$insertHeader.implode("\n", $colLines)."\n";
+                fwrite($out, $tailBlock);
+                $inserted = true;
+            }
+
+            fclose($fh); fflush($out); fclose($out);
+            // Backup and replace
+            $backupPath = $path.'.bak_'.date('Ymd_His');
+            @copy($path, $backupPath);
+            $ok = @rename($tmp, $path);
+            if (!$ok){ @unlink($tmp); $msg = 'Failed to replace original file.'; }
+            // If file append succeeded, store entry in dm_manager for grid display
+            if ($ok){
+                $savedSql = implode("\n", $colLines)."\n";
+                // Ensure a non-empty title
+                $final_title = ($title_text !== '' ? $title_text : ($create_new ? ('Create table `'.$table.'`') : ('Append columns to `'.$table.'`')));
+                $data = [
+                    'project_id' => $project_id,
+                    'assign_id'  => $assigned_to,
+                    'version'    => ($version_tag !== '' ? $version_tag : null),
+                    'title'      => $final_title,
+                    'squary'     => $savedSql,
+                    'file_path'  => $path,
+                    'backup_path'=> $backupPath,
+                    'database_name' => ($db !== '' ? $db : null),
+                    'table_name' => ($table !== '' ? $table : null),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+                $this->db->insert($this->dm_table, $data);
+                $new_dm_id = (int)$this->db->insert_id();
+            }
+        } else {
+            $msg = 'Invalid input.';
+        }
+        header('Content-Type: application/json'); echo json_encode(['success'=>$ok,'message'=>$msg,'new_id'=>$new_dm_id]); exit;
+    }
+
+    // Revert: restore .sql from backup and delete dm_manager entry
+    public function revert_query($id){
+        $id = (int)$id;
+        $row = $this->db->from($this->dm_table)->where('id',$id)->get()->row();
+        if (!$row){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Not found']); return; }
+        $file = isset($row->file_path) ? (string)$row->file_path : '';
+        $bak  = isset($row->backup_path) ? (string)$row->backup_path : '';
+        if ($file === '' || $bak === '' || !is_file($bak)){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Backup not available']); return;
+        }
+        // Attempt restore
+        $ok = @copy($bak, $file);
+        if (!$ok){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to restore file']); return; }
+        // Delete entry
+        $this->db->where('id',$id)->delete($this->dm_table);
+        header('Content-Type: application/json'); echo json_encode(['success'=>true]); return;
     }
 
 }

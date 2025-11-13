@@ -14,8 +14,97 @@
   /* Compact SQL preview cells */
   .sql-cell{white-space:pre-wrap;background:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 8px;margin:0;max-width:600px;max-height:60px;overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;font-size:12px;line-height:1.35;}
   @media (max-width: 768px){ .sql-cell{max-width:100%;} }
+  /* Global loader overlay */
+  #globalLoader[hidden]{ display:none !important; }
+  #globalLoader{ position:fixed; inset:0; background:rgba(255,255,255,.6); z-index: 2000; display:flex; align-items:center; justify-content:center; }
 </style>
-<div class="card shadow-soft mb-3">
+<!-- Loading overlay -->
+<div id="globalLoader" hidden>
+  <div class="text-center">
+    <div class="spinner-border text-primary" role="status" aria-label="Loading"></div>
+    <div class="small text-muted mt-2">Please wait…</div>
+  </div>
+  
+  
+  
+</div>
+<div class="card shadow-soft mt-3">
+  <div class="card-body">
+    <h2 class="h6 mb-2">SQL File Mode</h2>
+    <div class="row g-2 align-items-end">
+      <div class="col-lg-6">
+        <label class="form-label">SQL File Path</label>
+        <input class="form-control" id="sqlFilePath" value="<?php echo isset($sql_file_default)?htmlspecialchars($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
+      </div>
+      <div class="col-lg-2">
+        <button class="btn btn-outline-primary w-100" id="btnLoadFile">Load</button>
+      </div>
+      <div class="col-lg-4">
+        <div>Database: <span id="fileDbName" class="fw-semibold"></span></div>
+      </div>
+    </div>
+    <div class="row g-2 align-items-end mt-2">
+      <div class="col-md-6">
+        <label class="form-label">Table</label>
+        <select class="form-select" id="fileTableSelect">
+          <option value="">-- Select table --</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="createNewTableChk" />
+          <label class="form-check-label" for="createNewTableChk">Create new table</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">New Table Name</label>
+        <input class="form-control" id="newTableName" placeholder="e.g. orders" disabled />
+      </div>
+    </div>
+
+    <div class="row g-2 align-items-end mt-2">
+      <div class="col-lg-3 col-md-4">
+        <label class="form-label">Project</label>
+        <select class="form-select" id="sfProjectId">
+          <option value="">-- Select --</option>
+          <?php foreach ($projects as $p): ?>
+            <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-lg-3 col-md-4">
+        <label class="form-label">Assign To</label>
+        <select class="form-select" id="sfAssignedTo">
+          <option value="">-- Select --</option>
+          <?php foreach (($assignees?:[]) as $u): ?>
+            <?php $label = !empty($u->emp_name) ? $u->emp_name : (!empty($u->full_name)?$u->full_name:(!empty($u->name)?$u->name:$u->email)); ?>
+            <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-lg-2 col-md-4">
+        <label class="form-label">Version</label>
+        <input class="form-control" id="sfVersion" placeholder="e.g. 18.02" />
+      </div>
+      <div class="col-lg-4 col-md-12">
+        <label class="form-label">Title</label>
+        <input class="form-control" id="sfTitle" placeholder="e.g. Create table orders" />
+      </div>
+    </div>
+    
+    <div class="row g-2 mt-2">
+      <div class="col-12">
+        <label class="form-label">SQL (to append)</label>
+        <textarea class="form-control" id="fileSqlText" rows="3" placeholder="WRITE YOUR SQL HERE"></textarea>
+      </div>
+    </div>
+    <div class="mt-2">
+      <button class="btn btn-primary" id="btnAppendSql">Append to File</button>
+    </div>
+  </div>
+  
+</div>
+<!-- <div class="card shadow-soft mb-3">
   <div class="card-body">
     <form method="post" action="<?php echo site_url('db/queries/save'); ?>">
       <div class="row g-2 align-items-end">
@@ -62,7 +151,7 @@
       </div>
     </form>
   </div>
-</div>
+</div> -->
 
 <div class="card shadow-soft">
   <div class="card-body">
@@ -125,6 +214,9 @@
     </div>
   </div>
 </div>
+
+
+
 <!-- Modals -->
 <div class="modal fade" id="showSqlModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -242,6 +334,9 @@ function showToast(msg, variant){
     t.show();
   }catch(e){}
 }
+// Global loader helpers
+function showLoader(){ try{ var el=document.getElementById('globalLoader'); if (el) el.hidden=false; }catch(e){} }
+function hideLoader(){ try{ var el=document.getElementById('globalLoader'); if (el) el.hidden=true; }catch(e){} }
 // Row actions: Show and Edit
 // AJAX DataTable for saved queries
 (function(){
@@ -256,6 +351,9 @@ function showToast(msg, variant){
       searching: true,
       lengthChange: true,
       order: [],
+      columnDefs: [
+        { targets: 1, visible: false, searchable: false } // hide '#' column
+      ],
       ajax: {
         url: '<?php echo site_url('index.php/db/queries/list'); ?>',
         data: function(d){
@@ -267,13 +365,16 @@ function showToast(msg, variant){
           }
         },
         error: function(xhr){
+          hideLoader();
           try{ console.error('DT AJAX error', xhr.responseText); alert('Failed to load data for grid. See console for details.'); }catch(e){}
         }
       }
     });
     // Update total count after load
+    tbl.on('preXhr', function(){ try{ showLoader(); }catch(e){} });
     tbl.on('xhr', function(){
       try{ var data = tbl.ajax.json(); var n = (data && data.data)? data.data.length : 0; document.querySelector('.small.text-muted').textContent = 'Total: '+n; }catch(e){}
+      try{ hideLoader(); }catch(e){}
     });
     // Bind row actions on each draw
     tbl.on('draw', function(){
@@ -357,6 +458,26 @@ function showToast(msg, variant){
       document.getElementById('editAssigned').value = asg;
       try{ bsEdit.show(); }catch(e){ editModal.style.display='block'; }
     }
+    var btnRevert = ev.target.closest('#savedQueriesTable .btn-revert');
+    if (btnRevert){
+      ev.preventDefault();
+      if (!confirm('Revert this change? This will restore the SQL file from backup and remove this entry.')) return;
+      var id = btnRevert.getAttribute('data-id');
+      btnRevert.disabled = true;
+      showLoader();
+      fetch('<?php echo site_url('db/queries/revert/'); ?>'+id, { method:'POST' })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if (j && j.success){
+            showToast('Reverted');
+            try{ var inst = DataTable && DataTable('#savedQueriesTable'); if (inst && inst.ajax){ inst.ajax.reload(); } }catch(e){}
+          } else {
+            showToast((j && j.message) ? j.message : 'Failed to revert','danger');
+          }
+        })
+        .catch(function(){ showToast('Failed to revert','danger'); })
+        .finally(function(){ btnRevert.disabled = false; hideLoader(); });
+    }
   });
 })();
 // Selection and copy/export bulk
@@ -414,6 +535,104 @@ function showToast(msg, variant){
       // allow submit to proceed
     });
   }
+})();
+// SQL File Mode handlers
+(function(){
+  var btnLoad = document.getElementById('btnLoadFile');
+  var filePathInput = document.getElementById('sqlFilePath');
+  var dbNameEl = document.getElementById('fileDbName');
+  var tableSel = document.getElementById('fileTableSelect');
+  var createChk = document.getElementById('createNewTableChk');
+  var newTableInput = document.getElementById('newTableName');
+  var btnAppend = document.getElementById('btnAppendSql');
+  function loadFile(){
+    var fp = (filePathInput && filePathInput.value)||'';
+    if (!fp) return;
+    showLoader();
+    fetch('<?php echo site_url('db/file_tables'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'file_path='+encodeURIComponent(fp) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ try{ dbNameEl.textContent = j.database||''; tableSel.innerHTML = '<option value="">-- Select table --</option>'; (j.tables||[]).forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; tableSel.appendChild(o); }); showToast('File loaded'); }catch(e){} })
+      .catch(function(){})
+      .finally(function(){ hideLoader(); });
+  }
+  if (btnLoad){ btnLoad.addEventListener('click', function(e){ e.preventDefault(); loadFile(); }); }
+  // Toggle controls for create new table
+  if (createChk){
+    createChk.addEventListener('change', function(){
+      var on = !!createChk.checked;
+      if (tableSel) tableSel.disabled = on;
+      if (newTableInput){ newTableInput.disabled = !on; if (on) { newTableInput.focus(); } }
+    });
+  }
+  // if (btnAppend){ btnAppend.addEventListener('click', function(e){ e.preventDefault(); var fp=(filePathInput&&filePathInput.value)||''; var db=(dbNameEl&&dbNameEl.textContent)||''; var creating = !!(createChk && createChk.checked); var tb = creating ? (newTableInput && newTableInput.value || '').trim() : (tableSel && tableSel.value || ''); var sql=(document.getElementById('fileSqlText').value||'').trim(); if (!fp||!sql){ showToast('File path and SQL required','danger'); return; } if (creating && !tb){ showToast('New table name required','danger'); return; } if (!creating && !tb){ showToast('Select a table or choose Create new','danger'); return; } showLoader(); var body = 'file_path='+encodeURIComponent(fp)+'&database='+encodeURIComponent(db)+'&table='+encodeURIComponent(tb)+'&sql_text='+encodeURIComponent(sql)+'&create_new='+(creating? '1':'0'); fetch('<?php echo site_url('db/append_to_sql_file'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body }).then(function(r){ return r.json(); }).then(function(j){ if (j && j.success){ showToast(creating ? 'Table created' : 'Appended'); document.getElementById('fileSqlText').value=''; if (creating){ try{ loadFile(); }catch(e){} } } else { showToast(j && j.message ? j.message : 'Failed','danger'); } }).catch(function(){ showToast('Failed','danger'); }).finally(function(){ hideLoader(); }); }); }
+ if (btnAppend) {
+  btnAppend.addEventListener('click', function (e) {
+    e.preventDefault();
+
+    var fp = (filePathInput && filePathInput.value) || '';
+    var db = (dbNameEl && dbNameEl.textContent) || '';
+    var creating = !!(createChk && createChk.checked);
+    var tb = creating
+      ? ((newTableInput && newTableInput.value) || '').trim()
+      : ((tableSel && tableSel.value) || '');
+    var sql = (document.getElementById('fileSqlText').value || '').trim();
+    var pid = (document.getElementById('sfProjectId') && document.getElementById('sfProjectId').value) || '';
+    var asg = (document.getElementById('sfAssignedTo') && document.getElementById('sfAssignedTo').value) || '';
+    var ver = (document.getElementById('sfVersion') && document.getElementById('sfVersion').value) || '';
+    var ttl = (document.getElementById('sfTitle') && document.getElementById('sfTitle').value) || '';
+
+    if (!fp || !sql) {
+      showToast('File path and SQL required', 'danger');
+      return;
+    }
+    if (creating && !tb) {
+      showToast('New table name required', 'danger');
+      return;
+    }
+    if (!creating && !tb) {
+      showToast('Select a table or choose Create new', 'danger');
+      return;
+    }
+
+    showLoader();
+
+    var body =
+      'file_path=' + encodeURIComponent(fp) +
+      '&database=' + encodeURIComponent(db) +
+      '&table=' + encodeURIComponent(tb) +
+      '&sql_text=' + encodeURIComponent(sql) +
+      '&create_new=' + (creating ? '1' : '0') +
+      '&project_id=' + encodeURIComponent(pid) +
+      '&assigned_to=' + encodeURIComponent(asg) +
+      '&version=' + encodeURIComponent(ver) +
+      '&title=' + encodeURIComponent(ttl);
+
+    fetch('<?php echo site_url('db/append_to_sql_file'); ?>', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.success) {
+          showToast(creating ? 'Table created' : 'Appended');
+          document.getElementById('fileSqlText').value = '';
+          if (creating) {
+            try { loadFile(); } catch (e) {}
+          }
+        } else {
+          showToast((j && j.message) ? j.message : 'Failed', 'danger');
+        }
+      })
+      .catch(function () {
+        showToast('Failed', 'danger');
+      })
+      .finally(function () {
+        hideLoader();
+      });
+  });
+}
+  if (filePathInput && filePathInput.value){ setTimeout(loadFile, 200); }
 })();
 </script>
 <?php $this->load->view('partials/footer'); ?>
