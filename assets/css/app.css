@@ -73,6 +73,29 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
   .sidebar-left { position: relative; top: 0; min-height: auto; }
 }
 
+/* Mobile offcanvas sidebar polish */
+.offcanvas.offcanvas-start {
+  width: 280px;
+  background: var(--sidebar-bg);
+  color: var(--navbar-text);
+}
+.offcanvas .offcanvas-header {
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.offcanvas .nav-link.sidebar-link {
+  color: var(--navbar-text);
+  opacity: .95;
+  padding: .6rem .75rem;
+  border-radius: .5rem;
+}
+.offcanvas .nav-link.sidebar-link:hover,
+.offcanvas .nav-link.sidebar-link.active {
+  background: #12304b;
+  color: #ffffff;
+}
+.offcanvas .nav-link.sidebar-link i { opacity: 1; }
+.offcanvas .offcanvas-footer { color: #cdd7e5; }
+
 /* Hero section for reports */
 .hero-report {
   background: radial-gradient(1200px 500px at 10% -10%, rgba(79,70,229,.35), transparent 60%),

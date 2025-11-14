@@ -19,6 +19,7 @@
   <div class="d-flex gap-2">
     <button id="btnToggleMic" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Microphone"><i class="bi bi-mic"></i></button>
     <button id="btnToggleSpeaker" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Speakers"><i class="bi bi-volume-up"></i></button>
+    <button id="btnShareScreen" class="btn btn-outline-success btn-sm d-none"><i class="bi bi-display"></i> Share Screen</button>
     <button id="btnStartCall" class="btn btn-outline-primary btn-sm"><i class="bi bi-camera-video"></i> Start Call</button>
     <a class="btn btn-light btn-sm" href="<?php echo site_url('chats'); ?>"><i class="bi bi-arrow-left"></i></a>
   </div>

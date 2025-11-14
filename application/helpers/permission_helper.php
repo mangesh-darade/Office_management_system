@@ -6,12 +6,13 @@ if (!function_exists('has_module_access')) {
         if (!$CI || !$CI->session) { return false; }
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return false; }
+        if ($role_id === 1) { return true; }
         $controller = strtolower(trim((string)$module));
 
         // Base mapping as in AuthHook
         $routes_roles = [
             'dashboard' => [1,2,3,4],
-            'employees' => [1,2],
+            'employees' => [1,2,3,4], // allow; controller enforces ownership
             'projects'  => [1,2,3],
             'tasks'     => [1,2,3,4],
             'attendance'=> [1,2,3,4],
@@ -20,6 +21,8 @@ if (!function_exists('has_module_access')) {
             'reports'   => [1,2,3],
             'permissions' => [1],
             'db' => [1],
+            'users' => [1],
+            'mail'  => [1,2,3,4],
             // Client requirements suite
             'clients' => [1,2,3],
             'requirements' => [1,2,3],

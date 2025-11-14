@@ -47,7 +47,15 @@
               </td>
             </tr>
           <?php endforeach; else: ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No employees found.</td></tr>
+            <tr class="no-data">
+              <td class="text-center text-muted py-4">No employees found.</td>
+              <td></td>
+              <td></td>
+              <td class="d-none d-md-table-cell"></td>
+              <td class="d-none d-lg-table-cell"></td>
+              <td class="d-none d-lg-table-cell"></td>
+              <td class="text-end"></td>
+            </tr>
           <?php endif; ?>
           </tbody>
         </table>

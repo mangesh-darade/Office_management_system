@@ -34,9 +34,26 @@
                   <td>#<?php echo (int)$r->id; ?></td>
                   <td><?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?></td>
                   <td><?php echo htmlspecialchars(isset($r->email) ? $r->email : ''); ?></td>
-                  <td><span class="badge bg-secondary"><?php echo htmlspecialchars(isset($r->role) ? $r->role : 'user'); ?></span></td>
                   <td>
-                    <?php if (((isset($r->status) ? (int)$r->status : 0)) === 1): ?>
+                    <?php
+                      $roleLabel = '';
+                      if (isset($r->role_id)) {
+                        $map = [1=>'admin', 2=>'hr', 3=>'lead', 4=>'employee'];
+                        $rid = (int)$r->role_id; $roleLabel = isset($map[$rid]) ? $map[$rid] : 'employee';
+                      } else if (isset($r->role) && $r->role !== '') { $roleLabel = strtolower($r->role); }
+                      else { $roleLabel = 'employee'; }
+                      $roleLabelPretty = ucfirst($roleLabel);
+                    ?>
+                    <span class="badge bg-secondary"><?php echo htmlspecialchars($roleLabelPretty); ?></span>
+                  </td>
+                  <td>
+                    <?php
+                      $st = isset($r->status) ? $r->status : 0;
+                      $is_active = false;
+                      if (is_numeric($st)) { $is_active = ((int)$st) === 1; }
+                      else if (is_string($st)) { $is_active = in_array(strtolower(trim($st)), ['active','enabled','true','yes'], true); }
+                    ?>
+                    <?php if ($is_active): ?>
                       <span class="badge bg-success">Active</span>
                     <?php else: ?>
                       <span class="badge bg-secondary">Inactive</span>

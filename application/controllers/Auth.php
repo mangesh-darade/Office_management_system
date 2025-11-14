@@ -30,6 +30,20 @@ class Auth extends CI_Controller {
                 $this->session->set_userdata('user_id', (int)$user->id);
                 $this->session->set_userdata('role_id', (int)$user->role_id);
                 $this->session->set_userdata('email', $user->email);
+                // Record last login timestamp and IP if columns exist
+                try {
+                    $now = date('Y-m-d H:i:s');
+                    $ip  = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+                    $data = [];
+                    if ($this->db->field_exists('last_login', 'users')) { $data['last_login'] = $now; }
+                    if ($this->db->field_exists('last_login_at', 'users')) { $data['last_login_at'] = $now; }
+                    if ($this->db->field_exists('last_login_on', 'users')) { $data['last_login_on'] = $now; }
+                    if ($this->db->field_exists('last_seen_at', 'users')) { $data['last_seen_at'] = $now; }
+                    if ($this->db->field_exists('last_login_ip', 'users')) { $data['last_login_ip'] = $ip; }
+                    if (!empty($data)) {
+                        $this->db->where('id', (int)$user->id)->update('users', $data);
+                    }
+                } catch (Exception $e) { /* ignore logging errors */ }
                 redirect('dashboard');
                 return;
             }
@@ -69,6 +83,11 @@ class Auth extends CI_Controller {
                 'status' => 'active',
                 'created_at' => date('Y-m-d H:i:s')
             );
+            // Derive and persist role string if column exists
+            $role_map = [1=>'admin', 2=>'hr', 3=>'lead', 4=>'employee'];
+            if ($this->db->field_exists('role','users')) {
+                $data['role'] = isset($role_map[$role_id]) ? $role_map[$role_id] : 'employee';
+            }
             // Attempt to persist name into available schema fields
             if ($full_name !== ''){
                 // If single 'name' column exists

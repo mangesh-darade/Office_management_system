@@ -16,9 +16,17 @@ class Requirement_model extends CI_Model {
         else { $this->db->select('r.*'); }
         if ($this->db->table_exists('users')){
             $sel = [];
+            // Assigned to name
             if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $sel[] = "CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name"; }
+            else if ($this->db->field_exists('name','users')) { $sel[] = "u.name AS assigned_to_name"; }
+            else { $sel[] = "u.email AS assigned_to_name"; }
+            // Owner name
+            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $sel[] = "CONCAT(ow.first_name,' ',ow.last_name) AS owner_name"; }
+            else if ($this->db->field_exists('name','users')) { $sel[] = "ow.name AS owner_name"; }
+            else { $sel[] = "ow.email AS owner_name"; }
             $this->db->join('users u','u.id = r.assigned_to','left');
-            if (!empty($sel)) { $this->db->select(implode(',', $sel), false); }
+            $this->db->join('users ow','ow.id = r.owner_id','left');
+            $this->db->select(implode(', ', $sel), false);
         }
         $this->apply_filters($filters, 'r');
         $this->db->order_by('r.created_at','DESC');
@@ -46,10 +54,16 @@ class Requirement_model extends CI_Model {
         $this->db->select('r.*');
         if ($this->db->table_exists('clients')){ $this->db->join('clients c','c.id=r.client_id','left'); $this->db->select('c.company_name AS client_name'); }
         if ($this->db->table_exists('users')){
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){
-                $this->db->join('users u','u.id=r.assigned_to','left');
-                $this->db->select("CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name", false);
-            }
+            // Assigned
+            $this->db->join('users u','u.id=r.assigned_to','left');
+            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $this->db->select("CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name", false); }
+            else if ($this->db->field_exists('name','users')) { $this->db->select("u.name AS assigned_to_name", false); }
+            else { $this->db->select("u.email AS assigned_to_name", false); }
+            // Owner
+            $this->db->join('users ow','ow.id=r.owner_id','left');
+            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $this->db->select("CONCAT(ow.first_name,' ',ow.last_name) AS owner_name", false); }
+            else if ($this->db->field_exists('name','users')) { $this->db->select("ow.name AS owner_name", false); }
+            else { $this->db->select("ow.email AS owner_name", false); }
         }
         return $this->db->get()->row();
     }

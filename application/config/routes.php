@@ -152,6 +152,11 @@ $route['notifications'] = 'notifications/index';
 // Reports
 $route['reports'] = 'reports/index';
 $route['reports/export'] = 'reports/export_csv';
+$route['reports/requirements'] = 'reports/requirements';
+$route['reports/tasks-assignment'] = 'reports/tasks_assignment';
+$route['reports/projects-status'] = 'reports/projects_status';
+$route['reports/leaves'] = 'reports/leaves';
+$route['reports/attendance'] = 'reports/attendance';
 
 // Profile
 $route['profile'] = 'profile/index';

@@ -112,7 +112,7 @@ class Leave_requests extends CI_Controller {
     // GET/POST /leave/team - List team leaves for managers/leads with approve/reject actions
     public function team(){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [2,3], true)) { show_error('Forbidden', 403); }
+        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
 
         $manager_id = (int)$this->session->userdata('user_id');
         // Find team member user_ids via employees.reporting_to
@@ -151,7 +151,7 @@ class Leave_requests extends CI_Controller {
     // POST /leave/approve/{id}
     public function approve($id){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [2,3], true)) { show_error('Forbidden', 403); }
+        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
         if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
@@ -170,7 +170,7 @@ class Leave_requests extends CI_Controller {
     // POST /leave/reject/{id}
     public function reject($id){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [2,3], true)) { show_error('Forbidden', 403); }
+        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
         if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
@@ -185,7 +185,7 @@ class Leave_requests extends CI_Controller {
     // GET /leave/calendar
     public function calendar(){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [2,3], true)) { show_error('Forbidden', 403); }
+        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
         $manager_id = (int)$this->session->userdata('user_id');
 
         $ym = $this->input->get('month'); // format YYYY-MM

@@ -98,6 +98,7 @@ class Tasks extends CI_Controller {
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
+            $requirement_id = $this->input->post('requirement_id') !== '' ? (int)$this->input->post('requirement_id') : null;
             $data = [
                 'project_id' => (int)($this->input->post('project_id') ?: 0),
                 'title' => trim($this->input->post('title')),
@@ -107,6 +108,13 @@ class Tasks extends CI_Controller {
                 'status' => $this->input->post('status') ?: 'pending',
                 'created_by' => $user_id,
             ];
+            // If a requirement is selected, override the title with the requirement's title
+            if ($requirement_id) {
+                $reqTitleRow = $this->db->select('title')->from('requirements')->where('id', (int)$requirement_id)->get()->row();
+                if ($reqTitleRow && isset($reqTitleRow->title) && trim((string)$reqTitleRow->title) !== '') {
+                    $data['title'] = (string)$reqTitleRow->title;
+                }
+            }
             // Optional attachment
             if ($this->db->field_exists('attachment_path', 'tasks') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/tasks/';
@@ -159,8 +167,14 @@ class Tasks extends CI_Controller {
             redirect('tasks/'.$id);
             return;
         }
-        // GET: load projects and users for dropdowns
+        // GET: load projects, requirements, and users for dropdowns
         $projects = $this->db->order_by('name','ASC')->get('projects')->result();
+        $requirements = [];
+        if ($this->db->table_exists('requirements')) {
+            $this->db->select('id, project_id, title')->from('requirements');
+            $this->db->order_by('title','ASC');
+            $requirements = $this->db->get()->result();
+        }
         // Prefer employee name when available
         if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
             $select = ['users.id','users.email'];
@@ -186,7 +200,7 @@ class Tasks extends CI_Controller {
                               ->order_by('email','ASC')
                               ->get()->result();
         }
-        $this->load->view('tasks/form', ['action' => 'create', 'projects' => $projects, 'users' => $users]);
+        $this->load->view('tasks/form', ['action' => 'create', 'projects' => $projects, 'users' => $users, 'requirements' => $requirements]);
     }
 
     // GET /tasks/{id}
@@ -287,7 +301,25 @@ class Tasks extends CI_Controller {
         $statuses = ['pending','in_progress','completed','blocked'];
         $columns = [];
         foreach ($statuses as $st) {
-            $columns[$st] = $this->db->where('status', $st)->order_by('id','DESC')->get('tasks')->result();
+            $this->db->from('tasks t');
+            $select = ['t.*'];
+            if ($this->db->table_exists('projects')) {
+                if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+                $this->db->join('projects p','p.id = t.project_id','left');
+            }
+            if ($this->db->table_exists('users')) {
+                $select[] = 'u.email AS assignee_email';
+                if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
+                if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+                $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+            }
+            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+                $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+            }
+            $this->db->select(implode(',', $select));
+            $this->db->where('t.status', $st)->order_by('t.id','DESC');
+            $columns[$st] = $this->db->get()->result();
         }
         $this->load->view('tasks/board', ['columns' => $columns]);
     }

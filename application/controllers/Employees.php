@@ -14,6 +14,17 @@ class Employees extends CI_Controller {
     // GET /employees
     public function index()
     {
+        $role_id = (int)$this->session->userdata('role_id');
+        $user_id = (int)$this->session->userdata('user_id');
+        // Non-admin/HR: redirect to own employee profile if exists
+        if (!in_array($role_id, [1,2], true) && $user_id) {
+            $row = $this->db->where('user_id', $user_id)->get('employees')->row();
+            if ($row && isset($row->id)) { redirect('employees/'.(int)$row->id); return; }
+            // If no employee row, don't show 404; guide the user instead
+            $this->session->set_flashdata('error', 'Your employee profile is not set up yet. Please contact HR.');
+            redirect('dashboard');
+            return;
+        }
         $q = $this->input->get('q');
         $employees = $this->Employee_model->all(100, 0, $q);
         $data = [ 'employees' => $employees, 'q' => $q ];
@@ -23,6 +34,9 @@ class Employees extends CI_Controller {
     // GET /employees/create, POST /employees/create
     public function create()
     {
+        // Only Admin/HR can create employee records
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1,2], true)) { show_error('Forbidden', 403); }
         if ($this->input->method() === 'post') {
             $dept_id = $this->input->post('department_id');
             $desg_id = $this->input->post('designation_id');
@@ -36,8 +50,10 @@ class Employees extends CI_Controller {
                 $d = $this->db->select('designation_name')->from('designations')->where('id', (int)$desg_id)->get()->row();
                 if ($d) { $desg_name = $d->designation_name; }
             }
+            $uid_raw = (int)$this->input->post('user_id');
+            $uid = $this->find_user_id($uid_raw);
             $payload = [
-                'user_id' => (int)$this->input->post('user_id'),
+                'user_id' => $uid,
                 'emp_code' => trim($this->input->post('emp_code')),
                 'first_name' => trim($this->input->post('first_name')),
                 'last_name' => trim($this->input->post('last_name')),
@@ -59,7 +75,11 @@ class Employees extends CI_Controller {
             redirect('employees/'.$id);
             return;
         }
-        $this->load->view('employees/form', ['action' => 'create']);
+        $data = [
+            'action' => 'create',
+            'users' => $this->get_user_options(),
+        ];
+        $this->load->view('employees/form', $data);
     }
 
     // GET /employees/{id}
@@ -67,6 +87,12 @@ class Employees extends CI_Controller {
     {
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
+        // Ownership check: non Admin/HR can view only their own record
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1,2], true)) {
+            $user_id = (int)$this->session->userdata('user_id');
+            if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
+        }
         $this->load->view('employees/view', ['employee' => $employee]);
     }
 
@@ -75,6 +101,12 @@ class Employees extends CI_Controller {
     {
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
+        // Ownership check: non Admin/HR can edit only their own record
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1,2], true)) {
+            $user_id = (int)$this->session->userdata('user_id');
+            if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
+        }
 
         if ($this->input->method() === 'post') {
             $dept_id = $this->input->post('department_id');
@@ -111,7 +143,12 @@ class Employees extends CI_Controller {
             redirect('employees/'.$id);
             return;
         }
-        $this->load->view('employees/form', ['action' => 'edit', 'employee' => $employee]);
+        $data = [
+            'action' => 'edit',
+            'employee' => $employee,
+            'users' => $this->get_user_options(),
+        ];
+        $this->load->view('employees/form', $data);
     }
 
     // POST /employees/{id}/delete
@@ -173,5 +210,63 @@ class Employees extends CI_Controller {
             return;
         }
         $this->load->view('employees/import');
+    }
+
+    // Build a list of users for the employee-user link dropdown
+    private function get_user_options(){
+        $opts = [];
+        try {
+            // Detect table name
+            $tbl = null;
+            if ($this->db->table_exists('users')) { $tbl = 'users'; }
+            elseif ($this->db->table_exists('sma_users')) { $tbl = 'sma_users'; }
+            if (!$tbl) { return $opts; }
+
+            // Detect available fields
+            $fields = $this->db->list_fields($tbl);
+            $has = function($f) use ($fields){ return in_array($f, $fields, true); };
+            $select = ['id'];
+            if ($has('first_name')) $select[] = 'first_name';
+            if ($has('last_name')) $select[] = 'last_name';
+            if ($has('username')) $select[] = 'username';
+            if ($has('name')) $select[] = 'name';
+            if ($has('email')) $select[] = 'email';
+            // Fallback select if only id exists
+            $selStr = implode(', ', $select);
+            // Order by a sensible existing column
+            $orderCol = $has('first_name') ? 'first_name' : ($has('name') ? 'name' : ($has('username') ? 'username' : ($has('email') ? 'email' : 'id')));
+
+            $rows = $this->db->select($selStr)
+                             ->from($tbl)
+                             ->order_by($orderCol, 'ASC')
+                             ->limit(500)
+                             ->get()
+                             ->result();
+            foreach ($rows as $r){
+                $label = '';
+                $nameParts = [];
+                if (isset($r->first_name) && $r->first_name !== '') $nameParts[] = $r->first_name;
+                if (isset($r->last_name) && $r->last_name !== '') $nameParts[] = $r->last_name;
+                if (!empty($nameParts)) { $label = implode(' ', $nameParts); }
+                elseif (isset($r->name) && $r->name !== '') { $label = $r->name; }
+                elseif (isset($r->username) && $r->username !== '') { $label = $r->username; }
+                elseif (isset($r->email) && $r->email !== '') { $label = $r->email; }
+                else { $label = 'User #'.(int)$r->id; }
+                if (isset($r->email) && $r->email !== '' && strpos($label, $r->email) === false) { $label .= ' <'.$r->email.'>'; }
+                $opts[] = ['id' => (int)$r->id, 'label' => $label];
+            }
+        } catch (Exception $e) { /* ignore */ }
+        return $opts;
+    }
+
+    private function find_user_id($id){
+        $id = (int)$id;
+        if ($id <= 0) { return null; }
+        $tbl = null;
+        if ($this->db->table_exists('users')) { $tbl = 'users'; }
+        elseif ($this->db->table_exists('sma_users')) { $tbl = 'sma_users'; }
+        if (!$tbl) { return null; }
+        $row = $this->db->select('id')->from($tbl)->where('id', $id)->limit(1)->get()->row();
+        return $row ? (int)$row->id : null;
     }
 }

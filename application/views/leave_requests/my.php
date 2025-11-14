@@ -28,11 +28,11 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">From</label>
-        <input type="date" class="form-control" name="from" value="<?php echo htmlspecialchars($filters['start_date'] ?? ''); ?>" />
+        <input type="date" class="form-control" name="from" value="<?php echo htmlspecialchars(isset($filters['start_date']) ? $filters['start_date'] : ''); ?>" />
       </div>
       <div class="col-md-3">
         <label class="form-label">To</label>
-        <input type="date" class="form-control" name="to" value="<?php echo htmlspecialchars($filters['end_date'] ?? ''); ?>" />
+        <input type="date" class="form-control" name="to" value="<?php echo htmlspecialchars(isset($filters['end_date']) ? $filters['end_date'] : ''); ?>" />
       </div>
       <div class="col-md-3 align-self-end">
         <button class="btn btn-outline-secondary">Filter</button>
@@ -59,12 +59,12 @@
             <tr><td colspan="5" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr>
-              <td><?php echo htmlspecialchars($r->type_name ?? ''); ?></td>
+              <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
               <td><?php echo htmlspecialchars($r->start_date.' to '.$r->end_date); ?></td>
               <td><?php echo htmlspecialchars((string)$r->days); ?></td>
               <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($r->status); ?></span></td>
               <td style="max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                <?php echo htmlspecialchars($r->reason ?? ''); ?>
+                <?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?>
               </td>
             </tr>
           <?php endforeach; endif; ?>

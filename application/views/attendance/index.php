@@ -33,14 +33,21 @@
               $d = isset($r->att_date) ? $r->att_date : (isset($r->date) ? $r->date : '');
               $cin = isset($r->punch_in) ? $r->punch_in : (isset($r->check_in) ? $r->check_in : '');
               $cout = isset($r->punch_out) ? $r->punch_out : (isset($r->check_out) ? $r->check_out : '');
+              if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
+              if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
+              // Pretty display just time portion if datetime
+              $cin_disp = $cin;
+              $cout_disp = $cout;
+              if ($cin_disp && strpos($cin_disp, ' ') !== false) { $cin_disp = trim(explode(' ', $cin_disp)[1]); }
+              if ($cout_disp && strpos($cout_disp, ' ') !== false) { $cout_disp = trim(explode(' ', $cout_disp)[1]); }
               $notes = isset($r->notes) ? $r->notes : '';
               $file = isset($r->attachment_path) ? $r->attachment_path : '';
             ?>
             <tr>
               <td><?php echo htmlspecialchars($name); ?></td>
               <td><?php echo htmlspecialchars($d); ?></td>
-              <td><?php echo htmlspecialchars($cin); ?></td>
-              <td><?php echo htmlspecialchars($cout); ?></td>
+              <td><?php echo htmlspecialchars($cin_disp); ?></td>
+              <td><?php echo htmlspecialchars($cout_disp); ?></td>
               <td><?php echo htmlspecialchars($notes); ?></td>
               <td>
                 <?php if(!empty($file)): ?>

@@ -17,27 +17,14 @@
   <div class="card shadow-sm fade-in">
     <div class="card-body">
       <form method="post" enctype="multipart/form-data" class="row g-3">
-        <div class="col-12 col-md-4">
-          <label class="form-label">Date</label>
-          <input type="date" name="date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
-        </div>
-        <div class="col-6 col-md-4">
-          <label class="form-label d-flex justify-content-between align-items-center">
-            <span>Check In</span>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btnNowIn" title="Set to current time">Now</button>
-          </label>
-          <div class="input-group">
-            <input type="time" name="check_in" class="form-control" required>
-          </div>
-        </div>
-        <div class="col-6 col-md-4">
-          <label class="form-label d-flex justify-content-between align-items-center">
-            <span>Check Out</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnNowOut" title="Set to current time">Now</button>
-          </label>
-          <div class="input-group">
-            <input type="time" name="check_out" class="form-control">
-          </div>
+        <input type="hidden" name="lat" value="" />
+        <input type="hidden" name="lng" value="" />
+        <div class="col-12 col-sm-6 col-md-4">
+          <label class="form-label">Action</label>
+          <select name="action" class="form-select" required>
+            <option value="in">IN</option>
+            <option value="out">OUT</option>
+          </select>
         </div>
         <div class="col-12">
           <label class="form-label">Notes</label>
@@ -48,8 +35,9 @@
           <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
           <div class="form-text">Max 4MB. Allowed: JPG, PNG, PDF, DOC, DOCX</div>
         </div>
-        <div class="col-12">
-          <button class="btn btn-primary" type="submit">Save Attendance</button>
+        <div class="col-12 d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
+          <button class="btn btn-primary w-100 w-sm-auto" type="submit">Save Attendance</button>
+          <small class="text-muted" id="geoHint"></small>
         </div>
       </form>
     </div>
@@ -57,18 +45,23 @@
   <script>
     (function(){
       function pad(n){ return (n<10?'0':'')+n; }
-      function currentTimeStr(){ const d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
       function tick(){ try { const d=new Date(); document.getElementById('liveClock').textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); } catch(e){} }
       document.addEventListener('DOMContentLoaded', function(){
         try { tick(); setInterval(tick, 1000); } catch(e){}
-        var inEl = document.querySelector('input[name="check_in"]');
-        var outEl = document.querySelector('input[name="check_out"]');
-        var btnIn = document.getElementById('btnNowIn');
-        var btnOut = document.getElementById('btnNowOut');
-        if (btnIn) btnIn.addEventListener('click', function(){ if (inEl) inEl.value = currentTimeStr(); });
-        if (btnOut) btnOut.addEventListener('click', function(){ if (outEl) outEl.value = currentTimeStr(); });
-        // If check-in empty, prefill with current time on load for convenience
-        try { if (inEl && !inEl.value) inEl.value = currentTimeStr(); } catch(e){}
+        try {
+          var latEl = document.querySelector('input[name="lat"]');
+          var lngEl = document.querySelector('input[name="lng"]');
+          var hint = document.getElementById('geoHint');
+          if (navigator.geolocation && latEl && lngEl){
+            navigator.geolocation.getCurrentPosition(function(pos){
+              try {
+                latEl.value = String(pos.coords.latitude || '');
+                lngEl.value = String(pos.coords.longitude || '');
+                if (hint) hint.textContent = 'Location captured';
+              } catch(e){}
+            }, function(){ try { if (hint) hint.textContent = 'Location not shared'; } catch(e){} }, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+          } else { if (hint) hint.textContent = 'Location not available'; }
+        } catch(e){}
       });
     })();
   </script>

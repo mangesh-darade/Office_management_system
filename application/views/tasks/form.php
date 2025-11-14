@@ -22,10 +22,28 @@
             <?php endforeach; ?>
           </select>
         </div>
+        <?php if (isset($requirements) && is_array($requirements) && count($requirements) > 0): ?>
+        <div class="col-md-8" id="requirement-container" style="display:none;">
+          <label class="form-label">Requirement (optional)</label>
+          <select name="requirement_id" class="form-select">
+            <option value="">-- Select requirement --</option>
+            <?php foreach ($requirements as $r): ?>
+              <option value="<?php echo (int)$r->id; ?>" data-project-id="<?php echo isset($r->project_id)?(int)$r->project_id:0; ?>" data-title="<?php echo htmlspecialchars($r->title); ?>">
+                <?php echo htmlspecialchars($r->title); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text">Selecting a requirement will set the task title to that requirement's title.</div>
+        </div>
+        <?php endif; ?>
+        <?php if ($action === 'edit'): ?>
         <div class="col-md-8">
           <label class="form-label">Title <span class="text-danger">*</span></label>
           <input required type="text" name="title" class="form-control" value="<?php echo isset($task) ? htmlspecialchars($task->title) : ''; ?>" placeholder="Design wireframes">
         </div>
+        <?php else: ?>
+          <input type="hidden" name="title" value="<?php echo isset($task) ? htmlspecialchars($task->title) : ''; ?>">
+        <?php endif; ?>
         <div class="col-12">
           <label class="form-label">Description</label>
           <textarea id="task-description" name="description" rows="6" class="form-control" placeholder="Details..."><?php echo isset($task) ? htmlspecialchars($task->description) : ''; ?></textarea>
@@ -105,5 +123,38 @@
   document.querySelector('form').addEventListener('submit', function(){
     if (tinymce.get('task-description')) tinymce.get('task-description').save();
   });
+  // Requirement filtering and title autofill
+  (function(){
+    var projSel = document.querySelector('select[name="project_id"]');
+    var reqSel = document.querySelector('select[name="requirement_id"]');
+    var reqContainer = document.getElementById('requirement-container');
+    var titleInput = document.querySelector('input[name="title"]');
+    if (!projSel || !reqSel) return;
+    function filterRequirements(){
+      var pid = parseInt(projSel.value || '0', 10);
+      var hasSelection = false;
+      // Toggle container visibility
+      if (reqContainer) { reqContainer.style.display = pid ? '' : 'none'; }
+      Array.prototype.forEach.call(reqSel.options, function(opt, idx){
+        if (idx === 0) { opt.hidden = false; return; }
+        var opid = parseInt(opt.getAttribute('data-project-id') || '0', 10);
+        var show = !pid || pid === opid;
+        opt.hidden = !show;
+        if (!show && opt.selected) { hasSelection = true; }
+      });
+      if (hasSelection) { reqSel.selectedIndex = 0; }
+    }
+    function applyRequirementTitle(){
+      var opt = reqSel.options[reqSel.selectedIndex];
+      if (opt && opt.value){
+        var t = opt.getAttribute('data-title') || '';
+        if (t && titleInput) { titleInput.value = t; }
+      }
+    }
+    projSel.addEventListener('change', filterRequirements);
+    reqSel.addEventListener('change', applyRequirementTitle);
+    // Initial filter on load to respect preselected project
+    filterRequirements();
+  })();
 </script>
 <?php $this->load->view('partials/footer'); ?>

@@ -29,6 +29,7 @@ class Requirements extends CI_Controller {
                 `currency` varchar(10) DEFAULT 'INR',
                 `expected_delivery_date` date DEFAULT NULL,
                 `received_date` date DEFAULT NULL,
+                `owner_id` int(11) DEFAULT NULL,
                 `assigned_to` int(11) DEFAULT NULL,
                 `created_by` int(11) DEFAULT NULL,
                 `created_at` datetime DEFAULT NULL,
@@ -39,6 +40,11 @@ class Requirements extends CI_Controller {
                 KEY `idx_status` (`status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
+        }
+        // Add missing columns when table already exists
+        if ($this->db->table_exists('requirements')){
+            $fields = $this->db->list_fields('requirements');
+            if (!in_array('owner_id', $fields, true)) { $this->db->query("ALTER TABLE `requirements` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
         }
         if (!$this->db->table_exists('requirement_attachments')){
             $sql2 = "CREATE TABLE `requirement_attachments` (
@@ -69,6 +75,7 @@ class Requirements extends CI_Controller {
                 `budget_estimate` decimal(15,2) DEFAULT NULL,
                 `expected_delivery_date` date DEFAULT NULL,
                 `received_date` date DEFAULT NULL,
+                `owner_id` int(11) DEFAULT NULL,
                 `assigned_to` int(11) DEFAULT NULL,
                 `created_by` int(11) DEFAULT NULL,
                 `created_at` datetime DEFAULT NULL,
@@ -77,6 +84,11 @@ class Requirements extends CI_Controller {
                 KEY `idx_version` (`version_no`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql3);
+        }
+        // Add missing columns to versions as well
+        if ($this->db->table_exists('requirement_versions')){
+            $vfields = $this->db->list_fields('requirement_versions');
+            if (!in_array('owner_id', $vfields, true)) { $this->db->query("ALTER TABLE `requirement_versions` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
         }
     }
 
@@ -115,6 +127,7 @@ class Requirements extends CI_Controller {
                 'budget_estimate' => $this->input->post('budget_estimate') !== '' ? (float)$this->input->post('budget_estimate') : null,
                 'expected_delivery_date' => $this->input->post('expected_delivery_date') ?: null,
                 'received_date' => $this->input->post('received_date') ?: date('Y-m-d'),
+                'owner_id' => $this->input->post('owner_id') !== '' ? (int)$this->input->post('owner_id') : null,
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'created_by' => (int)$this->session->userdata('user_id'),
                 'created_at' => date('Y-m-d H:i:s'),
@@ -183,6 +196,7 @@ class Requirements extends CI_Controller {
                 'budget_estimate' => $this->input->post('budget_estimate') !== '' ? (float)$this->input->post('budget_estimate') : null,
                 'expected_delivery_date' => $this->input->post('expected_delivery_date') ?: null,
                 'received_date' => $this->input->post('received_date') ?: $row->received_date,
+                'owner_id' => $this->input->post('owner_id') !== '' ? (int)$this->input->post('owner_id') : null,
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'updated_at' => date('Y-m-d H:i:s'),
             ];

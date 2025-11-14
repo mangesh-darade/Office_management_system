@@ -5,6 +5,9 @@ class AuthHook {
     public function check()
     {
         $CI =& get_instance();
+        // Ensure local timezone is used for all date()/time() calls
+        // Change 'Asia/Kolkata' if your organization uses a different default
+        try { @date_default_timezone_set('Asia/Kolkata'); } catch (Exception $e) {}
         // Determine current URI safely
         $uri = '';
         if (isset($CI->uri) && method_exists($CI->uri, 'uri_string')) {
@@ -46,7 +49,7 @@ class AuthHook {
         // Route-level RBAC: map controller to allowed roles (defaults)
         $routes_roles = [
             'dashboard' => [1,2,3,4], // all roles
-            'employees' => [1,2],     // admin, hr
+            'employees' => [1,2,3,4], // allow; controller enforces ownership for non-admin/HR
             'projects'  => [1,2,3],   // admin, hr, lead
             'tasks'     => [1,2,3,4], // all roles
             'attendance'=> [1,2,3,4], // all roles
@@ -81,7 +84,7 @@ class AuthHook {
         } else if ($uri !== '') {
             $controller = strtolower(explode('/', $uri)[0]);
         }
-        if (isset($routes_roles[$controller])) {
+        if ($role_id !== 1 && isset($routes_roles[$controller])) {
             if (!in_array($role_id, $routes_roles[$controller], true)) {
                 show_error('You do not have permission to access this page.', 403);
             }

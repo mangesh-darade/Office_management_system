@@ -67,10 +67,10 @@
           <label class="form-label">Budget (<?php echo 'INR'; ?>)</label>
           <input type="number" step="0.01" name="budget_estimate" class="form-control">
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Assign To</label>
-          <select name="assigned_to" class="form-select">
-            <option value="">-- Unassigned --</option>
+        <div class="col-md-3">
+          <label class="form-label">Owner</label>
+          <select name="owner_id" class="form-select">
+            <option value="">-- None --</option>
             <?php if (isset($members) && is_array($members)) foreach ($members as $m): ?>
               <?php $label = '';
                 if (isset($m->full_label) && $m->full_label!=='') { $label = $m->full_label; }

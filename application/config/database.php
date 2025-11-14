@@ -79,6 +79,12 @@ $db['default'] = array(
 	'username' => 'root',
 	'password' => '',
 	'database' => 'employmanagement',
+	
+	// 'hostname' => '65.2.59.101',
+	// 'username' => 'sitadmin_Magicwe_ankita_11_nov',
+	// 'password' => 'sitadmin_Magicwe_ankita_11_nov',
+	// 'database' => 'sitadmin_Magicwe_ankita_11_nov',
+
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
 	'pconnect' => FALSE,

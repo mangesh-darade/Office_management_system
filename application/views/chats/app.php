@@ -31,6 +31,26 @@
   @media (max-width: 767.98px) {
     .chat-app .avatar { width: 30px; height:30px; font-size:.85rem; }
   }
+  /* Call overlay (full view) */
+  .call-overlay { position: fixed; inset: 0; z-index: 1085; background: radial-gradient(circle at top, rgba(17,25,40,.92) 0%, rgba(2,6,23,.95) 50%, rgba(2,6,23,.98) 100%); color:#fff; display:none; flex-direction: column; padding: 1.25rem; }
+  .call-overlay.show { display:flex; }
+  .call-overlay .overlay-toolbar { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:flex-end; margin-bottom:1rem; }
+  .call-overlay .overlay-toolbar .btn { min-width:42px; }
+  .call-overlay .overlay-body { flex:1; display:grid; grid-template-columns: minmax(0,2fr) minmax(260px,1fr); gap:1rem; align-items:stretch; }
+  .call-overlay .overlay-stage { position:relative; background:#0f172a; border-radius:16px; padding: .5rem; display:flex; align-items:center; justify-content:center; }
+  .call-overlay .overlay-stage video { width:100%; height:100%; object-fit:cover; border-radius:12px; background:#111827; }
+  .call-overlay .overlay-side { display:flex; flex-direction:column; gap:1rem; }
+  .call-overlay .overlay-tile { background:#111827; border-radius:12px; padding:.5rem; display:flex; flex-direction:column; }
+  .call-overlay .overlay-tile video { width:100%; border-radius:10px; background:#000; object-fit:cover; }
+  .call-overlay .overlay-tile .tile-label { font-size:.8rem; color:rgba(226,232,240,.85); margin-top:.35rem; text-align:center; }
+  .call-overlay .overlay-status { margin-top:1rem; text-align:center; font-size:.95rem; color:rgba(226,232,240,.8); }
+  .call-overlay .overlay-stage .screen-share-active { position:absolute; inset:0; border-radius:12px; overflow:hidden; background:#020617; }
+  .call-overlay .overlay-stage .screen-share-active video { width:100%; height:100%; object-fit:contain; background:#020617; }
+  @media (max-width: 992px) {
+    .call-overlay .overlay-body { grid-template-columns: 1fr; }
+    .call-overlay .overlay-side { flex-direction:row; flex-wrap:wrap; }
+    .call-overlay .overlay-tile { flex:1 1 45%; }
+  }
 </style>
 <div class="chat-app row g-3">
   <div class="col-12 col-md-4 col-lg-3">
@@ -90,6 +110,7 @@
           <button id="btnShareScreen" class="btn btn-outline-secondary btn-sm" disabled title="Share Screen"><i class="bi bi-display"></i></button>
           <button id="btnRecord" class="btn btn-outline-secondary btn-sm" disabled title="Record (screen/camera)"><i class="bi bi-record-circle"></i></button>
           <button id="btnEndCall" class="btn btn-outline-danger btn-sm d-none"><i class="bi bi-telephone-x"></i></button>
+          <button id="btnFullscreen" class="btn btn-outline-secondary btn-sm" disabled title="Full View"><i class="bi bi-arrows-fullscreen"></i></button>
         </div>
       </div>
       <div class="card-body">
@@ -116,6 +137,36 @@
     </div>
   </div>
 </div>
+<div id="callOverlay" class="call-overlay" aria-hidden="true">
+  <div class="overlay-toolbar">
+    <button id="btnOverlayMinimize" class="btn btn-outline-light btn-sm" title="Back to chat"><i class="bi bi-chat-dots"></i></button>
+    <button id="btnOverlayScreen" class="btn btn-outline-light btn-sm" title="Toggle screen share"><i class="bi bi-display"></i></button>
+    <button id="btnOverlayMic" class="btn btn-outline-light btn-sm" title="Mute / unmute microphone"><i class="bi bi-mic"></i></button>
+    <button id="btnOverlayCamera" class="btn btn-outline-light btn-sm" title="Toggle camera"><i class="bi bi-camera-video"></i></button>
+    <button id="btnOverlayLeave" class="btn btn-danger btn-sm" title="End call"><i class="bi bi-telephone-x"></i></button>
+    <button id="btnOverlayClose" class="btn btn-outline-light btn-sm" title="Close full view"><i class="bi bi-fullscreen-exit"></i></button>
+  </div>
+  <div class="overlay-body">
+    <div class="overlay-stage">
+      <div id="overlayScreenWrap" class="screen-share-active d-none">
+        <video id="overlayScreenVideo" autoplay playsinline></video>
+      </div>
+      <video id="overlayRemoteVideo" autoplay playsinline></video>
+    </div>
+    <div class="overlay-side">
+      <div class="overlay-tile">
+        <video id="overlayLocalVideo" autoplay playsinline muted></video>
+        <div class="tile-label">You</div>
+      </div>
+      <div class="overlay-tile">
+        <video id="overlayRemoteThumb" autoplay playsinline></video>
+        <div class="tile-label">Remote Preview</div>
+      </div>
+    </div>
+  </div>
+  <div id="overlayStatus" class="overlay-status">Idle</div>
+</div>
+
 <!-- Recording footer (shown only while recording) -->
 <div id="recordFooter" class="position-fixed bottom-0 start-0 end-0 py-2 px-3" style="display:none; background:rgba(33,37,41,.95); color:#fff; z-index:1080;">
   <div class="d-flex align-items-center justify-content-between">
@@ -179,6 +230,20 @@
   const btnRecord = document.getElementById('btnRecord');
   const btnReminder = document.getElementById('btnReminder');
   const btnAttach = document.getElementById('btnAttach');
+  const btnFullscreen = document.getElementById('btnFullscreen');
+  const callOverlay = document.getElementById('callOverlay');
+  const overlayRemoteVideo = document.getElementById('overlayRemoteVideo');
+  const overlayRemoteThumb = document.getElementById('overlayRemoteThumb');
+  const overlayLocalVideo = document.getElementById('overlayLocalVideo');
+  const overlayScreenWrap = document.getElementById('overlayScreenWrap');
+  const overlayScreenVideo = document.getElementById('overlayScreenVideo');
+  const overlayStatus = document.getElementById('overlayStatus');
+  const btnOverlayMinimize = document.getElementById('btnOverlayMinimize');
+  const btnOverlayScreen = document.getElementById('btnOverlayScreen');
+  const btnOverlayMic = document.getElementById('btnOverlayMic');
+  const btnOverlayCamera = document.getElementById('btnOverlayCamera');
+  const btnOverlayLeave = document.getElementById('btnOverlayLeave');
+  const btnOverlayClose = document.getElementById('btnOverlayClose');
   // Helpers for remote server robustness
   function isUnauthorizedResponse(r){ try { return r && r.status===401; } catch(e){ return false; } }
   async function parseJsonSafe(r){ try { return await r.json(); } catch(e){ return null; } }
@@ -233,6 +298,8 @@
   const toastBodyEl = document.getElementById('toastBody');
   const chatSoundEl = document.getElementById('chatSound');
   const unreadCounts = {}; // cid -> count
+  let overlayOpen = false;
+  let cameraEnabled = true;
   let toastInstance = null;
   if (window.bootstrap && window.bootstrap.Toast) {
     toastInstance = new bootstrap.Toast(chatToastEl, { delay: 3500 });
@@ -290,6 +357,8 @@
       if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
       if (btnRejectCall) btnRejectCall.classList.add('d-none');
       if (callStatus) callStatus.textContent = 'Idle';
+      setOverlayStatus('Idle');
+      if (btnFullscreen) btnFullscreen.disabled = !id;
     } catch(e) { /* noop */ }
   }
 
@@ -331,12 +400,47 @@
     try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e) {}
   });
 
+  // Overlay helpers
+  function setOverlayStatus(text){
+    try { if (overlayStatus) overlayStatus.textContent = text || ''; } catch(e){}
+  }
+
+  function syncOverlayStreams(){
+    try {
+      if (overlayRemoteVideo) { overlayRemoteVideo.srcObject = remoteVideo ? remoteVideo.srcObject : null; }
+      if (overlayRemoteThumb) { overlayRemoteThumb.srcObject = remoteVideo ? remoteVideo.srcObject : null; }
+      if (overlayLocalVideo) { overlayLocalVideo.srcObject = localStream || null; }
+      if (overlayScreenVideo) { overlayScreenVideo.srcObject = screenStream || null; }
+      if (screenStream) {
+        overlayScreenWrap && overlayScreenWrap.classList.remove('d-none');
+      } else {
+        overlayScreenWrap && overlayScreenWrap.classList.add('d-none');
+      }
+    } catch(e){}
+  }
+
+  function setOverlayVisible(open){
+    overlayOpen = !!open;
+    if (!callOverlay) return;
+    if (overlayOpen){
+      callOverlay.classList.add('show');
+      callOverlay.setAttribute('aria-hidden','false');
+      syncOverlayStreams();
+      if (btnFullscreen) { btnFullscreen.innerHTML = '<i class="bi bi-fullscreen-exit"></i>'; }
+    } else {
+      callOverlay.classList.remove('show');
+      callOverlay.setAttribute('aria-hidden','true');
+      if (btnFullscreen) { btnFullscreen.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>'; }
+    }
+  }
+
   // Screen share helpers
   async function startScreenShare(){
     if (!pc) return;
     try {
       screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
       const screenTrack = screenStream.getVideoTracks()[0];
+
       if (!originalVideoTrack && localStream) { originalVideoTrack = localStream.getVideoTracks()[0] || null; }
       const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
       if (sender && screenTrack) {
@@ -345,7 +449,9 @@
       // Show screen in local preview
       localVideo.srcObject = screenStream;
       btnShareScreen.innerHTML = '<i class="bi bi-display-fill"></i>';
+      if (btnOverlayScreen) btnOverlayScreen.innerHTML = '<i class="bi bi-display-fill"></i>';
       setStatus('Screen sharing');
+      syncOverlayStreams();
       // If user stops from browser UI, auto-restore
       screenTrack.onended = () => { stopScreenShare().catch(()=>{}); };
     } catch(e) {
@@ -355,6 +461,7 @@
 
   async function stopScreenShare(){
     if (!pc) return;
+
     try {
       const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
       if (sender && originalVideoTrack) {
@@ -367,7 +474,9 @@
       }
       screenStream = null;
       btnShareScreen.innerHTML = '<i class="bi bi-display"></i>';
+      if (btnOverlayScreen) btnOverlayScreen.innerHTML = '<i class="bi bi-display"></i>';
       setStatus('Connected');
+      syncOverlayStreams();
     } catch(e) {}
   }
 
@@ -754,7 +863,11 @@
   let mediaRecorder=null; let recordedChunks=[]; let isRecording=false;
   const localVideo = document.getElementById('localVideo');
   const remoteVideo = document.getElementById('remoteVideo');
-  function setStatus(s){ callStatus.textContent = s; }
+  function setStatus(s){
+    callStatus && (callStatus.textContent = s);
+    setOverlayStatus(s);
+  }
+
   let recordTimerId = null; let recordStartAt = 0;
   function fmt(t){ return (t<10?'0':'')+t; }
   function startTimer(){
@@ -777,8 +890,8 @@
     };
     pc.ontrack = (ev)=>{
       remoteVideo.srcObject = ev.streams[0];
-      // Ensure audio plays; some browsers need an explicit play after user gesture (start call)
       try { remoteVideo.play && remoteVideo.play(); } catch(e) {}
+      syncOverlayStreams();
     };
     if (!localStream) {
       localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
@@ -786,14 +899,17 @@
       try { originalVideoTrack = localStream.getVideoTracks()[0] || null; } catch(e) { originalVideoTrack = null; }
     }
     localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+
     // Enable mic control once media is ready
     btnToggleMic.disabled = false;
     // Enable speaker control
     btnToggleSpeaker.disabled = false;
-    remoteVideo.muted = false; // speakers on
-    // Allow screen share when media/call context is ready
+    remoteVideo.muted = false;
     btnShareScreen.disabled = false;
     btnRecord.disabled = false;
+    btnFullscreen && (btnFullscreen.disabled = false);
+    cameraEnabled = true;
+    syncOverlayStreams();
   }
 
   async function startCall(){
@@ -815,6 +931,7 @@
       setCallToggleUI(true);
       if (btnEndCall) btnEndCall.classList.add('d-none');
       startRinging('out');
+      syncOverlayStreams();
     } catch(e){ setStatus('Call failed: '+e.message); }
   }
 
@@ -863,6 +980,7 @@
     // Reset mic state
     btnToggleMic.disabled = true;
     btnToggleMic.innerHTML = '<i class="bi bi-mic"></i>';
+    if (btnOverlayMic) btnOverlayMic.innerHTML = '<i class="bi bi-mic"></i>';
     // Reset speaker state
     btnToggleSpeaker.disabled = true;
     btnToggleSpeaker.innerHTML = '<i class="bi bi-volume-up"></i>';
@@ -873,6 +991,11 @@
     btnShareScreen.disabled = true;
     btnRecord.disabled = true;
     setCallToggleUI(false);
+    setOverlayVisible(false);
+    if (overlayRemoteVideo) overlayRemoteVideo.srcObject = null;
+    if (overlayRemoteThumb) overlayRemoteThumb.srcObject = null;
+    if (overlayLocalVideo) overlayLocalVideo.srcObject = null;
+    if (overlayScreenVideo) overlayScreenVideo.srcObject = null;
     // Restore header controls
     if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
     if (btnRejectCall) btnRejectCall.classList.add('d-none');
@@ -893,13 +1016,16 @@
       stopRinging();
       if (signalTimer) { clearInterval(signalTimer); }
       signalTimer = setInterval(pollSignals, 2000);
+      syncOverlayStreams();
+      setCallToggleUI(true);
+      if (btnEndCall) btnEndCall.classList.add('d-none');
+      if (!overlayOpen) { setOverlayVisible(true); }
     } catch(e) { setStatus('Accept failed'); }
     finally {
       pendingRemoteOffer = null;
       if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
       if (btnRejectCall) btnRejectCall.classList.add('d-none');
       if (btnCallToggle) btnCallToggle.classList.remove('d-none');
-      setCallToggleUI(true);
     }
   });
   if (btnRejectCall) btnRejectCall.addEventListener('click', async ()=>{
@@ -922,13 +1048,63 @@
     const enabled = audioTracks[0].enabled;
     audioTracks.forEach(t => t.enabled = !enabled);
     btnToggleMic.innerHTML = enabled ? '<i class="bi bi-mic-mute"></i>' : '<i class="bi bi-mic"></i>';
+    if (btnOverlayMic) btnOverlayMic.innerHTML = enabled ? '<i class="bi bi-mic-mute"></i>' : '<i class="bi bi-mic"></i>';
   });
   // Speaker toggle controls remote audio playback
   btnToggleSpeaker.addEventListener('click', ()=>{
     const muted = !!remoteVideo.muted;
     remoteVideo.muted = !muted;
     btnToggleSpeaker.innerHTML = muted ? '<i class="bi bi-volume-up"></i>' : '<i class="bi bi-volume-mute"></i>';
+    if (btnOverlayMinimize) {
+      const newIcon = muted ? '<i class="bi bi-volume-up"></i>' : '<i class="bi bi-volume-mute"></i>';
+      try { btnOverlayMinimize.dataset.volumeIcon = newIcon; } catch(e){}
+    }
   });
+
+  function toggleMic(){
+    if (!localStream) return;
+    const audioTracks = localStream.getAudioTracks();
+    if (!audioTracks || audioTracks.length === 0) return;
+    const enabled = audioTracks[0].enabled;
+    audioTracks.forEach(t => t.enabled = !enabled);
+    const micOn = !enabled;
+    btnToggleMic.innerHTML = micOn ? '<i class="bi bi-mic"></i>' : '<i class="bi bi-mic-mute"></i>';
+    if (btnOverlayMic) btnOverlayMic.innerHTML = micOn ? '<i class="bi bi-mic"></i>' : '<i class="bi bi-mic-mute"></i>';
+  }
+  btnToggleMic.addEventListener('click', toggleMic);
+
+  function toggleCamera(){
+    if (!localStream) return;
+    const videoTracks = localStream.getVideoTracks();
+    if (!videoTracks || videoTracks.length === 0) return;
+    cameraEnabled = !cameraEnabled;
+    videoTracks.forEach(t => t.enabled = cameraEnabled);
+    if (!cameraEnabled && !screenStream) {
+      localVideo.srcObject = null;
+    } else if (cameraEnabled && !screenStream) {
+      localVideo.srcObject = localStream;
+    }
+    const icon = cameraEnabled ? '<i class="bi bi-camera-video"></i>' : '<i class="bi bi-camera-video-off"></i>';
+    if (btnOverlayCamera) btnOverlayCamera.innerHTML = icon;
+    syncOverlayStreams();
+  }
+
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', ()=>{
+      if (!callId) return;
+      setOverlayVisible(!overlayOpen);
+    });
+  }
+  if (btnOverlayMinimize) btnOverlayMinimize.addEventListener('click', ()=> setOverlayVisible(false));
+  if (btnOverlayClose) btnOverlayClose.addEventListener('click', ()=> setOverlayVisible(false));
+  if (btnOverlayScreen) btnOverlayScreen.addEventListener('click', async ()=>{
+    if (!pc) return;
+    if (screenStream) { await stopScreenShare(); }
+    else { await startScreenShare(); }
+  });
+  if (btnOverlayMic) btnOverlayMic.addEventListener('click', toggleMic);
+  if (btnOverlayCamera) btnOverlayCamera.addEventListener('click', toggleCamera);
+  if (btnOverlayLeave) btnOverlayLeave.addEventListener('click', endCall);
 
   // Bind convo selection (guard for pages without convoList)
   if (convoList) {

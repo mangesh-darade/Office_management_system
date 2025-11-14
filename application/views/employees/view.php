@@ -1,13 +1,13 @@
 <?php $this->load->view('partials/header', ['title' => 'Employee #'.(int)$employee->id]); ?>
   <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <h1 class="h4 mb-2 mb-sm-0">Employee #<?php echo (int)$employee->id; ?></h1>
-    <div class="d-flex gap-2">
-      <a class="btn btn-secondary" href="<?php echo site_url('employees'); ?>">Back</a>
-      <a class="btn btn-primary" href="<?php echo site_url('employees/'.$employee->id.'/edit'); ?>">Edit</a>
+    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-sm-auto">
+      <a class="btn btn-secondary w-100 w-sm-auto" href="<?php echo site_url('employees'); ?>">Back</a>
+      <a class="btn btn-primary w-100 w-sm-auto" href="<?php echo site_url('employees/'.$employee->id.'/edit'); ?>">Edit</a>
     </div>
   </div>
   <div class="row g-3">
-    <div class="col-md-6">
+    <div class="col-12 col-md-6">
       <div class="card h-100 shadow-soft"><div class="card-body">
         <h5 class="card-title">Profile</h5>
         <p class="mb-1"><strong>Code:</strong> <?php echo htmlspecialchars($employee->emp_code); ?></p>

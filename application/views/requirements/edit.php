@@ -75,10 +75,10 @@
           <label class="form-label">Budget (INR)</label>
           <input type="number" step="0.01" name="budget_estimate" class="form-control" value="<?php echo htmlspecialchars(isset($row->budget_estimate)?$row->budget_estimate:''); ?>">
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Assign To</label>
-          <select name="assigned_to" class="form-select">
-            <option value="">-- Unassigned --</option>
+        <div class="col-md-3">
+          <label class="form-label">Owner</label>
+          <select name="owner_id" class="form-select">
+            <option value="">-- None --</option>
             <?php if (isset($members) && is_array($members)) foreach ($members as $m): ?>
               <?php $label = '';
                 if (isset($m->full_label) && $m->full_label!=='') { $label = $m->full_label; }
@@ -86,7 +86,7 @@
                 else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
                 else if (isset($m->email)) { $label = $m->email; }
               ?>
-              <option value="<?php echo (int)$m->id; ?>" <?php echo ((int)$row->assigned_to===(int)$m->id)?'selected':''; ?>><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>" <?php echo ((int)$row->owner_id===(int)$m->id)?'selected':''; ?>><?php echo htmlspecialchars($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
