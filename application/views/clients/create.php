@@ -11,7 +11,7 @@
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="" class="vstack gap-3">
+    <form method="post" action="" enctype="multipart/form-data" class="vstack gap-3">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Company Name</label>
@@ -36,6 +36,14 @@
         <div class="col-md-6">
           <label class="form-label">Website</label>
           <input type="text" name="website" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Demo URL</label>
+          <input type="text" name="demo_url" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">POS URL</label>
+          <input type="text" name="pos_url" class="form-control">
         </div>
         <div class="col-md-12">
           <label class="form-label">Address</label>
@@ -87,6 +95,26 @@
               <option value="<?php echo (int)$m->id; ?>"><?php echo htmlspecialchars($label); ?></option>
             <?php endforeach; ?>
           </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Onboarding Date</label>
+          <input type="date" name="onboarding_date" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Logo</label>
+          <input type="file" name="logo" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Name</label>
+          <input type="text" name="db_name" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Username</label>
+          <input type="text" name="db_username" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Password</label>
+          <input type="text" name="db_password" class="form-control">
         </div>
         <div class="col-md-12">
           <label class="form-label">Notes</label>

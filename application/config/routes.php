@@ -173,6 +173,8 @@ $route['settings/test-email'] = 'settings/test_email';
 
 // DB Manager (MVC + AJAX)
 $route['db'] = 'db/index';
+$route['db/clients'] = 'db/client_panel';
+$route['db/client-migrations'] = 'db/client_migrations';
 $route['db/queries/list'] = 'db/list_queries';
 $route['db/queries/save'] = 'db/save_query';
 $route['db/queries/update/(\d+)'] = 'db/update_query/$1';
@@ -185,6 +187,7 @@ $route['db/compare'] = 'db/compare';
 $route['db/compare/scan'] = 'db/compare_scan';
 $route['db/compare/merge'] = 'db/compare_merge';
 $route['db/compare/update-file-missing'] = 'db/compare_update_file_missing';
+$route['db/compare/drop-db-only'] = 'db/compare_drop_db_only';
 $route['db/databases'] = 'db/list_databases';
 
 // Timesheets

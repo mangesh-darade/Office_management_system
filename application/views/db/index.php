@@ -107,6 +107,7 @@
   </div>
   
 </div>
+
 <!-- <div class="card shadow-soft mb-3">
   <div class="card-body">
     <form method="post" action="<?php echo site_url('db/queries/save'); ?>">
@@ -217,8 +218,6 @@
     </div>
   </div>
 </div>
-
-
 
 <!-- Modals -->
 <div class="modal fade" id="showSqlModal" tabindex="-1" aria-hidden="true">

@@ -17,23 +17,46 @@
   </div>
   <div class="card-body">
     <div class="row g-3 align-items-end">
-      <div class="col-8 col-xl-3">
+      <div class="col-12 col-xl-5">
         <label class="form-label">SQL File Path</label>
         <input class="form-control" id="cmpFilePath" value="<?php echo isset($sql_file_default)?htmlspecialchars($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
       </div>
-      <div class="col-4 col-md-4 col-xl-2">
+      <?php if (isset($clients) && is_array($clients) && !empty($clients)): ?>
+      <div class="col-12 col-md-4 col-xl-4">
+        <label class="form-label">Client</label>
+        <select class="form-select" id="cmpClient">
+          <option value="">-- Select client --</option>
+          <?php foreach ($clients as $cl): ?>
+            <option value="<?php echo (int)$cl->id; ?>"
+                    data-pos-url="<?php echo htmlspecialchars(isset($cl->pos_url)?$cl->pos_url:''); ?>"
+                    data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
+                    data-db-user="<?php echo htmlspecialchars(isset($cl->db_username)?$cl->db_username:''); ?>"
+                    data-db-pass="<?php echo htmlspecialchars(isset($cl->db_password)?$cl->db_password:''); ?>">
+              <?php echo htmlspecialchars($cl->company_name); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-12 col-md-3 col-xl-3">
+        <label class="form-label">Client POS URL</label>
+        <input class="form-control" id="cmpPosUrl" placeholder="" readonly />
+      </div>
+      <?php endif; ?>
+    </div>
+    <div class="row g-3 align-items-end mt-2">
+      <div class="col-6 col-md-3 col-xl-2">
         <label class="form-label">Hostname</label>
         <input class="form-control" id="cmpHost" placeholder="localhost" value="localhost" />
       </div>
-      <div class="col-4 col-md-4 col-xl-2">
+      <div class="col-6 col-md-3 col-xl-2">
         <label class="form-label">Username</label>
         <input class="form-control" id="cmpUser" placeholder="root" value="root" />
       </div>
-      <div class="col-4 col-md-4 col-xl-2">
+      <div class="col-6 col-md-3 col-xl-2">
         <label class="form-label">Password</label>
         <input class="form-control" id="cmpPass" type="password" placeholder="" />
       </div>
-      <div class="col-8 col-md-4 col-xl-3">
+      <div class="col-6 col-md-3 col-xl-3">
         <label class="form-label">Database Name</label>
         <div class="input-group">
           <select class="form-select" id="cmpDatabase"></select>
@@ -125,6 +148,8 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
   var inHost = document.getElementById('cmpHost');
   var inUser = document.getElementById('cmpUser');
   var inPass = document.getElementById('cmpPass');
+  var inClient = document.getElementById('cmpClient');
+  var inPosUrl = document.getElementById('cmpPosUrl');
   var connBadge = document.getElementById('connBadge');
   var btnCheckConn = document.getElementById('btnCheckConn');
   var btnShowSql = document.getElementById('btnShowSql');
@@ -273,6 +298,30 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
       .then(function(j){ if (j && j.success){ showToast('Applied '+(j.applied||0)+' change(s)'); } else { showToast((j&&j.message)||'Failed','danger'); } })
       .catch(function(){ showToast('Failed','danger'); })
       .finally(function(){ hideLoader(); });
+  }); }
+  if (inClient){ inClient.addEventListener('change', function(){
+    var opt = inClient.options[inClient.selectedIndex] || null;
+    if (!opt) return;
+    var pos = opt.getAttribute('data-pos-url') || '';
+    var dbName = opt.getAttribute('data-db-name') || '';
+    var dbUser = opt.getAttribute('data-db-user') || '';
+    var dbPass = opt.getAttribute('data-db-pass') || '';
+    if (inPosUrl){ inPosUrl.value = pos; }
+    if (inUser && dbUser){ inUser.value = dbUser; }
+    if (inPass && dbPass){ inPass.value = dbPass; }
+    if (inputDb && dbName){
+      var found = false;
+      for (var i=0; i<inputDb.options.length; i++){
+        if (inputDb.options[i].value === dbName){ inputDb.selectedIndex = i; found = true; break; }
+      }
+      if (!found){
+        var optDb = document.createElement('option');
+        optDb.value = dbName;
+        optDb.textContent = dbName;
+        inputDb.appendChild(optDb);
+        inputDb.value = dbName;
+      }
+    }
   }); }
   // Initial load
   loadDatabases();

@@ -64,7 +64,7 @@ class Install extends CI_Controller {
         echo '</div></body></html>';
     }
 
-    private function get_schema_sql(): string
+    private function get_schema_sql()
     {
         return <<<SQL
 SET NAMES utf8mb4;

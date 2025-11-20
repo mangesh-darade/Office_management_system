@@ -51,8 +51,8 @@
                   <ul class="mb-0">
                     <?php foreach ($list as $r): ?>
                       <li>
-                        <span class="badge bg-light text-dark border me-1"><?php echo htmlspecialchars($r->type_name ?? ''); ?></span>
-                        <strong><?php echo htmlspecialchars($r->user_email ?? ''); ?></strong>
+                        <span class="badge bg-light text-dark border me-1"><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></span>
+                        <strong><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></strong>
                         <span class="text-muted">(<?php echo htmlspecialchars($r->start_date.' to '.$r->end_date); ?>)</span>
                         <?php if (!empty($r->reason)): ?>
                           <span class="text-muted">— <?php echo htmlspecialchars($r->reason); ?></span>

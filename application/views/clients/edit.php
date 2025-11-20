@@ -1,0 +1,144 @@
+<?php $this->load->view('partials/header', ['title' => 'Edit Client']); ?>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Edit Client</h1>
+  <a class="btn btn-light btn-sm" href="<?php echo site_url('clients/view/'.(int)$client->id); ?>">Back</a>
+</div>
+<?php if ($this->session->flashdata('error')): ?>
+  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+<?php endif; ?>
+<?php if ($this->session->flashdata('success')): ?>
+  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+<?php endif; ?>
+<div class="card shadow-soft">
+  <div class="card-body">
+    <form method="post" action="" enctype="multipart/form-data" class="vstack gap-3">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Company Name</label>
+          <input type="text" name="company_name" class="form-control" required value="<?php echo htmlspecialchars(isset($client->company_name)?$client->company_name:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Contact Person</label>
+          <input type="text" name="contact_person" class="form-control" value="<?php echo htmlspecialchars(isset($client->contact_person)?$client->contact_person:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($client->email)?$client->email:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Phone</label>
+          <input type="text" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($client->phone)?$client->phone:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Alternate Phone</label>
+          <input type="text" name="alternate_phone" class="form-control" value="<?php echo htmlspecialchars(isset($client->alternate_phone)?$client->alternate_phone:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Website</label>
+          <input type="text" name="website" class="form-control" value="<?php echo htmlspecialchars(isset($client->website)?$client->website:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Demo URL</label>
+          <input type="text" name="demo_url" class="form-control" value="<?php echo htmlspecialchars(isset($client->demo_url)?$client->demo_url:''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">POS URL</label>
+          <input type="text" name="pos_url" class="form-control" value="<?php echo htmlspecialchars(isset($client->pos_url)?$client->pos_url:''); ?>">
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Address</label>
+          <textarea name="address" rows="2" class="form-control"><?php echo htmlspecialchars(isset($client->address)?$client->address:''); ?></textarea>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">City</label>
+          <input type="text" name="city" class="form-control" value="<?php echo htmlspecialchars(isset($client->city)?$client->city:''); ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">State</label>
+          <input type="text" name="state" class="form-control" value="<?php echo htmlspecialchars(isset($client->state)?$client->state:''); ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Country</label>
+          <input type="text" name="country" class="form-control" value="<?php echo htmlspecialchars(isset($client->country)?$client->country:''); ?>">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Zip</label>
+          <input type="text" name="zip_code" class="form-control" value="<?php echo htmlspecialchars(isset($client->zip_code)?$client->zip_code:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">GSTIN</label>
+          <input type="text" name="gstin" class="form-control" value="<?php echo htmlspecialchars(isset($client->gstin)?$client->gstin:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">PAN</label>
+          <input type="text" name="pan_number" class="form-control" value="<?php echo htmlspecialchars(isset($client->pan_number)?$client->pan_number:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Industry</label>
+          <input type="text" name="industry" class="form-control" value="<?php echo htmlspecialchars(isset($client->industry)?$client->industry:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Type</label>
+          <?php $ct = isset($client->client_type)?(string)$client->client_type:'company'; ?>
+          <select name="client_type" class="form-select">
+            <option value="company" <?php echo $ct==='company'?'selected':''; ?>>Company</option>
+            <option value="individual" <?php echo $ct==='individual'?'selected':''; ?>>Individual</option>
+            <option value="government" <?php echo $ct==='government'?'selected':''; ?>>Government</option>
+            <option value="startup" <?php echo $ct==='startup'?'selected':''; ?>>Startup</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Status</label>
+          <?php $st = isset($client->status)?(string)$client->status:'active'; ?>
+          <select name="status" class="form-select">
+            <option value="active" <?php echo $st==='active'?'selected':''; ?>>Active</option>
+            <option value="inactive" <?php echo $st==='inactive'?'selected':''; ?>>Inactive</option>
+            <option value="blocked" <?php echo $st==='blocked'?'selected':''; ?>>Blocked</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Account Manager</label>
+          <select name="account_manager_id" class="form-select">
+            <option value="">-- Select --</option>
+            <?php if (isset($managers) && is_array($managers)) foreach ($managers as $m): ?>
+              <?php $label = isset($m->full_name) && $m->full_name !== '' ? $m->full_name : (isset($m->name) && $m->name !== '' ? $m->name : $m->email); ?>
+              <option value="<?php echo (int)$m->id; ?>" <?php echo isset($client->account_manager_id) && (int)$client->account_manager_id === (int)$m->id ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Onboarding Date</label>
+          <input type="date" name="onboarding_date" class="form-control" value="<?php echo htmlspecialchars(isset($client->onboarding_date)?$client->onboarding_date:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Logo</label>
+          <input type="file" name="logo" class="form-control">
+          <?php if (!empty($client->logo)): ?>
+            <div class="small text-muted mt-1">Current: <?php echo htmlspecialchars($client->logo); ?></div>
+          <?php endif; ?>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Name</label>
+          <input type="text" name="db_name" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_name)?$client->db_name:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Username</label>
+          <input type="text" name="db_username" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_username)?$client->db_username:''); ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Password</label>
+          <input type="text" name="db_password" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_password)?$client->db_password:''); ?>">
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" rows="3" class="form-control"><?php echo htmlspecialchars(isset($client->notes)?$client->notes:''); ?></textarea>
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-primary">Save Changes</button>
+        <a class="btn btn-light" href="<?php echo site_url('clients/view/'.(int)$client->id); ?>">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+<?php $this->load->view('partials/footer'); ?>

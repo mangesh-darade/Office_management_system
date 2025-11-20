@@ -1,6 +1,7 @@
 <?php
 // Sidebar partial for full-width pages
 $active = strtolower($this->uri->segment(1) ?: 'dashboard');
+$active_sub = strtolower($this->uri->segment(2) ?: '');
 // Only render sidebar for authenticated users
 if (!(int)$this->session->userdata('user_id')) {
   return; // do not output sidebar when not logged in
@@ -10,66 +11,60 @@ if (!(int)$this->session->userdata('user_id')) {
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
-      <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
-      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('requirements')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirements</a>
-      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('employees')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='employees'?'active':''; ?>" href="<?php echo site_url('employees'); ?>"><i class="bi bi-people me-2"></i>Employees</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='tasks'?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Tasks</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('departments')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='departments'?'active':''; ?>" href="<?php echo site_url('departments'); ?>"><i class="bi bi-diagram-3 me-2"></i>Departments</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('designations')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='designations'?'active':''; ?>" href="<?php echo site_url('designations'); ?>"><i class="bi bi-person-badge me-2"></i>Designations</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('chats')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='chats'?'active':''; ?>" href="<?php echo site_url('chats/app'); ?>"><i class="bi bi-chat-dots me-2"></i>Chats</a>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
-      <div class="nav-item" id="leave-group">
+      <?php
+      $user_group_show = function_exists('has_module_access') && (
+        has_module_access('attendance') ||
+        has_module_access('departments') ||
+        has_module_access('designations') ||
+        has_module_access('leave_requests')
+      );
+      ?>
+      <?php if($user_group_show): ?>
+      <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="leave-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='leave'?'active':''; ?>" href="<?php echo site_url('leave/apply'); ?>">
-            <i class="bi bi-airplane-engines me-2"></i>Leave
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['attendance','departments','designations','leave']) ? 'active' : ''; ?>" href="#">
+            <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
-          <button id="leave-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="leave-submenu" title="Toggle">
+          <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
             <i class="bi bi-chevron-down"></i>
           </button>
         </div>
-        <div class="ps-3" id="leave-submenu" style="display:none;">
-          <?php $leaveSeg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
+        <div class="ps-3" id="user-submenu" style="display:none;">
           <div class="submenu-list">
-            <a class="submenu-link <?php echo ($active==='leave' && ($leaveSeg2==='apply' || $leaveSeg2===''))?'active':''; ?>" href="<?php echo site_url('leave/apply'); ?>">Apply Leave</a>
-            <a class="submenu-link <?php echo ($active==='leave' && $leaveSeg2==='my')?'active':''; ?>" href="<?php echo site_url('leave/my'); ?>">My Requests</a>
-            <a class="submenu-link <?php echo ($active==='leave' && $leaveSeg2==='team')?'active':''; ?>" href="<?php echo site_url('leave/team'); ?>">Team Requests</a>
-            <a class="submenu-link <?php echo ($active==='leave' && ($leaveSeg2==='approve' || $leaveSeg2==='reject'))?'active':''; ?>" href="<?php echo site_url('leave/team?status=pending'); ?>">Approvals</a>
+            <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
+            <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('departments')): ?>
+            <a class="submenu-link <?php echo $active==='departments'?'active':''; ?>" href="<?php echo site_url('departments'); ?>"><i class="bi bi-diagram-3 me-2"></i>Department</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('designations')): ?>
+            <a class="submenu-link <?php echo $active==='designations'?'active':''; ?>" href="<?php echo site_url('designations'); ?>"><i class="bi bi-person-badge me-2"></i>Designation</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
+            <a class="submenu-link <?php echo $active==='leave'?'active':''; ?>" href="<?php echo site_url('leave/apply'); ?>"><i class="bi bi-airplane-engines me-2"></i>Leave</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>
       <script>
         (function(){
-          var key = 'sb_leave_open';
-          var group = document.getElementById('leave-group');
-          var btn = document.getElementById('leave-toggle');
-          var parentLink = document.getElementById('leave-parent');
-          var box = document.getElementById('leave-submenu');
+          var key = 'sb_user_open';
+          var group = document.getElementById('user-group');
+          var btn = document.getElementById('user-toggle');
+          var parentLink = document.getElementById('user-parent');
+          var box = document.getElementById('user-submenu');
           if(!btn || !box) return;
           function setOpen(open){
             box.style.display = open ? 'block' : 'none';
@@ -80,7 +75,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo ($active==='leave') ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['attendance','departments','designations','leave']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
@@ -88,13 +83,72 @@ if (!(int)$this->session->userdata('user_id')) {
         })();
       </script>
       <style>
-        #leave-toggle .bi{ transition: transform .2s ease; }
-        #leave-toggle.rot .bi{ transform: rotate(180deg); }
-        #leave-group.open > .d-flex > #leave-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
+        #user-toggle .bi{ transition: transform .2s ease; }
+        #user-toggle.rot .bi{ transform: rotate(180deg); }
+        #user-group.open > .d-flex > #user-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
       </style>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('timesheets')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='timesheets'?'active':''; ?>" href="<?php echo site_url('timesheets'); ?>"><i class="bi bi-calendar3 me-2"></i>Timesheets</a>
+
+      <?php
+      $project_group_show = function_exists('has_module_access') && (
+        has_module_access('requirements') ||
+        has_module_access('tasks') ||
+        has_module_access('timesheets')
+      );
+      ?>
+      <?php if($project_group_show): ?>
+      <div class="nav-item" id="project-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="project-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['requirements','tasks','timesheets']) ? 'active' : ''; ?>" href="#">
+            <i class="bi bi-kanban me-2"></i>Project
+          </a>
+          <button id="project-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="project-submenu" title="Toggle">
+            <i class="bi bi-chevron-down"></i>
+          </button>
+        </div>
+        <div class="ps-3" id="project-submenu" style="display:none;">
+          <div class="submenu-list">
+            <?php if(function_exists('has_module_access') && has_module_access('requirements')): ?>
+            <a class="submenu-link <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirement</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
+            <a class="submenu-link <?php echo $active==='tasks'?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Task</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('timesheets')): ?>
+            <a class="submenu-link <?php echo $active==='timesheets'?'active':''; ?>" href="<?php echo site_url('timesheets'); ?>"><i class="bi bi-calendar3 me-2"></i>Timesheet</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+          var key = 'sb_project_open';
+          var group = document.getElementById('project-group');
+          var btn = document.getElementById('project-toggle');
+          var parentLink = document.getElementById('project-parent');
+          var box = document.getElementById('project-submenu');
+          if(!btn || !box) return;
+          function setOpen(open){
+            box.style.display = open ? 'block' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.classList.toggle('rot', open);
+            if (group) { group.classList.toggle('open', open); }
+            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
+          }
+          var saved = null;
+          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
+          var open = (saved === '1') || <?php echo in_array($active, ['requirements','tasks','timesheets']) ? 'true' : 'false'; ?>;
+          setOpen(open);
+          function toggle(){ setOpen(!(box.style.display !== 'none')); }
+          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+          parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+        })();
+      </script>
+      <style>
+        #project-toggle .bi{ transition: transform .2s ease; }
+        #project-toggle.rot .bi{ transform: rotate(180deg); }
+        #project-group.open > .d-flex > #project-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
+      </style>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
@@ -168,7 +222,9 @@ if (!(int)$this->session->userdata('user_id')) {
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <?php if(has_module_access('db')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='db'?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
+      <a class="nav-link sidebar-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
+      <a class="nav-link sidebar-link <?php echo ($active==='db' && $active_sub==='clients')?'active':''; ?>" href="<?php echo site_url('db/clients'); ?>"><i class="bi bi-diagram-3 me-2"></i>Client DB Panel</a>
+      <a class="nav-link sidebar-link <?php echo ($active==='db' && $active_sub==='client-migrations')?'active':''; ?>" href="<?php echo site_url('db/client-migrations'); ?>"><i class="bi bi-clock-history me-2"></i>Client DB Migrations</a>
       <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permissions</a>
       <?php if(has_module_access('settings')): ?>

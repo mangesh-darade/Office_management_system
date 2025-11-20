@@ -3,12 +3,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Db extends CI_Controller {
     private $dm_table = 'dm_manager';
+    private $client_migrations_table = 'client_migrations';
     public function __construct(){
         parent::__construct();
         $this->load->database();
         $this->load->helper(['url','form']);
         $this->load->library(['session']);
         $this->ensure_dm_manager_table();
+        $this->ensure_client_migrations_table();
     }
 
     // POST: file_path, database, optional host/user/pass => append DB-only items to the SQL file
@@ -122,6 +124,104 @@ class Db extends CI_Controller {
         $ok = @file_put_contents($file, $content, FILE_APPEND|LOCK_EX);
         if ($ok === false){ header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to write to file']); return; }
         header('Content-Type: application/json'); echo json_encode(['success'=>true,'tables'=>$tablesAdded,'columns'=>$columnsAdded]); return;
+    }
+
+    public function compare_drop_db_only(){
+        $file = (string)$this->input->post('file_path');
+        $dbName = trim((string)$this->input->post('database'));
+        $host = $this->input->post('host');
+        $port = $this->input->post('port');
+        $user = $this->input->post('user');
+        $pass = $this->input->post('pass');
+        if ($dbName === ''){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Database is required']); return;
+        }
+        try {
+            if ($host && $user !== null){
+                $target = $this->connect_custom($host, $user, (string)$pass, $dbName, $port);
+            } else {
+                $target = $this->connect_to($dbName);
+            }
+        } catch (Exception $e){
+            header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Failed to connect target DB: '.$e->getMessage()]); return;
+        }
+        $schema = [];
+        if ($file !== '' && @is_file($file)){
+            $schema = $this->parse_sql_schema($file);
+        } else {
+            $schema = ['tables' => []];
+        }
+        $tables = [];
+        $tableNameMap = [];
+        $tableTypeMap = [];
+        $q = $target->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$dbName]);
+        foreach ($q->result() as $r){
+            $lower = strtolower($r->TABLE_NAME);
+            $tables[$lower] = true;
+            $tableNameMap[$lower] = $r->TABLE_NAME;
+            $tableTypeMap[$lower] = strtoupper((string)$r->TABLE_TYPE);
+        }
+        $cols = [];
+        if (!empty($tables)){
+            $rs = $target->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$dbName]);
+            foreach ($rs->result() as $r){
+                $t = strtolower($r->TABLE_NAME);
+                $c = strtolower($r->COLUMN_NAME);
+                if (!isset($cols[$t])) $cols[$t] = [];
+                $cols[$t][$c] = true;
+            }
+        }
+        $fileTablesLower = [];
+        foreach ($schema['tables'] as $t => $meta){ $fileTablesLower[strtolower($t)] = $t; }
+        $dbOnlyTables = [];
+        $dbOnlyColumns = [];
+        foreach ($tables as $tLower => $_){
+            if (!isset($fileTablesLower[$tLower])){
+                if (isset($tableTypeMap[$tLower]) && $tableTypeMap[$tLower] === 'VIEW') continue;
+                $dbOnlyTables[] = isset($tableNameMap[$tLower]) ? $tableNameMap[$tLower] : $tLower;
+                continue;
+            }
+            $meta = isset($schema['tables'][$fileTablesLower[$tLower]]) ? $schema['tables'][$fileTablesLower[$tLower]] : null;
+            $fileCols = $meta ? array_keys($meta['columns']) : [];
+            $fileColsMap = [];
+            foreach ($fileCols as $fc){ $fileColsMap[strtolower($fc)] = true; }
+            if (isset($tableTypeMap[$tLower]) && $tableTypeMap[$tLower] === 'VIEW'){ continue; }
+            $dbCols = isset($cols[$tLower]) ? array_keys($cols[$tLower]) : [];
+            foreach ($dbCols as $dc){ if (!isset($fileColsMap[$dc])) { $dbOnlyColumns[] = ['table' => (isset($tableNameMap[$tLower])?$tableNameMap[$tLower]:$fileTablesLower[$tLower]), 'column' => $dc]; } }
+        }
+        $droppedTables = 0; $droppedColumns = 0;
+        foreach ($dbOnlyTables as $tblName){
+            try {
+                $target->query('DROP TABLE `'.$tblName.'`');
+                $droppedTables++;
+            } catch (Exception $e) { }
+        }
+        foreach ($dbOnlyColumns as $it){
+            $tName = $it['table'];
+            $cName = $it['column'];
+            try {
+                $target->query('ALTER TABLE `'.$tName.'` DROP COLUMN `'.$cName.'`');
+                $droppedColumns++;
+            } catch (Exception $e) { }
+        }
+        $detailTables = [];
+        foreach ($dbOnlyTables as $tblName){ $detailTables[] = (string)$tblName; }
+        $detailColumns = [];
+        foreach ($dbOnlyColumns as $it){
+            $detailColumns[] = [
+                'table' => isset($it['table']) ? (string)$it['table'] : '',
+                'column' => isset($it['column']) ? (string)$it['column'] : '',
+            ];
+        }
+        $client_id = (int)$this->input->post('client_id');
+        $client_name = (string)$this->input->post('client_name');
+        $details = [
+            'action' => 'revert',
+            'dropped_tables' => $detailTables,
+            'dropped_columns' => $detailColumns,
+        ];
+        $this->log_client_migration($client_id ?: null, $client_name, $dbName, 'revert', $droppedTables, $droppedColumns, $file, $details);
+        header('Content-Type: application/json'); echo json_encode(['success'=>true,'tables'=>$droppedTables,'columns'=>$droppedColumns]); return;
     }
 
     private function normalize_column_def($def){
@@ -515,7 +615,31 @@ class Db extends CI_Controller {
             }
             if ($target->trans_status() === FALSE){ $target->trans_rollback(); header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Transaction failed']); return; }
             $target->trans_commit();
-            header('Content-Type: application/json'); echo json_encode(['success'=>true,'applied'=>count($scan['ops'])]); return;
+            $ops = isset($scan['ops']) ? $scan['ops'] : [];
+            $tables = 0; $columns = 0;
+            $detailTables = [];
+            $detailColumns = [];
+            foreach ($ops as $op){
+                if (isset($op['type']) && $op['type'] === 'create_table'){
+                    $tables++;
+                    if (isset($op['table']) && $op['table'] !== ''){ $detailTables[] = (string)$op['table']; }
+                } else if (isset($op['type']) && $op['type'] === 'add_column'){
+                    $columns++;
+                    $detailColumns[] = [
+                        'table' => isset($op['table']) ? (string)$op['table'] : '',
+                        'column' => isset($op['column']) ? (string)$op['column'] : '',
+                    ];
+                }
+            }
+            $client_id = (int)$this->input->post('client_id');
+            $client_name = (string)$this->input->post('client_name');
+            $details = [
+                'action' => 'migrate',
+                'created_tables' => $detailTables,
+                'added_columns' => $detailColumns,
+            ];
+            $this->log_client_migration($client_id ?: null, $client_name, $dbName, 'migrate', $tables, $columns, $file, $details);
+            header('Content-Type: application/json'); echo json_encode(['success'=>true,'applied'=>count($ops)]); return;
         } catch (Exception $e){
             header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); return;
         }
@@ -629,6 +753,22 @@ class Db extends CI_Controller {
             }
         }
 
+        $clients = [];
+        if ($this->db->table_exists('clients')) {
+            $sel = ['id','company_name'];
+            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            if ($this->db->field_exists('db_name','clients')) { $sel[] = 'db_name'; }
+            if ($this->db->field_exists('db_username','clients')) { $sel[] = 'db_username'; }
+            if ($this->db->field_exists('db_password','clients')) { $sel[] = 'db_password'; }
+            $this->db->select(implode(',', $sel));
+            $clients = $this->db->from('clients')->order_by('company_name','ASC')->get()->result();
+        }
+
+        $client_migrations = [];
+        if ($this->db->table_exists($this->client_migrations_table)){
+            $client_migrations = $this->db->order_by('created_at','DESC')->limit(50)->get($this->client_migrations_table)->result();
+        }
+
         $this->load->view('db/index', [
             'projects' => $projects,
             'assignees' => $assignees,
@@ -646,6 +786,51 @@ class Db extends CI_Controller {
             'saved_queries' => $saved_queries,
             'new_id' => (int)$this->session->flashdata('db_new_id'),
             'sql_file_default' => $default_sql_path,
+            'clients' => $clients,
+            'client_migrations' => $client_migrations,
+        ]);
+    }
+
+    public function client_panel(){
+        // Determine default SQL file path dynamically (same as compare)
+        $default_sql_path = '';
+        $hint = (string)$this->input->get('sql_file_path');
+        if ($hint !== '' && @is_file($hint)) { $default_sql_path = $hint; }
+        if ($default_sql_path === ''){
+            $candidates = @glob(FCPATH.'*.sql');
+            if (is_array($candidates) && count($candidates) > 0){
+                @usort($candidates, function($a,$b){
+                    $ma = @filemtime($a); if ($ma === false) { $ma = 0; }
+                    $mb = @filemtime($b); if ($mb === false) { $mb = 0; }
+                    if ($mb == $ma) return 0;
+                    return ($mb < $ma) ? -1 : 1;
+                });
+                $default_sql_path = $candidates[0];
+            }
+        }
+        $clients = [];
+        if ($this->db->table_exists('clients')) {
+            $sel = ['id','company_name'];
+            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            if ($this->db->field_exists('db_name','clients')) { $sel[] = 'db_name'; }
+            if ($this->db->field_exists('db_username','clients')) { $sel[] = 'db_username'; }
+            if ($this->db->field_exists('db_password','clients')) { $sel[] = 'db_password'; }
+            $this->db->select(implode(',', $sel));
+            $clients = $this->db->from('clients')->order_by('company_name','ASC')->get()->result();
+        }
+        $this->load->view('db/client_panel', [
+            'sql_file_default' => $default_sql_path,
+            'clients' => $clients,
+        ]);
+    }
+
+    public function client_migrations(){
+        $rows = [];
+        if ($this->db->table_exists($this->client_migrations_table)){
+            $rows = $this->db->order_by('created_at','DESC')->limit(200)->get($this->client_migrations_table)->result();
+        }
+        $this->load->view('db/client_migrations', [
+            'migrations' => $rows,
         ]);
     }
 
@@ -667,8 +852,19 @@ class Db extends CI_Controller {
                 $default_sql_path = $candidates[0];
             }
         }
+        $clients = [];
+        if ($this->db->table_exists('clients')) {
+            $sel = ['id','company_name'];
+            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            if ($this->db->field_exists('db_name','clients')) { $sel[] = 'db_name'; }
+            if ($this->db->field_exists('db_username','clients')) { $sel[] = 'db_username'; }
+            if ($this->db->field_exists('db_password','clients')) { $sel[] = 'db_password'; }
+            $this->db->select(implode(',', $sel));
+            $clients = $this->db->from('clients')->order_by('company_name','ASC')->get()->result();
+        }
         $this->load->view('db/compare', [
             'sql_file_default' => $default_sql_path,
+            'clients' => $clients,
         ]);
     }
 
@@ -833,6 +1029,49 @@ class Db extends CI_Controller {
         if (!$this->db->field_exists('table_name', $baseTbl)){
             $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `table_name` VARCHAR(191) NULL AFTER `database_name`");
         }
+    }
+
+    private function ensure_client_migrations_table(){
+        $tbl = $this->client_migrations_table;
+        $this->db->query("CREATE TABLE IF NOT EXISTS `".$tbl."` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `client_id` INT NULL,
+            `client_name` VARCHAR(255) NOT NULL,
+            `database_name` VARCHAR(191) NOT NULL,
+            `action` VARCHAR(20) NOT NULL,
+            `tables_count` INT NOT NULL DEFAULT 0,
+            `columns_count` INT NOT NULL DEFAULT 0,
+            `file_path` VARCHAR(500) NULL,
+            `details` LONGTEXT NULL,
+            `run_by` INT NULL,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            INDEX (`client_id`),
+            INDEX (`database_name`),
+            INDEX (`action`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        if (!$this->db->field_exists('details', $tbl)){
+            $this->db->query("ALTER TABLE `".$tbl."` ADD COLUMN `details` LONGTEXT NULL AFTER `file_path`");
+        }
+    }
+
+    private function log_client_migration($client_id, $client_name, $dbName, $action, $tables, $columns, $file, $details = null){
+        if (!$this->db->table_exists($this->client_migrations_table)) return;
+        if (is_array($details) || is_object($details)){
+            $details = @json_encode($details);
+        }
+        $data = [
+            'client_id' => $client_id ? (int)$client_id : null,
+            'client_name' => (string)$client_name,
+            'database_name' => (string)$dbName,
+            'action' => (string)$action,
+            'tables_count' => (int)$tables,
+            'columns_count' => (int)$columns,
+            'file_path' => $file !== '' ? $file : null,
+            'details' => ($details !== null && $details !== '') ? (string)$details : null,
+            'run_by' => (int)$this->session->userdata('user_id'),
+        ];
+        $this->db->insert($this->client_migrations_table, $data);
     }
 
     private function escape_ident($name){
