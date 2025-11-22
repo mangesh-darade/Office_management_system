@@ -8,6 +8,7 @@ class Attendance extends CI_Controller {
         $this->load->helper(['url','form']);
         $this->load->library(['session','upload']);
         $this->load->model('Attendance_model');
+        $this->load->model('Face_model', 'faces');
     }
 
     public function index() {
@@ -40,6 +41,28 @@ class Attendance extends CI_Controller {
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
+
+            // Optional face verification: when face_required=1, validate descriptor against stored template
+            $face_required = (string)$this->input->post('face_required');
+            $face_descriptor = (string)$this->input->post('face_descriptor');
+            if ($face_required === '1') {
+                if ($face_descriptor === '') {
+                    $this->session->set_flashdata('error', 'Face verification failed: no descriptor provided.');
+                    redirect('attendance/create');
+                    return;
+                }
+                $tpl = $this->faces->get_by_user($user_id);
+                if (!$tpl || empty($tpl->descriptor)) {
+                    $this->session->set_flashdata('error', 'Face template not found for this user. Please register face in User profile first.');
+                    redirect('attendance/create');
+                    return;
+                }
+                if (!$this->verify_face_descriptor($tpl->descriptor, $face_descriptor)) {
+                    $this->session->set_flashdata('error', 'Face not recognized. Please try again.');
+                    redirect('attendance/create');
+                    return;
+                }
+            }
             // Map to schema columns (supports both legacy and installer schema)
             $col_date = $this->db->field_exists('att_date','attendance') ? 'att_date' : 'date';
             $col_in   = $this->db->field_exists('punch_in','attendance') ? 'punch_in' : 'check_in';
@@ -157,6 +180,16 @@ class Attendance extends CI_Controller {
                 } else { // action in on new day
                     $inType = $this->get_column_type('attendance', $col_in);
                     $data[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                    // Populate human-readable location name if schema and coordinates are available
+                    if ($this->db->field_exists('location_name','attendance')) {
+                        $locFromPost = trim((string)$this->input->post('location_name'));
+                        if ($locFromPost !== '') {
+                            $data['location_name'] = $locFromPost;
+                        } elseif ($lat !== null && $lng !== null && $lat !== '' && $lng !== '') {
+                            $locName = $this->reverse_geocode($lat, $lng);
+                            if ($locName) { $data['location_name'] = $locName; }
+                        }
+                    }
                     $this->db->insert('attendance', $data);
                     $this->session->set_flashdata('success', 'Checked in successfully');
                 }
@@ -188,6 +221,56 @@ class Attendance extends CI_Controller {
         return in_array($s, $zeros, true);
     }
 
+    private function reverse_geocode($lat, $lng){
+        $lat = trim((string)$lat);
+        $lng = trim((string)$lng);
+        if ($lat === '' || $lng === '') { return null; }
+        $url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='.
+                rawurlencode($lat).'&lon='.
+                rawurlencode($lng);
+        $opts = [
+            'http' => [
+                'method' => 'GET',
+                'header' => "User-Agent: OfficeMgmt/1.0\r\n",
+                'timeout' => 5,
+            ],
+        ];
+        $ctx = stream_context_create($opts);
+        $resp = @file_get_contents($url, false, $ctx);
+        if ($resp === false) { return null; }
+        $j = json_decode($resp, true);
+        if (!is_array($j)) { return null; }
+        if (!empty($j['display_name'])) { return (string)$j['display_name']; }
+        if (!empty($j['address']) && is_array($j['address'])){
+            $addr = $j['address'];
+            $parts = [];
+            foreach (['road','suburb','city','state','country'] as $k){
+                if (!empty($addr[$k])) { $parts[] = $addr[$k]; }
+            }
+            if (!empty($parts)) { return implode(', ', $parts); }
+        }
+        return null;
+    }
+
+    private function verify_face_descriptor($stored_json, $current_json){
+        $a = json_decode($stored_json, true);
+        $b = json_decode($current_json, true);
+        if (!is_array($a) || !is_array($b) || count($a) !== count($b) || count($a) === 0) {
+            return false;
+        }
+        $sum = 0.0;
+        $n = count($a);
+        for ($i = 0; $i < $n; $i++) {
+            $da = isset($a[$i]) ? (float)$a[$i] : 0.0;
+            $db = isset($b[$i]) ? (float)$b[$i] : 0.0;
+            $d = $da - $db;
+            $sum += $d * $d;
+        }
+        $dist = sqrt($sum);
+        // Typical threshold for face-api embeddings is around 0.5–0.6; use 0.6 as default
+        return $dist <= 0.6;
+    }
+
     // GET/POST /attendance/{id}/edit
     public function edit($id)
     {
@@ -198,16 +281,59 @@ class Attendance extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         if (!in_array($role_id, [1,2], true) && (int)$att->user_id !== $user_id) { show_error('Forbidden', 403); }
         if ($this->input->method() === 'post') {
+            // Optional face verification: mirror create() behavior when descriptor is provided
+            $face_required = (string)$this->input->post('face_required');
+            $face_descriptor = (string)$this->input->post('face_descriptor');
+            if ($face_required === '1') {
+                if ($face_descriptor === '') {
+                    $this->session->set_flashdata('error', 'Face verification failed: no descriptor provided.');
+                    redirect('attendance/'.$id.'/edit');
+                    return;
+                }
+                $tpl = $this->faces->get_by_user($user_id);
+                if (!$tpl || empty($tpl->descriptor)) {
+                    $this->session->set_flashdata('error', 'Face template not found for this user. Please register face in User profile first.');
+                    redirect('attendance/'.$id.'/edit');
+                    return;
+                }
+                if (!$this->verify_face_descriptor($tpl->descriptor, $face_descriptor)) {
+                    $this->session->set_flashdata('error', 'Face not recognized. Please try again.');
+                    redirect('attendance/'.$id.'/edit');
+                    return;
+                }
+            }
             $col_date = $this->db->field_exists('att_date','attendance') ? 'att_date' : 'date';
             $col_in   = $this->db->field_exists('punch_in','attendance') ? 'punch_in' : 'check_in';
             $col_out  = $this->db->field_exists('punch_out','attendance') ? 'punch_out' : 'check_out';
 
             $data = [];
-            $data[$col_date] = $this->input->post('date') ?: (isset($att->$col_date) ? $att->$col_date : date('Y-m-d'));
-            $data[$col_in]   = $this->input->post('check_in') ?: null;
-            $data[$col_out]  = $this->input->post('check_out') ?: null;
+            // Do not overwrite date/check-in/check-out from form; keep backend values
             if ($this->db->field_exists('notes','attendance')) {
                 $data['notes'] = trim($this->input->post('notes') ?: '');
+            }
+            $lat = $this->input->post('lat');
+            $lng = $this->input->post('lng');
+            if ($lat !== null && $lng !== null) {
+                $latCol = null;
+                $lngCol = null;
+                foreach (['latitude','lat','geo_lat'] as $c) {
+                    if ($this->db->field_exists($c, 'attendance')) { $latCol = $c; break; }
+                }
+                foreach (['longitude','lng','geo_lng'] as $c) {
+                    if ($this->db->field_exists($c, 'attendance')) { $lngCol = $c; break; }
+                }
+                if ($latCol && $lngCol) {
+                    $data[$latCol] = (string)$lat;
+                    $data[$lngCol] = (string)$lng;
+                }
+                if ($this->db->field_exists('location_name','attendance')) {
+                    $latTrim = trim((string)$lat);
+                    $lngTrim = trim((string)$lng);
+                    if ($latTrim !== '' && $lngTrim !== '') {
+                        $locName = $this->reverse_geocode($latTrim, $lngTrim);
+                        if ($locName) { $data['location_name'] = $locName; }
+                    }
+                }
             }
             // Optional new attachment
             if ($this->db->field_exists('attachment_path','attendance') && !empty($_FILES['attachment']['name'])) {
@@ -229,7 +355,9 @@ class Attendance extends CI_Controller {
                     return;
                 }
             }
-            $this->db->where('id', (int)$id)->update('attendance', $data);
+            if (!empty($data)) {
+                $this->db->where('id', (int)$id)->update('attendance', $data);
+            }
             $this->session->set_flashdata('success', 'Attendance updated');
             redirect('attendance');
             return;

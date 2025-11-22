@@ -23,8 +23,10 @@ class Reports extends CI_Controller {
         if ($this->db->table_exists('projects')) {
             $projects_progress = $this->db->select('status, COUNT(*) as cnt')->group_by('status')->get('projects')->result();
         }
-        if ($this->db->table_exists('leaves')) {
-            $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, COUNT(*) cnt FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
+        if ($this->db->table_exists('leave_requests')) {
+            $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, SUM(days) AS total_days FROM leave_requests WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
+        } elseif ($this->db->table_exists('leaves')) {
+            $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, COUNT(*) AS total_days FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
         }
         if ($this->db->table_exists('tasks')) {
             // Top 10 assignees by number of tasks
@@ -251,9 +253,12 @@ class Reports extends CI_Controller {
     {
         $monthly = [];
         $by_status = [];
-        if ($this->db->table_exists('leaves')) {
-            $monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') ym, COUNT(*) cnt FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
-            $by_status = $this->db->select('status, COUNT(*) cnt')->from('leaves')->group_by('status')->get()->result();
+        if ($this->db->table_exists('leave_requests')) {
+            $monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') ym, SUM(days) AS total_days FROM leave_requests WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
+            $by_status = $this->db->select('status, COUNT(*) AS cnt, SUM(days) AS total_days')->from('leave_requests')->group_by('status')->get()->result();
+        } elseif ($this->db->table_exists('leaves')) {
+            $monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') ym, COUNT(*) AS total_days FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
+            $by_status = $this->db->select('status, COUNT(*) AS cnt')->from('leaves')->group_by('status')->get()->result();
         }
         $this->load->view('reports/leaves', ['monthly'=>$monthly,'by_status'=>$by_status]);
     }

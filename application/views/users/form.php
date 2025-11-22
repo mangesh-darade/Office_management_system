@@ -82,6 +82,131 @@
         </form>
       </div>
     </div>
+
+    <?php if ($is_edit && isset($row->id) && (int)$row->id > 0): ?>
+    <div class="card mt-3">
+      <div class="card-body">
+        <h6 class="mb-2">Face Registration</h6>
+        <p class="small text-muted mb-3">Capture the user's face using the camera. This will be used later to verify attendance.</p>
+        <div class="row g-2 align-items-start">
+          <div class="col-12 col-md-6">
+            <video id="faceVideo" class="w-100 border rounded" autoplay muted playsinline style="max-height:260px; background:#000;"></video>
+          </div>
+          <div class="col-12 col-md-6">
+            <canvas id="faceCanvas" class="w-100 border rounded" style="max-height:260px;"></canvas>
+            <div class="small text-muted mt-2" id="faceStatus"></div>
+          </div>
+        </div>
+        <div class="mt-2 d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-primary btn-sm" id="btnFaceStart">Start Camera</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnFaceCapture" disabled>Capture &amp; Save Face</button>
+        </div>
+      </div>
+    </div>
+    <?php else: ?>
+    <div class="alert alert-info mt-3 small">After creating the user, open Edit User to register their face for attendance.</div>
+    <?php endif; ?>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.5/dist/face-api.min.js"></script>
+<script>
+(function(){
+  var btnStart = document.getElementById('btnFaceStart');
+  var btnCapture = document.getElementById('btnFaceCapture');
+  if (!btnStart || !btnCapture) return;
+
+  var video = document.getElementById('faceVideo');
+  var canvas = document.getElementById('faceCanvas');
+  var statusEl = document.getElementById('faceStatus');
+  var stream = null;
+  var modelsLoaded = false;
+  var userId = <?php echo isset($row->id) ? (int)$row->id : 0; ?>;
+  var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
+
+  function setStatus(msg, isError){
+    if (!statusEl) return;
+    statusEl.textContent = msg || '';
+    statusEl.classList.toggle('text-danger', !!isError);
+  }
+
+  async function ensureModels(){
+    if (modelsLoaded || !window.faceapi) return;
+    try {
+      setStatus('Loading face models...', false);
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+      modelsLoaded = true;
+      setStatus('Models loaded. Start camera to capture face.', false);
+    } catch (e){
+      setStatus('Failed to load face models.', true);
+    }
+  }
+
+  async function startCamera(){
+    await ensureModels();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      setStatus('Camera not supported in this browser.', true);
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      video.srcObject = stream;
+      btnCapture.disabled = false;
+      setStatus('Camera started. Align face and click Capture.', false);
+    } catch (e){
+      setStatus('Unable to access camera: ' + e.message, true);
+    }
+  }
+
+  async function captureFace(){
+    if (!modelsLoaded){ await ensureModels(); }
+    if (!video || video.readyState < 2){
+      setStatus('Camera not ready.', true);
+      return;
+    }
+    try {
+      var opts = new faceapi.TinyFaceDetectorOptions();
+      var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
+      if (!det || !det.descriptor){
+        setStatus('No face detected. Please try again.', true);
+        return;
+      }
+      var ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      var descArr = Array.prototype.slice.call(det.descriptor);
+      var payload = {
+        user_id: userId,
+        descriptor: JSON.stringify(descArr),
+        image: canvas.toDataURL('image/png')
+      };
+
+      setStatus('Saving face data...', false);
+      fetch('<?php echo site_url('users/save_face'); ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(r){ return r.json(); }).then(function(j){
+        if (j && j.ok){
+          setStatus('Face data saved successfully.', false);
+        } else {
+          setStatus(j && j.error ? j.error : 'Failed to save face data.', true);
+        }
+      }).catch(function(){ setStatus('Failed to save face data.', true); });
+    } catch (e){
+      setStatus('Error capturing face: ' + e.message, true);
+    }
+  }
+
+  btnStart.addEventListener('click', function(ev){ ev.preventDefault(); startCamera(); });
+  btnCapture.addEventListener('click', function(ev){ ev.preventDefault(); captureFace(); });
+
+  window.addEventListener('beforeunload', function(){
+    try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } } catch(e){}
+  });
+})();
+</script>
 <?php $this->load->view('partials/footer'); ?>

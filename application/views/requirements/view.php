@@ -30,8 +30,8 @@
             <div><?php echo htmlspecialchars(isset($req->expected_delivery_date)?$req->expected_delivery_date:''); ?></div>
           </div>
           <div class="col-md-6">
-            <div class="text-muted">Assigned To</div>
-            <div><?php echo htmlspecialchars(isset($req->assigned_to_name)?$req->assigned_to_name:'Unassigned'); ?></div>
+            <div class="text-muted">Owner</div>
+            <div><?php echo htmlspecialchars(isset($req->owner_name)?$req->owner_name:'Unassigned'); ?></div>
           </div>
         </div>
       </div>

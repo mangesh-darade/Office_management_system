@@ -25,16 +25,16 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php endif; ?>
       <?php
       $user_group_show = function_exists('has_module_access') && (
+        has_module_access('users') ||
         has_module_access('attendance') ||
         has_module_access('departments') ||
-        has_module_access('designations') ||
-        has_module_access('leave_requests')
+        has_module_access('designations')
       );
       ?>
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['attendance','departments','designations','leave']) ? 'active' : ''; ?>" href="#">
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','attendance','departments','designations','leave']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
           <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
@@ -43,6 +43,9 @@ if (!(int)$this->session->userdata('user_id')) {
         </div>
         <div class="ps-3" id="user-submenu" style="display:none;">
           <div class="submenu-list">
+            <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
+            <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
             <?php endif; ?>
@@ -51,9 +54,6 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('designations')): ?>
             <a class="submenu-link <?php echo $active==='designations'?'active':''; ?>" href="<?php echo site_url('designations'); ?>"><i class="bi bi-person-badge me-2"></i>Designation</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
-            <a class="submenu-link <?php echo $active==='leave'?'active':''; ?>" href="<?php echo site_url('leave/apply'); ?>"><i class="bi bi-airplane-engines me-2"></i>Leave</a>
             <?php endif; ?>
           </div>
         </div>
@@ -75,7 +75,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['attendance','departments','designations','leave']) ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['users','attendance','departments','designations','leave']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
@@ -89,8 +89,60 @@ if (!(int)$this->session->userdata('user_id')) {
       </style>
       <?php endif; ?>
 
+      <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
+      <div class="nav-item" id="leave-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="leave-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='leave' ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">
+            <i class="bi bi-airplane-engines me-2"></i>Leave
+          </a>
+          <button id="leave-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="leave-submenu" title="Toggle">
+            <i class="bi bi-chevron-down"></i>
+          </button>
+        </div>
+        <div class="ps-3" id="leave-submenu" style="display:none;">
+          <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
+          <div class="submenu-list">
+            <a class="submenu-link <?php echo ($seg1==='leave' && ($seg2==='' || $seg2===null || $seg2==='apply')) ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">Apply Leave</a>
+            <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='my') ? 'active' : ''; ?>" href="<?php echo site_url('leave/my'); ?>">My Leaves</a>
+            <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='team') ? 'active' : ''; ?>" href="<?php echo site_url('leave/team'); ?>">Team Leaves</a>
+            <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='calendar') ? 'active' : ''; ?>" href="<?php echo site_url('leave/calendar'); ?>">Leave Calendar</a>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+          var key = 'sb_leave_open';
+          var group = document.getElementById('leave-group');
+          var btn = document.getElementById('leave-toggle');
+          var parentLink = document.getElementById('leave-parent');
+          var box = document.getElementById('leave-submenu');
+          if(!btn || !box) return;
+          function setOpen(open){
+            box.style.display = open ? 'block' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.classList.toggle('rot', open);
+            if (group) { group.classList.toggle('open', open); }
+            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
+          }
+          var saved = null;
+          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
+          var open = (saved === '1') || <?php echo $active==='leave' ? 'true' : 'false'; ?>;
+          setOpen(open);
+          function toggle(){ setOpen(!(box.style.display !== 'none')); }
+          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+          parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+        })();
+      </script>
+      <style>
+        #leave-toggle .bi{ transition: transform .2s ease; }
+        #leave-toggle.rot .bi{ transform: rotate(180deg); }
+        #leave-group.open > .d-flex > #leave-parent{ background:#22c55e; color:#0b1220; border-radius:8px; }
+      </style>
+      <?php endif; ?>
+
       <?php
       $project_group_show = function_exists('has_module_access') && (
+        has_module_access('projects') ||
         has_module_access('requirements') ||
         has_module_access('tasks') ||
         has_module_access('timesheets')
@@ -99,7 +151,7 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php if($project_group_show): ?>
       <div class="nav-item" id="project-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="project-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['requirements','tasks','timesheets']) ? 'active' : ''; ?>" href="#">
+          <a id="project-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['projects','requirements','tasks','timesheets']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-kanban me-2"></i>Project
           </a>
           <button id="project-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="project-submenu" title="Toggle">
@@ -108,6 +160,9 @@ if (!(int)$this->session->userdata('user_id')) {
         </div>
         <div class="ps-3" id="project-submenu" style="display:none;">
           <div class="submenu-list">
+            <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
+            <a class="submenu-link <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('requirements')): ?>
             <a class="submenu-link <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirement</a>
             <?php endif; ?>

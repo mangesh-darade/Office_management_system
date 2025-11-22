@@ -17,30 +17,34 @@
   <div class="card shadow-sm fade-in">
     <div class="card-body">
       <form method="post" enctype="multipart/form-data" class="row g-3">
+        <input type="hidden" name="lat" value="" />
+        <input type="hidden" name="lng" value="" />
+        <input type="hidden" name="face_required" id="faceRequired" value="0" />
+        <input type="hidden" name="face_descriptor" id="faceDescriptor" value="" />
+        <?php
+          $dateVal = isset($att->att_date) ? $att->att_date : (isset($att->date) ? $att->date : '');
+          $inVal = isset($att->punch_in) ? $att->punch_in : (isset($att->check_in) ? $att->check_in : '');
+          $outVal = isset($att->punch_out) ? $att->punch_out : (isset($att->check_out) ? $att->check_out : '');
+          $inDisp = $inVal;
+          $outDisp = $outVal;
+          if ($inDisp && strpos($inDisp, ' ') !== false) { $inDisp = trim(explode(' ', $inDisp)[1]); }
+          if ($outDisp && strpos($outDisp, ' ') !== false) { $outDisp = trim(explode(' ', $outDisp)[1]); }
+        ?>
         <div class="col-12 col-md-4">
           <label class="form-label">Date</label>
-          <?php $dateVal = isset($att->att_date) ? $att->att_date : (isset($att->date) ? $att->date : ''); ?>
-          <input type="date" name="date" class="form-control" value="<?php echo htmlspecialchars($dateVal); ?>" required>
+          <div class="form-control-plaintext"><?php echo htmlspecialchars($dateVal); ?></div>
         </div>
         <div class="col-6 col-md-4">
-          <label class="form-label d-flex justify-content-between align-items-center">
-            <span>Check In</span>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btnNowIn" title="Set to current time">Now</button>
-          </label>
-          <div class="input-group">
-            <?php $inVal = isset($att->punch_in) ? $att->punch_in : (isset($att->check_in) ? $att->check_in : ''); ?>
-            <input type="time" name="check_in" class="form-control" value="<?php echo htmlspecialchars($inVal); ?>">
-          </div>
+          <label class="form-label">Check In</label>
+          <div class="form-control-plaintext"><?php echo htmlspecialchars($inDisp); ?></div>
         </div>
         <div class="col-6 col-md-4">
-          <label class="form-label d-flex justify-content-between align-items-center">
-            <span>Check Out</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnNowOut" title="Set to current time">Now</button>
-          </label>
-          <div class="input-group">
-            <?php $outVal = isset($att->punch_out) ? $att->punch_out : (isset($att->check_out) ? $att->check_out : ''); ?>
-            <input type="time" name="check_out" class="form-control" value="<?php echo htmlspecialchars($outVal); ?>">
-          </div>
+          <label class="form-label">Check Out</label>
+          <div class="form-control-plaintext"><?php echo htmlspecialchars($outDisp); ?></div>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Location</label>
+          <div class="form-control-plaintext"><?php echo htmlspecialchars((isset($att->location_name) && $att->location_name !== '') ? $att->location_name : 'd'); ?></div>
         </div>
         <div class="col-12">
           <label class="form-label">Notes</label>
@@ -56,8 +60,26 @@
           <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
           <div class="form-text">Upload to replace. Max 4MB. Allowed: JPG, PNG, PDF, DOC, DOCX</div>
         </div>
-        <div class="col-12">
-          <button class="btn btn-primary" type="submit">Update Attendance</button>
+        <div class="col-12 col-lg-6">
+          <label class="form-label">Face Verification (optional)</label>
+          <div class="row g-2">
+            <div class="col-12 col-sm-6">
+              <video id="attFaceVideo" class="w-100 border rounded" autoplay muted playsinline style="max-height:220px; background:#000;"></video>
+            </div>
+            <div class="col-12 col-sm-6">
+              <canvas id="attFaceCanvas" class="w-100 border rounded" style="max-height:220px;"></canvas>
+              <div class="small text-muted mt-1" id="attFaceStatus"></div>
+            </div>
+          </div>
+          <div class="mt-2 d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary btn-sm" id="btnAttFaceVerify" disabled>Capture Face for Verification</button>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6 d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2 mt-3 mt-lg-0">
+          <div class="d-flex flex-column flex-sm-row gap-2 w-100">
+            <button class="btn btn-primary w-100 w-sm-auto" type="submit">Update Attendance</button>
+          </div>
+          <small class="text-muted" id="geoHint"></small>
         </div>
       </form>
     </div>
@@ -75,7 +97,164 @@
         var btnOut = document.getElementById('btnNowOut');
         if (btnIn) btnIn.addEventListener('click', function(){ if (inEl) inEl.value = currentTimeStr(); });
         if (btnOut) btnOut.addEventListener('click', function(){ if (outEl) outEl.value = currentTimeStr(); });
+
+        // Geo capture similar to create
+        try {
+          var latEl = document.querySelector('input[name="lat"]');
+          var lngEl = document.querySelector('input[name="lng"]');
+          var hint = document.getElementById('geoHint');
+          if (navigator.geolocation && latEl && lngEl){
+            navigator.geolocation.getCurrentPosition(function(pos){
+              try {
+                latEl.value = String(pos.coords.latitude || '');
+                lngEl.value = String(pos.coords.longitude || '');
+                if (hint) hint.textContent = 'Location captured';
+              } catch(e){}
+            }, function(){ try { if (hint) hint.textContent = 'Location not shared'; } catch(e){} }, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+          } else { if (hint) hint.textContent = 'Location not available'; }
+        } catch(e){}
       });
     })();
   </script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.5/dist/face-api.min.js"></script>
+<script>
+  (function(){
+    function pad(n){ return (n<10?'0':'')+n; }
+    document.addEventListener('DOMContentLoaded', function(){
+      // Face verification logic (same behavior as create)
+      try {
+        var btnStart = document.getElementById('btnAttFaceStart'); // may be null if button removed
+        var btnVerify = document.getElementById('btnAttFaceVerify');
+        var video = document.getElementById('attFaceVideo');
+        var canvas = document.getElementById('attFaceCanvas');
+        var statusEl = document.getElementById('attFaceStatus');
+        var faceDescEl = document.getElementById('faceDescriptor');
+        var faceReqEl = document.getElementById('faceRequired');
+        var stream = null;
+        var modelsLoaded = false;
+        var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
+        var toastContainer = null; // dedicated center container for countdown toast
+        var countdownToastEl = null;
+        var countdownToast = null;
+
+        function setFaceStatus(msg, isError){
+          if (!statusEl) return;
+          statusEl.textContent = msg || '';
+          statusEl.classList.toggle('text-danger', !!isError);
+        }
+
+        function showCountdownToast(msg){
+          if (!window.bootstrap || !bootstrap.Toast) {
+            // Fallback: only inline status
+            setFaceStatus(msg, false);
+            return;
+          }
+          if (!toastContainer){
+            toastContainer = document.createElement('div');
+            toastContainer.style.position = 'fixed';
+            toastContainer.style.top = '50%';
+            toastContainer.style.left = '50%';
+            toastContainer.style.transform = 'translate(-50%, -50%)';
+            toastContainer.style.zIndex = '1080';
+            document.body.appendChild(toastContainer);
+          }
+          if (!countdownToastEl){
+            countdownToastEl = document.createElement('div');
+            countdownToastEl.className = 'toast align-items-center text-bg-dark border-0';
+            countdownToastEl.setAttribute('role','alert');
+            countdownToastEl.setAttribute('aria-live','assertive');
+            countdownToastEl.setAttribute('aria-atomic','true');
+            countdownToastEl.innerHTML = '<div class="d-flex"><div class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>';
+            toastContainer.appendChild(countdownToastEl);
+            countdownToast = new bootstrap.Toast(countdownToastEl, { delay: 1500 });
+          }
+          var body = countdownToastEl.querySelector('.toast-body');
+          if (body) { body.textContent = msg || ''; }
+          countdownToast.show();
+        }
+
+        async function ensureModels(){
+          if (modelsLoaded || !window.faceapi) return;
+          try {
+            setFaceStatus('Loading face models...', false);
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+            modelsLoaded = true;
+            setFaceStatus('Models loaded. Starting camera...', false);
+          } catch(e){ setFaceStatus('Failed to load face models.', true); }
+        }
+
+        async function startCam(auto){
+          await ensureModels();
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+            setFaceStatus('Camera not supported in this browser.', true);
+            return;
+          }
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio:false });
+            video.srcObject = stream;
+            btnVerify.disabled = false;
+            if (auto) {
+              var seconds = 3;
+              setFaceStatus('Camera started. Auto capture in ' + seconds + ' seconds...', false);
+              showCountdownToast('Camera started. Auto capture in ' + seconds + ' seconds...');
+              var countdownId = setInterval(function(){
+                seconds--;
+                if (seconds <= 0) {
+                  clearInterval(countdownId);
+                  // If a descriptor is already set, skip auto capture
+                  if (faceDescEl && faceDescEl.value) { return; }
+                  captureFace(true);
+                } else {
+                  var msg = 'Auto capture in ' + seconds + ' seconds...';
+                  setFaceStatus(msg, false);
+                  showCountdownToast(msg);
+                }
+              }, 1000);
+            } else {
+              setFaceStatus('Camera started. Align face and click Capture.', false);
+            }
+          } catch(e){ setFaceStatus('Unable to access camera: '+e.message, true); }
+        }
+
+        async function captureFace(autoSubmit){
+          if (!modelsLoaded){ await ensureModels(); }
+          if (!video || video.readyState < 2){ setFaceStatus('Camera not ready.', true); return; }
+          try {
+            var opts = new faceapi.TinyFaceDetectorOptions();
+            var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
+            if (!det || !det.descriptor){ setFaceStatus('No face detected. Please try again.', true); return; }
+            var ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 320;
+            canvas.height = video.videoHeight || 240;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var descArr = Array.prototype.slice.call(det.descriptor);
+            if (faceDescEl) faceDescEl.value = JSON.stringify(descArr);
+            if (faceReqEl) faceReqEl.value = '1';
+            setFaceStatus('Face captured. You can now update attendance.', false);
+            // Stop camera after capture
+            try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; } } catch(e){}
+            // Auto submit form when requested
+            if (autoSubmit) {
+              var form = document.querySelector('form');
+              if (form) { form.submit(); }
+            }
+          } catch(e){ setFaceStatus('Error capturing face: '+e.message, true); }
+        }
+
+        if (btnVerify){
+          if (btnStart) {
+            btnStart.addEventListener('click', function(ev){ ev.preventDefault(); startCam(false); });
+          }
+          btnVerify.addEventListener('click', function(ev){ ev.preventDefault(); captureFace(false); });
+          window.addEventListener('beforeunload', function(){ try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } } catch(e){} });
+        }
+
+        // Auto start camera on load and capture+submit after 3 seconds
+        startCam(true);
+      } catch(e){}
+    });
+  })();
+</script>
 <?php $this->load->view('partials/footer'); ?>

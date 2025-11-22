@@ -54,6 +54,18 @@
                         <span class="badge bg-light text-dark border me-1"><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></span>
                         <strong><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></strong>
                         <span class="text-muted">(<?php echo htmlspecialchars($r->start_date.' to '.$r->end_date); ?>)</span>
+                        <?php
+                          $daysVal = isset($r->days) ? (float)$r->days : 0.0;
+                          if ($daysVal > 0) {
+                            $daysText = (fmod($daysVal, 1.0) === 0.0)
+                              ? (string)(int)$daysVal
+                              : rtrim(rtrim(number_format($daysVal, 2, '.', ''), '0'), '.');
+                            if ($daysVal === 0.5) {
+                              $daysText .= ' (Half Day)';
+                            }
+                            echo ' <span class="badge bg-secondary-subtle text-dark ms-1">'.htmlspecialchars($daysText.' d').'</span>';
+                          }
+                        ?>
                         <?php if (!empty($r->reason)): ?>
                           <span class="text-muted">— <?php echo htmlspecialchars($r->reason); ?></span>
                         <?php endif; ?>

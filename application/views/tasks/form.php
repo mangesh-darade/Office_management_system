@@ -6,6 +6,20 @@
   </div>
 </div>
 
+<div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="projectModalFrame" src="" style="border:0;width:100%;height:500px;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card shadow-soft">
   <div class="card-body">
     <form method="post" enctype="multipart/form-data" action="<?php echo $action === 'edit' ? site_url('tasks/'.$task->id.'/edit') : site_url('tasks/create'); ?>">
@@ -13,14 +27,19 @@
         <div class="col-md-4">
           <label class="form-label">Project <span class="text-danger">*</span></label>
           <?php $curProj = isset($task) ? (int)$task->project_id : 0; ?>
-          <select name="project_id" class="form-select" required>
-            <option value="">-- Select project --</option>
-            <?php if (!empty($projects)) foreach ($projects as $p): ?>
-              <option value="<?php echo (int)$p->id; ?>" <?php echo $curProj===(int)$p->id?'selected':''; ?>>
-                <?php echo htmlspecialchars($p->name); ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
+          <div class="d-flex align-items-center gap-2">
+            <select name="project_id" class="form-select" required>
+              <option value="">-- Select project --</option>
+              <?php if (!empty($projects)) foreach ($projects as $p): ?>
+                <option value="<?php echo (int)$p->id; ?>" <?php echo $curProj===(int)$p->id?'selected':''; ?>>
+                  <?php echo htmlspecialchars($p->name); ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddProject" title="Add Project">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
         </div>
         <?php if (isset($requirements) && is_array($requirements) && count($requirements) > 0): ?>
         <div class="col-md-8" id="requirement-container" style="display:none;">
@@ -155,6 +174,63 @@
     reqSel.addEventListener('change', applyRequirementTitle);
     // Initial filter on load to respect preselected project
     filterRequirements();
+  })();
+
+  function closeProjectModal(){
+    var frame = document.getElementById('projectModalFrame');
+    if (frame){ frame.src = 'about:blank'; }
+    var modalEl = document.getElementById('projectModal');
+    if (modalEl){
+      if (window.bootstrap && window.bootstrap.Modal){
+        var m = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        m.hide();
+      } else {
+        modalEl.style.display = 'none';
+      }
+    }
+  }
+  window.closeProjectModal = closeProjectModal;
+
+  // Called from embedded project create popup when a project is created
+  window.onProjectCreated = function(id, name){
+    var select = document.querySelector('select[name="project_id"]');
+    if (!select) return;
+    var val = String(id || '');
+    if (!val) return;
+    var opt = null;
+    for (var i = 0; i < select.options.length; i++){
+      if (select.options[i].value === val){ opt = select.options[i]; break; }
+    }
+    if (!opt){
+      opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = name || ('Project #' + val);
+      select.appendChild(opt);
+    }
+    select.value = val;
+
+    closeProjectModal();
+  };
+
+  (function(){
+    var btn = document.getElementById('btnAddProject');
+    if (!btn) return;
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      var frame = document.getElementById('projectModalFrame');
+      if (frame) {
+        frame.src = '<?php echo site_url('projects/create'); ?>?embed=1';
+      }
+      var modalEl = document.getElementById('projectModal');
+      if (modalEl){
+        if (window.bootstrap && window.bootstrap.Modal){
+          var m = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+          m.show();
+        } else {
+          modalEl.style.display = 'block';
+        }
+      }
+    });
   })();
 </script>
 <?php $this->load->view('partials/footer'); ?>

@@ -6,7 +6,12 @@
 
   <div class="card shadow-soft">
     <div class="card-body">
-      <p class="text-muted">Upload a CSV with headers: <code>code, name, status, start_date, end_date</code></p>
+      <p class="text-muted mb-2">Upload a CSV with headers: <code>code, name, status, start_date, end_date</code></p>
+      <div class="mb-3">
+        <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url('assets/samples/projects_import_sample.csv'); ?>" download>
+          Download sample file
+        </a>
+      </div>
       <?php if($this->session->flashdata('error')): ?>
         <div class="alert alert-danger py-2 mb-3"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
       <?php endif; ?>

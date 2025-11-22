@@ -14,7 +14,8 @@
             <thead>
               <tr>
                 <th>Status</th>
-                <th class="text-center">Count</th>
+                <th class="text-center">Requests</th>
+                <th class="text-center">Days</th>
               </tr>
             </thead>
             <tbody>
@@ -22,6 +23,19 @@
                 <tr>
                   <td><?php echo htmlspecialchars($r->status); ?></td>
                   <td class="text-center"><?php echo (int)$r->cnt; ?></td>
+                  <td class="text-center">
+                    <?php
+                      if (isset($r->total_days)) {
+                        $daysVal = (float)$r->total_days;
+                        $daysText = (fmod($daysVal, 1.0) === 0.0)
+                          ? (string)(int)$daysVal
+                          : rtrim(rtrim(number_format($daysVal, 2, '.', ''), '0'), '.');
+                        echo htmlspecialchars($daysText);
+                      } else {
+                        echo '-';
+                      }
+                    ?>
+                  </td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
@@ -41,14 +55,31 @@
             <thead>
               <tr>
                 <th>Month</th>
-                <th class="text-center">Leaves</th>
+                <th class="text-center">Days</th>
               </tr>
             </thead>
             <tbody>
               <?php foreach ($monthly as $m): ?>
                 <tr>
                   <td><?php echo htmlspecialchars($m->ym); ?></td>
-                  <td class="text-center"><?php echo (int)$m->cnt; ?></td>
+                  <td class="text-center">
+                    <?php
+                      $val = null;
+                      if (isset($m->total_days)) {
+                        $val = (float)$m->total_days;
+                      } elseif (isset($m->cnt)) {
+                        $val = (float)$m->cnt;
+                      }
+                      if ($val !== null) {
+                        $text = (fmod($val, 1.0) === 0.0)
+                          ? (string)(int)$val
+                          : rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.');
+                        echo htmlspecialchars($text);
+                      } else {
+                        echo '-';
+                      }
+                    ?>
+                  </td>
                 </tr>
               <?php endforeach; ?>
             </tbody>

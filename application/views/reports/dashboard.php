@@ -109,12 +109,13 @@
 
       const toChartData = (rows, labelKey, valueKey) => ({
         labels: rows.map(r => r[labelKey]),
-        values: rows.map(r => parseInt(r[valueKey] || 0, 10))
+        values: rows.map(r => parseFloat(r[valueKey] || 0))
       });
 
       const ts = toChartData(taskStatus, 'status', 'cnt');
       const ps = toChartData(projStatus, 'status', 'cnt');
-      const lm = toChartData(leavesMonthly, 'ym', 'cnt');
+      const leavesValueKey = (leavesMonthly && leavesMonthly.length && Object.prototype.hasOwnProperty.call(leavesMonthly[0], 'total_days')) ? 'total_days' : 'cnt';
+      const lm = toChartData(leavesMonthly, 'ym', leavesValueKey);
 
       const palette = ['#4f46e5','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#22c55e','#3b82f6'];
 

@@ -15,7 +15,7 @@
   <div class="card-body">
     <form method="post" action="<?php echo site_url('leave/apply'); ?>">
       <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Leave Type</label>
           <select class="form-select" name="type_id" id="type_id" required>
             <option value="">Select</option>
@@ -27,13 +27,20 @@
           </select>
           <div class="form-text">Available: <span id="balance">0</span> days</div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Start Date</label>
           <input type="date" class="form-control" name="start_date" id="start_date" required />
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">End Date</label>
           <input type="date" class="form-control" name="end_date" id="end_date" required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Duration</label>
+          <select class="form-select" name="duration_type" id="duration_type">
+            <option value="full">Full Day</option>
+            <option value="half">Half Day</option>
+          </select>
         </div>
         <div class="col-md-12">
           <label class="form-label">Reason</label>
@@ -65,15 +72,25 @@
     var s = parseDate('start_date'); var e = parseDate('end_date');
     var total = 0;
     if (s && e && e >= s){
-      var cur = new Date(s);
-      while (cur <= e){ if (!isWeekend(cur)) total++; cur.setDate(cur.getDate()+1); }
+      var diffMs = e.getTime() - s.getTime();
+      var oneDayMs = 1000 * 60 * 60 * 24;
+      total = Math.floor(diffMs / oneDayMs) + 1; // inclusive: 22 to 27 => 6 days
+    }
+    var duration = document.getElementById('duration_type');
+    if (duration && s && e && e >= s && duration.value === 'half'){
+      if (s.getTime() === e.getTime() && total > 0){
+        total = 0.5;
+      }
     }
     document.getElementById('total_days').innerText = total;
   }
   document.getElementById('type_id').addEventListener('change', setBalance);
   document.getElementById('start_date').addEventListener('change', calcDays);
   document.getElementById('end_date').addEventListener('change', calcDays);
+  var durEl = document.getElementById('duration_type');
+  if (durEl){ durEl.addEventListener('change', calcDays); }
   setBalance();
+  calcDays();
 })();
 </script>
 

@@ -18,6 +18,10 @@
             <th>Check Out</th>
             <th>Notes</th>
             <th>File</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Location</th>
+            <th>IP</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -42,6 +46,17 @@
               if ($cout_disp && strpos($cout_disp, ' ') !== false) { $cout_disp = trim(explode(' ', $cout_disp)[1]); }
               $notes = isset($r->notes) ? $r->notes : '';
               $file = isset($r->attachment_path) ? $r->attachment_path : '';
+              // Location/IP schema-aware fields
+              $lat = '';
+              $lng = '';
+              if (isset($r->latitude)) { $lat = $r->latitude; }
+              elseif (isset($r->lat)) { $lat = $r->lat; }
+              elseif (isset($r->geo_lat)) { $lat = $r->geo_lat; }
+              if (isset($r->longitude)) { $lng = $r->longitude; }
+              elseif (isset($r->lng)) { $lng = $r->lng; }
+              elseif (isset($r->geo_lng)) { $lng = $r->geo_lng; }
+              $ip = isset($r->ip_address) ? $r->ip_address : '';
+              $loc = isset($r->location_name) ? $r->location_name : '';
             ?>
             <tr>
               <td><?php echo htmlspecialchars($name); ?></td>
@@ -56,6 +71,10 @@
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>
+              <td><?php echo htmlspecialchars($lat !== '' ? $lat : '—'); ?></td>
+              <td><?php echo htmlspecialchars($lng !== '' ? $lng : '—'); ?></td>
+              <td><?php echo htmlspecialchars($loc !== '' ? $loc : '—'); ?></td>
+              <td><?php echo htmlspecialchars($ip !== '' ? $ip : '—'); ?></td>
               <td class="text-end">
                 <a class="btn btn-light btn-sm" title="Edit" href="<?php echo site_url('attendance/'.$r->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
                 <a class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Delete this record?')" href="<?php echo site_url('attendance/'.$r->id.'/delete'); ?>"><i class="bi bi-trash"></i></a>

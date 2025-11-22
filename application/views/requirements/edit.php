@@ -14,7 +14,7 @@
     <form method="post" action="" class="vstack gap-3">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Client</label>
+          <label class="form-label">Client <span class="text-danger">*</span></label>
           <select name="client_id" class="form-select" required>
             <?php if (isset($clients) && is_array($clients)) foreach ($clients as $c): ?>
               <option value="<?php echo (int)$c->id; ?>" <?php echo ((int)$row->client_id===(int)$c->id)?'selected':''; ?>><?php echo htmlspecialchars($c->company_name); ?></option>
@@ -31,7 +31,7 @@
           </select>
         </div>
         <div class="col-md-8">
-          <label class="form-label">Title</label>
+          <label class="form-label">Title <span class="text-danger">*</span></label>
           <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($row->title); ?>" required>
         </div>
         <div class="col-md-4">
@@ -76,9 +76,9 @@
           <input type="number" step="0.01" name="budget_estimate" class="form-control" value="<?php echo htmlspecialchars(isset($row->budget_estimate)?$row->budget_estimate:''); ?>">
         </div>
         <div class="col-md-3">
-          <label class="form-label">Owner</label>
-          <select name="owner_id" class="form-select">
-            <option value="">-- None --</option>
+          <label class="form-label">Owner <span class="text-danger">*</span></label>
+          <select name="owner_id" class="form-select" required>
+            <option value="">-- Select Owner --</option>
             <?php if (isset($members) && is_array($members)) foreach ($members as $m): ?>
               <?php $label = '';
                 if (isset($m->full_label) && $m->full_label!=='') { $label = $m->full_label; }

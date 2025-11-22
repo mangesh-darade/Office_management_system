@@ -5,6 +5,7 @@ class Users extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->model('User_model', 'users');
+        $this->load->model('Face_model', 'faces');
         $this->load->helper(['url', 'form']);
         $this->load->library(['session']);
         // Basic auth gate: redirect to login if not logged in
@@ -167,5 +168,66 @@ class Users extends CI_Controller {
         if ($ok) { $this->session->set_flashdata('success', $msg); }
         else { $this->session->set_flashdata('error', 'Operation failed'); }
         redirect($to);
+    }
+
+    // POST /users/save_face (AJAX)
+    public function save_face() {
+        if ($this->input->method() !== 'post') { show_404(); }
+        $this->output->set_content_type('application/json');
+
+        $raw = $this->input->raw_input_stream;
+        $payload = json_decode($raw, true);
+        if (!is_array($payload)) {
+            return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Invalid payload']));
+        }
+
+        $currentUserId = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!$currentUserId) {
+            return $this->output->set_status_header(401)->set_output(json_encode(['ok' => false, 'error' => 'Unauthorized']));
+        }
+
+        $user_id = isset($payload['user_id']) ? (int)$payload['user_id'] : 0;
+        if ($user_id <= 0) {
+            return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Missing user id']));
+        }
+        // Only admin/HR or the user themself can update face
+        if (!in_array($role_id, [1,2], true) && $currentUserId !== $user_id) {
+            return $this->output->set_status_header(403)->set_output(json_encode(['ok' => false, 'error' => 'Forbidden']));
+        }
+
+        $descriptor = isset($payload['descriptor']) ? (string)$payload['descriptor'] : '';
+        $imageData = isset($payload['image']) ? (string)$payload['image'] : '';
+        if ($descriptor === '' || $imageData === '') {
+            return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Descriptor or image missing']));
+        }
+
+        // Decode and store image
+        $imagePath = null;
+        if (strpos($imageData, 'data:image') === 0) {
+            $parts = explode(',', $imageData, 2);
+            if (count($parts) === 2) {
+                $meta = $parts[0];
+                $bin = base64_decode($parts[1]);
+                if ($bin !== false) {
+                    $ext = 'png';
+                    if (strpos($meta, 'jpeg') !== false || strpos($meta, 'jpg') !== false) { $ext = 'jpg'; }
+                    elseif (strpos($meta, 'webp') !== false) { $ext = 'webp'; }
+                    $dir = FCPATH.'uploads/faces/';
+                    if (!is_dir($dir)) { @mkdir($dir, 0777, true); }
+                    $file = 'face_'.$user_id.'_'.time().'.'.$ext;
+                    if (@file_put_contents($dir.$file, $bin) !== false) {
+                        $imagePath = 'uploads/faces/'.$file;
+                    }
+                }
+            }
+        }
+
+        if ($imagePath === null) {
+            return $this->output->set_status_header(500)->set_output(json_encode(['ok' => false, 'error' => 'Failed to store image']));
+        }
+
+        $this->faces->save_user_face($user_id, $descriptor, $imagePath);
+        return $this->output->set_output(json_encode(['ok' => true]));
     }
 }

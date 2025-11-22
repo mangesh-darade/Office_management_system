@@ -110,6 +110,10 @@
           <label class="form-label">Minimum Gap Between Leaves (days)</label>
           <input class="form-control" name="leave_min_gap" value="<?php echo htmlspecialchars(isset($settings['leave_min_gap']) ? $settings['leave_min_gap'] : '1'); ?>" />
         </div>
+        <div class="col-md-4">
+          <label class="form-label">Default Annual Leave Days</label>
+          <input class="form-control" type="number" step="0.5" min="0" name="leave_default_days" value="<?php echo htmlspecialchars(isset($settings['leave_default_days']) ? $settings['leave_default_days'] : '0'); ?>" />
+        </div>
       </div>
       <div>
         <button class="btn btn-primary">Save</button>

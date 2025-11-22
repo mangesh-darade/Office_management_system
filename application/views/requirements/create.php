@@ -14,7 +14,7 @@
     <form method="post" action="" class="vstack gap-3" enctype="multipart/form-data">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Client</label>
+          <label class="form-label">Client <span class="text-danger">*</span></label>
           <select name="client_id" class="form-select" required>
             <option value="">-- Select Client --</option>
             <?php if (isset($clients) && is_array($clients)) foreach ($clients as $c): ?>
@@ -24,15 +24,20 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Project</label>
-          <select name="project_id" class="form-select">
-            <option value="">-- None --</option>
-            <?php if (isset($projects) && is_array($projects)) foreach ($projects as $p): ?>
-              <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
-            <?php endforeach; ?>
-          </select>
+          <div class="d-flex align-items-center gap-2">
+            <select name="project_id" class="form-select">
+              <option value="">-- None --</option>
+              <?php if (isset($projects) && is_array($projects)) foreach ($projects as $p): ?>
+                <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddProject" title="Add Project">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
         </div>
         <div class="col-md-8">
-          <label class="form-label">Title</label>
+          <label class="form-label">Title <span class="text-danger">*</span></label>
           <input type="text" name="title" class="form-control" required>
         </div>
         <div class="col-md-4">
@@ -56,6 +61,15 @@
           </select>
         </div>
         <div class="col-md-3">
+          <label class="form-label">Status</label>
+          <?php $statuses = array('received','under_review','approved','in_progress','completed','on_hold','rejected','cancelled'); ?>
+          <select name="status" class="form-select">
+            <?php foreach ($statuses as $st): ?>
+              <option value="<?php echo htmlspecialchars($st); ?>"><?php echo ucfirst(str_replace('_',' ',$st)); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-3">
           <label class="form-label">Expected Delivery</label>
           <input type="date" name="expected_delivery_date" class="form-control">
         </div>
@@ -68,9 +82,9 @@
           <input type="number" step="0.01" name="budget_estimate" class="form-control">
         </div>
         <div class="col-md-3">
-          <label class="form-label">Owner</label>
-          <select name="owner_id" class="form-select">
-            <option value="">-- None --</option>
+          <label class="form-label">Owner <span class="text-danger">*</span></label>
+          <select name="owner_id" class="form-select" required>
+            <option value="">-- Select Owner --</option>
             <?php if (isset($members) && is_array($members)) foreach ($members as $m): ?>
               <?php $label = '';
                 if (isset($m->full_label) && $m->full_label!=='') { $label = $m->full_label; }
@@ -94,6 +108,21 @@
     </form>
   </div>
 </div>
+
+<div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="projectModalFrame" src="" style="border:0;width:100%;height:500px;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
 <?php $this->load->view('partials/footer'); ?>
 <script src="https://cdn.ckeditor.com/4.21.0/standard-all/ckeditor.js"></script>
 <script>
@@ -105,4 +134,63 @@
       resize_enabled: true
     });
   }
+
+  function closeProjectModal(){
+    var frame = document.getElementById('projectModalFrame');
+    if (frame){ frame.src = 'about:blank'; }
+    var modalEl = document.getElementById('projectModal');
+    if (modalEl){
+      if (window.bootstrap && window.bootstrap.Modal){
+        var m = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        m.hide();
+      } else {
+        modalEl.style.display = 'none';
+      }
+    }
+  }
+  window.closeProjectModal = closeProjectModal;
+
+  // Called from embedded project create popup when a project is created
+  window.onProjectCreated = function(id, name){
+    var select = document.querySelector('select[name="project_id"]');
+    if (!select) return;
+    var val = String(id || '');
+    if (!val) return;
+    var opt = null;
+    for (var i = 0; i < select.options.length; i++){
+      if (select.options[i].value === val){ opt = select.options[i]; break; }
+    }
+    if (!opt){
+      opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = name || ('Project #' + val);
+      select.appendChild(opt);
+    }
+    select.value = val;
+
+    closeProjectModal();
+  };
+
+  (function(){
+    var btn = document.getElementById('btnAddProject');
+    if (!btn) return;
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      var frame = document.getElementById('projectModalFrame');
+      if (frame) {
+        frame.src = '<?php echo site_url('projects/create'); ?>?embed=1';
+      }
+      var modalEl = document.getElementById('projectModal');
+      if (modalEl) {
+        if (window.bootstrap && window.bootstrap.Modal) {
+          var m = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+          m.show();
+        } else {
+          modalEl.style.display = 'block';
+        }
+      } else {
+        window.open('<?php echo site_url('projects/create'); ?>','_blank','width=900,height=600');
+      }
+    });
+  })();
 </script>

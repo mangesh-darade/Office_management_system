@@ -115,6 +115,12 @@ class Requirements extends CI_Controller {
     // GET/POST /requirements/create
     public function create(){
         if ($this->input->method() === 'post'){
+            $owner_raw = $this->input->post('owner_id');
+            if ($owner_raw === '' || $owner_raw === null) {
+                $this->session->set_flashdata('error', 'Owner is required.');
+                redirect('requirements/create');
+                return;
+            }
             $data = [
                 'req_number' => $this->generate_req_number(),
                 'client_id' => (int)$this->input->post('client_id'),
@@ -123,11 +129,11 @@ class Requirements extends CI_Controller {
                 'description' => $this->input->post('description'),
                 'requirement_type' => $this->input->post('requirement_type') ?: 'new_feature',
                 'priority' => $this->input->post('priority') ?: 'medium',
-                'status' => 'received',
+                'status' => $this->input->post('status') ?: 'received',
                 'budget_estimate' => $this->input->post('budget_estimate') !== '' ? (float)$this->input->post('budget_estimate') : null,
                 'expected_delivery_date' => $this->input->post('expected_delivery_date') ?: null,
                 'received_date' => $this->input->post('received_date') ?: date('Y-m-d'),
-                'owner_id' => $this->input->post('owner_id') !== '' ? (int)$this->input->post('owner_id') : null,
+                'owner_id' => (int)$owner_raw,
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'created_by' => (int)$this->session->userdata('user_id'),
                 'created_at' => date('Y-m-d H:i:s'),
@@ -185,6 +191,12 @@ class Requirements extends CI_Controller {
         $row = $this->requirements->get_requirement((int)$id);
         if (!$row) { show_404(); }
         if ($this->input->method() === 'post'){
+            $owner_raw = $this->input->post('owner_id');
+            if ($owner_raw === '' || $owner_raw === null) {
+                $this->session->set_flashdata('error', 'Owner is required.');
+                redirect('requirements/edit/'.$id);
+                return;
+            }
             $data = [
                 'client_id' => (int)$this->input->post('client_id'),
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,

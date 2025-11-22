@@ -18,6 +18,7 @@ class Projects extends CI_Controller {
     // GET /projects/create, POST /projects/create
     public function create()
     {
+        $embed = (bool)$this->input->get('embed');
         if ($this->input->method() === 'post') {
             $data = [
                 'code' => trim($this->input->post('code')),
@@ -31,10 +32,27 @@ class Projects extends CI_Controller {
             $this->load->helper('activity');
             log_activity('projects', 'created', (int)$id, 'Project: '.(string)$data['name']);
             $this->session->set_flashdata('success', 'Project created');
+
+            if ($embed) {
+                $name = (string)$data['name'];
+                $project_id = (int)$id;
+                $safe_name = json_encode($name);
+                echo "<!doctype html><html><head><meta charset=\"utf-8\"><title>Project created</title></head><body>";
+                echo "<script>\n".
+                     "if (window.parent && typeof window.parent.onProjectCreated === 'function') {\n".
+                     "  window.parent.onProjectCreated(".$project_id.", " . $safe_name . ");\n".
+                     "} else {\n".
+                     "  window.close && window.close();\n".
+                     "}\n".
+                     "</script>";
+                echo "</body></html>";
+                return;
+            }
+
             redirect('projects/'.$id);
             return;
         }
-        $this->load->view('projects/form', ['action' => 'create']);
+        $this->load->view('projects/form', ['action' => 'create', 'embed' => $embed]);
     }
 
     // GET /projects/{id}
@@ -93,6 +111,9 @@ class Projects extends CI_Controller {
             if (!$header) { fclose($handle); $this->session->set_flashdata('error', 'CSV is empty'); redirect('projects/import'); return; }
             $map = []; foreach ($header as $i=>$c) { $map[strtolower(trim($c))] = $i; }
             $inserted = 0;
+            $errors = 0;
+            $prev_debug = $this->db->db_debug;
+            $this->db->db_debug = false;
             while (($row = fgetcsv($handle)) !== false) {
                 $data = [
                     'code' => (isset($map['code']) && isset($row[$map['code']])) ? $row[$map['code']] : null,
@@ -101,10 +122,28 @@ class Projects extends CI_Controller {
                     'start_date' => (isset($map['start_date']) && isset($row[$map['start_date']])) ? $row[$map['start_date']] : null,
                     'end_date' => (isset($map['end_date']) && isset($row[$map['end_date']])) ? $row[$map['end_date']] : null,
                 ];
-                if (!empty($data['name'])) { $this->db->insert('projects', $data); $inserted++; }
+                if (!empty($data['name'])) {
+                    $ok = $this->db->insert('projects', $data);
+                    if ($ok) {
+                        $inserted++;
+                    } else {
+                        $errors++;
+                        $db_error = $this->db->error();
+                        if (!empty($db_error['message'])) {
+                            log_message('error', 'Project import error: '.$db_error['message']);
+                        }
+                    }
+                }
             }
+            $this->db->db_debug = $prev_debug;
             fclose($handle);
-            $this->session->set_flashdata('success', "Imported $inserted projects");
+            if ($errors > 0 && $inserted === 0) {
+                $this->session->set_flashdata('error', 'No projects were imported. Please check your CSV for duplicate codes or invalid data.');
+            } elseif ($errors > 0) {
+                $this->session->set_flashdata('success', "Imported $inserted projects. Some rows were skipped due to errors (for example, duplicate codes or invalid data).");
+            } else {
+                $this->session->set_flashdata('success', "Imported $inserted projects");
+            }
             redirect('projects');
             return;
         }

@@ -52,6 +52,7 @@
             <th>Dates</th>
             <th>Days</th>
             <th>Status</th>
+            <th>Applied On</th>
             <th>Reason</th>
             <th style="width:220px">Actions</th>
           </tr>
@@ -64,8 +65,20 @@
               <td><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></td>
               <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
               <td><?php echo htmlspecialchars($r->start_date.' to '.$r->end_date); ?></td>
-              <td><?php echo htmlspecialchars((string)$r->days); ?></td>
-              <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($r->status); ?></span></td>
+              <td>
+                <?php
+                  $daysVal = isset($r->days) ? (float)$r->days : 0.0;
+                  $daysText = (fmod($daysVal, 1.0) === 0.0)
+                    ? (string)(int)$daysVal
+                    : rtrim(rtrim(number_format($daysVal, 2, '.', ''), '0'), '.');
+                  if ($daysVal === 0.5) {
+                    $daysText .= ' (Half Day)';
+                  }
+                  echo htmlspecialchars($daysText);
+                ?>
+              </td>
+              <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->status))); ?></span></td>
+              <td><?php echo htmlspecialchars(isset($r->created_at) ? $r->created_at : ''); ?></td>
               <td style="max-width:280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?></td>
               <td>
                 <div class="d-flex gap-2">

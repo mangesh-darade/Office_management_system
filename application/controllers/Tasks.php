@@ -226,8 +226,11 @@ class Tasks extends CI_Controller {
                 'description' => $this->input->post('description'),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'status' => $this->input->post('status') ?: 'pending',
-                'updated_by' => $user_id,
             ];
+            // Only set updated_by if the column exists in tasks table
+            if ($this->db->field_exists('updated_by', 'tasks')) {
+                $data['updated_by'] = $user_id;
+            }
             // Optional new attachment
             if ($this->db->field_exists('attachment_path', 'tasks') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/tasks/';
@@ -249,7 +252,20 @@ class Tasks extends CI_Controller {
                     return;
                 }
             }
-            $this->db->where('id', (int)$id)->update('tasks', $data);
+            // Perform update with db_debug disabled so DB errors don't render a full error page
+            $prev_debug = $this->db->db_debug;
+            $this->db->db_debug = false;
+            $ok = $this->db->where('id', (int)$id)->update('tasks', $data);
+            $this->db->db_debug = $prev_debug;
+            if (!$ok) {
+                $db_error = $this->db->error();
+                if (!empty($db_error['message'])) {
+                    log_message('error', 'Task update error: '.$db_error['message']);
+                }
+                $this->session->set_flashdata('error', 'Task update failed. Please check the data and try again.');
+                redirect('tasks/'.$id.'/edit');
+                return;
+            }
             $this->load->helper('activity');
             log_activity('tasks', 'updated', (int)$id, 'Task: '.(string)$data['title']);
             $this->session->set_flashdata('success', 'Task updated');

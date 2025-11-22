@@ -23,6 +23,8 @@ class Leave_requests extends CI_Controller {
             $start_date = $this->input->post('start_date');
             $end_date   = $this->input->post('end_date');
             $reason     = trim((string)$this->input->post('reason'));
+            $duration_type = $this->input->post('duration_type');
+            $duration_type = ($duration_type === 'half') ? 'half' : 'full';
 
             // Basic validation
             if (!$type_id || !$start_date || !$end_date){
@@ -38,6 +40,16 @@ class Leave_requests extends CI_Controller {
 
             // Calculate working days
             $days = (float) workdays_between($start_date, $end_date);
+            if ($duration_type === 'half') {
+                if ($start_date !== $end_date) {
+                    $this->session->set_flashdata('error', 'Half-day leave is allowed only for a single date.');
+                    redirect('leave/apply');
+                    return;
+                }
+                if ($days > 0) {
+                    $days = 0.5;
+                }
+            }
             if ($days <= 0){
                 $this->session->set_flashdata('error', 'Selected range contains no working days.');
                 redirect('leave/apply');
@@ -115,9 +127,12 @@ class Leave_requests extends CI_Controller {
         if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
 
         $manager_id = (int)$this->session->userdata('user_id');
-        // Find team member user_ids via employees.reporting_to
+        // Admin (role_id = 1) can see all leave requests; managers/leads see only their direct reports
+        $restrict_to_team = ($role_id !== 1);
+
+        // Find team member user_ids via employees.reporting_to when restriction is enabled
         $user_ids = [];
-        if ($this->db->table_exists('employees')){
+        if ($restrict_to_team && $this->db->table_exists('employees')){
             $rows = $this->db->select('user_id')->from('employees')->where('reporting_to', $manager_id)->get()->result();
             foreach ($rows as $r) { if ($r->user_id) { $user_ids[] = (int)$r->user_id; } }
         }
@@ -126,11 +141,13 @@ class Leave_requests extends CI_Controller {
                  ->from('leave_requests lr')
                  ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                  ->join('users u', 'u.id = lr.user_id', 'left');
-        if (!empty($user_ids)) {
-            $this->db->where_in('lr.user_id', $user_ids);
-        } else {
-            // No direct reports; show empty set safely
-            $this->db->where('1=0', null, false);
+        if ($restrict_to_team) {
+            if (!empty($user_ids)) {
+                $this->db->where_in('lr.user_id', $user_ids);
+            } else {
+                // No direct reports; show empty set safely
+                $this->db->where('1=0', null, false);
+            }
         }
         // Optional filters
         $status = trim((string)$this->input->get('status'));
@@ -193,9 +210,12 @@ class Leave_requests extends CI_Controller {
         $from = $ym.'-01';
         $to = date('Y-m-t', strtotime($from));
 
-        // Team user ids
+        // Admins (role_id = 1) see all leave requests; managers/leads see only their direct reports
+        $restrict_to_team = ($role_id !== 1);
+
+        // Team user ids (for managers/leads)
         $user_ids = [];
-        if ($this->db->table_exists('employees')){
+        if ($restrict_to_team && $this->db->table_exists('employees')){
             $rows = $this->db->select('user_id')->from('employees')->where('reporting_to', $manager_id)->get()->result();
             foreach ($rows as $r) { if ($r->user_id) { $user_ids[] = (int)$r->user_id; } }
         }
@@ -206,8 +226,15 @@ class Leave_requests extends CI_Controller {
                  ->join('leave_types lt','lt.id = lr.type_id','left')
                  ->where('lr.start_date <=', $to)
                  ->where('lr.end_date >=', $from);
-        if (!empty($user_ids)) { $this->db->where_in('lr.user_id', $user_ids); }
-        else { $this->db->where('1=0', null, false); }
+
+        if ($restrict_to_team) {
+            if (!empty($user_ids)) {
+                $this->db->where_in('lr.user_id', $user_ids);
+            } else {
+                // Manager/lead with no direct reports: show empty set
+                $this->db->where('1=0', null, false);
+            }
+        }
         $rows = $this->db->get()->result();
 
         $this->load->view('leave_requests/calendar', [
