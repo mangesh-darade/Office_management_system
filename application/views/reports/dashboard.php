@@ -51,14 +51,26 @@
           <div class="d-flex align-items-center justify-content-between mb-2">
             <div class="d-flex align-items-center">
               <div class="icon-circle bg-amber text-dark me-2"><i class="bi bi-calendar-week"></i></div>
-              <h5 class="card-title mb-0">Leaves - Last 6 Months</h5>
+              <h5 class="card-title mb-0">Leaves Overview</h5>
             </div>
             <a class="btn btn-light btn-sm" href="<?php echo site_url('reports/leaves'); ?>">Open report</a>
           </div>
-          <canvas id="leavesMonthlyChart" height="120"></canvas>
-          <?php if(empty($leaves_monthly)): ?>
-            <div class="small text-muted mt-2">No leave data available yet.</div>
-          <?php endif; ?>
+          <div class="row g-3 align-items-center">
+            <div class="col-12 col-md-6 border-md-end">
+              <h6 class="small text-muted mb-1">By Status</h6>
+              <canvas id="leavesStatusChart" height="150"></canvas>
+              <?php if(empty($leaves_by_status)): ?>
+                <div class="small text-muted mt-2">No leave data available yet.</div>
+              <?php endif; ?>
+            </div>
+            <div class="col-12 col-md-6">
+              <h6 class="small text-muted mb-1">Last 6 Months</h6>
+              <canvas id="leavesMonthlyChart" height="150"></canvas>
+              <?php if(empty($leaves_monthly)): ?>
+                <div class="small text-muted mt-2">No monthly data yet.</div>
+              <?php endif; ?>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -104,6 +116,7 @@
       const taskStatus = <?php echo json_encode(isset($task_status) ? $task_status : []); ?>;
       const projStatus = <?php echo json_encode(isset($projects_progress) ? $projects_progress : []); ?>;
       const leavesMonthly = <?php echo json_encode(isset($leaves_monthly) ? $leaves_monthly : []); ?>;
+      const leavesByStatus = <?php echo json_encode(isset($leaves_by_status) ? $leaves_by_status : []); ?>;
       const byAssignee = <?php echo json_encode(isset($task_by_assignee) ? $task_by_assignee : []); ?>;
       const attendanceRecent = <?php echo json_encode(isset($attendance_recent) ? $attendance_recent : []); ?>;
 
@@ -119,23 +132,41 @@
 
       const palette = ['#4f46e5','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#22c55e','#3b82f6'];
 
-      new Chart(document.getElementById('taskStatusChart'), {
-        type: 'doughnut',
-        data: { labels: ts.labels, datasets: [{ data: ts.values, backgroundColor: palette }] },
-        options: { plugins: { legend: { position: 'bottom' } } }
-      });
+      if (document.getElementById('taskStatusChart') && ts.labels.length) {
+        new Chart(document.getElementById('taskStatusChart'), {
+          type: 'doughnut',
+          data: { labels: ts.labels, datasets: [{ data: ts.values, backgroundColor: palette }] },
+          options: { plugins: { legend: { position: 'bottom' } } }
+        });
+      }
 
-      new Chart(document.getElementById('projectStatusChart'), {
-        type: 'bar',
-        data: { labels: ps.labels, datasets: [{ label: 'Projects', data: ps.values, backgroundColor: palette[0] }] },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-      });
+      if (document.getElementById('projectStatusChart') && ps.labels.length) {
+        new Chart(document.getElementById('projectStatusChart'), {
+          type: 'bar',
+          data: { labels: ps.labels, datasets: [{ label: 'Projects', data: ps.values, backgroundColor: palette[0] }] },
+          options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+      }
 
-      new Chart(document.getElementById('leavesMonthlyChart'), {
-        type: 'line',
-        data: { labels: lm.labels, datasets: [{ label: 'Leaves', data: lm.values, borderColor: palette[1], backgroundColor: palette[1]+'33', fill: true, tension: .3 }] },
-        options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
-      });
+      const leavesStatusEl = document.getElementById('leavesStatusChart');
+      const leavesMonthlyEl = document.getElementById('leavesMonthlyChart');
+
+      const ls = toChartData(leavesByStatus, 'status', 'cnt');
+      if (leavesStatusEl && ls.labels.length) {
+        new Chart(leavesStatusEl, {
+          type: 'doughnut',
+          data: { labels: ls.labels, datasets: [{ data: ls.values, backgroundColor: palette }] },
+          options: { plugins: { legend: { position: 'bottom' } } }
+        });
+      }
+
+      if (leavesMonthlyEl && lm.labels.length) {
+        new Chart(leavesMonthlyEl, {
+          type: 'line',
+          data: { labels: lm.labels, datasets: [{ label: 'Leaves', data: lm.values, borderColor: palette[1], backgroundColor: palette[1]+'33', fill: true, tension: .3 }] },
+          options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+        });
+      }
 
       // Top assignees chart
       const ta = toChartData(byAssignee, 'label', 'cnt');

@@ -15,28 +15,25 @@
     <?php endif; ?>
 
     <div class="row g-3">
-      <div class="col-12 col-lg-6">
+      <div class="col-12">
         <div class="card shadow-soft">
           <div class="card-body">
-            <h5 class="card-title">Test Email</h5>
-            <p class="text-muted">Send a test email to verify email configuration.</p>
-            <form method="post" action="<?php echo site_url('leaves/test-email'); ?>" class="row gy-2 gx-2 align-items-end">
-              <div class="col-12 col-sm-8">
-                <label class="form-label">Recipient Email</label>
-                <input type="email" name="to" value="<?php $__em = $this->session->userdata('email'); echo htmlspecialchars(!empty($__em) ? $__em : ''); ?>" class="form-control" placeholder="name@example.com">
-              </div>
-              <div class="col-12 col-sm-auto">
-                <button type="submit" class="btn btn-primary">Send Test Email</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      <div class="col-12 col-lg-6">
-        <div class="card shadow-soft">
-          <div class="card-body">
-            <h5 class="card-title">Coming Soon</h5>
-            <p class="mb-0 text-muted">Apply for leave and approvals inbox will be added here.</p>
+            <h5 class="card-title">Quick Actions</h5>
+            <p class="text-muted">Jump directly to the main leave workflows.</p>
+            <div class="d-grid gap-2">
+              <a href="<?php echo site_url('leave/apply'); ?>" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil-square me-1"></i> Apply Leave
+              </a>
+              <a href="<?php echo site_url('leave/my'); ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-person-check me-1"></i> My Leaves
+              </a>
+              <a href="<?php echo site_url('leave/team'); ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-people me-1"></i> Team Leaves
+              </a>
+              <a href="<?php echo site_url('leave/calendar'); ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-calendar3 me-1"></i> Leave Calendar
+              </a>
+            </div>
           </div>
         </div>
       </div>

@@ -28,23 +28,27 @@ if (!(int)$this->session->userdata('user_id')) {
         has_module_access('users') ||
         has_module_access('attendance') ||
         has_module_access('departments') ||
-        has_module_access('designations')
+        has_module_access('designations') ||
+        has_module_access('permissions')
       );
       ?>
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','attendance','departments','designations','leave']) ? 'active' : ''; ?>" href="#">
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
           <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
-            <i class="bi bi-chevron-down"></i>
+            <i class="bi bi-chevron-right"></i>
           </button>
         </div>
         <div class="ps-3 sidebar-submenu" id="user-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
+            <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
@@ -75,7 +79,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['users','attendance','departments','designations','leave']) ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
@@ -91,7 +95,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-airplane-engines me-2"></i>Leave
           </a>
           <button id="leave-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="leave-submenu" title="Toggle">
-            <i class="bi bi-chevron-down"></i>
+            <i class="bi bi-chevron-right"></i>
           </button>
         </div>
         <div class="ps-3 sidebar-submenu" id="leave-submenu">
@@ -145,7 +149,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-kanban me-2"></i>Project
           </a>
           <button id="project-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="project-submenu" title="Toggle">
-            <i class="bi bi-chevron-down"></i>
+            <i class="bi bi-chevron-right"></i>
           </button>
         </div>
         <div class="ps-3 sidebar-submenu" id="project-submenu">
@@ -200,7 +204,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-graph-up me-2"></i>Reports
           </a>
           <button id="reports-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="reports-submenu" title="Toggle">
-            <i class="bi bi-chevron-down"></i>
+            <i class="bi bi-chevron-right"></i>
           </button>
         </div>
         <div class="ps-3 sidebar-submenu" id="reports-submenu">
@@ -240,24 +244,77 @@ if (!(int)$this->session->userdata('user_id')) {
         })();
       </script>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity</a>
-      <?php endif; ?>
       <?php // Admin section: show only to Admins (permissions module access)
       if(function_exists('has_module_access') && has_module_access('permissions')): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
-      <?php if(has_module_access('db')): ?>
-      <a class="nav-link sidebar-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
-      <a class="nav-link sidebar-link <?php echo ($active==='db' && $active_sub==='clients')?'active':''; ?>" href="<?php echo site_url('db/clients'); ?>"><i class="bi bi-diagram-3 me-2"></i>Client DB Panel</a>
-      <a class="nav-link sidebar-link <?php echo ($active==='db' && $active_sub==='client-migrations')?'active':''; ?>" href="<?php echo site_url('db/client-migrations'); ?>"><i class="bi bi-clock-history me-2"></i>Client DB Migrations</a>
-      <?php endif; ?>
-      <a class="nav-link sidebar-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permissions</a>
-      <?php if(has_module_access('settings')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>Settings</a>
+      <?php
+      $settings_group_show = function_exists('has_module_access') && (
+        has_module_access('settings') ||
+        has_module_access('permissions') ||
+        has_module_access('db') ||
+        has_module_access('reminders') ||
+        has_module_access('activity')
+      );
+      ?>
+      <?php if($settings_group_show): ?>
+      <div class="nav-item" id="settings-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','db','reminders','activity']) ? 'active' : ''; ?>" href="#">
+            <i class="bi bi-gear me-2"></i>Settings
+          </a>
+          <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="settings-submenu">
+          <div class="submenu-list">
+            <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
+            <a class="submenu-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
+            <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permissions</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
+            <a class="submenu-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
+            <a class="submenu-link <?php echo ($active==='db' && $active_sub==='clients')?'active':''; ?>" href="<?php echo site_url('db/clients'); ?>"><i class="bi bi-diagram-3 me-2"></i>Client DB Panel</a>
+            <a class="submenu-link <?php echo ($active==='db' && $active_sub==='client-migrations')?'active':''; ?>" href="<?php echo site_url('db/client-migrations'); ?>"><i class="bi bi-clock-history me-2"></i>Client DB Migrations</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
+            <a class="submenu-link <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
+            <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+          var key = 'sb_settings_open';
+          var group = document.getElementById('settings-group');
+          var btn = document.getElementById('settings-toggle');
+          var parentLink = document.getElementById('settings-parent');
+          var box = document.getElementById('settings-submenu');
+          if(!btn || !box) return;
+          function setOpen(open){
+            box.style.display = open ? 'block' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.classList.toggle('rot', open);
+            if (group) { group.classList.toggle('open', open); }
+            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
+          }
+          var saved = null;
+          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
+          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','db','reminders','activity']) ? 'true' : 'false'; ?>;
+          setOpen(open);
+          function toggle(){ setOpen(!(box.style.display !== 'none')); }
+          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+          if (parentLink) {
+            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+          }
+        })();
+      </script>
       <?php endif; ?>
       <?php endif; ?>
       <hr class="my-2 border-secondary">

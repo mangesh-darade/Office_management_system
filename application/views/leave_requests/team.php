@@ -64,7 +64,17 @@
             <tr>
               <td><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></td>
               <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
-              <td><?php echo htmlspecialchars($r->start_date.' to '.$r->end_date); ?></td>
+              <td>
+                <?php
+                  $sd = isset($r->start_date) ? (string)$r->start_date : '';
+                  $ed = isset($r->end_date) ? (string)$r->end_date : '';
+                  if ($sd !== '' && $sd === $ed) {
+                    echo htmlspecialchars($sd);
+                  } else {
+                    echo htmlspecialchars($sd.' to '.$ed);
+                  }
+                ?>
+              </td>
               <td>
                 <?php
                   $daysVal = isset($r->days) ? (float)$r->days : 0.0;

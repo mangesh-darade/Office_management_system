@@ -231,7 +231,8 @@ class Auth extends CI_Controller {
                 redirect('auth/register');
                 return;
             }
-            if (!$role_id) {
+            $roles = $this->roles();
+            if (!$role_id || !isset($roles[$role_id])) {
                 $this->session->set_flashdata('error', 'Please select a role.');
                 redirect('auth/register');
                 return;
@@ -291,9 +292,9 @@ class Auth extends CI_Controller {
                 $data['phone'] = $phone;
             }
             // Derive and persist role string if column exists
-            $role_map = [1=>'admin', 2=>'hr', 3=>'lead', 4=>'employee'];
             if ($this->db->field_exists('role','users')) {
-                $data['role'] = isset($role_map[$role_id]) ? $role_map[$role_id] : 'employee';
+                $roleName = isset($roles[$role_id]) ? $roles[$role_id] : '';
+                $data['role'] = $roleName !== '' ? strtolower(str_replace(' ', '_', $roleName)) : '';
             }
             // Attempt to persist name into available schema fields
             if ($full_name !== ''){
@@ -340,6 +341,40 @@ class Auth extends CI_Controller {
             redirect('auth/login');
             return;
         }
-        $this->load->view('auth/register');
+        $roles = $this->roles();
+        $this->load->view('auth/register', ['roles' => $roles]);
+    }
+
+    /**
+     * Shared helper to read roles from roles table (id => name) with fallback defaults.
+     * @return array<int,string>
+     */
+    private function roles(){
+        $out = [];
+        if (isset($this->db) && $this->db->table_exists('roles')) {
+            $this->db->from('roles');
+            if ($this->db->field_exists('is_active', 'roles')) {
+                $this->db->where('is_active', 1);
+            }
+            if ($this->db->field_exists('sort_order', 'roles')) {
+                $this->db->order_by('sort_order', 'ASC');
+            }
+            $this->db->order_by('id', 'ASC');
+            $rows = $this->db->get()->result();
+            foreach ($rows as $row) {
+                $rid = isset($row->id) ? (int)$row->id : 0;
+                if ($rid <= 0) { continue; }
+                $out[$rid] = isset($row->name) ? (string)$row->name : ('Role #'.$rid);
+            }
+        }
+        if (!empty($out)) { return $out; }
+
+        // Fallback labels
+        return [
+            1 => 'Admin',
+            2 => 'Manager',
+            3 => 'Lead',
+            4 => 'Staff',
+        ];
     }
 }

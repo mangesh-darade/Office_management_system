@@ -14,6 +14,7 @@ class Reports extends CI_Controller {
         $task_status = [];
         $projects_progress = [];
         $leaves_monthly = [];
+        $leaves_by_status = [];
         $task_by_assignee = [];
         $attendance_recent = [];
 
@@ -25,8 +26,10 @@ class Reports extends CI_Controller {
         }
         if ($this->db->table_exists('leave_requests')) {
             $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, SUM(days) AS total_days FROM leave_requests WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
+            $leaves_by_status = $this->db->select('status, COUNT(*) AS cnt, SUM(days) AS total_days')->from('leave_requests')->group_by('status')->get()->result();
         } elseif ($this->db->table_exists('leaves')) {
             $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, COUNT(*) AS total_days FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
+            $leaves_by_status = $this->db->select('status, COUNT(*) AS cnt')->from('leaves')->group_by('status')->get()->result();
         }
         if ($this->db->table_exists('tasks')) {
             // Top 10 assignees by number of tasks
@@ -66,6 +69,7 @@ class Reports extends CI_Controller {
             'task_status' => $task_status,
             'projects_progress' => $projects_progress,
             'leaves_monthly' => $leaves_monthly,
+            'leaves_by_status' => $leaves_by_status,
             'task_by_assignee' => $task_by_assignee,
             'attendance_recent' => $attendance_recent,
         ];

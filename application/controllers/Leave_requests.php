@@ -20,14 +20,90 @@ class Leave_requests extends CI_Controller {
 
         if ($this->input->method() === 'post'){
             $type_id = (int)$this->input->post('type_id');
+            $mode = $this->input->post('mode');
+            $mode = ($mode === 'specific') ? 'specific' : 'range';
+            $reason     = trim((string)$this->input->post('reason'));
+
+            if (!$type_id){
+                $this->session->set_flashdata('error', 'Please select a leave type.');
+                redirect('leave/apply');
+                return;
+            }
+
+            if ($mode === 'specific') {
+                $dates_post = $this->input->post('dates');
+                if (!is_array($dates_post)) { $dates_post = []; }
+                $unique = [];
+                foreach ($dates_post as $d) {
+                    $d = trim((string)$d);
+                    if ($d === '') continue;
+                    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) continue;
+                    $unique[$d] = $d;
+                }
+                if (empty($unique)) {
+                    $this->session->set_flashdata('error', 'Please select at least one date.');
+                    redirect('leave/apply');
+                    return;
+                }
+
+                $perDateDays = [];
+                $days = 0.0;
+                foreach ($unique as $d){
+                    $wd = (float) workdays_between($d, $d);
+                    if ($wd <= 0) { continue; }
+                    $perDateDays[$d] = $wd;
+                    $days += $wd;
+                }
+                if ($days <= 0){
+                    $this->session->set_flashdata('error', 'Selected dates contain no working days.');
+                    redirect('leave/apply');
+                    return;
+                }
+
+                // Check leave balance once for total days
+                $bal = $this->leaves->get_leave_balance($user_id, $type_id);
+                if ($bal && isset($bal->available) && (float)$bal->available < $days){
+                    $this->session->set_flashdata('error', 'Insufficient balance for this leave type. Available: '.(float)$bal->available);
+                    redirect('leave/apply');
+                    return;
+                }
+
+                // Find reporting manager as approver if available
+                $approver_id = null;
+                if ($this->db->table_exists('employees')){
+                    $emp = $this->db->where('user_id', $user_id)->get('employees')->row();
+                    if ($emp && !empty($emp->reporting_to)) { $approver_id = (int)$emp->reporting_to; }
+                }
+
+                foreach ($perDateDays as $d => $wd) {
+                    $data = [
+                        'user_id' => $user_id,
+                        'type_id' => $type_id,
+                        'start_date' => $d,
+                        'end_date' => $d,
+                        'days' => $wd,
+                        'reason' => $reason,
+                        'status' => 'pending',
+                        'current_approver_id' => $approver_id,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                    $this->leaves->apply_leave($data);
+                }
+
+                $this->session->set_flashdata('success', 'Leave request submitted.');
+                redirect('leave/my');
+                return;
+            }
+
+            // Range mode
             $start_date = $this->input->post('start_date');
             $end_date   = $this->input->post('end_date');
-            $reason     = trim((string)$this->input->post('reason'));
             $duration_type = $this->input->post('duration_type');
             $duration_type = ($duration_type === 'half') ? 'half' : 'full';
 
             // Basic validation
-            if (!$type_id || !$start_date || !$end_date){
+            if (!$start_date || !$end_date){
                 $this->session->set_flashdata('error', 'Please select type and date range.');
                 redirect('leave/apply');
                 return;

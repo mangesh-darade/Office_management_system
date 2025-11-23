@@ -17,10 +17,10 @@
     <div class="card">
       <div class="card-body p-0">
         <div class="table-responsive">
-          <table class="table table-hover mb-0 align-middle datatable" data-order='[[0,"desc"]]'>
+          <table class="table table-hover mb-0 align-middle datatable" data-order='[[0,"asc"]]'>
             <thead class="table-light">
               <tr>
-                <th style="width:70px;">ID</th>
+                <th style="width:70px;">#</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th style="width:120px;">Role</th>
@@ -29,9 +29,9 @@
               </tr>
             </thead>
             <tbody>
-              <?php if (!empty($rows)) foreach ($rows as $r): ?>
+              <?php if (!empty($rows)) $i = 1; if (!empty($rows)) foreach ($rows as $r): ?>
                 <tr>
-                  <td>#<?php echo (int)$r->id; ?></td>
+                  <td>#<?php echo $i++; ?></td>
                   <td><?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?></td>
                   <td><?php echo htmlspecialchars(isset($r->email) ? $r->email : ''); ?></td>
                   <td>

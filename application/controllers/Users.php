@@ -35,7 +35,8 @@ class Users extends CI_Controller {
                 'is_verified' => 0,
                 'avatar' => '',
             ],
-            'is_edit' => false
+            'is_edit' => false,
+            'roles' => $this->roles(),
         ];
         $this->load->view('users/form', $data);
     }
@@ -47,14 +48,56 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
+        if (!filter_var($in['email'], FILTER_VALIDATE_EMAIL)) {
+            $this->session->set_flashdata('error', 'Please enter a valid email address.');
+            redirect('users/create');
+            return;
+        }
+        // Validate role and status
+        $roles = $this->roles();
+        $roleIdPost = $this->input->post('role_id', true);
+        $statusPost = $this->input->post('status', true);
+        if ($roleIdPost === null || $roleIdPost === '') {
+            $this->session->set_flashdata('error', 'Role is required.');
+            redirect('users/create');
+            return;
+        }
+        $roleId = (int)$roleIdPost;
+        if (!isset($roles[$roleId])) {
+            $this->session->set_flashdata('error', 'Please select a valid role.');
+            redirect('users/create');
+            return;
+        }
+        if ($statusPost === null || $statusPost === '') {
+            $this->session->set_flashdata('error', 'Status is required.');
+            redirect('users/create');
+            return;
+        }
+        if (!in_array((string)$statusPost, ['0','1'], true)) {
+            $this->session->set_flashdata('error', 'Please select a valid status.');
+            redirect('users/create');
+            return;
+        }
+        if ($this->db->field_exists('phone', 'users')) {
+            if ($in['phone'] === '') {
+                $this->session->set_flashdata('error', 'Mobile number is required.');
+                redirect('users/create');
+                return;
+            }
+            if (!preg_match('/^[0-9]{10}$/', $in['phone'])) {
+                $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number.');
+                redirect('users/create');
+                return;
+            }
+        }
         // Enforce unique email and phone at application level
         if ($this->users->email_exists($in['email'])) {
             $this->session->set_flashdata('error', 'Email already exists.');
             redirect('users/create');
             return;
         }
-        if ($in['phone'] !== '' && $this->users->phone_exists($in['phone'])) {
-            $this->session->set_flashdata('error', 'Email already exists.');
+        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '' && $this->users->phone_exists($in['phone'])) {
+            $this->session->set_flashdata('error', 'Mobile number already exists.');
             redirect('users/create');
             return;
         }
@@ -74,7 +117,8 @@ class Users extends CI_Controller {
         $data = [
             'title' => 'Edit User',
             'row' => $row,
-            'is_edit' => true
+            'is_edit' => true,
+            'roles' => $this->roles(),
         ];
         $this->load->view('users/form', $data);
     }
@@ -89,14 +133,56 @@ class Users extends CI_Controller {
             redirect('users/edit/'.$id);
             return;
         }
+        if (!filter_var($in['email'], FILTER_VALIDATE_EMAIL)) {
+            $this->session->set_flashdata('error', 'Please enter a valid email address.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        // Validate role and status
+        $roles = $this->roles();
+        $roleIdPost = $this->input->post('role_id', true);
+        $statusPost = $this->input->post('status', true);
+        if ($roleIdPost === null || $roleIdPost === '') {
+            $this->session->set_flashdata('error', 'Role is required.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        $roleId = (int)$roleIdPost;
+        if (!isset($roles[$roleId])) {
+            $this->session->set_flashdata('error', 'Please select a valid role.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        if ($statusPost === null || $statusPost === '') {
+            $this->session->set_flashdata('error', 'Status is required.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        if (!in_array((string)$statusPost, ['0','1'], true)) {
+            $this->session->set_flashdata('error', 'Please select a valid status.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        if ($this->db->field_exists('phone', 'users')) {
+            if ($in['phone'] === '') {
+                $this->session->set_flashdata('error', 'Mobile number is required.');
+                redirect('users/edit/'.$id);
+                return;
+            }
+            if (!preg_match('/^[0-9]{10}$/', $in['phone'])) {
+                $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number.');
+                redirect('users/edit/'.$id);
+                return;
+            }
+        }
         // Enforce unique email and phone when updating (ignore current user)
         if ($this->users->email_exists($in['email'], $id)) {
             $this->session->set_flashdata('error', 'Email already exists.');
             redirect('users/edit/'.$id);
             return;
         }
-        if ($in['phone'] !== '' && $this->users->phone_exists($in['phone'], $id)) {
-            $this->session->set_flashdata('error', 'Email already exists.');
+        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '' && $this->users->phone_exists($in['phone'], $id)) {
+            $this->session->set_flashdata('error', 'Mobile number already exists.');
             redirect('users/edit/'.$id);
             return;
         }
@@ -129,15 +215,50 @@ class Users extends CI_Controller {
         $in = [];
         $in['name'] = trim($this->input->post('name', true) ?: '');
         $in['email'] = trim($this->input->post('email', true) ?: '');
-        $in['role_id'] = (int)($this->input->post('role_id', true) ?: 4);
-        // Derive role string from role_id for consistency
-        $roleMap = [1=>'admin', 2=>'hr', 3=>'lead', 4=>'employee'];
-        $in['role'] = isset($roleMap[$in['role_id']]) ? $roleMap[$in['role_id']] : 'employee';
+        $in['role_id'] = (int)($this->input->post('role_id', true) ?: 0);
+        // Derive role string from roles table (fallback to lowercase name)
+        $roles = $this->roles();
+        $roleName = isset($roles[$in['role_id']]) ? $roles[$in['role_id']] : '';
+        $in['role'] = $roleName !== '' ? strtolower(str_replace(' ', '_', $roleName)) : '';
         $in['status'] = $this->input->post('status', true) !== null ? $this->input->post('status', true) : 1; // raw; normalize later
         $in['phone'] = trim($this->input->post('phone', true) ?: '');
         $in['is_verified'] = (int)($this->input->post('is_verified', true) !== null ? $this->input->post('is_verified', true) : 0);
         $in['password'] = trim($this->input->post('password') ?: '');
         return $in;
+    }
+
+    /**
+     * Fetch role labels from roles table when available.
+     * Falls back to default mapping if table is missing or empty.
+     * @return array<int,string>
+     */
+    private function roles(){
+        $out = [];
+        if ($this->db->table_exists('roles')) {
+            $this->db->from('roles');
+            if ($this->db->field_exists('is_active', 'roles')) {
+                $this->db->where('is_active', 1);
+            }
+            if ($this->db->field_exists('sort_order', 'roles')) {
+                $this->db->order_by('sort_order', 'ASC');
+            }
+            $this->db->order_by('id', 'ASC');
+            $rows = $this->db->get()->result();
+            foreach ($rows as $row) {
+                $rid = isset($row->id) ? (int)$row->id : 0;
+                if ($rid <= 0) { continue; }
+                $out[$rid] = isset($row->name) ? (string)$row->name : ('Role #'.$rid);
+            }
+        }
+        if (!empty($out)) { return $out; }
+
+        // Fallback labels if roles table not available
+        return [
+            1 => 'Admin',
+            2 => 'Manager',
+            3 => 'Lead',
+            4 => 'Staff',
+        ];
     }
 
     private function _prepare_db_payload($in, $is_create = false){
