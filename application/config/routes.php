@@ -63,6 +63,7 @@ $route['index.php'] = 'auth/index';
 $route['login'] = 'auth/login';
 $route['logout'] = 'auth/logout';
 $route['register'] = 'auth/register';
+$route['auth/send-verify-code'] = 'auth/send_verify_code';
 
 // Dashboard
 $route['dashboard'] = 'dashboard/index';

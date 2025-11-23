@@ -71,7 +71,7 @@ class Chats extends CI_Controller {
         $participant_ids = $this->input->post('participants'); // array of user ids
         $user_id = (int)$this->session->userdata('user_id');
         // RBAC: require chat grouping permission if helper exists
-        if (function_exists('has_module_access') && !has_module_access('chats.grouping')) {
+        if (function_exists('has_module_access') && !has_module_access('chatsgrouping')) {
             show_error('You do not have permission to create groups.', 403);
         }
         if (!$title || empty($participant_ids) || !is_array($participant_ids)) {
@@ -135,7 +135,7 @@ class Chats extends CI_Controller {
         $conversation_id = (int)$this->input->post('conversation_id');
         $user_ids = $this->input->post('user_ids');
         $actor = (int)$this->session->userdata('user_id');
-        if (function_exists('has_module_access') && !has_module_access('chats.grouping')) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
+        if (function_exists('has_module_access') && !has_module_access('chatsgrouping')) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         if (!$this->Chat_model->is_participant($conversation_id, $actor)) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         $this->Chat_model->add_participants($conversation_id, array_map('intval', (array)$user_ids));
         $this->_json(['ok'=>true]);
@@ -146,7 +146,7 @@ class Chats extends CI_Controller {
         $conversation_id = (int)$this->input->post('conversation_id');
         $user_id = (int)$this->input->post('user_id');
         $actor = (int)$this->session->userdata('user_id');
-        if (function_exists('has_module_access') && !has_module_access('chats.grouping')) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
+        if (function_exists('has_module_access') && !has_module_access('chatsgrouping')) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         if (!$this->Chat_model->is_participant($conversation_id, $actor)) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         $this->Chat_model->remove_participant($conversation_id, (int)$user_id);
         $this->_json(['ok'=>true]);

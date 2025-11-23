@@ -24,6 +24,9 @@ class AuthHook {
             // login & register allowed with or without controller prefix
             'auth/login', 'login',
             'auth/register', 'register',
+            // email verification & code sending must be usable before login
+            'auth/send-verify-code',
+            'auth/verify',
             'install/schema'
         ];
 

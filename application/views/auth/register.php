@@ -15,7 +15,15 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
+            <div class="input-group">
+              <input type="email" name="email" id="regEmail" class="form-control" placeholder="you@gmail.com" required>
+              <button class="btn btn-outline-secondary" type="button" id="btnSendCode">Send code</button>
+            </div>
+            <div class="form-text" id="emailHelp"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Verification Code</label>
+            <input type="text" name="verify_code" class="form-control" placeholder="Enter code sent to your Gmail" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Mobile Number</label>
@@ -45,4 +53,42 @@
     </div>
   </div>
 </div>
+<script>
+(function(){
+  var site = '<?php echo rtrim(site_url(), "/"); ?>/';
+  var emailInput = document.getElementById('regEmail');
+  var btn = document.getElementById('btnSendCode');
+  var help = document.getElementById('emailHelp');
+  if (!emailInput || !btn || !help) return;
+  btn.addEventListener('click', function(){
+    var email = (emailInput.value || '').trim();
+    if (!email) {
+      help.textContent = 'Enter your Gmail address first.';
+      help.className = 'form-text text-danger';
+      return;
+    }
+    btn.disabled = true;
+    help.textContent = 'Sending verification code...';
+    help.className = 'form-text text-muted';
+    fetch(site + 'auth/send-verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+      body: new URLSearchParams({ email: email })
+    }).then(function(res){ return res.json(); }).then(function(data){
+      if (data && data.ok) {
+        help.textContent = 'Verification code sent to your Gmail. Please check your inbox or spam folder.';
+        help.className = 'form-text text-success';
+      } else {
+        help.textContent = (data && data.error) ? data.error : 'Failed to send verification code.';
+        help.className = 'form-text text-danger';
+      }
+    }).catch(function(){
+      help.textContent = 'Error sending verification code.';
+      help.className = 'form-text text-danger';
+    }).finally(function(){
+      btn.disabled = false;
+    });
+  });
+})();
+</script>
 <?php $this->load->view('partials/footer'); ?>
