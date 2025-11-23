@@ -134,6 +134,14 @@ $route['attendance/create'] = 'attendance/create';
 $route['attendance/(:num)/edit'] = 'attendance/edit/$1';
 $route['attendance/(:num)/delete'] = 'attendance/delete/$1';
 
+// Assets (IT equipment)
+$route['assets-mgmt'] = 'assets/index';
+$route['assets-mgmt/create'] = 'assets/create';
+$route['assets-mgmt/edit/(:num)'] = 'assets/edit/$1';
+$route['assets-mgmt/assign/(:num)'] = 'assets/assign/$1';
+$route['assets-mgmt/return_asset/(:num)'] = 'assets/return_asset/$1';
+$route['assets-mgmt/my'] = 'assets/my';
+
 // Leaves
 $route['leaves'] = 'leaves/index';
 $route['leaves/export'] = 'leaves/export_csv';

@@ -52,6 +52,18 @@ class Employees extends CI_Controller {
             }
             $uid_raw = (int)$this->input->post('user_id');
             $uid = $this->find_user_id($uid_raw);
+            if (!$uid) {
+                $this->session->set_flashdata('error', 'Please select a valid user for this employee.');
+                redirect('employees/create');
+                return;
+            }
+
+            $existing = $this->db->get_where('employees', ['user_id' => $uid])->row();
+            if ($existing) {
+                $this->session->set_flashdata('error', 'An employee record already exists for the selected user.');
+                redirect('employees/'.(int)$existing->id);
+                return;
+            }
             $payload = [
                 'user_id' => $uid,
                 'emp_code' => trim($this->input->post('emp_code')),
@@ -62,7 +74,21 @@ class Employees extends CI_Controller {
                 'reporting_to' => $this->input->post('reporting_to') !== '' ? (int)$this->input->post('reporting_to') : null,
                 'employment_type' => $this->input->post('employment_type') ?: 'full_time',
                 'join_date' => $this->input->post('join_date') ?: null,
+                'dob' => $this->input->post('dob') ?: null,
+                'personal_email' => trim($this->input->post('personal_email')),
+                'address' => trim($this->input->post('address')),
+                'city' => trim($this->input->post('city')),
+                'state' => trim($this->input->post('state')),
+                'country' => trim($this->input->post('country')),
+                'zipcode' => trim($this->input->post('zipcode')),
                 'phone' => trim($this->input->post('phone')),
+                'location' => trim($this->input->post('location')),
+                'salary_ctc' => $this->input->post('salary_ctc') !== '' ? (float)$this->input->post('salary_ctc') : null,
+                'emergency_contact_name' => trim($this->input->post('emergency_contact_name')),
+                'emergency_contact_phone' => trim($this->input->post('emergency_contact_phone')),
+                'bank_name' => trim($this->input->post('bank_name')),
+                'bank_ac_no' => trim($this->input->post('bank_ac_no')),
+                'pan_no' => trim($this->input->post('pan_no')),
             ];
             $id = $this->Employee_model->create($payload);
             $this->load->helper('activity');
@@ -75,9 +101,19 @@ class Employees extends CI_Controller {
             redirect('employees/'.$id);
             return;
         }
+        $departments = [];
+        $designations = [];
+        if ($this->db->table_exists('departments')){
+            $departments = $this->db->select('id, dept_name')->from('departments')->order_by('dept_name','ASC')->get()->result();
+        }
+        if ($this->db->table_exists('designations')){
+            $designations = $this->db->select('id, designation_name, department_id')->from('designations')->order_by('designation_name','ASC')->get()->result();
+        }
         $data = [
             'action' => 'create',
             'users' => $this->get_user_options(),
+            'departments' => $departments,
+            'designations' => $designations,
         ];
         $this->load->view('employees/form', $data);
     }
@@ -130,7 +166,21 @@ class Employees extends CI_Controller {
                 'reporting_to' => $this->input->post('reporting_to') !== '' ? (int)$this->input->post('reporting_to') : null,
                 'employment_type' => $this->input->post('employment_type') ?: 'full_time',
                 'join_date' => $this->input->post('join_date') ?: null,
+                'dob' => $this->input->post('dob') ?: null,
+                'personal_email' => trim($this->input->post('personal_email')),
+                'address' => trim($this->input->post('address')),
+                'city' => trim($this->input->post('city')),
+                'state' => trim($this->input->post('state')),
+                'country' => trim($this->input->post('country')),
+                'zipcode' => trim($this->input->post('zipcode')),
                 'phone' => trim($this->input->post('phone')),
+                'location' => trim($this->input->post('location')),
+                'salary_ctc' => $this->input->post('salary_ctc') !== '' ? (float)$this->input->post('salary_ctc') : null,
+                'emergency_contact_name' => trim($this->input->post('emergency_contact_name')),
+                'emergency_contact_phone' => trim($this->input->post('emergency_contact_phone')),
+                'bank_name' => trim($this->input->post('bank_name')),
+                'bank_ac_no' => trim($this->input->post('bank_ac_no')),
+                'pan_no' => trim($this->input->post('pan_no')),
             ];
             $this->Employee_model->update((int)$id, $payload);
             $this->load->helper('activity');
@@ -143,10 +193,20 @@ class Employees extends CI_Controller {
             redirect('employees/'.$id);
             return;
         }
+        $departments = [];
+        $designations = [];
+        if ($this->db->table_exists('departments')){
+            $departments = $this->db->select('id, dept_name')->from('departments')->order_by('dept_name','ASC')->get()->result();
+        }
+        if ($this->db->table_exists('designations')){
+            $designations = $this->db->select('id, designation_name, department_id')->from('designations')->order_by('designation_name','ASC')->get()->result();
+        }
         $data = [
             'action' => 'edit',
             'employee' => $employee,
             'users' => $this->get_user_options(),
+            'departments' => $departments,
+            'designations' => $designations,
         ];
         $this->load->view('employees/form', $data);
     }
@@ -210,6 +270,72 @@ class Employees extends CI_Controller {
             return;
         }
         $this->load->view('employees/import');
+    }
+
+    public function user_meta($user_id = null)
+    {
+        $user_id = (int)$user_id;
+        $this->output->set_content_type('application/json');
+        if ($user_id <= 0) {
+            $this->output->set_status_header(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid user.']);
+            return;
+        }
+
+        $tbl = null;
+        if ($this->db->table_exists('users')) { $tbl = 'users'; }
+        elseif ($this->db->table_exists('sma_users')) { $tbl = 'sma_users'; }
+        if (!$tbl) {
+            $this->output->set_status_header(404);
+            echo json_encode(['success' => false, 'error' => 'User table not found.']);
+            return;
+        }
+
+        $fields = $this->db->list_fields($tbl);
+        $has = function($f) use ($fields) { return in_array($f, $fields, true); };
+        $select = ['id'];
+        foreach (['first_name','last_name','name','phone','email'] as $f) {
+            if ($has($f)) { $select[] = $f; }
+        }
+        $row = $this->db->select(implode(', ', $select))
+            ->from($tbl)
+            ->where('id', $user_id)
+            ->limit(1)
+            ->get()
+            ->row();
+        if (!$row) {
+            $this->output->set_status_header(404);
+            echo json_encode(['success' => false, 'error' => 'User not found.']);
+            return;
+        }
+
+        $firstName = '';
+        $lastName = '';
+        if (isset($row->first_name) && $row->first_name !== '') {
+            $firstName = (string)$row->first_name;
+            if (isset($row->last_name)) {
+                $lastName = (string)$row->last_name;
+            }
+        } elseif (isset($row->name) && trim($row->name) !== '') {
+            $parts = preg_split('/\s+/', trim((string)$row->name), 2);
+            if (isset($parts[0])) { $firstName = (string)$parts[0]; }
+            if (isset($parts[1])) { $lastName = (string)$parts[1]; }
+        }
+
+        $phone = '';
+        if (isset($row->phone) && $row->phone !== '') {
+            $phone = (string)$row->phone;
+        }
+
+        $data = [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'phone' => $phone,
+            'department' => '',
+            'designation' => '',
+        ];
+
+        echo json_encode(['success' => true, 'data' => $data]);
     }
 
     // Build a list of users for the employee-user link dropdown

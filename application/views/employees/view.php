@@ -13,11 +13,21 @@
         <p class="mb-1"><strong>Code:</strong> <?php echo htmlspecialchars($employee->emp_code); ?></p>
         <p class="mb-1"><strong>Name:</strong> <?php echo htmlspecialchars(trim((isset($employee->first_name) ? $employee->first_name : '').' '.(isset($employee->last_name) ? $employee->last_name : ''))); ?></p>
         <p class="mb-1"><strong>Email:</strong> <?php echo htmlspecialchars(isset($employee->email) ? $employee->email : ''); ?></p>
+        <p class="mb-1"><strong>Personal Email:</strong> <?php echo htmlspecialchars(isset($employee->personal_email) ? $employee->personal_email : ''); ?></p>
         <p class="mb-1"><strong>Phone:</strong> <?php echo htmlspecialchars(isset($employee->phone) ? $employee->phone : ''); ?></p>
+        <p class="mb-1"><strong>Location:</strong> <?php echo htmlspecialchars(isset($employee->location) ? $employee->location : ''); ?></p>
+        <p class="mb-1"><strong>Address:</strong> <?php echo htmlspecialchars(isset($employee->address) ? $employee->address : ''); ?></p>
+        <p class="mb-1"><strong>City:</strong> <?php echo htmlspecialchars(isset($employee->city) ? $employee->city : ''); ?></p>
+        <p class="mb-1"><strong>State:</strong> <?php echo htmlspecialchars(isset($employee->state) ? $employee->state : ''); ?></p>
+        <p class="mb-1"><strong>Country:</strong> <?php echo htmlspecialchars(isset($employee->country) ? $employee->country : ''); ?></p>
+        <p class="mb-1"><strong>Pincode:</strong> <?php echo htmlspecialchars(isset($employee->zipcode) ? $employee->zipcode : ''); ?></p>
         <p class="mb-1"><strong>Department:</strong> <?php echo htmlspecialchars(isset($employee->department) ? $employee->department : ''); ?></p>
         <p class="mb-1"><strong>Designation:</strong> <?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : ''); ?></p>
         <p class="mb-1"><strong>Employment Type:</strong> <?php echo htmlspecialchars(isset($employee->employment_type) ? $employee->employment_type : ''); ?></p>
+        <p class="mb-1"><strong>Date of Birth:</strong> <?php echo htmlspecialchars(isset($employee->dob) ? $employee->dob : ''); ?></p>
         <p class="mb-1"><strong>Join Date:</strong> <?php echo htmlspecialchars(isset($employee->join_date) ? $employee->join_date : ''); ?></p>
+        <p class="mb-1"><strong>Salary (CTC):</strong> <?php echo htmlspecialchars(isset($employee->salary_ctc) ? $employee->salary_ctc : ''); ?></p>
+        <p class="mb-1"><strong>Emergency Contact:</strong> <?php echo htmlspecialchars(isset($employee->emergency_contact_name) ? $employee->emergency_contact_name : ''); ?> (<?php echo htmlspecialchars(isset($employee->emergency_contact_phone) ? $employee->emergency_contact_phone : ''); ?>)</p>
       </div></div>
     </div>
     <div class="col-md-6">

@@ -313,5 +313,12 @@ switch (ENVIRONMENT)
  * And away we go...
  */
 error_reporting(-1);
-		ini_set('display_errors', 1);
-require_once BASEPATH.'core/CodeIgniter.php';
+	ini_set('display_errors', 1);
+	if (file_exists(FCPATH.'vendor/autoload.php')) {
+		require FCPATH.'vendor/autoload.php';
+	}
+	// Fallback: load Dompdf from application/third_party if installed manually
+	if (file_exists(APPPATH.'third_party/dompdf/autoload.inc.php')) {
+		require APPPATH.'third_party/dompdf/autoload.inc.php';
+	}
+	require_once BASEPATH.'core/CodeIgniter.php';

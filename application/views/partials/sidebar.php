@@ -35,7 +35,7 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave']) ? 'active' : ''; ?>" href="#">
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
           <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
@@ -50,6 +50,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
+            <a class="submenu-link <?php echo $active==='assets'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
             <?php endif; ?>
@@ -86,6 +87,10 @@ if (!(int)$this->session->userdata('user_id')) {
           parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
         })();
       </script>
+      <?php endif; ?>
+
+      <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-cash-stack me-2"></i>Payroll</a>
       <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>

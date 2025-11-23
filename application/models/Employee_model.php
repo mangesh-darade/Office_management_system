@@ -9,6 +9,24 @@ class Employee_model extends CI_Model
     {
         parent::__construct();
         $this->load->database();
+        $this->ensure_schema();
+    }
+
+    private function ensure_schema()
+    {
+        if (!$this->db->table_exists($this->table)) {
+            return;
+        }
+        $fields = $this->db->list_fields($this->table);
+        $addCol = function($name, $sqlPart) use ($fields){
+            if (!in_array($name, $fields, true)){
+                $this->db->query("ALTER TABLE `{$this->table}` ADD ".$sqlPart);
+            }
+        };
+        $addCol('location', "`location` varchar(120) DEFAULT NULL AFTER `department`");
+        $addCol('bank_name', "`bank_name` varchar(190) DEFAULT NULL AFTER `phone`");
+        $addCol('bank_ac_no', "`bank_ac_no` varchar(50) DEFAULT NULL AFTER `bank_name`");
+        $addCol('pan_no', "`pan_no` varchar(20) DEFAULT NULL AFTER `bank_ac_no`");
     }
 
     public function all($limit = 50, $offset = 0, $search = null)

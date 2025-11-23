@@ -29,7 +29,8 @@
 </ul>
 <div class="tab-content pt-3">
   <div class="tab-pane fade show active" id="company" role="tabpanel">
-    <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" enctype="multipart/form-data">
+    <!-- Main company settings form (no file upload here) -->
+    <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Company Name</label>
@@ -51,20 +52,25 @@
           <label class="form-label">Address</label>
           <textarea class="form-control" name="company_address" rows="2"><?php echo htmlspecialchars(isset($settings['company_address']) ? $settings['company_address'] : ''); ?></textarea>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Logo</label>
-          <div class="d-flex align-items-center gap-3">
-            <input type="file" class="form-control" name="logo" form="uploadLogoForm" />
-            <?php if (isset($settings['company_logo']) && !empty($settings['company_logo'])): ?>
-              <img src="<?php echo base_url($settings['company_logo']); ?>" alt="Logo" style="height:40px" />
-            <?php endif; ?>
-            <form id="uploadLogoForm" method="post" action="<?php echo site_url('settings/upload-logo'); ?>" enctype="multipart/form-data"></form>
-            <button class="btn btn-outline-secondary" type="submit" form="uploadLogoForm">Upload</button>
-          </div>
-        </div>
       </div>
       <div>
         <button class="btn btn-primary">Save</button>
+      </div>
+    </form>
+
+    <!-- Separate logo upload form to avoid nested forms -->
+    <form id="uploadLogoForm" method="post" action="<?php echo site_url('settings/upload-logo'); ?>" enctype="multipart/form-data" class="mt-3">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Logo</label>
+          <div class="d-flex align-items-center gap-3">
+            <input type="file" class="form-control" name="logo" />
+            <?php if (isset($settings['company_logo']) && !empty($settings['company_logo'])): ?>
+              <img src="<?php echo base_url($settings['company_logo']); ?>" alt="Logo" style="height:40px" />
+            <?php endif; ?>
+            <button class="btn btn-outline-secondary" type="submit">Upload</button>
+          </div>
+        </div>
       </div>
     </form>
   </div>

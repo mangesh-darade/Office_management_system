@@ -3,7 +3,24 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Setting_model extends CI_Model {
     private $table = 'settings';
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){
+        parent::__construct();
+        $this->load->database();
+        $this->ensure_schema();
+    }
+
+    private function ensure_schema(){
+        if (!$this->db->table_exists($this->table)){
+            $sql = "CREATE TABLE `{$this->table}` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `key` varchar(190) NOT NULL,
+                `value` text NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uq_setting_key` (`key`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $this->db->query($sql);
+        }
+    }
 
     public function get_setting($key, $default = null){
         $row = $this->db->get_where($this->table, ['key' => $key])->row();
