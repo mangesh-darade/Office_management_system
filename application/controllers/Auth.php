@@ -61,34 +61,53 @@ class Auth extends CI_Controller {
 
     public function register(){
         if ($this->input->method() === 'post') {
-            $full_name = trim($this->input->post('name'));
-            $email = trim($this->input->post('email'));
-            $phone = trim($this->input->post('phone'));
-            $password = (string)$this->input->post('password');
-            $role_id = (int)$this->input->post('role_id');
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 6 || !$role_id || $phone === '') {
-                $this->session->set_flashdata('error', 'Invalid input');
+            $full_name = trim((string)$this->input->post('name'));
+            $email     = trim((string)$this->input->post('email'));
+            $phone     = trim((string)$this->input->post('phone'));
+            $password  = (string)$this->input->post('password');
+            $role_id   = (int)$this->input->post('role_id');
+
+            // Field-level validation
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->session->set_flashdata('error', 'Please enter a valid email address.');
                 redirect('auth/register');
                 return;
             }
-            $exists = $this->User_model->get_by_email($email);
-            if ($exists) {
-                $this->session->set_flashdata('error', 'Email already registered');
+            if ($phone === '') {
+                $this->session->set_flashdata('error', 'Mobile number is required.');
+                redirect('auth/register');
+                return;
+            }
+            if (strlen($password) < 6) {
+                $this->session->set_flashdata('error', 'Password must be at least 6 characters.');
+                redirect('auth/register');
+                return;
+            }
+            if (!$role_id) {
+                $this->session->set_flashdata('error', 'Please select a role.');
+                redirect('auth/register');
+                return;
+            }
+
+            // Email uniqueness based on users table
+            if ($this->User_model->email_exists($email)) {
+                $this->session->set_flashdata('error', 'Email already exists.');
                 redirect('auth/register');
                 return;
             }
             // Phone uniqueness (if phone column exists)
             if ($phone !== '' && $this->db->field_exists('phone', 'users') && $this->User_model->phone_exists($phone)) {
-                $this->session->set_flashdata('error', 'Email already exists.');
+                $this->session->set_flashdata('error', 'Mobile number already exists.');
                 redirect('auth/register');
                 return;
             }
+
             $data = array(
-                'email' => $email,
-                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                'role_id' => $role_id,
-                'status' => 'active',
-                'created_at' => date('Y-m-d H:i:s')
+                'email'        => $email,
+                'password_hash'=> password_hash($password, PASSWORD_DEFAULT),
+                'role_id'      => $role_id,
+                'status'       => 'active',
+                'created_at'   => date('Y-m-d H:i:s')
             );
             // Persist phone if column exists
             if ($phone !== '' && $this->db->field_exists('phone','users')) {

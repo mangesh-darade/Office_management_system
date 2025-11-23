@@ -46,36 +46,26 @@ class AuthHook {
             exit;
         }
 
-        // Route-level RBAC: map controller to allowed roles (defaults)
-        $routes_roles = [
-            'dashboard' => [1,2,3,4], // all roles
-            'employees' => [1,2,3,4], // allow; controller enforces ownership for non-admin/HR
-            'projects'  => [1,2,3],   // admin, hr, lead
-            'tasks'     => [1,2,3,4], // all roles
-            'attendance'=> [1,2,3,4], // all roles
-            'leaves'    => [1,2,3,4], // all roles
-            'notifications' => [1,2,3,4],
-            'reports'   => [1,2,3],   // admin, hr, lead
-            'permissions' => [2,3],   // HR/Manager (2) and Lead (3)
-            'db'        => [1],
-            'chats'     => [1,2,3,4], // all roles (default)
-            'calls'     => [1,2,3,4], // all roles (default)
-        ];
+        // Route-level RBAC: build controller -> allowed roles map from permissions table (DB-driven)
+        $routes_roles = [];
 
-        // If a permissions table exists, override defaults with DB-driven permissions
         if (!isset($CI->db)) { $CI->load->database(); }
         if ($CI->db && $CI->db->table_exists('permissions')) {
             $perms = $CI->db->get('permissions')->result();
             // Expect columns: role_id (int), module (varchar), can_access (tinyint)
-            $db_map = [];
             foreach ($perms as $p) {
-                if (!isset($db_map[$p->module])) { $db_map[$p->module] = []; }
-                if ((int)$p->can_access === 1) { $db_map[$p->module][] = (int)$p->role_id; }
+                $module = strtolower(trim((string)$p->module));
+                if ($module === '') { continue; }
+                if (!isset($routes_roles[$module])) { $routes_roles[$module] = []; }
+                if ((int)$p->can_access === 1) { $routes_roles[$module][] = (int)$p->role_id; }
             }
-            foreach ($db_map as $module => $allowed_roles) {
-                if (!empty($allowed_roles)) { $routes_roles[strtolower($module)] = array_values(array_unique($allowed_roles)); }
+            // Normalize unique role ids per module
+            foreach ($routes_roles as $m => $roles) {
+                $routes_roles[$m] = array_values(array_unique($roles));
             }
         }
+        // If no permissions configured, do not block any route here
+        if (empty($routes_roles)) { return; }
 
         // Extract controller from router when available
         $controller = '';

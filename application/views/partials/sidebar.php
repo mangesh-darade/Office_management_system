@@ -41,7 +41,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-chevron-down"></i>
           </button>
         </div>
-        <div class="ps-3" id="user-submenu" style="display:none;">
+        <div class="ps-3 sidebar-submenu" id="user-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
@@ -82,11 +82,6 @@ if (!(int)$this->session->userdata('user_id')) {
           parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
         })();
       </script>
-      <style>
-        #user-toggle .bi{ transition: transform .2s ease; }
-        #user-toggle.rot .bi{ transform: rotate(180deg); }
-        #user-group.open > .d-flex > #user-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
-      </style>
       <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
@@ -99,7 +94,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-chevron-down"></i>
           </button>
         </div>
-        <div class="ps-3" id="leave-submenu" style="display:none;">
+        <div class="ps-3 sidebar-submenu" id="leave-submenu">
           <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($seg1==='leave' && ($seg2==='' || $seg2===null || $seg2==='apply')) ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">Apply Leave</a>
@@ -133,11 +128,6 @@ if (!(int)$this->session->userdata('user_id')) {
           parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
         })();
       </script>
-      <style>
-        #leave-toggle .bi{ transition: transform .2s ease; }
-        #leave-toggle.rot .bi{ transform: rotate(180deg); }
-        #leave-group.open > .d-flex > #leave-parent{ background:#22c55e; color:#0b1220; border-radius:8px; }
-      </style>
       <?php endif; ?>
 
       <?php
@@ -158,7 +148,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-chevron-down"></i>
           </button>
         </div>
-        <div class="ps-3" id="project-submenu" style="display:none;">
+        <div class="ps-3 sidebar-submenu" id="project-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
             <a class="submenu-link <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
@@ -199,11 +189,6 @@ if (!(int)$this->session->userdata('user_id')) {
           parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
         })();
       </script>
-      <style>
-        #project-toggle .bi{ transition: transform .2s ease; }
-        #project-toggle.rot .bi{ transform: rotate(180deg); }
-        #project-group.open > .d-flex > #project-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
-      </style>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
@@ -218,7 +203,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <i class="bi bi-chevron-down"></i>
           </button>
         </div>
-        <div class="ps-3" id="reports-submenu" style="display:none;">
+        <div class="ps-3 sidebar-submenu" id="reports-submenu">
           <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($seg1==='reports' && ($seg2==='' || $seg2===null))?'active':''; ?>" href="<?php echo site_url('reports'); ?>">Overview</a>
@@ -254,17 +239,6 @@ if (!(int)$this->session->userdata('user_id')) {
           parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
         })();
       </script>
-      <style>
-        /* Reports submenu styles */
-        #reports-toggle .bi{ transition: transform .2s ease; }
-        #reports-toggle.rot .bi{ transform: rotate(180deg); }
-        .submenu-list{ display:flex; flex-direction:column; gap:6px; padding:6px 0 10px; }
-        .submenu-link{ display:block; padding:10px 12px; border-radius:6px; text-decoration:none; font-size:.92rem; color:#e2e8f0; background:#1f2937; border:1px solid #111827; }
-        .submenu-link:hover{ background:#2b3647; color:#fff; border-color:#0b1220; }
-        .submenu-link.active{ background:#22c55e; color:#0b1220; border-color:transparent; font-weight:600; }
-        /* Parent bar when open */
-        #reports-group.open > .d-flex > #reports-parent{ background:#3b82f6; color:#0b1220; border-radius:8px; }
-      </style>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>

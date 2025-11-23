@@ -1,0 +1,67 @@
+/* Task Board (Kanban) module styles */
+
+.kanban .card {
+  border-radius: 14px;
+}
+
+.kanban .kanban-column {
+  min-height: 280px;
+  padding: 8px;
+  background: repeating-linear-gradient(45deg, #f8f9fa, #f8f9fa 10px, #fafbfc 10px, #fafbfc 20px);
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+}
+
+.kanban-card {
+  background: #fff;
+  border: 1px solid #eef0f4;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(16,24,40,.05);
+}
+
+.kanban-card:hover {
+  box-shadow: 0 4px 12px rgba(16,24,40,.12);
+  transform: translateY(-1px);
+  transition: .2s ease;
+}
+
+.kanban .avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.kanban .avatar-bg {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.kanban .chip {
+  background: #f1f5f9;
+  color: #0f172a;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.kanban .col-header {
+  font-weight: 600;
+}
+
+.kanban .empty-hint {
+  color: #94a3b8;
+}
+
+.kanban .empty-hint-placeholder {
+  height: 120px;
+}
+
+.board-responsive .card {
+  height: 100%;
+}

@@ -1,24 +1,13 @@
-<?php $this->load->view('partials/header', ['title' => 'Task Board']); ?>
+<?php $this->load->view('partials/header', [
+  'title' => 'Task Board',
+  'extra_css' => ['assets/css/tasks.css'],
+]); ?>
   <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <h1 class="h4 mb-2 mb-sm-0">Backlog & Kanban</h1>
     <div class="d-flex gap-2">
       <a class="btn btn-outline-secondary" href="<?php echo site_url('tasks'); ?>">List View</a>
     </div>
   </div>
-
-  <style>
-    .kanban .card{border-radius:14px}
-    .kanban .kanban-column{min-height:280px; padding:8px; background: repeating-linear-gradient(45deg, #f8f9fa, #f8f9fa 10px, #fafbfc 10px, #fafbfc 20px); border:1px dashed #e5e7eb; border-radius:10px}
-    .kanban-card{background:#fff; border:1px solid #eef0f4; border-radius:12px; padding:10px 12px; margin-bottom:10px; box-shadow:0 1px 2px rgba(16,24,40,.05)}
-    .kanban-card:hover{box-shadow:0 4px 12px rgba(16,24,40,.12); transform:translateY(-1px); transition:.2s ease}
-    .xsmall{font-size:.78rem}
-    .text-truncate-2{display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
-    .avatar{width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:600}
-    .avatar-bg{background:#eef2ff; color:#3730a3}
-    .chip{background:#f1f5f9; color:#0f172a; padding:2px 8px; border-radius:999px}
-    .col-header{font-weight:600}
-    .empty-hint{color:#94a3b8}
-  </style>
 
   <div class="kanban board-responsive">
     <?php
@@ -64,7 +53,7 @@
               </div>
               <div class="kanban-column" data-status="<?php echo $status; ?>" ondragover="event.preventDefault();" ondrop="handleDrop(event, this)">
                 <?php if (empty($items)): ?>
-                  <div class="d-flex align-items-center justify-content-center empty-hint xsmall" style="height:120px;">No tasks</div>
+                  <div class="d-flex align-items-center justify-content-center empty-hint xsmall empty-hint-placeholder">No tasks</div>
                 <?php endif; ?>
                 <?php foreach ($items as $t): ?>
                   <?php $assignee = $assigneeName($t); $init = $initials($assignee); ?>

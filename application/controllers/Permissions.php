@@ -9,10 +9,26 @@ class Permissions extends CI_Controller {
         $this->load->helper(['url','form']);
         $this->load->library(['session']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        // Admin only
-        $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== 1) { show_error('You do not have permission to access this page.', 403); }
         $this->ensure_schema();
+        // DB-driven access: rely on permissions table for module 'permissions'
+        $this->load->helper('permission');
+        $role_id = (int)$this->session->userdata('role_id');
+        $allowed = false;
+        if (function_exists('has_module_access')) {
+            $allowed = has_module_access('permissions');
+        }
+        // Fallback: if no permissions row exists yet for 'permissions', allow Admin (role 1)
+        if (!$allowed) {
+            $hasPermRow = false;
+            if ($this->db->table_exists('permissions')) {
+                $this->db->where('module', 'permissions');
+                $hasPermRow = ($this->db->count_all_results('permissions') > 0);
+            }
+            if (!$hasPermRow && $role_id === 1) {
+                $allowed = true;
+            }
+        }
+        if (!$allowed) { show_error('You do not have permission to access this page.', 403); }
     }
 
     private function ensure_schema()

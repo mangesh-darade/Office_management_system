@@ -11,17 +11,15 @@
   <link href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.min.css" rel="stylesheet">
   <link rel="manifest" href="<?php echo base_url('assets/pwa/manifest.webmanifest'); ?>">
   <link href="<?php echo base_url('assets/css/app.css'); ?>" rel="stylesheet">
+  <?php
+    if (isset($extra_css) && is_array($extra_css)) {
+        foreach ($extra_css as $cssFile) {
+            echo '<link href="'.base_url($cssFile).'" rel="stylesheet">' . PHP_EOL;
+        }
+    }
+  ?>
   <!-- jQuery must be loaded early so that inline view scripts relying on it (e.g., chats/app.php) can use $.ajax and delegated events -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-  <style>
-    body { background-color: #f7f8fa; }
-    .navbar-brand { font-weight: 600; }
-    .card { border: 0; border-radius: .75rem; }
-    .shadow-soft { box-shadow: 0 0.5rem 1rem rgba(0,0,0,.08)!important; }
-    /* Toasts container at top-right */
-    #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1080; }
-    #toast-container .toast { opacity: 1; margin-bottom: .5rem; }
-  </style>
 </head>
 <body>
 <?php if (empty($hide_navbar)): ?>
@@ -152,7 +150,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         lastSignal = sig;
         incomingConvIdEl.textContent = String(sig.conversation_id || '');
         incomingFromEl.textContent = sig.from_email ? ('Incoming call from ' + sig.from_email) : 'Incoming call';
-        btnAccept.href = site + 'chats/conversation/' + (sig.conversation_id||'');
+        var convId = sig.conversation_id || '';
+        var callId = sig.call_id || '';
+        btnAccept.href = site + 'chats/app?open=' + convId + (callId ? ('&call=' + callId + '&auto_accept=1') : '');
         ensureModal();
         try { if (bsModal) bsModal.show(); else modalEl.style.display='block'; } catch(e){}
         startRing();

@@ -1,57 +1,7 @@
-<?php $this->load->view('partials/header', ['title' => 'Chat']); ?>
-<style>
-  /* Chat App Theming */
-  .chat-app {
-    --bg-gradient: linear-gradient(135deg, #6ea8fe 0%, #b197fc 35%, #fb8b24 100%);
-    --accent: #6ea8fe; /* primary */
-    --accent-2: #b197fc; /* purple */
-    --accent-3: #20c997; /* teal */
-    --muted: #6c757d;
-  }
-  .chat-app .card-header.gradient {
-    background: var(--bg-gradient);
-    color: #fff;
-  }
-  .chat-app .convo-item.active { background-color: rgba(110,168,254,.12); border-left: 3px solid var(--accent); }
-  .chat-app .avatar {
-    width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items:center; justify-content:center;
-    color:#fff; font-weight:600; margin-right:.75rem;
-    background: radial-gradient( circle at 30% 30%, var(--accent), var(--accent-2));
-  }
-  .chat-app .list-group-item .subtitle { font-size:.8rem; color: var(--muted); }
-  .chat-app .message { margin-bottom: .75rem; }
-  .chat-app .bubble { display:inline-block; max-width:85%; padding:.5rem .75rem; border-radius: .75rem; text-align:left; }
-  .chat-app .bubble.me { background-color:#0d6efd; color:#fff; border-top-right-radius: .2rem; }
-  .chat-app .bubble.them { background-color:#f8f9fa; color:#212529; border:1px solid #e9ecef; border-top-left-radius: .2rem; }
-  .chat-app #messages { background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 40%); }
-  .chat-app .composer .btn-primary { background: var(--accent); border-color: var(--accent); }
-  .chat-app .type-badge[data-type="group"] { background-color: rgba(32,201,151,.15); color:#198754; }
-  .chat-app .type-badge[data-type="dm"] { background-color: rgba(110,168,254,.15); color:#0d6efd; }
-  .chat-app .header-sub { font-size:.85rem; opacity:.9; }
-  @media (max-width: 767.98px) {
-    .chat-app .avatar { width: 30px; height:30px; font-size:.85rem; }
-  }
-  /* Call overlay (full view) */
-  .call-overlay { position: fixed; inset: 0; z-index: 1085; background: radial-gradient(circle at top, rgba(17,25,40,.92) 0%, rgba(2,6,23,.95) 50%, rgba(2,6,23,.98) 100%); color:#fff; display:none; flex-direction: column; padding: 1.25rem; }
-  .call-overlay.show { display:flex; }
-  .call-overlay .overlay-toolbar { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:flex-end; margin-bottom:1rem; }
-  .call-overlay .overlay-toolbar .btn { min-width:42px; }
-  .call-overlay .overlay-body { flex:1; display:grid; grid-template-columns: minmax(0,2fr) minmax(260px,1fr); gap:1rem; align-items:stretch; }
-  .call-overlay .overlay-stage { position:relative; background:#0f172a; border-radius:16px; padding: .5rem; display:flex; align-items:center; justify-content:center; }
-  .call-overlay .overlay-stage video { width:100%; height:100%; object-fit:cover; border-radius:12px; background:#111827; }
-  .call-overlay .overlay-side { display:flex; flex-direction:column; gap:1rem; }
-  .call-overlay .overlay-tile { background:#111827; border-radius:12px; padding:.5rem; display:flex; flex-direction:column; }
-  .call-overlay .overlay-tile video { width:100%; border-radius:10px; background:#000; object-fit:cover; }
-  .call-overlay .overlay-tile .tile-label { font-size:.8rem; color:rgba(226,232,240,.85); margin-top:.35rem; text-align:center; }
-  .call-overlay .overlay-status { margin-top:1rem; text-align:center; font-size:.95rem; color:rgba(226,232,240,.8); }
-  .call-overlay .overlay-stage .screen-share-active { position:absolute; inset:0; border-radius:12px; overflow:hidden; background:#020617; }
-  .call-overlay .overlay-stage .screen-share-active video { width:100%; height:100%; object-fit:contain; background:#020617; }
-  @media (max-width: 992px) {
-    .call-overlay .overlay-body { grid-template-columns: 1fr; }
-    .call-overlay .overlay-side { flex-direction:row; flex-wrap:wrap; }
-    .call-overlay .overlay-tile { flex:1 1 45%; }
-  }
-</style>
+<?php $this->load->view('partials/header', [
+  'title' => 'Chat',
+  'extra_css' => ['assets/css/chats.css'],
+]); ?>
 <div class="chat-app row g-3">
   <div class="col-12 col-md-4 col-lg-3">
     <div class="card h-100">
@@ -60,7 +10,7 @@
         <a class="btn btn-sm btn-light" href="<?php echo site_url('chats'); ?>" title="New"><i class="bi bi-plus-lg"></i></a>
       </div>
       <div class="card-body p-0">
-        <div class="list-group list-group-flush" id="convoList" style="max-height: 70vh; overflow-y: auto;" data-initial-id="<?php echo (int) ((isset($open_id) && $open_id) ? $open_id : (!empty($conversations) ? (int)$conversations[0]->id : 0)); ?>">
+        <div class="list-group list-group-flush" id="convoList" data-initial-id="<?php echo (int) ((isset($open_id) && $open_id) ? $open_id : (!empty($conversations) ? (int)$conversations[0]->id : 0)); ?>">
           <?php if (!empty($conversations)) foreach ($conversations as $c): ?>
             <?php
               $label = ($c->type === 'group') ? ($c->title ?: 'Untitled Group') : ($c->members ?: 'Direct Message');
@@ -116,20 +66,23 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-12 col-xl-7">
-            <div id="messages" class="border rounded p-3" style="height: 55vh; overflow-y: auto;"></div>
+            <div id="messages" class="border rounded p-3"></div>
             <form id="sendForm" class="composer d-flex gap-2 mt-2" enctype="multipart/form-data">
               <input type="hidden" name="conversation_id" id="conversation_id">
               <textarea name="body" class="form-control" rows="2" placeholder="Type a message... (Enter to send, Shift+Enter for newline)" disabled></textarea>
-              <button type="button" id="btnAttach" class="btn btn-outline-secondary" title="Attach file" disabled>
-                <i class="bi bi-paperclip"></i>
-              </button>
+              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <button type="button" id="btnAttach" class="btn btn-outline-secondary" title="Attach file" disabled>
+                  <i class="bi bi-paperclip"></i>
+                </button>
+                <span id="attachmentLabel" class="attachment-label text-muted small d-none"></span>
+              </div>
               <input type="file" name="attachment" id="attachment" accept="image/*,.pdf,.doc,.docx" class="visually-hidden" disabled>
               <button class="btn btn-primary" type="submit" disabled><i class="bi bi-send"></i></button>
             </form>
           </div>
           <div class="col-12 col-xl-5">
-            <div class="ratio ratio-16x9 bg-dark mb-2 rounded"><video id="remoteVideo" autoplay playsinline style="width:100%; height:100%;"></video></div>
-            <div class="ratio ratio-16x9 bg-secondary mb-2 rounded"><video id="localVideo" autoplay playsinline muted style="width:100%; height:100%;"></video></div>
+            <div class="ratio ratio-16x9 bg-dark mb-2 rounded"><video id="remoteVideo" autoplay playsinline></video></div>
+            <div class="ratio ratio-16x9 bg-secondary mb-2 rounded"><video id="localVideo" autoplay playsinline muted></video></div>
             <div id="callStatus" class="small text-muted">Idle</div>
           </div>
         </div>
@@ -168,10 +121,10 @@
 </div>
 
 <!-- Recording footer (shown only while recording) -->
-<div id="recordFooter" class="position-fixed bottom-0 start-0 end-0 py-2 px-3" style="display:none; background:rgba(33,37,41,.95); color:#fff; z-index:1080;">
+<div id="recordFooter" class="position-fixed bottom-0 start-0 end-0 py-2 px-3">
   <div class="d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center gap-2">
-      <i id="recordIcon" class="bi bi-record-fill text-danger" style="font-size:1.25rem"></i>
+      <i id="recordIcon" class="bi bi-record-fill text-danger"></i>
       <span id="recordLabel" class="small text-uppercase text-muted">Recording</span>
       <strong id="recordTimer" class="ms-2">00:00</strong>
     </div>
@@ -179,12 +132,9 @@
       <button id="btnSaveRecording" class="btn btn-sm btn-light" title="Save a copy (so far)"><i class="bi bi-save"></i></button>
     </div>
   </div>
-  <style>
-    @media (max-width: 576px){ #recordLabel{ display:none; } }
-  </style>
 </div>
 <!-- Toast container for in-app notifications -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+<div id="chatToastContainer" class="position-fixed bottom-0 end-0 p-3">
   <div id="chatToast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
     <div class="d-flex">
       <div class="toast-body">
@@ -204,6 +154,9 @@
 (function(){
   const site = '<?php echo rtrim(site_url(), "/"); ?>/';
   const userId = <?php echo (int)$user_id; ?>;
+  const initialAutoCallId = <?php echo isset($auto_call_id) ? (int)$auto_call_id : 0; ?>;
+  const initialAutoAccept = <?php echo !empty($auto_accept) ? 'true' : 'false'; ?>;
+  let autoAcceptCallId = (initialAutoAccept && initialAutoCallId) ? initialAutoCallId : 0;
   let convoId = 0; let lastId = 0; let pollTimer = null; let signalTimer = null;
   // Incoming call polling state
   let incomingSinceId = 0; let incomingTimer = null;
@@ -293,6 +246,7 @@
     ringCtx = null; ringOsc = null; ringGain = null;
   }
   const attachmentInput = document.getElementById('attachment');
+  const attachmentLabel = document.getElementById('attachmentLabel');
   const chatToastEl = document.getElementById('chatToast');
   const toastTitleEl = document.getElementById('toastTitle');
   const toastBodyEl = document.getElementById('toastBody');
@@ -374,7 +328,7 @@
       document.querySelectorAll('#convoList .convo-item.active').forEach(x=>x.classList.remove('active'));
       btn.classList.add('active');
       // Reset state
-      convoId = id; lastId = 0; messagesEl.innerHTML = '';
+      convoId = id; lastId = 0; clearMessages();
       if (typeof inputConvo !== 'undefined' && inputConvo) { inputConvo.value = id; }
       // Update header and unread
       updateHeader({ id, type, title, members });
@@ -559,16 +513,45 @@
 
   // Attachment icon opens hidden file input
   btnAttach.addEventListener('click', ()=>{ if (!btnAttach.disabled) attachmentInput.click(); });
-  // Optional: visual feedback when a file is selected
-  attachmentInput.addEventListener('change', ()=>{
+  function updateAttachmentUI(){
     try {
-      if (attachmentInput.files && attachmentInput.files.length) {
-        btnAttach.classList.add('btn-secondary');
+      if (!attachmentInput) return;
+      const files = attachmentInput.files;
+      if (files && files.length) {
+        const name = files[0].name || 'Attachment selected';
+        if (attachmentLabel) {
+          attachmentLabel.textContent = name;
+          attachmentLabel.classList.remove('d-none');
+        }
+        if (btnAttach) { btnAttach.classList.add('btn-secondary'); }
       } else {
-        btnAttach.classList.remove('btn-secondary');
+        if (attachmentLabel) {
+          attachmentLabel.textContent = '';
+          attachmentLabel.classList.add('d-none');
+        }
+        if (btnAttach) { btnAttach.classList.remove('btn-secondary'); }
       }
     } catch(e) {}
-  });
+  }
+  attachmentInput.addEventListener('change', updateAttachmentUI);
+
+  let uploadInProgress = false;
+  function setUploadProgress(pct){
+    try {
+      if (!attachmentLabel) return;
+      if (pct >= 0 && pct < 100) {
+        uploadInProgress = true;
+        const base = (attachmentInput && attachmentInput.files && attachmentInput.files[0] && attachmentInput.files[0].name) ? attachmentInput.files[0].name : 'Uploading';
+        attachmentLabel.textContent = base + ' · ' + pct + '%';
+        attachmentLabel.classList.remove('d-none');
+        attachmentLabel.classList.add('uploading');
+      } else {
+        uploadInProgress = false;
+        attachmentLabel.classList.remove('uploading');
+        updateAttachmentUI();
+      }
+    } catch(e) {}
+  }
 
   // Ask permission for desktop notifications
   if ('Notification' in window && Notification.permission === 'default') {
@@ -627,9 +610,33 @@
     } catch(e){}
   }
 
-  function clearMessages(){ messagesEl.innerHTML=''; lastId = 0; }
+  function clearEmptyPlaceholder(){
+    try {
+      if (!messagesEl) return;
+      var ph = messagesEl.querySelector('.messages-empty-placeholder');
+      if (ph) { ph.remove(); }
+    } catch(e){}
+  }
+
+  function ensureEmptyPlaceholder(){
+    try {
+      if (!messagesEl) return;
+      if (messagesEl.children.length > 0) return;
+      var ph = document.createElement('div');
+      ph.className = 'messages-empty-placeholder text-center text-muted mt-5';
+      ph.textContent = 'No messages yet. Say hello 👋';
+      messagesEl.appendChild(ph);
+    } catch(e){}
+  }
+
+  function clearMessages(){
+    messagesEl.innerHTML='';
+    lastId = 0;
+    ensureEmptyPlaceholder();
+  }
 
   function appendMessage(m) {
+    clearEmptyPlaceholder();
     const wrap = document.createElement('div');
     const isMe = parseInt(m.sender_id,10) === userId;
     wrap.className = 'message' + (isMe ? ' text-end' : '');
@@ -721,8 +728,10 @@
                 if (!sameThread) { incrementUnread(cid); }
               }
             });
+            ensureEmptyPlaceholder();
           } else {
             console.warn('Chats fetch_messages: not ok', data);
+            ensureEmptyPlaceholder();
           }
         }).fail(function(xhr){
           console.error('Chats fetch_messages AJAX fail', { status: xhr.status, text: xhr.statusText, resp: xhr && xhr.responseText });
@@ -738,6 +747,7 @@
         if (data && data.ok && data.messages) {
           data.messages.forEach((m)=>{ try { updateConvoPreview(m); } catch(e){} appendMessage(m); lastId = Math.max(lastId, parseInt(m.id,10)); });
         }
+        ensureEmptyPlaceholder();
       }
     } catch(e) {
       console.error('Chats fetch_messages error', e);
@@ -765,8 +775,8 @@
         j.signals.forEach(function(s){
           const sid = parseInt(s.id,10);
           incomingSinceId = Math.max(incomingSinceId, sid);
-          // Prepare UI and state for incoming offer
           callId = parseInt(s.call_id,10) || null;
+          signalSince = 0;
           pendingRemoteOffer = s.payload; // JSON string
           if (s.from_email) { setStatus('Incoming call from ' + s.from_email + '...'); }
           else { setStatus('Incoming call...'); }
@@ -774,9 +784,12 @@
           if (btnRejectCall) btnRejectCall.classList.remove('d-none');
           if (btnCallToggle) btnCallToggle.classList.add('d-none');
           startRinging('in');
-          // Start polling full signaling for this call so we can receive ICE, etc.
           if (signalTimer) clearInterval(signalTimer);
           signalTimer = setInterval(pollSignals, 2000);
+          if (autoAcceptCallId && callId && autoAcceptCallId === callId && btnAcceptCall) {
+            btnAcceptCall.click();
+            autoAcceptCallId = 0;
+          }
         });
       }
     } catch(e) { /* ignore transient errors */ }
@@ -810,6 +823,8 @@
     e.preventDefault();
     if (!convoId) return;
     const fd = new FormData(form);
+    const hasAttachment = attachmentInput && attachmentInput.files && attachmentInput.files.length;
+    if (hasAttachment) { setUploadProgress(0); }
     if (window.$ && $.ajax) {
       $.ajax({
         url: site + 'chats/send_message',
@@ -817,10 +832,26 @@
         data: fd,
         processData: false,
         contentType: false,
-        dataType: 'json'
+        dataType: 'json',
+        xhr: function(){
+          var xhr = $.ajaxSettings.xhr();
+          if (xhr && xhr.upload && hasAttachment) {
+            xhr.upload.addEventListener('progress', function(ev){
+              try {
+                if (ev.lengthComputable && ev.total > 0) {
+                  var pct = Math.round((ev.loaded / ev.total) * 100);
+                  if (pct < 100) { setUploadProgress(pct); }
+                  else { setUploadProgress(100); }
+                }
+              } catch(e) {}
+            }, false);
+          }
+          return xhr;
+        }
       }).done(function(data){
         if (data && data.ok) {
           try { form.reset(); } catch(e){}
+          updateAttachmentUI();
           // If API returns the created message, append immediately; else fetch
           if (data.message) {
             try { appendMessage(data.message); updateConvoPreview(data.message); } catch(e){}
@@ -829,9 +860,20 @@
           }
           ensurePolling();
         }
-        else { console.warn('Chats send_message: not ok', data); }
+        else {
+          console.warn('Chats send_message: not ok', data);
+          if (data && data.error) {
+            alert(data.error);
+          } else {
+            alert('Failed to send message.');
+          }
+          // Reset progress UI on error
+          setUploadProgress(101);
+        }
       }).fail(function(xhr){
         console.error('Chats send_message AJAX fail', xhr && xhr.responseText);
+        alert('Failed to send message. Please check your connection.');
+        setUploadProgress(101);
       });
     } else {
       try {
@@ -839,9 +881,18 @@
         const data = await res.json();
         if (data && data.ok) {
           try { form.reset(); } catch(e){}
+          updateAttachmentUI();
           if (data.message) { try { appendMessage(data.message); updateConvoPreview(data.message); } catch(e){} }
           else { fetchMessages(); }
           ensurePolling();
+        } else {
+          console.warn('Chats send_message (fetch): not ok', data);
+          if (data && data.error) {
+            alert(data.error);
+          } else {
+            alert('Failed to send message.');
+          }
+          setUploadProgress(101);
         }
       } catch(e){ console.error('Chats send_message error', e); }
     }
@@ -938,18 +989,11 @@
   let pendingRemoteOffer = null;
   async function handleSignal(sig){
     if (sig.type==='offer') {
-      // Ignore our own offer so caller doesn't see Accept/Reject on their device
-      try { if (parseInt(sig.from_user_id||0,10) === userId) { return; } } catch(e){}
-      // Incoming call: prompt accept/reject, play ring
-      try {
-        pendingRemoteOffer = sig.payload;
-        setStatus('Incoming call...');
-        if (btnAcceptCall) btnAcceptCall.classList.remove('d-none');
-        if (btnRejectCall) btnRejectCall.classList.remove('d-none');
-        if (btnCallToggle) btnCallToggle.classList.add('d-none');
-        startRinging('in');
-      } catch(e){}
+      // Offers (incoming calls) are handled via pollIncomingOffers() and the global header modal.
+      // Ignoring them here avoids duplicate "Incoming call" UI and ringing after a call is already accepted.
+      return;
     } else if (sig.type==='answer') {
+      try { if (parseInt(sig.from_user_id||0,10) === userId) { return; } } catch(e){}
       try { await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload))); } catch(e){ return; }
       setStatus('Connected');
       stopRinging();

@@ -33,6 +33,7 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 /* Toast container */
 #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1080; }
 .toast { border-radius: .5rem; }
+#toast-container .toast { opacity: 1; margin-bottom: .5rem; }
 
 /* Subtle animations & helpers */
 .fade-in { animation: fadeIn .3s ease both; }
@@ -68,6 +69,31 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 .sidebar-link:hover { background: #11263b; color: #ffffff; }
 .sidebar-link.active { background: #12304b; color: #ffffff; font-weight: 600; }
 .sidebar-link i { opacity: .95; }
+
+/* Sidebar group toggles and submenus */
+.sidebar-submenu { display: none; }
+
+#user-toggle .bi{ transition: transform .2s ease; }
+#user-toggle.rot .bi{ transform: rotate(180deg); }
+#user-group.open > .d-flex > #user-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
+
+#leave-toggle .bi{ transition: transform .2s ease; }
+#leave-toggle.rot .bi{ transform: rotate(180deg); }
+#leave-group.open > .d-flex > #leave-parent{ background:#22c55e; color:#0b1220; border-radius:8px; }
+
+#project-toggle .bi{ transition: transform .2s ease; }
+#project-toggle.rot .bi{ transform: rotate(180deg); }
+#project-group.open > .d-flex > #project-parent{ background:#22d3ee; color:#0b1220; border-radius:8px; }
+
+/* Reports submenu styles */
+#reports-toggle .bi{ transition: transform .2s ease; }
+#reports-toggle.rot .bi{ transform: rotate(180deg); }
+.submenu-list{ display:flex; flex-direction:column; gap:6px; padding:6px 0 10px; }
+.submenu-link{ display:block; padding:10px 12px; border-radius:6px; text-decoration:none; font-size:.92rem; color:#e2e8f0; background:#1f2937; border:1px solid #111827; }
+.submenu-link:hover{ background:#2b3647; color:#fff; border-color:#0b1220; }
+.submenu-link.active{ background:#22c55e; color:#0b1220; border-color:transparent; font-weight:600; }
+/* Parent bar when open */
+#reports-group.open > .d-flex > #reports-parent{ background:#3b82f6; color:#0b1220; border-radius:8px; }
 
 @media (max-width: 767.98px) {
   .sidebar-left { position: relative; top: 0; min-height: auto; }

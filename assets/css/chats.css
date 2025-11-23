@@ -1,0 +1,264 @@
+/* Chats module styles */
+
+/* Chat App Theming */
+.chat-app {
+  --bg-gradient: linear-gradient(135deg, #6ea8fe 0%, #b197fc 35%, #fb8b24 100%);
+  --accent: #6ea8fe; /* primary */
+  --accent-2: #b197fc; /* purple */
+  --accent-3: #20c997; /* teal */
+  --muted: #6c757d;
+}
+
+.chat-app .card-header.gradient {
+  background: var(--bg-gradient);
+  color: #fff;
+}
+
+.chat-app .convo-item.active {
+  background-color: rgba(110,168,254,.12);
+  border-left: 3px solid var(--accent);
+}
+
+.chat-app .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  margin-right: .75rem;
+  background: radial-gradient(circle at 30% 30%, var(--accent), var(--accent-2));
+}
+
+.chat-app .list-group-item .subtitle {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.chat-app .message {
+  margin-bottom: .75rem;
+}
+
+.chat-app .bubble {
+  display: inline-block;
+  max-width: 85%;
+  padding: .5rem .75rem;
+  border-radius: .75rem;
+  text-align: left;
+}
+
+.chat-app .bubble.me {
+  background-color: #0d6efd;
+  color: #fff;
+  border-top-right-radius: .2rem;
+}
+
+.chat-app .bubble.them {
+  background-color: #f8f9fa;
+  color: #212529;
+  border: 1px solid #e9ecef;
+  border-top-left-radius: .2rem;
+}
+
+.chat-app #messages {
+  background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 40%);
+  height: 55vh;
+  overflow-y: auto;
+}
+
+.chat-app .composer .btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.chat-app .attachment-label {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-app .attachment-label.uploading {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.chat-app .type-badge[data-type="group"] {
+  background-color: rgba(32,201,151,.15);
+  color: #198754;
+}
+
+.chat-app .type-badge[data-type="dm"] {
+  background-color: rgba(110,168,254,.15);
+  color: #0d6efd;
+}
+
+.chat-app .header-sub {
+  font-size: .85rem;
+  opacity: .9;
+}
+
+@media (max-width: 767.98px) {
+  .chat-app .avatar {
+    width: 30px;
+    height: 30px;
+    font-size: .85rem;
+  }
+}
+
+/* Call overlay (full view) */
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1085;
+  background: radial-gradient(circle at top, rgba(17,25,40,.92) 0%, rgba(2,6,23,.95) 50%, rgba(2,6,23,.98) 100%);
+  color: #fff;
+  display: none;
+  flex-direction: column;
+  padding: 1.25rem;
+}
+
+.call-overlay.show {
+  display: flex;
+}
+
+.call-overlay .overlay-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.call-overlay .overlay-toolbar .btn {
+  min-width: 42px;
+}
+
+.call-overlay .overlay-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0,2fr) minmax(260px,1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.call-overlay .overlay-stage {
+  position: relative;
+  background: #0f172a;
+  border-radius: 16px;
+  padding: .5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-overlay .overlay-stage video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #111827;
+}
+
+.call-overlay .overlay-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.call-overlay .overlay-tile {
+  background: #111827;
+  border-radius: 12px;
+  padding: .5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.call-overlay .overlay-tile video {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
+  object-fit: cover;
+}
+
+.call-overlay .overlay-tile .tile-label {
+  font-size: .8rem;
+  color: rgba(226,232,240,.85);
+  margin-top: .35rem;
+  text-align: center;
+}
+
+.call-overlay .overlay-status {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: .95rem;
+  color: rgba(226,232,240,.8);
+}
+
+.call-overlay .overlay-stage .screen-share-active {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #020617;
+}
+
+.call-overlay .overlay-stage .screen-share-active video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #020617;
+}
+
+@media (max-width: 992px) {
+  .call-overlay .overlay-body {
+    grid-template-columns: 1fr;
+  }
+  .call-overlay .overlay-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .call-overlay .overlay-tile {
+    flex: 1 1 45%;
+  }
+}
+
+/* Recording footer */
+#recordFooter {
+  display: none;
+  background: rgba(33,37,41,.95);
+  color: #fff;
+  z-index: 1080;
+}
+
+#recordIcon {
+  font-size: 1.25rem;
+}
+
+@media (max-width: 576px){
+  #recordLabel{ display:none; }
+}
+
+/* Scroll containers */
+#convoList {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Video sizing */
+#remoteVideo,
+#localVideo,
+#overlayScreenVideo,
+#overlayRemoteVideo,
+#overlayLocalVideo,
+#overlayRemoteThumb {
+  width: 100%;
+  height: 100%;
+}
+
+/* Toast container for chats */
+#chatToastContainer {
+  z-index: 1080;
+}

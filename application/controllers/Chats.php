@@ -41,11 +41,15 @@ class Chats extends CI_Controller {
         $conversations = $this->Chat_model->list_conversations($user_id);
         $users = $this->Chat_model->list_users_for_select();
         $open_id = (int)$this->input->get('open');
+        $auto_call_id = (int)$this->input->get('call');
+        $auto_accept = (int)$this->input->get('auto_accept');
         $this->load->view('chats/app', [
             'conversations' => $conversations,
             'users' => $users,
             'user_id' => $user_id,
             'open_id' => $open_id,
+            'auto_call_id' => $auto_call_id,
+            'auto_accept' => $auto_accept ? 1 : 0,
         ]);
     }
 
@@ -79,20 +83,12 @@ class Chats extends CI_Controller {
         redirect('chats/conversation/'.$conv_id);
     }
 
-    // GET /chats/conversation/{id}
+    // Legacy: /chats/conversation/{id} now redirects to unified /chats/app
     public function conversation($id) {
         $id = (int)$id;
         $user_id = (int)$this->session->userdata('user_id');
         if (!$this->Chat_model->is_participant($id, $user_id)) { show_error('Forbidden', 403); }
-        $conversation = $this->Chat_model->get_conversation($id);
-        $messages = $this->Chat_model->fetch_messages($id, 0);
-        $participants = $this->Chat_model->participants($id);
-        $this->load->view('chats/conversation', [
-            'conversation' => $conversation,
-            'messages' => $messages,
-            'participants' => $participants,
-            'user_id' => $user_id,
-        ]);
+        redirect('chats/app?open='.$id);
     }
 
     // POST /chats/send  (AJAX)
@@ -106,10 +102,10 @@ class Chats extends CI_Controller {
             $upload_path = FCPATH.'uploads/chats/';
             if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
             $config = [
-                'upload_path' => $upload_path,
-                'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx',
-                'max_size' => 4096,
-                'encrypt_name' => true,
+                'upload_path'   => $upload_path,
+                'allowed_types' => '*',      // allow all file types (security: relies on auth + path isolation)
+                'max_size'      => 10240,    // 10 MB per file (PHP ini limits still apply)
+                'encrypt_name'  => true,
             ];
             $this->upload->initialize($config);
             if ($this->upload->do_upload('attachment')) {
