@@ -84,7 +84,7 @@ class AuthHook {
         } else if ($uri !== '') {
             $controller = strtolower(explode('/', $uri)[0]);
         }
-        if ($role_id !== 1 && isset($routes_roles[$controller])) {
+        if (isset($routes_roles[$controller])) {
             if (!in_array($role_id, $routes_roles[$controller], true)) {
                 show_error('You do not have permission to access this page.', 403);
             }

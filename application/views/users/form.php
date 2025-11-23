@@ -42,7 +42,16 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Status</label>
-              <?php $st = (int)(isset($row->status) ? $row->status : 1); ?>
+              <?php
+                $stRaw = isset($row->status) ? $row->status : 1;
+                $isActive = false;
+                if (is_numeric($stRaw)) {
+                  $isActive = ((int)$stRaw) === 1;
+                } else if (is_string($stRaw)) {
+                  $isActive = in_array(strtolower(trim($stRaw)), ['active','enabled','true','yes'], true);
+                }
+                $st = $isActive ? 1 : 0;
+              ?>
               <select name="status" class="form-select">
                 <option value="1" <?php echo $st===1?'selected':''; ?>>Active</option>
                 <option value="0" <?php echo $st===0?'selected':''; ?>>Inactive</option>

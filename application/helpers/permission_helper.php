@@ -6,7 +6,6 @@ if (!function_exists('has_module_access')) {
         if (!$CI || !$CI->session) { return false; }
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return false; }
-        if ($role_id === 1) { return true; }
         $controller = strtolower(trim((string)$module));
 
         // Base mapping as in AuthHook

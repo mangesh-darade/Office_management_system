@@ -18,6 +18,10 @@
             <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
           </div>
           <div class="mb-3">
+            <label class="form-label">Mobile Number</label>
+            <input type="text" name="phone" class="form-control" placeholder="Enter mobile number" required>
+          </div>
+          <div class="mb-3">
             <label class="form-label">Password</label>
             <input type="password" name="password" class="form-control" placeholder="At least 6 characters" required>
           </div>

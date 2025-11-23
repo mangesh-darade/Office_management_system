@@ -10,6 +10,20 @@ class User_model extends CI_Model {
         return $this->db->get_where($this->table, ['email' => $email])->row();
     }
 
+    /**
+     * Fetch user for authentication using mobile number when possible.
+     * If the 'phone' column does not exist, falls back to email.
+     */
+    public function get_by_login($identifier){
+        $this->db->from($this->table);
+        if ($this->db->field_exists('phone', $this->table)){
+            $this->db->where('phone', $identifier);
+        } else {
+            $this->db->where('email', $identifier);
+        }
+        return $this->db->get()->row();
+    }
+
     // Backwards compat
     public function get($id){
         return $this->db->get_where($this->table, ['id' => (int)$id])->row();
@@ -35,6 +49,10 @@ class User_model extends CI_Model {
      */
     public function list_users($q = '', $limit = 250){
         $this->db->from($this->table);
+        // Hide soft-deleted users from the grid if status column exists
+        if ($this->db->field_exists('status', $this->table)){
+            $this->db->where('status !=', 'inactive');
+        }
         if ($q !== ''){
             $this->db->group_start();
             $this->db->like('name', $q);
@@ -44,6 +62,27 @@ class User_model extends CI_Model {
         $this->db->order_by('id', 'DESC');
         $this->db->limit((int)$limit);
         return $this->db->get()->result();
+    }
+
+    public function email_exists($email, $exclude_id = null){
+        $this->db->from($this->table);
+        $this->db->where('email', $email);
+        if ($exclude_id !== null){
+            $this->db->where('id !=', (int)$exclude_id);
+        }
+        return $this->db->count_all_results() > 0;
+    }
+
+    public function phone_exists($phone, $exclude_id = null){
+        if (!$this->db->field_exists('phone', $this->table)){
+            return false;
+        }
+        $this->db->from($this->table);
+        $this->db->where('phone', $phone);
+        if ($exclude_id !== null){
+            $this->db->where('id !=', (int)$exclude_id);
+        }
+        return $this->db->count_all_results() > 0;
     }
 
     public function update($id, $data){

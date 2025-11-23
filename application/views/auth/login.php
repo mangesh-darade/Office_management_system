@@ -16,8 +16,8 @@
             <?php endif; ?>
             <form method="post" novalidate>
               <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" placeholder="you@example.com" required autocomplete="email">
+                <label class="form-label">Mobile Number</label>
+                <input type="text" name="login" class="form-control" placeholder="Enter mobile number" required autocomplete="tel">
               </div>
               <div class="mb-3">
                 <label class="form-label">Password</label>

@@ -18,9 +18,9 @@ class Auth extends CI_Controller {
 
     public function login(){
         if ($this->input->method() === 'post') {
-            $email = trim($this->input->post('email'));
+            $identifier = trim($this->input->post('login'));
             $password = (string)$this->input->post('password');
-            $user = $this->User_model->get_by_email($email);
+            $user = $this->User_model->get_by_login($identifier);
             if ($user && password_verify($password, $user->password_hash)) {
                 if (isset($user->status) && $user->status !== 'active') {
                     $this->session->set_flashdata('error', 'Account inactive.');
@@ -63,9 +63,10 @@ class Auth extends CI_Controller {
         if ($this->input->method() === 'post') {
             $full_name = trim($this->input->post('name'));
             $email = trim($this->input->post('email'));
+            $phone = trim($this->input->post('phone'));
             $password = (string)$this->input->post('password');
             $role_id = (int)$this->input->post('role_id');
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 6 || !$role_id) {
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 6 || !$role_id || $phone === '') {
                 $this->session->set_flashdata('error', 'Invalid input');
                 redirect('auth/register');
                 return;
@@ -76,6 +77,12 @@ class Auth extends CI_Controller {
                 redirect('auth/register');
                 return;
             }
+            // Phone uniqueness (if phone column exists)
+            if ($phone !== '' && $this->db->field_exists('phone', 'users') && $this->User_model->phone_exists($phone)) {
+                $this->session->set_flashdata('error', 'Email already exists.');
+                redirect('auth/register');
+                return;
+            }
             $data = array(
                 'email' => $email,
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
@@ -83,6 +90,10 @@ class Auth extends CI_Controller {
                 'status' => 'active',
                 'created_at' => date('Y-m-d H:i:s')
             );
+            // Persist phone if column exists
+            if ($phone !== '' && $this->db->field_exists('phone','users')) {
+                $data['phone'] = $phone;
+            }
             // Derive and persist role string if column exists
             $role_map = [1=>'admin', 2=>'hr', 3=>'lead', 4=>'employee'];
             if ($this->db->field_exists('role','users')) {

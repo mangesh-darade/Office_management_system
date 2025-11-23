@@ -47,6 +47,17 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
+        // Enforce unique email and phone at application level
+        if ($this->users->email_exists($in['email'])) {
+            $this->session->set_flashdata('error', 'Email already exists.');
+            redirect('users/create');
+            return;
+        }
+        if ($in['phone'] !== '' && $this->users->phone_exists($in['phone'])) {
+            $this->session->set_flashdata('error', 'Email already exists.');
+            redirect('users/create');
+            return;
+        }
         // Prepare data for DB with column-awareness
         $data = $this->_prepare_db_payload($in, true);
         // Handle avatar upload
@@ -75,6 +86,17 @@ class Users extends CI_Controller {
         $in = $this->_sanitize();
         if (empty($in['name']) || empty($in['email'])) {
             $this->session->set_flashdata('error', 'Name and Email are required.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        // Enforce unique email and phone when updating (ignore current user)
+        if ($this->users->email_exists($in['email'], $id)) {
+            $this->session->set_flashdata('error', 'Email already exists.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        if ($in['phone'] !== '' && $this->users->phone_exists($in['phone'], $id)) {
+            $this->session->set_flashdata('error', 'Email already exists.');
             redirect('users/edit/'.$id);
             return;
         }

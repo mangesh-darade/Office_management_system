@@ -28,11 +28,74 @@ class Permissions extends CI_Controller {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
         }
+
+        // Ensure a simple roles table exists so role labels can be managed from DB.
+        // IMPORTANT: IDs must stay consistent with existing usage: 1=Admin, 2=Manager/HR, 3=Lead, 4=Staff.
+        if (!$this->db->table_exists('roles')) {
+            $sql = "CREATE TABLE `roles` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `name` varchar(100) NOT NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT '1',
+                `sort_order` int(11) NOT NULL DEFAULT '0',
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $this->db->query($sql);
+        }
+
+        // Seed default roles only if table is empty (and respect existing schema)
+        if ($this->db->table_exists('roles')) {
+            $count = $this->db->count_all('roles');
+            if ((int)$count === 0) {
+                $defaults = [
+                    1 => 'Admin',
+                    2 => 'Manager',
+                    3 => 'Lead',
+                    4 => 'Staff',
+                ];
+                // Detect optional columns on existing roles table
+                $hasActive = $this->db->field_exists('is_active', 'roles');
+                $hasSort   = $this->db->field_exists('sort_order', 'roles');
+
+                foreach ($defaults as $id => $name) {
+                    $row = [
+                        'id'   => (int)$id,
+                        'name' => $name,
+                    ];
+                    if ($hasActive) { $row['is_active'] = 1; }
+                    if ($hasSort)   { $row['sort_order'] = (int)$id; }
+                    $this->db->insert('roles', $row);
+                }
+            }
+        }
     }
 
     private function roles()
     {
-        // 1=Admin, 2=HR/Manager, 3=Lead, 4=Staff
+        // Prefer DB-defined roles when available
+        $out = [];
+        if ($this->db->table_exists('roles')) {
+            $this->db->from('roles');
+            // Apply is_active filter only if column exists
+            if ($this->db->field_exists('is_active', 'roles')) {
+                $this->db->where('is_active', 1);
+            }
+            // Apply sort_order only if column exists
+            if ($this->db->field_exists('sort_order', 'roles')) {
+                $this->db->order_by('sort_order', 'ASC');
+            }
+            $this->db->order_by('id', 'ASC');
+            $rows = $this->db->get()->result();
+            foreach ($rows as $row) {
+                $rid = (int)$row->id;
+                if ($rid <= 0) { continue; }
+                $out[$rid] = $row->name;
+            }
+        }
+        if (!empty($out)) {
+            return $out;
+        }
+
+        // Fallback mapping if roles table is missing or empty
         return [
             1 => 'Admin',
             2 => 'Manager',
@@ -41,32 +104,34 @@ class Permissions extends CI_Controller {
         ];
     }
 
+
     private function modules()
     {
-        return [
-            'dashboard'      => 'Dashboard',
-            'employees'      => 'Employees',
-            'projects'       => 'Projects',
-            'tasks'          => 'Tasks',
-            'attendance'     => 'Attendance',
-            'leaves'         => 'Leaves',
-            'notifications'  => 'Notifications',
-            'reports'        => 'Reports',
-            'departments'    => 'Departments',
-            'designations'   => 'Designations',
-            'timesheets'     => 'Timesheets',
-            'announcements'  => 'Announcements',
-            'settings'       => 'Settings',
-            'activity'       => 'Activity Logs',
-            'permissions'    => 'Permission Manager',
-            // Chat related
-            'chats'          => 'Chats',
-            'chats.grouping' => 'Chat Grouping',
-            'calls'          => 'Calls',
-            // Back-compat if previously stored as 'chat'
-            'chat'           => 'Chat (legacy key)',
-        ];
+        $out = [];
+
+        if ($this->db->table_exists('modules')) {
+            $this->db->from('modules');
+            // Optional: only active modules
+            if ($this->db->field_exists('is_active', 'modules')) {
+                $this->db->where('is_active', 1);
+            }
+            // Optional: custom sort order
+            if ($this->db->field_exists('sort_order', 'modules')) {
+                $this->db->order_by('sort_order', 'ASC');
+            }
+            $this->db->order_by('module_label', 'ASC');
+
+            $rows = $this->db->get()->result();
+            foreach ($rows as $row) {
+                $key = strtolower(trim($row->module_key));
+                if ($key === '') { continue; }
+                $out[$key] = $row->module_label;
+            }
+        }
+
+        return $out;
     }
+
 
     public function index()
     {
