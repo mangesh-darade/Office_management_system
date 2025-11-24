@@ -47,6 +47,7 @@ if (!(int)$this->session->userdata('user_id')) {
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
+            <a class="submenu-link" href="<?php echo site_url('users/create'); ?>"><i class="bi bi-person-plus me-2"></i>Add User</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
@@ -251,8 +252,8 @@ if (!(int)$this->session->userdata('user_id')) {
         })();
       </script>
       <?php endif; ?>
-      <?php // Admin section: show only to Admins (permissions module access)
-      if(function_exists('has_module_access') && has_module_access('permissions')): ?>
+      <?php // Admin section: show only to Admin group (Admin, HR, Lead) with permissions module access
+      if(function_exists('is_admin_group') && is_admin_group() && function_exists('has_module_access') && has_module_access('permissions')): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <?php

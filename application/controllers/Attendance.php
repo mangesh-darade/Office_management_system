@@ -5,7 +5,7 @@ class Attendance extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session','upload']);
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
@@ -23,10 +23,12 @@ class Attendance extends CI_Controller {
             $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         }
         // Non-admin/HR see only their own attendance
-        $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        if (!in_array($role_id, [1,2], true) && $user_id) {
-            $this->db->where('a.user_id', $user_id);
+        if ($user_id) {
+            $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
+            if (!$isAdminGroup) {
+                $this->db->where('a.user_id', $user_id);
+            }
         }
         $records = $this->db->order_by($employee_exists ? 'e.first_name' : 'u.email', 'asc')->get()->result();
         $this->load->view('attendance/index', [
@@ -279,7 +281,8 @@ class Attendance extends CI_Controller {
         // Ownership: only Admin/HR or owner can edit
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        if (!in_array($role_id, [1,2], true) && (int)$att->user_id !== $user_id) { show_error('Forbidden', 403); }
+        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [1,2], true);
+        if (!$canManageAll && (int)$att->user_id !== $user_id) { show_error('Forbidden', 403); }
         if ($this->input->method() === 'post') {
             // Optional face verification: mirror create() behavior when descriptor is provided
             $face_required = (string)$this->input->post('face_required');
@@ -373,7 +376,8 @@ class Attendance extends CI_Controller {
         if (!$row) { show_404(); }
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        if (!in_array($role_id, [1,2], true) && (int)$row->user_id !== $user_id) { show_error('Forbidden', 403); }
+        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [1,2], true);
+        if (!$canManageAll && (int)$row->user_id !== $user_id) { show_error('Forbidden', 403); }
         $this->db->where('id', (int)$id)->delete('attendance');
         $this->session->set_flashdata('success', 'Attendance deleted');
         redirect('attendance');

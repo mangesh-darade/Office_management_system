@@ -45,12 +45,13 @@ class Permissions extends CI_Controller {
             $this->db->query($sql);
         }
 
-        // Ensure a simple roles table exists so role labels can be managed from DB.
+        // Ensure a simple roles table exists so role labels and groups can be managed from DB.
         // IMPORTANT: IDs must stay consistent with existing usage: 1=Admin, 2=Manager/HR, 3=Lead, 4=Staff.
         if (!$this->db->table_exists('roles')) {
             $sql = "CREATE TABLE `roles` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `name` varchar(100) NOT NULL,
+                `group_type` varchar(50) DEFAULT NULL,
                 `is_active` tinyint(1) NOT NULL DEFAULT '1',
                 `sort_order` int(11) NOT NULL DEFAULT '0',
                 PRIMARY KEY (`id`)
@@ -58,28 +59,44 @@ class Permissions extends CI_Controller {
             $this->db->query($sql);
         }
 
+        // Add group_type column if missing on existing roles table
+        if ($this->db->table_exists('roles') && !$this->db->field_exists('group_type', 'roles')) {
+            $this->db->query("ALTER TABLE `roles` ADD `group_type` varchar(50) DEFAULT NULL AFTER `name`");
+        }
+
         // Seed default roles only if table is empty (and respect existing schema)
         if ($this->db->table_exists('roles')) {
             $count = $this->db->count_all('roles');
             if ((int)$count === 0) {
                 $defaults = [
-                    1 => 'Admin',
-                    2 => 'Manager',
-                    3 => 'Lead',
-                    4 => 'Staff',
+                    1 => ['name' => 'Admin',   'group_type' => 'admin'],
+                    2 => ['name' => 'Manager', 'group_type' => 'admin'],
+                    3 => ['name' => 'Lead',    'group_type' => 'admin'],
+                    4 => ['name' => 'Staff',   'group_type' => 'user'],
                 ];
-                // Detect optional columns on existing roles table
                 $hasActive = $this->db->field_exists('is_active', 'roles');
                 $hasSort   = $this->db->field_exists('sort_order', 'roles');
 
-                foreach ($defaults as $id => $name) {
+                foreach ($defaults as $id => $cfg) {
                     $row = [
-                        'id'   => (int)$id,
-                        'name' => $name,
+                        'id'         => (int)$id,
+                        'name'       => $cfg['name'],
+                        'group_type' => $cfg['group_type'],
                     ];
                     if ($hasActive) { $row['is_active'] = 1; }
                     if ($hasSort)   { $row['sort_order'] = (int)$id; }
                     $this->db->insert('roles', $row);
+                }
+            } else {
+                // Backfill group_type for known default IDs if missing
+                if ($this->db->field_exists('group_type', 'roles')) {
+                    $this->db->where_in('id', [1, 2, 3]);
+                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
+                    $this->db->update('roles', ['group_type' => 'admin']);
+
+                    $this->db->where('id', 4);
+                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
+                    $this->db->update('roles', ['group_type' => 'user']);
                 }
             }
         }

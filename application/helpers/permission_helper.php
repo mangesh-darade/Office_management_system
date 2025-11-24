@@ -28,3 +28,38 @@ if (!function_exists('has_module_access')) {
     }
 }
 
+if (!function_exists('is_admin_group')) {
+    function is_admin_group() {
+        $CI =& get_instance();
+        if (!$CI || !$CI->session) { return false; }
+        $role_id = (int)$CI->session->userdata('role_id');
+        if (!$role_id) { return false; }
+
+        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('roles') || !$CI->db->field_exists('group_type', 'roles')) {
+            return in_array($role_id, [1, 2, 3], true);
+        }
+
+        // Use a standalone query so we don't interfere with any in-progress query builder chains
+        $row = $CI->db->query("SELECT group_type FROM roles WHERE id = ? LIMIT 1", [$role_id])->row();
+        $group = $row ? strtolower(trim((string)$row->group_type)) : '';
+        return $group === 'admin';
+    }
+}
+
+if (!function_exists('is_user_group')) {
+    function is_user_group() {
+        $CI =& get_instance();
+        if (!$CI || !$CI->session) { return false; }
+        $role_id = (int)$CI->session->userdata('role_id');
+        if (!$role_id) { return false; }
+
+        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('roles') || !$CI->db->field_exists('group_type', 'roles')) {
+            return $role_id === 4;
+        }
+
+        // Use a standalone query so we don't interfere with any in-progress query builder chains
+        $row = $CI->db->query("SELECT group_type FROM roles WHERE id = ? LIMIT 1", [$role_id])->row();
+        $group = $row ? strtolower(trim((string)$row->group_type)) : '';
+        return $group === 'user';
+    }
+}

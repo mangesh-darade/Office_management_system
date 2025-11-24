@@ -25,9 +25,10 @@
           <table class="table table-hover align-middle">
             <thead>
               <tr>
-                <th style="width:20%">Date</th>
-                <th style="width:40%">Attendance Status</th>
-                <th style="width:40%">Leave</th>
+                <th style="width:18%">Date</th>
+                <th style="width:27%">Attendance Status</th>
+                <th style="width:25%">Late / On Time</th>
+                <th style="width:30%">Leave</th>
               </tr>
             </thead>
             <tbody>
@@ -35,6 +36,7 @@
                 <tr>
                   <td><?php echo htmlspecialchars($d->date); ?></td>
                   <td><?php echo htmlspecialchars($d->status); ?></td>
+                  <td><?php echo htmlspecialchars(isset($d->late) ? $d->late : '—'); ?></td>
                   <td><?php echo htmlspecialchars($d->leave); ?></td>
                 </tr>
               <?php endforeach; ?>

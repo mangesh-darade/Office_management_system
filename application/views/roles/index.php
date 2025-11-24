@@ -18,6 +18,9 @@
                 <tr>
                   <th style="width:70px;">#</th>
                   <th>Name</th>
+                  <?php if ($this->db->field_exists('group_type', 'roles')): ?>
+                  <th style="width:140px;">Group</th>
+                  <?php endif; ?>
                   <?php if ($this->db->field_exists('is_active', 'roles')): ?>
                   <th style="width:100px;">Active</th>
                   <?php endif; ?>
@@ -31,6 +34,14 @@
                   <tr>
                     <td>#<?php echo $i++; ?></td>
                     <td><?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?></td>
+                    <?php if ($this->db->field_exists('group_type', 'roles')): ?>
+                    <td>
+                      <?php
+                        $gt = isset($r->group_type) ? strtolower((string)$r->group_type) : '';
+                        echo $gt === 'admin' ? 'Admin Group' : 'User Group';
+                      ?>
+                    </td>
+                    <?php endif; ?>
                     <?php if ($this->db->field_exists('is_active', 'roles')): ?>
                     <td>
                       <?php
@@ -68,6 +79,13 @@
         <div class="mb-3">
           <label class="form-label">Role Name</label>
           <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Group</label>
+          <select name="group_type" class="form-select" required>
+            <option value="admin">Admin Group</option>
+            <option value="user" selected>User Group</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">

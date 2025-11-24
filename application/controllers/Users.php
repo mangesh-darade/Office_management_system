@@ -6,7 +6,7 @@ class Users extends CI_Controller {
         parent::__construct();
         $this->load->model('User_model', 'users');
         $this->load->model('Face_model', 'faces');
-        $this->load->helper(['url', 'form']);
+        $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
         // Basic auth gate: redirect to login if not logged in
         if (!(int)$this->session->userdata('user_id')) {
@@ -292,9 +292,20 @@ class Users extends CI_Controller {
             }
             $this->db->order_by('id', 'ASC');
             $rows = $this->db->get()->result();
+
+            $filterUserGroupOnly = false;
+            if (function_exists('is_user_group') && $this->db->field_exists('group_type', 'roles')) {
+                // If the currently logged-in user belongs to user group, hide admin-group roles
+                $filterUserGroupOnly = is_user_group();
+            }
+
             foreach ($rows as $row) {
                 $rid = isset($row->id) ? (int)$row->id : 0;
                 if ($rid <= 0) { continue; }
+                if ($filterUserGroupOnly) {
+                    $gt = isset($row->group_type) ? strtolower(trim((string)$row->group_type)) : '';
+                    if ($gt !== 'user') { continue; }
+                }
                 $out[$rid] = isset($row->name) ? (string)$row->name : ('Role #'.$rid);
             }
         }

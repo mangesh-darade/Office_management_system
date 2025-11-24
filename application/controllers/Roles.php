@@ -38,6 +38,10 @@ class Roles extends CI_Controller {
             show_404();
         }
         $name = trim($this->input->post('name', true) ?: '');
+        $groupType = strtolower(trim((string)$this->input->post('group_type', true)));
+        if ($groupType !== 'admin' && $groupType !== 'user') {
+            $groupType = 'user';
+        }
         if ($name === '') {
             $this->session->set_flashdata('error', 'Role name is required.');
             redirect('roles');
@@ -55,6 +59,9 @@ class Roles extends CI_Controller {
             return;
         }
         $data = ['name' => $name];
+        if ($this->db->field_exists('group_type', 'roles')) {
+            $data['group_type'] = $groupType;
+        }
         if ($this->db->field_exists('is_active', 'roles')) {
             $data['is_active'] = 1;
         }
@@ -72,31 +79,52 @@ class Roles extends CI_Controller {
     }
 
     private function ensure_schema() {
-        if ($this->db->table_exists('roles')) {
-            return;
+        if (!$this->db->table_exists('roles')) {
+            $sql = "CREATE TABLE `roles` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `name` varchar(100) NOT NULL,
+                `group_type` varchar(50) DEFAULT NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT '1',
+                `sort_order` int(11) NOT NULL DEFAULT '0',
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $this->db->query($sql);
         }
-        $sql = "CREATE TABLE `roles` (
-            `id` int(11) NOT NULL AUTO_INCREMENT,
-            `name` varchar(100) NOT NULL,
-            `is_active` tinyint(1) NOT NULL DEFAULT '1',
-            `sort_order` int(11) NOT NULL DEFAULT '0',
-            PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-        $this->db->query($sql);
-        $defaults = [
-            1 => 'Admin',
-            2 => 'Manager',
-            3 => 'Lead',
-            4 => 'Staff',
-        ];
-        foreach ($defaults as $id => $name) {
-            $row = [
-                'id' => (int)$id,
-                'name' => $name,
-                'is_active' => 1,
-                'sort_order' => (int)$id,
-            ];
-            $this->db->insert('roles', $row);
+
+        if ($this->db->table_exists('roles') && !$this->db->field_exists('group_type', 'roles')) {
+            $this->db->query("ALTER TABLE `roles` ADD `group_type` varchar(50) DEFAULT NULL AFTER `name`");
+        }
+
+        if ($this->db->table_exists('roles')) {
+            $count = $this->db->count_all('roles');
+            if ((int)$count === 0) {
+                $defaults = [
+                    1 => ['name' => 'Admin',   'group_type' => 'admin'],
+                    2 => ['name' => 'Manager', 'group_type' => 'admin'],
+                    3 => ['name' => 'Lead',    'group_type' => 'admin'],
+                    4 => ['name' => 'Staff',   'group_type' => 'user'],
+                ];
+                foreach ($defaults as $id => $cfg) {
+                    $row = [
+                        'id'         => (int)$id,
+                        'name'       => $cfg['name'],
+                        'group_type' => $cfg['group_type'],
+                        'is_active'  => 1,
+                        'sort_order' => (int)$id,
+                    ];
+                    $this->db->insert('roles', $row);
+                }
+            } else {
+                if ($this->db->field_exists('group_type', 'roles')) {
+                    $this->db->where_in('id', [1, 2, 3]);
+                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
+                    $this->db->update('roles', ['group_type' => 'admin']);
+
+                    $this->db->where('id', 4);
+                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
+                    $this->db->update('roles', ['group_type' => 'user']);
+                }
+            }
         }
     }
 }

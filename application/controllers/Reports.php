@@ -5,8 +5,11 @@ class Reports extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url']);
+        $this->load->helper(['url','permission']);
         $this->load->model('Report_model');
+        if ($this->db->table_exists('settings')) {
+            $this->load->model('Setting_model', 'settings');
+        }
     }
 
     public function index() {
@@ -17,6 +20,7 @@ class Reports extends CI_Controller {
         $leaves_by_status = [];
         $task_by_assignee = [];
         $attendance_recent = [];
+        $attendance_late_top = [];
 
         if ($this->db->table_exists('tasks')) {
             $task_status = $this->db->select('status, COUNT(*) as cnt')->group_by('status')->get('tasks')->result();
@@ -55,15 +59,129 @@ class Reports extends CI_Controller {
                 $task_by_assignee[] = (object)['label'=>$label,'cnt'=>(int)$r->cnt];
             }
         }
+        // Number of days to show in recent attendance chart (dashboard)
+        $attendance_days = (int)$this->input->get('att_days');
+        if ($attendance_days <= 0) { $attendance_days = 14; }
+        if ($attendance_days > 90) { $attendance_days = 90; }
+
+        // Determine group for scoping analytics (admin group sees all, others see own data)
+        $currentUserId = (int)$this->session->userdata('user_id');
+        $isAdminGroup = function_exists('is_admin_group') && is_admin_group();
+
         if ($this->db->table_exists('attendance')) {
-            // Detect date column
+            // Detect user and date columns
             $fields = $this->db->list_fields('attendance');
+            $userCandidates = array('user_id','employee_id','emp_id','staff_id','uid');
             $dateCandidates = array('date','attendance_date','att_date','created_at','checked_at');
-            $dateCol = null; foreach ($dateCandidates as $c){ if (in_array($c, $fields, true)) { $dateCol = $c; break; } }
-            if ($dateCol === null) { $dateCol = $fields[0]; }
-            $sql = "SELECT DATE(`$dateCol`) AS d, COUNT(*) cnt FROM attendance WHERE `$dateCol` >= DATE_SUB(CURDATE(), INTERVAL 14 DAY) GROUP BY DATE(`$dateCol`) ORDER BY d";
-            $attendance_recent = $this->db->query($sql)->result();
+            $userCol = $dateCol = null;
+            foreach ($userCandidates as $c){ if (in_array($c, $fields, true)) { $userCol = $c; break; } }
+            foreach ($dateCandidates as $c){ if (in_array($c, $fields, true)) { $dateCol = $c; break; } }
+            if ($dateCol === null && isset($fields[0])) { $dateCol = $fields[0]; }
+
+            // Recent attendance counts (last N days)
+            if ($dateCol !== null) {
+                $sql = "SELECT DATE(`$dateCol`) AS d, COUNT(*) cnt
+                        FROM attendance
+                        WHERE `$dateCol` >= DATE_SUB(CURDATE(), INTERVAL ".$attendance_days." DAY)";
+                if ($userCol !== null && $currentUserId && !$isAdminGroup) {
+                    $sql .= " AND `$userCol` = ".(int)$currentUserId;
+                }
+                $sql .= " GROUP BY DATE(`$dateCol`) ORDER BY d";
+                $attendance_recent = $this->db->query($sql)->result();
+            }
+
+            // Late mark summary (top late employees over last 30 days)
+            if ($userCol !== null) {
+                // Determine check-in column
+                $checkInCol = null;
+                if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
+                elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+
+                if ($checkInCol !== null) {
+                    // Office start and grace from settings with defaults
+                    $officeStart = '09:30';
+                    $graceMinutes = 15;
+                    if (isset($this->settings)) {
+                        try {
+                            $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                            if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) { $officeStart = $stVal; }
+                            $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                            if (is_numeric($gmVal)) { $graceMinutes = (int)$gmVal; }
+                        } catch (Exception $e) { /* ignore */ }
+                    }
+
+                    $tBase = strtotime('1970-01-01 '.$officeStart.':00');
+                    if ($tBase !== false) {
+                        $cutoffTime = date('H:i:s', $tBase + ($graceMinutes * 60));
+
+                        if ($currentUserId && !$isAdminGroup) {
+                            // For user group: only show their own late summary
+                            $sql = "SELECT `$userCol` AS uid, COUNT(*) AS late_days
+                                    FROM attendance
+                                    WHERE `$checkInCol` IS NOT NULL
+                                      AND TIME(`$checkInCol`) > ?
+                                      AND `$dateCol` >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                                      AND `$userCol` = ?
+                                    GROUP BY `$userCol`
+                                    LIMIT 1";
+                            $attendance_late_top = $this->db->query($sql, [$cutoffTime, $currentUserId])->result();
+                        } else {
+                            // Admin group: top late employees across org
+                            $sql = "SELECT `$userCol` AS uid, COUNT(*) AS late_days
+                                    FROM attendance
+                                    WHERE `$checkInCol` IS NOT NULL
+                                      AND TIME(`$checkInCol`) > ?
+                                      AND `$dateCol` >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                                    GROUP BY `$userCol`
+                                    ORDER BY late_days DESC
+                                    LIMIT 10";
+                            $attendance_late_top = $this->db->query($sql, [$cutoffTime])->result();
+                        }
+
+                        // Attach a simple label (prefer employee name, then email, then fallback)
+                        $labels = [];
+                        if ($this->db->table_exists('users')) {
+                            $this->db->select('u.id, u.email');
+                            if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name'); }
+                            if ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+                            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                                $this->db->join('employees e','e.user_id = u.id','left');
+                                if ($this->db->field_exists('name','employees')) { $this->db->select('e.name AS emp_name'); }
+                                if ($this->db->field_exists('full_name','employees')) { $this->db->select('e.full_name AS emp_full_name'); }
+                                if ($this->db->field_exists('first_name','employees')) { $this->db->select('e.first_name AS emp_first_name'); }
+                                if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
+                            }
+                            $users = $this->db->from('users u')->get()->result();
+                            foreach ($users as $u) { $labels[(int)$u->id] = $u; }
+                        }
+
+                        foreach ($attendance_late_top as $row) {
+                            $uid = isset($row->uid) ? (int)$row->uid : 0;
+                            $label = isset($labels[$uid]) ? $labels[$uid] : null;
+                            $name = '';
+                            if ($label) {
+                                $empParts = [];
+                                if (isset($label->emp_first_name) && trim((string)$label->emp_first_name) !== '') { $empParts[] = trim((string)$label->emp_first_name); }
+                                if (isset($label->emp_last_name) && trim((string)$label->emp_last_name) !== '') { $empParts[] = trim((string)$label->emp_last_name); }
+                                if (!empty($empParts)) { $name = trim(implode(' ', $empParts)); }
+                                elseif (isset($label->emp_full_name) && trim((string)$label->emp_full_name) !== '') { $name = trim((string)$label->emp_full_name); }
+                                elseif (isset($label->emp_name) && trim((string)$label->emp_name) !== '') { $name = trim((string)$label->emp_name); }
+                                elseif (isset($label->full_name) && trim((string)$label->full_name) !== '') { $name = trim((string)$label->full_name); }
+                                elseif (isset($label->name) && trim((string)$label->name) !== '') { $name = trim((string)$label->name); }
+                                else { $name = $label->email; }
+                            } else {
+                                $name = $uid ? ('User #'.$uid) : 'Unknown';
+                            }
+                            $row->name = $name;
+                        }
+                    }
+                }
+            }
         }
+
+        // Derive dynamic date range for recent attendance chart based on selected window
+        $attendance_recent_from = date('Y-m-d', strtotime('-'.($attendance_days - 1).' days'));
+        $attendance_recent_to   = date('Y-m-d');
 
         $data = [
             'task_status' => $task_status,
@@ -72,6 +190,10 @@ class Reports extends CI_Controller {
             'leaves_by_status' => $leaves_by_status,
             'task_by_assignee' => $task_by_assignee,
             'attendance_recent' => $attendance_recent,
+            'attendance_days' => $attendance_days,
+            'attendance_recent_from' => $attendance_recent_from,
+            'attendance_recent_to' => $attendance_recent_to,
+            'attendance_late_top' => $attendance_late_top,
         ];
         $this->load->view('reports/dashboard', $data);
     }
@@ -337,19 +459,35 @@ class Reports extends CI_Controller {
         $user_id = $user_id ? (int)$user_id : 0;
 
         if ($user_id > 0) {
-            $rows = $this->db->select("`$dateCol` AS d, `$statusCol` AS st")
+            // Detect punch-in/check-in column for lateness calculation
+            $fields = $this->db->list_fields('attendance');
+            $checkInCol = null;
+            if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
+            elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+
+            $selectCols = ["`$dateCol` AS d", "`$statusCol` AS st"];
+            if ($checkInCol !== null) {
+                $selectCols[] = "`".$checkInCol."` AS cin";
+            }
+
+            $this->db->select(implode(', ', $selectCols))
                 ->from('attendance')
                 ->where($userCol, $user_id)
                 ->where("`$dateCol` >=", $from)
                 ->where("`$dateCol` <=", $to)
-                ->order_by($dateCol, 'ASC')
-                ->get()->result();
+                ->order_by($dateCol, 'ASC');
+            $rows = $this->db->get()->result();
+
             $attMap = [];
+            $cinMap = [];
             foreach ($rows as $r) {
                 $d = isset($r->d) ? (string)$r->d : '';
                 if ($d === '') { continue; }
                 if (strpos($d, ' ') !== false) { $d = trim(explode(' ', $d)[0]); }
                 $attMap[$d] = (string)$r->st;
+                if ($checkInCol !== null && isset($r->cin)) {
+                    $cinMap[$d] = (string)$r->cin;
+                }
             }
 
             $leaveMap = [];
@@ -376,6 +514,24 @@ class Reports extends CI_Controller {
                 }
             }
 
+            // Resolve office start time and grace period from settings (with safe defaults)
+            $officeStart = '09:30';
+            $graceMinutes = 15;
+            if (isset($this->settings)) {
+                try {
+                    $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                    if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
+                        $officeStart = $stVal;
+                    }
+                    $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                    if (is_numeric($gmVal)) {
+                        $graceMinutes = (int)$gmVal;
+                    }
+                } catch (Exception $e) {
+                    // ignore and use defaults
+                }
+            }
+
             $days = [];
             $startTs = strtotime($from);
             $endTs = strtotime($to);
@@ -390,10 +546,38 @@ class Reports extends CI_Controller {
                 elseif ($st === 'absent') { $labelSt = 'Absent'; }
                 elseif ($st !== '') { $labelSt = $raw; }
                 $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+
+                // Late/On Time label based on check-in time when available
+                $lateLabel = '—';
+                if ($checkInCol !== null && isset($cinMap[$d]) && $st !== '' && $st !== 'absent') {
+                    $cinRaw = (string)$cinMap[$d];
+                    $cinTime = $cinRaw;
+                    if (strpos($cinRaw, ' ') !== false) {
+                        $parts = explode(' ', $cinRaw);
+                        $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                    }
+                    if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
+                        // Display only HH:MM part for user friendliness
+                        $cinDisp = substr($cinTime, 0, 5);
+                        $officeTs = strtotime($d.' '.$officeStart.':00');
+                        $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
+                        $cinTs    = strtotime($d.' '.$cinTime);
+                        if ($graceTs !== false && $cinTs !== false) {
+                            if ($cinTs > $graceTs) {
+                                $lateMinutes = (int)round(($cinTs - $officeTs) / 60);
+                                $lateLabel = 'Late: '.$cinDisp.' ('.$lateMinutes.' min)';
+                            } else {
+                                $lateLabel = 'On Time ('.$cinDisp.')';
+                            }
+                        }
+                    }
+                }
+
                 $obj = new stdClass();
                 $obj->date = $d;
                 $obj->status = $labelSt;
                 $obj->leave = $leave;
+                $obj->late = $lateLabel;
                 $days[] = $obj;
                 $startTs = strtotime('+1 day', $startTs);
             }
@@ -466,6 +650,7 @@ class Reports extends CI_Controller {
     {
         $period = $this->input->get('period') ?: 'daily';
         $daily = $weekly = $monthly = [];
+        $dailyLate = $weeklyLate = $monthlyLate = [];
         if ($this->db->table_exists('attendance')) {
             // Detect user, date, and status columns
             $fields = $this->db->list_fields('attendance');
@@ -530,7 +715,74 @@ class Reports extends CI_Controller {
             $sql = "SELECT `$userCol` AS uid, DATE_FORMAT(`$dateCol`, '%Y-%m') AS bucket, `$statusCol` AS status, COUNT(*) AS cnt FROM attendance GROUP BY `$userCol`, DATE_FORMAT(`$dateCol`, '%Y-%m'), `$statusCol` ORDER BY bucket DESC, uid ASC LIMIT 100";
             $monthly = $this->db->query($sql)->result();
             foreach ($monthly as &$m){ $m->name = $getName((int)$m->uid); }
+
+            // Late aggregates (per user & period) when check-in column exists
+            $fieldsLate = $this->db->list_fields('attendance');
+            $checkInColLate = null;
+            if (in_array('punch_in', $fieldsLate, true)) { $checkInColLate = 'punch_in'; }
+            elseif (in_array('check_in', $fieldsLate, true)) { $checkInColLate = 'check_in'; }
+
+            if ($checkInColLate !== null) {
+                // Read office start and grace from settings with defaults
+                $officeStart = '09:30';
+                $graceMinutes = 15;
+                if (isset($this->settings)) {
+                    try {
+                        $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                        if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) { $officeStart = $stVal; }
+                        $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                        if (is_numeric($gmVal)) { $graceMinutes = (int)$gmVal; }
+                    } catch (Exception $e) { /* ignore */ }
+                }
+
+                // Compute cutoff time (office start + grace) as HH:MM:SS
+                $tBase = strtotime('1970-01-01 '.$officeStart.':00');
+                if ($tBase !== false) {
+                    $cutoffTime = date('H:i:s', $tBase + ($graceMinutes * 60));
+
+                    // Daily late summary
+                    $sql = "SELECT `$userCol` AS uid, DATE(`$dateCol`) AS bucket, COUNT(*) AS late_cnt
+                            FROM attendance
+                            WHERE `$checkInColLate` IS NOT NULL
+                              AND TIME(`$checkInColLate`) > ?
+                            GROUP BY `$userCol`, DATE(`$dateCol`)
+                            ORDER BY bucket DESC, uid ASC
+                            LIMIT 100";
+                    $dailyLate = $this->db->query($sql, [$cutoffTime])->result();
+                    foreach ($dailyLate as &$r) { $r->name = $getName((int)$r->uid); }
+
+                    // Weekly late summary
+                    $sql = "SELECT `$userCol` AS uid, YEARWEEK(`$dateCol`) AS bucket, COUNT(*) AS late_cnt
+                            FROM attendance
+                            WHERE `$checkInColLate` IS NOT NULL
+                              AND TIME(`$checkInColLate`) > ?
+                            GROUP BY `$userCol`, YEARWEEK(`$dateCol`)
+                            ORDER BY bucket DESC, uid ASC
+                            LIMIT 100";
+                    $weeklyLate = $this->db->query($sql, [$cutoffTime])->result();
+                    foreach ($weeklyLate as &$r) { $r->name = $getName((int)$r->uid); }
+
+                    // Monthly late summary
+                    $sql = "SELECT `$userCol` AS uid, DATE_FORMAT(`$dateCol`, '%Y-%m') AS bucket, COUNT(*) AS late_cnt
+                            FROM attendance
+                            WHERE `$checkInColLate` IS NOT NULL
+                              AND TIME(`$checkInColLate`) > ?
+                            GROUP BY `$userCol`, DATE_FORMAT(`$dateCol`, '%Y-%m')
+                            ORDER BY bucket DESC, uid ASC
+                            LIMIT 100";
+                    $monthlyLate = $this->db->query($sql, [$cutoffTime])->result();
+                    foreach ($monthlyLate as &$r) { $r->name = $getName((int)$r->uid); }
+                }
+            }
         }
-        $this->load->view('reports/attendance', ['period'=>$period, 'daily'=>$daily, 'weekly'=>$weekly, 'monthly'=>$monthly]);
+        $this->load->view('reports/attendance', [
+            'period'=>$period,
+            'daily'=>$daily,
+            'weekly'=>$weekly,
+            'monthly'=>$monthly,
+            'dailyLate'=>$dailyLate,
+            'weeklyLate'=>$weeklyLate,
+            'monthlyLate'=>$monthlyLate,
+        ]);
     }
 }

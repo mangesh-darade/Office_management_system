@@ -202,6 +202,10 @@
                     clearInterval(countdownId);
                     // If a descriptor is already set, skip auto capture
                     if (faceDescEl && faceDescEl.value) { return; }
+                    if (!hasLocation) {
+                      setFaceStatus('Location not captured yet. Please allow location access or try again.', true);
+                      return;
+                    }
                     captureFace(true);
                   } else {
                     var msg = 'Auto capture in ' + seconds + ' seconds...';

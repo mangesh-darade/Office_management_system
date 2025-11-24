@@ -5,7 +5,7 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
     }
@@ -13,7 +13,7 @@ class Tasks extends CI_Controller {
     public function index() {
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1);
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
 
         // Filters from GET
         $project_filter = trim((string)$this->input->get('project_id'));
@@ -208,6 +208,15 @@ class Tasks extends CI_Controller {
     {
         $task = $this->db->where('id', (int)$id)->get('tasks')->row();
         if (!$task) show_404();
+        // Visibility: non-admin group can only view tasks assigned to them (or created_by them when available)
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        if ($user_id && !$is_admin) {
+            $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
+            $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
+            if ($assigned !== $user_id && $creator !== $user_id) { show_error('Forbidden', 403); }
+        }
         $this->load->view('tasks/view', ['task' => $task]);
     }
 
@@ -304,6 +313,18 @@ class Tasks extends CI_Controller {
     // POST /tasks/{id}/delete
     public function delete($id)
     {
+        // Ownership: non-admin group can only delete tasks assigned to them (or created_by them when available)
+        $task = $this->db->where('id', (int)$id)->get('tasks')->row();
+        if (!$task) { show_404(); }
+        $currentUser = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        if ($currentUser && !$is_admin) {
+            $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
+            $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
+            if ($assigned !== $currentUser && $creator !== $currentUser) { show_error('Forbidden', 403); }
+        }
+
         $this->db->where('id', (int)$id)->delete('tasks');
         $this->load->helper('activity');
         log_activity('tasks', 'deleted', (int)$id, 'Task deleted');
@@ -315,6 +336,9 @@ class Tasks extends CI_Controller {
     public function board()
     {
         $statuses = ['pending','in_progress','completed','blocked'];
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
         $columns = [];
         foreach ($statuses as $st) {
             $this->db->from('tasks t');
@@ -334,6 +358,9 @@ class Tasks extends CI_Controller {
                 $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
             }
             $this->db->select(implode(',', $select));
+            if (!$is_admin && $user_id) {
+                $this->db->where('t.assigned_to', $user_id);
+            }
             $this->db->where('t.status', $st)->order_by('t.id','DESC');
             $columns[$st] = $this->db->get()->result();
         }

@@ -21,7 +21,7 @@
   <div class="tab-content" id="attendance-tab-content">
     <!-- Daily -->
     <div class="tab-pane fade <?php echo ($period==='daily')?'show active':''; ?>" id="daily" role="tabpanel" aria-labelledby="daily-tab">
-      <div class="card shadow-soft">
+      <div class="card shadow-soft mb-3">
         <div class="card-body">
           <?php if (empty($daily)): ?>
             <div class="text-muted">No daily attendance data.</div>
@@ -51,10 +51,40 @@
           <?php endif; ?>
         </div>
       </div>
+
+      <div class="card shadow-soft">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Daily Late Marks</h2>
+          <?php if (empty($dailyLate)): ?>
+            <div class="text-muted">No late marks in recent daily records.</div>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Date</th>
+                    <th class="text-center">Late Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($dailyLate as $r): ?>
+                    <tr>
+                      <td><?php echo htmlspecialchars(isset($r->name)?$r->name:''); ?></td>
+                      <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
+                      <td class="text-center"><?php echo isset($r->late_cnt) ? (int)$r->late_cnt : 0; ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
     </div>
     <!-- Weekly -->
     <div class="tab-pane fade <?php echo ($period==='weekly')?'show active':''; ?>" id="weekly" role="tabpanel" aria-labelledby="weekly-tab">
-      <div class="card shadow-soft">
+      <div class="card shadow-soft mb-3">
         <div class="card-body">
           <?php if (empty($weekly)): ?>
             <div class="text-muted">No weekly attendance data.</div>
@@ -84,10 +114,40 @@
           <?php endif; ?>
         </div>
       </div>
+
+      <div class="card shadow-soft">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Weekly Late Marks</h2>
+          <?php if (empty($weeklyLate)): ?>
+            <div class="text-muted">No late marks in recent weekly records.</div>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Week</th>
+                    <th class="text-center">Late Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($weeklyLate as $r): ?>
+                    <tr>
+                      <td><?php echo htmlspecialchars(isset($r->name)?$r->name:''); ?></td>
+                      <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
+                      <td class="text-center"><?php echo isset($r->late_cnt) ? (int)$r->late_cnt : 0; ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
     </div>
     <!-- Monthly -->
     <div class="tab-pane fade <?php echo ($period==='monthly')?'show active':''; ?>" id="monthly" role="tabpanel" aria-labelledby="monthly-tab">
-      <div class="card shadow-soft">
+      <div class="card shadow-soft mb-3">
         <div class="card-body">
           <?php if (empty($monthly)): ?>
             <div class="text-muted">No monthly attendance data.</div>
@@ -109,6 +169,36 @@
                       <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
                       <td><?php echo htmlspecialchars(isset($r->status)?$r->status:''); ?></td>
                       <td class="text-center"><?php echo (int)$r->cnt; ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <div class="card shadow-soft">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Monthly Late Marks</h2>
+          <?php if (empty($monthlyLate)): ?>
+            <div class="text-muted">No late marks in recent monthly records.</div>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Month</th>
+                    <th class="text-center">Late Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($monthlyLate as $r): ?>
+                    <tr>
+                      <td><?php echo htmlspecialchars(isset($r->name)?$r->name:''); ?></td>
+                      <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
+                      <td class="text-center"><?php echo isset($r->late_cnt) ? (int)$r->late_cnt : 0; ?></td>
                     </tr>
                   <?php endforeach; ?>
                 </tbody>

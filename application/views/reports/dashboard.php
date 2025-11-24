@@ -97,14 +97,32 @@
           <div class="d-flex align-items-center justify-content-between mb-2">
             <div class="d-flex align-items-center">
               <div class="icon-circle bg-blue text-white me-2"><i class="bi bi-graph-up"></i></div>
-              <h5 class="card-title mb-0">Attendance (Last 14 days)</h5>
+              <h5 class="card-title mb-0">Attendance & Late Marks</h5>
             </div>
-            <a class="btn btn-light btn-sm" href="<?php echo site_url('reports/attendance'); ?>">Open report</a>
+            <div class="d-flex align-items-center gap-2">
+              <form method="get" class="d-flex align-items-center gap-1">
+                <span class="small text-muted">Days:</span>
+                <select name="att_days" class="form-select form-select-sm" onchange="this.form.submit()">
+                  <?php $attDays = isset($attendance_days) ? (int)$attendance_days : 14; ?>
+                  <option value="7"  <?php echo $attDays===7  ? 'selected' : ''; ?>>7</option>
+                  <option value="14" <?php echo $attDays===14 ? 'selected' : ''; ?>>14</option>
+                  <option value="30" <?php echo $attDays===30 ? 'selected' : ''; ?>>30</option>
+                </select>
+              </form>
+              <a class="btn btn-light btn-sm" href="<?php echo site_url('reports/attendance'); ?>">Open report</a>
+            </div>
           </div>
-          <canvas id="attendanceRecentChart" height="120"></canvas>
-          <?php if(empty($attendance_recent)): ?>
-            <div class="small text-muted mt-2">No attendance data available.</div>
-          <?php endif; ?>
+
+          <h6 class="small text-muted mb-1">
+            Attendance (Last <?php echo isset($attendance_days) ? (int)$attendance_days : 14; ?> days<?php if (!empty($attendance_recent_from) && !empty($attendance_recent_to)): ?>:
+              <?php echo htmlspecialchars($attendance_recent_from.' to '.$attendance_recent_to); ?>
+            <?php endif; ?>)
+          </h6>
+          <canvas id="attendanceRecentChart" height="110"></canvas>
+
+          <hr class="my-3" />
+          <h6 class="small text-muted mb-1">Late Marks (Last 30 days)</h6>
+          <canvas id="attendanceLateChart" height="110"></canvas>
         </div>
       </div>
     </div>
@@ -119,6 +137,7 @@
       const leavesByStatus = <?php echo json_encode(isset($leaves_by_status) ? $leaves_by_status : []); ?>;
       const byAssignee = <?php echo json_encode(isset($task_by_assignee) ? $task_by_assignee : []); ?>;
       const attendanceRecent = <?php echo json_encode(isset($attendance_recent) ? $attendance_recent : []); ?>;
+      const attendanceLateTop = <?php echo json_encode(isset($attendance_late_top) ? $attendance_late_top : []); ?>;
 
       const toChartData = (rows, labelKey, valueKey) => ({
         labels: rows.map(r => r[labelKey]),
@@ -187,6 +206,22 @@
           type: 'line',
           data: { labels: attendanceRecent.map(r => r.d), datasets: [{ label: 'Entries', data: attendanceRecent.map(r => parseInt(r.cnt||0,10)), borderColor: palette[7], backgroundColor: palette[7]+'33', fill: true, tension: .3 }] },
           options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+        });
+      }
+
+      // Attendance late chart (top late marks)
+      const lateData = toChartData(attendanceLateTop, 'name', 'late_days');
+      if (document.getElementById('attendanceLateChart') && lateData.labels.length) {
+        new Chart(document.getElementById('attendanceLateChart'), {
+          type: 'bar',
+          data: {
+            labels: lateData.labels,
+            datasets: [{ label: 'Late Days', data: lateData.values, backgroundColor: palette[4] }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
         });
       }
     })();
