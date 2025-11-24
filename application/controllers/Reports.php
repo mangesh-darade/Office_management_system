@@ -267,7 +267,201 @@ class Reports extends CI_Controller {
         $this->load->view('reports/leaves', ['monthly'=>$monthly,'by_status'=>$by_status]);
     }
 
-// GET /reports/attendance?period=daily|weekly|monthly
+    // GET /reports/attendance-employee
+    public function attendance_employee($user_id = null)
+    {
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1, 2], true)) {
+            redirect('reports/attendance');
+            return;
+        }
+
+        $month = (string)$this->input->get('month');
+        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $month = date('Y-m');
+        }
+        $from = $month.'-01';
+        $to = date('Y-m-t', strtotime($from));
+
+        if (!$this->db->table_exists('attendance')) {
+            show_error('Attendance table not found', 500);
+            return;
+        }
+
+        $fields = $this->db->list_fields('attendance');
+        $userCandidates = ['user_id','employee_id','emp_id','staff_id','uid'];
+        $dateCandidates = ['att_date','date','attendance_date','created_at','checked_at'];
+        $statusCandidates = ['status','attendance_status','state'];
+        $userCol = $dateCol = $statusCol = null;
+        foreach ($userCandidates as $c) { if (in_array($c, $fields, true)) { $userCol = $c; break; } }
+        foreach ($dateCandidates as $c) { if (in_array($c, $fields, true)) { $dateCol = $c; break; } }
+        foreach ($statusCandidates as $c) { if (in_array($c, $fields, true)) { $statusCol = $c; break; } }
+        if ($userCol === null) { $userCol = isset($fields[0]) ? $fields[0] : 'user_id'; }
+        if ($dateCol === null) { $dateCol = isset($fields[1]) ? $fields[1] : 'att_date'; }
+        if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
+
+        $labels = [];
+        if ($this->db->table_exists('users')) {
+            $this->db->select('u.id, u.email');
+            if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name'); }
+            if ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                $this->db->join('employees e','e.user_id = u.id','left');
+                if ($this->db->field_exists('name','employees')) { $this->db->select('e.name AS emp_name'); }
+                if ($this->db->field_exists('full_name','employees')) { $this->db->select('e.full_name AS emp_full_name'); }
+                if ($this->db->field_exists('first_name','employees')) { $this->db->select('e.first_name AS emp_first_name'); }
+                if ($this->db->field_exists('middle_name','employees')) { $this->db->select('e.middle_name AS emp_middle_name'); }
+                if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
+            }
+            $users = $this->db->from('users u')->get()->result();
+            foreach ($users as $u) { $labels[(int)$u->id] = $u; }
+        }
+
+        $getName = function($uid) use ($labels) {
+            $label = isset($labels[$uid]) ? $labels[$uid] : null;
+            if ($label) {
+                $empParts = [];
+                if (isset($label->emp_first_name) && trim((string)$label->emp_first_name) !== '') { $empParts[] = trim((string)$label->emp_first_name); }
+                if (isset($label->emp_middle_name) && trim((string)$label->emp_middle_name) !== '') { $empParts[] = trim((string)$label->emp_middle_name); }
+                if (isset($label->emp_last_name) && trim((string)$label->emp_last_name) !== '') { $empParts[] = trim((string)$label->emp_last_name); }
+                if (!empty($empParts)) { return trim(implode(' ', $empParts)); }
+                if (isset($label->emp_full_name) && trim((string)$label->emp_full_name) !== '') { return trim((string)$label->emp_full_name); }
+                if (isset($label->emp_name) && trim((string)$label->emp_name) !== '') { return trim((string)$label->emp_name); }
+                if (isset($label->full_name) && trim((string)$label->full_name) !== '') { return trim((string)$label->full_name); }
+                if (isset($label->name) && trim((string)$label->name) !== '') { return trim((string)$label->name); }
+                return $label->email;
+            }
+            return $uid ? ('User #'.$uid) : 'Unknown';
+        };
+
+        $user_id = $user_id ? (int)$user_id : 0;
+
+        if ($user_id > 0) {
+            $rows = $this->db->select("`$dateCol` AS d, `$statusCol` AS st")
+                ->from('attendance')
+                ->where($userCol, $user_id)
+                ->where("`$dateCol` >=", $from)
+                ->where("`$dateCol` <=", $to)
+                ->order_by($dateCol, 'ASC')
+                ->get()->result();
+            $attMap = [];
+            foreach ($rows as $r) {
+                $d = isset($r->d) ? (string)$r->d : '';
+                if ($d === '') { continue; }
+                if (strpos($d, ' ') !== false) { $d = trim(explode(' ', $d)[0]); }
+                $attMap[$d] = (string)$r->st;
+            }
+
+            $leaveMap = [];
+            if ($this->db->table_exists('leave_requests')) {
+                $lrows = $this->db->select('start_date, end_date, status')
+                    ->from('leave_requests')
+                    ->where('user_id', $user_id)
+                    ->where_in('status', ['lead_approved','hr_approved'])
+                    ->where('start_date <=', $to)
+                    ->where('end_date >=', $from)
+                    ->get()->result();
+                foreach ($lrows as $lr) {
+                    $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
+                    $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
+                    if ($sd === '' || $ed === '') { continue; }
+                    $cur = strtotime(max($from, substr($sd, 0, 10)));
+                    $endTs = strtotime(min($to, substr($ed, 0, 10)));
+                    $txt = 'Leave ('.(string)$lr->status.')';
+                    while ($cur !== false && $cur <= $endTs) {
+                        $k = date('Y-m-d', $cur);
+                        if (!isset($leaveMap[$k])) { $leaveMap[$k] = $txt; }
+                        $cur = strtotime('+1 day', $cur);
+                    }
+                }
+            }
+
+            $days = [];
+            $startTs = strtotime($from);
+            $endTs = strtotime($to);
+            while ($startTs !== false && $startTs <= $endTs) {
+                $d = date('Y-m-d', $startTs);
+                $raw = isset($attMap[$d]) ? $attMap[$d] : '';
+                $st = strtolower(trim($raw));
+                $labelSt = '—';
+                if ($st === 'present') { $labelSt = 'Present'; }
+                elseif ($st === 'half_day') { $labelSt = 'Half Day'; }
+                elseif ($st === 'work_from_home') { $labelSt = 'Work From Home'; }
+                elseif ($st === 'absent') { $labelSt = 'Absent'; }
+                elseif ($st !== '') { $labelSt = $raw; }
+                $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+                $obj = new stdClass();
+                $obj->date = $d;
+                $obj->status = $labelSt;
+                $obj->leave = $leave;
+                $days[] = $obj;
+                $startTs = strtotime('+1 day', $startTs);
+            }
+
+            $name = $getName($user_id);
+            $this->load->view('reports/attendance_employee_detail', ['name'=>$name,'month'=>$month,'days'=>$days]);
+            return;
+        }
+
+        $summary = [];
+        $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
+            ->from('attendance')
+            ->where("`$dateCol` >=", $from)
+            ->where("`$dateCol` <=", $to)
+            ->group_by(["`$userCol`","`$statusCol`"])
+            ->get()->result();
+        foreach ($rows as $r) {
+            $uid = (int)$r->uid;
+            $st = strtolower(trim((string)$r->st));
+            $cnt = (float)$r->cnt;
+            if (!isset($summary[$uid])) {
+                $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0];
+            }
+            if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
+            elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
+            elseif ($st === 'work_from_home') { $summary[$uid]['wfh'] += $cnt; }
+            elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
+        }
+
+        if ($this->db->table_exists('leave_requests')) {
+            $lrows = $this->db->select('lr.user_id, SUM(lr.days) AS days')
+                ->from('leave_requests lr')
+                ->where_in('lr.status', ['lead_approved','hr_approved'])
+                ->where('lr.start_date <=', $to)
+                ->where('lr.end_date >=', $from)
+                ->group_by('lr.user_id')
+                ->get()->result();
+            foreach ($lrows as $lr) {
+                $uid = (int)$lr->user_id;
+                $days = isset($lr->days) ? (float)$lr->days : 0.0;
+                if (!isset($summary[$uid])) {
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0];
+                }
+                $summary[$uid]['leave'] += $days;
+            }
+        }
+
+        $rowsOut = [];
+        foreach ($summary as $uid => $s) {
+            $o = new stdClass();
+            $o->user_id = (int)$uid;
+            $o->name = $getName((int)$uid);
+            $o->present_days = $s['present'] > 0 ? rtrim(rtrim(number_format($s['present'], 2, '.', ''), '0'), '.') : '0';
+            $o->half_days = $s['half'] > 0 ? rtrim(rtrim(number_format($s['half'], 2, '.', ''), '0'), '.') : '0';
+            $o->wfh_days = $s['wfh'] > 0 ? rtrim(rtrim(number_format($s['wfh'], 2, '.', ''), '0'), '.') : '0';
+            $o->absent_days = $s['absent'] > 0 ? rtrim(rtrim(number_format($s['absent'], 2, '.', ''), '0'), '.') : '0';
+            $o->leave_days = $s['leave'] > 0 ? rtrim(rtrim(number_format($s['leave'], 2, '.', ''), '0'), '.') : '0';
+            $rowsOut[] = $o;
+        }
+
+        usort($rowsOut, function($a, $b) {
+            return strcmp($a->name, $b->name);
+        });
+
+        $this->load->view('reports/attendance_employee', ['month'=>$month,'rows'=>$rowsOut]);
+    }
+
+    // GET /reports/attendance?period=daily|weekly|monthly
     public function attendance()
     {
         $period = $this->input->get('period') ?: 'daily';

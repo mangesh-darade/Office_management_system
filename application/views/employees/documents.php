@@ -1,8 +1,19 @@
 <?php $this->load->view('partials/header', ['title' => 'Employee Documents']); ?>
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
-    <h1 class="h4 mb-2 mb-sm-0">Employee Documents - #<?php echo (int)$employee->id; ?> <?php echo htmlspecialchars(trim((isset($employee->first_name) ? $employee->first_name : '').' '.(isset($employee->last_name) ? $employee->last_name : ''))); ?></h1>
-    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-sm-auto">
-      <a class="btn btn-secondary w-100 w-sm-auto" href="<?php echo site_url('employees/'.$employee->id); ?>">Back to Profile</a>
+  <div class="card mb-3 border-0 shadow-sm">
+    <div class="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
+      <div class="mb-2 mb-md-0">
+        <div class="text-uppercase text-muted small mb-1">Employee Documents</div>
+        <h1 class="h5 mb-1">
+          #<?php echo (int)$employee->id; ?>
+          <?php echo htmlspecialchars(trim((isset($employee->first_name) ? $employee->first_name : '').' '.(isset($employee->last_name) ? $employee->last_name : ''))); ?>
+        </h1>
+        <?php if (!empty($employee->email)) : ?>
+          <div class="text-muted small"><?php echo htmlspecialchars($employee->email); ?></div>
+        <?php endif; ?>
+      </div>
+      <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end">
+        <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('employees/'.$employee->id); ?>">Back to Profile</a>
+      </div>
     </div>
   </div>
   <?php if ($this->session->flashdata('error')): ?>
@@ -13,7 +24,7 @@
   <?php endif; ?>
   <div class="row g-3">
     <div class="col-md-4">
-      <div class="card h-100 shadow-soft"><div class="card-body">
+      <div class="card h-100 shadow-soft border-0"><div class="card-body">
         <h5 class="card-title">Upload Document</h5>
         <form method="post" enctype="multipart/form-data" class="vstack gap-3">
           <div>
@@ -31,7 +42,7 @@
       </div></div>
     </div>
     <div class="col-md-8">
-      <div class="card h-100 shadow-soft"><div class="card-body">
+      <div class="card h-100 shadow-soft border-0"><div class="card-body">
         <h5 class="card-title">Documents List</h5>
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">

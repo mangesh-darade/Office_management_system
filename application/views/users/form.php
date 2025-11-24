@@ -1,43 +1,46 @@
 <?php $this->load->view('partials/header', array('title' => (isset($title) ? $title : 'User'), 'active' => 'users')); ?>
 <div class="row g-3">
-  <div class="col-12 col-lg-8">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0"><?php echo htmlspecialchars(isset($title) ? $title : 'User'); ?></h5>
-      <a href="<?php echo site_url('users'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+  <div class="col-12">
+    <div class="card mb-3 border-0 shadow-sm">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <h1 class="h5 mb-0"><?php echo htmlspecialchars(isset($title) ? $title : 'User'); ?></h1>
+        <a href="<?php echo site_url('users'); ?>" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+      </div>
     </div>
 
     <?php if ($this->session->flashdata('error')): ?>
       <div class="alert alert-danger"><?php echo $this->session->flashdata('error'); ?></div>
     <?php endif; ?>
 
-    <div class="card">
+    <div class="card shadow-soft border-0">
       <div class="card-body">
         <form method="post" enctype="multipart/form-data" action="<?php echo $is_edit ? site_url('users/update/'.(int)$row->id) : site_url('users/store'); ?>">
-          <div class="mb-3">
-            <label class="form-label">Name <span class="text-danger">*</span></label>
-            <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?>" required>
-          </div>
-          <?php if (!$is_edit): ?>
-          <div class="mb-3">
-            <label class="form-label">Email <span class="text-danger">*</span></label>
-            <div class="input-group">
-              <input type="email" name="email" id="userEmail" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" placeholder="you@gmail.com" required>
-              <button class="btn btn-outline-secondary" type="button" id="btnSendCode">Send code</button>
-            </div>
-            <div class="form-text" id="emailHelp"></div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Verification Code</label>
-            <input type="text" name="verify_code" class="form-control" placeholder="Enter code sent to this Gmail">
-          </div>
-          <?php else: ?>
-          <div class="mb-3">
-            <label class="form-label">Email <span class="text-danger">*</span></label>
-            <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" required>
-          </div>
-          <?php endif; ?>
           <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
+              <label class="form-label">Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?>" required>
+            </div>
+            <?php if (!$is_edit): ?>
+            <div class="col-md-4">
+              <label class="form-label">Email <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="email" name="email" id="userEmail" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" placeholder="you@gmail.com" required>
+                <button class="btn btn-outline-secondary" type="button" id="btnSendCode">Send code</button>
+              </div>
+              <div class="form-text" id="emailHelp"></div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Verification Code</label>
+              <input type="text" name="verify_code" class="form-control" placeholder="Enter code sent to this Gmail">
+            </div>
+            <?php else: ?>
+            <div class="col-md-4">
+              <label class="form-label">Email <span class="text-danger">*</span></label>
+              <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" required>
+            </div>
+            <?php endif; ?>
+
+            <div class="col-md-4">
               <label class="form-label">Role <span class="text-danger">*</span></label>
               <?php
                 $roleOptions = isset($roles) && is_array($roles) && !empty($roles)
@@ -62,7 +65,8 @@
                 <?php endforeach; ?>
               </select>
             </div>
-            <div class="col-md-6">
+
+            <div class="col-md-4">
               <label class="form-label">Status <span class="text-danger">*</span></label>
               <?php
                 $stRaw = isset($row->status) ? $row->status : 1;
@@ -79,13 +83,13 @@
                 <option value="0" <?php echo $st===0?'selected':''; ?>>Inactive</option>
               </select>
             </div>
-          </div>
-          <div class="row g-3 mt-1">
-            <div class="col-md-6">
+
+            <div class="col-md-4">
               <label class="form-label">Phone <span class="text-danger">*</span></label>
               <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($row->phone) ? $row->phone : ''); ?>" required pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number">
             </div>
-            <div class="col-md-6">
+
+            <div class="col-md-4">
               <label class="form-label">Verified</label>
               <?php $ver = (int)(isset($row->is_verified) ? $row->is_verified : 0); ?>
               <select name="is_verified" class="form-select">
@@ -93,20 +97,23 @@
                 <option value="0" <?php echo $ver===0?'selected':''; ?>>No</option>
               </select>
             </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Avatar</label>
+              <input type="file" name="avatar" accept="image/*" class="form-control">
+              <?php if (!empty($row->avatar)): ?>
+                <div class="form-text">Current: <a href="<?php echo base_url(trim($row->avatar, '/')); ?>" target="_blank">View</a></div>
+              <?php endif; ?>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label"><?php echo $is_edit ? 'Reset Password (optional)' : 'Password <span class="text-danger">*</span>'; ?></label>
+              <input type="password" name="password" class="form-control" <?php echo $is_edit ? '' : 'required'; ?> autocomplete="new-password">
+              <?php if ($is_edit): ?><div class="form-text">Leave blank to keep current password.</div><?php endif; ?>
+            </div>
           </div>
-          <div class="mb-3 mt-3">
-            <label class="form-label">Avatar</label>
-            <input type="file" name="avatar" accept="image/*" class="form-control">
-            <?php if (!empty($row->avatar)): ?>
-              <div class="form-text">Current: <a href="<?php echo base_url(trim($row->avatar, '/')); ?>" target="_blank">View</a></div>
-            <?php endif; ?>
-          </div>
-          <div class="mb-3 mt-3">
-            <label class="form-label"><?php echo $is_edit ? 'Reset Password (optional)' : 'Password <span class="text-danger">*</span>'; ?></label>
-            <input type="password" name="password" class="form-control" <?php echo $is_edit ? '' : 'required'; ?> autocomplete="new-password">
-            <?php if ($is_edit): ?><div class="form-text">Leave blank to keep current password.</div><?php endif; ?>
-          </div>
-          <div class="d-flex gap-2">
+
+          <div class="mt-3 d-flex gap-2">
             <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> Save</button>
             <a class="btn btn-outline-secondary" href="<?php echo site_url('users'); ?>">Cancel</a>
           </div>

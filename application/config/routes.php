@@ -173,6 +173,8 @@ $route['reports/tasks-assignment'] = 'reports/tasks_assignment';
 $route['reports/projects-status'] = 'reports/projects_status';
 $route['reports/leaves'] = 'reports/leaves';
 $route['reports/attendance'] = 'reports/attendance';
+$route['reports/attendance-employee'] = 'reports/attendance_employee';
+$route['reports/attendance-employee/(:num)'] = 'reports/attendance_employee/$1';
 
 // Profile
 $route['profile'] = 'profile/index';
