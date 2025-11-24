@@ -19,22 +19,13 @@ class Users extends CI_Controller {
         $data['title'] = 'Users';
         $data['q'] = $q;
         $roleFilter = null;
-        // For user-group (staff), only show users that belong to user-group roles
-        if (function_exists('is_user_group') && is_user_group() &&
-            $this->db->table_exists('roles') && $this->db->field_exists('group_type', 'roles')) {
-            $ids = [];
-            $rows = $this->db->select('id')->from('roles')->where('group_type', 'user')->get()->result();
-            foreach ($rows as $r) {
-                if (isset($r->id)) { $ids[] = (int)$r->id; }
-            }
-            if (!empty($ids)) {
-                $roleFilter = $ids;
-            } else {
-                // No user-group roles configured; force empty result set for safety
-                $roleFilter = [-1];
-            }
+        $userIdFilter = null;
+        $currentUserId = (int)$this->session->userdata('user_id');
+        // For user-group (staff), only show their own record in the list
+        if (function_exists('is_user_group') && is_user_group() && $currentUserId > 0) {
+            $userIdFilter = $currentUserId;
         }
-        $data['rows'] = $this->users->list_users($q, 250, $roleFilter);
+        $data['rows'] = $this->users->list_users($q, 250, $roleFilter, $userIdFilter);
         $this->load->view('users/index', $data);
     }
 

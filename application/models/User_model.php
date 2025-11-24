@@ -48,11 +48,14 @@ class User_model extends CI_Model {
      * List users with optional simple search by name/email. Limit default 250.
      * Optionally restrict to specific role IDs when $roleIds is a non-empty array.
      */
-    public function list_users($q = '', $limit = 250, $roleIds = null){
+    public function list_users($q = '', $limit = 250, $roleIds = null, $userId = null){
         $this->db->from($this->table);
         // Hide soft-deleted users from the grid if status column exists
         if ($this->db->field_exists('status', $this->table)){
             $this->db->where('status !=', 'inactive');
+        }
+        if ($userId !== null){
+            $this->db->where('id', (int)$userId);
         }
         // Optional role-based filter (used to scope list by group type)
         if (is_array($roleIds) && !empty($roleIds) && $this->db->field_exists('role_id', $this->table)){
