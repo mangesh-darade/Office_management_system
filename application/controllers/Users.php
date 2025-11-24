@@ -18,11 +18,30 @@ class Users extends CI_Controller {
         $q = trim($this->input->get('q', true) ?: '');
         $data['title'] = 'Users';
         $data['q'] = $q;
-        $data['rows'] = $this->users->list_users($q, 250);
+        $roleFilter = null;
+        // For user-group (staff), only show users that belong to user-group roles
+        if (function_exists('is_user_group') && is_user_group() &&
+            $this->db->table_exists('roles') && $this->db->field_exists('group_type', 'roles')) {
+            $ids = [];
+            $rows = $this->db->select('id')->from('roles')->where('group_type', 'user')->get()->result();
+            foreach ($rows as $r) {
+                if (isset($r->id)) { $ids[] = (int)$r->id; }
+            }
+            if (!empty($ids)) {
+                $roleFilter = $ids;
+            } else {
+                // No user-group roles configured; force empty result set for safety
+                $roleFilter = [-1];
+            }
+        }
+        $data['rows'] = $this->users->list_users($q, 250, $roleFilter);
         $this->load->view('users/index', $data);
     }
 
     public function create() {
+        if (!function_exists('has_module_access') || !has_module_access('users_add')) {
+            show_error('You do not have permission to add users.', 403);
+        }
         $data = [
             'title' => 'Add User',
             'row' => (object)[
@@ -42,6 +61,9 @@ class Users extends CI_Controller {
     }
 
     public function store() {
+        if (!function_exists('has_module_access') || !has_module_access('users_add')) {
+            show_error('You do not have permission to add users.', 403);
+        }
         $in = $this->_sanitize();
         if (empty($in['name']) || empty($in['email'])) {
             $this->session->set_flashdata('error', 'Name and Email are required.');

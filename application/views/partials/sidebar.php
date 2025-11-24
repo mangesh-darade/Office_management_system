@@ -27,10 +27,12 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php
       $user_group_show = function_exists('has_module_access') && (
         has_module_access('users') ||
+        has_module_access('users_add') ||
         has_module_access('attendance') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
-        has_module_access('permissions')
+        has_module_access('permissions') ||
+        has_module_access('assets_mgmt')
       );
       ?>
       <?php if($user_group_show): ?>
@@ -47,12 +49,16 @@ if (!(int)$this->session->userdata('user_id')) {
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('users_add')): ?>
             <a class="submenu-link" href="<?php echo site_url('users/create'); ?>"><i class="bi bi-person-plus me-2"></i>Add User</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('assets_mgmt')): ?>
             <a class="submenu-link <?php echo $active==='assets'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
             <?php endif; ?>
@@ -110,8 +116,10 @@ if (!(int)$this->session->userdata('user_id')) {
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($seg1==='leave' && ($seg2==='' || $seg2===null || $seg2==='apply')) ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">Apply Leave</a>
             <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='my') ? 'active' : ''; ?>" href="<?php echo site_url('leave/my'); ?>">My Leaves</a>
+            <?php if(function_exists('is_admin_group') && is_admin_group()): ?>
             <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='team') ? 'active' : ''; ?>" href="<?php echo site_url('leave/team'); ?>">Team Leaves</a>
             <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='calendar') ? 'active' : ''; ?>" href="<?php echo site_url('leave/calendar'); ?>">Leave Calendar</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>
@@ -217,13 +225,27 @@ if (!(int)$this->session->userdata('user_id')) {
         <div class="ps-3 sidebar-submenu" id="reports-submenu">
           <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
           <div class="submenu-list">
+            <?php if(function_exists('has_module_access') && has_module_access('reports_overview')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && ($seg2==='' || $seg2===null))?'active':''; ?>" href="<?php echo site_url('reports'); ?>">Overview</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_requirements')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='requirements')?'active':''; ?>" href="<?php echo site_url('reports/requirements'); ?>">Requirements Report</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_tasks_assignment')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='tasks-assignment')?'active':''; ?>" href="<?php echo site_url('reports/tasks-assignment'); ?>">Task Assignment Report</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_projects_status')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='projects-status')?'active':''; ?>" href="<?php echo site_url('reports/projects-status'); ?>">Projects by Status</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_leaves')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='leaves')?'active':''; ?>" href="<?php echo site_url('reports/leaves'); ?>">Leaves Report</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_attendance')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='attendance')?'active':''; ?>" href="<?php echo site_url('reports/attendance'); ?>">Attendance Report</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_attendance_employee')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='attendance-employee')?'active':''; ?>" href="<?php echo site_url('reports/attendance-employee'); ?>">Employee Attendance</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>

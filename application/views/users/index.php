@@ -3,7 +3,9 @@
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="mb-0">Users</h5>
+      <?php if (function_exists('has_module_access') && has_module_access('users_add')): ?>
       <a href="<?php echo site_url('users/create'); ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add User</a>
+      <?php endif; ?>
     </div>
     <form class="row g-2 mb-3" method="get" action="<?php echo site_url('users'); ?>">
       <div class="col-auto">
