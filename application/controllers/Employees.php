@@ -221,6 +221,101 @@ class Employees extends CI_Controller {
         redirect('employees');
     }
 
+    public function documents($id)
+    {
+        $employee = $this->Employee_model->find((int)$id);
+        if (!$employee) show_404();
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1,2], true)) {
+            $user_id = (int)$this->session->userdata('user_id');
+            if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
+        }
+
+        if ($this->input->method() === 'post') {
+            if (!isset($_FILES['document']) || empty($_FILES['document']['name'])) {
+                $this->session->set_flashdata('error', 'Please choose a file to upload.');
+                redirect('employees/'.$id.'/documents');
+                return;
+            }
+            $upload_path = FCPATH.'uploads/employees/';
+            if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+            $config = [
+                'upload_path' => $upload_path,
+                'allowed_types' => 'pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|zip',
+                'max_size' => 10240,
+                'encrypt_name' => true,
+            ];
+            $this->load->library('upload');
+            $this->upload->initialize($config);
+            if (!$this->upload->do_upload('document')) {
+                $error = trim(strip_tags($this->upload->display_errors('', '')));
+                if ($error !== '') {
+                    $this->session->set_flashdata('error', $error);
+                } else {
+                    $this->session->set_flashdata('error', 'Unable to upload file.');
+                }
+                redirect('employees/'.$id.'/documents');
+                return;
+            }
+            $up = $this->upload->data();
+            $doc_type = trim($this->input->post('doc_type'));
+            $originalName = isset($_FILES['document']['name']) ? $_FILES['document']['name'] : $up['file_name'];
+            $this->Employee_model->add_document([
+                'employee_id' => (int)$id,
+                'doc_type' => $doc_type !== '' ? $doc_type : null,
+                'original_name' => $originalName,
+                'file_name' => $up['file_name'],
+                'file_path' => 'uploads/employees/'.$up['file_name'],
+                'file_size' => isset($up['file_size']) ? (int)$up['file_size'] : null,
+                'file_type' => isset($up['file_type']) ? $up['file_type'] : null,
+                'uploaded_by' => (int)$this->session->userdata('user_id'),
+                'uploaded_at' => date('Y-m-d H:i:s'),
+            ]);
+            $this->session->set_flashdata('success', 'Document uploaded');
+            redirect('employees/'.$id.'/documents');
+            return;
+        }
+
+        $documents = $this->Employee_model->get_documents((int)$id);
+        $this->load->view('employees/documents', ['employee' => $employee, 'documents' => $documents]);
+    }
+
+    public function download_document($id)
+    {
+        $doc = $this->Employee_model->get_document((int)$id);
+        if (!$doc) { show_404(); }
+        $employee = $this->Employee_model->find((int)$doc->employee_id);
+        if (!$employee) { show_404(); }
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1,2], true)) {
+            $user_id = (int)$this->session->userdata('user_id');
+            if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
+        }
+        $path = FCPATH.$doc->file_path;
+        if (!is_file($path)) { show_404(); }
+        $this->load->helper('download');
+        $name = isset($doc->original_name) && $doc->original_name !== '' ? $doc->original_name : basename($path);
+        $data = file_get_contents($path);
+        force_download($name, $data);
+    }
+
+    public function delete_document($id)
+    {
+        $doc = $this->Employee_model->get_document((int)$id);
+        if (!$doc) { show_404(); }
+        $employee = $this->Employee_model->find((int)$doc->employee_id);
+        if (!$employee) { show_404(); }
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [1,2], true)) { show_error('Forbidden', 403); }
+        $path = FCPATH.$doc->file_path;
+        $ok = $this->Employee_model->delete_document((int)$id);
+        if ($ok && $doc->file_path && is_file($path)) {
+            @unlink($path);
+        }
+        $this->session->set_flashdata('success', 'Document deleted');
+        redirect('employees/'.$employee->id.'/documents');
+    }
+
     // GET/POST /employees/import
     public function import()
     {

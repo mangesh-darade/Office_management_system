@@ -40,6 +40,20 @@
           </div>
         </div>
       </div>
+      <hr>
+      <div>
+        <h5 class="mb-3">Bulk Mail Template</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Subject</label>
+            <input type="text" name="bulk_subject" class="form-control" value="<?php echo htmlspecialchars(isset($bulk_subject)?$bulk_subject:''); ?>">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Body</label>
+            <textarea name="bulk_body" rows="5" class="form-control"><?php echo htmlspecialchars(isset($bulk_body)?$bulk_body:''); ?></textarea>
+          </div>
+        </div>
+      </div>
       <div>
         <button class="btn btn-primary" type="submit">Save Templates</button>
         <a class="btn btn-light" href="<?php echo site_url('reminders'); ?>">Cancel</a>

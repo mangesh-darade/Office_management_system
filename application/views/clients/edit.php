@@ -85,6 +85,7 @@
             <option value="individual" <?php echo $ct==='individual'?'selected':''; ?>>Individual</option>
             <option value="government" <?php echo $ct==='government'?'selected':''; ?>>Government</option>
             <option value="startup" <?php echo $ct==='startup'?'selected':''; ?>>Startup</option>
+            <option value="other" <?php echo $ct==='other'?'selected':''; ?>>Other</option>
           </select>
         </div>
         <div class="col-md-4">

@@ -3,6 +3,7 @@
     <h1 class="h4 mb-2 mb-sm-0">Employee #<?php echo (int)$employee->id; ?></h1>
     <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-sm-auto">
       <a class="btn btn-secondary w-100 w-sm-auto" href="<?php echo site_url('employees'); ?>">Back</a>
+      <a class="btn btn-outline-secondary w-100 w-sm-auto" href="<?php echo site_url('employees/'.$employee->id.'/documents'); ?>">Documents</a>
       <a class="btn btn-primary w-100 w-sm-auto" href="<?php echo site_url('employees/'.$employee->id.'/edit'); ?>">Edit</a>
     </div>
   </div>

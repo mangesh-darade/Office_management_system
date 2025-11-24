@@ -84,6 +84,7 @@
             <option value="individual">Individual</option>
             <option value="government">Government</option>
             <option value="startup">Startup</option>
+            <option value="other">Other</option>
           </select>
         </div>
         <div class="col-md-8">

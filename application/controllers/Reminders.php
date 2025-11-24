@@ -122,6 +122,27 @@ class Reminders extends CI_Controller {
             $this->session->set_flashdata('error','No reminders selected');
             redirect('reminders'); return;
         }
+        $tplCode = trim((string)$this->input->post('tpl_code'));
+        $tplSubject = null;
+        $tplBody = null;
+        if ($tplCode !== ''){
+            $tpl = null;
+            if ($tplCode === 'daily_morning'){
+                $tpl = $this->reminders->get_template('daily_morning');
+                $tplSubject = 'Good morning! Daily login reminder';
+                $tplBody = "Hello {name}\n\nThis is your morning reminder to login and check your tasks and announcements.";
+            } elseif ($tplCode === 'daily_night'){
+                $tpl = $this->reminders->get_template('daily_night');
+                $tplSubject = 'Good evening! Daily logout reminder';
+                $tplBody = "Hello {name}\n\nThis is your evening reminder to finalize updates and logout.";
+            } elseif ($tplCode === 'bulk_manual'){
+                $tpl = $this->reminders->get_template('bulk_manual');
+                $tplSubject = 'Bulk message';
+                $tplBody = "Hello {name}\n\nThis is a bulk message.";
+            }
+            if ($tpl && isset($tpl->subject)) { $tplSubject = $tpl->subject; }
+            if ($tpl && isset($tpl->body)) { $tplBody = $tpl->body; }
+        }
         $sent = 0; $failed = 0;
         // Initialize email config
         $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
@@ -134,10 +155,37 @@ class Reminders extends CI_Controller {
             $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : getenv('SMTP_USER');
             if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
             $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : 'Office Management System';
+            $subject = $q->subject;
+            $body = $q->body;
+            if ($tplCode !== '' && $tplSubject !== null && $tplBody !== null){
+                $name = '';
+                if (isset($q->user_id) && (int)$q->user_id > 0 && $this->db->table_exists('users')){
+                    $label = '';
+                    $sel = array('email');
+                    if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+                    if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                    if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
+                    $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id',(int)$q->user_id)->get()->row();
+                    if ($u){
+                        if (isset($u->full_label) && $u->full_label!=='') { $label = $u->full_label; }
+                        else if (isset($u->full_name) && $u->full_name!=='') { $label = $u->full_name; }
+                        else if (isset($u->name) && $u->name!=='') { $label = $u->name; }
+                    }
+                    $name = $label !== '' ? $label : $q->email;
+                } else {
+                    $name = $q->email;
+                }
+                list($subject, $body) = $this->reminders->render_template($tplSubject, $tplBody, array('name'=>$name));
+                $update = array('subject' => $subject, 'body' => $body);
+                if ($tplCode === 'daily_morning' || $tplCode === 'daily_night' || $tplCode === 'bulk_manual'){
+                    $update['type'] = $tplCode;
+                }
+                $this->db->where('id',(int)$q->id)->update('reminders', $update);
+            }
             $this->email->from($fromAddr, $fromName);
             $this->email->to($q->email);
-            $this->email->subject($q->subject);
-            $this->email->message($q->body);
+            $this->email->subject($subject);
+            $this->email->message($body);
             if ($this->email->send()) { $this->reminders->mark_sent($q->id); $sent++; }
             else { $this->reminders->mark_error($q->id); $failed++; }
         }
@@ -367,26 +415,194 @@ class Reminders extends CI_Controller {
             $m_body = (string)$this->input->post('morning_body');
             $n_subj = trim($this->input->post('night_subject'));
             $n_body = (string)$this->input->post('night_body');
+            $b_subj = trim($this->input->post('bulk_subject'));
+            $b_body = (string)$this->input->post('bulk_body');
             if ($m_subj!==''){ $this->reminders->save_template('daily_morning', $m_subj, $m_body); }
             if ($n_subj!==''){ $this->reminders->save_template('daily_night', $n_subj, $n_body); }
+            if ($b_subj!==''){ $this->reminders->save_template('bulk_manual', $b_subj, $b_body); }
             $this->session->set_flashdata('success','Templates saved');
             redirect('reminders/templates'); return;
         }
         $m = $this->reminders->get_template('daily_morning');
         $n = $this->reminders->get_template('daily_night');
+        $b = $this->reminders->get_template('bulk_manual');
         $defaults = array(
             'm_subject' => 'Good morning! Daily login reminder',
             'm_body' => "Hello {name}\n\nThis is your morning reminder to login and check your tasks and announcements.",
             'n_subject' => 'Good evening! Daily logout reminder',
             'n_body' => "Hello {name}\n\nThis is your evening reminder to finalize updates and logout.",
+            'b_subject' => 'Bulk message',
+            'b_body' => "Hello {name}\n\nThis is a bulk message.",
         );
         $data = array(
             'morning_subject' => $m && isset($m->subject)?$m->subject:$defaults['m_subject'],
             'morning_body' => $m && isset($m->body)?$m->body:$defaults['m_body'],
             'night_subject' => $n && isset($n->subject)?$n->subject:$defaults['n_subject'],
             'night_body' => $n && isset($n->body)?$n->body:$defaults['n_body'],
+            'bulk_subject' => $b && isset($b->subject)?$b->subject:$defaults['b_subject'],
+            'bulk_body' => $b && isset($b->body)?$b->body:$defaults['b_body'],
         );
         $this->load->view('reminders/templates', $data);
+    }
+
+    // GET/POST /reminders/bulk
+    public function bulk(){
+        if ($this->input->method() === 'post'){
+            $to_raw = (string)$this->input->post('to_emails');
+            $subject = trim($this->input->post('subject'));
+            $body = (string)$this->input->post('body');
+            $from_email = trim((string)$this->input->post('from_email'));
+            $from_name = trim((string)$this->input->post('from_name'));
+            if ($to_raw === '' || $subject === ''){
+                $this->session->set_flashdata('error','Please enter at least one recipient and subject');
+                redirect('reminders/bulk'); return;
+            }
+            $parts = preg_split('/[\s,;]+/', $to_raw);
+            $emails = array();
+            foreach ($parts as $p){
+                $p = trim($p);
+                if ($p === '') continue;
+                if (!filter_var($p, FILTER_VALIDATE_EMAIL)) continue;
+                $emails[] = $p;
+            }
+            if (empty($emails)){
+                $this->session->set_flashdata('error','No valid email addresses found');
+                redirect('reminders/bulk'); return;
+            }
+            if ($from_email===''){
+                $from_email = getenv('SMTP_USER');
+                if (!$from_email || $from_email==='') { $from_email = 'no-reply@example.com'; }
+            }
+            if ($from_name===''){
+                $from_name = 'Office Management System';
+            }
+            $count = 0;
+            foreach ($emails as $to){
+                list($subjRendered, $bodyRendered) = $this->reminders->render_template($subject, $body, array('name'=>$to));
+                $this->reminders->enqueue(array(
+                    'user_id' => null,
+                    'email' => $to,
+                    'type' => 'bulk_manual',
+                    'subject' => $subjRendered,
+                    'body' => $bodyRendered !== '' ? $bodyRendered : $subjRendered,
+                    'from_email' => $from_email!=='' ? $from_email : null,
+                    'from_name' => $from_name!=='' ? $from_name : null,
+                    'send_at' => date('Y-m-d H:i:00')
+                ));
+                $count++;
+            }
+            $this->session->set_flashdata('success','Bulk reminders queued to '.$count.' recipients.');
+            redirect('reminders');
+            return;
+        }
+        $tpl = $this->reminders->get_template('bulk_manual');
+        $defaults = array(
+            'b_subject' => 'Bulk message',
+            'b_body' => "Hello {name}\n\nThis is a bulk message.",
+        );
+        $data = array(
+            'bulk_subject' => $tpl && isset($tpl->subject)?$tpl->subject:$defaults['b_subject'],
+            'bulk_body' => $tpl && isset($tpl->body)?$tpl->body:$defaults['b_body'],
+        );
+        $this->load->view('reminders/bulk', $data);
+    }
+
+    // GET /reminders/import-sample
+    public function import_sample(){
+        $csv = "email,name\n";
+        $csv .= "user1@example.com,User One\n";
+        $csv .= "user2@example.com,User Two\n";
+        $this->output
+            ->set_content_type('text/csv')
+            ->set_header('Content-Disposition: attachment; filename="reminders_sample.csv"')
+            ->set_output($csv);
+    }
+
+    // GET/POST /reminders/import
+    public function import(){
+        if ($this->input->method() === 'post'){
+            $tplCode = trim((string)$this->input->post('tpl_code'));
+            $from_email = trim((string)$this->input->post('from_email'));
+            $from_name = trim((string)$this->input->post('from_name'));
+            if ($tplCode === ''){
+                $this->session->set_flashdata('error','Please select a template');
+                redirect('reminders/import'); return;
+            }
+            if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK){
+                $this->session->set_flashdata('error','Please upload a valid CSV file');
+                redirect('reminders/import'); return;
+            }
+            $path = $_FILES['csv_file']['tmp_name'];
+            $handle = fopen($path, 'r');
+            if (!$handle){
+                $this->session->set_flashdata('error','Unable to read uploaded file');
+                redirect('reminders/import'); return;
+            }
+            $header = fgetcsv($handle);
+            if (!$header){ fclose($handle); $this->session->set_flashdata('error','CSV is empty'); redirect('reminders/import'); return; }
+            $map = array();
+            foreach ($header as $i => $col){ $map[strtolower(trim($col))] = $i; }
+            if (!isset($map['email'])){
+                fclose($handle);
+                $this->session->set_flashdata('error','CSV must contain an email column');
+                redirect('reminders/import'); return;
+            }
+            // Load template
+            $tpl = null; $tplSubject = null; $tplBody = null;
+            if ($tplCode === 'daily_morning'){
+                $tpl = $this->reminders->get_template('daily_morning');
+                $tplSubject = 'Good morning! Daily login reminder';
+                $tplBody = "Hello {name}\n\nThis is your morning reminder to login and check your tasks and announcements.";
+            } elseif ($tplCode === 'daily_night'){
+                $tpl = $this->reminders->get_template('daily_night');
+                $tplSubject = 'Good evening! Daily logout reminder';
+                $tplBody = "Hello {name}\n\nThis is your evening reminder to finalize updates and logout.";
+            } elseif ($tplCode === 'bulk_manual'){
+                $tpl = $this->reminders->get_template('bulk_manual');
+                $tplSubject = 'Bulk message';
+                $tplBody = "Hello {name}\n\nThis is a bulk message.";
+            }
+            if ($tpl && isset($tpl->subject)) { $tplSubject = $tpl->subject; }
+            if ($tpl && isset($tpl->body)) { $tplBody = $tpl->body; }
+            if ($tplSubject === null || $tplBody === null){
+                fclose($handle);
+                $this->session->set_flashdata('error','Template not configured');
+                redirect('reminders/import'); return;
+            }
+            if ($from_email===''){
+                $from_email = getenv('SMTP_USER');
+                if (!$from_email || $from_email==='') { $from_email = 'no-reply@example.com'; }
+            }
+            if ($from_name===''){
+                $from_name = 'Office Management System';
+            }
+            $queued = 0;
+            while (($row = fgetcsv($handle)) !== false){
+                $email = isset($row[$map['email']]) ? trim($row[$map['email']]) : '';
+                if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) { continue; }
+                $name = $email;
+                if (isset($map['name']) && isset($row[$map['name']]) && trim($row[$map['name']]) !== ''){
+                    $name = trim($row[$map['name']]);
+                }
+                list($subjRendered, $bodyRendered) = $this->reminders->render_template($tplSubject, $tplBody, array('name'=>$name));
+                $this->reminders->enqueue(array(
+                    'user_id' => null,
+                    'email' => $email,
+                    'type' => $tplCode,
+                    'subject' => $subjRendered,
+                    'body' => $bodyRendered !== '' ? $bodyRendered : $subjRendered,
+                    'from_email' => $from_email!=='' ? $from_email : null,
+                    'from_name' => $from_name!=='' ? $from_name : null,
+                    'send_at' => date('Y-m-d H:i:00')
+                ));
+                $queued++;
+            }
+            fclose($handle);
+            $this->session->set_flashdata('success','Queued '.$queued.' reminders from CSV.');
+            redirect('reminders');
+            return;
+        }
+        $this->load->view('reminders/import');
     }
 
     // GET /reminders/delete/{id}

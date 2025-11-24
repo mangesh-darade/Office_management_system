@@ -75,6 +75,9 @@ $route['employees/(:num)'] = 'employees/show/$1';
 $route['employees/(:num)/edit'] = 'employees/edit/$1';
 $route['employees/(:num)/delete'] = 'employees/delete/$1';
 $route['employees/import'] = 'employees/import';
+$route['employees/(:num)/documents'] = 'employees/documents/$1';
+$route['employees/documents/(:num)/download'] = 'employees/download_document/$1';
+$route['employees/documents/(:num)/delete'] = 'employees/delete_document/$1';
 
 // Departments
 $route['departments'] = 'departments/index';
@@ -127,6 +130,10 @@ $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
 // Permissions Manager
 $route['permissions'] = 'permissions/index';
 $route['permissions/save'] = 'permissions/save';
+
+// Roles
+$route['roles'] = 'roles/index';
+$route['roles/store'] = 'roles/store';
 
 // Attendance
 $route['attendance'] = 'attendance/index';
@@ -246,6 +253,11 @@ $route['mail'] = 'mail/index';
 $route['mail/test'] = 'mail/test';
 $route['mail/send'] = 'mail/send';
 
+// SendGrid (API-based mailer)
+$route['sendgrid'] = 'sendgrid/index';
+$route['sendgrid/send'] = 'sendgrid/send';
+$route['sendgrid/test'] = 'sendgrid/test';
+
 // Reminders
 $route['reminders'] = 'reminders/index';
 $route['reminders/cron/morning'] = 'reminders/cron_morning';
@@ -260,3 +272,6 @@ $route['reminders/schedules'] = 'reminders/schedules';
 $route['reminders/schedules/create'] = 'reminders/schedule_create';
 $route['reminders/cron/generate-today'] = 'reminders/cron_generate_today';
 $route['reminders/announce'] = 'reminders/announce';
+$route['reminders/bulk'] = 'reminders/bulk';
+$route['reminders/import'] = 'reminders/import';
+$route['reminders/import-sample'] = 'reminders/import_sample';

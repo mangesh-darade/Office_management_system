@@ -17,10 +17,25 @@
             <label class="form-label">Name <span class="text-danger">*</span></label>
             <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?>" required>
           </div>
+          <?php if (!$is_edit): ?>
+          <div class="mb-3">
+            <label class="form-label">Email <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="email" name="email" id="userEmail" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" placeholder="you@gmail.com" required>
+              <button class="btn btn-outline-secondary" type="button" id="btnSendCode">Send code</button>
+            </div>
+            <div class="form-text" id="emailHelp"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Verification Code</label>
+            <input type="text" name="verify_code" class="form-control" placeholder="Enter code sent to this Gmail">
+          </div>
+          <?php else: ?>
           <div class="mb-3">
             <label class="form-label">Email <span class="text-danger">*</span></label>
             <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" required>
           </div>
+          <?php endif; ?>
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Role <span class="text-danger">*</span></label>
@@ -124,6 +139,47 @@
     <?php endif; ?>
   </div>
 </div>
+<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', function(){
+    if (<?php echo $is_edit ? 'true' : 'false'; ?>) return;
+    var site = '<?php echo rtrim(site_url(), "/"); ?>/';
+    var emailInput = document.getElementById('userEmail');
+    var btn = document.getElementById('btnSendCode');
+    var help = document.getElementById('emailHelp');
+    if (!emailInput || !btn || !help) return;
+    btn.addEventListener('click', function(){
+      var email = (emailInput.value || '').trim();
+      if (!email) {
+        help.textContent = 'Enter Gmail address first.';
+        help.className = 'form-text text-danger';
+        return;
+      }
+      btn.disabled = true;
+      help.textContent = 'Sending verification code...';
+      help.className = 'form-text text-muted';
+      fetch(site + 'auth/send-verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ email: email })
+      }).then(function(res){ return res.json(); }).then(function(data){
+        if (data && data.ok) {
+          help.textContent = 'Verification code sent. Please check inbox or spam.';
+          help.className = 'form-text text-success';
+        } else {
+          help.textContent = (data && data.error) ? data.error : 'Failed to send verification code.';
+          help.className = 'form-text text-danger';
+        }
+      }).catch(function(){
+        help.textContent = 'Error sending verification code.';
+        help.className = 'form-text text-danger';
+      }).finally(function(){
+        btn.disabled = false;
+      });
+    });
+  });
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.5/dist/face-api.min.js"></script>
 <script>
 (function(){

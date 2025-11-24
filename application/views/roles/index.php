@@ -3,6 +3,9 @@
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="mb-0">Roles</h5>
+      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#roleModal">
+        <i class="bi bi-plus-lg"></i> Add Role
+      </button>
     </div>
     <div class="card">
       <div class="card-body p-0">
@@ -53,4 +56,26 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="roleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="<?php echo site_url('roles/store'); ?>" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Role</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Role Name</label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <?php $this->load->view('partials/footer'); ?>

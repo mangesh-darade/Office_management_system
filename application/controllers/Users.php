@@ -53,6 +53,51 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
+        // Enforce Gmail-only and verification code similar to auth/register
+        $verify_code = trim((string)$this->input->post('verify_code'));
+        $domain = '';
+        if (strpos($in['email'], '@') !== false) {
+            $parts = explode('@', $in['email']);
+            $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
+        }
+        if ($domain !== 'gmail.com' && $domain !== 'googlemail.com') {
+            $this->session->set_flashdata('error', 'Please use a Gmail address (example@gmail.com).');
+            redirect('users/create');
+            return;
+        }
+        if ($domain !== '' && function_exists('checkdnsrr')) {
+            $hasMx = @checkdnsrr($domain, 'MX');
+            $hasA  = @checkdnsrr($domain, 'A');
+            if (!$hasMx && !$hasA) {
+                $this->session->set_flashdata('error', 'Email domain does not appear to be valid.');
+                redirect('users/create');
+                return;
+            }
+        }
+        $this->load->library('session');
+        $sessionEmail = (string)$this->session->userdata('reg_email');
+        $sessionHash  = (string)$this->session->userdata('reg_code_hash');
+        $sessionExp   = (int)$this->session->userdata('reg_code_expires');
+        if ($sessionEmail === '' || strcasecmp($sessionEmail, $in['email']) !== 0) {
+            $this->session->set_flashdata('error', 'Please request a verification code for this email first.');
+            redirect('users/create');
+            return;
+        }
+        if ($verify_code === '') {
+            $this->session->set_flashdata('error', 'Please enter the verification code sent to this Gmail.');
+            redirect('users/create');
+            return;
+        }
+        if (!$sessionHash || !$sessionExp || time() > $sessionExp) {
+            $this->session->set_flashdata('error', 'Verification code has expired. Please request a new code.');
+            redirect('users/create');
+            return;
+        }
+        if (!password_verify($verify_code, $sessionHash)) {
+            $this->session->set_flashdata('error', 'Invalid verification code.');
+            redirect('users/create');
+            return;
+        }
         // Validate role and status
         $roles = $this->roles();
         $roleIdPost = $this->input->post('role_id', true);
@@ -107,6 +152,9 @@ class Users extends CI_Controller {
         $avatarPath = $this->_handle_avatar_upload();
         if ($avatarPath && $this->db->field_exists('avatar', 'users')) { $data['avatar'] = $avatarPath; }
         $ok = $this->users->insert($data);
+        if ($ok) {
+            $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
+        }
         $this->_flash_redirect($ok, 'User created', 'users');
     }
 

@@ -6,8 +6,7 @@
     <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('reminders/send'); ?>">✉️ Send</a>
     <a class="btn btn-outline-info btn-sm" href="<?php echo site_url('reminders/templates'); ?>">🧩 Templates</a>
     <a class="btn btn-outline-warning btn-sm" href="<?php echo site_url('reminders/announce'); ?>">📣 Announce</a>
-    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toolbarAction('morning')">☀️ Morning</button>
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reminders/cron/night'); ?>">🌙 Night</a>
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reminders/import'); ?>">📂 Import CSV</a>
     <button type="button" class="btn btn-success btn-sm" onclick="submitSelected()">🚀 Send Selected</button>
     <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()">🗑️ Delete Selected</button>
   </div>
@@ -43,10 +42,21 @@
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Search</label>
-          <input id="filterSearch" type="text" class="form-control form-control-sm" placeholder="Search email, name, subject">
+          <input id="filterSearch" type="text" class="form-control form-select-sm" placeholder="Search email, name, subject">
         </div>
         <div class="col-md-4 text-md-end small text-muted">
           <div>Tip: Select rows and use 🚀 Send Selected or 🗑️ Delete Selected.</div>
+        </div>
+      </div>
+      <div class="row g-2 align-items-end mb-2">
+        <div class="col-md-4 col-lg-3">
+          <label class="form-label small mb-1">Template for Send Selected</label>
+          <select name="tpl_code" id="tpl_code" class="form-select form-select-sm">
+            <option value="">Use existing subject &amp; message</option>
+            <option value="daily_morning">Morning Template</option>
+            <option value="daily_night">Night Template</option>
+            <option value="bulk_manual">Bulk Mail Template</option>
+          </select>
         </div>
       </div>
       <div class="table-responsive">
@@ -92,13 +102,21 @@
             </td>
             <td><?php echo htmlspecialchars(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:'')); ?></td>
             <td>
-              <?php $t = isset($r->type)?$r->type:''; $cls = 'bg-secondary';
-                if ($t==='daily_morning') $cls='bg-info';
-                else if ($t==='daily_night') $cls='bg-warning';
-                else if ($t==='manual') $cls='bg-primary';
-                else if ($t==='schedule') $cls='bg-secondary';
+              <?php
+                $t = isset($r->type)?$r->type:'';
+                $cls = 'bg-secondary';
+                $label = $t;
+                if ($t==='daily_morning') { $cls='bg-info'; $label='daily_morning'; }
+                else if ($t==='daily_night') { $cls='bg-warning'; $label='daily_night'; }
+                else if ($t==='manual') { $cls='bg-primary'; $label='manual'; }
+                else if ($t==='bulk_manual') { $label=''; }
+                else if ($t==='schedule') { $cls='bg-secondary'; $label='schedule'; }
               ?>
-              <span class="badge text-dark <?php echo $cls; ?> border"><?php echo htmlspecialchars($t); ?></span>
+              <?php if ($label !== ''): ?>
+                <span class="badge text-dark <?php echo $cls; ?> border"><?php echo htmlspecialchars($label); ?></span>
+              <?php else: ?>
+                <span class="text-muted">&mdash;</span>
+              <?php endif; ?>
             </td>
             <td class="small"><?php echo htmlspecialchars(isset($r->subject)?$r->subject:''); ?></td>
             <td>
