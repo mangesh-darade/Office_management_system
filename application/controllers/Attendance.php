@@ -6,7 +6,7 @@ class Attendance extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->helper(['url','form','permission']);
-        $this->load->library(['session','upload']);
+        $this->load->library(['session','upload','email']);
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
     }
@@ -152,6 +152,7 @@ class Attendance extends CI_Controller {
                         if (array_key_exists('notes', $data)) { $updates['notes'] = $data['notes']; }
                         if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
                         $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
+                        $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
                         $this->session->set_flashdata('success', 'Checked in successfully');
                     }
                 } else { // action === 'out'
@@ -193,6 +194,7 @@ class Attendance extends CI_Controller {
                         }
                     }
                     $this->db->insert('attendance', $data);
+                    $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
                     $this->session->set_flashdata('success', 'Checked in successfully');
                 }
             }
@@ -221,6 +223,41 @@ class Attendance extends CI_Controller {
         if ($s === '' || $s === '0') return true;
         $zeros = ['00:00', '00:00:00', '0000-00-00', '0000-00-00 00:00:00'];
         return in_array($s, $zeros, true);
+    }
+
+    private function maybe_send_attendance_email($user_id, $action, $dateTime){
+        if (!$this->db->table_exists('users')) { return; }
+
+        $select = ['email'];
+        if ($this->db->field_exists('notify_attendance','users')){ $select[] = 'notify_attendance'; }
+        $user = $this->db->select(implode(',', $select), false)->from('users')->where('id',(int)$user_id)->get()->row();
+        if (!$user || !isset($user->email) || $user->email === '') { return; }
+
+        $notify = 1;
+        if ($this->db->field_exists('notify_attendance','users')){
+            $raw = isset($user->notify_attendance) ? $user->notify_attendance : 1;
+            if (is_numeric($raw)) {
+                $notify = ((int)$raw === 1) ? 1 : 0;
+            } else if (is_string($raw)) {
+                $notify = in_array(strtolower(trim((string)$raw)), ['1','yes','true','enabled'], true) ? 1 : 0;
+            }
+        }
+        if (!$notify) { return; }
+
+        $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
+        $this->email->initialize($cfg);
+        $this->email->clear(true);
+        $fromAddr = getenv('SMTP_USER');
+        if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
+        $fromName = 'Office Management System';
+        $this->email->from($fromAddr, $fromName);
+        $this->email->to($user->email);
+        $isOut = ($action === 'out');
+        $subject = $isOut ? 'Attendance checkout recorded' : 'Attendance check-in recorded';
+        $body = "Hello,\n\nYour attendance ".($isOut?'checkout':'check-in')." has been recorded at ".$dateTime.".\n\nThank you.";
+        $this->email->subject($subject);
+        $this->email->message($body);
+        $this->email->send();
     }
 
     private function reverse_geocode($lat, $lng){

@@ -64,6 +64,8 @@ $route['login'] = 'auth/login';
 $route['logout'] = 'auth/logout';
 $route['register'] = 'auth/register';
 $route['auth/send-verify-code'] = 'auth/send_verify_code';
+$route['forgot-password'] = 'auth/forgot_password';
+$route['reset-password'] = 'auth/reset_password';
 
 // Dashboard
 $route['dashboard'] = 'dashboard/index';
@@ -272,6 +274,10 @@ $route['reminders/delete-selected'] = 'reminders/delete_selected';
 $route['reminders/templates'] = 'reminders/templates';
 $route['reminders/schedules'] = 'reminders/schedules';
 $route['reminders/schedules/create'] = 'reminders/schedule_create';
+$route['reminders/schedules/(:num)/edit'] = 'reminders/schedule_edit/$1';
+$route['reminders/schedules/(:num)/delete'] = 'reminders/schedule_delete/$1';
+$route['reminders/schedules/(:num)/activate'] = 'reminders/schedule_activate/$1';
+$route['reminders/schedules/(:num)/deactivate'] = 'reminders/schedule_deactivate/$1';
 $route['reminders/cron/generate-today'] = 'reminders/cron_generate_today';
 $route['reminders/announce'] = 'reminders/announce';
 $route['reminders/bulk'] = 'reminders/bulk';

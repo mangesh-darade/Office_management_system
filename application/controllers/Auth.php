@@ -161,6 +161,135 @@ class Auth extends CI_Controller {
         redirect('auth/login');
     }
 
+    public function forgot_password(){
+        if ($this->input->method() === 'post') {
+            $phone = trim((string)$this->input->post('phone'));
+            if ($phone === '') {
+                $this->session->set_flashdata('error', 'Please enter your registered mobile number.');
+                redirect('auth/forgot_password');
+                return;
+            }
+            if (!isset($this->db) || !$this->db->field_exists('phone', 'users')) {
+                $this->session->set_flashdata('error', 'Password reset via mobile number is not available.');
+                redirect('auth/forgot_password');
+                return;
+            }
+            $user = $this->User_model->get_by_phone($phone);
+            if (!$user) {
+                // Do not reveal whether the phone exists; show generic success
+                $this->session->set_flashdata('success', 'If this mobile number is registered, an OTP has been sent to the linked email address.');
+                redirect('auth/forgot_password');
+                return;
+            }
+            if (isset($user->status) && $user->status !== 'active') {
+                $this->session->set_flashdata('error', 'Account inactive. Please contact the administrator.');
+                redirect('auth/forgot_password');
+                return;
+            }
+            if (empty($user->email)) {
+                $this->session->set_flashdata('error', 'No email address is linked to this account. Please contact the administrator.');
+                redirect('auth/forgot_password');
+                return;
+            }
+            try {
+                if (!function_exists('random_int')) {
+                    $code = mt_rand(100000, 999999);
+                } else {
+                    $code = random_int(100000, 999999);
+                }
+            } catch (Exception $e) {
+                $code = mt_rand(100000, 999999);
+            }
+            $this->load->library('session');
+            $this->session->set_userdata([
+                'pw_reset_phone' => $phone,
+                'pw_reset_code_hash' => password_hash((string)$code, PASSWORD_DEFAULT),
+                'pw_reset_expires' => time() + 600,
+            ]);
+
+            // Send OTP to user's registered email
+            try {
+                $this->config->load('email');
+                $this->load->library('email');
+                $this->email->clear(true);
+                $from = $this->config->item('smtp_user');
+                if (!$from) { $from = 'no-reply@example.com'; }
+                $this->email->from($from, 'OfficeMgmt');
+                $this->email->to($user->email);
+                $this->email->subject('Your password reset OTP');
+                $message = '<p>Your OTP for resetting your password is <strong>'.htmlspecialchars((string)$code, ENT_QUOTES, 'UTF-8').'</strong>.</p>';
+                $message .= '<p>It will expire in 10 minutes.</p>';
+                $this->email->message($message);
+                if (!$this->email->send()) {
+                    $this->session->set_flashdata('error', 'Failed to send OTP email. Please try again.');
+                    redirect('auth/forgot_password');
+                    return;
+                }
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Failed to send OTP email. Please try again.');
+                redirect('auth/forgot_password');
+                return;
+            }
+
+            $this->session->set_flashdata('success', 'An OTP has been sent to your registered email address. Please check your inbox or spam folder.');
+            redirect('auth/reset_password');
+            return;
+        }
+        $this->load->view('auth/forgot_password');
+    }
+
+    public function reset_password(){
+        $this->load->library('session');
+        $phone = (string)$this->session->userdata('pw_reset_phone');
+        $hash = (string)$this->session->userdata('pw_reset_code_hash');
+        $expires = (int)$this->session->userdata('pw_reset_expires');
+        if ($phone === '' || !$hash || !$expires || time() > $expires) {
+            $this->session->set_flashdata('error', 'Invalid or expired OTP. Please request a new one.');
+            redirect('auth/forgot_password');
+            return;
+        }
+        if ($this->input->method() === 'post') {
+            $code = trim((string)$this->input->post('code'));
+            $password = (string)$this->input->post('password');
+            $confirm = (string)$this->input->post('password_confirm');
+            if ($code === '') {
+                $this->session->set_flashdata('error', 'Please enter the OTP sent to your mobile.');
+                redirect('auth/reset_password');
+                return;
+            }
+            if (!password_verify($code, $hash)) {
+                $this->session->set_flashdata('error', 'Invalid OTP.');
+                redirect('auth/reset_password');
+                return;
+            }
+            if (strlen($password) < 6) {
+                $this->session->set_flashdata('error', 'Password must be at least 6 characters.');
+                redirect('auth/reset_password');
+                return;
+            }
+            if ($password !== $confirm) {
+                $this->session->set_flashdata('error', 'Passwords do not match.');
+                redirect('auth/reset_password');
+                return;
+            }
+            $user = $this->User_model->get_by_phone($phone);
+            if (!$user) {
+                $this->session->set_flashdata('error', 'Unable to find user for this reset request.');
+                $this->session->unset_userdata(['pw_reset_phone','pw_reset_code_hash','pw_reset_expires']);
+                redirect('auth/forgot_password');
+                return;
+            }
+            $this->User_model->update($user->id, [
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            ]);
+            $this->session->unset_userdata(['pw_reset_phone','pw_reset_code_hash','pw_reset_expires']);
+            $this->session->set_flashdata('success', 'Your password has been updated. Please login.');
+            redirect('auth/login');
+            return;
+        }
+        $this->load->view('auth/reset_password');
+    }
+
     public function register(){
         if ($this->input->method() === 'post') {
             $full_name = trim((string)$this->input->post('name'));

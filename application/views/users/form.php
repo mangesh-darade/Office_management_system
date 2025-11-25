@@ -99,6 +99,15 @@
             </div>
 
             <div class="col-md-4">
+              <label class="form-label">Attendance Email</label>
+              <?php $attNotify = (int)(isset($row->notify_attendance) ? $row->notify_attendance : 1); ?>
+              <select name="notify_attendance" class="form-select">
+                <option value="1" <?php echo $attNotify===1?'selected':''; ?>>Enabled</option>
+                <option value="0" <?php echo $attNotify===0?'selected':''; ?>>Disabled</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
               <label class="form-label">Avatar</label>
               <input type="file" name="avatar" accept="image/*" class="form-control">
               <?php if (!empty($row->avatar)): ?>

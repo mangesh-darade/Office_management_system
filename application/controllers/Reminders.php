@@ -276,6 +276,9 @@ class Reminders extends CI_Controller {
             $user_id = $this->input->post('user_id') !== '' ? (int)$this->input->post('user_id') : null;
             $weekdays = trim($this->input->post('weekdays')); // e.g. 1,2,3
             $send_time = trim($this->input->post('send_time')); // HH:MM
+            $schedule_type = $this->input->post('schedule_type');
+            $schedule_type = ($schedule_type === 'once') ? 'once' : 'weekly';
+            $one_time_raw = trim($this->input->post('one_time_at'));
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
             $name = trim($this->input->post('name'));
@@ -284,16 +287,38 @@ class Reminders extends CI_Controller {
                 $this->session->set_flashdata('error','Please select a user for this schedule.');
                 redirect('reminders/schedules/create'); return;
             }
-            if ($weekdays === '' || $send_time === '' || $subject === '' || $name === ''){
+            if ($subject === '' || $name === ''){
                 $this->session->set_flashdata('error','Please fill required fields.');
                 redirect('reminders/schedules/create'); return;
+            }
+            $one_time_at = null;
+            if ($schedule_type === 'weekly'){
+                if ($weekdays === '' || $send_time === ''){
+                    $this->session->set_flashdata('error','Please select weekdays and send time.');
+                    redirect('reminders/schedules/create'); return;
+                }
+            } else { // one-time
+                if ($one_time_raw === ''){
+                    $this->session->set_flashdata('error','Please select send date and time.');
+                    redirect('reminders/schedules/create'); return;
+                }
+                // HTML datetime-local comes as YYYY-MM-DDTHH:MM
+                $dt = str_replace('T', ' ', $one_time_raw);
+                if (strlen($dt) === 16){ $dt .= ':00'; }
+                $one_time_at = $dt;
+                // Derive send_time for display/logical consistency
+                $send_time = substr($dt, 11, 5);
+                // One-time schedules do not use weekdays
+                $weekdays = '';
             }
             $this->reminders->create_schedule([
                 'name' => $name,
                 'audience' => $audience,
                 'user_id' => $user_id,
                 'weekdays' => $weekdays,
+                'schedule_type' => $schedule_type,
                 'send_time' => $send_time,
+                'one_time_at' => $one_time_at,
                 'subject' => $subject,
                 'body' => $body,
                 'active' => 1,
@@ -307,6 +332,121 @@ class Reminders extends CI_Controller {
         $this->load->view('reminders/schedule_form', ['users'=>$users]);
     }
 
+    // GET/POST /reminders/schedules/{id}/edit
+    public function schedule_edit($id){
+        $id = (int)$id;
+        if ($id <= 0){
+            redirect('reminders/schedules');
+            return;
+        }
+        $schedule = $this->reminders->get_schedule($id);
+        if (!$schedule){
+            $this->session->set_flashdata('error','Schedule not found');
+            redirect('reminders/schedules');
+            return;
+        }
+        if ($this->input->method() === 'post'){
+            $audience = $this->input->post('audience');
+            $user_id = $this->input->post('user_id') !== '' ? (int)$this->input->post('user_id') : null;
+            $weekdays = trim($this->input->post('weekdays'));
+            $send_time = trim($this->input->post('send_time'));
+            $schedule_type = $this->input->post('schedule_type');
+            $schedule_type = ($schedule_type === 'once') ? 'once' : 'weekly';
+            $one_time_raw = trim($this->input->post('one_time_at'));
+            $subject = trim($this->input->post('subject'));
+            $body = (string)$this->input->post('body');
+            $name = trim($this->input->post('name'));
+            if ($audience !== 'all' && $audience !== 'user') { $audience = 'user'; }
+            if ($audience === 'user' && !$user_id){
+                $this->session->set_flashdata('error','Please select a user for this schedule.');
+                redirect('reminders/schedules/'.$id.'/edit'); return;
+            }
+            if ($subject === '' || $name === ''){
+                $this->session->set_flashdata('error','Please fill required fields.');
+                redirect('reminders/schedules/'.$id.'/edit'); return;
+            }
+            $one_time_at = null;
+            if ($schedule_type === 'weekly'){
+                if ($weekdays === '' || $send_time === ''){
+                    $this->session->set_flashdata('error','Please select weekdays and send time.');
+                    redirect('reminders/schedules/'.$id.'/edit'); return;
+                }
+            } else { // one-time
+                if ($one_time_raw === ''){
+                    $this->session->set_flashdata('error','Please select send date and time.');
+                    redirect('reminders/schedules/'.$id.'/edit'); return;
+                }
+                $dt = str_replace('T', ' ', $one_time_raw);
+                if (strlen($dt) === 16){ $dt .= ':00'; }
+                $one_time_at = $dt;
+                $send_time = substr($dt, 11, 5);
+                $weekdays = '';
+            }
+            $this->reminders->update_schedule($id, array(
+                'name' => $name,
+                'audience' => $audience,
+                'user_id' => $user_id,
+                'weekdays' => $weekdays,
+                'schedule_type' => $schedule_type,
+                'send_time' => $send_time,
+                'one_time_at' => $one_time_at,
+                'subject' => $subject,
+                'body' => $body,
+            ));
+            $this->session->set_flashdata('success','Schedule updated');
+            redirect('reminders/schedules');
+            return;
+        }
+        $users = $this->reminders->all_users();
+        $this->load->view('reminders/schedule_form', array(
+            'users' => $users,
+            'schedule' => $schedule,
+            'form_action' => site_url('reminders/schedules/'.$id.'/edit'),
+        ));
+    }
+
+    // GET /reminders/schedules/{id}/delete
+    public function schedule_delete($id){
+        $id = (int)$id;
+        if ($id <= 0){ redirect('reminders/schedules'); return; }
+        $schedule = $this->reminders->get_schedule($id);
+        if (!$schedule){
+            $this->session->set_flashdata('error','Schedule not found');
+            redirect('reminders/schedules'); return;
+        }
+        $this->reminders->delete_schedule($id);
+        $this->session->set_flashdata('success','Schedule deleted');
+        redirect('reminders/schedules');
+    }
+
+    // GET /reminders/schedules/{id}/activate
+    public function schedule_activate($id){
+        $id = (int)$id;
+        if ($id <= 0){ redirect('reminders/schedules'); return; }
+        $schedule = $this->reminders->get_schedule($id);
+        if (!$schedule){
+            $this->session->set_flashdata('error','Schedule not found');
+            redirect('reminders/schedules'); return;
+        }
+        $this->reminders->set_schedule_active($id, 1);
+        $this->session->set_flashdata('success','Schedule activated');
+        redirect('reminders/schedules');
+    }
+
+    // GET /reminders/schedules/{id}/deactivate
+    public function schedule_deactivate($id){
+        $id = (int)$id;
+        if ($id <= 0){ redirect('reminders/schedules'); return; }
+        $schedule = $this->reminders->get_schedule($id);
+        if (!$schedule){
+            $this->session->set_flashdata('error','Schedule not found');
+            redirect('reminders/schedules'); return;
+        }
+        $this->reminders->set_schedule_active($id, 0);
+        $this->session->set_flashdata('success','Schedule deactivated');
+        redirect('reminders/schedules');
+    }
+
     // GET /reminders/cron/generate-today
     public function cron_generate_today(){
         // Determine current weekday (0=Sunday .. 6=Saturday) and time HH:MM
@@ -315,6 +455,13 @@ class Reminders extends CI_Controller {
         $due = $this->reminders->fetch_due_schedules($weekday, $nowTime);
         $queued = 0;
         foreach ($due as $s){
+            // Determine send_at: use one_time_at for one-time schedules, otherwise today + send_time
+            $sendAt = null;
+            if (isset($s->schedule_type) && $s->schedule_type === 'once' && isset($s->one_time_at) && $s->one_time_at){
+                $sendAt = $s->one_time_at;
+            } else {
+                $sendAt = date('Y-m-d').' '.$s->send_time.':00';
+            }
             if ($s->audience === 'all'){
                 $users = $this->reminders->all_users();
                 foreach ($users as $u){
@@ -326,7 +473,7 @@ class Reminders extends CI_Controller {
                         'type' => 'schedule',
                         'subject' => $s->subject,
                         'body' => $s->body !== '' ? $s->body : $s->subject,
-                        'send_at' => date('Y-m-d').' '.$s->send_time.':00',
+                        'send_at' => $sendAt,
                     ]);
                     $queued++;
                 }
@@ -344,7 +491,7 @@ class Reminders extends CI_Controller {
                         'type' => 'schedule',
                         'subject' => $s->subject,
                         'body' => $s->body !== '' ? $s->body : $s->subject,
-                        'send_at' => date('Y-m-d').' '.$s->send_time.':00',
+                        'send_at' => $sendAt,
                     ]);
                     $queued++;
                 }

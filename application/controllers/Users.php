@@ -44,6 +44,7 @@ class Users extends CI_Controller {
                 'phone' => '',
                 'is_verified' => 0,
                 'avatar' => '',
+                'notify_attendance' => 1,
             ],
             'is_edit' => false,
             'roles' => $this->roles(),
@@ -284,6 +285,7 @@ class Users extends CI_Controller {
         $in['status'] = $this->input->post('status', true) !== null ? $this->input->post('status', true) : 1; // raw; normalize later
         $in['phone'] = trim($this->input->post('phone', true) ?: '');
         $in['is_verified'] = (int)($this->input->post('is_verified', true) !== null ? $this->input->post('is_verified', true) : 0);
+        $in['notify_attendance'] = (int)($this->input->post('notify_attendance', true) !== null ? $this->input->post('notify_attendance', true) : 1);
         $in['password'] = trim($this->input->post('password') ?: '');
         return $in;
     }

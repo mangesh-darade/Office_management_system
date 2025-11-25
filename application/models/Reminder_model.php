@@ -41,7 +41,9 @@ class Reminder_model extends CI_Model {
                 `audience` varchar(20) DEFAULT 'user',
                 `user_id` int(11) DEFAULT NULL,
                 `weekdays` varchar(50) NOT NULL,
+                `schedule_type` varchar(20) DEFAULT 'weekly',
                 `send_time` char(5) NOT NULL,
+                `one_time_at` datetime DEFAULT NULL,
                 `subject` varchar(255) NOT NULL,
                 `body` text,
                 `active` tinyint(1) DEFAULT 1,
@@ -50,6 +52,14 @@ class Reminder_model extends CI_Model {
                 PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql2);
+        }
+        if ($this->db->table_exists('reminder_schedules')){
+            if (!$this->db->field_exists('schedule_type','reminder_schedules')){
+                $this->db->query("ALTER TABLE `reminder_schedules` ADD COLUMN `schedule_type` varchar(20) DEFAULT 'weekly' AFTER `weekdays`");
+            }
+            if (!$this->db->field_exists('one_time_at','reminder_schedules')){
+                $this->db->query("ALTER TABLE `reminder_schedules` ADD COLUMN `one_time_at` datetime DEFAULT NULL AFTER `send_time`");
+            }
         }
         // Templates table for morning/night
         if (!$this->db->table_exists('reminder_templates')){
@@ -178,19 +188,58 @@ class Reminder_model extends CI_Model {
         return (int)$this->db->insert_id();
     }
 
+    public function get_schedule($id){
+        if (!$this->db->table_exists('reminder_schedules')){ return null; }
+        return $this->db->get_where('reminder_schedules', array('id' => (int)$id))->row();
+    }
+
+    public function update_schedule($id, $data){
+        if (!$this->db->table_exists('reminder_schedules')){ return 0; }
+        $this->db->where('id', (int)$id)->update('reminder_schedules', $data);
+        return $this->db->affected_rows();
+    }
+
+    public function delete_schedule($id){
+        if (!$this->db->table_exists('reminder_schedules')){ return 0; }
+        $this->db->where('id', (int)$id)->delete('reminder_schedules');
+        return $this->db->affected_rows();
+    }
+
+    public function set_schedule_active($id, $active){
+        if (!$this->db->table_exists('reminder_schedules')){ return 0; }
+        $this->db->where('id', (int)$id)->update('reminder_schedules', array('active' => $active ? 1 : 0));
+        return $this->db->affected_rows();
+    }
+
     public function fetch_due_schedules($weekday, $time){
         if (!$this->db->table_exists('reminder_schedules')){ return array(); }
         $today = date('Y-m-d');
-        // Select active schedules where weekday is included and time <= now and not yet run today
+        $now = date('Y-m-d H:i:s');
+        // Weekly schedules: weekday match and time <= now and not yet run today
         $this->db->from('reminder_schedules');
         $this->db->where('active', 1);
+        // Treat NULL or 'weekly' as weekly type
+        $this->db->group_start();
+        $this->db->where('schedule_type', 'weekly');
+        $this->db->or_where('schedule_type IS NULL', null, false);
+        $this->db->group_end();
         $this->db->like('weekdays', (string)$weekday); // CSV contains weekday number
         $this->db->where('send_time <=', $time);
         $this->db->group_start();
         $this->db->where('last_run_date IS NULL', null, false);
         $this->db->or_where('last_run_date <', $today);
         $this->db->group_end();
-        return $this->db->get()->result();
+        $weekly = $this->db->get()->result();
+
+        // One-time schedules: fire once at or before one_time_at, never run before
+        $this->db->from('reminder_schedules');
+        $this->db->where('active', 1);
+        $this->db->where('schedule_type', 'once');
+        $this->db->where('one_time_at <=', $now);
+        $this->db->where('last_run_date IS NULL', null, false);
+        $once = $this->db->get()->result();
+
+        return array_merge($weekly, $once);
     }
 
     public function mark_schedule_ran_today($id){

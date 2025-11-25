@@ -4,10 +4,29 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class User_model extends CI_Model {
     private $table = 'users';
 
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){
+        parent::__construct();
+        $this->load->database();
+        $this->ensure_schema();
+    }
+
+    private function ensure_schema(){
+        if ($this->db->table_exists($this->table)){
+            if (!$this->db->field_exists('notify_attendance', $this->table)){
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `notify_attendance` TINYINT(1) NOT NULL DEFAULT 1");
+            }
+        }
+    }
 
     public function get_by_email($email){
         return $this->db->get_where($this->table, ['email' => $email])->row();
+    }
+
+    public function get_by_phone($phone){
+        if (!$this->db->field_exists('phone', $this->table)){
+            return null;
+        }
+        return $this->db->get_where($this->table, ['phone' => $phone])->row();
     }
 
     /**
