@@ -30,6 +30,8 @@ class Call_model extends CI_Model {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX(call_id), INDEX(to_user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        // Ensure new 'end' type is available for call termination broadcasts
+        $this->db->query("ALTER TABLE signaling_messages MODIFY COLUMN type ENUM('offer','answer','ice','end') NOT NULL");
     }
 
     public function start_call($conversation_id, $initiator_id) {

@@ -999,6 +999,11 @@
       stopRinging();
     } else if (sig.type==='ice') {
       try { await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(sig.payload))); } catch(e){}
+    } else if (sig.type==='end') {
+      // Remote participant (or group) has ended the call; close locally without re-notifying server
+      try { if (parseInt(sig.from_user_id||0,10) === userId) { return; } } catch(e){}
+      callId = null;
+      try { await endCall(); } catch(e){}
     }
   }
 

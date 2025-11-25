@@ -49,7 +49,12 @@ class Calls extends CI_Controller {
     // POST /calls/end/{call_id}
     public function end($call_id) {
         $call_id = (int)$call_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        // Mark call ended in master table
         $this->Call_model->end_call($call_id);
+        // Broadcast an 'end' signal so all participants polling this call can close locally
+        $payload = json_encode(['reason' => 'ended_by_user', 'at' => date('c')]);
+        $this->Call_model->add_signal($call_id, $user_id, null, 'end', $payload);
         $this->_json(['ok'=>true]);
     }
 
