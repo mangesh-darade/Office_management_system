@@ -78,7 +78,7 @@ $db['default'] = array(
 	'hostname' => 'localhost',
 	'username' => 'root',
 	'password' => '',
-	'database' => 'employmanagement',
+	'database' => 'admin_stadmin_internal_portal',
 	
 	// 'hostname' => '65.2.59.101',
 	// 'username' => 'sitadmin_Magicwe_ankita_11_nov',

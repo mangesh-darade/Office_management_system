@@ -152,6 +152,136 @@ class Chats extends CI_Controller {
         $this->_json(['ok'=>true]);
     }
 
+    // POST /chats/typing (AJAX)
+    public function set_typing() {
+        $conversation_id = (int)$this->input->post('conversation_id');
+        $user_id = (int)$this->session->userdata('user_id');
+        $is_typing = (bool)$this->input->post('is_typing');
+        
+        if (!$this->Chat_model->is_participant($conversation_id, $user_id)) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']);
+            return;
+        }
+        
+        $this->Chat_model->set_typing($conversation_id, $user_id, $is_typing);
+        $this->_json(['ok'=>true]);
+    }
+
+    // GET /chats/typing?conversation_id=1 (AJAX)
+    public function get_typing() {
+        $conversation_id = (int)$this->input->get('conversation_id');
+        $user_id = (int)$this->session->userdata('user_id');
+        
+        if (!$this->Chat_model->is_participant($conversation_id, $user_id)) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']);
+            return;
+        }
+        
+        $typing_users = $this->Chat_model->get_typing_users($conversation_id, $user_id);
+        $this->_json(['ok'=>true,'typing_users'=>$typing_users]);
+    }
+
+    // POST /chats/online-status (AJAX)
+    public function set_online_status() {
+        $user_id = (int)$this->session->userdata('user_id');
+        $is_online = (bool)$this->input->post('is_online');
+        
+        $this->Chat_model->set_online_status($user_id, $is_online);
+        $this->_json(['ok'=>true]);
+    }
+
+    // GET /chats/online-status?user_ids=1,2,3 (AJAX)
+    public function get_online_status() {
+        $user_ids = $this->input->get('user_ids');
+        if ($user_ids) {
+            $user_ids = array_map('intval', explode(',', $user_ids));
+            $status_data = $this->Chat_model->get_online_status($user_ids);
+            $this->_json(['ok'=>true,'status'=>$status_data]);
+        } else {
+            $this->_json(['ok'=>false,'error'=>'missing user_ids']);
+        }
+    }
+
+    // POST /chats/reaction (AJAX)
+    public function add_reaction() {
+        $message_id = (int)$this->input->post('message_id');
+        $user_id = (int)$this->session->userdata('user_id');
+        $reaction = trim($this->input->post('reaction'));
+        
+        if (!$message_id || !$reaction) {
+            $this->_json(['ok'=>false,'error'=>'missing parameters']);
+            return;
+        }
+        
+        // Check if user is participant in the conversation
+        $this->db->select('conversation_id');
+        $this->db->from('messages');
+        $this->db->where('id', $message_id);
+        $message = $this->db->get()->row();
+        
+        if (!$message || !$this->Chat_model->is_participant($message->conversation_id, $user_id)) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']);
+            return;
+        }
+        
+        $this->Chat_model->add_reaction($message_id, $user_id, $reaction);
+        $reactions = $this->Chat_model->get_message_reactions($message_id);
+        $this->_json(['ok'=>true,'reactions'=>$reactions]);
+    }
+
+    // POST /chats/reaction/remove (AJAX)
+    public function remove_reaction() {
+        $message_id = (int)$this->input->post('message_id');
+        $user_id = (int)$this->session->userdata('user_id');
+        $reaction = trim($this->input->post('reaction'));
+        
+        if (!$message_id || !$reaction) {
+            $this->_json(['ok'=>false,'error'=>'missing parameters']);
+            return;
+        }
+        
+        // Check if user is participant in the conversation
+        $this->db->select('conversation_id');
+        $this->db->from('messages');
+        $this->db->where('id', $message_id);
+        $message = $this->db->get()->row();
+        
+        if (!$message || !$this->Chat_model->is_participant($message->conversation_id, $user_id)) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']);
+            return;
+        }
+        
+        $this->Chat_model->remove_reaction($message_id, $user_id, $reaction);
+        $reactions = $this->Chat_model->get_message_reactions($message_id);
+        $this->_json(['ok'=>true,'reactions'=>$reactions]);
+    }
+
+    // GET /chats/reactions?message_id=1 (AJAX)
+    public function get_reactions() {
+        $message_id = (int)$this->input->get('message_id');
+        $user_id = (int)$this->session->userdata('user_id');
+        
+        if (!$message_id) {
+            $this->_json(['ok'=>false,'error'=>'missing message_id']);
+            return;
+        }
+        
+        // Check if user is participant in the conversation
+        $this->db->select('conversation_id');
+        $this->db->from('messages');
+        $this->db->where('id', $message_id);
+        $message = $this->db->get()->row();
+        
+        if (!$message || !$this->Chat_model->is_participant($message->conversation_id, $user_id)) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']);
+            return;
+        }
+        
+        $reactions = $this->Chat_model->get_message_reactions($message_id);
+        $user_reaction = $this->Chat_model->get_user_reaction($message_id, $user_id);
+        $this->_json(['ok'=>true,'reactions'=>$reactions,'user_reaction'=>$user_reaction]);
+    }
+
     private function _json($arr) {
         $this->output->set_content_type('application/json')->set_output(json_encode($arr));
     }

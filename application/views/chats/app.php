@@ -81,8 +81,39 @@
             </form>
           </div>
           <div class="col-12 col-xl-5">
-            <div class="ratio ratio-16x9 bg-dark mb-2 rounded"><video id="remoteVideo" autoplay playsinline></video></div>
-            <div class="ratio ratio-16x9 bg-secondary mb-2 rounded"><video id="localVideo" autoplay playsinline muted></video></div>
+            <div class="ratio ratio-16x9 bg-dark mb-2 rounded video-placeholder" id="remoteVideoContainer">
+              <video id="remoteVideo" autoplay playsinline></video>
+              <div class="video-status disconnected" id="remoteVideoStatus">
+                <span class="status-dot"></span>
+                <span>Not Connected</span>
+              </div>
+              <div class="video-controls">
+                <button class="btn" id="btnRemoteVideoToggle" title="Toggle Video">
+                  <i class="bi bi-camera-video"></i>
+                </button>
+                <button class="btn" id="btnRemoteAudioToggle" title="Toggle Audio">
+                  <i class="bi bi-mic"></i>
+                </button>
+                <button class="btn" id="btnRemoteFullscreen" title="Fullscreen">
+                  <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+              </div>
+            </div>
+            <div class="ratio ratio-16x9 bg-secondary mb-2 rounded video-placeholder" id="localVideoContainer">
+              <video id="localVideo" autoplay playsinline muted></video>
+              <div class="video-status disconnected" id="localVideoStatus">
+                <span class="status-dot"></span>
+                <span>Camera Off</span>
+              </div>
+              <div class="video-controls">
+                <button class="btn" id="btnLocalVideoToggle" title="Toggle Camera">
+                  <i class="bi bi-camera-video"></i>
+                </button>
+                <button class="btn" id="btnLocalAudioToggle" title="Toggle Microphone">
+                  <i class="bi bi-mic"></i>
+                </button>
+              </div>
+            </div>
             <div id="callStatus" class="small text-muted">Idle</div>
           </div>
         </div>
@@ -197,6 +228,12 @@
   const btnOverlayCamera = document.getElementById('btnOverlayCamera');
   const btnOverlayLeave = document.getElementById('btnOverlayLeave');
   const btnOverlayClose = document.getElementById('btnOverlayClose');
+  // New video control buttons
+  const btnLocalVideoToggle = document.getElementById('btnLocalVideoToggle');
+  const btnLocalAudioToggle = document.getElementById('btnLocalAudioToggle');
+  const btnRemoteVideoToggle = document.getElementById('btnRemoteVideoToggle');
+  const btnRemoteAudioToggle = document.getElementById('btnRemoteAudioToggle');
+  const btnRemoteFullscreen = document.getElementById('btnRemoteFullscreen');
   // Helpers for remote server robustness
   function isUnauthorizedResponse(r){ try { return r && r.status===401; } catch(e){ return false; } }
   async function parseJsonSafe(r){ try { return await r.json(); } catch(e){ return null; } }
@@ -255,6 +292,13 @@
   let overlayOpen = false;
   let cameraEnabled = true;
   let toastInstance = null;
+  
+  // Typing indicator and online status variables
+  let typingTimer = null;
+  let onlineStatusTimer = null;
+  let typingUsers = new Map(); // conversation_id -> Set of user_ids
+  let onlineUsers = new Map(); // user_id -> {is_online, last_seen}
+  let currentTypingUsers = new Set(); // users currently typing in active conversation
   if (window.bootstrap && window.bootstrap.Toast) {
     toastInstance = new bootstrap.Toast(chatToastEl, { delay: 3500 });
   }
@@ -286,6 +330,153 @@
     }
   }
   function incrementUnread(cid){ setUnread(cid, (unreadCounts[cid]||0)+1); }
+
+  // Typing indicator functions
+  function setTyping(isTyping) {
+    if (!convoId) return;
+    
+    // Clear existing timer
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+      typingTimer = null;
+    }
+    
+    if (isTyping) {
+      // Send typing indicator
+      fetch(site + 'chats/typing', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'conversation_id=' + convoId + '&is_typing=1'
+      }).catch(e => console.warn('Typing indicator error:', e));
+      
+      // Auto-stop typing after 3 seconds of inactivity
+      typingTimer = setTimeout(() => {
+        stopTyping();
+      }, 3000);
+    } else {
+      stopTyping();
+    }
+  }
+  
+  function stopTyping() {
+    if (!convoId) return;
+    
+    fetch(site + 'chats/typing', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'conversation_id=' + convoId + '&is_typing=0'
+    }).catch(e => console.warn('Stop typing error:', e));
+  }
+  
+  function fetchTypingUsers() {
+    if (!convoId) return;
+    
+    fetch(site + 'chats/typing?conversation_id=' + convoId)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.typing_users) {
+          updateTypingIndicator(data.typing_users);
+        }
+      })
+      .catch(e => console.warn('Fetch typing users error:', e));
+  }
+  
+  function updateTypingIndicator(typingUsers) {
+    const typingUserIds = new Set(typingUsers.map(u => u.user_id));
+    
+    // Show/hide typing indicator in messages area
+    const existingIndicator = document.querySelector('.typing-indicator');
+    
+    if (typingUserIds.size > 0) {
+      const typingText = typingUserIds.size === 1 
+        ? 'Someone is typing...' 
+        : `${typingUserIds.size} people are typing...`;
+      
+      if (!existingIndicator) {
+        const indicator = document.createElement('div');
+        indicator.className = 'typing-indicator';
+        indicator.innerHTML = `
+          <div class="bubble">
+            <div class="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            ${typingText}
+          </div>
+        `;
+        messagesEl.appendChild(indicator);
+        scrollToBottom();
+      } else {
+        existingIndicator.querySelector('.bubble').innerHTML = `
+          <div class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          ${typingText}
+        `;
+      }
+    } else if (existingIndicator) {
+      existingIndicator.remove();
+    }
+  }
+  
+  // Online status functions
+  function setOnlineStatus(isOnline) {
+    fetch(site + 'chats/online-status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'is_online=' + (isOnline ? '1' : '0')
+    }).catch(e => console.warn('Set online status error:', e));
+  }
+  
+  function fetchOnlineStatus(userIds) {
+    if (!userIds || userIds.length === 0) return;
+    
+    fetch(site + 'chats/online-status?user_ids=' + userIds.join(','))
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.status) {
+          updateOnlineStatus(data.status);
+        }
+      })
+      .catch(e => console.warn('Fetch online status error:', e));
+  }
+  
+  function updateOnlineStatus(statusData) {
+    statusData.forEach(status => {
+      onlineUsers.set(status.user_id, {
+        is_online: status.is_online,
+        last_seen: status.last_seen
+      });
+    });
+    
+    // Update conversation list avatars
+    updateConversationAvatars();
+  }
+  
+  function updateConversationAvatars() {
+    // This would update avatar online indicators in the conversation list
+    // Implementation depends on how user data is stored in conversation items
+    const convoItems = document.querySelectorAll('.convo-item');
+    convoItems.forEach(item => {
+      const userId = item.getAttribute('data-user-id');
+      if (userId && onlineUsers.has(parseInt(userId))) {
+        const status = onlineUsers.get(parseInt(userId));
+        const avatar = item.querySelector('.avatar');
+        if (avatar) {
+          if (status.is_online) {
+            avatar.classList.add('online');
+            avatar.classList.remove('offline');
+          } else {
+            avatar.classList.add('offline');
+            avatar.classList.remove('online');
+          }
+        }
+      }
+    });
+  }
 
   function focusConversationById(id){
     const btn = findConvoButtonById(id);
@@ -914,9 +1105,34 @@
   let mediaRecorder=null; let recordedChunks=[]; let isRecording=false;
   const localVideo = document.getElementById('localVideo');
   const remoteVideo = document.getElementById('remoteVideo');
+  const remoteVideoContainer = document.getElementById('remoteVideoContainer');
+  const localVideoContainer = document.getElementById('localVideoContainer');
+  const remoteVideoStatus = document.getElementById('remoteVideoStatus');
+  const localVideoStatus = document.getElementById('localVideoStatus');
+  
   function setStatus(s){
     callStatus && (callStatus.textContent = s);
     setOverlayStatus(s);
+  }
+  
+  // Update video status indicators
+  function updateVideoStatus(element, status, text) {
+    if (!element) return;
+    element.className = 'video-status ' + status;
+    const statusText = element.querySelector('span:last-child');
+    if (statusText) statusText.textContent = text;
+  }
+  
+  // Update video container classes
+  function updateVideoContainer(container, hasStream) {
+    if (!container) return;
+    if (hasStream) {
+      container.classList.remove('video-placeholder');
+      container.classList.add('video-active');
+    } else {
+      container.classList.add('video-placeholder');
+      container.classList.remove('video-active');
+    }
   }
 
   let recordTimerId = null; let recordStartAt = 0;
@@ -940,16 +1156,52 @@
       }
     };
     pc.ontrack = (ev)=>{
+      console.log('Received remote stream:', ev.streams[0]);
       remoteVideo.srcObject = ev.streams[0];
-      try { remoteVideo.play && remoteVideo.play(); } catch(e) {}
+      updateVideoContainer(remoteVideoContainer, true);
+      updateVideoStatus(remoteVideoStatus, 'connected', 'Connected');
+      try { 
+        remoteVideo.play().then(() => {
+          console.log('Remote video playing successfully');
+        }).catch(e => {
+          console.warn('Remote video play failed:', e);
+        }); 
+      } catch(e) { 
+        console.warn('Remote video play error:', e); 
+      }
       syncOverlayStreams();
     };
+    
     if (!localStream) {
-      localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-      localVideo.srcObject = localStream;
-      try { originalVideoTrack = localStream.getVideoTracks()[0] || null; } catch(e) { originalVideoTrack = null; }
+      try {
+        setStatus('Getting camera and microphone...');
+        localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+        localVideo.srcObject = localStream;
+        updateVideoContainer(localVideoContainer, true);
+        updateVideoStatus(localVideoStatus, 'connected', 'Camera On');
+        try { originalVideoTrack = localStream.getVideoTracks()[0] || null; } catch(e) { originalVideoTrack = null; }
+        console.log('Local stream established:', localStream);
+      } catch(e) {
+        console.error('Failed to get local stream:', e);
+        setStatus('Camera/Mic access denied');
+        updateVideoContainer(localVideoContainer, false);
+        updateVideoStatus(localVideoStatus, 'disconnected', 'Camera Off');
+        // Continue without video - audio only
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ video:false, audio:true });
+          localVideo.srcObject = localStream;
+          updateVideoContainer(localVideoContainer, false);
+          updateVideoStatus(localVideoStatus, 'connected', 'Audio Only');
+        } catch(audioError) {
+          console.error('Failed to get audio only:', audioError);
+          setStatus('Media access denied');
+        }
+      }
     }
-    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    
+    if (localStream) {
+      localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    }
 
     // Enable mic control once media is ready
     btnToggleMic.disabled = false;
@@ -967,6 +1219,7 @@
     if (!convoId) return;
     try {
       setStatus('Starting call...');
+      updateVideoStatus(remoteVideoStatus, 'connecting', 'Connecting...');
       const r = await fetch(site + 'calls/start/' + convoId, { method:'POST' });
       if (handleUnauthorized(r)) return;
       const j = await parseJsonSafe(r); if (!j || !j.ok) throw new Error('start failed');
@@ -977,13 +1230,14 @@
       const rs = await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'offer', payload: JSON.stringify(offer) }) });
       if (handleUnauthorized(rs)) return;
       setStatus('Waiting for answer...');
+      updateVideoStatus(remoteVideoStatus, 'connecting', 'Waiting for answer...');
       if (signalTimer) clearInterval(signalTimer);
       signalTimer = setInterval(pollSignals, 2000);
       setCallToggleUI(true);
       if (btnEndCall) btnEndCall.classList.add('d-none');
       startRinging('out');
       syncOverlayStreams();
-    } catch(e){ setStatus('Call failed: '+e.message); }
+    } catch(e){ setStatus('Call failed: '+e.message); updateVideoStatus(remoteVideoStatus, 'disconnected', 'Call Failed'); }
   }
 
   let pendingRemoteOffer = null;
@@ -1026,32 +1280,93 @@
     if (signalTimer) clearInterval(signalTimer);
     if (incomingTimer) clearInterval(incomingTimer);
     stopRinging();
+    
+    // Reset video displays and status
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+    updateVideoContainer(localVideoContainer, false);
+    updateVideoContainer(remoteVideoContainer, false);
+    updateVideoStatus(localVideoStatus, 'disconnected', 'Camera Off');
+    updateVideoStatus(remoteVideoStatus, 'disconnected', 'Not Connected');
+    
     // Reset mic state
     btnToggleMic.disabled = true;
-    btnToggleMic.innerHTML = '<i class="bi bi-mic"></i>';
-    if (btnOverlayMic) btnOverlayMic.innerHTML = '<i class="bi bi-mic"></i>';
-    // Reset speaker state
-    btnToggleSpeaker.disabled = true;
-    btnToggleSpeaker.innerHTML = '<i class="bi bi-volume-up"></i>';
-    // Stop screen share if active and restore camera
-    try { await stopScreenShare(); } catch(e) {}
-    // Stop recording if active
-    try { if (isRecording) await stopRecording(); } catch(e) {}
-    btnShareScreen.disabled = true;
-    btnRecord.disabled = true;
-    setCallToggleUI(false);
-    setOverlayVisible(false);
     if (overlayRemoteVideo) overlayRemoteVideo.srcObject = null;
     if (overlayRemoteThumb) overlayRemoteThumb.srcObject = null;
     if (overlayLocalVideo) overlayLocalVideo.srcObject = null;
     if (overlayScreenVideo) overlayScreenVideo.srcObject = null;
-    // Restore header controls
-    if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
-    if (btnRejectCall) btnRejectCall.classList.add('d-none');
+    if (overlayScreenWrap) overlayScreenWrap.classList.add('d-none');
+    
+    if (btnEndCall) btnEndCall.classList.add('d-none');
     if (btnCallToggle) btnCallToggle.classList.remove('d-none');
+    
+    setCallToggleUI(false);
+    setStatus('Idle');
+    stopRinging();
+    stopRecording();
+    setOverlayVisible(false);
+    
+    // Disable controls
+    btnToggleMic.disabled = true;
+    btnToggleSpeaker.disabled = true;
+    btnShareScreen.disabled = true;
+    btnRecord.disabled = true;
+    btnFullscreen && (btnFullscreen.disabled = true);
+    cameraEnabled = false;
   }
 
   if (btnCallToggle) btnCallToggle.addEventListener('click', ()=>{ if (callId) endCall(); else startCall(); });
+  
+  // Video control event listeners
+  if (btnLocalVideoToggle) {
+    btnLocalVideoToggle.addEventListener('click', () => {
+      if (localStream) {
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.enabled = !videoTrack.enabled;
+          const icon = btnLocalVideoToggle.querySelector('i');
+          if (videoTrack.enabled) {
+            icon.className = 'bi bi-camera-video';
+            updateVideoStatus(localVideoStatus, 'connected', 'Camera On');
+          } else {
+            icon.className = 'bi bi-camera-video-off';
+            updateVideoStatus(localVideoStatus, 'connected', 'Camera Off');
+          }
+        }
+      }
+    });
+  }
+  
+  if (btnLocalAudioToggle) {
+    btnLocalAudioToggle.addEventListener('click', () => {
+      if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = !audioTrack.enabled;
+          const icon = btnLocalAudioToggle.querySelector('i');
+          if (audioTrack.enabled) {
+            icon.className = 'bi bi-mic';
+          } else {
+            icon.className = 'bi bi-mic-mute';
+          }
+        }
+      }
+    });
+  }
+  
+  if (btnRemoteFullscreen) {
+    btnRemoteFullscreen.addEventListener('click', () => {
+      if (remoteVideo) {
+        if (remoteVideo.requestFullscreen) {
+          remoteVideo.requestFullscreen();
+        } else if (remoteVideo.webkitRequestFullscreen) {
+          remoteVideo.webkitRequestFullscreen();
+        } else if (remoteVideo.mozRequestFullScreen) {
+          remoteVideo.mozRequestFullScreen();
+        }
+      }
+    });
+  }
   if (btnAcceptCall) btnAcceptCall.addEventListener('click', async ()=>{
     try {
       if (!pendingRemoteOffer) return;

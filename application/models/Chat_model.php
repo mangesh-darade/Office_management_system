@@ -40,6 +40,35 @@ class Chat_model extends CI_Model {
             read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uniq_msg_user (message_id, user_id), INDEX(user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        // typing indicators
+        $this->db->query("CREATE TABLE IF NOT EXISTS typing_indicators (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            conversation_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NOT NULL,
+            is_typing BOOLEAN NOT NULL DEFAULT TRUE,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_conv_user (conversation_id, user_id),
+            INDEX (conversation_id), INDEX (updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        // online status
+        $this->db->query("CREATE TABLE IF NOT EXISTS user_online_status (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL UNIQUE,
+            is_online BOOLEAN NOT NULL DEFAULT FALSE,
+            last_seen DATETIME,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (user_id), INDEX (is_online), INDEX (last_seen)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        // message reactions
+        $this->db->query("CREATE TABLE IF NOT EXISTS message_reactions (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            message_id BIGINT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NOT NULL,
+            reaction VARCHAR(50) NOT NULL, -- emoji or reaction name
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_msg_user_reaction (message_id, user_id, reaction),
+            INDEX (message_id), INDEX (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
     public function list_users_for_select() {
@@ -97,6 +126,101 @@ class Chat_model extends CI_Model {
 
     public function get_conversation($id) {
         return $this->db->get_where('conversations', ['id'=>$id])->row();
+    }
+
+    // Typing indicator methods
+    public function set_typing($conversation_id, $user_id, $is_typing = true) {
+        if ($is_typing) {
+            $this->db->replace('typing_indicators', [
+                'conversation_id' => $conversation_id,
+                'user_id' => $user_id,
+                'is_typing' => 1,
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+        } else {
+            $this->db->delete('typing_indicators', [
+                'conversation_id' => $conversation_id,
+                'user_id' => $user_id
+            ]);
+        }
+    }
+
+    public function get_typing_users($conversation_id, $exclude_user_id = null) {
+        $this->db->where('conversation_id', $conversation_id);
+        $this->db->where('is_typing', 1);
+        $this->db->where('updated_at >', date('Y-m-d H:i:s', strtotime('-5 seconds')));
+        if ($exclude_user_id) {
+            $this->db->where('user_id !=', $exclude_user_id);
+        }
+        return $this->db->get('typing_indicators')->result();
+    }
+
+    // Online status methods
+    public function set_online_status($user_id, $is_online = true) {
+        $this->db->replace('user_online_status', [
+            'user_id' => $user_id,
+            'is_online' => $is_online,
+            'last_seen' => $is_online ? null : date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
+    }
+
+    public function get_online_status($user_ids) {
+        if (!is_array($user_ids)) {
+            $user_ids = [$user_ids];
+        }
+        $this->db->where_in('user_id', $user_ids);
+        return $this->db->get('user_online_status')->result();
+    }
+
+    public function cleanup_old_typing_indicators() {
+        $this->db->where('updated_at <', date('Y-m-d H:i:s', strtotime('-10 seconds')));
+        $this->db->delete('typing_indicators');
+    }
+
+    // Message reaction methods
+    public function add_reaction($message_id, $user_id, $reaction) {
+        $this->db->replace('message_reactions', [
+            'message_id' => $message_id,
+            'user_id' => $user_id,
+            'reaction' => $reaction,
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
+    }
+
+    public function remove_reaction($message_id, $user_id, $reaction) {
+        $this->db->delete('message_reactions', [
+            'message_id' => $message_id,
+            'user_id' => $user_id,
+            'reaction' => $reaction
+        ]);
+    }
+
+    public function get_message_reactions($message_id) {
+        $this->db->select('reaction, COUNT(*) as count, GROUP_CONCAT(user_id) as user_ids');
+        $this->db->where('message_id', $message_id);
+        $this->db->group_by('reaction');
+        $this->db->order_by('created_at', 'ASC');
+        return $this->db->get('message_reactions')->result();
+    }
+
+    public function get_user_reaction($message_id, $user_id) {
+        return $this->db->get_where('message_reactions', [
+            'message_id' => $message_id,
+            'user_id' => $user_id
+        ])->row();
+    }
+
+    // Enhanced fetch messages with reactions
+    public function fetch_messages_with_reactions($conversation_id, $since_id = 0) {
+        $sql = "SELECT m.*, u.email, 
+                       (SELECT GROUP_CONCAT(CONCAT(reaction, ':', COUNT(*)) SEPARATOR '|') 
+                        FROM message_reactions mr WHERE mr.message_id = m.id) as reactions
+                FROM messages m
+                LEFT JOIN users u ON u.id = m.sender_id
+                WHERE m.conversation_id = ? AND m.id > ?
+                ORDER BY m.created_at ASC";
+        return $this->db->query($sql, [$conversation_id, $since_id])->result();
     }
 
     public function participants($conversation_id) {
