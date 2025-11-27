@@ -206,8 +206,43 @@ class Tasks extends CI_Controller {
     // GET /tasks/{id}
     public function show($id)
     {
-        $task = $this->db->where('id', (int)$id)->get('tasks')->row();
+        $this->db->from('tasks t');
+        $select = ['t.*'];
+        
+        // Join projects for name if available
+        if ($this->db->table_exists('projects')) {
+            if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+            $this->db->join('projects p','p.id = t.project_id','left');
+        }
+        
+        // Join users for assignee info
+        if ($this->db->table_exists('users')) {
+            $select[] = 'u.email AS assignee_email';
+            if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
+            if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+            $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+        }
+        
+        // Join employees for assignee employee name
+        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+            if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+            $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+        }
+        
+        // Join users for creator info
+        if ($this->db->table_exists('users')) {
+            $select[] = 'cu.email AS creator_email';
+            if ($this->db->field_exists('full_name','users')) { $select[] = 'cu.full_name AS creator_full_name'; }
+            if ($this->db->field_exists('name','users')) { $select[] = 'cu.name AS creator_name'; }
+            $this->db->join('users cu', 'cu.id = t.created_by', 'left');
+        }
+        
+        $this->db->select(implode(',', $select));
+        $this->db->where('t.id', (int)$id);
+        $task = $this->db->get()->row();
+        
         if (!$task) show_404();
+        
         // Visibility: non-admin group can only view tasks assigned to them (or created_by them when available)
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
@@ -217,6 +252,7 @@ class Tasks extends CI_Controller {
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             if ($assigned !== $user_id && $creator !== $user_id) { show_error('Forbidden', 403); }
         }
+        
         $this->load->view('tasks/view', ['task' => $task]);
     }
 
@@ -339,6 +375,12 @@ class Tasks extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        
+        // Get filters from GET parameters
+        $project_filter = trim((string)$this->input->get('project_id'));
+        $assignee_filter = trim((string)$this->input->get('assigned_to'));
+        $priority_filter = trim((string)$this->input->get('priority'));
+        
         $columns = [];
         foreach ($statuses as $st) {
             $this->db->from('tasks t');
@@ -358,13 +400,67 @@ class Tasks extends CI_Controller {
                 $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
             }
             $this->db->select(implode(',', $select));
+            
+            // Apply base filters
             if (!$is_admin && $user_id) {
                 $this->db->where('t.assigned_to', $user_id);
             }
-            $this->db->where('t.status', $st)->order_by('t.id','DESC');
+            $this->db->where('t.status', $st);
+            
+            // Apply additional filters
+            if ($project_filter !== '') { 
+                $this->db->where('t.project_id', (int)$project_filter); 
+            }
+            if ($is_admin && $assignee_filter !== '') { 
+                $this->db->where('t.assigned_to', (int)$assignee_filter); 
+            }
+            if ($priority_filter !== '' && $this->db->field_exists('priority','tasks')) { 
+                $this->db->where('t.priority', $priority_filter); 
+            }
+            
+            $this->db->order_by('t.id','DESC');
             $columns[$st] = $this->db->get()->result();
         }
-        $this->load->view('tasks/board', ['columns' => $columns]);
+        
+        // Get filter options
+        $projects = [];
+        if ($this->db->table_exists('projects')) {
+            $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result();
+        }
+        
+        $assignees = [];
+        if ($is_admin) {
+            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                $sel = ['users.id','users.email'];
+                $hasEmpName3 = $this->db->field_exists('name','employees');
+                if ($hasEmpName3) { $sel[] = 'employees.name AS emp_name'; }
+                if ($this->db->field_exists('full_name','users')) { $sel[] = 'users.full_name'; }
+                if ($this->db->field_exists('name','users')) { $sel[] = 'users.name'; }
+                $this->db->select(implode(',', $sel))
+                         ->from('users')
+                         ->join('employees','employees.user_id = users.id','left');
+                if ($hasEmpName3) {
+                    $this->db->order_by('employees.name IS NULL ASC', '', false)
+                             ->order_by('employees.name','ASC');
+                }
+                $this->db->order_by('users.email','ASC');
+                $assignees = $this->db->get()->result();
+            } else if ($this->db->table_exists('users')) {
+                $sel = ['id','email'];
+                if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+                if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                $assignees = $this->db->select(implode(',', $sel))->from('users')->order_by('email','ASC')->get()->result();
+            }
+        }
+        
+        $this->load->view('tasks/board', [
+            'columns' => $columns,
+            'projects' => $projects,
+            'assignees' => $assignees,
+            'filter_project_id' => $project_filter,
+            'filter_assigned_to' => $assignee_filter,
+            'filter_priority' => $priority_filter,
+        ]);
     }
 
     // POST /tasks/update-status

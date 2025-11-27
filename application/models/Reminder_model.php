@@ -93,6 +93,15 @@ class Reminder_model extends CI_Model {
         return (int)$this->db->insert_id();
     }
 
+    public function get($id){
+        return $this->db->get_where('reminders', array('id' => (int)$id))->row();
+    }
+
+    public function update($id, $data){
+        $this->db->where('id', (int)$id)->update('reminders', $data);
+        return $this->db->affected_rows();
+    }
+
     public function delete($id){
         $this->db->where('id', (int)$id)->delete('reminders');
         return $this->db->affected_rows();
@@ -244,5 +253,38 @@ class Reminder_model extends CI_Model {
 
     public function mark_schedule_ran_today($id){
         return $this->db->where('id',(int)$id)->update('reminder_schedules', array('last_run_date'=>date('Y-m-d')));
+    }
+
+    // Pagination helpers
+    public function count_total($status = null){
+        if ($status) {
+            $this->db->where('status', $status);
+        }
+        return $this->db->count_all_results('reminders');
+    }
+
+    public function list_paginated($limit = 20, $offset = 0, $status = null){
+        if ($this->db->table_exists('users')){
+            $labelSql = array();
+            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $labelSql[] = "CONCAT(u.first_name,' ',u.last_name) AS full_label"; }
+            if ($this->db->field_exists('full_name','users')){ $labelSql[] = 'u.full_name'; }
+            if ($this->db->field_exists('name','users')){ $labelSql[] = 'u.name'; }
+            $select = 'r.*, u.email AS user_email';
+            if (!empty($labelSql)){ $select .= ','.implode(',', $labelSql); }
+            $this->db->select($select, false)
+                ->from('reminders r')
+                ->join('users u','u.id = r.user_id','left');
+            if ($status) {
+                $this->db->where('r.status', $status);
+            }
+            return $this->db->order_by('r.id','DESC')
+                ->limit((int)$limit, (int)$offset)
+                ->get()->result();
+        }
+        $this->db->from('reminders');
+        if ($status) {
+            $this->db->where('status', $status);
+        }
+        return $this->db->order_by('id','DESC')->limit((int)$limit, (int)$offset)->get()->result();
     }
 }

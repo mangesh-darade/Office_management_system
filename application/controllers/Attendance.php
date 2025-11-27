@@ -6,12 +6,46 @@ class Attendance extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->helper(['url','form','permission']);
-        $this->load->library(['session','upload','email']);
+        $this->load->library(['session','upload','email','pagination']);
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
     }
 
     public function index() {
+        // Pagination configuration
+        $per_page = 10;
+        $page = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
+        $total_records = 0;
+        
+        // Get current user info for role-based access
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
+        $canViewAll = $isAdminGroup || in_array($role_id, [1,2], true);
+        $canAddAttendance = true; // All logged-in users can add their own attendance
+        
+        // Check if we should show all records or only today's
+        $show_all = $this->input->get('all') === '1';
+        $today = date('Y-m-d');
+        
+        // Count total records for pagination
+        $this->db->select('COUNT(*) as total');
+        $this->db->from('attendance a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        
+        // Non-admin/HR see only their own attendance
+        if ($user_id && !$canViewAll) {
+            $this->db->where('a.user_id', $user_id);
+        }
+        
+        // Show only today's records by default (unless 'all=1' is in URL)
+        if (!$show_all) {
+            $this->db->where('a.att_date', $today);
+        }
+        
+        $total_query = $this->db->get()->row();
+        $total_records = $total_query->total;
+        
         // Fetch attendance with user email and, if available, employee name
         $this->db->select('a.*, u.email');
         $this->db->from('attendance a');
@@ -22,18 +56,63 @@ class Attendance extends CI_Controller {
             $this->db->select('e.first_name, e.last_name');
             $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         }
+        
         // Non-admin/HR see only their own attendance
-        $user_id = (int)$this->session->userdata('user_id');
-        if ($user_id) {
-            $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
-            if (!$isAdminGroup) {
-                $this->db->where('a.user_id', $user_id);
-            }
+        if ($user_id && !$canViewAll) {
+            $this->db->where('a.user_id', $user_id);
         }
-        $records = $this->db->order_by($employee_exists ? 'e.first_name' : 'u.email', 'asc')->get()->result();
+        
+        // Show only today's records by default (unless 'all=1' is in URL)
+        if (!$show_all) {
+            $this->db->where('a.att_date', $today);
+        }
+        
+        $records = $this->db->order_by('a.att_date DESC, a.id DESC')
+                           ->limit($per_page, $page)
+                           ->get()
+                           ->result();
+        
+        // Pagination config
+        $base_url = $show_all ? site_url('attendance/index/all/1') : site_url('attendance/index');
+        $config['base_url'] = $base_url;
+        $config['total_rows'] = $total_records;
+        $config['per_page'] = $per_page;
+        $config['uri_segment'] = 3;
+        $config['num_links'] = 5;
+        $config['full_tag_open'] = '<nav class="d-flex justify-content-center mt-3"><ul class="pagination">';
+        $config['full_tag_close'] = '</ul></nav>';
+        $config['first_link'] = '&laquo; First';
+        $config['first_tag_open'] = '<li class="page-item">';
+        $config['first_tag_close'] = '</li>';
+        $config['last_link'] = 'Last &raquo;';
+        $config['last_tag_open'] = '<li class="page-item">';
+        $config['last_tag_close'] = '</li>';
+        $config['next_link'] = 'Next &rarr;';
+        $config['next_tag_open'] = '<li class="page-item">';
+        $config['next_tag_close'] = '</li>';
+        $config['prev_link'] = '&larr; Prev';
+        $config['prev_tag_open'] = '<li class="page-item">';
+        $config['prev_tag_close'] = '</li>';
+        $config['cur_tag_open'] = '<li class="page-item active"><span class="page-link">';
+        $config['cur_tag_close'] = '</span></li>';
+        $config['num_tag_open'] = '<li class="page-item">';
+        $config['num_tag_close'] = '</li>';
+        $config['attributes'] = ['class' => 'page-link'];
+        
+        $this->pagination->initialize($config);
+        $pagination_links = $this->pagination->create_links();
+        
         $this->load->view('attendance/index', [
             'records' => $records,
             'employee_exists' => $employee_exists,
+            'pagination_links' => $pagination_links,
+            'total_records' => $total_records,
+            'current_page' => $page + 1,
+            'per_page' => $per_page,
+            'can_add_attendance' => $canAddAttendance,
+            'can_view_all' => $canViewAll,
+            'show_all' => $show_all,
+            'today' => $today,
         ]);
     }
 
@@ -79,9 +158,6 @@ class Attendance extends CI_Controller {
                     case 'delete':
                         $affected_count = $this->bulk_delete($valid_ids);
                         break;
-                    case 'export':
-                        $this->bulk_export($valid_ids);
-                        return;
                     case 'mark_present':
                         $affected_count = $this->bulk_mark_present($valid_ids);
                         break;
@@ -110,46 +186,6 @@ class Attendance extends CI_Controller {
     private function bulk_delete($ids) {
         $this->db->where_in('id', $ids);
         return $this->db->delete('attendance');
-    }
-
-    private function bulk_export($ids) {
-        $this->db->select('a.*, u.email, e.first_name, e.last_name');
-        $this->db->from('attendance a');
-        $this->db->join('users u', 'u.id = a.user_id', 'left');
-        $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
-        $this->db->where_in('a.id', $ids);
-        $records = $this->db->get()->result();
-
-        $csv_data = [];
-        $csv_data[] = ['ID', 'Employee', 'Email', 'Date', 'Check In', 'Check Out', 'Notes', 'Location', 'IP Address'];
-
-        foreach ($records as $r) {
-            $name = trim((isset($r->first_name) ? $r->first_name : '') . ' ' . (isset($r->last_name) ? $r->last_name : ''));
-            if (empty($name)) $name = isset($r->email) ? $r->email : 'Unknown';
-            
-            $csv_data[] = [
-                $r->id,
-                $name,
-                isset($r->email) ? $r->email : '',
-                isset($r->att_date) ? $r->att_date : (isset($r->date) ? $r->date : ''),
-                isset($r->punch_in) ? $r->punch_in : (isset($r->check_in) ? $r->check_in : ''),
-                isset($r->punch_out) ? $r->punch_out : (isset($r->check_out) ? $r->check_out : ''),
-                isset($r->notes) ? $r->notes : '',
-                isset($r->location_name) ? $r->location_name : '',
-                isset($r->ip_address) ? $r->ip_address : ''
-            ];
-        }
-
-        $filename = 'attendance_bulk_export_' . date('Y-m-d_H-i-s') . '.csv';
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        
-        $output = fopen('php://output', 'w');
-        foreach ($csv_data as $row) {
-            fputcsv($output, $row);
-        }
-        fclose($output);
-        exit;
     }
 
     private function bulk_mark_present($ids) {
@@ -285,7 +321,8 @@ class Attendance extends CI_Controller {
                 'user_id' => $user_id,
                 'notes' => $this->input->post('notes'),
                 'attachment_path' => $attachment_path,
-                'ip_address' => $this->input->ip_address()
+                'ip_address' => $this->input->ip_address(),
+                $col_date => $today  // Add the date field
             ];
             
             // Add location fields if they exist in schema
@@ -397,6 +434,33 @@ class Attendance extends CI_Controller {
         if ($s === '' || $s === '0') return true;
         $zeros = ['00:00', '00:00:00', '0000-00-00', '0000-00-00 00:00:00'];
         return in_array($s, $zeros, true);
+    }
+
+    private function is_valid_checkout_time($checkIn, $checkOut, $outType){
+        if (empty($checkIn) || empty($checkOut)) return false;
+        
+        // Handle time-only fields
+        if (in_array($outType, ['time'], true)) {
+            // For time fields, we just check basic validity
+            // Since both are same day, check-out should be after check-in
+            $checkInTime = strtotime('1970-01-01 ' . $checkIn);
+            $checkOutTime = strtotime('1970-01-01 ' . $checkOut);
+            
+            if ($checkInTime === false || $checkOutTime === false) return false;
+            
+            // Allow checkout next day (after midnight) but not same day before check-in
+            $timeDiff = $checkOutTime - $checkInTime;
+            return $timeDiff > 0 || $timeDiff < -12 * 3600; // Allow next day checkout
+        }
+        
+        // Handle datetime fields
+        $checkInTime = strtotime($checkIn);
+        $checkOutTime = strtotime($checkOut);
+        
+        if ($checkInTime === false || $checkOutTime === false) return false;
+        
+        // Checkout must be after check-in
+        return $checkOutTime > $checkInTime;
     }
 
     private function maybe_send_attendance_email($user_id, $action, $dateTime){

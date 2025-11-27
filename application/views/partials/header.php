@@ -11,6 +11,19 @@
   <link href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.min.css" rel="stylesheet">
   <link rel="manifest" href="<?php echo base_url('assets/pwa/manifest.webmanifest'); ?>">
   <link href="<?php echo base_url('assets/css/app.css'); ?>" rel="stylesheet">
+  <style>
+    /* Show user avatar on mobile */
+    @media (max-width: 576px) {
+      .navbar-nav .dropdown .d-flex.align-items-center img {
+        display: inline-block !important;
+        width: 36px;
+        height: 36px;
+      }
+      .navbar-nav .dropdown .d-flex.align-items-center span {
+        display: none;
+      }
+    }
+  </style>
   <?php
     if (isset($extra_css) && is_array($extra_css)) {
         foreach ($extra_css as $cssFile) {

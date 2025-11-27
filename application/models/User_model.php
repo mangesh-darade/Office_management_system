@@ -30,16 +30,25 @@ class User_model extends CI_Model {
     }
 
     /**
-     * Fetch user for authentication using mobile number when possible.
-     * If the 'phone' column does not exist, falls back to email.
+     * Fetch user for authentication using email or phone number.
+     * Checks both fields to support login with either identifier.
      */
     public function get_by_login($identifier){
         $this->db->from($this->table);
-        if ($this->db->field_exists('phone', $this->table)){
-            $this->db->where('phone', $identifier);
-        } else {
+        
+        // Check if identifier looks like an email
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
             $this->db->where('email', $identifier);
+        } else {
+            // For non-email, check both phone and email fields
+            $this->db->group_start();
+            if ($this->db->field_exists('phone', $this->table)) {
+                $this->db->where('phone', $identifier);
+            }
+            $this->db->or_where('email', $identifier);
+            $this->db->group_end();
         }
+        
         return $this->db->get()->row();
     }
 

@@ -6,7 +6,7 @@ class Reminders extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->helper(['url','form','permission']);
-        $this->load->library(['session','email']);
+        $this->load->library(['session','email','pagination']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         if (!function_exists('has_module_access') || !has_module_access('reminders')) { show_error('Access Denied', 403); }
         $this->load->model('Reminder_model','reminders');
@@ -15,8 +15,74 @@ class Reminders extends CI_Controller {
 
     // GET /reminders
     public function index(){
-        $rows = $this->reminders->list_recent(100);
-        $this->load->view('reminders/index', ['rows'=>$rows]);
+        // Redirect to dashboard for better UX
+        redirect('reminders/dashboard');
+    }
+    
+    // GET /reminders/dashboard
+    public function dashboard(){
+        // Pagination configuration
+        $perPage = 20;
+        $page = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
+        
+        // Handle filter query string
+        $filter = $this->input->get('filter');
+        $allowedFilters = ['queued', 'sent', 'error'];
+        if (!in_array($filter, $allowedFilters)) {
+            $filter = null;
+        }
+        
+        // Build pagination base URL with filter
+        $baseUrl = site_url('reminders/dashboard');
+        if ($filter) {
+            $baseUrl .= '?filter=' . urlencode($filter);
+        }
+        
+        $config['base_url'] = $baseUrl;
+        $config['total_rows'] = $this->reminders->count_total($filter);
+        $config['per_page'] = $perPage;
+        $config['uri_segment'] = 3;
+        $config['num_links'] = 5;
+        $config['use_page_numbers'] = FALSE;
+        $config['page_query_string'] = FALSE;
+        $config['query_string_segment'] = 'page';
+        
+        // Preserve filter in pagination links by appending query string
+        $config['first_url'] = $baseUrl;
+        $config['suffix'] = $filter ? '?filter=' . urlencode($filter) : '';
+        
+        // Bootstrap 5 pagination styling
+        $config['full_tag_open'] = '<nav aria-label="Reminders pagination"><ul class="pagination justify-content-center mb-0">';
+        $config['full_tag_close'] = '</ul></nav>';
+        $config['first_link'] = '&laquo; First';
+        $config['first_tag_open'] = '<li class="page-item">';
+        $config['first_tag_close'] = '</li>';
+        $config['last_link'] = 'Last &raquo;';
+        $config['last_tag_open'] = '<li class="page-item">';
+        $config['last_tag_close'] = '</li>';
+        $config['next_link'] = 'Next &rsaquo;';
+        $config['next_tag_open'] = '<li class="page-item">';
+        $config['next_tag_close'] = '</li>';
+        $config['prev_link'] = '&lsaquo; Prev';
+        $config['prev_tag_open'] = '<li class="page-item">';
+        $config['prev_tag_close'] = '</li>';
+        $config['cur_tag_open'] = '<li class="page-item active"><span class="page-link">';
+        $config['cur_tag_close'] = '</span></li>';
+        $config['num_tag_open'] = '<li class="page-item">';
+        $config['num_tag_close'] = '</li>';
+        $config['attributes'] = ['class' => 'page-link'];
+        
+        $this->pagination->initialize($config);
+        
+        $rows = $this->reminders->list_paginated($perPage, $page, $filter);
+        $this->load->view('reminders/dashboard', [
+            'rows' => $rows,
+            'pagination_links' => $this->pagination->create_links(),
+            'total_rows' => $config['total_rows'],
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'current_filter' => $filter
+        ]);
     }
 
     // GET /reminders/cron/morning
@@ -196,71 +262,105 @@ class Reminders extends CI_Controller {
     // GET/POST /reminders/send
     public function send(){
         if ($this->input->method() === 'post'){
-            $user_id = (int)$this->input->post('user_id');
+            $delivery_method = $this->input->post('delivery_method') ?: 'immediate';
+            $user_ids = $this->input->post('user_ids');
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
             $from_email = trim((string)$this->input->post('from_email'));
             $from_name = trim((string)$this->input->post('from_name'));
-            if (!$user_id || $subject === ''){
-                $this->session->set_flashdata('error','Please select user and enter subject');
+            $send_at = $this->input->post('send_at');
+            
+            if (!$user_ids || empty($user_ids) || $subject === ''){
+                $this->session->set_flashdata('error','Please select recipients and enter subject');
                 redirect('reminders/send'); return;
             }
-            // fetch user email
-            $email = '';
-            $name = '';
-            if ($this->db->table_exists('users')){
-                $this->db->from('users')->where('id',$user_id);
-                $sel = ['email'];
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
-                if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
-                $this->db->select(implode(',', $sel), false);
-                $u = $this->db->get()->row();
-                if ($u){
-                    $email = isset($u->email)?$u->email:'';
-                    if (isset($u->full_label) && $u->full_label!=='') { $name = $u->full_label; }
-                    else if (isset($u->full_name) && $u->full_name!=='') { $name = $u->full_name; }
-                    else if (isset($u->name) && $u->name!=='') { $name = $u->name; }
-                }
+            
+            $count = 0;
+            $send_immediately = ($delivery_method === 'immediate');
+            $scheduled_time = null;
+            
+            if ($delivery_method === 'scheduled' && $send_at) {
+                $scheduled_time = $send_at;
             }
-            if ($email === ''){ $this->session->set_flashdata('error','Selected user has no email'); redirect('reminders/send'); return; }
-            $finalBody = $body;
-            if ($finalBody === ''){ $finalBody = "Hello ".$name."\n\n".$subject; }
-            $rid = $this->reminders->enqueue([
-                'user_id' => $user_id,
-                'email' => $email,
-                'type' => 'manual',
-                'subject' => $subject,
-                'body' => $finalBody,
-                'from_email' => $from_email!=='' ? $from_email : null,
-                'from_name' => $from_name!=='' ? $from_name : null,
-                'send_at' => date('Y-m-d H:i:00')
-            ]);
-            // If Send Now requested, deliver immediately
-            if ($this->input->post('send_now')==='1'){
-                $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
-                $this->email->initialize($cfg);
-                $row = $this->db->get_where('reminders', array('id'=>(int)$rid))->row();
-                if ($row && isset($row->email) && $row->email!==''){
-                    $this->email->clear(true);
-                    $fromAddr = isset($row->from_email) && $row->from_email!=='' ? $row->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
-                    $fromName = isset($row->from_name) && $row->from_name!=='' ? $row->from_name : 'Office Management System';
-                    $this->email->from($fromAddr, $fromName);
-                    $this->email->to($row->email);
-                    $this->email->subject($row->subject);
-                    $this->email->message($row->body);
-                    if ($this->email->send()) { $this->reminders->mark_sent($row->id); $this->session->set_flashdata('success','Reminder sent.'); }
-                    else { $this->reminders->mark_error($row->id); $this->session->set_flashdata('error','Failed to send reminder.'); }
+            
+            foreach ($user_ids as $user_id) {
+                $user_id = (int)$user_id;
+                if ($user_id <= 0) continue;
+                
+                // fetch user email
+                $email = '';
+                $name = '';
+                if ($this->db->table_exists('users')){
+                    $this->db->from('users')->where('id',$user_id);
+                    $sel = ['email'];
+                    if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+                    if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                    if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
+                    $this->db->select(implode(',', $sel), false);
+                    $u = $this->db->get()->row();
+                    if ($u){
+                        $email = isset($u->email)?$u->email:'';
+                        if (isset($u->full_label) && $u->full_label!=='') { $name = $u->full_label; }
+                        else if (isset($u->full_name) && $u->full_name!=='') { $name = $u->full_name; }
+                        else if (isset($u->name) && $u->name!=='') { $name = $u->name; }
+                    }
                 }
-                redirect('reminders');
-                return;
+                if ($email === ''){ continue; }
+                
+                // Render template with user data
+                $finalBody = $body;
+                if ($finalBody === ''){ $finalBody = "Hello ".$name."\n\n".$subject; }
+                
+                // Replace variables
+                $finalSubject = str_replace(['{name}', '{email}', '{date}', '{time}'], [$name, $email, date('Y-m-d'), date('H:i')], $subject);
+                $finalBody = str_replace(['{name}', '{email}', '{date}', '{time}'], [$name, $email, date('Y-m-d'), date('H:i')], $finalBody);
+                
+                $send_time = $scheduled_time ?: date('Y-m-d H:i:00');
+                
+                $rid = $this->reminders->enqueue([
+                    'user_id' => $user_id,
+                    'email' => $email,
+                    'type' => 'manual',
+                    'subject' => $finalSubject,
+                    'body' => $finalBody,
+                    'from_email' => $from_email!=='' ? $from_email : null,
+                    'from_name' => $from_name!=='' ? $from_name : null,
+                    'send_at' => $send_time
+                ]);
+                
+                // If immediate delivery requested, send right away
+                if ($send_immediately && $rid) {
+                    $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
+                    $this->email->initialize($cfg);
+                    $row = $this->db->get_where('reminders', array('id'=>(int)$rid))->row();
+                    if ($row && isset($row->email) && $row->email!==''){
+                        $this->email->clear(true);
+                        $fromAddr = isset($row->from_email) && $row->from_email!=='' ? $row->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
+                        $fromName = isset($row->from_name) && $row->from_name!=='' ? $row->from_name : 'Office Management System';
+                        $this->email->from($fromAddr, $fromName);
+                        $this->email->to($row->email);
+                        $this->email->subject($row->subject);
+                        $this->email->message($row->body);
+                        if ($this->email->send()) { 
+                            $this->reminders->mark_sent($row->id); 
+                        } else { 
+                            $this->reminders->mark_error($row->id); 
+                        }
+                    }
+                }
+                $count++;
             }
-            $this->session->set_flashdata('success','Reminder queued for the selected user');
-            redirect('reminders');
+            
+            $message = $send_immediately ? 'Reminders sent immediately' : 
+                      ($scheduled_time ? 'Reminders scheduled for ' . date('M j, Y H:i', strtotime($scheduled_time)) : 
+                      'Reminders queued');
+            
+            $this->session->set_flashdata('success', $message . ' to ' . $count . ' recipients.');
+            redirect('reminders/dashboard');
             return;
         }
         $users = $this->reminders->all_users();
-        $this->load->view('reminders/send', ['users'=>$users]);
+        $this->load->view('reminders/send_enhanced', ['users'=>$users]);
     }
 
     // GET /reminders/schedules
@@ -274,7 +374,11 @@ class Reminders extends CI_Controller {
         if ($this->input->method() === 'post'){
             $audience = $this->input->post('audience'); // 'user' or 'all'
             $user_id = $this->input->post('user_id') !== '' ? (int)$this->input->post('user_id') : null;
-            $weekdays = trim($this->input->post('weekdays')); // e.g. 1,2,3
+            
+            // Handle weekdays as array from checkboxes
+            $weekdays_array = $this->input->post('weekdays');
+            $weekdays = is_array($weekdays_array) ? implode(',', $weekdays_array) : '';
+            
             $send_time = trim($this->input->post('send_time')); // HH:MM
             $schedule_type = $this->input->post('schedule_type');
             $schedule_type = ($schedule_type === 'once') ? 'once' : 'weekly';
@@ -282,6 +386,7 @@ class Reminders extends CI_Controller {
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
             $name = trim($this->input->post('name'));
+            
             if ($audience !== 'all' && $audience !== 'user') { $audience = 'user'; }
             if ($audience === 'user' && !$user_id){
                 $this->session->set_flashdata('error','Please select a user for this schedule.');
@@ -329,7 +434,7 @@ class Reminders extends CI_Controller {
             return;
         }
         $users = $this->reminders->all_users();
-        $this->load->view('reminders/schedule_form', ['users'=>$users]);
+        $this->load->view('reminders/schedule_form_fixed', ['users'=>$users]);
     }
 
     // GET/POST /reminders/schedules/{id}/edit
@@ -348,7 +453,11 @@ class Reminders extends CI_Controller {
         if ($this->input->method() === 'post'){
             $audience = $this->input->post('audience');
             $user_id = $this->input->post('user_id') !== '' ? (int)$this->input->post('user_id') : null;
-            $weekdays = trim($this->input->post('weekdays'));
+            
+            // Handle weekdays as array from checkboxes
+            $weekdays_array = $this->input->post('weekdays');
+            $weekdays = is_array($weekdays_array) ? implode(',', $weekdays_array) : '';
+            
             $send_time = trim($this->input->post('send_time'));
             $schedule_type = $this->input->post('schedule_type');
             $schedule_type = ($schedule_type === 'once') ? 'once' : 'weekly';
@@ -398,7 +507,7 @@ class Reminders extends CI_Controller {
             return;
         }
         $users = $this->reminders->all_users();
-        $this->load->view('reminders/schedule_form', array(
+        $this->load->view('reminders/schedule_form_fixed', array(
             'users' => $users,
             'schedule' => $schedule,
             'form_action' => site_url('reminders/schedules/'.$id.'/edit'),
@@ -750,6 +859,197 @@ class Reminders extends CI_Controller {
             return;
         }
         $this->load->view('reminders/import');
+    }
+
+    // GET /reminders/send-now/{id}
+    public function send_now($id){
+        $id = (int)$id;
+        if ($id <= 0){
+            $this->session->set_flashdata('error','Invalid reminder ID');
+            redirect('reminders/dashboard');
+            return;
+        }
+        
+        $reminder = $this->reminders->get($id);
+        if (!$reminder){
+            $this->session->set_flashdata('error','Reminder not found');
+            redirect('reminders/dashboard');
+            return;
+        }
+        
+        if ($reminder->status === 'sent'){
+            $this->session->set_flashdata('error','This reminder has already been sent');
+            redirect('reminders/dashboard');
+            return;
+        }
+        
+        // Initialize email config
+        $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
+        $this->email->initialize($cfg);
+        
+        // Send the email immediately
+        $this->email->clear(true);
+        $fromAddr = isset($reminder->from_email) && $reminder->from_email !== '' ? $reminder->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
+        $fromName = isset($reminder->from_name) && $reminder->from_name !== '' ? $reminder->from_name : 'Office Management System';
+        
+        $this->email->from($fromAddr, $fromName);
+        $this->email->to($reminder->email);
+        $this->email->subject($reminder->subject);
+        $this->email->message($reminder->body);
+        
+        if ($this->email->send()) {
+            $this->reminders->mark_sent($reminder->id);
+            $this->session->set_flashdata('success','Reminder sent successfully to '.$reminder->email);
+        } else {
+            $this->reminders->mark_error($reminder->id);
+            $this->session->set_flashdata('error','Failed to send reminder. Please check email configuration.');
+        }
+        
+        redirect('reminders/dashboard');
+    }
+
+    // GET/POST /reminders/edit/{id}
+    public function edit($id){
+        $id = (int)$id;
+        if ($id <= 0){
+            $this->session->set_flashdata('error','Invalid reminder ID');
+            redirect('reminders/dashboard');
+            return;
+        }
+        
+        $reminder = $this->reminders->get($id);
+        if (!$reminder){
+            $this->session->set_flashdata('error','Reminder not found');
+            redirect('reminders/dashboard');
+            return;
+        }
+        
+        if ($this->input->method() === 'post'){
+            $subject = trim($this->input->post('subject'));
+            $body = (string)$this->input->post('body');
+            $email = trim($this->input->post('email'));
+            $from_email = trim((string)$this->input->post('from_email'));
+            $from_name = trim((string)$this->input->post('from_name'));
+            $send_at = $this->input->post('send_at');
+            // Basic required field validation
+            if ($subject === '' || $email === ''){
+                $this->session->set_flashdata('error','Subject and email are required');
+                // Preserve submitted values so the form can repopulate
+                $this->session->set_flashdata('reminder_edit_old', array(
+                    'subject' => $subject,
+                    'body' => $body,
+                    'email' => $email,
+                    'from_email' => $from_email,
+                    'from_name' => $from_name,
+                    'send_at' => $send_at,
+                ));
+                redirect('reminders/edit/'.$id);
+                return;
+            }
+
+            // Email format validation
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)){
+                $this->session->set_flashdata('error','Invalid email address');
+                $this->session->set_flashdata('reminder_edit_old', array(
+                    'subject' => $subject,
+                    'body' => $body,
+                    'email' => $email,
+                    'from_email' => $from_email,
+                    'from_name' => $from_name,
+                    'send_at' => $send_at,
+                ));
+                redirect('reminders/edit/'.$id);
+                return;
+            }
+
+            $update_data = array(
+                'subject' => $subject,
+                'body' => $body,
+                'email' => $email,
+                'from_email' => $from_email !== '' ? $from_email : null,
+                'from_name' => $from_name !== '' ? $from_name : null,
+            );
+
+            // Normalize and validate send_at from datetime-local (Y-m-dTH:i or Y-m-dTH:i:s)
+            if ($send_at !== null){
+                $send_at = trim($send_at);
+                if ($send_at !== ''){
+                    $dt = str_replace('T', ' ', $send_at);
+                    if (strlen($dt) === 16){ $dt .= ':00'; }
+
+                    $dtObj = DateTime::createFromFormat('Y-m-d H:i:s', $dt);
+                    if (!$dtObj){
+                        $this->session->set_flashdata('error','Invalid schedule date/time format.');
+                        $this->session->set_flashdata('reminder_edit_old', array(
+                            'subject' => $subject,
+                            'body' => $body,
+                            'email' => $email,
+                            'from_email' => $from_email,
+                            'from_name' => $from_name,
+                            'send_at' => $send_at,
+                        ));
+                        redirect('reminders/edit/'.$id);
+                        return;
+                    }
+
+                    // Optional: prevent scheduling in the past for queued reminders
+                    $now = new DateTime();
+                    if ($dtObj < $now){
+                        $this->session->set_flashdata('error','Scheduled time cannot be in the past.');
+                        $this->session->set_flashdata('reminder_edit_old', array(
+                            'subject' => $subject,
+                            'body' => $body,
+                            'email' => $email,
+                            'from_email' => $from_email,
+                            'from_name' => $from_name,
+                            'send_at' => $send_at,
+                        ));
+                        redirect('reminders/edit/'.$id);
+                        return;
+                    }
+
+                    $update_data['send_at'] = $dtObj->format('Y-m-d H:i:s');
+                } else {
+                    // Explicitly clear schedule when field is left empty
+                    $update_data['send_at'] = null;
+                }
+            }
+            
+            // Refresh reminder status from database to avoid editing after send
+            $current = $this->reminders->get($id);
+            if (!$current){
+                $this->session->set_flashdata('error','Reminder not found');
+                redirect('reminders/dashboard');
+                return;
+            }
+            
+            // Only allow editing if reminder hasn't been sent yet
+            if ($current->status === 'sent') {
+                $this->session->set_flashdata('error','Cannot edit a reminder that has already been sent');
+                redirect('reminders/dashboard');
+                return;
+            }
+            
+            $this->reminders->update($id, $update_data);
+            $this->session->set_flashdata('success','Reminder updated successfully');
+            redirect('reminders/dashboard');
+            return;
+        }
+        
+        // If there were validation errors, repopulate form with previously submitted values
+        $old = $this->session->flashdata('reminder_edit_old');
+        if (is_array($old) && !empty($old)){
+            foreach ($old as $k => $v){
+                if ($k === 'send_at'){
+                    // Keep raw datetime-local string for the view to display
+                    $reminder->send_at = $v;
+                } else {
+                    $reminder->{$k} = $v;
+                }
+            }
+        }
+        
+        $this->load->view('reminders/edit', array('reminder' => $reminder));
     }
 
     // GET /reminders/delete/{id}

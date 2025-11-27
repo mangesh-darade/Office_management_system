@@ -5,6 +5,11 @@ class Auth extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->model('User_model');
+        
+        // Store intended URL for redirect after login
+        if ($this->input->method() === 'get' && $this->uri->uri_string() !== 'auth/login') {
+            $this->session->set_userdata('redirect_url', current_url());
+        }
     }
 
     public function index(){
@@ -17,49 +22,193 @@ class Auth extends CI_Controller {
     }
 
     public function login(){
+        // Redirect if already logged in
+        if ((int)$this->session->userdata('user_id') > 0) {
+            redirect('dashboard');
+            return;
+        }
+
         if ($this->input->method() === 'post') {
             $identifier = trim($this->input->post('login'));
             $password = (string)$this->input->post('password');
-            $user = $this->User_model->get_by_login($identifier);
-            if ($user && password_verify($password, $user->password_hash)) {
-                if (isset($user->status) && $user->status !== 'active') {
-                    $this->session->set_flashdata('error', 'Account inactive.');
+            $remember = $this->input->post('remember');
+            $is_ajax = $this->input->is_ajax_request();
+
+            // Enhanced validation
+            if (empty($identifier) || empty($password)) {
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => 'Please enter both email/phone and password']);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', 'Please enter both email/phone and password');
                     redirect('auth/login');
                     return;
                 }
-                // If email verification is enabled, block login until verified
-                if (isset($this->db) && $this->db->field_exists('email_verified', 'users')) {
-                    if (isset($user->email_verified) && (int)$user->email_verified !== 1) {
+            }
+
+            // Rate limiting: check recent failed attempts from this IP
+            $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+            $rate_limit_key = 'login_attempts_' . md5($ip);
+            $attempts = $this->session->userdata($rate_limit_key) ?: 0;
+            $last_attempt = $this->session->userdata($rate_limit_key . '_time') ?: 0;
+            
+            // Lock out after 5 failed attempts for 15 minutes
+            if ($attempts >= 5 && (time() - $last_attempt) < 900) {
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => 'Too many failed attempts. Please try again in 15 minutes.']);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', 'Too many failed attempts. Please try again in 15 minutes.');
+                    redirect('auth/login');
+                    return;
+                }
+            }
+
+            // Find user by email or phone
+            $user = $this->User_model->get_by_login($identifier);
+            
+            // Debug logging (remove in production)
+            error_log("Login attempt for: " . $identifier);
+            error_log("User found: " . ($user ? 'YES' : 'NO'));
+            
+            if (!$user) {
+                $this->_record_failed_attempt($rate_limit_key, $attempts, $last_attempt);
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => 'Invalid credentials. Please check your email/phone and password.']);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', 'Invalid credentials');
+                    redirect('auth/login');
+                    return;
+                }
+            }
+
+            // Verify password
+            if (!password_verify($password, $user->password_hash)) {
+                $this->_record_failed_attempt($rate_limit_key, $attempts, $last_attempt);
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => 'Invalid credentials. Please check your email/phone and password.']);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', 'Invalid credentials');
+                    redirect('auth/login');
+                    return;
+                }
+            }
+
+            // Check account status
+            if (isset($user->status) && $user->status !== 'active') {
+                $status_msg = 'Your account is ' . ($user->status === 'inactive' ? 'inactive' : 'suspended') . '. Please contact administrator.';
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => $status_msg]);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', $status_msg);
+                    redirect('auth/login');
+                    return;
+                }
+            }
+
+            // Email verification check
+            if (isset($this->db) && $this->db->field_exists('email_verified', 'users')) {
+                if (isset($user->email_verified) && (int)$user->email_verified !== 1) {
+                    if ($is_ajax) {
+                        header('Content-Type: application/json');
+                        echo json_encode(['success' => false, 'error' => 'Please verify your email address before logging in.']);
+                        exit;
+                    } else {
                         $this->session->set_flashdata('error', 'Please verify your email address before logging in.');
                         redirect('auth/login');
                         return;
                     }
                 }
-                $this->session->set_userdata('user_id', (int)$user->id);
-                $this->session->set_userdata('role_id', (int)$user->role_id);
-                $this->session->set_userdata('email', $user->email);
-                // Record last login timestamp and IP if columns exist
-                try {
-                    $now = date('Y-m-d H:i:s');
-                    $ip  = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
-                    $data = [];
-                    if ($this->db->field_exists('last_login', 'users')) { $data['last_login'] = $now; }
-                    if ($this->db->field_exists('last_login_at', 'users')) { $data['last_login_at'] = $now; }
-                    if ($this->db->field_exists('last_login_on', 'users')) { $data['last_login_on'] = $now; }
-                    if ($this->db->field_exists('last_seen_at', 'users')) { $data['last_seen_at'] = $now; }
-                    if ($this->db->field_exists('last_login_ip', 'users')) { $data['last_login_ip'] = $ip; }
-                    if (!empty($data)) {
-                        $this->db->where('id', (int)$user->id)->update('users', $data);
-                    }
-                } catch (Exception $e) { /* ignore logging errors */ }
-                redirect('dashboard');
-                return;
             }
-            $this->session->set_flashdata('error', 'Invalid credentials');
-            redirect('auth/login');
+
+            // Clear failed attempts on successful login
+            $this->session->unset_userdata([$rate_limit_key, $rate_limit_key . '_time']);
+
+            // Set session data
+            $this->session->set_userdata('user_id', (int)$user->id);
+            $this->session->set_userdata('role_id', (int)$user->role_id);
+            $this->session->set_userdata('email', $user->email);
+            
+            // Remember me functionality
+            if ($remember) {
+                $this->_set_remember_cookie($user);
+            }
+
+            // Record login details
+            $this->_record_login($user);
+
+            // Handle AJAX response
+            if ($is_ajax) {
+                $redirect_url = $this->session->userdata('redirect_url') ?: site_url('dashboard');
+                $this->session->unset_userdata('redirect_url');
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'redirect' => $redirect_url]);
+                exit;
+            }
+
+            // Redirect to intended page or dashboard for non-AJAX requests
+            $redirect_url = $this->session->userdata('redirect_url') ?: 'dashboard';
+            $this->session->unset_userdata('redirect_url');
+            redirect($redirect_url);
             return;
         }
+
         $this->load->view('auth/login');
+    }
+
+    private function _record_failed_attempt($key, $attempts, $last_attempt) {
+        $new_attempts = $attempts + 1;
+        $this->session->set_userdata($key, $new_attempts);
+        $this->session->set_userdata($key . '_time', time());
+    }
+
+    private function _set_remember_cookie($user) {
+        $token = bin2hex(random_bytes(32));
+        $selector = bin2hex(random_bytes(8));
+        $expires = time() + (86400 * 30); // 30 days
+        
+        // Store in database (you'll need to create a remember_tokens table)
+        $data = [
+            'selector' => $selector,
+            'token' => hash('sha256', $token),
+            'user_id' => $user->id,
+            'expires' => date('Y-m-d H:i:s', $expires)
+        ];
+        
+        // For now, just set a simple cookie (enhance this with proper token storage)
+        $cookie_value = $selector . ':' . $token;
+        set_cookie('remember_me', $cookie_value, $expires, '/', '', false, true);
+    }
+
+    private function _record_login($user) {
+        try {
+            $now = date('Y-m-d H:i:s');
+            $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+            $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? substr($_SERVER['HTTP_USER_AGENT'], 0, 500) : '';
+            
+            $data = [];
+            if ($this->db->field_exists('last_login', 'users')) { $data['last_login'] = $now; }
+            if ($this->db->field_exists('last_login_at', 'users')) { $data['last_login_at'] = $now; }
+            if ($this->db->field_exists('last_login_on', 'users')) { $data['last_login_on'] = $now; }
+            if ($this->db->field_exists('last_seen_at', 'users')) { $data['last_seen_at'] = $now; }
+            if ($this->db->field_exists('last_login_ip', 'users')) { $data['last_login_ip'] = $ip; }
+            if ($this->db->field_exists('last_login_user_agent', 'users')) { $data['last_login_user_agent'] = $user_agent; }
+            
+            if (!empty($data)) {
+                $this->db->where('id', (int)$user->id)->update('users', $data);
+            }
+        } catch (Exception $e) {
+            // Log error if needed, but don't break login
+            error_log('Login recording error: ' . $e->getMessage());
+        }
     }
 
     public function logout(){

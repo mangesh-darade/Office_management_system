@@ -1,7 +1,24 @@
 <?php $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
+<style>
+.activity-user-name { font-weight: 600; color: #374151; }
+.activity-user-email { color: #6b7280; font-size: 0.875rem; }
+.activity-unknown { color: #9ca3af; font-style: italic; }
+.activity-badge { 
+  display: inline-block; 
+  padding: 0.25rem 0.5rem; 
+  font-size: 0.75rem; 
+  font-weight: 500; 
+  border-radius: 0.25rem;
+}
+.activity-badge-module { background: #dbeafe; color: #1e40af; }
+.activity-badge-action { background: #f3f4f6; color: #374151; }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Activity Logs</h1>
-  <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('activity/export'); ?>">Export CSV</a>
+  <h1 class="h4 mb-0">📊 Activity Logs</h1>
+  <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('activity/export'); ?>">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
 </div>
 
 <div class="card shadow-soft mb-3">
@@ -12,7 +29,7 @@
         <select class="form-select" name="user_id">
           <option value="">All</option>
           <?php foreach ($users as $u): ?>
-            <option value="<?php echo (int)$u->id; ?>" <?php echo (!empty($filters['user_id']) && (int)$filters['user_id']===(int)$u->id)?'selected':''; ?>><?php echo htmlspecialchars($u->email); ?></option>
+            <option value="<?php echo (int)$u->id; ?>" <?php echo (!empty($filters['user_id']) && (int)$filters['user_id']===(int)$u->id)?'selected':''; ?>><?php echo htmlspecialchars(isset($u->display_name) ? $u->display_name : $u->email); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -69,10 +86,23 @@
             <tr><td colspan="7" class="text-center text-muted">No activity found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr>
-              <td><?php echo (int)$r->id; ?></td>
-              <td><?php echo isset($r->actor_id)?(int)$r->actor_id:0; ?></td>
-              <td><?php echo htmlspecialchars($r->entity_type); ?></td>
-              <td><?php echo htmlspecialchars($r->action); ?></td>
+              <td><span class="badge bg-secondary">#<?php echo (int)$r->id; ?></span></td>
+              <td>
+                <?php 
+                  if (!empty($r->user_name)) {
+                    echo '<div class="activity-user-name">' . htmlspecialchars($r->user_name) . '</div>';
+                    if (!empty($r->user_email)) {
+                      echo '<div class="activity-user-email">' . htmlspecialchars($r->user_email) . '</div>';
+                    }
+                  } elseif (!empty($r->user_email)) {
+                    echo '<div class="activity-user-name">' . htmlspecialchars($r->user_email) . '</div>';
+                  } else {
+                    echo '<div class="activity-unknown">Unknown User (ID: ' . (int)$r->actor_id . ')</div>';
+                  }
+                ?>
+              </td>
+              <td><span class="activity-badge activity-badge-module"><?php echo htmlspecialchars(ucfirst($r->entity_type)); ?></span></td>
+              <td><span class="activity-badge activity-badge-action"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->action))); ?></span></td>
               <td style="max-width:360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 <?php echo htmlspecialchars(isset($r->description)?$r->description:''); ?>
               </td>
