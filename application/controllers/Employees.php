@@ -6,9 +6,12 @@ class Employees extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','group_filter','permission']);
         $this->load->library(['session']);
         $this->load->model('Employee_model');
+        
+        // Check module access - redirect to dashboard if not allowed
+        require_module_access('employees', true);
     }
 
     // GET /employees
@@ -16,19 +19,35 @@ class Employees extends CI_Controller {
     {
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        // Non-admin/HR: redirect to own employee profile if exists
-        if (!in_array($role_id, [1,2], true) && $user_id) {
-            $row = $this->db->where('user_id', $user_id)->get('employees')->row();
-            if ($row && isset($row->id)) { redirect('employees/'.(int)$row->id); return; }
-            // If no employee row, don't show 404; guide the user instead
-            $this->session->set_flashdata('error', 'Your employee profile is not set up yet. Please contact HR.');
-            redirect('dashboard');
-            return;
+        
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
+        // Admin sees all, others see department-based
+        if (!in_array($role_id, [1,2], true)) {
+            // For non-admin users, show department employees or redirect to own profile
+            if (can_view_group_data($role_id)) {
+                // Managers can see department employees
+                $q = $this->input->get('q');
+                $employees = $this->Employee_model->all(100, 0, $q, $filters);
+                $data = [ 'employees' => $employees, 'q' => $q ];
+                $this->load->view('employees/list', $data);
+            } else {
+                // Regular users redirected to own profile
+                $row = $this->db->where('user_id', $user_id)->get('employees')->row();
+                if ($row && isset($row->id)) { redirect('employees/'.(int)$row->id); return; }
+                // If no employee row, guide the user
+                $this->session->set_flashdata('error', 'Your employee profile is not set up yet. Please contact HR.');
+                redirect('dashboard');
+                return;
+            }
+        } else {
+            // Admin sees all employees
+            $q = $this->input->get('q');
+            $employees = $this->Employee_model->all(100, 0, $q, []);
+            $data = [ 'employees' => $employees, 'q' => $q ];
+            $this->load->view('employees/list', $data);
         }
-        $q = $this->input->get('q');
-        $employees = $this->Employee_model->all(100, 0, $q);
-        $data = [ 'employees' => $employees, 'q' => $q ];
-        $this->load->view('employees/list', $data);
     }
 
     // GET /employees/create, POST /employees/create

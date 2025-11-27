@@ -71,11 +71,22 @@ class Chat_model extends CI_Model {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
-    public function list_users_for_select() {
+    public function list_users_for_select($filters = []) {
         $sel = ['id','email'];
         if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
         if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-        return $this->db->select(implode(',', $sel))->from('users')->order_by('email','ASC')->get()->result();
+        
+        $this->db->select(implode(',', $sel))->from('users');
+        
+        // Apply group filtering for non-admin users
+        if (!empty($filters) && isset($filters['user_id'])) {
+            $user_id = $filters['user_id'];
+            $this->db->join('employees e', 'e.user_id = users.id');
+            $this->db->join('employees cu', 'cu.department = e.department');
+            $this->db->where('cu.user_id', $user_id);
+        }
+        
+        return $this->db->order_by('email','ASC')->get()->result();
     }
 
     public function find_user_by_email($email) {
@@ -112,16 +123,32 @@ class Chat_model extends CI_Model {
         return (bool)$this->db->get_where('conversation_participants', ['conversation_id'=>$conversation_id,'user_id'=>$user_id])->row();
     }
 
-    public function list_conversations($user_id) {
+    public function list_conversations($user_id, $filters = []) {
         $sql = "SELECT c.*, 
                        GROUP_CONCAT(u.email ORDER BY u.email SEPARATOR ', ') AS members
                 FROM conversations c
                 JOIN conversation_participants cp ON cp.conversation_id=c.id
-                JOIN users u ON u.id=cp.user_id
-                WHERE c.id IN (SELECT conversation_id FROM conversation_participants WHERE user_id=?)
-                GROUP BY c.id
-                ORDER BY c.created_at DESC";
-        return $this->db->query($sql, [$user_id])->result();
+                JOIN users u ON u.id=cp.user_id";
+        
+        // Apply group filtering for non-admin users
+        if (!empty($filters) && isset($filters['user_id'])) {
+            $sql .= " JOIN conversation_participants cp2 ON cp2.conversation_id=c.id
+                      WHERE cp.user_id = ? AND cp2.user_id IN (
+                          SELECT user_id FROM employees WHERE department IN (
+                              SELECT department FROM employees WHERE user_id = ?
+                          )
+                      )";
+        } else {
+            $sql .= " WHERE c.id IN (SELECT conversation_id FROM conversation_participants WHERE user_id=?)";
+        }
+        
+        $sql .= " GROUP BY c.id ORDER BY c.created_at DESC";
+        
+        if (!empty($filters) && isset($filters['user_id'])) {
+            return $this->db->query($sql, [$user_id, $user_id])->result();
+        } else {
+            return $this->db->query($sql, [$user_id])->result();
+        }
     }
 
     public function get_conversation($id) {

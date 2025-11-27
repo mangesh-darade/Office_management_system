@@ -5,7 +5,7 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission']);
+        $this->load->helper(['url','form','permission','group_filter']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
     }
@@ -14,6 +14,9 @@ class Tasks extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
 
         // Filters from GET
         $project_filter = trim((string)$this->input->get('project_id'));
@@ -39,9 +42,20 @@ class Tasks extends CI_Controller {
             $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
         }
         $this->db->select(implode(',', $select));
+        
+        // Apply group-based filtering
         if (!$is_admin && $user_id) {
-            $this->db->where('t.assigned_to', $user_id);
+            if (can_view_group_data($role_id)) {
+                // Managers can see team tasks
+                if (!empty($filters['tasks'])) {
+                    apply_group_filter_to_query($this->db, 'tasks', $filters);
+                }
+            } else {
+                // Regular users see only their own tasks
+                $this->db->where('t.assigned_to', $user_id);
+            }
         }
+        
         // Apply filters
         if ($project_filter !== '') { $this->db->where('t.project_id', (int)$project_filter); }
         if ($is_admin && $assignee_filter !== '') { $this->db->where('t.assigned_to', (int)$assignee_filter); }

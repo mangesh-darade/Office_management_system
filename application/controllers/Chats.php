@@ -5,7 +5,7 @@ class Chats extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','group_filter']);
         $this->load->library(['session','upload']);
         $this->load->model('Chat_model');
         $this->_ensure_auth();
@@ -27,8 +27,13 @@ class Chats extends CI_Controller {
     // GET /chats
     public function index() {
         $user_id = (int)$this->session->userdata('user_id');
-        $conversations = $this->Chat_model->list_conversations($user_id);
-        $users = $this->Chat_model->list_users_for_select();
+        $role_id = (int)$this->session->userdata('role_id');
+        
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
+        $conversations = $this->Chat_model->list_conversations($user_id, $filters);
+        $users = $this->Chat_model->list_users_for_select($filters);
         $this->load->view('chats/index', [
             'conversations' => $conversations,
             'users' => $users,
@@ -38,8 +43,13 @@ class Chats extends CI_Controller {
     // GET /chats/app - Unified 3-pane chat UI
     public function app() {
         $user_id = (int)$this->session->userdata('user_id');
-        $conversations = $this->Chat_model->list_conversations($user_id);
-        $users = $this->Chat_model->list_users_for_select();
+        $role_id = (int)$this->session->userdata('role_id');
+        
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
+        $conversations = $this->Chat_model->list_conversations($user_id, $filters);
+        $users = $this->Chat_model->list_users_for_select($filters);
         $open_id = (int)$this->input->get('open');
         $auto_call_id = (int)$this->input->get('call');
         $auto_accept = (int)$this->input->get('auto_accept');

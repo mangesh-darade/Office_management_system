@@ -5,7 +5,7 @@ class Attendance extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission']);
+        $this->load->helper(['url','form','permission','group_filter']);
         $this->load->library(['session','upload','email','pagination']);
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
@@ -24,6 +24,9 @@ class Attendance extends CI_Controller {
         $canViewAll = $isAdminGroup || in_array($role_id, [1,2], true);
         $canAddAttendance = true; // All logged-in users can add their own attendance
         
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
         // Check if we should show all records or only today's
         $show_all = $this->input->get('all') === '1';
         $today = date('Y-m-d');
@@ -32,15 +35,35 @@ class Attendance extends CI_Controller {
         $this->db->select('COUNT(*) as total');
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         
-        // Non-admin/HR see only their own attendance
-        if ($user_id && !$canViewAll) {
-            $this->db->where('a.user_id', $user_id);
+        // Apply group-based filtering
+        if (!$canViewAll) {
+            if (can_view_group_data($role_id)) {
+                // Managers can see department attendance
+                if (!empty($filters['attendance'])) {
+                    apply_group_filter_to_query($this->db, 'attendance', $filters);
+                }
+            } else {
+                // Regular users see only their own attendance
+                $this->db->where('a.user_id', $user_id);
+            }
         }
         
         // Show only today's records by default (unless 'all=1' is in URL)
         if (!$show_all) {
-            $this->db->where('a.att_date', $today);
+            // Get date column name
+            $date_col = 'att_date';
+            if (!$this->db->field_exists('att_date', 'attendance')) {
+                $date_columns = ['date', 'attendance_date', 'created_at'];
+                foreach ($date_columns as $col) {
+                    if ($this->db->field_exists($col, 'attendance')) {
+                        $date_col = $col;
+                        break;
+                    }
+                }
+            }
+            $this->db->where('a.'.$date_col, $today);
         }
         
         $total_query = $this->db->get()->row();
@@ -57,14 +80,33 @@ class Attendance extends CI_Controller {
             $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         }
         
-        // Non-admin/HR see only their own attendance
-        if ($user_id && !$canViewAll) {
-            $this->db->where('a.user_id', $user_id);
+        // Apply group-based filtering
+        if (!$canViewAll) {
+            if (can_view_group_data($role_id)) {
+                // Managers can see department attendance
+                if (!empty($filters['attendance'])) {
+                    apply_group_filter_to_query($this->db, 'attendance', $filters);
+                }
+            } else {
+                // Regular users see only their own attendance
+                $this->db->where('a.user_id', $user_id);
+            }
         }
         
         // Show only today's records by default (unless 'all=1' is in URL)
         if (!$show_all) {
-            $this->db->where('a.att_date', $today);
+            // Get date column name
+            $date_col = 'att_date';
+            if (!$this->db->field_exists('att_date', 'attendance')) {
+                $date_columns = ['date', 'attendance_date', 'created_at'];
+                foreach ($date_columns as $col) {
+                    if ($this->db->field_exists($col, 'attendance')) {
+                        $date_col = $col;
+                        break;
+                    }
+                }
+            }
+            $this->db->where('a.'.$date_col, $today);
         }
         
         $records = $this->db->order_by('a.att_date DESC, a.id DESC')

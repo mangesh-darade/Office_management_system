@@ -28,6 +28,74 @@ if (!function_exists('has_module_access')) {
     }
 }
 
+if (!function_exists('require_module_access')) {
+    function require_module_access($module, $redirect_to_dashboard = true) {
+        $CI =& get_instance();
+        
+        // Check if user is logged in
+        $user_id = $CI->session->userdata('user_id');
+        if (!$user_id) {
+            if ($redirect_to_dashboard) {
+                redirect('auth/login');
+            } else {
+                show_error('Please login to access this page.', 401);
+            }
+            return false;
+        }
+        
+        // Check module access
+        if (!has_module_access($module)) {
+            if ($redirect_to_dashboard) {
+                // Set flash message to inform user
+                $CI->session->set_flashdata('access_denied', 'You do not have permission to access the ' . ucfirst($module) . ' module.');
+                redirect('dashboard');
+            } else {
+                show_error('You do not have permission to access this page.', 403);
+            }
+            return false;
+        }
+        
+        return true;
+    }
+}
+
+if (!function_exists('get_accessible_modules')) {
+    function get_accessible_modules() {
+        $CI =& get_instance();
+        if (!$CI || !$CI->session) { return []; }
+        $role_id = (int)$CI->session->userdata('role_id');
+        if (!$role_id) { return []; }
+
+        $accessible_modules = [];
+        if (isset($CI->db) && $CI->db && $CI->db->table_exists('permissions')) {
+            $CI->db->select('module');
+            $CI->db->where('role_id', $role_id);
+            $CI->db->where('can_access', 1);
+            $result = $CI->db->get('permissions')->result();
+            
+            foreach ($result as $row) {
+                $accessible_modules[] = strtolower(trim($row->module));
+            }
+        }
+
+        return $accessible_modules;
+    }
+}
+
+if (!function_exists('can_access_any_module')) {
+    function can_access_any_module($modules = []) {
+        if (empty($modules)) { return false; }
+        
+        foreach ($modules as $module) {
+            if (has_module_access($module)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+}
+
 if (!function_exists('is_admin_group')) {
     function is_admin_group() {
         $CI =& get_instance();

@@ -4,7 +4,22 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Project_model extends CI_Model {
     private $table = 'projects';
     public function __construct(){ parent::__construct(); $this->load->database(); }
-    public function all(){ return $this->db->order_by('id','DESC')->get($this->table)->result(); }
+    
+    public function all($filters = []){
+        $this->db->select('p.*');
+        $this->db->from($this->table . ' p');
+        
+        // Apply group filters for non-admin users
+        if (!empty($filters)) {
+            if (isset($filters['user_id'])) {
+                // Show only projects where user is a member
+                $this->db->join('project_members pm', 'pm.project_id = p.id');
+                $this->db->where('pm.user_id', $filters['user_id']);
+            }
+        }
+        
+        return $this->db->order_by('p.id','DESC')->group_by('p.id')->get()->result();
+    }
 
     // Members
     public function get_project_members($project_id){

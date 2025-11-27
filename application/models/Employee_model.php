@@ -72,11 +72,19 @@ class Employee_model extends CI_Model
         return $this->db->affected_rows() > 0;
     }
 
-    public function all($limit = 50, $offset = 0, $search = null)
+    public function all($limit = 50, $offset = 0, $search = null, $filters = [])
     {
         $this->db->select('e.*, u.email, u.name as user_name, u.role_id');
         $this->db->from($this->table.' e');
         $this->db->join('users u', 'u.id = e.user_id', 'left');
+        
+        // Apply group filters
+        if (!empty($filters)) {
+            if (isset($filters['department'])) {
+                $this->db->where('e.department', $filters['department']);
+            }
+        }
+        
         if ($search) {
             $this->db->group_start()
                 ->like('e.emp_code', $search)
@@ -89,10 +97,18 @@ class Employee_model extends CI_Model
         return $this->db->get()->result();
     }
 
-    public function count_all($search = null)
+    public function count_all($search = null, $filters = [])
     {
         $this->db->from($this->table.' e');
         $this->db->join('users u', 'u.id = e.user_id', 'left');
+        
+        // Apply group filters
+        if (!empty($filters)) {
+            if (isset($filters['department'])) {
+                $this->db->where('e.department', $filters['department']);
+            }
+        }
+        
         if ($search) {
             $this->db->group_start()
                 ->like('e.emp_code', $search)

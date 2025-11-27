@@ -5,13 +5,25 @@ class Projects extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','group_filter']);
         $this->load->library(['session']);
         $this->load->model('Project_model');
     }
 
     public function index() {
-        $projects = $this->Project_model->all();
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
+        // Admin sees all projects, others see only projects they're members of
+        if (!in_array($role_id, [1, 2], true)) {
+            $projects = $this->Project_model->all($filters);
+        } else {
+            $projects = $this->Project_model->all([]);
+        }
+        
         $this->load->view('projects/list', ['projects' => $projects]);
     }
 

@@ -6,7 +6,7 @@ class Leave_requests extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->library(['session','email']);
-        $this->load->helper(['url','form','workday']);
+        $this->load->helper(['url','form','workday','group_filter']);
         $this->load->model('Leave_request_model','leaves');
         // Require login
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
@@ -199,30 +199,31 @@ class Leave_requests extends CI_Controller {
 
     // GET/POST /leave/team - List team leaves for managers/leads with approve/reject actions
     public function team(){
+        $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
 
-        $manager_id = (int)$this->session->userdata('user_id');
-        // Admin (role_id = 1) can see all leave requests; managers/leads see only their direct reports
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
+        // Admin (role_id = 1) can see all leave requests; managers/leads see only their department/team
         $restrict_to_team = ($role_id !== 1);
-
-        // Find team member user_ids via employees.reporting_to when restriction is enabled
-        $user_ids = [];
-        if ($restrict_to_team && $this->db->table_exists('employees')){
-            $rows = $this->db->select('user_id')->from('employees')->where('reporting_to', $manager_id)->get()->result();
-            foreach ($rows as $r) { if ($r->user_id) { $user_ids[] = (int)$r->user_id; } }
-        }
 
         $this->db->select('lr.*, lt.name AS type_name, u.email AS user_email')
                  ->from('leave_requests lr')
                  ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                  ->join('users u', 'u.id = lr.user_id', 'left');
+                 
         if ($restrict_to_team) {
-            if (!empty($user_ids)) {
-                $this->db->where_in('lr.user_id', $user_ids);
+            // Apply group-based filtering for managers/leads
+            if (can_view_group_data($role_id)) {
+                // Managers can see department leave requests
+                $this->db->join('employees e', 'e.user_id = lr.user_id');
+                $this->db->join('employees cu', 'cu.department = e.department');
+                $this->db->where('cu.user_id', $user_id);
             } else {
-                // No direct reports; show empty set safely
-                $this->db->where('1=0', null, false);
+                // For regular users who somehow access this, show only their own
+                $this->db->where('lr.user_id', $user_id);
             }
         }
         // Optional filters

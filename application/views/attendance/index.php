@@ -9,6 +9,15 @@
   $this->load->view('partials/header', ['title' => 'Attendance']); 
 ?>
 
+<?php if (!$canViewAll): ?>
+<div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+  <i class="bi bi-info-circle me-2"></i>
+  <div>
+    <strong>Group View:</strong> Showing attendance for your department/team only.
+  </div>
+</div>
+<?php endif; ?>
+
 <style>
 .attendance-container {
   max-width: 1200px;
