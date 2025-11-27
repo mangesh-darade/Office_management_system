@@ -8,7 +8,11 @@ class Auth extends CI_Controller {
         
         // Store intended URL for redirect after login
         if ($this->input->method() === 'get' && $this->uri->uri_string() !== 'auth/login') {
-            $this->session->set_userdata('redirect_url', current_url());
+            $current_url = current_url();
+            // Don't store register page URLs as redirect targets after login
+            if (strpos($current_url, 'register') === false && strpos($current_url, 'auth/register') === false) {
+                $this->session->set_userdata('redirect_url', $current_url);
+            }
         }
     }
 
@@ -72,6 +76,9 @@ class Auth extends CI_Controller {
             // Debug logging (remove in production)
             error_log("Login attempt for: " . $identifier);
             error_log("User found: " . ($user ? 'YES' : 'NO'));
+            if ($user) {
+                error_log("User ID: {$user->id}, Email: {$user->email}, Role: {$user->role_id}");
+            }
             
             if (!$user) {
                 $this->_record_failed_attempt($rate_limit_key, $attempts, $last_attempt);
@@ -116,7 +123,9 @@ class Auth extends CI_Controller {
 
             // Email verification check
             if (isset($this->db) && $this->db->field_exists('email_verified', 'users')) {
+                error_log("Login: Checking email verification for user ID: {$user->id}, email_verified: " . (isset($user->email_verified) ? $user->email_verified : 'NULL'));
                 if (isset($user->email_verified) && (int)$user->email_verified !== 1) {
+                    error_log("Login: Email not verified for user: {$user->email}");
                     if ($is_ajax) {
                         header('Content-Type: application/json');
                         echo json_encode(['success' => false, 'error' => 'Please verify your email address before logging in.']);
@@ -149,6 +158,10 @@ class Auth extends CI_Controller {
             if ($is_ajax) {
                 $redirect_url = $this->session->userdata('redirect_url') ?: site_url('dashboard');
                 $this->session->unset_userdata('redirect_url');
+                // Ensure redirect URL is not register page
+                if (strpos($redirect_url, 'register') !== false || strpos($redirect_url, 'auth/register') !== false) {
+                    $redirect_url = site_url('dashboard');
+                }
                 header('Content-Type: application/json');
                 echo json_encode(['success' => true, 'redirect' => $redirect_url]);
                 exit;
@@ -157,6 +170,10 @@ class Auth extends CI_Controller {
             // Redirect to intended page or dashboard for non-AJAX requests
             $redirect_url = $this->session->userdata('redirect_url') ?: 'dashboard';
             $this->session->unset_userdata('redirect_url');
+            // Ensure redirect URL is not register page
+            if (strpos($redirect_url, 'register') !== false || strpos($redirect_url, 'auth/register') !== false) {
+                $redirect_url = 'dashboard';
+            }
             redirect($redirect_url);
             return;
         }
@@ -261,7 +278,7 @@ class Auth extends CI_Controller {
             $this->email->clear(true);
             $from = $this->config->item('smtp_user');
             if (!$from) { $from = 'no-reply@example.com'; }
-            $this->email->from($from, 'OfficeMgmt');
+            $this->email->from($from, get_company_name());
             $this->email->to($email);
             $this->email->subject('Your verification code');
             $message = '<p>Your verification code is <strong>'.htmlspecialchars((string)$code, ENT_QUOTES, 'UTF-8').'</strong>.</p>';
@@ -276,6 +293,33 @@ class Auth extends CI_Controller {
             return;
         }
         $this->_json(['ok'=>true]);
+    }
+
+    public function verify_code(){
+        if ($this->input->method() !== 'post') { show_404(); }
+        
+        $code = trim((string)$this->input->post('code'));
+        if ($code === '') {
+            $this->_json(['valid'=>false,'error'=>'Verification code is required.']);
+            return;
+        }
+        
+        $this->load->library('session');
+        $sessionHash = (string)$this->session->userdata('reg_code_hash');
+        $sessionExp = (int)$this->session->userdata('reg_code_expires');
+        
+        // Check if code has expired
+        if (!$sessionHash || !$sessionExp || time() > $sessionExp) {
+            $this->_json(['valid'=>false,'error'=>'Verification code has expired.']);
+            return;
+        }
+        
+        // Verify the code
+        if (password_verify($code, $sessionHash)) {
+            $this->_json(['valid'=>true,'message'=>'Code verified successfully.']);
+        } else {
+            $this->_json(['valid'=>false,'error'=>'Invalid verification code.']);
+        }
     }
 
     // GET /auth/verify?token=xxxx
@@ -363,7 +407,7 @@ class Auth extends CI_Controller {
                 $this->email->clear(true);
                 $from = $this->config->item('smtp_user');
                 if (!$from) { $from = 'no-reply@example.com'; }
-                $this->email->from($from, 'OfficeMgmt');
+                $this->email->from($from, get_company_name());
                 $this->email->to($user->email);
                 $this->email->subject('Your password reset OTP');
                 $message = '<p>Your OTP for resetting your password is <strong>'.htmlspecialchars((string)$code, ENT_QUOTES, 'UTF-8').'</strong>.</p>';
@@ -460,7 +504,9 @@ class Auth extends CI_Controller {
                 $parts = explode('@', $email);
                 $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
             }
+            error_log("Register: Email domain validation - email: $email, domain: $domain");
             if ($domain !== 'gmail.com' && $domain !== 'googlemail.com') {
+                error_log("Register: Invalid domain - not Gmail: $domain");
                 $this->session->set_flashdata('error', 'Please register with a Gmail address (example@gmail.com).');
                 redirect('auth/register');
                 return;
@@ -479,23 +525,34 @@ class Auth extends CI_Controller {
             $sessionEmail = (string)$this->session->userdata('reg_email');
             $sessionHash  = (string)$this->session->userdata('reg_code_hash');
             $sessionExp   = (int)$this->session->userdata('reg_code_expires');
+            
+            // Check if verification code was requested for this email
             if ($sessionEmail === '' || strcasecmp($sessionEmail, $email) !== 0) {
-                $this->session->set_flashdata('error', 'Please request a verification code for this email first.');
+                error_log("Register: Email mismatch - session: $sessionEmail, form: $email");
+                $this->session->set_flashdata('error', 'Please click "Send Code" button first to receive verification code.');
                 redirect('auth/register');
                 return;
             }
+            
+            // Check if verification code was sent
             if ($verify_code === '') {
-                $this->session->set_flashdata('error', 'Please enter the verification code sent to your Gmail.');
+                $this->session->set_flashdata('error', 'Please enter the verification code sent to your email.');
                 redirect('auth/register');
                 return;
             }
+            
+            // Check if code has expired
             if (!$sessionHash || !$sessionExp || time() > $sessionExp) {
+                error_log("Register: Code expired - hash: $sessionHash, exp: $sessionExp, current: " . time());
                 $this->session->set_flashdata('error', 'Verification code has expired. Please request a new code.');
                 redirect('auth/register');
                 return;
             }
+            
+            // Verify the code
             if (!password_verify($verify_code, $sessionHash)) {
-                $this->session->set_flashdata('error', 'Invalid verification code.');
+                error_log("Register: Invalid code - entered: $verify_code");
+                $this->session->set_flashdata('error', 'Invalid verification code. Please check and try again.');
                 redirect('auth/register');
                 return;
             }
@@ -539,14 +596,15 @@ class Auth extends CI_Controller {
             // Prepare email verification fields if columns exist
             $verifyToken = null;
             if ($this->db->field_exists('email_verified', 'users')) {
-                $data['email_verified'] = 0;
+                // Since we verified the code via email, mark as verified
+                $data['email_verified'] = 1;
             }
-            // Optional flags: start as not verified for custom columns if present
+            // Optional flags: mark as verified for custom columns if present
             if ($this->db->field_exists('is_verified', 'users')) {
-                $data['is_verified'] = 0;
+                $data['is_verified'] = 1;
             }
             if ($this->db->field_exists('is_verified1', 'users')) {
-                $data['is_verified1'] = 0;
+                $data['is_verified1'] = 1;
             }
             if ($this->db->field_exists('email_verify_token', 'users')) {
                 try {
@@ -589,7 +647,19 @@ class Auth extends CI_Controller {
                     if ($this->db->field_exists('full_name','users')) { $data['full_name'] = $full_name; }
                 }
             }
+            
+            error_log("Register: Creating user with data: " . json_encode($data));
             $id = $this->User_model->create($data);
+
+            // Check if user creation was successful
+            if (!$id) {
+                error_log("Register: Failed to create user - database error: " . $this->db->error()['message']);
+                $this->session->set_flashdata('error', 'Failed to create account. Please try again.');
+                redirect('auth/register');
+                return;
+            }
+            
+            error_log("Register: User created successfully with ID: $id");
 
             // Send verification email if token/columns are available
             if ($id && $verifyToken) {
@@ -599,7 +669,7 @@ class Auth extends CI_Controller {
                     $this->email->clear(true);
                     $from = $this->config->item('smtp_user');
                     if (!$from) { $from = 'no-reply@example.com'; }
-                    $this->email->from($from, 'OfficeMgmt');
+                    $this->email->from($from, get_company_name());
                     $this->email->to($email);
                     $this->email->subject('Verify your email address');
                     $link = site_url('auth/verify?token='.$verifyToken);
@@ -615,7 +685,7 @@ class Auth extends CI_Controller {
             }
 
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
-            $this->session->set_flashdata('success', 'Account created. Please check your email for the verification link before logging in.');
+            $this->session->set_flashdata('success', 'Account created successfully! You can now login with your credentials.');
             redirect('auth/login');
             return;
         }

@@ -38,7 +38,7 @@
 <?php if (empty($hide_navbar)): ?>
 <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
   <div class="container-fluid px-3">
-    <a class="navbar-brand" href="<?php echo site_url('dashboard'); ?>">OfficeMgmt</a>
+    <a class="navbar-brand" href="<?php echo site_url('dashboard'); ?>"><?php echo get_company_name(); ?></a>
     <?php if ((int)$this->session->userdata('user_id')): ?>
     <!-- Mobile sidebar toggle (single button on mobile) -->
     <button class="btn btn-outline-light d-inline-flex d-md-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-label="Open menu">
@@ -122,7 +122,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link text-danger" href="<?php echo site_url('logout'); ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
     </nav>
   </div>
-  <div class="offcanvas-footer small text-muted px-3 pb-3">OfficeMgmt</div>
+  <div class="offcanvas-footer small text-muted px-3 pb-3"><?php echo get_company_name(); ?></div>
 </div>
 <?php endif; ?>
 <!-- Global Incoming Call Modal -->

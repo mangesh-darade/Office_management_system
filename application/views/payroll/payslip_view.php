@@ -44,7 +44,7 @@
 
   // Company info from settings
   $companyName = isset($settings['company_name']) && $settings['company_name'] !== ''
-    ? $settings['company_name'] : 'Office Management System';
+    ? $settings['company_name'] : get_company_name();
   $companyAddress = isset($settings['company_address']) ? trim((string)$settings['company_address']) : '';
   $companyLogo = isset($settings['company_logo']) && $settings['company_logo'] !== ''
     ? base_url($settings['company_logo']) : '';

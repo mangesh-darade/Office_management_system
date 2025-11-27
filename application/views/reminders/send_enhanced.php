@@ -419,15 +419,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const templates = {
             morning: {
                 subject: '🌅 Good Morning! Daily Reminder',
-                body: 'Hello {name},\n\nGood morning! This is your daily reminder to:\n• Check your tasks for today\n• Review any new announcements\n• Update your progress\n\nHave a productive day!\n\nBest regards,\nOffice Management System'
+                body: 'Hello {name},\n\nGood morning! This is your daily reminder to:\n• Check your tasks for today\n• Review any new announcements\n• Update your progress\n\nHave a productive day!\n\nBest regards,\n' + '<?php echo get_company_name(); ?>'
             },
             night: {
                 subject: '🌙 Good Evening! Daily Wrap-up',
-                body: 'Hello {name},\n\nGood evening! Before you wrap up for the day:\n• Complete any pending tasks\n• Update your status\n• Check tomorrow\'s schedule\n\nHave a great evening!\n\nBest regards,\nOffice Management System'
+                body: 'Hello {name},\n\nGood evening! Before you wrap up for the day:\n• Complete any pending tasks\n• Update your status\n• Check tomorrow\'s schedule\n\nHave a great evening!\n\nBest regards,\n' + '<?php echo get_company_name(); ?>'
             },
             meeting: {
                 subject: '🤝 Meeting Reminder',
-                body: 'Hello {name},\n\nThis is a reminder about your upcoming meeting.\n\nPlease ensure you:\n• Review the agenda\n• Prepare any necessary materials\n• Join on time\n\nMeeting details will be provided separately.\n\nBest regards,\nOffice Management System'
+                body: 'Hello {name},\n\nThis is a reminder about your upcoming meeting.\n\nPlease ensure you:\n• Review the agenda\n• Prepare any necessary materials\n• Join on time\n\nMeeting details will be provided separately.\n\nBest regards,\n' + '<?php echo get_company_name(); ?>'
             }
         };
 

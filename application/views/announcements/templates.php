@@ -47,7 +47,7 @@ Published: {date}
 {content}
 
 ---
-This is an automated announcement from the Office Management System.
+This is an automated announcement from <?php echo get_company_name(); ?>.
 If you have any questions, please contact your administrator.'); ?></textarea>
           </div>
           
@@ -117,7 +117,7 @@ Published: 2025-11-26
 This is a sample announcement content.
 
 ---
-This is an automated announcement from the Office Management System.
+This is an automated announcement from <?php echo get_company_name(); ?>.
 If you have any questions, please contact your administrator.
           </div>
         </div>
@@ -143,7 +143,7 @@ function updatePreview() {
     };
     
     let subject = subjectInput.value || '📢 New Announcement: {title}';
-    let body = bodyTextarea.value || 'Hello {name},\n\nA new announcement has been published:\n\n📌 {title}\nPriority: {priority}\nPublished: {date}\n\n{content}\n\n---\nThis is an automated announcement from the Office Management System.\nIf you have any questions, please contact your administrator.';
+    let body = bodyTextarea.value || 'Hello {name},\n\nA new announcement has been published:\n\n📌 {title}\nPriority: {priority}\nPublished: {date}\n\n{content}\n\n---\nThis is an automated announcement from <?php echo get_company_name(); ?>.\nIf you have any questions, please contact your administrator.';
     
     // Replace variables
     Object.keys(sampleData).forEach(key => {
@@ -165,7 +165,7 @@ if (subjectInput && bodyTextarea) {
 function resetTemplate() {
     if (confirm('Reset template to default values? This will discard your current changes.')) {
         subjectInput.value = '📢 New Announcement: {title}';
-        bodyTextarea.value = 'Hello {name},\n\nA new announcement has been published:\n\n📌 {title}\nPriority: {priority}\nPublished: {date}\n\n{content}\n\n---\nThis is an automated announcement from the Office Management System.\nIf you have any questions, please contact your administrator.';
+        bodyTextarea.value = 'Hello {name},\n\nA new announcement has been published:\n\n📌 {title}\nPriority: {priority}\nPublished: {date}\n\n{content}\n\n---\nThis is an automated announcement from <?php echo get_company_name(); ?>.\nIf you have any questions, please contact your administrator.';
         updatePreview();
     }
 }

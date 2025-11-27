@@ -126,9 +126,9 @@ class Settings extends CI_Controller {
         
         $this->email->clear(true);
         $this->email->to($to);
-        $this->email->from($smtp_user ?: 'noreply@example.com', 'Office Management System');
+        $this->email->from($smtp_user ?: 'noreply@example.com', get_company_name());
         $this->email->subject('Settings: Test Email');
-        $this->email->message('<p>This is a test email from Office Management System settings.</p><p>If you receive this email, your SMTP configuration is working correctly.</p>');
+        $this->email->message('<p>This is a test email from ' . get_company_name() . ' settings.</p><p>If you receive this email, your SMTP configuration is working correctly.</p>');
         
         if ($this->email->send()) {
             $this->session->set_flashdata('success', 'Test email sent successfully to ' . $to);

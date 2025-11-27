@@ -45,20 +45,48 @@ class Departments extends CI_Controller {
     // GET/POST /departments/create
     public function create(){
         if ($this->input->method() === 'post'){
+            $dept_code = trim((string)$this->input->post('dept_code'));
+            $dept_name = trim((string)$this->input->post('dept_name'));
+            $description = trim((string)$this->input->post('description'));
+            $manager_id = $this->input->post('manager_id') !== '' ? (int)$this->input->post('manager_id') : null;
+            
+            // Validation
+            if (empty($dept_code)) {
+                $this->session->set_flashdata('error', 'Department code is required');
+                redirect('departments/create'); return;
+            }
+            if (empty($dept_name)) {
+                $this->session->set_flashdata('error', 'Department name is required');
+                redirect('departments/create'); return;
+            }
+            
+            // Check for duplicate dept_code
+            $existing = $this->departments->find_by_code($dept_code);
+            if ($existing) {
+                $this->session->set_flashdata('error', 'Department code "'.$dept_code.'" already exists. Please use a different code.');
+                redirect('departments/create'); return;
+            }
+            
             $data = [
-                'dept_code' => trim((string)$this->input->post('dept_code')),
-                'dept_name' => trim((string)$this->input->post('dept_name')),
-                'description' => trim((string)$this->input->post('description')),
-                'manager_id' => $this->input->post('manager_id') !== '' ? (int)$this->input->post('manager_id') : null,
+                'dept_code' => $dept_code,
+                'dept_name' => $dept_name,
+                'description' => $description,
+                'manager_id' => $manager_id,
                 'status' => 'active',
                 'created_at' => date('Y-m-d H:i:s')
             ];
-            $this->db->insert('departments', $data);
-            $id = (int)$this->db->insert_id();
-            $this->load->helper('activity');
-            log_activity('employees', 'created', $id, 'Department: '.$data['dept_name']);
-            $this->session->set_flashdata('success', 'Department created');
-            redirect('departments'); return;
+            
+            try {
+                $this->db->insert('departments', $data);
+                $id = (int)$this->db->insert_id();
+                $this->load->helper('activity');
+                log_activity('employees', 'created', $id, 'Department: '.$data['dept_name']);
+                $this->session->set_flashdata('success', 'Department created successfully');
+                redirect('departments'); return;
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Error creating department: '.$e->getMessage());
+                redirect('departments/create'); return;
+            }
         }
         // users for manager select
         $users = $this->db->select('id,email,name')->from('users')->order_by('email','ASC')->limit(500)->get()->result();
@@ -70,17 +98,45 @@ class Departments extends CI_Controller {
         $row = $this->departments->find((int)$id);
         if (!$row) { show_404(); }
         if ($this->input->method() === 'post'){
+            $dept_code = trim((string)$this->input->post('dept_code'));
+            $dept_name = trim((string)$this->input->post('dept_name'));
+            $description = trim((string)$this->input->post('description'));
+            $manager_id = $this->input->post('manager_id') !== '' ? (int)$this->input->post('manager_id') : null;
+            
+            // Validation
+            if (empty($dept_code)) {
+                $this->session->set_flashdata('error', 'Department code is required');
+                redirect('departments/'.$id.'/edit'); return;
+            }
+            if (empty($dept_name)) {
+                $this->session->set_flashdata('error', 'Department name is required');
+                redirect('departments/'.$id.'/edit'); return;
+            }
+            
+            // Check for duplicate dept_code (excluding current record)
+            $existing = $this->departments->find_by_code($dept_code);
+            if ($existing && $existing->id != $id) {
+                $this->session->set_flashdata('error', 'Department code "'.$dept_code.'" already exists. Please use a different code.');
+                redirect('departments/'.$id.'/edit'); return;
+            }
+            
             $data = [
-                'dept_code' => trim((string)$this->input->post('dept_code')),
-                'dept_name' => trim((string)$this->input->post('dept_name')),
-                'description' => trim((string)$this->input->post('description')),
-                'manager_id' => $this->input->post('manager_id') !== '' ? (int)$this->input->post('manager_id') : null,
+                'dept_code' => $dept_code,
+                'dept_name' => $dept_name,
+                'description' => $description,
+                'manager_id' => $manager_id,
             ];
-            $this->departments->update((int)$id, $data);
-            $this->load->helper('activity');
-            log_activity('employees', 'updated', (int)$id, 'Department: '.$data['dept_name']);
-            $this->session->set_flashdata('success', 'Department updated');
-            redirect('departments'); return;
+            
+            try {
+                $this->departments->update((int)$id, $data);
+                $this->load->helper('activity');
+                log_activity('employees', 'updated', (int)$id, 'Department: '.$data['dept_name']);
+                $this->session->set_flashdata('success', 'Department updated successfully');
+                redirect('departments'); return;
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Error updating department: '.$e->getMessage());
+                redirect('departments/'.$id.'/edit'); return;
+            }
         }
         $users = $this->db->select('id,email,name')->from('users')->order_by('email','ASC')->limit(500)->get()->result();
         $this->load->view('departments/form', [ 'action' => 'edit', 'row' => $row, 'users' => $users ]);

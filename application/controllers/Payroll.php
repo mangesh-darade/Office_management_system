@@ -79,6 +79,11 @@ class Payroll extends CI_Controller {
         }
         $ids = $this->input->post('ids');
         if (!is_array($ids) || empty($ids)){
+            $response = ['success' => false, 'message' => 'No payslips selected to email.'];
+            if ($this->input->is_ajax_request()) {
+                $this->output->set_content_type('application/json')->set_output(json_encode($response));
+                return;
+            }
             $this->session->set_flashdata('error','No payslips selected to email.');
             redirect('payroll/payslips');
             return;
@@ -90,6 +95,7 @@ class Payroll extends CI_Controller {
 
         $this->load->model('Setting_model','settings');
         $settings = $this->settings->get_all_settings();
+        $this->load->library('url_shortener');
         $pdfDir = FCPATH.'uploads/payslips/';
         if (!is_dir($pdfDir)) { @mkdir($pdfDir, 0777, true); }
 
@@ -121,14 +127,25 @@ class Payroll extends CI_Controller {
                 }
             }
 
+            $fileType = 'PDF'; // Default, will be updated to HTML if fallback is used
+            $pdf_method = '';
             $subject = 'Salary Slip for '.$label;
-            $body = "Hello,\nPFA Salary slip for " . $label . ".\nThanks & Regards,\nSushama Khachane";
-            $link = site_url('payroll/view/'.$id);
-            $body .= "\n\n".$link;
+            
+            // Get company name from settings
+            $company_name = isset($settings->company_name) && $settings->company_name ? $settings->company_name : $settings->company_name;
+            
+            // Create shortened URL for payslip link
+            $original_url = site_url('payroll/view/' . $id);
+            $short_url = $this->url_shortener->shorten($original_url, 30); // Expires in 30 days
+            
+            $body = "Hello,\nPlease find your salary slip for " . $label . " attached as a " . $fileType . " document.\n\nYou can also view your payslip online at: " . $short_url . "\n\nThanks & Regards,\n" . $company_name;
 
             $pdfPath = '';
             $pdfName = '';
+            
+            // Try dompdf first, then fallback to native PDF generator, then HTML file
             if (class_exists('\\Dompdf\\Dompdf')){
+                $pdf_method = 'DomPDF';
                 $viewData = [
                     'row' => $row,
                     'settings' => $settings,
@@ -145,6 +162,126 @@ class Payroll extends CI_Controller {
                 $pdfName = 'payslip-'.$id.'.pdf';
                 $pdfPath = $pdfDir.$pdfName;
                 @file_put_contents($pdfPath, $output);
+            } elseif (file_exists(APPPATH.'libraries/Working_pdf_generator.php')) {
+                $pdf_method = 'Working PDF Generator';
+                // Use working PDF generator
+                $this->load->library('working_pdf_generator');
+                
+                // Extract payslip data
+                $fn = isset($row->first_name) ? trim((string)$row->first_name) : '';
+                $ln = isset($row->last_name) ? trim((string)$row->last_name) : '';
+                $empName = trim($fn.' '.$ln);
+                if ($empName === '') {
+                    $empName = isset($row->name) ? (string)$row->name : (string)$row->email;
+                }
+                
+                $this->working_pdf_generator->setTitle('Payslip - '.$label);
+                $this->working_pdf_generator->setAuthor($company_name);
+                
+                // Header
+                $this->working_pdf_generator->addText('Salary Slip', 16, true);
+                $this->working_pdf_generator->addText($label, 14);
+                $this->working_pdf_generator->addSeparator();
+                
+                // Employee details
+                $this->working_pdf_generator->addText('Employee Details', 14, true);
+                $this->working_pdf_generator->addLine('Name:', $empName);
+                $this->working_pdf_generator->addLine('Employee Code:', isset($row->emp_code) ? (string)$row->emp_code : '');
+                $this->working_pdf_generator->addLine('Department:', isset($row->department) ? (string)$row->department : '');
+                $this->working_pdf_generator->addLine('Designation:', isset($row->designation) ? (string)$row->designation : '');
+                $this->working_pdf_generator->addSeparator();
+                
+                // Salary details
+                $this->working_pdf_generator->addText('Salary Details', 14, true);
+                
+                $headers = ['Component', 'Amount'];
+                $salary_data = [];
+                
+                if (isset($row->basic) && $row->basic > 0) {
+                    $salary_data[] = ['Basic Salary', number_format((float)$row->basic, 2)];
+                }
+                if (isset($row->hra) && $row->hra > 0) {
+                    $salary_data[] = ['HRA', number_format((float)$row->hra, 2)];
+                }
+                if (isset($row->conveyance_allow) && $row->conveyance_allow > 0) {
+                    $salary_data[] = ['Conveyance Allowance', number_format((float)$row->conveyance_allow, 2)];
+                }
+                if (isset($row->medical_allow) && $row->medical_allow > 0) {
+                    $salary_data[] = ['Medical Allowance', number_format((float)$row->medical_allow, 2)];
+                }
+                if (isset($row->education_allow) && $row->education_allow > 0) {
+                    $salary_data[] = ['Education Allowance', number_format((float)$row->education_allow, 2)];
+                }
+                if (isset($row->special_allow) && $row->special_allow > 0) {
+                    $salary_data[] = ['Special Allowance', number_format((float)$row->special_allow, 2)];
+                }
+                if (isset($row->allowances) && $row->allowances > 0) {
+                    $salary_data[] = ['Other Allowances', number_format((float)$row->allowances, 2)];
+                }
+                
+                // Deductions
+                if (isset($row->professional_tax) && $row->professional_tax > 0) {
+                    $salary_data[] = ['Professional Tax', number_format((float)$row->professional_tax, 2)];
+                }
+                if (isset($row->tds) && $row->tds > 0) {
+                    $salary_data[] = ['TDS', number_format((float)$row->tds, 2)];
+                }
+                if (isset($row->deductions) && $row->deductions > 0) {
+                    $salary_data[] = ['Other Deductions', number_format((float)$row->deductions, 2)];
+                }
+                
+                // Total
+                if (isset($row->net_salary)) {
+                    $salary_data[] = ['Net Salary', number_format((float)$row->net_salary, 2)];
+                }
+                
+                if (!empty($salary_data)) {
+                    $this->working_pdf_generator->addTable($headers, $salary_data);
+                }
+                
+                $output = $this->working_pdf_generator->output();
+                $pdfName = 'payslip-'.$id.'.pdf';
+                $pdfPath = $pdfDir.$pdfName;
+                @file_put_contents($pdfPath, $output);
+                
+            } else {
+                // Fallback: Create clean HTML payslip and save as HTML file
+                $viewData = [
+                    'row' => $row,
+                    'settings' => $settings,
+                    'hide_navbar' => true,
+                    'with_sidebar' => false,
+                    'full_width' => true,
+                ];
+                $html = $this->load->view('payroll/payslip_view', $viewData, true);
+                
+                // Create clean HTML content for email attachment
+                $cleanHtml = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Payslip - ' . $label . '</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .section { margin: 15px 0; }
+        .row { display: flex; justify-content: space-between; margin: 5px 0; }
+        .label { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .total { font-weight: bold; border-top: 2px solid #333; }
+    </style>
+</head>
+<body>' . $html . '</body>
+</html>';
+                
+                $pdfName = 'payslip-'.$id.'.html';
+                $pdfPath = $pdfDir.$pdfName;
+                @file_put_contents($pdfPath, $cleanHtml);
+                $fileType = 'HTML';
+                // Update email body to reflect HTML file type and include shortened link
+                $body = "Hello,\nPlease find your salary slip for " . $label . " attached as an " . $fileType . " document.\n\nYou can also view your payslip online at: " . $short_url . "\n\nThanks & Regards,\n" . $company_name;
             }
 
             $this->email->clear(true);
@@ -152,12 +289,19 @@ class Payroll extends CI_Controller {
             if (!$fromAddr || $fromAddr===''){
                 $fromAddr = 'no-reply@example.com';
             }
-            $this->email->from($fromAddr, 'Office Management System');
+            $this->email->from($fromAddr, $company_name);
             $this->email->to($to);
             $this->email->subject($subject);
             $this->email->message($body);
+            
+            // Attach file with correct MIME type
             if ($pdfPath !== '' && is_file($pdfPath)){
-                $this->email->attach($pdfPath, 'attachment', $pdfName, 'application/pdf');
+                if (pathinfo($pdfName, PATHINFO_EXTENSION) === 'pdf') {
+                    $this->email->attach($pdfPath, 'attachment', $pdfName, 'application/pdf');
+                } else {
+                    // For HTML files, attach as 'text/html'
+                    $this->email->attach($pdfPath, 'attachment', $pdfName, 'text/html');
+                }
             }
 
             if ($this->email->send()){
@@ -167,7 +311,20 @@ class Payroll extends CI_Controller {
             }
         }
 
-        $this->session->set_flashdata('success','Payslip emails - Sent: '.$sent.'; Failed: '.$failed.'.');
+        $message = 'Payslip emails - Sent: '.$sent.'; Failed: '.$failed.'.';
+        
+        if ($this->input->is_ajax_request()) {
+            $response = [
+                'success' => $sent > 0,
+                'message' => $message,
+                'sent' => $sent,
+                'failed' => $failed
+            ];
+            $this->output->set_content_type('application/json')->set_output(json_encode($response));
+            return;
+        }
+
+        $this->session->set_flashdata('success', $message);
         redirect('payroll/payslips');
     }
 

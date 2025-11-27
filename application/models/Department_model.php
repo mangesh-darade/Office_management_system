@@ -16,6 +16,8 @@ class Department_model extends CI_Model {
 
     public function find($id){ return $this->db->get_where($this->table, ['id'=>(int)$id])->row(); }
 
+    public function find_by_code($code){ return $this->db->get_where($this->table, ['dept_code'=>$code])->row(); }
+
     public function create($data){
         $this->db->insert($this->table, $data);
         return (int)$this->db->insert_id();

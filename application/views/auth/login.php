@@ -254,7 +254,7 @@
           '<img src="'.base_url('uploads/'.$settings['company_logo']).'" alt="Logo" style="max-width: 50px; max-height: 50px;">' : 
           '<i class="bi bi-building"></i>'; ?>
       </div>
-      <h2><?php echo isset($settings['company_name']) ? htmlspecialchars($settings['company_name']) : 'OfficeMgmt'; ?></h2>
+      <h2><?php echo isset($settings['company_name']) ? htmlspecialchars($settings['company_name']) : get_company_name(); ?></h2>
       <p>Sign in to continue to your account</p>
     </div>
 

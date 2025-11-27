@@ -45,7 +45,7 @@ class Cron extends CI_Controller {
 
                 // Set email parameters
                 $from_email = $reminder->from_email ?: 'noreply@officemanagement.com';
-                $from_name = $reminder->from_name ?: 'Office Management System';
+                $from_name = $reminder->from_name ?: get_company_name();
                 
                 $this->email->from($from_email, $from_name);
                 $this->email->to($reminder->email);
@@ -125,12 +125,12 @@ class Cron extends CI_Controller {
         $config['wordwrap'] = TRUE;
         $this->email->initialize($config);
 
-        $this->email->from('noreply@officemanagement.com', 'Office Management System');
+        $this->email->from('noreply@officemanagement.com', get_company_name());
         $this->email->to('test@example.com'); // Change to your test email
         $this->email->subject('🧪 Test Email from Announcement System');
         $this->email->message('
             <h2>Test Email</h2>
-            <p>This is a test email from the Office Management System announcement scheduler.</p>
+            <p>This is a test email from the ' . get_company_name() . ' announcement scheduler.</p>
             <p>If you receive this, the email system is working correctly.</p>
             <p><strong>Sent at:</strong> ' . date('Y-m-d H:i:s') . '</p>
         ');

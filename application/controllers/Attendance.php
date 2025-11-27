@@ -529,7 +529,7 @@ class Attendance extends CI_Controller {
         $this->email->clear(true);
         $fromAddr = getenv('SMTP_USER');
         if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
-        $fromName = 'Office Management System';
+        $fromName = get_company_name();
         $this->email->from($fromAddr, $fromName);
         $this->email->to($user->email);
         $isOut = ($action === 'out');
@@ -550,7 +550,7 @@ class Attendance extends CI_Controller {
         $opts = [
             'http' => [
                 'method' => 'GET',
-                'header' => "User-Agent: OfficeMgmt/1.0\r\n",
+                'header' => "User-Agent: " . get_company_name() . "/1.0\r\n",
                 'timeout' => 5,
             ],
         ];

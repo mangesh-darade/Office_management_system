@@ -92,6 +92,8 @@ $autoload['drivers'] = array();
 $autoload['helper'] = array('url','form','download');
 // Load permission helper to check module access in views
 $autoload['helper'][] = 'permission';
+// Load company helper for dynamic company name retrieval
+$autoload['helper'][] = 'company';
 
 /*
 | -------------------------------------------------------------------

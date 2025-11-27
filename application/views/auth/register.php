@@ -153,6 +153,39 @@
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
+.verification-feedback {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.verification-feedback.text-success {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+.verification-feedback.text-danger {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+.verification-feedback.text-warning {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+#sendCodeBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.is-valid {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+}
+.is-invalid {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
 .form-text.text-success {
   color: #10b981;
 }
@@ -211,9 +244,13 @@
       </div>
       
       <div class="form-floating">
-        <input type="email" name="email" class="form-control" id="regEmail" placeholder="you@example.com" required>
+        <div class="input-group">
+          <input type="email" name="email" class="form-control" id="regEmail" placeholder="you@example.com" required>
+          <button class="btn" type="button" id="sendCodeBtn">Send Code</button>
+        </div>
         <label for="regEmail">Email Address</label>
         <div class="invalid-feedback">Please enter a valid email</div>
+        <div class="form-text verification-feedback text-muted">Enter your email and click "Send Code" to receive verification</div>
       </div>
       
       <div class="form-floating">
@@ -312,17 +349,26 @@
   var emailInput = document.getElementById('regEmail');
   var verifyCodeInput = document.getElementById('verifyCodeInput');
   var registerForm = document.getElementById('registerForm');
+  var sendCodeBtn = document.getElementById('sendCodeBtn');
   var verificationSent = false;
   
-  if (emailInput && verifyCodeInput) {
-    emailInput.addEventListener('blur', function(){
+  // Send code button click handler
+  if (sendCodeBtn && emailInput) {
+    sendCodeBtn.addEventListener('click', function(){
       var email = (emailInput.value || '').trim();
-      if (email && email.includes('@')) {
-        // Auto-send verification code when valid email is entered
-        sendVerificationCode(email);
-        verificationSent = true;
+      if (!email) {
+        showToast('error', 'Please enter your email address first');
+        emailInput.focus();
+        return;
       }
+      if (!isValidEmail(email)) {
+        showToast('error', 'Please enter a valid email address');
+        emailInput.focus();
+        return;
+      }
+      sendVerificationCode(email);
     });
+  }
     
     // Show verification feedback when user types code
     verifyCodeInput.addEventListener('input', function(){
@@ -330,24 +376,35 @@
         var feedbackDiv = this.parentNode.querySelector('.verification-feedback');
         if (!feedbackDiv) {
           feedbackDiv = document.createElement('div');
-          feedbackDiv.className = 'verification-feedback text-success small mt-1';
+          feedbackDiv.className = 'verification-feedback text-muted small mt-1';
           this.parentNode.appendChild(feedbackDiv);
         }
-        feedbackDiv.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Code verified';
+        feedbackDiv.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Verifying...';
+        
+        // Verify the code with server
+        verifyCodeWithServer(this.value, feedbackDiv);
+      } else if (this.value.length === 0) {
+        var feedbackDiv = this.parentNode.querySelector('.verification-feedback');
+        if (feedbackDiv) {
+          feedbackDiv.remove();
+        }
       }
     });
-  }
 
   function sendVerificationCode(email) {
-    // Show loading indicator
-    var emailInput = document.getElementById('regEmail');
-    var feedbackDiv = emailInput.parentNode.querySelector('.verification-feedback');
+    // Disable send button and show loading
+    var sendCodeBtn = document.getElementById('sendCodeBtn');
+    var originalBtnText = sendCodeBtn.innerHTML;
+    sendCodeBtn.disabled = true;
+    sendCodeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending...';
+    
+    var feedbackDiv = emailInput.parentNode.parentNode.querySelector('.verification-feedback');
     if (!feedbackDiv) {
       feedbackDiv = document.createElement('div');
       feedbackDiv.className = 'verification-feedback text-muted small mt-1';
-      emailInput.parentNode.appendChild(feedbackDiv);
+      emailInput.parentNode.parentNode.appendChild(feedbackDiv);
     }
-    feedbackDiv.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending verification code...';
+    feedbackDiv.innerHTML = 'Sending verification code...';
     
     fetch(site + 'auth/send-verify-code', {
       method: 'POST',
@@ -356,21 +413,64 @@
     }).then(function(res){ return res.json(); }).then(function(data){
       if (data && data.ok) {
         showToast('success', 'Verification code sent to your email');
+        verificationSent = true;
         // Update to success message
         feedbackDiv.className = 'verification-feedback text-success small mt-1';
         feedbackDiv.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Code sent successfully';
+        // Enable verification code input
+        verifyCodeInput.focus();
+        // Update send button to show resend option
+        sendCodeBtn.innerHTML = 'Resend Code';
+        sendCodeBtn.disabled = false;
       } else {
         showToast('error', (data && data.error) ? data.error : 'Failed to send verification code');
         // Update to error message
         feedbackDiv.className = 'verification-feedback text-danger small mt-1';
-        feedbackDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Failed to send code';
+        feedbackDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' + ((data && data.error) ? data.error : 'Failed to send code');
+        // Restore button
+        sendCodeBtn.disabled = false;
+        sendCodeBtn.innerHTML = originalBtnText;
       }
     }).catch(function(){
       showToast('error', 'Error sending verification code');
       // Update to error message
       feedbackDiv.className = 'verification-feedback text-danger small mt-1';
       feedbackDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Error sending code';
+      // Restore button
+      sendCodeBtn.disabled = false;
+      sendCodeBtn.innerHTML = originalBtnText;
     });
+  }
+
+  function verifyCodeWithServer(code, feedbackDiv) {
+    // Debounce verification requests
+    if (window.verifyTimeout) {
+      clearTimeout(window.verifyTimeout);
+    }
+    
+    window.verifyTimeout = setTimeout(function() {
+      fetch(site + 'auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ code: code })
+      }).then(function(res){ return res.json(); }).then(function(data){
+        if (data && data.valid) {
+          feedbackDiv.className = 'verification-feedback text-success small mt-1';
+          feedbackDiv.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Code verified successfully';
+          // Optionally add visual indication to input
+          verifyCodeInput.classList.add('is-valid');
+          verifyCodeInput.classList.remove('is-invalid');
+        } else {
+          feedbackDiv.className = 'verification-feedback text-danger small mt-1';
+          feedbackDiv.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Invalid verification code';
+          verifyCodeInput.classList.add('is-invalid');
+          verifyCodeInput.classList.remove('is-valid');
+        }
+      }).catch(function(){
+        feedbackDiv.className = 'verification-feedback text-warning small mt-1';
+        feedbackDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Unable to verify code';
+      });
+    }, 500); // Wait 500ms after user stops typing
   }
 
   // Form validation and submission
@@ -416,10 +516,13 @@
       
       // Verification code validation
       if (!verifyCodeInput.value.trim()) {
-        errors.push('Please enter the verification code');
+        errors.push('Please enter the verification code sent to your email');
         verifyCodeInput.classList.add('is-invalid');
       } else if (verifyCodeInput.value.trim().length < 4) {
         errors.push('Verification code must be at least 4 characters');
+        verifyCodeInput.classList.add('is-invalid');
+      } else if (!verificationSent) {
+        errors.push('Please click "Send Code" button first');
         verifyCodeInput.classList.add('is-invalid');
       } else {
         verifyCodeInput.classList.remove('is-invalid');
@@ -481,28 +584,8 @@
       registerBtn.disabled = true;
       registerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating Account...';
       
-      // Submit form
-      var formData = new FormData(registerForm);
-      fetch('<?php echo site_url("auth/register"); ?>', {
-        method: 'POST',
-        body: formData
-      })
-      .then(function(response) {
-        if (response.redirected) {
-          // Successful registration - redirect
-          window.location.href = response.url;
-        } else {
-          // Failed registration - reload page to show flash message
-          window.location.reload();
-        }
-      })
-      .catch(function(error) {
-        console.error('Registration error:', error);
-        // Restore button and show error toast
-        registerBtn.disabled = false;
-        registerBtn.innerHTML = originalText;
-        showToast('error', 'Connection error. Please check your internet and try again.');
-      });
+      // Submit form normally to allow proper redirect
+      registerForm.submit();
     });
     
     // Real-time validation feedback

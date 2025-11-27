@@ -45,19 +45,48 @@ class Designations extends CI_Controller {
     // GET/POST /designations/create
     public function create(){
         if ($this->input->method() === 'post'){
+            $designation_code = trim((string)$this->input->post('designation_code'));
+            $designation_name = trim((string)$this->input->post('designation_name'));
+            $department_id = $this->input->post('department_id') !== '' ? (int)$this->input->post('department_id') : null;
+            $level = (int)($this->input->post('level') ?: 1);
+            
+            // Validation
+            if (empty($designation_code)) {
+                $this->session->set_flashdata('error', 'Designation code is required');
+                redirect('designations/create'); return;
+            }
+            if (empty($designation_name)) {
+                $this->session->set_flashdata('error', 'Designation name is required');
+                redirect('designations/create'); return;
+            }
+            
+            // Check for duplicate designation_code
+            $existing = $this->designations->find_by_code($designation_code);
+            if ($existing) {
+                $this->session->set_flashdata('error', 'Designation code "'.$designation_code.'" already exists. Please use a different code.');
+                redirect('designations/create'); return;
+            }
+            
             $data = [
-                'designation_code' => trim((string)$this->input->post('designation_code')),
-                'designation_name' => trim((string)$this->input->post('designation_name')),
-                'department_id' => $this->input->post('department_id') !== '' ? (int)$this->input->post('department_id') : null,
-                'level' => (int)($this->input->post('level') ?: 1),
+                'designation_code' => $designation_code,
+                'designation_name' => $designation_name,
+                'department_id' => $department_id,
+                'level' => $level,
                 'status' => 'active',
+                'created_at' => date('Y-m-d H:i:s')
             ];
-            $this->db->insert('designations', $data);
-            $id = (int)$this->db->insert_id();
-            $this->load->helper('activity');
-            log_activity('designations', 'created', $id, 'Designation: '.$data['designation_name']);
-            $this->session->set_flashdata('success', 'Designation created');
-            redirect('designations'); return;
+            
+            try {
+                $this->db->insert('designations', $data);
+                $id = (int)$this->db->insert_id();
+                $this->load->helper('activity');
+                log_activity('designations', 'created', $id, 'Designation: '.$data['designation_name']);
+                $this->session->set_flashdata('success', 'Designation created successfully');
+                redirect('designations'); return;
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Error creating designation: '.$e->getMessage());
+                redirect('designations/create'); return;
+            }
         }
         $departments = [];
         if ($this->db->table_exists('departments')){
@@ -71,17 +100,45 @@ class Designations extends CI_Controller {
         $row = $this->designations->find((int)$id);
         if (!$row) { show_404(); }
         if ($this->input->method() === 'post'){
+            $designation_code = trim((string)$this->input->post('designation_code'));
+            $designation_name = trim((string)$this->input->post('designation_name'));
+            $department_id = $this->input->post('department_id') !== '' ? (int)$this->input->post('department_id') : null;
+            $level = (int)($this->input->post('level') ?: 1);
+            
+            // Validation
+            if (empty($designation_code)) {
+                $this->session->set_flashdata('error', 'Designation code is required');
+                redirect('designations/'.$id.'/edit'); return;
+            }
+            if (empty($designation_name)) {
+                $this->session->set_flashdata('error', 'Designation name is required');
+                redirect('designations/'.$id.'/edit'); return;
+            }
+            
+            // Check for duplicate designation_code (excluding current record)
+            $existing = $this->designations->find_by_code($designation_code);
+            if ($existing && $existing->id != $id) {
+                $this->session->set_flashdata('error', 'Designation code "'.$designation_code.'" already exists. Please use a different code.');
+                redirect('designations/'.$id.'/edit'); return;
+            }
+            
             $data = [
-                'designation_code' => trim((string)$this->input->post('designation_code')),
-                'designation_name' => trim((string)$this->input->post('designation_name')),
-                'department_id' => $this->input->post('department_id') !== '' ? (int)$this->input->post('department_id') : null,
-                'level' => (int)($this->input->post('level') ?: 1),
+                'designation_code' => $designation_code,
+                'designation_name' => $designation_name,
+                'department_id' => $department_id,
+                'level' => $level,
             ];
-            $this->designations->update((int)$id, $data);
-            $this->load->helper('activity');
-            log_activity('designations', 'updated', (int)$id, 'Designation: '.$data['designation_name']);
-            $this->session->set_flashdata('success', 'Designation updated');
-            redirect('designations'); return;
+            
+            try {
+                $this->designations->update((int)$id, $data);
+                $this->load->helper('activity');
+                log_activity('designations', 'updated', (int)$id, 'Designation: '.$data['designation_name']);
+                $this->session->set_flashdata('success', 'Designation updated successfully');
+                redirect('designations'); return;
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Error updating designation: '.$e->getMessage());
+                redirect('designations/'.$id.'/edit'); return;
+            }
         }
         $departments = [];
         if ($this->db->table_exists('departments')){

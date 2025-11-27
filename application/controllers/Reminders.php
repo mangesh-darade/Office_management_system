@@ -165,7 +165,7 @@ class Reminders extends CI_Controller {
             if (!isset($q->email) || $q->email==='') { $this->reminders->mark_error($q->id); $failed++; continue; }
             $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : getenv('SMTP_USER');
             if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
-            $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : 'Office Management System';
+            $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : get_company_name();
             $this->email->from($fromAddr, $fromName);
             $this->email->to($q->email);
             $this->email->subject($q->subject);
@@ -220,7 +220,7 @@ class Reminders extends CI_Controller {
             if (!isset($q->email) || $q->email==='') { $this->reminders->mark_error($q->id); $failed++; continue; }
             $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : getenv('SMTP_USER');
             if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
-            $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : 'Office Management System';
+            $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : get_company_name();
             $subject = $q->subject;
             $body = $q->body;
             if ($tplCode !== '' && $tplSubject !== null && $tplBody !== null){
@@ -336,7 +336,7 @@ class Reminders extends CI_Controller {
                     if ($row && isset($row->email) && $row->email!==''){
                         $this->email->clear(true);
                         $fromAddr = isset($row->from_email) && $row->from_email!=='' ? $row->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
-                        $fromName = isset($row->from_name) && $row->from_name!=='' ? $row->from_name : 'Office Management System';
+                        $fromName = isset($row->from_name) && $row->from_name!=='' ? $row->from_name : get_company_name();
                         $this->email->from($fromAddr, $fromName);
                         $this->email->to($row->email);
                         $this->email->subject($row->subject);
@@ -730,7 +730,7 @@ class Reminders extends CI_Controller {
                 if (!$from_email || $from_email==='') { $from_email = 'no-reply@example.com'; }
             }
             if ($from_name===''){
-                $from_name = 'Office Management System';
+                $from_name = get_company_name();
             }
             $count = 0;
             foreach ($emails as $to){
@@ -830,7 +830,7 @@ class Reminders extends CI_Controller {
                 if (!$from_email || $from_email==='') { $from_email = 'no-reply@example.com'; }
             }
             if ($from_name===''){
-                $from_name = 'Office Management System';
+                $from_name = get_company_name();
             }
             $queued = 0;
             while (($row = fgetcsv($handle)) !== false){
@@ -890,7 +890,7 @@ class Reminders extends CI_Controller {
         // Send the email immediately
         $this->email->clear(true);
         $fromAddr = isset($reminder->from_email) && $reminder->from_email !== '' ? $reminder->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
-        $fromName = isset($reminder->from_name) && $reminder->from_name !== '' ? $reminder->from_name : 'Office Management System';
+        $fromName = isset($reminder->from_name) && $reminder->from_name !== '' ? $reminder->from_name : get_company_name();
         
         $this->email->from($fromAddr, $fromName);
         $this->email->to($reminder->email);
