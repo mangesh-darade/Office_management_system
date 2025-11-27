@@ -11,6 +11,11 @@ class Tasks extends CI_Controller {
     }
 
     public function index() {
+        // Check list permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('tasks_list')) {
+            show_error('You do not have permission to view tasks.', 403);
+        }
+        
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
@@ -109,6 +114,11 @@ class Tasks extends CI_Controller {
     // GET /tasks/create, POST /tasks/create
     public function create()
     {
+        // Check create permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('tasks_add')) {
+            show_error('You do not have permission to add tasks.', 403);
+        }
+        
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
@@ -273,6 +283,11 @@ class Tasks extends CI_Controller {
     // GET /tasks/{id}/edit, POST /tasks/{id}/edit
     public function edit($id)
     {
+        // Check edit permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('tasks_edit')) {
+            show_error('You do not have permission to edit tasks.', 403);
+        }
+        
         $task = $this->db->where('id', (int)$id)->get('tasks')->row();
         if (!$task) show_404();
         if ($this->input->method() === 'post') {
@@ -363,6 +378,11 @@ class Tasks extends CI_Controller {
     // POST /tasks/{id}/delete
     public function delete($id)
     {
+        // Check delete permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('tasks_delete')) {
+            show_error('You do not have permission to delete tasks.', 403);
+        }
+        
         // Ownership: non-admin group can only delete tasks assigned to them (or created_by them when available)
         $task = $this->db->where('id', (int)$id)->get('tasks')->row();
         if (!$task) { show_404(); }

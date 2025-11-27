@@ -53,6 +53,11 @@ class Employees extends CI_Controller {
     // GET /employees/create, POST /employees/create
     public function create()
     {
+        // Check create permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('employees_add')) {
+            show_error('You do not have permission to add employees.', 403);
+        }
+        
         // Only Admin/HR can create employee records
         $role_id = (int)$this->session->userdata('role_id');
         if (!in_array($role_id, [1,2], true)) { show_error('Forbidden', 403); }
@@ -154,6 +159,11 @@ class Employees extends CI_Controller {
     // GET /employees/{id}/edit, POST /employees/{id}/edit
     public function edit($id)
     {
+        // Check edit permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('employees_edit')) {
+            show_error('You do not have permission to edit employees.', 403);
+        }
+        
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
         // Ownership check: non Admin/HR can edit only their own record
@@ -233,6 +243,11 @@ class Employees extends CI_Controller {
     // POST /employees/{id}/delete
     public function delete($id)
     {
+        // Check delete permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('employees_delete')) {
+            show_error('You do not have permission to delete employees.', 403);
+        }
+        
         $this->Employee_model->delete((int)$id);
         $this->load->helper('activity');
         log_activity('employees', 'deleted', (int)$id, 'Employee deleted');
@@ -320,6 +335,11 @@ class Employees extends CI_Controller {
 
     public function delete_document($id)
     {
+        // Check delete permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('employees_delete')) {
+            show_error('You do not have permission to delete employee documents.', 403);
+        }
+        
         $doc = $this->Employee_model->get_document((int)$id);
         if (!$doc) { show_404(); }
         $employee = $this->Employee_model->find((int)$doc->employee_id);

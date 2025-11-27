@@ -160,6 +160,11 @@ class Attendance extends CI_Controller {
 
     // Bulk operations for attendance
     public function bulk_operations() {
+        // Check bulk operations permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('attendance_bulk')) {
+            show_error('You do not have permission to perform bulk operations on attendance.', 403);
+        }
+        
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         
@@ -256,6 +261,11 @@ class Attendance extends CI_Controller {
     // GET/POST /attendance/create
     public function create()
     {
+        // Check create permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('attendance_add')) {
+            show_error('You do not have permission to add attendance.', 403);
+        }
+        
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { 
@@ -593,6 +603,11 @@ class Attendance extends CI_Controller {
     // GET/POST /attendance/{id}/edit
     public function edit($id)
     {
+        // Check edit permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('attendance_edit')) {
+            show_error('You do not have permission to edit attendance.', 403);
+        }
+        
         $att = $this->db->where('id', (int)$id)->get('attendance')->row();
         if (!$att) { show_404(); }
         // Ownership: only Admin/HR or owner can edit
@@ -688,6 +703,11 @@ class Attendance extends CI_Controller {
     // POST/GET /attendance/{id}/delete
     public function delete($id)
     {
+        // Check delete permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('attendance_delete')) {
+            show_error('You do not have permission to delete attendance.', 403);
+        }
+        
         // Ownership: only Admin/HR or owner can delete
         $row = $this->db->where('id', (int)$id)->get('attendance')->row();
         if (!$row) { show_404(); }

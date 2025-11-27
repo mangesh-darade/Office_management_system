@@ -30,6 +30,13 @@ class Projects extends CI_Controller {
     // GET /projects/create, POST /projects/create
     public function create()
     {
+        // Check create permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('projects_add')) {
+            $this->session->set_flashdata('info', 'You do not have permission to add projects.');
+            redirect('projects');
+            return;
+        }
+        
         $embed = (bool)$this->input->get('embed');
         if ($this->input->method() === 'post') {
             $data = [
@@ -78,6 +85,11 @@ class Projects extends CI_Controller {
     // GET /projects/{id}/edit, POST /projects/{id}/edit
     public function edit($id)
     {
+        // Check edit permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('projects_edit')) {
+            show_error('You do not have permission to edit projects.', 403);
+        }
+        
         $project = $this->db->where('id', (int)$id)->get('projects')->row();
         if (!$project) show_404();
         if ($this->input->method() === 'post') {
@@ -101,6 +113,11 @@ class Projects extends CI_Controller {
     // POST /projects/{id}/delete
     public function delete($id)
     {
+        // Check delete permission specifically
+        if (!function_exists('has_module_access') || !has_module_access('projects_delete')) {
+            show_error('You do not have permission to delete projects.', 403);
+        }
+        
         $this->db->where('id', (int)$id)->delete('projects');
         $this->load->helper('activity');
         log_activity('projects', 'deleted', (int)$id, 'Project deleted');

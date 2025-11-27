@@ -21,12 +21,46 @@ class Designations extends CI_Controller {
                 `department_id` int(11) DEFAULT NULL,
                 `level` int(11) DEFAULT 1,
                 `status` varchar(20) DEFAULT 'active',
+                `deleted_at` datetime NULL,
                 `created_at` datetime DEFAULT NULL,
                 `updated_at` datetime DEFAULT NULL,
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uq_designation_code` (`designation_code`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
+        }
+        
+        // Add deleted_at column if it doesn't exist
+        if ($this->db->table_exists('designations') && !$this->db->field_exists('deleted_at', 'designations')) {
+            $this->db->query("ALTER TABLE designations ADD COLUMN deleted_at DATETIME NULL AFTER status");
+        }
+        
+        // Handle unique constraint modification safely
+        if ($this->db->table_exists('designations')) {
+            // Check if the new composite index already exists
+            $query = $this->db->query("SHOW INDEX FROM designations WHERE Key_name = 'uq_designation_code_active'");
+            if ($query->num_rows() == 0) {
+                // New index doesn't exist, need to create it
+                // First, try to drop old indexes if they exist
+                $indexes = ['uq_designation_code', 'designation_code'];
+                foreach ($indexes as $index_name) {
+                    $check_query = $this->db->query("SHOW INDEX FROM designations WHERE Key_name = '".$index_name."'");
+                    if ($check_query->num_rows() > 0) {
+                        try {
+                            $this->db->query("ALTER TABLE designations DROP INDEX ".$index_name);
+                        } catch (Exception $e) {
+                            // Ignore errors, index might not exist
+                        }
+                    }
+                }
+                
+                // Create the new composite index
+                try {
+                    $this->db->query("ALTER TABLE designations ADD UNIQUE KEY uq_designation_code_active (designation_code, deleted_at)");
+                } catch (Exception $e) {
+                    // If this fails, we'll handle it gracefully
+                }
+            }
         }
     }
 
@@ -151,8 +185,56 @@ class Designations extends CI_Controller {
     public function delete($id){
         $this->designations->soft_delete((int)$id);
         $this->load->helper('activity');
-        log_activity('designations', 'deleted', (int)$id, 'Designation deleted');
+        log_activity('designations', 'deleted', (int)$id, 'Designation removed');
         $this->session->set_flashdata('success', 'Designation removed');
+        redirect('designations');
+    }
+    
+    // POST /designations/{id}/restore
+    public function restore($id){
+        $id = (int)$id;
+        
+        // Check if designation exists
+        $desig = $this->designations->find($id);
+        if (!$desig) {
+            // Try to find in deleted records
+            $deleted_desigs = $this->designations->deleted_only();
+            $found = false;
+            foreach ($deleted_desigs as $d) {
+                if ((int)$d->id === $id) {
+                    $found = true;
+                    $desig = $d;
+                    break;
+                }
+            }
+            
+            if (!$found) {
+                $this->session->set_flashdata('error', 'Designation not found');
+                redirect('designations');
+            }
+        }
+        
+        // Perform restore
+        $result = $this->designations->restore($id);
+        if ($result) {
+            $this->load->helper('activity');
+            log_activity('designations', 'restored', $id, 'Designation restored');
+            $this->session->set_flashdata('success', 'Designation restored successfully');
+        } else {
+            // Check if it's a code conflict
+            $this->db->from('designations');
+            $this->db->where('designation_code', $desig->designation_code);
+            $this->db->where('status', 'active');
+            $this->db->where('id !=', $id);
+            $conflict_check = $this->db->get();
+            
+            if ($conflict_check->num_rows() > 0) {
+                $this->session->set_flashdata('error', 'Cannot restore: Another designation with code "'.$desig->designation_code.'" already exists. Please delete or modify the conflicting designation first.');
+            } else {
+                $this->session->set_flashdata('error', 'Failed to restore designation');
+            }
+        }
+        
         redirect('designations');
     }
 }

@@ -50,7 +50,7 @@
         <table class="table table-striped align-middle">
           <thead>
             <tr>
-              <th>Module</th>
+              <th>Menu & Modules</th>
               <?php if (!empty($admin_roles)): ?>
                 <th class="text-center bg-light" colspan="<?php echo count($admin_roles); ?>">Admin Group (Admin, HR, Lead)</th>
               <?php endif; ?>
@@ -69,22 +69,45 @@
             </tr>
           </thead>
           <tbody>
-            <?php foreach($modules as $key => $label): ?>
-              <tr>
-                <td><strong><?php echo htmlspecialchars($label); ?></strong><div class="text-muted small"><?php echo htmlspecialchars($key); ?></div></td>
-                <?php foreach($admin_roles as $rid => $rname): ?>
-                  <?php $checked = isset($existing[$rid][$key]) ? ((int)$existing[$rid][$key] === 1) : false; ?>
-                  <td class="text-center">
-                    <input class="form-check-input" type="checkbox" name="perms[<?php echo (int)$rid; ?>][<?php echo htmlspecialchars($key); ?>]" value="1" <?php echo $checked ? 'checked' : ''; ?>>
-                  </td>
-                <?php endforeach; ?>
-                <?php foreach($user_roles as $rid => $rname): ?>
-                  <?php $checked = isset($existing[$rid][$key]) ? ((int)$existing[$rid][$key] === 1) : false; ?>
-                  <td class="text-center">
-                    <input class="form-check-input" type="checkbox" name="perms[<?php echo (int)$rid; ?>][<?php echo htmlspecialchars($key); ?>]" value="1" <?php echo $checked ? 'checked' : ''; ?>>
-                  </td>
-                <?php endforeach; ?>
+            <?php foreach($modules as $menu_name => $menu_data): ?>
+              <!-- Menu Header -->
+              <tr class="table-primary">
+                <td colspan="<?php echo 1 + count($admin_roles) + count($user_roles); ?>" class="fw-bold">
+                  <i class="<?php echo htmlspecialchars($menu_data['icon']); ?> me-2"></i>
+                  <?php echo htmlspecialchars($menu_name); ?>
+                </td>
               </tr>
+              
+              <!-- Menu Modules -->
+              <?php foreach($menu_data['modules'] as $key => $label): ?>
+                <tr>
+                  <td class="ps-4">
+                    <strong><?php echo htmlspecialchars($label); ?></strong>
+                    <div class="text-muted small"><?php echo htmlspecialchars($key); ?></div>
+                  </td>
+                  <?php foreach($admin_roles as $rid => $rname): ?>
+                    <?php $checked = isset($existing[$rid][$key]) ? ((int)$existing[$rid][$key] === 1) : false; ?>
+                    <td class="text-center">
+                      <input class="form-check-input" type="checkbox" name="perms[<?php echo (int)$rid; ?>][<?php echo htmlspecialchars($key); ?>]" value="1" <?php echo $checked ? 'checked' : ''; ?>>
+                    </td>
+                  <?php endforeach; ?>
+                  <?php foreach($user_roles as $rid => $rname): ?>
+                    <?php $checked = isset($existing[$rid][$key]) ? ((int)$existing[$rid][$key] === 1) : false; ?>
+                    <td class="text-center">
+                      <input class="form-check-input" type="checkbox" name="perms[<?php echo (int)$rid; ?>][<?php echo htmlspecialchars($key); ?>]" value="1" <?php echo $checked ? 'checked' : ''; ?>>
+                    </td>
+                  <?php endforeach; ?>
+                </tr>
+              <?php endforeach; ?>
+              
+              <!-- Spacer between menus -->
+              <?php 
+              $menu_keys = array_keys($modules);
+              $last_menu = end($menu_keys);
+              if ($menu_name !== $last_menu): 
+              ?>
+                <tr><td colspan="<?php echo 1 + count($admin_roles) + count($user_roles); ?>" class="border-0 pt-2"></td></tr>
+              <?php endif; ?>
             <?php endforeach; ?>
           </tbody>
         </table>

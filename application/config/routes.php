@@ -86,12 +86,14 @@ $route['departments'] = 'departments/index';
 $route['departments/create'] = 'departments/create';
 $route['departments/(:num)/edit'] = 'departments/edit/$1';
 $route['departments/(:num)/delete'] = 'departments/delete/$1';
+$route['departments/(:num)/restore'] = 'departments/restore/$1';
 
 // Designations
 $route['designations'] = 'designations/index';
 $route['designations/create'] = 'designations/create';
 $route['designations/(:num)/edit'] = 'designations/edit/$1';
 $route['designations/(:num)/delete'] = 'designations/delete/$1';
+$route['designations/(:num)/restore'] = 'designations/restore/$1';
 
 // Clients
 $route['clients'] = 'clients/index';
@@ -132,6 +134,11 @@ $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
 // Permissions Manager
 $route['permissions'] = 'permissions/index';
 $route['permissions/save'] = 'permissions/save';
+
+// Permission Setup Scripts
+$route['setup_permissions'] = 'setup_permissions/index';
+$route['enhance_permissions'] = 'enhance_permissions/index';
+$route['install_permissions'] = 'install_permissions/index';
 
 // Roles
 $route['roles'] = 'roles/index';

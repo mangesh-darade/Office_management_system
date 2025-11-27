@@ -172,6 +172,9 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
             <a class="submenu-link <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('projects_add')): ?>
+            <a class="submenu-link" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-square me-2"></i>Add Project</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('requirements')): ?>
             <a class="submenu-link <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirement</a>
             <?php endif; ?>
@@ -284,13 +287,15 @@ if (!(int)$this->session->userdata('user_id')) {
         has_module_access('permissions') ||
         has_module_access('db') ||
         has_module_access('reminders') ||
-        has_module_access('activity')
+        has_module_access('activity') ||
+        has_module_access('departments') ||
+        has_module_access('designations')
       );
       ?>
       <?php if($settings_group_show): ?>
       <div class="nav-item" id="settings-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','db','reminders','activity']) ? 'active' : ''; ?>" href="#">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-gear me-2"></i>Settings
           </a>
           <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
@@ -303,7 +308,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <a class="submenu-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
-            <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permissions</a>
+            <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
             <a class="submenu-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
@@ -314,7 +319,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <a class="submenu-link <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
-            <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity</a>
+            <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>
             <?php endif; ?>
           </div>
         </div>
@@ -336,7 +341,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','db','reminders','activity']) ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });

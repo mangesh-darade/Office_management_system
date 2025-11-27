@@ -20,9 +20,43 @@ class Departments extends CI_Controller {
             description TEXT NULL,
             manager_id INT NULL,
             status ENUM('active','inactive') DEFAULT 'active',
+            deleted_at DATETIME NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Add deleted_at column if it doesn't exist
+        if ($this->db->table_exists('departments') && !$this->db->field_exists('deleted_at', 'departments')) {
+            $this->db->query("ALTER TABLE departments ADD COLUMN deleted_at DATETIME NULL AFTER status");
+        }
+        
+        // Handle unique constraint modification safely
+        if ($this->db->table_exists('departments')) {
+            // Check if the new composite index already exists
+            $query = $this->db->query("SHOW INDEX FROM departments WHERE Key_name = 'uq_dept_code_active'");
+            if ($query->num_rows() == 0) {
+                // New index doesn't exist, need to create it
+                // First, try to drop old indexes if they exist
+                $indexes = ['dept_code', 'uq_dept_code'];
+                foreach ($indexes as $index_name) {
+                    $check_query = $this->db->query("SHOW INDEX FROM departments WHERE Key_name = '".$index_name."'");
+                    if ($check_query->num_rows() > 0) {
+                        try {
+                            $this->db->query("ALTER TABLE departments DROP INDEX ".$index_name);
+                        } catch (Exception $e) {
+                            // Ignore errors, index might not exist
+                        }
+                    }
+                }
+                
+                // Create the new composite index
+                try {
+                    $this->db->query("ALTER TABLE departments ADD UNIQUE KEY uq_dept_code_active (dept_code, deleted_at)");
+                } catch (Exception $e) {
+                    // If this fails, we'll handle it gracefully
+                }
+            }
+        }
     }
 
     // GET /departments
@@ -146,8 +180,56 @@ class Departments extends CI_Controller {
     public function delete($id){
         $this->departments->soft_delete((int)$id);
         $this->load->helper('activity');
-        log_activity('employees', 'deleted', (int)$id, 'Department deleted');
+        log_activity('employees', 'deleted', (int)$id, 'Department removed');
         $this->session->set_flashdata('success', 'Department removed');
+        redirect('departments');
+    }
+    
+    // POST /departments/{id}/restore
+    public function restore($id){
+        $id = (int)$id;
+        
+        // Check if department exists
+        $dept = $this->departments->find($id);
+        if (!$dept) {
+            // Try to find in deleted records
+            $deleted_depts = $this->departments->deleted_only();
+            $found = false;
+            foreach ($deleted_depts as $d) {
+                if ((int)$d->id === $id) {
+                    $found = true;
+                    $dept = $d;
+                    break;
+                }
+            }
+            
+            if (!$found) {
+                $this->session->set_flashdata('error', 'Department not found');
+                redirect('departments');
+            }
+        }
+        
+        // Perform restore
+        $result = $this->departments->restore($id);
+        if ($result) {
+            $this->load->helper('activity');
+            log_activity('employees', 'restored', $id, 'Department restored');
+            $this->session->set_flashdata('success', 'Department restored successfully');
+        } else {
+            // Check if it's a code conflict
+            $this->db->from('departments');
+            $this->db->where('dept_code', $dept->dept_code);
+            $this->db->where('status', 'active');
+            $this->db->where('id !=', $id);
+            $conflict_check = $this->db->get();
+            
+            if ($conflict_check->num_rows() > 0) {
+                $this->session->set_flashdata('error', 'Cannot restore: Another department with code "'.$dept->dept_code.'" already exists. Please delete or modify the conflicting department first.');
+            } else {
+                $this->session->set_flashdata('error', 'Failed to restore department');
+            }
+        }
+        
         redirect('departments');
     }
 }

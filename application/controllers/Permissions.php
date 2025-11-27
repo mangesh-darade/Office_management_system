@@ -140,29 +140,158 @@ class Permissions extends CI_Controller {
 
     private function modules()
     {
-        $out = [];
+        // Define hierarchical menu structure with sub-modules
+        $menu_structure = [
+            'Dashboard' => [
+                'icon' => 'bi-speedometer2',
+                'modules' => [
+                    'dashboard' => 'Dashboard Overview'
+                ]
+            ],
+            'User Management' => [
+                'icon' => 'bi-people',
+                'modules' => [
+                    'users' => 'User Accounts',
+                    'users_list' => 'User List',
+                    'users_add' => 'Add User',
+                    'users_edit' => 'Edit User',
+                    'users_delete' => 'Delete User',
+                    'employees' => 'Employee Management',
+                    'employees_list' => 'Employee List',
+                    'employees_add' => 'Add Employee',
+                    'employees_edit' => 'Edit Employee',
+                    'employees_delete' => 'Delete Employee',
+                    'departments' => 'Departments',
+                    'designations' => 'Designations',
+                    'permissions' => 'Permission Manager'
+                ]
+            ],
+            'Project Management' => [
+                'icon' => 'bi-kanban',
+                'modules' => [
+                    'projects' => 'Projects',
+                    'projects_list' => 'Project List',
+                    'projects_add' => 'Add Project',
+                    'projects_edit' => 'Edit Project',
+                    'projects_delete' => 'Delete Project',
+                    'tasks' => 'Task Management',
+                    'tasks_list' => 'Task List',
+                    'tasks_add' => 'Add Task',
+                    'tasks_edit' => 'Edit Task',
+                    'tasks_delete' => 'Delete Task',
+                    'requirements' => 'Requirements',
+                    'requirements_list' => 'Requirements List',
+                    'requirements_add' => 'Add Requirement',
+                    'requirements_edit' => 'Edit Requirement',
+                    'requirements_delete' => 'Delete Requirement',
+                    'timesheets' => 'Timesheets',
+                    'timesheets_list' => 'Timesheet List',
+                    'timesheets_add' => 'Add Timesheet',
+                    'timesheets_edit' => 'Edit Timesheet',
+                    'timesheets_delete' => 'Delete Timesheet'
+                ]
+            ],
+            'Attendance & Leave' => [
+                'icon' => 'bi-calendar-check',
+                'modules' => [
+                    'attendance' => 'Attendance',
+                    'attendance_list' => 'Attendance List',
+                    'attendance_add' => 'Mark Attendance',
+                    'attendance_edit' => 'Edit Attendance',
+                    'attendance_delete' => 'Delete Attendance',
+                    'attendance_bulk' => 'Bulk Operations',
+                    'leave_requests' => 'Leave Management',
+                    'leaves_list' => 'Leave List',
+                    'leaves_add' => 'Apply Leave',
+                    'leaves_edit' => 'Edit Leave',
+                    'leaves_delete' => 'Delete Leave'
+                ]
+            ],
+            'Communication' => [
+                'icon' => 'bi-chat-dots',
+                'modules' => [
+                    'chats' => 'Chat System',
+                    'chats_list' => 'Chat List',
+                    'chats_add' => 'Start Chat',
+                    'announcements' => 'Announcements',
+                    'announcements_list' => 'Announcement List',
+                    'announcements_add' => 'Add Announcement',
+                    'announcements_edit' => 'Edit Announcement',
+                    'announcements_delete' => 'Delete Announcement',
+                    'calls' => 'Call System'
+                ]
+            ],
+            'Business Management' => [
+                'icon' => 'bi-briefcase',
+                'modules' => [
+                    'clients' => 'Client Management',
+                    'clients_list' => 'Client List',
+                    'clients_add' => 'Add Client',
+                    'clients_edit' => 'Edit Client',
+                    'clients_delete' => 'Delete Client',
+                    'payroll' => 'Payroll',
+                    'assets_mgmt' => 'Asset Management',
+                    'assets_list' => 'Asset List',
+                    'assets_add' => 'Add Asset',
+                    'assets_edit' => 'Edit Asset',
+                    'assets_delete' => 'Delete Asset'
+                ]
+            ],
+            'Reports & Analytics' => [
+                'icon' => 'bi-graph-up',
+                'modules' => [
+                    'reports' => 'Reports',
+                    'reports_overview' => 'Overview Reports',
+                    'reports_requirements' => 'Requirements Reports',
+                    'reports_tasks_assignment' => 'Task Assignment Reports',
+                    'reports_projects_status' => 'Project Status Reports',
+                    'reports_leaves' => 'Leave Reports',
+                    'reports_attendance' => 'Attendance Reports',
+                    'reports_attendance_employee' => 'Employee Attendance Reports'
+                ]
+            ],
+            'System Administration' => [
+                'icon' => 'bi-gear',
+                'modules' => [
+                    'settings' => 'System Settings',
+                    'db' => 'Database Manager',
+                    'reminders' => 'Reminders',
+                    'reminders_list' => 'Reminder List',
+                    'reminders_add' => 'Add Reminder',
+                    'reminders_edit' => 'Edit Reminder',
+                    'reminders_delete' => 'Delete Reminder',
+                    'activity' => 'Activity Log',
+                    'mail' => 'Mail Configuration'
+                ]
+            ]
+        ];
 
+        // Get existing modules from database if available
+        $db_modules = [];
         if ($this->db->table_exists('modules')) {
             $this->db->from('modules');
-            // Optional: only active modules
             if ($this->db->field_exists('is_active', 'modules')) {
                 $this->db->where('is_active', 1);
             }
-            // Optional: custom sort order
-            if ($this->db->field_exists('sort_order', 'modules')) {
-                $this->db->order_by('sort_order', 'ASC');
-            }
-            $this->db->order_by('module_label', 'ASC');
-
             $rows = $this->db->get()->result();
             foreach ($rows as $row) {
                 $key = strtolower(trim($row->module_key));
-                if ($key === '') { continue; }
-                $out[$key] = $row->module_label;
+                if ($key !== '') {
+                    $db_modules[$key] = $row->module_label;
+                }
             }
         }
 
-        return $out;
+        // Merge database modules with menu structure
+        foreach ($menu_structure as $menu_name => &$menu_data) {
+            foreach ($menu_data['modules'] as $key => $label) {
+                if (isset($db_modules[$key])) {
+                    $menu_data['modules'][$key] = $db_modules[$key];
+                }
+            }
+        }
+
+        return $menu_structure;
     }
 
 
@@ -195,8 +324,17 @@ class Permissions extends CI_Controller {
         // Clear and re-insert (simple approach for small matrix)
         $this->db->trans_start();
         $this->db->truncate('permissions');
+        
+        // Collect all module keys from the hierarchical structure
+        $all_module_keys = [];
+        foreach ($modules as $menu_name => $menu_data) {
+            foreach ($menu_data['modules'] as $key => $label) {
+                $all_module_keys[$key] = $label;
+            }
+        }
+        
         foreach ($roles as $rid => $rname) {
-            foreach ($modules as $key => $label) {
+            foreach ($all_module_keys as $key => $label) {
                 $can = (isset($perms[$rid]) && isset($perms[$rid][$key]) && (int)$perms[$rid][$key] === 1) ? 1 : 0;
                 $this->db->insert('permissions', [
                     'role_id' => (int)$rid,
