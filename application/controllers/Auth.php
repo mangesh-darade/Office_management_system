@@ -188,8 +188,15 @@ class Auth extends CI_Controller {
     }
 
     private function _set_remember_cookie($user) {
-        $token = bin2hex(random_bytes(32));
-        $selector = bin2hex(random_bytes(8));
+        // PHP 5.6 compatible random bytes generation
+        if (function_exists('random_bytes')) {
+            $token = bin2hex(random_bytes(32));
+            $selector = bin2hex(random_bytes(8));
+        } else {
+            // Fallback for PHP < 7.0
+            $token = bin2hex(openssl_random_pseudo_bytes(32));
+            $selector = bin2hex(openssl_random_pseudo_bytes(8));
+        }
         $expires = time() + (86400 * 30); // 30 days
         
         // Store in database (you'll need to create a remember_tokens table)
