@@ -184,6 +184,7 @@ $route['reports/leaves'] = 'reports/leaves';
 $route['reports/attendance'] = 'reports/attendance';
 $route['reports/attendance-employee'] = 'reports/attendance_employee';
 $route['reports/attendance-employee/(:num)'] = 'reports/attendance_employee/$1';
+$route['reports/export-attendance-employee'] = 'reports/export_attendance_employee';
 
 // Profile
 $route['profile'] = 'profile/index';

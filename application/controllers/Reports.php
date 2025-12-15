@@ -1300,12 +1300,79 @@ class Reports extends CI_Controller {
             return;
         }
 
-        $month = (string)$this->input->get('month');
-        if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-            $month = date('Y-m');
+        // Get period filter (daily, weekly, monthly)
+        $period = (string)$this->input->get('period');
+        if (!in_array($period, ['daily', 'weekly', 'monthly'], true)) {
+            $period = 'monthly';
         }
+
+        // Get month/date filter
+        $month = (string)$this->input->get('month');
+        $date = (string)$this->input->get('date');
+        
+        // Calculate date range based on period
+        $from = null;
+        $to = null;
+        
+        if ($period === 'daily') {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                $from = $date;
+                $to = $date;
+            } else {
+                $from = date('Y-m-d');
+                $to = date('Y-m-d');
+                $date = $from;
+            }
+        } elseif ($period === 'weekly') {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                // Get week start (Monday) and end (Sunday)
+                $dateTs = strtotime($date);
+                $dayOfWeek = (int)date('w', $dateTs); // 0=Sunday, 1=Monday, etc.
+                $mondayOffset = ($dayOfWeek == 0) ? -6 : (1 - $dayOfWeek);
+                $from = date('Y-m-d', strtotime($mondayOffset . ' days', $dateTs));
+                $to = date('Y-m-d', strtotime('+6 days', strtotime($from)));
+            } else {
+                // Default to current week
+                $today = date('Y-m-d');
+                $dayOfWeek = (int)date('w', strtotime($today));
+                $mondayOffset = ($dayOfWeek == 0) ? -6 : (1 - $dayOfWeek);
+                $from = date('Y-m-d', strtotime($mondayOffset . ' days', strtotime($today)));
+                $to = date('Y-m-d', strtotime('+6 days', strtotime($from)));
+                $date = $from;
+            }
+        } else { // monthly
+            if (preg_match('/^\d{4}-\d{2}$/', $month)) {
+                $from = $month.'-01'; // Always start from 1st
+                $to = date('Y-m-t', strtotime($from));
+            } else {
+                $month = date('Y-m');
         $from = $month.'-01';
         $to = date('Y-m-t', strtotime($from));
+            }
+        }
+        
+        // Limit 'to' date to today if it's in the future
+        $today = date('Y-m-d');
+        if (strtotime($to) > strtotime($today)) {
+            $to = $today;
+        }
+        
+        // Calculate total working days (excluding weekends and future dates) - used in both branches
+        $totalWorkingDays = 0;
+        $startTs = strtotime($from);
+        $endTs = strtotime($to);
+        $todayTs = strtotime($today);
+        while ($startTs !== false && $startTs <= $endTs) {
+            // Only count up to today
+            if ($startTs > $todayTs) {
+                break;
+            }
+            $dayOfWeek = (int)date('w', $startTs); // 0=Sunday, 6=Saturday
+            if ($dayOfWeek != 0 && $dayOfWeek != 6) { // Not Sunday or Saturday
+                $totalWorkingDays++;
+            }
+            $startTs = strtotime('+1 day', $startTs);
+        }
 
         if (!$this->db->table_exists('attendance')) {
             show_error('Attendance table not found', 500);
@@ -1407,9 +1474,24 @@ class Reports extends CI_Controller {
                 }
             }
 
+            // Detect check-out column
+            $checkOutCol = null;
+            if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
+            elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+
             $selectCols = ["`$dateCol` AS d", "`$statusCol` AS st"];
             if ($checkInCol !== null) {
                 $selectCols[] = "`".$checkInCol."` AS cin";
+            }
+            if ($checkOutCol !== null) {
+                $selectCols[] = "`".$checkOutCol."` AS cout";
+            }
+            // Add location fields if they exist
+            if ($this->db->field_exists('checkin_location_name', 'attendance')) {
+                $selectCols[] = "`checkin_location_name` AS cin_loc";
+            }
+            if ($this->db->field_exists('checkout_location_name', 'attendance')) {
+                $selectCols[] = "`checkout_location_name` AS cout_loc";
             }
 
             $this->db->select(implode(', ', $selectCols))
@@ -1422,6 +1504,9 @@ class Reports extends CI_Controller {
 
             $attMap = [];
             $cinMap = [];
+            $coutMap = [];
+            $cinLocMap = [];
+            $coutLocMap = [];
             foreach ($rows as $r) {
                 $d = isset($r->d) ? (string)$r->d : '';
                 if ($d === '') { continue; }
@@ -1429,6 +1514,15 @@ class Reports extends CI_Controller {
                 $attMap[$d] = (string)$r->st;
                 if ($checkInCol !== null && isset($r->cin)) {
                     $cinMap[$d] = (string)$r->cin;
+                }
+                if ($checkOutCol !== null && isset($r->cout)) {
+                    $coutMap[$d] = (string)$r->cout;
+                }
+                if (isset($r->cin_loc) && !empty($r->cin_loc)) {
+                    $cinLocMap[$d] = (string)$r->cin_loc;
+                }
+                if (isset($r->cout_loc) && !empty($r->cout_loc)) {
+                    $coutLocMap[$d] = (string)$r->cout_loc;
                 }
             }
 
@@ -1457,8 +1551,10 @@ class Reports extends CI_Controller {
             }
 
             // Resolve office start time and grace period from settings (with safe defaults)
+            // Use the same settings as the summary view for consistency
             $officeStart = '09:30';
             $graceMinutes = 15;
+            $standardHours = 8.0;
             if (isset($this->settings)) {
                 try {
                     $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
@@ -1468,6 +1564,14 @@ class Reports extends CI_Controller {
                     $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
                     if (is_numeric($gmVal)) {
                         $graceMinutes = (int)$gmVal;
+                    }
+                    // Try both old and new setting key names for backward compatibility
+                    $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                    if ($shVal === null || $shVal === '') {
+                        $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                    }
+                    if (is_numeric($shVal)) {
+                        $standardHours = (float)$shVal;
                     }
                 } catch (Exception $e) {
                     // ignore and use defaults
@@ -1479,49 +1583,117 @@ class Reports extends CI_Controller {
             $endTs = strtotime($to);
             while ($startTs !== false && $startTs <= $endTs) {
                 $d = date('Y-m-d', $startTs);
+                $dayOfWeek = (int)date('w', $startTs); // 0=Sunday, 6=Saturday
+                $isWeekend = ($dayOfWeek == 0 || $dayOfWeek == 6);
+                
                 $raw = isset($attMap[$d]) ? $attMap[$d] : '';
                 $st = strtolower(trim($raw));
+                $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+                
+                // Determine status: if no attendance record and not on leave and not weekend, mark as absent
+                if ($raw === '' && $leave === '—' && !$isWeekend) {
+                    $st = 'absent';
+                    $raw = 'absent';
+                }
+                
                 $labelSt = '—';
                 if ($st === 'present') { $labelSt = 'Present'; }
                 elseif ($st === 'half_day') { $labelSt = 'Half Day'; }
                 elseif ($st === 'work_from_home') { $labelSt = 'Work From Home'; }
                 elseif ($st === 'absent') { $labelSt = 'Absent'; }
                 elseif ($st !== '') { $labelSt = $raw; }
-                $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+                elseif ($isWeekend) { $labelSt = 'Weekend'; }
 
                 // Late/On Time label based on check-in time when available
                 $lateLabel = '—';
+                $lateStatus = ''; // 'late', 'on_time', or ''
+                $lateMinutes = 0;
+                $graceTimeStr = ''; // Grace time threshold (e.g., "09:45")
+                $checkInTime = '—';
+                $checkOutTime = '—';
+                $checkInLocation = '—';
+                $checkOutLocation = '—';
+                
                 if ($checkInCol !== null && isset($cinMap[$d]) && $st !== '' && $st !== 'absent') {
                     $cinRaw = (string)$cinMap[$d];
                     $cinTime = $cinRaw;
                     if (strpos($cinRaw, ' ') !== false) {
                         $parts = explode(' ', $cinRaw);
                         $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                        $checkInTime = substr($cinTime, 0, 5); // HH:MM format
+                    } else {
+                        $checkInTime = substr($cinTime, 0, 5);
                     }
+                    
                     if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
                         // Display only HH:MM part for user friendliness
                         $cinDisp = substr($cinTime, 0, 5);
                         $officeTs = strtotime($d.' '.$officeStart.':00');
                         $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
                         $cinTs    = strtotime($d.' '.$cinTime);
-                        error_log("Late calculation for $d: cin=$cinTime, office=$officeStart, grace=$graceMinutes min");
+                        
+                        // Calculate grace time threshold for display
+                        if ($graceTs !== false) {
+                            $graceTimeStr = date('H:i', $graceTs);
+                        }
+                        
                         if ($graceTs !== false && $cinTs !== false) {
                             if ($cinTs > $graceTs) {
-                                $lateMinutes = (int)round(($cinTs - $officeTs) / 60);
-                                $lateLabel = 'Late: '.$cinDisp.' ('.$lateMinutes.' min)';
-                                error_log("Result: Late - $lateMinutes minutes");
+                                $lateMinutes = (int)round(($cinTs - $graceTs) / 60);
+                                $lateStatus = 'late';
+                                $lateLabel = 'Late: '.$cinDisp.' ('.$lateMinutes.' min after grace)';
                             } else {
-                                $lateLabel = 'On Time ('.$cinDisp.')';
-                                error_log("Result: On Time");
-                            }
+                                $lateStatus = 'on_time';
+                                // Calculate if within grace period or before office start
+                                if ($cinTs >= $officeTs) {
+                                    $lateLabel = 'On Time: '.$cinDisp.' (within grace)';
                         } else {
-                            error_log("Timestamp calculation failed");
+                                    $earlyMinutes = (int)round(($officeTs - $cinTs) / 60);
+                                    $lateLabel = 'Early: '.$cinDisp.' ('.$earlyMinutes.' min before)';
+                                }
+                            }
                         }
-                    } else {
-                        error_log("Invalid time format: $cinTime");
                     }
-                } else {
-                    error_log("No late calculation - checkInCol=" . ($checkInCol ? $checkInCol : 'null') . ", cinMap=" . (isset($cinMap[$d]) ? 'yes' : 'no') . ", status='$st'");
+                }
+                
+                // Get check-out time
+                $workedHours = 0;
+                $extraHours = 0;
+                if ($checkOutCol !== null && isset($coutMap[$d])) {
+                    $coutRaw = (string)$coutMap[$d];
+                    $coutTime = $coutRaw;
+                    if (strpos($coutRaw, ' ') !== false) {
+                        $parts = explode(' ', $coutRaw);
+                        $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
+                    }
+                    if (preg_match('/^\d{2}:\d{2}/', $coutTime)) {
+                        $checkOutTime = substr($coutTime, 0, 5); // HH:MM format
+                        
+                        // Calculate worked hours from check-in to check-out
+                        if ($checkInTime !== '—' && preg_match('/^\d{2}:\d{2}/', $checkInTime)) {
+                            $cinTs = strtotime($d.' '.$checkInTime.':00');
+                            $coutTs = strtotime($d.' '.$coutTime.':00');
+                            if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
+                                $workedHours = ($coutTs - $cinTs) / 3600; // Convert seconds to hours
+                                
+                                // Calculate extra hours (worked hours - standard hours)
+                                // Only show extra if worked more than standard
+                                if ($workedHours > $standardHours) {
+                                    $extraHours = $workedHours - $standardHours;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Get check-in location
+                if (isset($cinLocMap[$d])) {
+                    $checkInLocation = $cinLocMap[$d];
+                }
+                
+                // Get check-out location
+                if (isset($coutLocMap[$d])) {
+                    $checkOutLocation = $coutLocMap[$d];
                 }
 
                 $obj = new stdClass();
@@ -1529,14 +1701,57 @@ class Reports extends CI_Controller {
                 $obj->status = $labelSt;
                 $obj->leave = $leave;
                 $obj->late = $lateLabel;
+                $obj->late_status = $lateStatus; // 'late', 'on_time', or ''
+                $obj->late_minutes = $lateMinutes;
+                $obj->grace_time = $graceTimeStr; // Grace time threshold (e.g., "09:45")
+                $obj->check_in_time = $checkInTime;
+                $obj->check_out_time = $checkOutTime;
+                $obj->check_in_location = $checkInLocation;
+                $obj->check_out_location = $checkOutLocation;
+                $obj->worked_hours = round($workedHours, 2); // Total hours worked
+                $obj->extra_hours = round($extraHours, 2); // Extra hours beyond standard
                 $days[] = $obj;
                 $startTs = strtotime('+1 day', $startTs);
             }
 
             $name = $getName($user_id);
             error_log("Loading view for user: $user_id, name: $name, days count: " . count($days));
-            $this->load->view('reports/attendance_employee_detail', ['name'=>$name,'month'=>$month,'days'=>$days]);
+            $this->load->view('reports/attendance_employee_detail', [
+                'name'=>$name,
+                'period'=>$period,
+                'month'=>$month,
+                'date'=>$date,
+                'from'=>$from,
+                'to'=>$to,
+                'office_start_time'=>$officeStart,
+                'grace_minutes'=>$graceMinutes,
+                'standard_working_hours'=>$standardHours,
+                'days'=>$days
+            ]);
             return;
+        }
+
+        // Get all users/employees first
+        $allUsers = [];
+        if ($this->db->table_exists('users')) {
+            $this->db->select('u.id, u.email');
+            if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name'); }
+            if ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+            if ($this->db->field_exists('status','users')) { 
+                $this->db->where('u.status', 'active'); // Only active users
+            }
+            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                $this->db->join('employees e','e.user_id = u.id','left');
+                if ($this->db->field_exists('name','employees')) { $this->db->select('e.name AS emp_name'); }
+                if ($this->db->field_exists('full_name','employees')) { $this->db->select('e.full_name AS emp_full_name'); }
+                if ($this->db->field_exists('first_name','employees')) { $this->db->select('e.first_name AS emp_first_name'); }
+                if ($this->db->field_exists('middle_name','employees')) { $this->db->select('e.middle_name AS emp_middle_name'); }
+                if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
+            }
+            $users = $this->db->from('users u')->get()->result();
+            foreach ($users as $u) { 
+                $allUsers[(int)$u->id] = $u; 
+            }
         }
 
         $summary = [];
@@ -1559,16 +1774,21 @@ class Reports extends CI_Controller {
             elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
         }
 
-        // Calculate late arrivals
-        $fields = $this->db->list_fields('attendance');
-        $checkInCol = null;
-        if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
-        elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+        // Initialize summary for all users (even those without attendance records)
+        foreach ($allUsers as $uid => $user) {
+            if (!isset($summary[$uid])) {
+                $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+            } else {
+                if (!isset($summary[$uid]['late_hours'])) { $summary[$uid]['late_hours'] = 0.0; }
+                if (!isset($summary[$uid]['extra_hours'])) { $summary[$uid]['extra_hours'] = 0.0; }
+                if (!isset($summary[$uid]['on_time'])) { $summary[$uid]['on_time'] = 0.0; }
+            }
+        }
 
-        if ($checkInCol !== null) {
-            // Resolve office start time and grace period from settings (with safe defaults)
+        // Resolve office start time, grace period, and standard hours from settings
             $officeStart = '09:30';
             $graceMinutes = 15;
+        $standardHours = 8.0; // Standard working hours per day
             if (isset($this->settings)) {
                 try {
                     $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
@@ -1579,12 +1799,38 @@ class Reports extends CI_Controller {
                     if (is_numeric($gmVal)) {
                         $graceMinutes = (int)$gmVal;
                     }
+                // Try both old and new setting key names for backward compatibility
+                $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                if ($shVal === null || $shVal === '') {
+                    $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                }
+                if (is_numeric($shVal)) {
+                    $standardHours = (float)$shVal;
+                }
                 } catch (Exception $e) {
                     // ignore and use defaults
                 }
             }
 
-            $attendanceRows = $this->db->select("`$userCol` AS uid, `$dateCol` AS d, `$checkInCol` AS cin")
+        // Calculate late hours and extra hours
+        $fields = $this->db->list_fields('attendance');
+        $checkInCol = null;
+        $checkOutCol = null;
+        if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
+        elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+        if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
+        elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+
+        if ($checkInCol !== null) {
+            $selectCols = ["`$userCol` AS uid", "`$dateCol` AS d", "`$checkInCol` AS cin"];
+            if ($checkOutCol !== null) {
+                $selectCols[] = "`$checkOutCol` AS cout";
+            }
+            if ($this->db->field_exists('total_hours', 'attendance')) {
+                $selectCols[] = "`total_hours` AS th";
+            }
+            
+            $attendanceRows = $this->db->select(implode(', ', $selectCols))
                 ->from('attendance')
                 ->where("`$dateCol` >=", $from)
                 ->where("`$dateCol` <=", $to)
@@ -1593,11 +1839,12 @@ class Reports extends CI_Controller {
 
             foreach ($attendanceRows as $row) {
                 $uid = (int)$row->uid;
-                $date = isset($row->d) ? (string)$row->d : '';
+                $attDate = isset($row->d) ? (string)$row->d : '';
                 $cinRaw = isset($row->cin) ? (string)$row->cin : '';
                 
-                if ($date === '' || $cinRaw === '') continue;
+                if ($attDate === '' || $cinRaw === '') continue;
                 
+                // Calculate late hours
                 $cinTime = $cinRaw;
                 if (strpos($cinRaw, ' ') !== false) {
                     $parts = explode(' ', $cinRaw);
@@ -1605,49 +1852,129 @@ class Reports extends CI_Controller {
                 }
                 
                 if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
-                    $officeTs = strtotime($date.' '.$officeStart.':00');
+                    $officeTs = strtotime($attDate.' '.$officeStart.':00');
                     $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
-                    $cinTs    = strtotime($date.' '.$cinTime);
+                    $cinTs    = strtotime($attDate.' '.$cinTime);
                     
-                    if ($graceTs !== false && $cinTs !== false && $cinTs > $graceTs) {
+                    if ($officeTs !== false && $cinTs !== false) {
                         if (!isset($summary[$uid])) {
-                            $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0];
+                            $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
                         }
+                        
+                        // Check if check-in is after grace period (late)
+                        if ($graceTs !== false && $cinTs > $graceTs) {
                         $summary[$uid]['late'] += 1;
+                            // Calculate late hours (time after office start + grace, in hours)
+                            $lateSeconds = $cinTs - $graceTs;
+                            $lateHours = $lateSeconds / 3600; // Convert to hours
+                            $summary[$uid]['late_hours'] += $lateHours;
+                        } elseif ($cinTs >= $officeTs) {
+                            // Check-in is on time (between office start and grace period)
+                            $summary[$uid]['on_time'] += 1;
+                        }
+                        // If check-in is before office start, it's early (not counted as on_time or late)
                     }
+                }
+                
+                // Calculate extra hours (overtime)
+                $workedHours = 0.0;
+                if (isset($row->th) && is_numeric($row->th) && $row->th > 0) {
+                    $workedHours = (float)$row->th;
+                } elseif ($checkOutCol !== null && isset($row->cout) && !empty($row->cout)) {
+                    $coutRaw = (string)$row->cout;
+                    $coutTime = $coutRaw;
+                    if (strpos($coutRaw, ' ') !== false) {
+                        $parts = explode(' ', $coutRaw);
+                        $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
+                    }
+                    // Get check-in time for calculation
+                    $cinTimeForCalc = $cinTime;
+                    if (strpos($cinRaw, ' ') !== false) {
+                        $parts = explode(' ', $cinRaw);
+                        $cinTimeForCalc = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                    }
+                    if (preg_match('/^\d{2}:\d{2}/', $cinTimeForCalc) && preg_match('/^\d{2}:\d{2}/', $coutTime)) {
+                        $cinTs = strtotime($attDate.' '.$cinTimeForCalc);
+                        $coutTs = strtotime($attDate.' '.$coutTime);
+                        if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
+                            $workedSeconds = $coutTs - $cinTs;
+                            $workedHours = $workedSeconds / 3600; // Convert to hours
+                        }
+                    }
+                }
+                
+                if ($workedHours > $standardHours) {
+                    if (!isset($summary[$uid])) {
+                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                    }
+                    $extraHours = $workedHours - $standardHours;
+                    $summary[$uid]['extra_hours'] += $extraHours;
                 }
             }
         }
 
         if ($this->db->table_exists('leave_requests')) {
-            $lrows = $this->db->select('lr.user_id, SUM(lr.days) AS days')
+            // Calculate leave days excluding weekends and future dates
+            $lrows = $this->db->select('lr.user_id, lr.start_date, lr.end_date, lr.status')
                 ->from('leave_requests lr')
                 ->where_in('lr.status', ['lead_approved','hr_approved'])
                 ->where('lr.start_date <=', $to)
                 ->where('lr.end_date >=', $from)
-                ->group_by('lr.user_id')
                 ->get()->result();
             foreach ($lrows as $lr) {
                 $uid = (int)$lr->user_id;
-                $days = isset($lr->days) ? (float)$lr->days : 0.0;
-                if (!isset($summary[$uid])) {
-                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0];
+                $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
+                $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
+                if ($sd === '' || $ed === '') { continue; }
+                
+                // Calculate working days in leave period (excluding weekends and future dates)
+                $leaveStart = strtotime(max($from, substr($sd, 0, 10)));
+                $leaveEnd = strtotime(min($to, substr($ed, 0, 10), $today));
+                $leaveWorkingDays = 0;
+                $cur = $leaveStart;
+                while ($cur !== false && $cur <= $leaveEnd) {
+                    $dayOfWeek = (int)date('w', $cur); // 0=Sunday, 6=Saturday
+                    if ($dayOfWeek != 0 && $dayOfWeek != 6) { // Not Sunday or Saturday
+                        $leaveWorkingDays++;
+                    }
+                    $cur = strtotime('+1 day', $cur);
                 }
-                $summary[$uid]['leave'] += $days;
+                
+                if (!isset($summary[$uid])) {
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                }
+                $summary[$uid]['leave'] += $leaveWorkingDays;
             }
         }
 
+        // Calculate absent days: total working days - (present + half + wfh + leave)
+        // Note: totalWorkingDays already excludes weekends and future dates
         $rowsOut = [];
         foreach ($summary as $uid => $s) {
+            // Only include users that exist in allUsers
+            if (!isset($allUsers[$uid])) {
+                continue;
+            }
+            
+            $totalAttended = $s['present'] + ($s['half'] * 0.5) + $s['wfh'];
+            $calculatedAbsent = max(0, $totalWorkingDays - $totalAttended - $s['leave']);
+            
+            // Use calculated absent if no explicit absent records, otherwise use the higher value
+            $finalAbsent = max($s['absent'], $calculatedAbsent);
+            
             $o = new stdClass();
             $o->user_id = (int)$uid;
             $o->name = $getName((int)$uid);
             $o->present_days = $s['present'] > 0 ? rtrim(rtrim(number_format($s['present'], 2, '.', ''), '0'), '.') : '0';
             $o->half_days = $s['half'] > 0 ? rtrim(rtrim(number_format($s['half'], 2, '.', ''), '0'), '.') : '0';
             $o->wfh_days = $s['wfh'] > 0 ? rtrim(rtrim(number_format($s['wfh'], 2, '.', ''), '0'), '.') : '0';
-            $o->absent_days = $s['absent'] > 0 ? rtrim(rtrim(number_format($s['absent'], 2, '.', ''), '0'), '.') : '0';
+            $o->absent_days = $finalAbsent > 0 ? rtrim(rtrim(number_format($finalAbsent, 2, '.', ''), '0'), '.') : '0';
             $o->leave_days = $s['leave'] > 0 ? rtrim(rtrim(number_format($s['leave'], 2, '.', ''), '0'), '.') : '0';
             $o->late_days = $s['late'] > 0 ? rtrim(rtrim(number_format($s['late'], 2, '.', ''), '0'), '.') : '0';
+            $o->on_time_days = isset($s['on_time']) && $s['on_time'] > 0 ? rtrim(rtrim(number_format($s['on_time'], 2, '.', ''), '0'), '.') : '0';
+            $o->late_hours = isset($s['late_hours']) && $s['late_hours'] > 0 ? rtrim(rtrim(number_format($s['late_hours'], 2, '.', ''), '0'), '.') : '0';
+            $o->extra_hours = isset($s['extra_hours']) && $s['extra_hours'] > 0 ? rtrim(rtrim(number_format($s['extra_hours'], 2, '.', ''), '0'), '.') : '0';
+            $o->total_working_days = $totalWorkingDays;
             $rowsOut[] = $o;
         }
 
@@ -1655,7 +1982,23 @@ class Reports extends CI_Controller {
             return strcmp($a->name, $b->name);
         });
 
-        $this->load->view('reports/attendance_employee', ['month'=>$month,'rows'=>$rowsOut]);
+        // Get settings for display
+        $officeStartDisplay = $officeStart;
+        $graceMinutesDisplay = $graceMinutes;
+        $standardHoursDisplay = $standardHours;
+        
+        $this->load->view('reports/attendance_employee', [
+            'period' => $period,
+            'month' => $month,
+            'date' => $date,
+            'from' => $from,
+            'to' => $to,
+            'total_working_days' => $totalWorkingDays,
+            'office_start_time' => $officeStartDisplay,
+            'grace_minutes' => $graceMinutesDisplay,
+            'standard_working_hours' => $standardHoursDisplay,
+            'rows' => $rowsOut
+        ]);
     }
 
     // GET /reports/attendance?period=daily|weekly|monthly&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&department_id=X&export=csv|pdf
@@ -1933,5 +2276,581 @@ class Reports extends CI_Controller {
             echo '<html><head><style>body{font-family:Arial,sans-serif;}table{width:100%;border-collapse:collapse;}</style></head><body>' . $html . '</body></html>';
             exit;
         }
+    }
+    
+    // Export attendance employee report
+    public function export_attendance_employee() {
+        try {
+            $format = $this->input->get('export'); // 'excel' or 'pdf'
+            $userIdsStr = $this->input->get('user_ids');
+            $period = $this->input->get('period') ?: 'monthly';
+            $month = $this->input->get('month');
+            $date = $this->input->get('date');
+            
+            // Validate format
+            if (!in_array($format, ['excel', 'pdf'])) {
+                $this->output
+                    ->set_status_header(400)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'Invalid export format. Use "excel" or "pdf".']));
+                return;
+            }
+            
+            // Validate user IDs
+            if (empty($userIdsStr)) {
+                $this->output
+                    ->set_status_header(400)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'No employees selected for export.']));
+                return;
+            }
+            
+            $userIds = array_filter(array_map('intval', explode(',', $userIdsStr)));
+            if (empty($userIds)) {
+                $this->output
+                    ->set_status_header(400)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'Invalid employee selection.']));
+                return;
+            }
+            
+            // Calculate date range based on period
+            $from = '';
+            $to = '';
+            if ($period === 'daily' && $date) {
+                $from = $date;
+                $to = $date;
+            } elseif ($period === 'weekly' && $date) {
+                $startTs = strtotime($date);
+                $dow = (int)date('w', $startTs);
+                $mondayOffset = ($dow === 0 ? -6 : 1 - $dow);
+                $mondayTs = strtotime("$mondayOffset days", $startTs);
+                $sundayTs = strtotime('+6 days', $mondayTs);
+                $from = date('Y-m-d', $mondayTs);
+                $to = date('Y-m-d', $sundayTs);
+            } elseif ($period === 'monthly' && $month) {
+                $from = $month . '-01';
+                $lastDay = date('Y-m-t', strtotime($from));
+                $to = min($lastDay, date('Y-m-d'));
+            } else {
+                $from = date('Y-m-01');
+                $to = date('Y-m-d');
+            }
+            
+            if ($format === 'excel') {
+                $this->export_attendance_employee_excel($userIds, $period, $from, $to, $month, $date);
+            } elseif ($format === 'pdf') {
+                $this->export_attendance_employee_pdf($userIds, $period, $from, $to, $month, $date);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Export attendance employee error: ' . $e->getMessage());
+            $this->output
+                ->set_status_header(500)
+                ->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'An error occurred during export: ' . $e->getMessage()]));
+        }
+    }
+    
+    private function export_attendance_employee_excel($userIds, $period, $from, $to, $month, $date) {
+        try {
+            // Get user names
+            $users = [];
+            if ($this->db->table_exists('users')) {
+                $this->db->select('u.id');
+                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
+                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+                else { $this->db->select('u.email AS name'); }
+                $this->db->where_in('u.id', $userIds);
+                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                    $this->db->join('employees e','e.user_id = u.id','left');
+                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
+                }
+                $users = $this->db->from('users u')->get()->result();
+            }
+            
+            // Get attendance data
+            $dateCol = $this->db->field_exists('date', 'attendance') ? 'date' : ($this->db->field_exists('attendance_date', 'attendance') ? 'attendance_date' : 'created_at');
+            $userCol = $this->db->field_exists('user_id', 'attendance') ? 'user_id' : ($this->db->field_exists('employee_id', 'attendance') ? 'employee_id' : 'id');
+            $statusCol = $this->db->field_exists('status', 'attendance') ? 'status' : 'attendance_status';
+            
+            $summary = [];
+            $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
+                ->from('attendance')
+                ->where("`$dateCol` >=", $from)
+                ->where("`$dateCol` <=", $to)
+                ->where_in("`$userCol`", $userIds)
+                ->group_by(["`$userCol`","`$statusCol`"])
+                ->get()->result();
+                
+            foreach ($rows as $r) {
+                $uid = (int)$r->uid;
+                $st = strtolower(trim((string)$r->st));
+                $cnt = (float)$r->cnt;
+                if (!isset($summary[$uid])) {
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                }
+                if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
+                elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
+                elseif ($st === 'work_from_home') { $summary[$uid]['wfh'] += $cnt; }
+                elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
+            }
+            
+            // Calculate late days, late hours, and extra hours (same logic as UI grid)
+            // Get settings
+            $officeStart = '09:30';
+            $graceMinutes = 15;
+            $standardHours = 8.0;
+            if (isset($this->settings)) {
+                try {
+                    $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                    if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
+                        $officeStart = $stVal;
+                    }
+                    $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                    if (is_numeric($gmVal)) {
+                        $graceMinutes = (int)$gmVal;
+                    }
+                    $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                    if ($shVal === null || $shVal === '') {
+                        $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                    }
+                    if (is_numeric($shVal)) {
+                        $standardHours = (float)$shVal;
+                    }
+                } catch (Exception $e) {
+                    // use defaults
+                }
+            }
+            
+            // Get check-in and check-out columns
+            $fields = $this->db->list_fields('attendance');
+            $checkInCol = null;
+            $checkOutCol = null;
+            if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
+            elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+            if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
+            elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+            
+            if ($checkInCol !== null) {
+                $selectCols = ["`$userCol` AS uid", "`$dateCol` AS d", "`$checkInCol` AS cin"];
+                if ($checkOutCol !== null) {
+                    $selectCols[] = "`$checkOutCol` AS cout";
+                }
+                if ($this->db->field_exists('total_hours', 'attendance')) {
+                    $selectCols[] = "`total_hours` AS th";
+                }
+                
+                $attendanceRows = $this->db->select(implode(', ', $selectCols))
+                    ->from('attendance')
+                    ->where("`$dateCol` >=", $from)
+                    ->where("`$dateCol` <=", $to)
+                    ->where_in("`$userCol`", $userIds)
+                    ->where("`$statusCol` !=", 'absent')
+                    ->get()->result();
+                
+                foreach ($attendanceRows as $row) {
+                    $uid = (int)$row->uid;
+                    $attDate = isset($row->d) ? (string)$row->d : '';
+                    $cinRaw = isset($row->cin) ? (string)$row->cin : '';
+                    
+                    if ($attDate === '' || $cinRaw === '') continue;
+                    
+                    // Initialize summary if not exists
+                    if (!isset($summary[$uid])) {
+                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                    }
+                    
+                    // Calculate late days and late hours
+                    $cinTime = $cinRaw;
+                    if (strpos($cinRaw, ' ') !== false) {
+                        $parts = explode(' ', $cinRaw);
+                        $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                    }
+                    
+                    if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
+                        $officeTs = strtotime($attDate.' '.$officeStart.':00');
+                        $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
+                        $cinTs    = strtotime($attDate.' '.$cinTime);
+                        
+                        if ($officeTs !== false && $cinTs !== false) {
+                            // Check if check-in is after grace period (late)
+                            if ($graceTs !== false && $cinTs > $graceTs) {
+                                $summary[$uid]['late'] += 1;
+                                // Calculate late hours (time after office start + grace, in hours)
+                                $lateSeconds = $cinTs - $graceTs;
+                                $lateHours = $lateSeconds / 3600; // Convert to hours
+                                $summary[$uid]['late_hours'] += $lateHours;
+                            } elseif ($cinTs >= $officeTs) {
+                                // Check-in is on time (between office start and grace period)
+                                $summary[$uid]['on_time'] += 1;
+                            }
+                        }
+                    }
+                    
+                    // Calculate extra hours (overtime)
+                    $workedHours = 0.0;
+                    if (isset($row->th) && is_numeric($row->th) && $row->th > 0) {
+                        $workedHours = (float)$row->th;
+                    } elseif ($checkOutCol !== null && isset($row->cout) && !empty($row->cout)) {
+                        $coutRaw = (string)$row->cout;
+                        $coutTime = $coutRaw;
+                        if (strpos($coutRaw, ' ') !== false) {
+                            $parts = explode(' ', $coutRaw);
+                            $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
+                        }
+                        // Get check-in time for calculation
+                        $cinTimeForCalc = $cinTime;
+                        if (strpos($cinRaw, ' ') !== false) {
+                            $parts = explode(' ', $cinRaw);
+                            $cinTimeForCalc = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                        }
+                        if (preg_match('/^\d{2}:\d{2}/', $cinTimeForCalc) && preg_match('/^\d{2}:\d{2}/', $coutTime)) {
+                            $cinTs = strtotime($attDate.' '.$cinTimeForCalc);
+                            $coutTs = strtotime($attDate.' '.$coutTime);
+                            if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
+                                $workedSeconds = $coutTs - $cinTs;
+                                $workedHours = $workedSeconds / 3600; // Convert to hours
+                            }
+                        }
+                    }
+                    
+                    if ($workedHours > $standardHours) {
+                        $extraHours = $workedHours - $standardHours;
+                        $summary[$uid]['extra_hours'] += $extraHours;
+                    }
+                }
+            }
+            
+            // Prepare CSV data (Excel compatible)
+            $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.csv';
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
+            $output = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8 Excel compatibility
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Headers
+            fputcsv($output, [
+                'Employee Name',
+                'Employee ID',
+                'Period',
+                'From',
+                'To',
+                'Present Days',
+                'Half Days',
+                'WFH Days',
+                'Absent Days',
+                'Leave Days',
+                'Late Days',
+                'On Time Days',
+                'Late Hours',
+                'Extra Hours'
+            ]);
+            
+            // Data rows
+            foreach ($users as $user) {
+                $uid = (int)$user->id;
+                $name = isset($user->name) ? $user->name : 'Unknown';
+                $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                
+                fputcsv($output, [
+                    $name,
+                    $uid,
+                    ucfirst($period),
+                    $from,
+                    $to,
+                    number_format(isset($data['present']) ? (float)$data['present'] : 0.0, 1),
+                    number_format(isset($data['half']) ? (float)$data['half'] : 0.0, 1),
+                    number_format(isset($data['wfh']) ? (float)$data['wfh'] : 0.0, 1),
+                    number_format(isset($data['absent']) ? (float)$data['absent'] : 0.0, 1),
+                    number_format(isset($data['leave']) ? (float)$data['leave'] : 0.0, 1),
+                    number_format(isset($data['late']) ? (float)$data['late'] : 0.0, 1),
+                    number_format(isset($data['on_time']) ? (float)$data['on_time'] : 0.0, 1),
+                    number_format(isset($data['late_hours']) ? (float)$data['late_hours'] : 0.0, 2),
+                    number_format(isset($data['extra_hours']) ? (float)$data['extra_hours'] : 0.0, 2)
+                ]);
+            }
+            
+            fclose($output);
+            exit;
+        } catch (Exception $e) {
+            log_message('error', 'Export Excel error: ' . $e->getMessage());
+            show_error('Error generating Excel export: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    private function export_attendance_employee_pdf($userIds, $period, $from, $to, $month, $date) {
+        try {
+            // Get user names
+            $users = [];
+            if ($this->db->table_exists('users')) {
+                $this->db->select('u.id');
+                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
+                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+                else { $this->db->select('u.email AS name'); }
+                $this->db->where_in('u.id', $userIds);
+                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                    $this->db->join('employees e','e.user_id = u.id','left');
+                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
+                }
+                $users = $this->db->from('users u')->get()->result();
+            }
+            
+            // Get attendance data (same as Excel)
+            $dateCol = $this->db->field_exists('date', 'attendance') ? 'date' : ($this->db->field_exists('attendance_date', 'attendance') ? 'attendance_date' : 'created_at');
+            $userCol = $this->db->field_exists('user_id', 'attendance') ? 'user_id' : ($this->db->field_exists('employee_id', 'attendance') ? 'employee_id' : 'id');
+            $statusCol = $this->db->field_exists('status', 'attendance') ? 'status' : 'attendance_status';
+            
+            $summary = [];
+            $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
+                ->from('attendance')
+                ->where("`$dateCol` >=", $from)
+                ->where("`$dateCol` <=", $to)
+                ->where_in("`$userCol`", $userIds)
+                ->group_by(["`$userCol`","`$statusCol`"])
+                ->get()->result();
+                
+            foreach ($rows as $r) {
+                $uid = (int)$r->uid;
+                $st = strtolower(trim((string)$r->st));
+                $cnt = (float)$r->cnt;
+                if (!isset($summary[$uid])) {
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                }
+                if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
+                elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
+                elseif ($st === 'work_from_home') { $summary[$uid]['wfh'] += $cnt; }
+                elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
+            }
+            
+            // Calculate late days, late hours, and extra hours (same logic as UI grid)
+            // Get settings
+            $officeStart = '09:30';
+            $graceMinutes = 15;
+            $standardHours = 8.0;
+            if (isset($this->settings)) {
+                try {
+                    $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                    if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
+                        $officeStart = $stVal;
+                    }
+                    $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                    if (is_numeric($gmVal)) {
+                        $graceMinutes = (int)$gmVal;
+                    }
+                    $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                    if ($shVal === null || $shVal === '') {
+                        $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                    }
+                    if (is_numeric($shVal)) {
+                        $standardHours = (float)$shVal;
+                    }
+                } catch (Exception $e) {
+                    // use defaults
+                }
+            }
+            
+            // Get check-in and check-out columns
+            $fields = $this->db->list_fields('attendance');
+            $checkInCol = null;
+            $checkOutCol = null;
+            if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
+            elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+            if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
+            elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+            
+            if ($checkInCol !== null) {
+                $selectCols = ["`$userCol` AS uid", "`$dateCol` AS d", "`$checkInCol` AS cin"];
+                if ($checkOutCol !== null) {
+                    $selectCols[] = "`$checkOutCol` AS cout";
+                }
+                if ($this->db->field_exists('total_hours', 'attendance')) {
+                    $selectCols[] = "`total_hours` AS th";
+                }
+                
+                $attendanceRows = $this->db->select(implode(', ', $selectCols))
+                    ->from('attendance')
+                    ->where("`$dateCol` >=", $from)
+                    ->where("`$dateCol` <=", $to)
+                    ->where_in("`$userCol`", $userIds)
+                    ->where("`$statusCol` !=", 'absent')
+                    ->get()->result();
+                
+                foreach ($attendanceRows as $row) {
+                    $uid = (int)$row->uid;
+                    $attDate = isset($row->d) ? (string)$row->d : '';
+                    $cinRaw = isset($row->cin) ? (string)$row->cin : '';
+                    
+                    if ($attDate === '' || $cinRaw === '') continue;
+                    
+                    // Initialize summary if not exists
+                    if (!isset($summary[$uid])) {
+                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                    }
+                    
+                    // Calculate late days and late hours
+                    $cinTime = $cinRaw;
+                    if (strpos($cinRaw, ' ') !== false) {
+                        $parts = explode(' ', $cinRaw);
+                        $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                    }
+                    
+                    if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
+                        $officeTs = strtotime($attDate.' '.$officeStart.':00');
+                        $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
+                        $cinTs    = strtotime($attDate.' '.$cinTime);
+                        
+                        if ($officeTs !== false && $cinTs !== false) {
+                            // Check if check-in is after grace period (late)
+                            if ($graceTs !== false && $cinTs > $graceTs) {
+                                $summary[$uid]['late'] += 1;
+                                // Calculate late hours (time after office start + grace, in hours)
+                                $lateSeconds = $cinTs - $graceTs;
+                                $lateHours = $lateSeconds / 3600; // Convert to hours
+                                $summary[$uid]['late_hours'] += $lateHours;
+                            } elseif ($cinTs >= $officeTs) {
+                                // Check-in is on time (between office start and grace period)
+                                $summary[$uid]['on_time'] += 1;
+                            }
+                        }
+                    }
+                    
+                    // Calculate extra hours (overtime)
+                    $workedHours = 0.0;
+                    if (isset($row->th) && is_numeric($row->th) && $row->th > 0) {
+                        $workedHours = (float)$row->th;
+                    } elseif ($checkOutCol !== null && isset($row->cout) && !empty($row->cout)) {
+                        $coutRaw = (string)$row->cout;
+                        $coutTime = $coutRaw;
+                        if (strpos($coutRaw, ' ') !== false) {
+                            $parts = explode(' ', $coutRaw);
+                            $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
+                        }
+                        // Get check-in time for calculation
+                        $cinTimeForCalc = $cinTime;
+                        if (strpos($cinRaw, ' ') !== false) {
+                            $parts = explode(' ', $cinRaw);
+                            $cinTimeForCalc = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                        }
+                        if (preg_match('/^\d{2}:\d{2}/', $cinTimeForCalc) && preg_match('/^\d{2}:\d{2}/', $coutTime)) {
+                            $cinTs = strtotime($attDate.' '.$cinTimeForCalc);
+                            $coutTs = strtotime($attDate.' '.$coutTime);
+                            if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
+                                $workedSeconds = $coutTs - $cinTs;
+                                $workedHours = $workedSeconds / 3600; // Convert to hours
+                            }
+                        }
+                    }
+                    
+                    if ($workedHours > $standardHours) {
+                        $extraHours = $workedHours - $standardHours;
+                        $summary[$uid]['extra_hours'] += $extraHours;
+                    }
+                }
+            }
+            
+            $html = $this->generate_attendance_pdf_html($users, $summary, $period, $from, $to, $month, $date);
+            
+            // Try to use DomPDF if available
+            if (class_exists('\\Dompdf\\Dompdf')) {
+                $dompdf = new \Dompdf\Dompdf();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'landscape');
+                $dompdf->render();
+                
+                $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.pdf';
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                echo $dompdf->output();
+                exit;
+            } else {
+                // Fallback to HTML with print styling
+                $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.html';
+                header('Content-Type: text/html; charset=utf-8');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                echo $html;
+                exit;
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Export PDF error: ' . $e->getMessage());
+            show_error('Error generating PDF export: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    private function generate_attendance_pdf_html($users, $summary, $period, $from, $to, $month, $date) {
+        $periodLabel = $period === 'daily' ? ($date ?: date('Y-m-d')) : ($period === 'weekly' ? ($from . ' to ' . $to) : ($month ?: date('Y-m')));
+        
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Attendance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 10px; }
+        h1 { color: #2563eb; margin-bottom: 10px; }
+        h2 { color: #64748b; margin-bottom: 20px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background-color: #2563eb; color: white; padding: 8px; text-align: left; border: 1px solid #ddd; }
+        td { padding: 6px; border: 1px solid #ddd; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .header-info { margin-bottom: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 4px; }
+        .header-info p { margin: 3px 0; }
+    </style>
+</head>
+<body>
+    <h1>Employee Attendance Report</h1>
+    <div class="header-info">
+        <p><strong>Period:</strong> ' . ucfirst($period) . '</p>
+        <p><strong>Date Range:</strong> ' . htmlspecialchars($from) . ' to ' . htmlspecialchars($to) . '</p>
+        <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee Name</th>
+                <th>ID</th>
+                <th>Present</th>
+                <th>Half</th>
+                <th>WFH</th>
+                <th>Absent</th>
+                <th>Leave</th>
+                <th>Late Days</th>
+                <th>On Time</th>
+                <th>Late Hours</th>
+                <th>Extra Hours</th>
+            </tr>
+        </thead>
+        <tbody>';
+        
+        foreach ($users as $user) {
+            $uid = (int)$user->id;
+            $name = isset($user->name) ? htmlspecialchars($user->name) : 'Unknown';
+            $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+            
+            $html .= '<tr>
+                <td>' . $name . '</td>
+                <td>' . $uid . '</td>
+                <td>' . number_format($data['present'], 1) . '</td>
+                <td>' . number_format($data['half'], 1) . '</td>
+                <td>' . number_format($data['wfh'], 1) . '</td>
+                <td>' . number_format($data['absent'], 1) . '</td>
+                <td>' . number_format($data['leave'], 1) . '</td>
+                <td>' . number_format(isset($data['late']) ? (float)$data['late'] : 0.0, 1) . '</td>
+                <td>' . number_format(isset($data['on_time']) ? (float)$data['on_time'] : 0.0, 1) . '</td>
+                <td>' . number_format(isset($data['late_hours']) ? (float)$data['late_hours'] : 0.0, 2) . '</td>
+                <td>' . number_format(isset($data['extra_hours']) ? (float)$data['extra_hours'] : 0.0, 2) . '</td>
+            </tr>';
+        }
+        
+        $html .= '</tbody>
+    </table>
+</body>
+</html>';
+        
+        return $html;
     }
 }

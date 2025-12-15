@@ -133,8 +133,28 @@
     <?php if ($is_edit && isset($row->id) && (int)$row->id > 0): ?>
     <div class="card mt-3">
       <div class="card-body">
-        <h6 class="mb-2">Face Registration</h6>
-        <p class="small text-muted mb-3">Capture the user's face using the camera. This will be used later to verify attendance.</p>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Face Registration</h6>
+          <?php if (isset($row->face_registered) && $row->face_registered): ?>
+            <span class="badge bg-success">
+              <i class="bi bi-check-circle-fill"></i> Face Registered
+              <?php if (isset($row->face_registered_date) && $row->face_registered_date): ?>
+                <small class="ms-1">(<?php echo date('M d, Y', strtotime($row->face_registered_date)); ?>)</small>
+              <?php endif; ?>
+            </span>
+          <?php else: ?>
+            <span class="badge bg-warning text-dark">
+              <i class="bi bi-x-circle-fill"></i> Not Registered
+            </span>
+          <?php endif; ?>
+        </div>
+        <p class="small text-muted mb-3">
+          <?php if (isset($row->face_registered) && $row->face_registered): ?>
+            Face is already registered. You can update it by capturing a new face below.
+          <?php else: ?>
+            Capture the user's face using the camera. This will be used later to verify attendance.
+          <?php endif; ?>
+        </p>
         <div class="row g-2 align-items-start">
           <div class="col-12 col-md-6">
             <video id="faceVideo" class="w-100 border rounded" autoplay muted playsinline style="max-height:260px; background:#000;"></video>

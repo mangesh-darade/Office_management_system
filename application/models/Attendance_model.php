@@ -16,6 +16,26 @@ class Attendance_model extends CI_Model {
             if (!in_array('location_name', $fields, true)) {
                 $this->db->query("ALTER TABLE `".$this->table."` ADD `location_name` VARCHAR(255) NULL");
             }
+            // Add check-in location fields
+            if (!in_array('checkin_lat', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `checkin_lat` DECIMAL(10,7) NULL");
+            }
+            if (!in_array('checkin_lng', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `checkin_lng` DECIMAL(10,7) NULL");
+            }
+            if (!in_array('checkin_location_name', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `checkin_location_name` VARCHAR(255) NULL");
+            }
+            // Add check-out location fields
+            if (!in_array('checkout_lat', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `checkout_lat` DECIMAL(10,7) NULL");
+            }
+            if (!in_array('checkout_lng', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `checkout_lng` DECIMAL(10,7) NULL");
+            }
+            if (!in_array('checkout_location_name', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `checkout_location_name` VARCHAR(255) NULL");
+            }
         }
     }
 }

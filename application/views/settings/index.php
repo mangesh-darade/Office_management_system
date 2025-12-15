@@ -165,6 +165,11 @@
               <input type="number" class="form-control" name="attendance_grace_minutes" value="<?php echo htmlspecialchars(isset($settings['attendance_grace_minutes']) ? $settings['attendance_grace_minutes'] : '15'); ?>" min="0" max="60" />
               <div class="form-text">Minutes allowed after start time</div>
             </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Standard Working Hours</label>
+              <input type="number" class="form-control" name="attendance_standard_working_hours" value="<?php echo htmlspecialchars(isset($settings['attendance_standard_working_hours']) ? $settings['attendance_standard_working_hours'] : (isset($settings['standard_working_hours']) ? $settings['standard_working_hours'] : '8')); ?>" step="0.5" min="1" max="24" />
+              <div class="form-text">Standard working hours per day (for overtime calculation)</div>
+            </div>
             <div class="col-md-12">
               <label class="form-label fw-semibold">Weekend Days</label>
               <div class="row g-2">

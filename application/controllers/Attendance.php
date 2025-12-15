@@ -27,12 +27,8 @@ class Attendance extends CI_Controller {
         // Get group-based filters
         $filters = get_user_group_filter($user_id, $role_id);
         
-        // Check if we should show all records or only today's
-        $show_all = $this->input->get('all') === '1';
-        $today = date('Y-m-d');
-        
-        // Count total records for pagination
-        $this->db->select('COUNT(*) as total');
+        // Count total distinct users for pagination
+        $this->db->select('COUNT(DISTINCT a.user_id) as total');
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
@@ -50,33 +46,15 @@ class Attendance extends CI_Controller {
             }
         }
         
-        // Show only today's records by default (unless 'all=1' is in URL)
-        if (!$show_all) {
-            // Get date column name
-            $date_col = 'att_date';
-            if (!$this->db->field_exists('att_date', 'attendance')) {
-                $date_columns = ['date', 'attendance_date', 'created_at'];
-                foreach ($date_columns as $col) {
-                    if ($this->db->field_exists($col, 'attendance')) {
-                        $date_col = $col;
-                        break;
-                    }
-                }
-            }
-            $this->db->where('a.'.$date_col, $today);
-        }
-        
         $total_query = $this->db->get()->row();
         $total_records = $total_query->total;
         
-        // Fetch attendance with user email and, if available, employee name
-        $this->db->select('a.*, u.email');
+        // Fetch distinct users with their latest attendance and count
+        $this->db->select('a.user_id, u.email, e.first_name, e.last_name, COUNT(*) as attendance_count, MAX(a.att_date) as last_attendance_date');
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         $employee_exists = $this->db->table_exists('employees');
         if ($employee_exists) {
-            // Try to join employees by user_id if schema maps
-            $this->db->select('e.first_name, e.last_name');
             $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         }
         
@@ -93,29 +71,14 @@ class Attendance extends CI_Controller {
             }
         }
         
-        // Show only today's records by default (unless 'all=1' is in URL)
-        if (!$show_all) {
-            // Get date column name
-            $date_col = 'att_date';
-            if (!$this->db->field_exists('att_date', 'attendance')) {
-                $date_columns = ['date', 'attendance_date', 'created_at'];
-                foreach ($date_columns as $col) {
-                    if ($this->db->field_exists($col, 'attendance')) {
-                        $date_col = $col;
-                        break;
-                    }
-                }
-            }
-            $this->db->where('a.'.$date_col, $today);
-        }
-        
-        $records = $this->db->order_by('a.att_date DESC, a.id DESC')
+        $this->db->group_by('a.user_id, u.email, e.first_name, e.last_name');
+        $records = $this->db->order_by('last_attendance_date DESC')
                            ->limit($per_page, $page)
                            ->get()
                            ->result();
         
         // Pagination config
-        $base_url = $show_all ? site_url('attendance/index/all/1') : site_url('attendance/index');
+        $base_url = site_url('attendance/index');
         $config['base_url'] = $base_url;
         $config['total_rows'] = $total_records;
         $config['per_page'] = $per_page;
@@ -144,6 +107,11 @@ class Attendance extends CI_Controller {
         $this->pagination->initialize($config);
         $pagination_links = $this->pagination->create_links();
         
+        // Check edit and delete permissions
+        $this->load->helper('permission');
+        $canEditAttendance = function_exists('has_module_access') && has_module_access('attendance_edit');
+        $canDeleteAttendance = function_exists('has_module_access') && has_module_access('attendance_delete');
+        
         $this->load->view('attendance/index', [
             'records' => $records,
             'employee_exists' => $employee_exists,
@@ -153,8 +121,178 @@ class Attendance extends CI_Controller {
             'per_page' => $per_page,
             'can_add_attendance' => $canAddAttendance,
             'can_view_all' => $canViewAll,
-            'show_all' => $show_all,
-            'today' => $today,
+            'can_edit_attendance' => $canEditAttendance,
+            'can_delete_attendance' => $canDeleteAttendance,
+            'current_user_id' => $user_id,
+            'is_admin_group' => $isAdminGroup,
+            'current_role_id' => $role_id
+        ]);
+    }
+
+    // Get user's monthly attendance data for popup
+    public function get_user_monthly_attendance() {
+        $user_id = $this->input->post('user_id');
+        $filter_type = $this->input->post('filter_type'); // 'date', 'month', 'year'
+        $filter_value = $this->input->post('filter_value');
+        $page = (int)$this->input->post('page') ?: 1;
+        $per_page = 10; // Records per page in popup
+        
+        if (!$user_id) {
+            echo json_encode(['success' => false, 'message' => 'User ID required']);
+            return;
+        }
+        
+        // Schema-aware column names
+        $col_date = 'att_date';
+        if (!$this->db->field_exists('att_date', 'attendance')) {
+            $date_columns = ['date', 'attendance_date', 'created_at'];
+            foreach ($date_columns as $col) {
+                if ($this->db->field_exists($col, 'attendance')) {
+                    $col_date = $col;
+                    break;
+                }
+            }
+        }
+        
+        $col_in = 'punch_in';
+        $col_out = 'punch_out';
+        if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
+        if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
+        
+        // Get total records count
+        $this->db->from('attendance a');
+        $this->db->where('a.user_id', (int)$user_id);
+        
+        // Apply filters
+        switch ($filter_type) {
+            case 'date':
+                $this->db->where('a.' . $col_date, $filter_value);
+                break;
+            case 'month':
+                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', $filter_value);
+                break;
+            case 'year':
+                $this->db->where('YEAR(a.' . $col_date . ')', $filter_value);
+                break;
+            default:
+                // Default to current month
+                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', date('Y-m'));
+        }
+        
+        $total_records = $this->db->count_all_results();
+        
+        // Calculate pagination
+        $total_pages = ceil($total_records / $per_page);
+        $offset = ($page - 1) * $per_page;
+        
+        // Fetch paginated records
+        $this->db->select('a.*, u.email');
+        $this->db->from('attendance a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->where('a.user_id', (int)$user_id);
+        
+        // Apply filters again
+        switch ($filter_type) {
+            case 'date':
+                $this->db->where('a.' . $col_date, $filter_value);
+                break;
+            case 'month':
+                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', $filter_value);
+                break;
+            case 'year':
+                $this->db->where('YEAR(a.' . $col_date . ')', $filter_value);
+                break;
+            default:
+                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', date('Y-m'));
+        }
+        
+        $records = $this->db->order_by('a.' . $col_date . ' DESC')
+                           ->limit($per_page, $offset)
+                           ->get()
+                           ->result();
+        
+        $attendance_data = [];
+        foreach ($records as $r) {
+            $cin = isset($r->punch_in) ? $r->punch_in : (isset($r->check_in) ? $r->check_in : '');
+            $cout = isset($r->punch_out) ? $r->punch_out : (isset($r->check_out) ? $r->check_out : '');
+            
+            if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
+            if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
+            
+            $cin_disp = $cin;
+            $cout_disp = $cout;
+            if ($cin_disp && strpos($cin_disp, ' ') !== false) { $cin_disp = trim(explode(' ', $cin_disp)[1]); }
+            if ($cout_disp && strpos($cout_disp, ' ') !== false) { $cout_disp = trim(explode(' ', $cout_disp)[1]); }
+            
+            // Determine status
+            $status = 'incomplete';
+            if ($cin && $cout) {
+                $status = 'present';
+            } elseif ($cin && !$cout) {
+                $status = 'incomplete';
+            } else {
+                $status = 'absent';
+            }
+            
+            // Get check-in location
+            $checkin_location = '';
+            if (isset($r->checkin_location_name) && !empty($r->checkin_location_name)) {
+                $checkin_location = $r->checkin_location_name;
+            } elseif (isset($r->checkin_lat) && isset($r->checkin_lng) && !empty($r->checkin_lat) && !empty($r->checkin_lng)) {
+                $checkin_location = $r->checkin_lat . ', ' . $r->checkin_lng;
+            } elseif (isset($r->location_name) && !empty($r->location_name) && $cin) {
+                $checkin_location = $r->location_name; // Fallback to old location_name for check-in
+            }
+            
+            // Get check-out location
+            $checkout_location = '';
+            if (isset($r->checkout_location_name) && !empty($r->checkout_location_name)) {
+                $checkout_location = $r->checkout_location_name;
+            } elseif (isset($r->checkout_lat) && isset($r->checkout_lng) && !empty($r->checkout_lat) && !empty($r->checkout_lng)) {
+                $checkout_location = $r->checkout_lat . ', ' . $r->checkout_lng;
+            } elseif (isset($r->location_name) && !empty($r->location_name) && $cout) {
+                $checkout_location = $r->location_name; // Fallback to old location_name for check-out
+            }
+            
+            // Get current user info for permission checks
+            $current_user_id = (int)$this->session->userdata('user_id');
+            $current_role_id = (int)$this->session->userdata('role_id');
+            $is_admin = (function_exists('is_admin_group') && is_admin_group()) || in_array($current_role_id, [1,2], true);
+            $can_edit = function_exists('has_module_access') && has_module_access('attendance_edit');
+            $can_delete = function_exists('has_module_access') && has_module_access('attendance_delete');
+            
+            // Check ownership - users can only edit/delete their own records unless admin
+            $record_user_id = isset($r->user_id) ? (int)$r->user_id : 0;
+            $can_edit_this = $can_edit && ($is_admin || $record_user_id === $current_user_id);
+            $can_delete_this = $can_delete && ($is_admin || $record_user_id === $current_user_id);
+            
+            $attendance_data[] = [
+                'id' => $r->id,
+                'user_id' => $record_user_id,
+                'date' => isset($r->$col_date) ? $r->$col_date : '',
+                'check_in' => $cin_disp,
+                'check_out' => $cout_disp,
+                'status' => $status,
+                'notes' => isset($r->notes) ? $r->notes : '',
+                'location' => isset($r->location_name) ? $r->location_name : '', // Backward compatibility
+                'checkin_location' => $checkin_location,
+                'checkout_location' => $checkout_location,
+                'can_edit' => $can_edit_this,
+                'can_delete' => $can_delete_this
+            ];
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'data' => $attendance_data,
+            'pagination' => [
+                'current_page' => $page,
+                'total_pages' => $total_pages,
+                'total_records' => $total_records,
+                'per_page' => $per_page,
+                'has_prev' => $page > 1,
+                'has_next' => $page < $total_pages
+            ]
         ]);
     }
 
@@ -307,46 +445,48 @@ class Attendance extends CI_Controller {
                 $attachment_path = 'uploads/attendance/' . $upload_data['file_name'];
             }
 
-            // Optional face verification: when face_required=1, validate descriptor against stored template
+            // Mandatory face verification
             $face_required = (string)$this->input->post('face_required');
             $face_descriptor = (string)$this->input->post('face_descriptor');
-            if ($face_required === '1') {
-                if (empty($face_descriptor)) {
-                    $this->session->set_flashdata('error', 'Face verification required but no face data provided');
+            
+            // Face verification is mandatory
+            if (empty($face_descriptor)) {
+                $this->session->set_flashdata('error', 'Face verification is mandatory. Please capture your face before submitting.');
+                redirect('attendance/create');
+                return;
+            }
+            
+            // Verify face descriptor against stored template for this user
+            $stored = $this->faces->get_by_user($user_id);
+            if ($stored && !empty($stored->descriptor)) {
+                $threshold = 0.6;
+                $dist = $this->verify_face_descriptor($face_descriptor, $stored->descriptor);
+                if ($dist === null) {
+                    $this->session->set_flashdata('error', 'Face verification failed: Invalid face data format');
                     redirect('attendance/create');
                     return;
                 }
-                // Verify face descriptor against stored template for this user
-                $stored = $this->faces->get_by_user($user_id);
-                if ($stored && !empty($stored->descriptor)) {
-                    $threshold = 0.6;
-                    $dist = $this->verify_face_descriptor($face_descriptor, $stored->descriptor);
-                    if ($dist === null) {
-                        $this->session->set_flashdata('error', 'Face verification failed: Invalid face data format');
-                        redirect('attendance/create');
-                        return;
-                    }
-                    if ($dist > $threshold) {
-                        $this->session->set_flashdata('error', 'Face verification failed: Face does not match registered face');
-                        redirect('attendance/create');
-                        return;
-                    }
-                } else {
-                    // If no stored face, you might want to register or skip verification
-                    $this->session->set_flashdata('error', 'No registered face found for this user');
+                if ($dist > $threshold) {
+                    $this->session->set_flashdata('error', 'Face verification failed: Face does not match registered face');
                     redirect('attendance/create');
                     return;
                 }
+            } else {
+                $this->session->set_flashdata('error', 'No registered face found for this user. Please register your face in your profile first.');
+                redirect('attendance/create');
+                return;
             }
 
-            // Location handling
+            // Location handling - MANDATORY
             $lat = $this->input->post('lat');
             $lng = $this->input->post('lng');
             $location_name = $this->input->post('location_name');
             
-            // Validate location if required
+            // Validate location is mandatory
             if (empty($lat) || empty($lng)) {
-                $this->session->set_flashdata('warning', 'Location information is missing. Please enable location services for better attendance tracking.');
+                $this->session->set_flashdata('error', 'Location is mandatory. Please enable location services and allow location access.');
+                redirect('attendance/create');
+                return;
             }
 
             // Get current date/time
@@ -377,13 +517,49 @@ class Attendance extends CI_Controller {
                 $col_date => $today  // Add the date field
             ];
             
-            // Add location fields if they exist in schema
+            // Helper function to get location name
+            $self = $this;
+            $getLocationName = function($lat, $lng, $postName) use ($self) {
+                $locFromPost = trim((string)$postName);
+                if ($locFromPost !== '') {
+                    return $locFromPost;
+                } elseif ($lat !== null && $lng !== null && $lat !== '' && $lng !== '') {
+                    return $self->reverse_geocode($lat, $lng);
+                }
+                return null;
+            };
+            
+            // Add location fields if they exist in schema (for backward compatibility)
             if ($this->db->field_exists('latitude', 'attendance')) $data['latitude'] = $lat;
             if ($this->db->field_exists('longitude', 'attendance')) $data['longitude'] = $lng;
             if ($this->db->field_exists('lat', 'attendance')) $data['lat'] = $lat;
             if ($this->db->field_exists('lng', 'attendance')) $data['lng'] = $lng;
             if ($this->db->field_exists('geo_lat', 'attendance')) $data['geo_lat'] = $lat;
             if ($this->db->field_exists('geo_lng', 'attendance')) $data['geo_lng'] = $lng;
+            if ($this->db->field_exists('location_name','attendance')) {
+                $locName = $getLocationName($lat, $lng, $location_name);
+                if ($locName) { $data['location_name'] = $locName; }
+            }
+            
+            // Save check-in location separately if action is 'in'
+            if ($action === 'in') {
+                if ($this->db->field_exists('checkin_lat', 'attendance')) $data['checkin_lat'] = $lat;
+                if ($this->db->field_exists('checkin_lng', 'attendance')) $data['checkin_lng'] = $lng;
+                if ($this->db->field_exists('checkin_location_name', 'attendance')) {
+                    $checkinLocName = $getLocationName($lat, $lng, $location_name);
+                    if ($checkinLocName) { $data['checkin_location_name'] = $checkinLocName; }
+                }
+            }
+            
+            // Save check-out location separately if action is 'out'
+            if ($action === 'out') {
+                if ($this->db->field_exists('checkout_lat', 'attendance')) $data['checkout_lat'] = $lat;
+                if ($this->db->field_exists('checkout_lng', 'attendance')) $data['checkout_lng'] = $lng;
+                if ($this->db->field_exists('checkout_location_name', 'attendance')) {
+                    $checkoutLocName = $getLocationName($lat, $lng, $location_name);
+                    if ($checkoutLocName) { $data['checkout_location_name'] = $checkoutLocName; }
+                }
+            }
 
             if ($existing) {
                 // Update existing record
@@ -396,11 +572,16 @@ class Attendance extends CI_Controller {
                     if (empty($cin)) {
                         // First check-in of the day
                         $inType = $this->get_column_type('attendance', $col_in);
+                        $updates = [];
                         $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
                         if (array_key_exists('notes', $data)) { $updates['notes'] = $data['notes']; }
                         if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
-                        // Update location fields
+                        // Update location fields (backward compatibility)
                         foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
+                            if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
+                        }
+                        // Update check-in location fields
+                        foreach (['checkin_lat','checkin_lng','checkin_location_name'] as $field) {
                             if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
                         }
                         $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
@@ -419,9 +600,14 @@ class Attendance extends CI_Controller {
 
                             // Validate checkout time is after check-in
                             if ($this->is_valid_checkout_time($cin, $proposedOut, $outType)) {
+                                $updates = [];
                                 $updates[$col_out] = $proposedOut;
                                 if (array_key_exists('notes', $data)) { $updates['notes'] = $data['notes']; }
                                 if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
+                                // Update check-out location fields
+                                foreach (['checkout_lat','checkout_lng','checkout_location_name'] as $field) {
+                                    if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
+                                }
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
                                 $this->session->set_flashdata('success', 'Checked out successfully');
@@ -464,7 +650,45 @@ class Attendance extends CI_Controller {
             redirect('attendance');
             return;
         }
-        $this->load->view('attendance/create');
+        
+        // Check existing attendance status for today
+        $user_id = (int)$this->session->userdata('user_id');
+        $today = date('Y-m-d');
+        $col_date = 'att_date';
+        $col_in = 'punch_in';
+        $col_out = 'punch_out';
+        if (!$this->db->field_exists($col_date, 'attendance')) $col_date = 'date';
+        if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
+        if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
+        
+        $existing = null;
+        $attendance_status = [
+            'has_checkin' => false,
+            'has_checkout' => false,
+            'checkin_time' => '',
+            'checkout_time' => ''
+        ];
+        
+        if ($user_id) {
+            $existing = $this->db->where('user_id', $user_id)
+                                 ->where($col_date, $today)
+                                 ->get('attendance')
+                                 ->row();
+            
+            if ($existing) {
+                $cin = isset($existing->$col_in) ? $existing->$col_in : '';
+                $cout = isset($existing->$col_out) ? $existing->$col_out : '';
+                if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
+                if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
+                
+                $attendance_status['has_checkin'] = !empty($cin);
+                $attendance_status['has_checkout'] = !empty($cout);
+                $attendance_status['checkin_time'] = $cin;
+                $attendance_status['checkout_time'] = $cout;
+            }
+        }
+        
+        $this->load->view('attendance/create', ['attendance_status' => $attendance_status]);
     }
 
     private function get_column_type($table, $column){
@@ -585,7 +809,7 @@ class Attendance extends CI_Controller {
         $a = json_decode($stored_json, true);
         $b = json_decode($current_json, true);
         if (!is_array($a) || !is_array($b) || count($a) !== count($b) || count($a) === 0) {
-            return false;
+            return null; // Return null for invalid format
         }
         $sum = 0.0;
         $n = count($a);
@@ -596,8 +820,8 @@ class Attendance extends CI_Controller {
             $sum += $d * $d;
         }
         $dist = sqrt($sum);
-        // Typical threshold for face-api embeddings is around 0.5–0.6; use 0.6 as default
-        return $dist <= 0.6;
+        // Return the distance value (typical threshold for face-api embeddings is around 0.5–0.6)
+        return $dist;
     }
 
     // GET/POST /attendance/{id}/edit
@@ -631,7 +855,9 @@ class Attendance extends CI_Controller {
                     redirect('attendance/'.$id.'/edit');
                     return;
                 }
-                if (!$this->verify_face_descriptor($tpl->descriptor, $face_descriptor)) {
+                $threshold = 0.6;
+                $dist = $this->verify_face_descriptor($tpl->descriptor, $face_descriptor);
+                if ($dist === null || $dist > $threshold) {
                     $this->session->set_flashdata('error', 'Face not recognized. Please try again.');
                     redirect('attendance/'.$id.'/edit');
                     return;

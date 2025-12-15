@@ -25,7 +25,17 @@ class Users extends CI_Controller {
         if (function_exists('is_user_group') && is_user_group() && $currentUserId > 0) {
             $userIdFilter = $currentUserId;
         }
-        $data['rows'] = $this->users->list_users($q, 250, $roleFilter, $userIdFilter);
+        $rows = $this->users->list_users($q, 250, $roleFilter, $userIdFilter);
+        
+        // Check face registration status for each user
+        $this->faces->ensure_schema();
+        foreach ($rows as $row) {
+            $faceRecord = $this->faces->get_by_user((int)$row->id);
+            $row->face_registered = ($faceRecord && !empty($faceRecord->descriptor)) ? true : false;
+            $row->face_registered_date = $faceRecord ? $faceRecord->created_at : null;
+        }
+        
+        $data['rows'] = $rows;
         $this->load->view('users/index', $data);
     }
 
@@ -176,6 +186,13 @@ class Users extends CI_Controller {
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
+        
+        // Check if face is already registered
+        $this->faces->ensure_schema();
+        $faceRecord = $this->faces->get_by_user($id);
+        $row->face_registered = ($faceRecord && !empty($faceRecord->descriptor)) ? true : false;
+        $row->face_registered_date = $faceRecord ? $faceRecord->created_at : null;
+        
         $data = [
             'title' => 'Edit User',
             'row' => $row,

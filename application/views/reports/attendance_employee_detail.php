@@ -502,7 +502,14 @@ body {
   <div class="breadcrumb-nav">
     <a href="<?php echo site_url('reports'); ?>">Reports</a>
     <span>/</span>
-    <a href="<?php echo site_url('reports/attendance-employee?month='.urlencode($month)); ?>">Employee Attendance</a>
+    <?php 
+      $backParams = [];
+      if (isset($period)) $backParams['period'] = $period;
+      if (isset($month)) $backParams['month'] = $month;
+      if (isset($date)) $backParams['date'] = $date;
+      $backUrl = site_url('reports/attendance-employee?' . http_build_query($backParams));
+    ?>
+    <a href="<?php echo $backUrl; ?>">Employee Attendance</a>
     <span>/</span>
     <span>Details</span>
   </div>
@@ -515,7 +522,7 @@ body {
       <?php echo htmlspecialchars($name); ?>
     </h1>
     
-    <a href="<?php echo site_url('reports/attendance-employee?month='.urlencode($month)); ?>" class="btn btn-outline-secondary">
+    <a href="<?php echo $backUrl; ?>" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left"></i>
       Back
     </a>
@@ -529,8 +536,18 @@ body {
     <div class="stat-icon primary">
       <i class="bi bi-calendar-month"></i>
     </div>
-    <div class="stat-value"><?php echo htmlspecialchars($month); ?></div>
-    <div class="stat-label">Month</div>
+    <div class="stat-value">
+      <?php 
+        if (isset($period) && $period === 'daily') {
+          echo isset($date) ? htmlspecialchars($date) : date('Y-m-d');
+        } elseif (isset($period) && $period === 'weekly') {
+          echo isset($from) && isset($to) ? htmlspecialchars($from . ' to ' . $to) : 'This Week';
+        } else {
+          echo isset($month) ? htmlspecialchars($month) : date('Y-m');
+        }
+      ?>
+    </div>
+    <div class="stat-label"><?php echo isset($period) ? ucfirst($period) : 'Monthly'; ?></div>
   </div>
   
   <div class="stat-card success">
@@ -593,9 +610,14 @@ body {
 <!-- Compact Filter Section -->
 <div class="filter-section">
   <form method="get" class="filter-form">
-    <div class="form-group">
+    <input type="hidden" name="period" value="<?php echo isset($period) ? htmlspecialchars($period) : 'monthly'; ?>">
+    <div class="form-group" id="date-filter-group" style="display: <?php echo (isset($period) && $period !== 'monthly') ? 'flex' : 'none'; ?>;">
+      <label class="form-label"><?php echo (isset($period) && $period === 'daily') ? 'Date' : 'Week Start Date'; ?></label>
+      <input type="date" name="date" value="<?php echo isset($date) ? htmlspecialchars($date) : date('Y-m-d'); ?>" class="form-control">
+    </div>
+    <div class="form-group" id="month-filter-group" style="display: <?php echo (!isset($period) || $period === 'monthly') ? 'flex' : 'none'; ?>;">
       <label class="form-label">Month</label>
-      <input type="month" name="month" value="<?php echo htmlspecialchars($month); ?>" class="form-control">
+      <input type="month" name="month" value="<?php echo isset($month) ? htmlspecialchars($month) : date('Y-m'); ?>" class="form-control">
     </div>
     
     <div class="form-group">
@@ -606,12 +628,29 @@ body {
     </div>
     
     <div class="form-group">
-      <a href="<?php echo site_url('reports/attendance-employee?month='.urlencode($month)); ?>" class="btn btn-outline-secondary">
+      <a href="<?php echo $backUrl; ?>" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i>
         Back
       </a>
     </div>
   </form>
+  
+  <?php if (isset($from) && isset($to)): ?>
+  <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);">
+    <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+      <div><strong>Period:</strong> <?php echo htmlspecialchars($from); ?> to <?php echo htmlspecialchars($to); ?></div>
+      <?php if (isset($office_start_time)): ?>
+        <div><strong>Office Start:</strong> <?php echo htmlspecialchars($office_start_time); ?></div>
+      <?php endif; ?>
+      <?php if (isset($grace_minutes)): ?>
+        <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
+      <?php endif; ?>
+      <?php if (isset($standard_working_hours)): ?>
+        <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endif; ?>
 </div>
 
 <!-- Compact Table Section -->
@@ -637,16 +676,22 @@ body {
     <table class="data-table" id="detail-table">
       <thead>
         <tr>
-          <th style="width: 22%">Date</th>
-          <th style="width: 33%">Status</th>
-          <th style="width: 25%">Late/On Time</th>
-          <th style="width: 20%">Leave</th>
+          <th style="width: 10%">Date</th>
+          <th style="width: 10%">Status</th>
+          <th style="width: 9%">Check-In</th>
+          <th style="width: 9%">Check-Out</th>
+          <th style="width: 12%">Check-In Location</th>
+          <th style="width: 12%">Check-Out Location</th>
+          <th style="width: 11%">Late/On Time</th>
+          <th style="width: 10%">Worked Hours</th>
+          <th style="width: 10%">Extra Hours</th>
+          <th style="width: 12%">Leave</th>
         </tr>
       </thead>
       <tbody id="detail-tbody">
         <?php if (!empty($days)): ?>
           <?php foreach ($days as $index => $d): ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave)); ?>" data-index="<?php echo $index; ?>">
+            <tr data-searchable="<?php echo strtolower(htmlspecialchars($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave . ' ' . (isset($d->check_in_time) ? $d->check_in_time : '') . ' ' . (isset($d->check_out_time) ? $d->check_out_time : '') . ' ' . (isset($d->check_in_location) ? $d->check_in_location : '') . ' ' . (isset($d->check_out_location) ? $d->check_out_location : '') . ' ' . (isset($d->worked_hours) ? $d->worked_hours : '') . ' ' . (isset($d->extra_hours) ? $d->extra_hours : ''))); ?>" data-index="<?php echo $index; ?>">
               <td class="date-cell"><?php echo htmlspecialchars($d->date); ?></td>
               <td>
                 <?php 
@@ -666,9 +711,17 @@ body {
                       $statusClass = 'half_day'; 
                       $statusIcon = 'bi-clock';
                       break;
+                    case 'half day': 
+                      $statusClass = 'half_day'; 
+                      $statusIcon = 'bi-clock';
+                      break;
                     case 'work from home': 
                       $statusClass = 'work_from_home'; 
                       $statusIcon = 'bi-house';
+                      break;
+                    case 'weekend': 
+                      $statusClass = 'leave'; 
+                      $statusIcon = 'bi-calendar-week';
                       break;
                     default: 
                       $statusClass = ''; 
@@ -682,13 +735,121 @@ body {
               </td>
               <td>
                 <?php 
-                  $lateText = isset($d->late) ? strtolower(trim($d->late)) : '';
-                  if ($lateText === '' || $lateText === '—') {
-                    echo '<span class="status-badge">—</span>';
-                  } elseif (strpos($lateText, 'late') === 0) {
-                    echo '<span class="status-badge late"><i class="bi bi-exclamation-triangle"></i>' . htmlspecialchars($d->late) . '</span>';
+                  $checkInTime = isset($d->check_in_time) ? $d->check_in_time : '—';
+                  if ($checkInTime !== '—' && $checkInTime !== '') {
+                    echo '<span class="status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkInTime) . '</span>';
                   } else {
-                    echo '<span class="status-badge ontime"><i class="bi bi-check-circle"></i>' . htmlspecialchars($d->late) . '</span>';
+                    echo '<span class="status-badge">—</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  $checkOutTime = isset($d->check_out_time) ? $d->check_out_time : '—';
+                  if ($checkOutTime !== '—' && $checkOutTime !== '') {
+                    echo '<span class="status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkOutTime) . '</span>';
+                  } else {
+                    echo '<span class="status-badge">—</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  $checkInLoc = isset($d->check_in_location) ? $d->check_in_location : '—';
+                  if ($checkInLoc !== '—' && $checkInLoc !== '') {
+                    echo '<span class="status-badge" style="background: rgba(6, 182, 212, 0.1); color: var(--info-color);" title="' . htmlspecialchars($checkInLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkInLoc) > 30 ? substr($checkInLoc, 0, 30) . '...' : $checkInLoc) . '</span>';
+                  } else {
+                    echo '<span class="status-badge">—</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  $checkOutLoc = isset($d->check_out_location) ? $d->check_out_location : '—';
+                  if ($checkOutLoc !== '—' && $checkOutLoc !== '') {
+                    echo '<span class="status-badge" style="background: rgba(6, 182, 212, 0.1); color: var(--info-color);" title="' . htmlspecialchars($checkOutLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkOutLoc) > 30 ? substr($checkOutLoc, 0, 30) . '...' : $checkOutLoc) . '</span>';
+                  } else {
+                    echo '<span class="status-badge">—</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  $lateText = isset($d->late) ? strtolower(trim($d->late)) : '';
+                  $lateStatus = isset($d->late_status) ? $d->late_status : '';
+                  $checkInTime = isset($d->check_in_time) ? $d->check_in_time : '—';
+                  $graceTime = isset($d->grace_time) ? $d->grace_time : '';
+                  
+                  if ($lateText === '' || $lateText === '—' || $checkInTime === '—') {
+                    echo '<span class="status-badge">—</span>';
+                  } else {
+                    // Show check-in time and status
+                    $displayText = '';
+                    $badgeClass = '';
+                    $icon = '';
+                    
+                    if ($lateStatus === 'late') {
+                      $badgeClass = 'late';
+                      $icon = 'bi-exclamation-triangle';
+                      $lateMins = isset($d->late_minutes) ? $d->late_minutes : 0;
+                      $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
+                      if ($graceTime !== '') {
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . htmlspecialchars($graceTime) . '</small>';
+                      }
+                      if ($lateMins > 0) {
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Late: ' . $lateMins . ' min</small>';
+                      }
+                    } elseif ($lateStatus === 'on_time') {
+                      $badgeClass = 'ontime';
+                      $icon = 'bi-check-circle';
+                      $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
+                      if ($graceTime !== '') {
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . htmlspecialchars($graceTime) . '</small>';
+                      }
+                      $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">On Time</small>';
+                    } else {
+                      // Early or other status
+                      $badgeClass = 'ontime';
+                      $icon = 'bi-clock';
+                      $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
+                      if ($graceTime !== '') {
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . htmlspecialchars($graceTime) . '</small>';
+                      }
+                    }
+                    
+                    echo '<span class="status-badge ' . $badgeClass . '" style="text-align: left; line-height: 1.4;"><i class="bi ' . $icon . '"></i>' . $displayText . '</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  $workedHours = isset($d->worked_hours) ? (float)$d->worked_hours : 0;
+                  if ($workedHours > 0) {
+                    $hours = floor($workedHours);
+                    $minutes = round(($workedHours - $hours) * 60);
+                    $display = $hours . 'h';
+                    if ($minutes > 0) {
+                      $display .= ' ' . $minutes . 'm';
+                    }
+                    echo '<span class="status-badge ontime"><i class="bi bi-clock-history"></i>' . htmlspecialchars($display) . '</span>';
+                  } else {
+                    echo '<span class="status-badge">—</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  $extraHours = isset($d->extra_hours) ? (float)$d->extra_hours : 0;
+                  if ($extraHours > 0) {
+                    $hours = floor($extraHours);
+                    $minutes = round(($extraHours - $hours) * 60);
+                    $display = $hours . 'h';
+                    if ($minutes > 0) {
+                      $display .= ' ' . $minutes . 'm';
+                    }
+                    echo '<span class="status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . htmlspecialchars($display) . '</span>';
+                  } else {
+                    echo '<span class="status-badge">—</span>';
                   }
                 ?>
               </td>

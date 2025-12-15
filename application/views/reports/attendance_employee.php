@@ -509,8 +509,18 @@ body {
     <div class="stat-icon primary">
       <i class="bi bi-calendar-month"></i>
     </div>
-    <div class="stat-value"><?php echo htmlspecialchars($month); ?></div>
-    <div class="stat-label">Month</div>
+    <div class="stat-value">
+      <?php 
+        if (isset($period) && $period === 'daily') {
+          echo isset($date) ? htmlspecialchars($date) : date('Y-m-d');
+        } elseif (isset($period) && $period === 'weekly') {
+          echo isset($from) && isset($to) ? htmlspecialchars($from . ' to ' . $to) : 'This Week';
+        } else {
+          echo isset($month) ? htmlspecialchars($month) : date('Y-m');
+        }
+      ?>
+    </div>
+    <div class="stat-label"><?php echo isset($period) ? ucfirst($period) : 'Monthly'; ?></div>
   </div>
   
   <div class="stat-card success">
@@ -561,6 +571,18 @@ body {
     <div class="stat-label">Absent</div>
   </div>
   
+  <div class="stat-card success">
+    <div class="stat-icon success">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <div class="stat-value"><?php 
+      $totalOnTime = 0;
+      foreach ($rows as $r) { $totalOnTime += isset($r->on_time_days) ? (float)$r->on_time_days : 0; }
+      echo number_format($totalOnTime, 1);
+    ?></div>
+    <div class="stat-label">On Time</div>
+  </div>
+  
   <div class="stat-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%);">
     <div class="stat-icon" style="background: rgba(251, 191, 36, 0.2); color: #d97706;">
       <i class="bi bi-exclamation-triangle"></i>
@@ -570,7 +592,31 @@ body {
       foreach ($rows as $r) { $totalLate += (float)$r->late_days; }
       echo number_format($totalLate, 1);
     ?></div>
-    <div class="stat-label">Late</div>
+    <div class="stat-label">Late Days</div>
+  </div>
+  
+  <div class="stat-card" style="background: linear-gradient(135deg, #fee2e2 0%, #f87171 100%);">
+    <div class="stat-icon" style="background: rgba(248, 113, 113, 0.2); color: #dc2626;">
+      <i class="bi bi-clock-history"></i>
+    </div>
+    <div class="stat-value"><?php 
+      $totalLateHours = 0;
+      foreach ($rows as $r) { $totalLateHours += isset($r->late_hours) ? (float)$r->late_hours : 0; }
+      echo number_format($totalLateHours, 1);
+    ?>h</div>
+    <div class="stat-label">Late Hours</div>
+  </div>
+  
+  <div class="stat-card" style="background: linear-gradient(135deg, #d1fae5 0%, #34d399 100%);">
+    <div class="stat-icon" style="background: rgba(52, 211, 153, 0.2); color: #059669;">
+      <i class="bi bi-hourglass-split"></i>
+    </div>
+    <div class="stat-value"><?php 
+      $totalExtraHours = 0;
+      foreach ($rows as $r) { $totalExtraHours += isset($r->extra_hours) ? (float)$r->extra_hours : 0; }
+      echo number_format($totalExtraHours, 1);
+    ?>h</div>
+    <div class="stat-label">Extra Hours</div>
   </div>
   
   <div class="stat-card">
@@ -586,8 +632,22 @@ body {
 <div class="filter-section">
   <form method="get" class="filter-form">
     <div class="form-group">
+      <label class="form-label">Period</label>
+      <select name="period" class="form-control" id="period-select" onchange="updatePeriodFilters()">
+        <option value="daily" <?php echo (isset($period) && $period === 'daily') ? 'selected' : ''; ?>>Daily</option>
+        <option value="weekly" <?php echo (isset($period) && $period === 'weekly') ? 'selected' : ''; ?>>Weekly</option>
+        <option value="monthly" <?php echo (!isset($period) || $period === 'monthly') ? 'selected' : ''; ?>>Monthly</option>
+      </select>
+    </div>
+    
+    <div class="form-group" id="date-filter-group" style="display: <?php echo (isset($period) && $period !== 'monthly') ? 'flex' : 'none'; ?>;">
+      <label class="form-label" id="date-label"><?php echo (isset($period) && $period === 'daily') ? 'Date' : 'Week Start Date'; ?></label>
+      <input type="date" name="date" value="<?php echo isset($date) ? htmlspecialchars($date) : date('Y-m-d'); ?>" class="form-control">
+    </div>
+    
+    <div class="form-group" id="month-filter-group" style="display: <?php echo (!isset($period) || $period === 'monthly') ? 'flex' : 'none'; ?>;">
       <label class="form-label">Month</label>
-      <input type="month" name="month" value="<?php echo htmlspecialchars($month); ?>" class="form-control">
+      <input type="month" name="month" value="<?php echo isset($month) ? htmlspecialchars($month) : date('Y-m'); ?>" class="form-control">
     </div>
     
     <div class="form-group">
@@ -604,6 +664,26 @@ body {
       </a>
     </div>
   </form>
+  
+  <?php if (isset($from) && isset($to)): ?>
+  <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);">
+    <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+      <div><strong>Period:</strong> <?php echo htmlspecialchars($from); ?> to <?php echo htmlspecialchars($to); ?></div>
+      <?php if (isset($total_working_days)): ?>
+        <div><strong>Working Days:</strong> <?php echo $total_working_days; ?></div>
+      <?php endif; ?>
+      <?php if (isset($office_start_time)): ?>
+        <div><strong>Office Start:</strong> <?php echo htmlspecialchars($office_start_time); ?></div>
+      <?php endif; ?>
+      <?php if (isset($grace_minutes)): ?>
+        <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
+      <?php endif; ?>
+      <?php if (isset($standard_working_hours)): ?>
+        <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>
+      <?php endif; ?>
+    </div>
+  </div>
+  <?php endif; ?>
 </div>
 
 <!-- Compact Table Section -->
@@ -625,11 +705,31 @@ body {
     </div>
   </div>
   
+  <!-- Export Actions Bar -->
+  <div class="export-actions-bar" style="background: white; padding: 0.75rem 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <input type="checkbox" id="select-all" onchange="toggleSelectAll()" style="width: 18px; height: 18px; cursor: pointer;">
+      <label for="select-all" style="margin: 0; cursor: pointer; font-weight: 500;">Select All</label>
+    </div>
+    <div style="flex: 1;"></div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <button class="btn btn-success btn-sm" onclick="exportSelected('excel')" id="export-excel-btn" disabled>
+        <i class="bi bi-file-earmark-excel"></i> Export Excel (Selected)
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="exportSelected('pdf')" id="export-pdf-btn" disabled>
+        <i class="bi bi-file-earmark-pdf"></i> Export PDF (Selected)
+      </button>
+    </div>
+  </div>
+  
   <div class="table-wrapper">
     <table class="data-table" id="employee-table">
       <thead>
         <tr>
-          <th onclick="sortTable(0)">
+          <th style="width: 40px;">
+            <input type="checkbox" id="select-all-header" onchange="toggleSelectAll()" style="width: 18px; height: 18px; cursor: pointer;">
+          </th>
+          <th onclick="sortTable(1)">
             Employee <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
           <th onclick="sortTable(1)" class="text-center">
@@ -645,10 +745,19 @@ body {
             Absent <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
           <th onclick="sortTable(5)" class="text-center">
-            Late <i class="bi bi-arrow-down-up sort-icon"></i>
+            On Time <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
           <th onclick="sortTable(6)" class="text-center">
+            Late <i class="bi bi-arrow-down-up sort-icon"></i>
+          </th>
+          <th onclick="sortTable(7)" class="text-center">
             Leave <i class="bi bi-arrow-down-up sort-icon"></i>
+          </th>
+          <th onclick="sortTable(8)" class="text-center">
+            Late Hours <i class="bi bi-arrow-down-up sort-icon"></i>
+          </th>
+          <th onclick="sortTable(10)" class="text-center">
+            Extra Hours <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
           <th class="text-end">Actions</th>
         </tr>
@@ -656,7 +765,7 @@ body {
       <tbody id="employee-tbody">
         <?php if (empty($rows)): ?>
           <tr>
-            <td colspan="8">
+            <td colspan="12">
               <div class="empty-state">
                 <div class="empty-icon">
                   <i class="bi bi-calendar-x"></i>
@@ -674,7 +783,10 @@ body {
           </tr>
         <?php else: ?>
           <?php foreach ($rows as $index => $r): ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars($r->name)); ?>" data-index="<?php echo $index; ?>">
+            <tr data-searchable="<?php echo strtolower(htmlspecialchars($r->name)); ?>" data-index="<?php echo $index; ?>" data-user-id="<?php echo $r->user_id; ?>">
+              <td style="text-align: center;">
+                <input type="checkbox" class="employee-checkbox" value="<?php echo $r->user_id; ?>" onchange="updateExportButtons()" style="width: 18px; height: 18px; cursor: pointer;">
+              </td>
               <td>
                 <div class="employee-cell">
                   <div class="employee-avatar">
@@ -710,6 +822,12 @@ body {
                   <div class="progress-fill absent" style="width: <?php echo min(100, ($r->absent_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
+              <td class="status-cell" style="color: var(--success-color);">
+                <div><?php echo isset($r->on_time_days) ? htmlspecialchars($r->on_time_days) : '0'; ?></div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->on_time_days) ? (float)$r->on_time_days : 0) / 30 * 100); ?>%; background: var(--success-color);"></div>
+                </div>
+              </td>
               <td class="status-cell" style="color: #d97706;">
                 <div><?php echo htmlspecialchars($r->late_days); ?></div>
                 <div class="progress-bar">
@@ -722,11 +840,37 @@ body {
                   <div class="progress-fill leave" style="width: <?php echo min(100, ($r->leave_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
+              <td class="status-cell" style="color: #d97706;">
+                <div><?php echo isset($r->late_hours) ? htmlspecialchars($r->late_hours) : '0'; ?>h</div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->late_hours) ? (float)$r->late_hours : 0) * 10); ?>%; background: #d97706;"></div>
+                </div>
+              </td>
+              <td class="status-cell" style="color: var(--success-color);">
+                <div><?php echo isset($r->extra_hours) ? htmlspecialchars($r->extra_hours) : '0'; ?>h</div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->extra_hours) ? (float)$r->extra_hours : 0) * 5); ?>%; background: var(--success-color);"></div>
+                </div>
+              </td>
               <td class="text-end">
-                <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('reports/attendance-employee/'.$r->user_id.'?month='.urlencode($month)); ?>">
-                  <i class="bi bi-eye"></i>
-                  View
-                </a>
+                <div style="display: flex; gap: 0.25rem; justify-content: flex-end;">
+                  <?php 
+                    $viewParams = [];
+                    if (isset($period)) $viewParams['period'] = $period;
+                    if (isset($month)) $viewParams['month'] = $month;
+                    if (isset($date)) $viewParams['date'] = $date;
+                    $viewUrl = site_url('reports/attendance-employee/'.$r->user_id.'?'.http_build_query($viewParams));
+                  ?>
+                  <a class="btn btn-outline-primary btn-sm" href="<?php echo $viewUrl; ?>" title="View Details">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                  <button class="btn btn-outline-success btn-sm" onclick="exportSingle(<?php echo $r->user_id; ?>, 'excel')" title="Export Excel">
+                    <i class="bi bi-file-earmark-excel"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm" onclick="exportSingle(<?php echo $r->user_id; ?>, 'pdf')" title="Export PDF">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                  </button>
+                </div>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -758,6 +902,109 @@ let filteredRows = [];
 let sortColumn = -1;
 let sortDirection = 'asc';
 
+// Export functionality
+function toggleSelectAll() {
+  const selectAll = document.getElementById('select-all');
+  const selectAllHeader = document.getElementById('select-all-header');
+  const checkboxes = document.querySelectorAll('.employee-checkbox');
+  const isChecked = selectAll.checked;
+  
+  checkboxes.forEach(cb => {
+    cb.checked = isChecked;
+  });
+  
+  if (selectAllHeader) {
+    selectAllHeader.checked = isChecked;
+  }
+  
+  updateExportButtons();
+}
+
+function updateExportButtons() {
+  const checkboxes = document.querySelectorAll('.employee-checkbox:checked');
+  const exportExcelBtn = document.getElementById('export-excel-btn');
+  const exportPdfBtn = document.getElementById('export-pdf-btn');
+  const hasSelection = checkboxes.length > 0;
+  
+  if (exportExcelBtn) exportExcelBtn.disabled = !hasSelection;
+  if (exportPdfBtn) exportPdfBtn.disabled = !hasSelection;
+  
+  // Update select all checkbox state
+  const allCheckboxes = document.querySelectorAll('.employee-checkbox');
+  const selectAll = document.getElementById('select-all');
+  const selectAllHeader = document.getElementById('select-all-header');
+  
+  if (selectAll) {
+    selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+  }
+  if (selectAllHeader) {
+    selectAllHeader.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+  }
+}
+
+function exportSelected(format) {
+  const checkboxes = document.querySelectorAll('.employee-checkbox:checked');
+  const userIds = Array.from(checkboxes).map(cb => cb.value);
+  
+  if (userIds.length === 0) {
+    alert('Please select at least one employee to export.');
+    return;
+  }
+  
+  exportAttendance(userIds, format);
+}
+
+function exportSingle(userId, format) {
+  exportAttendance([userId], format);
+}
+
+function exportAttendance(userIds, format) {
+  if (!userIds || userIds.length === 0) {
+    alert('Please select at least one employee to export.');
+    return;
+  }
+  
+  const period = getUrlParameter('period') || 'monthly';
+  const month = getUrlParameter('month') || '';
+  const date = getUrlParameter('date') || '';
+  
+  // Show loading indicator
+  const btn = event ? (window.event ? window.event.target.closest('button') : null) : null;
+  let originalText = '';
+  if (btn) {
+    originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
+  }
+  
+  // Build URL
+  const baseUrl = '<?php echo site_url("reports/export-attendance-employee"); ?>';
+  const params = new URLSearchParams();
+  params.append('export', format);
+  params.append('user_ids', userIds.join(','));
+  params.append('period', period);
+  if (month) params.append('month', month);
+  if (date) params.append('date', date);
+  
+  const url = baseUrl + '?' + params.toString();
+  
+  // Use window.location for file downloads (more reliable)
+  window.location.href = url;
+  
+  // Reset button after 3 seconds
+  if (btn) {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }, 3000);
+  }
+}
+
+function getUrlParameter(name) {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get(name);
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   allRows = Array.from(document.querySelectorAll('#employee-tbody tr[data-index]'));
@@ -785,6 +1032,11 @@ document.getElementById('employee-search').addEventListener('input', function() 
 
 // Sort functionality
 function sortTable(columnIndex) {
+  // Skip sorting for checkbox column (index 0)
+  if (columnIndex === 0) {
+    return;
+  }
+  
   if (sortColumn === columnIndex) {
     sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
   } else {
@@ -796,33 +1048,45 @@ function sortTable(columnIndex) {
     let aValue, bValue;
     
     switch(columnIndex) {
-      case 0: // Employee name
+      case 1: // Employee name
         aValue = a.querySelector('.employee-name').textContent.trim();
         bValue = b.querySelector('.employee-name').textContent.trim();
         break;
-      case 1: // Present days
-        aValue = parseFloat(a.cells[1].textContent.trim()) || 0;
-        bValue = parseFloat(b.cells[1].textContent.trim()) || 0;
-        break;
-      case 2: // Half days
+      case 2: // Present days
         aValue = parseFloat(a.cells[2].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[2].textContent.trim()) || 0;
         break;
-      case 3: // WFH days
+      case 2: // Half days
         aValue = parseFloat(a.cells[3].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[3].textContent.trim()) || 0;
         break;
-      case 4: // Absent days
+      case 3: // WFH days
         aValue = parseFloat(a.cells[4].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[4].textContent.trim()) || 0;
         break;
-      case 5: // Late days
+      case 4: // Absent days
         aValue = parseFloat(a.cells[5].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[5].textContent.trim()) || 0;
         break;
-      case 6: // Leave days
+      case 5: // On Time days
         aValue = parseFloat(a.cells[6].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[6].textContent.trim()) || 0;
+        break;
+      case 6: // Late days
+        aValue = parseFloat(a.cells[7].textContent.trim()) || 0;
+        bValue = parseFloat(b.cells[7].textContent.trim()) || 0;
+        break;
+      case 7: // Leave days
+        aValue = parseFloat(a.cells[8].textContent.trim()) || 0;
+        bValue = parseFloat(b.cells[8].textContent.trim()) || 0;
+        break;
+      case 8: // Late hours
+        aValue = parseFloat(a.cells[9].textContent.replace('h', '').trim()) || 0;
+        bValue = parseFloat(b.cells[9].textContent.replace('h', '').trim()) || 0;
+        break;
+      case 9: // Extra hours
+        aValue = parseFloat(a.cells[10].textContent.replace('h', '').trim()) || 0;
+        bValue = parseFloat(b.cells[10].textContent.replace('h', '').trim()) || 0;
         break;
     }
     
@@ -934,6 +1198,28 @@ function resetSearch() {
 
 function clearMonthFilter() {
   window.location.href = '<?php echo site_url('reports/attendance-employee'); ?>';
+}
+
+// Update period filters based on selection
+function updatePeriodFilters() {
+  const periodSelect = document.getElementById('period-select');
+  const period = periodSelect.value;
+  const dateGroup = document.getElementById('date-filter-group');
+  const monthGroup = document.getElementById('month-filter-group');
+  const dateLabel = document.getElementById('date-label');
+  
+  if (period === 'monthly') {
+    dateGroup.style.display = 'none';
+    monthGroup.style.display = 'flex';
+  } else {
+    dateGroup.style.display = 'flex';
+    monthGroup.style.display = 'none';
+    if (period === 'daily') {
+      dateLabel.textContent = 'Date';
+    } else {
+      dateLabel.textContent = 'Week Start Date';
+    }
+  }
 }
 </script>
 

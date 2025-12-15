@@ -6,6 +6,13 @@
   $canViewAll = isset($can_view_all) ? $can_view_all : ($isAdminGroup || in_array($role_id, [1,2], true));
   $canAddAttendance = isset($can_add_attendance) ? $can_add_attendance : $canViewAll;
   
+  // Get permission flags from controller
+  $canEditAttendance = isset($can_edit_attendance) ? $can_edit_attendance : false;
+  $canDeleteAttendance = isset($can_delete_attendance) ? $can_delete_attendance : false;
+  $currentUserId = isset($current_user_id) ? $current_user_id : $user_id;
+  $isAdmin = isset($is_admin_group) ? $is_admin_group : $isAdminGroup;
+  $currentRoleId = isset($current_role_id) ? $current_role_id : $role_id;
+  
   $this->load->view('partials/header', ['title' => 'Attendance']); 
 ?>
 
@@ -348,102 +355,20 @@
   <div class="attendance-header">
     <div class="d-flex justify-content-between align-items-center w-100">
       <div>
-        <h1 class="attendance-title">Attendance Records</h1>
+        <h1 class="attendance-title">Attendance Summary</h1>
         <p class="attendance-subtitle">
-          <?php 
-            if (isset($show_all) && $show_all) {
-              echo 'Showing all attendance records';
-            } else {
-              echo 'Showing today\'s attendance records';
-            }
-          ?>
+          Showing attendance summary for all employees
           <?php if (isset($total_records)): ?>
-            <span class="ms-2">(<?php echo $total_records; ?> records)</span>
+            <span class="ms-2">(<?php echo $total_records; ?> employees)</span>
           <?php endif; ?>
         </p>
       </div>
       <div class="d-flex gap-2">
-        <?php if (isset($show_all) && $show_all): ?>
-          <a class="btn btn-light btn-sm" title="Show Today" href="<?php echo site_url('attendance'); ?>">
-            <i class="bi bi-calendar-day me-1"></i> Today
-          </a>
-        <?php else: ?>
-          <a class="btn btn-light btn-sm" title="Show All" href="<?php echo site_url('attendance?all=1'); ?>">
-            <i class="bi bi-calendar-range me-1"></i> All
-          </a>
-        <?php endif; ?>
         <?php if ($canAddAttendance): ?>
           <a class="btn btn-light btn-sm" title="Add Attendance" href="<?php echo site_url('attendance/create'); ?>">
             <i class="bi bi-plus-lg"></i> Add
           </a>
         <?php endif; ?>
-      </div>
-    </div>
-  </div>
-
-  <!-- Collapsible Filters -->
-  <div class="filter-toggle" id="filterToggle">
-    <div class="filter-toggle-header" onclick="toggleFilters()">
-      <h3 class="filter-toggle-title">
-        <i class="bi bi-funnel"></i>
-        Filters
-      </h3>
-      <i class="bi bi-chevron-down filter-toggle-arrow"></i>
-    </div>
-    <div class="filter-content" id="filterContent">
-      <div class="filter-row">
-        <div>
-          <label class="form-label">Date Range</label>
-          <div class="input-group">
-            <input type="date" id="startDate" class="form-control">
-            <span class="input-group-text">to</span>
-            <input type="date" id="endDate" class="form-control">
-          </div>
-        </div>
-        
-        <?php if ($canViewAll): ?>
-        <div>
-          <label class="form-label">Employee</label>
-          <select id="userFilter" class="form-select">
-            <option value="">All Employees</option>
-            <?php
-              $users = [];
-              if (!empty($records)) {
-                foreach ($records as $r) {
-                  $name = '';
-                  if (!empty($r->first_name) || !empty($r->last_name)) {
-                    $name = trim((isset($r->first_name) ? $r->first_name : '').' '.(isset($r->last_name) ? $r->last_name : ''));
-                  }
-                  if ($name === '') { $name = isset($r->email) && $r->email !== '' ? $r->email : 'Unknown'; }
-                  $users[$r->user_id] = $name;
-                }
-              }
-              foreach ($users as $uid => $name) {
-                echo '<option value="'.$uid.'">'.htmlspecialchars($name).'</option>';
-              }
-            ?>
-          </select>
-        </div>
-        <?php endif; ?>
-        
-        <div>
-          <label class="form-label">Status</label>
-          <select id="statusFilter" class="form-select">
-            <option value="">All Status</option>
-            <option value="present">Present</option>
-            <option value="absent">Absent</option>
-            <option value="incomplete">Incomplete</option>
-          </select>
-        </div>
-      </div>
-      
-      <div class="filter-actions">
-        <button class="btn btn-primary" onclick="applyFilters()">
-          <i class="bi bi-check-circle me-1"></i>Apply
-        </button>
-        <button class="btn btn-outline-secondary" onclick="clearFilters()">
-          <i class="bi bi-x-circle me-1"></i>Clear
-        </button>
       </div>
     </div>
   </div>
@@ -454,15 +379,9 @@
       <thead>
         <tr>
           <th>Employee</th>
-          <th>Date</th>
-          <th>Check In</th>
-          <th>Check Out</th>
-          <th>Status</th>
-          <th>Notes</th>
-          <th>Location</th>
-          <?php if ($canViewAll): ?>
-            <th>Actions</th>
-          <?php endif; ?>
+          <th>Last Attendance</th>
+          <th>Total Records</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -474,48 +393,10 @@
             }
             if ($name === '') { $name = isset($r->email) && $r->email !== '' ? $r->email : 'Unknown'; }
             
-            // Schema-aware fields
-            $d = isset($r->att_date) ? $r->att_date : (isset($r->date) ? $r->date : '');
-            $cin = isset($r->punch_in) ? $r->punch_in : (isset($r->check_in) ? $r->check_in : '');
-            $cout = isset($r->punch_out) ? $r->punch_out : (isset($r->check_out) ? $r->check_out : '');
-            if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
-            if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
-            
-            // Pretty display just time portion if datetime
-            $cin_disp = $cin;
-            $cout_disp = $cout;
-            if ($cin_disp && strpos($cin_disp, ' ') !== false) { $cin_disp = trim(explode(' ', $cin_disp)[1]); }
-            if ($cout_disp && strpos($cout_disp, ' ') !== false) { $cout_disp = trim(explode(' ', $cout_disp)[1]); }
-            
-            $notes = isset($r->notes) ? $r->notes : '';
-            $file = isset($r->attachment_path) ? $r->attachment_path : '';
-            
-            // Location schema-aware fields
-            $lat = '';
-            $lng = '';
-            if (isset($r->latitude)) { $lat = $r->latitude; }
-            elseif (isset($r->lat)) { $lat = $r->lat; }
-            elseif (isset($r->geo_lat)) { $lat = $r->geo_lat; }
-            if (isset($r->longitude)) { $lng = $r->longitude; }
-            elseif (isset($r->lng)) { $lng = $r->lng; }
-            elseif (isset($r->geo_lng)) { $lng = $r->geo_lng; }
-            $ip = isset($r->ip_address) ? $r->ip_address : '';
-            $loc = isset($r->location_name) ? $r->location_name : '';
-            
-            // Determine status
-            $status = 'incomplete';
-            if ($cin && $cout) {
-              $status = 'present';
-            } elseif ($cin && !$cout) {
-              $status = 'incomplete';
-            } else {
-              $status = 'absent';
-            }
-            
-            // Check if record is from today
-            $isToday = ($d === date('Y-m-d'));
+            $last_attendance_date = isset($r->last_attendance_date) ? $r->last_attendance_date : '';
+            $attendance_count = isset($r->attendance_count) ? $r->attendance_count : 0;
           ?>
-          <tr data-user-id="<?php echo $r->user_id; ?>" data-date="<?php echo htmlspecialchars($d); ?>" data-status="<?php echo $status; ?>">
+          <tr data-user-id="<?php echo $r->user_id; ?>" onclick="showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($name); ?>')" style="cursor: pointer;">
             <td>
               <div class="user-cell">
                 <div class="user-avatar">
@@ -529,82 +410,33 @@
                 </div>
               </div>
             </td>
-            <td><?php echo htmlspecialchars($d); ?></td>
             <td>
-              <?php if ($cin_disp): ?>
-                <span class="time-badge"><?php echo htmlspecialchars($cin_disp); ?></span>
-              <?php else: ?>
-                <span class="text-muted">—</span>
-              <?php endif; ?>
-            </td>
-            <td>
-              <?php if ($cout_disp): ?>
-                <span class="time-badge checkout"><?php echo htmlspecialchars($cout_disp); ?></span>
+              <?php if ($last_attendance_date): ?>
+                <span class="time-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
               <?php else: ?>
                 <span class="text-muted">—</span>
               <?php endif; ?>
             </td>
             <td>
-              <span class="status-badge <?php echo $status; ?>">
-                <?php 
-                  switch($status) {
-                    case 'present': echo 'Present'; break;
-                    case 'absent': echo 'Absent'; break;
-                    case 'incomplete': echo 'Incomplete'; break;
-                  }
-                ?>
-              </span>
+              <span class="status-badge present"><?php echo $attendance_count; ?></span>
             </td>
-            <td class="notes-cell">
-              <?php if($notes): ?>
-                <p class="notes-text" title="<?php echo htmlspecialchars($notes); ?>">
-                  <?php echo htmlspecialchars(substr($notes, 0, 20)) . (strlen($notes) > 20 ? '...' : ''); ?>
-                </p>
-              <?php else: ?>
-                <span class="text-muted">—</span>
-              <?php endif; ?>
+            <td>
+              <div class="action-buttons">
+                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($name); ?>')" title="View Details">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
             </td>
-            <td class="location-info">
-              <?php if($loc): ?>
-                <p class="location-name" title="<?php echo htmlspecialchars($loc); ?>">
-                  <?php echo htmlspecialchars(substr($loc, 0, 25)) . (strlen($loc) > 25 ? '...' : ''); ?>
-                </p>
-                <?php if($lat && $lng): ?>
-                  <p class="location-coords">
-                    <i class="bi bi-geo-alt me-1"></i><?php echo htmlspecialchars($lat); ?>, <?php echo htmlspecialchars($lng); ?>
-                  </p>
-                <?php endif; ?>
-              <?php else: ?>
-                <span class="text-muted">—</span>
-              <?php endif; ?>
-            </td>
-            <?php if ($canViewAll): ?>
-              <td>
-                <div class="action-buttons">
-                  <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('attendance/'.$r->id.'/edit'); ?>" title="Edit">
-                    <i class="bi bi-pencil"></i>
-                  </a>
-                  <?php if(!empty($file)): ?>
-                    <a class="btn btn-sm btn-outline-success" href="<?php echo base_url($file); ?>" target="_blank" title="Download">
-                      <i class="bi bi-download"></i>
-                    </a>
-                  <?php endif; ?>
-                  <button class="btn btn-sm btn-outline-danger" onclick="deleteAttendance(<?php echo $r->id; ?>)" title="Delete">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </div>
-              </td>
-            <?php endif; ?>
           </tr>
         <?php endforeach; ?>
         
         <?php if(empty($records)): ?>
           <tr>
-            <td colspan="<?php echo $canViewAll ? '8' : '7'; ?>" class="text-center">
+            <td colspan="4" class="text-center">
               <div class="empty-state">
                 <i class="bi bi-calendar-x empty-state-icon"></i>
                 <div class="empty-state-title">No attendance records found</div>
-                <div class="empty-state-text">Try adjusting your filters or add a new attendance record</div>
+                <div class="empty-state-text">Start by adding attendance records</div>
               </div>
             </td>
           </tr>
@@ -624,99 +456,409 @@
   <?php endif; ?>
 </div>
 
-<script>
-function toggleFilters() {
-  const toggle = document.getElementById('filterToggle');
-  const content = document.getElementById('filterContent');
-  const arrow = toggle.querySelector('.filter-toggle-arrow');
-  
-  toggle.classList.toggle('collapsed');
-  if (toggle.classList.contains('collapsed')) {
-    content.style.display = 'none';
-  } else {
-    content.style.display = 'block';
-  }
-}
-
-function applyFilters() {
-  const startDate = document.getElementById('startDate').value;
-  const endDate = document.getElementById('endDate').value;
-  const userFilter = document.getElementById('userFilter').value;
-  const statusFilter = document.getElementById('statusFilter').value;
-  
-  const rows = document.querySelectorAll('#attendanceTable tbody tr[data-user-id]');
-  let visibleCount = 0;
-  
-  rows.forEach(row => {
-    let show = true;
-    
-    // Date filter
-    if (startDate && row.dataset.date) {
-      show = show && (row.dataset.date >= startDate);
-    }
-    if (endDate && row.dataset.date) {
-      show = show && (row.dataset.date <= endDate);
-    }
-    
-    // User filter
-    if (userFilter) {
-      show = show && (row.dataset.userId == userFilter);
-    }
-    
-    // Status filter
-    if (statusFilter) {
-      show = show && (row.dataset.status == statusFilter);
-    }
-    
-    row.style.display = show ? '' : 'none';
-    if (show) visibleCount++;
-  });
-  
-  // Show/hide empty state
-  const tbody = document.querySelector('#attendanceTable tbody');
-  let emptyRow = tbody.querySelector('.empty-state');
-  
-  if (visibleCount === 0 && !emptyRow) {
-    const newRow = document.createElement('tr');
-    newRow.innerHTML = `
-      <td colspan="<?php echo $canViewAll ? '8' : '7'; ?>" class="text-center">
-        <div class="empty-state">
-          <i class="bi bi-funnel empty-state-icon"></i>
-          <div class="empty-state-title">No records match your filters</div>
-          <div class="empty-state-text">Try adjusting your filter criteria</div>
+<!-- Attendance Details Modal -->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-labelledby="attendanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" style="max-width: 85%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="attendanceModalLabel">Attendance Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Filter Type</label>
+            <select id="filterType" class="form-select">
+              <option value="month">By Month</option>
+              <option value="date">By Date</option>
+              <option value="year">By Year</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Select Date/Month/Year</label>
+            <input type="text" id="filterValue" class="form-control" placeholder="Select...">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">&nbsp;</label><br>
+            <button type="button" class="btn btn-primary" onclick="loadAttendanceDetails()">
+              <i class="bi bi-search"></i> Search
+            </button>
+          </div>
         </div>
-      </td>
-    `;
-    tbody.appendChild(newRow);
-  } else if (visibleCount > 0 && emptyRow) {
-    emptyRow.parentElement.remove();
-  }
+        
+        <div class="table-responsive">
+          <table class="table table-sm" id="attendanceDetailsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Check-In Location</th>
+                <th>Check-Out Location</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceDetailsBody">
+              <tr>
+                <td colspan="7" class="text-center">
+                  <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  Loading attendance details...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination Controls -->
+        <div id="attendancePagination" class="d-flex justify-content-between align-items-center mt-3" style="display: none;">
+          <div class="text-muted">
+            <small id="paginationInfo">Showing 0 of 0 records</small>
+          </div>
+          <nav>
+            <ul class="pagination pagination-sm mb-0" id="paginationLinks">
+              <!-- Pagination links will be inserted here -->
+            </ul>
+          </nav>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentUserId = null;
+let currentUserName = null;
+let currentPage = 1;
+// Permission flags from PHP
+const canEditAttendance = <?php echo $canEditAttendance ? 'true' : 'false'; ?>;
+const canDeleteAttendance = <?php echo $canDeleteAttendance ? 'true' : 'false'; ?>;
+const currentUserID = <?php echo $currentUserId; ?>;
+const isAdmin = <?php echo $isAdmin ? 'true' : 'false'; ?>;
+
+function showUserAttendanceDetails(userId, userName) {
+    currentUserId = userId;
+    currentUserName = userName;
+    currentPage = 1; // Reset to first page when opening new user
+    
+    // Update modal title
+    document.getElementById('attendanceModalLabel').textContent = `Attendance Details - ${userName}`;
+    
+    // Set default filter to current year
+    const today = new Date();
+    const currentYear = today.getFullYear().toString();
+    const filterType = document.getElementById('filterType');
+    const filterValue = document.getElementById('filterValue');
+    
+    filterType.value = 'year';
+    filterValue.type = 'number';
+    filterValue.min = '2020';
+    filterValue.max = today.getFullYear().toString();
+    filterValue.value = currentYear;
+    filterValue.placeholder = 'Enter year (e.g., 2024)';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+    modal.show();
+    
+    // Load attendance details
+    loadAttendanceDetails();
 }
 
-function clearFilters() {
-  document.getElementById('startDate').value = '';
-  document.getElementById('endDate').value = '';
-  document.getElementById('userFilter').value = '';
-  document.getElementById('statusFilter').value = '';
-  
-  // Reload page to reset filters and show today's records by default
-  window.location.href = '<?php echo site_url('attendance'); ?>';
+function loadAttendanceDetails(page = 1) {
+    const filterType = document.getElementById('filterType').value;
+    const filterValue = document.getElementById('filterValue').value;
+    
+    if (!filterValue) {
+        // Don't show alert, just return silently
+        return;
+    }
+    
+    currentPage = page;
+    
+    const tbody = document.getElementById('attendanceDetailsBody');
+    const paginationDiv = document.getElementById('attendancePagination');
+    
+    // Hide pagination during loading
+    paginationDiv.style.display = 'none';
+    
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                Loading attendance details...
+            </td>
+        </tr>
+    `;
+    
+    // Fetch attendance data
+    fetch('<?php echo site_url('attendance/get_user_monthly_attendance'); ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `user_id=${currentUserId}&filter_type=${filterType}&filter_value=${filterValue}&page=${currentPage}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayAttendanceDetails(data.data, data.pagination);
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-danger">
+                        ${data.message || 'Error loading attendance details'}
+                    </td>
+                </tr>
+            `;
+            paginationDiv.style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-danger">
+                    Error loading attendance details
+                </td>
+            </tr>
+        `;
+        paginationDiv.style.display = 'none';
+    });
+}
+
+function displayAttendanceDetails(data, pagination) {
+    const tbody = document.getElementById('attendanceDetailsBody');
+    const paginationDiv = document.getElementById('attendancePagination');
+    
+    if (data.length === 0) {
+        tbody.innerHTML = `
+              <tr>
+                <td colspan="8" class="text-center text-muted">
+                    No attendance records found for the selected period
+                </td>
+              </tr>
+        `;
+        paginationDiv.style.display = 'none';
+        return;
+    }
+    
+    let html = '';
+    data.forEach(record => {
+        const statusClass = record.status === 'present' ? 'success' : 
+                           record.status === 'absent' ? 'danger' : 'warning';
+        const statusText = record.status.charAt(0).toUpperCase() + record.status.slice(1);
+        
+        // Check permissions for this record
+        const canEdit = record.can_edit !== undefined ? record.can_edit : false;
+        const canDelete = record.can_delete !== undefined ? record.can_delete : false;
+        
+        // Build action buttons HTML
+        let actionButtons = '<div class="btn-group btn-group-sm" role="group">';
+        if (canEdit) {
+            actionButtons += `<button class="btn btn-outline-primary btn-sm" onclick="editAttendance(${record.id})" title="Edit">
+                <i class="bi bi-pencil"></i>
+            </button>`;
+        }
+        if (canDelete) {
+            actionButtons += `<button class="btn btn-outline-danger btn-sm" onclick="deleteAttendance(${record.id})" title="Delete">
+                <i class="bi bi-trash"></i>
+            </button>`;
+        }
+        if (!canEdit && !canDelete) {
+            actionButtons += '<span class="text-muted small">No actions</span>';
+        }
+        actionButtons += '</div>';
+        
+        html += `
+            <tr>
+                <td>${record.date}</td>
+                <td>${record.check_in || '<span class="text-muted">—</span>'}</td>
+                <td>${record.check_out || '<span class="text-muted">—</span>'}</td>
+                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+                <td>${record.notes || '<span class="text-muted">—</span>'}</td>
+                <td>${record.checkin_location || '<span class="text-muted">—</span>'}</td>
+                <td>${record.checkout_location || '<span class="text-muted">—</span>'}</td>
+                <td>${actionButtons}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Update pagination
+    if (pagination.total_pages > 1) {
+        updatePaginationControls(pagination);
+        paginationDiv.style.display = 'flex';
+    } else {
+        paginationDiv.style.display = 'none';
+    }
+}
+
+function updatePaginationControls(pagination) {
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationLinks = document.getElementById('paginationLinks');
+    
+    // Update info text
+    const startRecord = (pagination.current_page - 1) * pagination.per_page + 1;
+    const endRecord = Math.min(pagination.current_page * pagination.per_page, pagination.total_records);
+    paginationInfo.textContent = `Showing ${startRecord}-${endRecord} of ${pagination.total_records} records`;
+    
+    // Generate pagination links
+    let linksHtml = '';
+    
+    // Previous button
+    if (pagination.has_prev) {
+        linksHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadAttendanceDetails(${pagination.current_page - 1}); return false;">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+        `;
+    } else {
+        linksHtml += `
+            <li class="page-item disabled">
+                <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+            </li>
+        `;
+    }
+    
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, pagination.current_page - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.total_pages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    if (startPage > 1) {
+        linksHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadAttendanceDetails(1); return false;">1</a>
+            </li>
+        `;
+        if (startPage > 2) {
+            linksHtml += `
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            `;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const activeClass = i === pagination.current_page ? 'active' : '';
+        linksHtml += `
+            <li class="page-item ${activeClass}">
+                <a class="page-link" href="#" onclick="loadAttendanceDetails(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (endPage < pagination.total_pages) {
+        if (endPage < pagination.total_pages - 1) {
+            linksHtml += `
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            `;
+        }
+        linksHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadAttendanceDetails(${pagination.total_pages}); return false;">${pagination.total_pages}</a>
+            </li>
+        `;
+    }
+    
+    // Next button
+    if (pagination.has_next) {
+        linksHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" onclick="loadAttendanceDetails(${pagination.current_page + 1}); return false;">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        `;
+    } else {
+        linksHtml += `
+            <li class="page-item disabled">
+                <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+            </li>
+        `;
+    }
+    
+    paginationLinks.innerHTML = linksHtml;
+}
+
+function editAttendance(id) {
+    // Close the modal first
+    const modal = bootstrap.Modal.getInstance(document.getElementById('attendanceModal'));
+    modal.hide();
+    
+    // Redirect to edit page
+    window.location.href = '<?php echo site_url('attendance/'); ?>' + id + '/edit';
 }
 
 function deleteAttendance(id) {
-  if (confirm('Are you sure you want to delete this attendance record?')) {
-    window.location.href = '<?php echo site_url('attendance/'); ?>' + id + '/delete';
-  }
+    if (confirm('Are you sure you want to delete this attendance record?')) {
+        // Close the modal first
+        const modal = bootstrap.Modal.getInstance(document.getElementById('attendanceModal'));
+        modal.hide();
+        
+        // Redirect to delete
+        window.location.href = '<?php echo site_url('attendance/'); ?>' + id + '/delete';
+    }
 }
 
-// Initialize: set filters and collapse them
+// Initialize filter value input based on filter type
 document.addEventListener('DOMContentLoaded', function() {
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('endDate').value = today;
-  document.getElementById('startDate').value = today;
-  
-  // Collapse filters by default
-  toggleFilters();
+    const filterType = document.getElementById('filterType');
+    const filterValue = document.getElementById('filterValue');
+    
+    function updateFilterInput() {
+        const type = filterType.value;
+        const today = new Date();
+        
+        switch(type) {
+            case 'date':
+                filterValue.type = 'date';
+                if (!filterValue.value) {
+                    filterValue.value = today.toISOString().split('T')[0];
+                }
+                break;
+            case 'month':
+                filterValue.type = 'month';
+                if (!filterValue.value) {
+                    filterValue.value = today.toISOString().slice(0, 7);
+                }
+                break;
+            case 'year':
+                filterValue.type = 'number';
+                filterValue.min = '2020';
+                filterValue.max = today.getFullYear().toString();
+                if (!filterValue.value) {
+                    filterValue.value = today.getFullYear().toString();
+                }
+                filterValue.placeholder = 'Enter year (e.g., 2024)';
+                break;
+        }
+        
+        // Reset to first page when filter type changes
+        currentPage = 1;
+    }
+    
+    filterType.addEventListener('change', updateFilterInput);
+    // Don't call updateFilterInput() on load since modal will set its own values
 });
 </script>
 

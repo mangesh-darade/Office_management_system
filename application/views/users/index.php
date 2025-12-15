@@ -27,6 +27,7 @@
                 <th>Email</th>
                 <th style="width:120px;">Role</th>
                 <th style="width:120px;">Status</th>
+                <th style="width:140px;">Face Registered</th>
                 <th style="width:160px;">Actions</th>
               </tr>
             </thead>
@@ -62,13 +63,28 @@
                     <?php endif; ?>
                   </td>
                   <td>
-                    <a href="<?php echo site_url('users/edit/'.(int)$r->id); ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                    <a href="<?php echo site_url('users/delete/'.(int)$r->id); ?>" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    <?php
+                      $faceRegistered = isset($r->face_registered) ? $r->face_registered : false;
+                      $faceDate = isset($r->face_registered_date) ? $r->face_registered_date : null;
+                    ?>
+                    <?php if ($faceRegistered): ?>
+                      <span class="badge bg-success" title="<?php echo $faceDate ? 'Registered on: ' . htmlspecialchars($faceDate) : 'Face registered'; ?>">
+                        <i class="bi bi-check-circle-fill"></i> Yes
+                      </span>
+                    <?php else: ?>
+                      <span class="badge bg-warning text-dark" title="Face not registered">
+                        <i class="bi bi-x-circle-fill"></i> No
+                      </span>
+                    <?php endif; ?>
+                  </td>
+                  <td>
+                    <a href="<?php echo site_url('users/edit/'.(int)$r->id); ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                    <a href="<?php echo site_url('users/delete/'.(int)$r->id); ?>" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></a>
                   </td>
                 </tr>
               <?php endforeach; ?>
               <?php if (empty($rows)): ?>
-                <tr><td colspan="6" class="text-center text-muted py-4">No users found</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">No users found</td></tr>
               <?php endif; ?>
             </tbody>
           </table>

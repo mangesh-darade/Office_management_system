@@ -23,6 +23,29 @@
     </div>
   <?php endif; ?>
 
+  <!-- Toast Container -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+    <div id="locationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <i class="bi bi-geo-alt-fill text-primary me-2"></i>
+        <strong class="me-auto">Location Status</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastMessage">
+        Getting location...
+      </div>
+    </div>
+    <div id="attendanceToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <i class="bi bi-info-circle-fill text-info me-2"></i>
+        <strong class="me-auto">Attendance Status</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="attendanceToastMessage">
+      </div>
+    </div>
+  </div>
+
   <div class="card shadow-sm border-0">
     <div class="card-body p-3 p-md-4">
       <form method="post" enctype="multipart/form-data" id="attendanceForm">
@@ -110,9 +133,12 @@
         <!-- Submit Button -->
         <div class="row">
           <div class="col-12">
-            <button class="btn btn-primary w-100 py-2 fw-semibold" type="submit" id="submitBtn">
+            <button class="btn btn-primary w-100 py-2 fw-semibold" type="submit" id="submitBtn" disabled>
               <i class="bi bi-check-circle"></i> Mark Attendance
             </button>
+            <div class="small text-muted mt-2" id="validationStatus">
+              <i class="bi bi-info-circle"></i> Please complete all mandatory fields: Location, Face Verification
+            </div>
           </div>
         </div>
       </form>
@@ -126,6 +152,24 @@
       function tick(){ try { const d=new Date(); document.getElementById('liveClock').textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); } catch(e){} }
       document.addEventListener('DOMContentLoaded', function(){
         try { tick(); setInterval(tick, 1000); } catch(e){}
+        
+        // Check existing attendance status and show toast
+        <?php if(isset($attendance_status) && ($attendance_status['has_checkin'] || $attendance_status['has_checkout'])): ?>
+        try {
+          var attendanceToast = new bootstrap.Toast(document.getElementById('attendanceToast'));
+          var toastMsg = document.getElementById('attendanceToastMessage');
+          var msg = '';
+          <?php if($attendance_status['has_checkin'] && $attendance_status['has_checkout']): ?>
+            msg = 'You have already checked in and checked out today.<br>Check-in: <?php echo htmlspecialchars($attendance_status['checkin_time']); ?><br>Check-out: <?php echo htmlspecialchars($attendance_status['checkout_time']); ?>';
+          <?php elseif($attendance_status['has_checkin']): ?>
+            msg = 'You have already checked in today at <?php echo htmlspecialchars($attendance_status['checkin_time']); ?>. You can now check out.';
+          <?php endif; ?>
+          if (toastMsg && msg) {
+            toastMsg.innerHTML = msg;
+            attendanceToast.show();
+          }
+        } catch(e){}
+        <?php endif; ?>
         
         // File upload handling
         try {
@@ -149,13 +193,156 @@
         
         try {
           var hasLocation = false;
+          var locationCaptured = false;
+          var cameraStarted = false;
+          var locationToast = null;
+          var hasFaceCapture = false;
+          
+          // Move face verification variables to outer scope
+          var btnVerify = document.getElementById('btnAttFaceVerify');
+          var video = document.getElementById('attFaceVideo');
+          var canvas = document.getElementById('attFaceCanvas');
+          var statusEl = document.getElementById('attFaceStatus');
+          var faceDescEl = document.getElementById('faceDescriptor');
+          var faceReqEl = document.getElementById('faceRequired');
+          var cameraLoader = document.getElementById('cameraLoader');
+          var submitBtn = document.getElementById('submitBtn');
+          var validationStatus = document.getElementById('validationStatus');
+          var stream = null;
+          var modelsLoaded = false;
+          var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
+          
+          // Function to validate mandatory fields and enable/disable submit button
+          function validateMandatoryFields() {
+            var latEl = document.querySelector('input[name="lat"]');
+            var lngEl = document.querySelector('input[name="lng"]');
+            var lat = latEl ? latEl.value : '';
+            var lng = lngEl ? lngEl.value : '';
+            var faceDesc = faceDescEl ? faceDescEl.value : '';
+            
+            var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
+            var faceValid = faceDesc && faceDesc.trim() !== '';
+            
+            if (submitBtn) {
+              if (locationValid && faceValid) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('btn-secondary');
+                submitBtn.classList.add('btn-primary');
+                if (validationStatus) {
+                  validationStatus.innerHTML = '<i class="bi bi-check-circle text-success"></i> All mandatory fields completed. You can now submit.';
+                  validationStatus.classList.remove('text-muted', 'text-danger');
+                  validationStatus.classList.add('text-success');
+                }
+              } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.remove('btn-primary');
+                submitBtn.classList.add('btn-secondary');
+                var missingFields = [];
+                if (!locationValid) missingFields.push('Location');
+                if (!faceValid) missingFields.push('Face Verification');
+                if (validationStatus) {
+                  validationStatus.innerHTML = '<i class="bi bi-info-circle"></i> Please complete all mandatory fields: ' + missingFields.join(', ');
+                  validationStatus.classList.remove('text-success', 'text-danger');
+                  validationStatus.classList.add('text-muted');
+                }
+              }
+            }
+          }
+          
+          // Call validation on page load and periodically
+          validateMandatoryFields();
+          setInterval(validateMandatoryFields, 1000);
+          
+          // Form submission validation
+          var attendanceForm = document.getElementById('attendanceForm');
+          if (attendanceForm) {
+            attendanceForm.addEventListener('submit', function(e) {
+              var latEl = document.querySelector('input[name="lat"]');
+              var lngEl = document.querySelector('input[name="lng"]');
+              var lat = latEl ? latEl.value : '';
+              var lng = lngEl ? lngEl.value : '';
+              var faceDesc = faceDescEl ? faceDescEl.value : '';
+              
+              var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
+              var faceValid = faceDesc && faceDesc.trim() !== '';
+              
+              if (!locationValid || !faceValid) {
+                e.preventDefault();
+                var missingFields = [];
+                if (!locationValid) missingFields.push('Location');
+                if (!faceValid) missingFields.push('Face Verification');
+                showToast('Please complete all mandatory fields: ' + missingFields.join(', '), 'error');
+                return false;
+              }
+              
+              // Ensure face_required is set to 1
+              if (faceReqEl) faceReqEl.value = '1';
+              
+              return true;
+            });
+          }
+          
+          function showToast(message, type = 'info') {
+            var toastEl = document.getElementById('locationToast');
+            var toastMessage = document.getElementById('toastMessage');
+            var toastHeader = toastEl.querySelector('.toast-header i');
+            
+            if (!locationToast) {
+              locationToast = new bootstrap.Toast(toastEl);
+            }
+            
+            toastMessage.textContent = message;
+            
+            // Update icon and color based on type
+            toastHeader.className = 'bi me-2';
+            switch(type) {
+              case 'success':
+                toastHeader.classList.add('bi-check-circle-fill', 'text-success');
+                break;
+              case 'error':
+                toastHeader.classList.add('bi-exclamation-triangle-fill', 'text-danger');
+                break;
+              case 'warning':
+                toastHeader.classList.add('bi-exclamation-circle-fill', 'text-warning');
+                break;
+              default:
+                toastHeader.classList.add('bi-geo-alt-fill', 'text-primary');
+            }
+            
+            locationToast.show();
+          }
+          
           function resolveAddress(lat, lng, hint, locEl){
             try {
               if (!hint) return;
               if (!lat || !lng) return;
+              showToast('Location captured, resolving address...', 'info');
               hint.textContent = 'Location captured, resolving address...';
               hint.classList.remove('text-muted');
               hint.classList.add('text-primary');
+              
+              // Use a CORS proxy or skip address resolution due to CORS issues
+              // For now, we'll just mark location as captured without address resolution
+              setTimeout(function(){
+                hint.textContent = 'Location captured successfully';
+                hint.classList.remove('text-primary');
+                hint.classList.add('text-success');
+                showToast('Location captured successfully', 'success');
+                
+                // Location is fully captured, now start camera
+                locationCaptured = true;
+                
+                // Validate mandatory fields after location capture
+                validateMandatoryFields();
+                
+                if (!cameraStarted) {
+                  cameraStarted = true;
+                  startCameraAfterLocation();
+                }
+              }, 1000);
+              
+              // Alternative: You could use your own backend proxy for Nominatim
+              /*
               var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
               fetch(url, { headers: { 'Accept': 'application/json' } })
                 .then(function(resp){ return resp && resp.ok ? resp.json() : null; })
@@ -175,6 +362,7 @@
                       hint.classList.remove('text-primary');
                       hint.classList.add('text-success');
                       if (locEl) { locEl.value = addr; }
+                      showToast('Location resolved: ' + addr.substring(0, 50) + (addr.length > 50 ? '...' : ''), 'success');
                     }
                   } catch(e){}
                 })
@@ -182,56 +370,20 @@
                   hint.textContent = 'Location found, address unavailable';
                   hint.classList.remove('text-primary');
                   hint.classList.add('text-warning');
+                  showToast('Location found but address unavailable', 'warning');
+                })
+                .finally(function(){
+                  // Location is fully captured, now start camera
+                  locationCaptured = true;
+                  if (!cameraStarted) {
+                    cameraStarted = true;
+                    startCameraAfterLocation();
+                  }
                 });
+              */
             } catch(e){}
           }
-          var latEl = document.querySelector('input[name="lat"]');
-          var lngEl = document.querySelector('input[name="lng"]');
-          var locEl = document.querySelector('input[name="location_name"]');
-          var hint = document.getElementById('geoHint');
-          if (navigator.geolocation && latEl && lngEl){
-            navigator.geolocation.getCurrentPosition(function(pos){
-              try {
-                var lat = String(pos.coords.latitude || '');
-                var lng = String(pos.coords.longitude || '');
-                latEl.value = lat;
-                lngEl.value = lng;
-                hasLocation = true;
-                if (hint) {
-                  resolveAddress(lat, lng, hint, locEl);
-                }
-              } catch(e){}
-            }, function(){ 
-              try { 
-                if (hint) {
-                  hint.textContent = 'Location access denied';
-                  hint.classList.remove('text-muted');
-                  hint.classList.add('text-danger');
-                }
-              } catch(e){} 
-            }, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
-          } else { 
-            if (hint) {
-              hint.textContent = 'Location not available';
-              hint.classList.remove('text-muted');
-              hint.classList.add('text-secondary');
-            }
-          }
-        } catch(e){}
-        
-        // Face verification logic
-        try {
-          var btnVerify = document.getElementById('btnAttFaceVerify');
-          var video = document.getElementById('attFaceVideo');
-          var canvas = document.getElementById('attFaceCanvas');
-          var statusEl = document.getElementById('attFaceStatus');
-          var faceDescEl = document.getElementById('faceDescriptor');
-          var faceReqEl = document.getElementById('faceRequired');
-          var cameraLoader = document.getElementById('cameraLoader');
-          var stream = null;
-          var modelsLoaded = false;
-          var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
-
+          
           function setFaceStatus(msg, isError){
             if (!statusEl) return;
             statusEl.textContent = msg || '';
@@ -257,6 +409,13 @@
               setFaceStatus('Camera not supported', true);
               return;
             }
+            
+            // Check if location is ready before starting auto-capture
+            if (auto && !locationCaptured) {
+              setFaceStatus('Waiting for location capture...', false);
+              return;
+            }
+            
             try {
               stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
@@ -281,7 +440,10 @@
                   seconds--;
                   if (seconds <= 0) {
                     clearInterval(countdownId);
-                    if (faceDescEl && faceDescEl.value) { return; }
+                    if (faceDescEl && faceDescEl.value) { 
+                      setFaceStatus('Face already captured', false);
+                      return; 
+                    }
                     if (!hasLocation) {
                       setFaceStatus('Location required first', true);
                       return;
@@ -297,7 +459,7 @@
             } catch(e){ 
               setFaceStatus('Camera access denied', true);
               if (cameraLoader) {
-                cameraLoader.innerHTML = '<div class="text-danger">Camera unavailable</div>';
+                cameraLoader.style.display = 'block';
               }
             }
           }
@@ -322,23 +484,33 @@
               var descArr = Array.prototype.slice.call(det.descriptor);
               if (faceDescEl) faceDescEl.value = JSON.stringify(descArr);
               if (faceReqEl) faceReqEl.value = '1';
+              hasFaceCapture = true;
               setFaceStatus('Face captured successfully', false);
+              
+              // Validate mandatory fields after face capture
+              validateMandatoryFields();
               
               // Stop camera
               try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; } } catch(e){}
               
-              // Auto submit
+              // Auto submit disabled - user must click submit button after validation
               if (autoSubmit) {
-                if (!hasLocation) {
-                  setFaceStatus('Location required', true);
-                  return;
-                }
-                var form = document.querySelector('form');
-                if (form) { form.submit(); }
+                // Just validate, don't auto-submit
+                validateMandatoryFields();
               }
             } catch(e){ setFaceStatus('Capture failed: '+e.message, true); }
           }
-
+          
+          function startCameraAfterLocation() {
+            // Start camera now that location is captured
+            showToast('Starting camera for face verification...', 'info');
+            if (btnVerify) {
+              btnVerify.disabled = false;
+              startCam(true); // Start with auto-capture
+            }
+          }
+          
+          // Move event listener to main scope
           if (btnVerify){
             btnVerify.addEventListener('click', function(ev){ 
               ev.preventDefault(); 
@@ -347,9 +519,72 @@
             window.addEventListener('beforeunload', function(){ 
               try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } } catch(e){}
             });
-            
-            // Auto start camera
-            startCam(true);
+          }
+          
+          var latEl = document.querySelector('input[name="lat"]');
+          var lngEl = document.querySelector('input[name="lng"]');
+          var locEl = document.querySelector('input[name="location_name"]');
+          var hint = document.getElementById('geoHint');
+          
+          // Show initial location toast
+          showToast('Getting location...', 'info');
+          
+          // Initialize location status
+          if (hint) {
+            hint.textContent = 'Getting location...';
+            hint.classList.remove('text-muted');
+            hint.classList.add('text-primary');
+          }
+          
+          if (navigator.geolocation && latEl && lngEl){
+            navigator.geolocation.getCurrentPosition(function(pos){
+              try {
+                var lat = String(pos.coords.latitude || '');
+                var lng = String(pos.coords.longitude || '');
+                latEl.value = lat;
+                lngEl.value = lng;
+                hasLocation = true;
+                showToast('Location captured successfully', 'success');
+                
+                // Validate mandatory fields after location capture
+                validateMandatoryFields();
+                
+                if (hint) {
+                  resolveAddress(lat, lng, hint, locEl);
+                }
+              } catch(e){}
+            }, function(){ 
+              try { 
+                showToast('Location access denied', 'error');
+                if (hint) {
+                  hint.textContent = 'Location access denied';
+                  hint.classList.remove('text-muted');
+                  hint.classList.add('text-danger');
+                }
+                // Even if location fails, start camera after a delay
+                setTimeout(function(){
+                  if (!cameraStarted) {
+                    cameraStarted = true;
+                    startCameraAfterLocation();
+                  }
+                }, 2000);
+              }
+              catch(e){} 
+            }, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
+          } else { 
+            showToast('Location not available on this device', 'warning');
+            if (hint) {
+              hint.textContent = 'Location not available';
+              hint.classList.remove('text-muted');
+              hint.classList.add('text-secondary');
+            }
+            // Start camera even if location not available
+            setTimeout(function(){
+              if (!cameraStarted) {
+                cameraStarted = true;
+                startCameraAfterLocation();
+              }
+            }, 1000);
           }
         } catch(e){}
       });
