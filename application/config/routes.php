@@ -147,6 +147,7 @@ $route['roles/store'] = 'roles/store';
 // Attendance
 $route['attendance'] = 'attendance/index';
 $route['attendance/create'] = 'attendance/create';
+$route['attendance/get_data'] = 'attendance/get_data';
 $route['attendance/(:num)/edit'] = 'attendance/edit/$1';
 $route['attendance/(:num)/delete'] = 'attendance/delete/$1';
 
@@ -293,3 +294,15 @@ $route['reminders/announce'] = 'reminders/announce';
 $route['reminders/bulk'] = 'reminders/bulk';
 $route['reminders/import'] = 'reminders/import';
 $route['reminders/import-sample'] = 'reminders/import_sample';
+
+// Users
+$route['users'] = 'users/index';
+$route['users/create'] = 'users/create';
+$route['users/store'] = 'users/store';
+$route['users/edit/(:num)'] = 'users/edit/$1';
+$route['users/view/(:num)'] = 'users/view/$1';
+$route['users/update/(:num)'] = 'users/update/$1';
+$route['users/delete/(:num)'] = 'users/delete/$1';
+$route['users/check-email'] = 'users/check_email';
+$route['users/check-phone'] = 'users/check_phone';
+$route['users/save_face'] = 'users/save_face';

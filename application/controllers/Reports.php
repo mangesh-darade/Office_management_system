@@ -2060,7 +2060,7 @@ class Reports extends CI_Controller {
                     if ($this->db->field_exists('first_name','employees')) { $this->db->select('e.first_name AS emp_first_name'); }
                     if ($this->db->field_exists('middle_name','employees')) { $this->db->select('e.middle_name AS emp_middle_name'); }
                     if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
-                    if ($this->db->field_exists('department_id','employees')) { $this->db->select('e.department_id'); }
+                    if ($this->db->field_exists('department','employees')) { $this->db->select('e.department'); }
                 }
                 $users = $this->db->from('users u')->get()->result();
                 foreach ($users as $u){ $labels[(int)$u->id] = $u; }
@@ -2087,10 +2087,14 @@ class Reports extends CI_Controller {
             // Build base WHERE conditions
             $whereConditions = "`$dateCol` >= '$startDate' AND `$dateCol` <= '$endDate'";
             if ($departmentId && $departmentId !== 'all') {
-                $whereConditions .= " AND EXISTS (
-                    SELECT 1 FROM employees e 
-                    WHERE e.user_id = `$userCol` AND e.department_id = ".(int)$departmentId."
-                )";
+                // Get department name from departments table
+                $dept = $this->db->select('dept_name')->where('id', (int)$departmentId)->get('departments')->row();
+                if ($dept) {
+                    $whereConditions .= " AND EXISTS (
+                        SELECT 1 FROM employees e 
+                        WHERE e.user_id = `$userCol` AND e.department = '".$this->db->escape_str($dept->dept_name)."'
+                    )";
+                }
             }
 
             // Aggregate for daily

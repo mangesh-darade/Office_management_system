@@ -129,14 +129,55 @@ class Clients extends CI_Controller {
     // GET/POST /clients/create
     public function create(){
         if ($this->input->method() === 'post'){
+            // Validation rules
+            $this->load->library('form_validation');
+            
+            $this->form_validation->set_rules('company_name', 'Company Name', 'required|trim|min_length[2]|max_length[255]');
+            $this->form_validation->set_rules('contact_person', 'Contact Person', 'trim|min_length[2]|max_length[200]');
+            $this->form_validation->set_rules('email', 'Email', 'trim|valid_email|max_length[255]');
+            $this->form_validation->set_rules('phone', 'Phone', 'trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
+            $this->form_validation->set_rules('alternate_phone', 'Alternate Phone', 'trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
+            $this->form_validation->set_rules('website', 'Website', 'trim|max_length[255]|valid_url');
+            $this->form_validation->set_rules('demo_url', 'Demo URL', 'trim|max_length[255]|valid_url');
+            $this->form_validation->set_rules('pos_url', 'POS URL', 'trim|max_length[255]|valid_url');
+            $this->form_validation->set_rules('db_name', 'DB Name', 'trim|max_length[255]|alpha_dash');
+            $this->form_validation->set_rules('db_username', 'DB Username', 'trim|max_length[255]|alpha_dash');
+            $this->form_validation->set_rules('db_password', 'DB Password', 'trim|max_length[255]');
+            
+          
+            if ($this->form_validation->run() == FALSE) {
+                $errors = validation_errors();
+                $this->session->set_flashdata('error', strip_tags($errors));
+                redirect('clients/create');
+                return;
+            }
+            
+            // Additional business logic validation
+            $email = trim($this->input->post('email'));
+            $phone = trim($this->input->post('phone'));
+            
+            // Check if email already exists
+            if (!empty($email) && $this->clients->email_exists($email)) {
+                $this->session->set_flashdata('error', 'Email already exists in the system!');
+                redirect('clients/create');
+                return;
+            }
+            
+            // Check if phone already exists
+            if (!empty($phone) && $this->clients->phone_exists($phone)) {
+                $this->session->set_flashdata('error', 'Phone number already exists in the system!');
+                redirect('clients/create');
+                return;
+            }
+            
             $client_code = $this->clients->generate_client_code();
             $logo_path = $this->upload_logo();
             $data = [
                 'client_code' => $client_code,
                 'company_name' => trim($this->input->post('company_name')),
                 'contact_person' => trim($this->input->post('contact_person')),
-                'email' => trim($this->input->post('email')),
-                'phone' => trim($this->input->post('phone')),
+                'email' => $email,
+                'phone' => $phone,
                 'alternate_phone' => trim($this->input->post('alternate_phone')),
                 'website' => trim($this->input->post('website')),
                 'demo_url' => trim($this->input->post('demo_url')),
@@ -163,7 +204,7 @@ class Clients extends CI_Controller {
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
             $id = $this->clients->create_client($data);
-            $this->session->set_flashdata('success','Client created');
+            $this->session->set_flashdata('success','Client created successfully');
             redirect('clients/view/'.$id);
             return;
         }
@@ -223,5 +264,84 @@ class Clients extends CI_Controller {
         }
         $managers = $this->clients->get_account_managers();
         $this->load->view('clients/edit', ['client'=>$c, 'managers'=>$managers]);
+    }
+    
+    // GET /clients/export
+    public function export(){
+        $filters = [
+            'status' => $this->input->get('status'),
+            'client_type' => $this->input->get('client_type'),
+            'search' => $this->input->get('q')
+        ];
+        
+        // Get all clients for export
+        $clients = $this->clients->get_clients($filters, null, 0);
+        
+        // Set headers for CSV download
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="clients_export_' . date('Y-m-d') . '.csv"');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Expires: 0');
+        
+        // Open output stream
+        $output = fopen('php://output', 'w');
+        
+        // CSV headers
+        fputcsv($output, [
+            'Client Code',
+            'Company Name',
+            'Contact Person',
+            'Email',
+            'Phone',
+            'Alternate Phone',
+            'Website',
+            'Demo URL',
+            'POS URL',
+            'Address',
+            'City',
+            'State',
+            'Country',
+            'ZIP Code',
+            'GSTIN',
+            'PAN Number',
+            'Industry',
+            'Onboarding Date',
+            'Client Type',
+            'Status',
+            'Notes',
+            'Created At'
+        ]);
+        
+        // CSV data rows
+        foreach ($clients as $client) {
+            fputcsv($output, [
+                $client->client_code,
+                $client->company_name,
+                $client->contact_person,
+                $client->email,
+                $client->phone,
+                $client->alternate_phone,
+                $client->website,
+                $client->demo_url,
+                $client->pos_url,
+                $client->address,
+                $client->city,
+                $client->state,
+                $client->country,
+                $client->zip_code,
+                $client->gstin,
+                $client->pan_number,
+                $client->industry,
+                $client->onboarding_date,
+                $client->client_type,
+                $client->status,
+                $client->notes,
+                $client->created_at
+            ]);
+        }
+        
+        // Close output stream
+        fclose($output);
+        exit;
     }
 }

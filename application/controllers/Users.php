@@ -39,6 +39,32 @@ class Users extends CI_Controller {
         $this->load->view('users/index', $data);
     }
 
+    public function check_email() {
+        $email = trim($this->input->post('email', true));
+        header('Content-Type: application/json');
+        
+        if (empty($email)) {
+            echo json_encode(['exists' => false]);
+            return;
+        }
+        
+        $exists = $this->users->email_exists($email);
+        echo json_encode(['exists' => $exists]);
+    }
+    
+    public function check_phone() {
+        $phone = trim($this->input->post('phone', true));
+        header('Content-Type: application/json');
+        
+        if (empty($phone)) {
+            echo json_encode(['exists' => false]);
+            return;
+        }
+        
+        $exists = $this->users->phone_exists($phone);
+        echo json_encode(['exists' => $exists]);
+    }
+
     public function create() {
         if (!function_exists('has_module_access') || !has_module_access('users_add')) {
             show_error('You do not have permission to add users.', 403);
@@ -463,5 +489,44 @@ class Users extends CI_Controller {
 
         $this->faces->save_user_face($user_id, $descriptor, $imagePath);
         return $this->output->set_output(json_encode(['ok' => true]));
+    }
+
+    public function view($id = null) {
+        if (!$id || !is_numeric($id)) {
+            show_404();
+        }
+        
+        $id = (int)$id;
+        $user = $this->users->get($id);
+        
+        if (!$user) {
+            show_404();
+        }
+        
+        // Check permissions - users can view their own profile, admins can view all
+        $currentUserId = (int)$this->session->userdata('user_id');
+        $currentRoleId = (int)$this->session->userdata('role_id');
+        
+        if ($currentUserId !== $id && $currentRoleId !== 1) {
+            show_error('You do not have permission to view this user.', 403);
+        }
+        
+        // Get additional user information
+        $data['user'] = $user;
+        $data['title'] = 'View User: ' . htmlspecialchars($user->name);
+        $data['roles'] = $this->roles();
+        
+        // Get employee information if exists
+        if ($this->db->table_exists('employees')) {
+            $employee = $this->db->where('user_id', $id)->get('employees')->row();
+            $data['employee'] = $employee;
+        }
+        
+        // Get face information if exists
+        $this->faces->ensure_schema();
+        $face = $this->faces->get_by_user($id);
+        $data['face'] = $face;
+        
+        $this->load->view('users/view', $data);
     }
 }

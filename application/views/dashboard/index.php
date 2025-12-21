@@ -152,140 +152,199 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
 
       <div class="row g-3">
         <?php if(function_exists('has_module_access') && has_module_access('employees')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('employees'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-primary text-white me-3">
                   <i class="bi bi-people"></i>
                 </div>
-                <h5 class="card-title mb-0">Employees</h5>
+                <h5 class="card-title mb-0 text-dark">Employees</h5>
               </div>
               <p class="card-text text-muted">Manage employee profiles and records</p>
-              <a href="<?php echo site_url('employees'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('projects'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-success text-white me-3">
                   <i class="bi bi-kanban"></i>
                 </div>
-                <h5 class="card-title mb-0">Projects</h5>
+                <h5 class="card-title mb-0 text-dark">Projects</h5>
               </div>
               <p class="card-text text-muted">Projects and team management</p>
-              <a href="<?php echo site_url('projects'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('tasks/board'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-warning text-white me-3">
                   <i class="bi bi-list-check"></i>
                 </div>
-                <h5 class="card-title mb-0">Tasks</h5>
+                <h5 class="card-title mb-0 text-dark">Tasks</h5>
               </div>
               <p class="card-text text-muted">Task board and progress tracking</p>
-              <a href="<?php echo site_url('tasks/board'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('chats')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('chats/app'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-info text-white me-3">
                   <i class="bi bi-chat-dots"></i>
                 </div>
-                <h5 class="card-title mb-0">Chat</h5>
+                <h5 class="card-title mb-0 text-dark">Chat</h5>
               </div>
               <p class="card-text text-muted">Team messaging and video calls</p>
-              <a href="<?php echo site_url('chats/app'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('attendance'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-secondary text-white me-3">
                   <i class="bi bi-calendar-check"></i>
                 </div>
-                <h5 class="card-title mb-0">Attendance</h5>
+                <h5 class="card-title mb-0 text-dark">Attendance</h5>
               </div>
               <p class="card-text text-muted">Punch in/out and reports</p>
-              <a href="<?php echo site_url('attendance'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('leaves')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('leave/apply'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-teal text-white me-3">
                   <i class="bi bi-airplane-engines"></i>
                 </div>
-                <h5 class="card-title mb-0">Leaves</h5>
+                <h5 class="card-title mb-0 text-dark">Leaves</h5>
               </div>
               <p class="card-text text-muted">Apply and manage leave requests</p>
-              <a href="<?php echo site_url('leave/apply'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('reports')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('reports'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-indigo text-white me-3">
                   <i class="bi bi-graph-up"></i>
                 </div>
-                <h5 class="card-title mb-0">Reports</h5>
+                <h5 class="card-title mb-0 text-dark">Reports</h5>
               </div>
               <p class="card-text text-muted">Analytics and insights</p>
-              <a href="<?php echo site_url('reports'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
         
         <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
-        <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card shadow-sm h-100 hover-lift fade-in">
+        <a href="<?php echo site_url('settings'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
               <div class="d-flex align-items-center mb-3">
                 <div class="icon-circle bg-dark text-white me-3">
                   <i class="bi bi-gear"></i>
                 </div>
-                <h5 class="card-title mb-0">Settings</h5>
+                <h5 class="card-title mb-0 text-dark">Settings</h5>
               </div>
               <p class="card-text text-muted">System configuration</p>
-              <a href="<?php echo site_url('settings'); ?>" class="btn btn-primary btn-sm w-100">Open Module</a>
             </div>
           </div>
-        </div>
+        </a>
         <?php endif; ?>
       </div>
     </div>
+
+<style>
+.module-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.module-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #007bff;
+}
+
+.module-card .card-title {
+  transition: color 0.3s ease;
+}
+
+.module-card:hover .card-title {
+  color: #007bff !important;
+}
+
+.module-card .icon-circle {
+  transition: all 0.3s ease;
+}
+
+.module-card:hover .icon-circle {
+  transform: scale(1.1);
+}
+
+/* Ensure text remains readable on hover */
+.module-card:hover .card-text {
+  color: #6c757d !important;
+}
+
+/* Remove default link styling */
+.text-decoration-none:hover {
+  text-decoration: none !important;
+}
+
+/* Add subtle animation on page load */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Stagger animation for multiple cards */
+.fade-in:nth-child(1) { animation-delay: 0.1s; }
+.fade-in:nth-child(2) { animation-delay: 0.2s; }
+.fade-in:nth-child(3) { animation-delay: 0.3s; }
+.fade-in:nth-child(4) { animation-delay: 0.4s; }
+.fade-in:nth-child(5) { animation-delay: 0.5s; }
+.fade-in:nth-child(6) { animation-delay: 0.6s; }
+.fade-in:nth-child(7) { animation-delay: 0.7s; }
+.fade-in:nth-child(8) { animation-delay: 0.8s; }
+</style>
+
 <?php $this->load->view('partials/footer'); ?>

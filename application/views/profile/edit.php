@@ -165,7 +165,8 @@
         
         <div class="col-md-6">
           <label class="form-label">Phone Number</label>
-          <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($user->phone) ? $user->phone : (isset($employee->phone) ? $employee->phone : '')); ?>" placeholder="+1 (555) 123-4567">
+          <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($user->phone) ? $user->phone : (isset($employee->phone) ? $employee->phone : '')); ?>" placeholder="+1 (555) 123-4567" maxlength="10" pattern="[0-9]{10}" title="Please enter exactly 10 digits">
+          <div class="form-text">Enter 10-digit mobile number without country code</div>
         </div>
         
         <div class="col-md-6">
@@ -232,25 +233,97 @@
   <!-- Actions -->
   <div class="card">
     <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-circle me-2"></i>Save Changes
-          </button>
-          <a href="<?php echo site_url('profile'); ?>" class="btn btn-outline-secondary">
-            <i class="bi bi-x-circle me-2"></i>Cancel
-          </a>
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-circle me-2"></i>Save Changes
+            </button>
+            <a href="<?php echo site_url('profile'); ?>" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-2"></i>Cancel
+            </a>
+          </div>
         </div>
         
-        <div class="text-muted small">
-          <i class="bi bi-info-circle me-1"></i>
-          Last updated: <?php echo isset($user->updated_at) ? date('M j, Y H:i', strtotime($user->updated_at)) : 'Never'; ?>
+        <div class="col-md-4 text-end">
+          <div class="text-muted small mb-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Last updated: <?php echo isset($user->updated_at) ? date('M j, Y H:i', strtotime($user->updated_at)) : 'Never'; ?>
+          </div>
+          
+          <?php if ((int)$this->session->userdata('role_id') === 1): // Admin only ?>
+          <div class="dropdown">
+            <button class="btn btn-outline-danger dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-trash me-1"></i>Danger Zone
+            </button>
+            <ul class="dropdown-menu">
+              <li><h6 class="dropdown-header">⚠️ Dangerous Actions</h6></li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteProfileModal">
+                  <i class="bi bi-person-x me-2"></i>Delete Profile
+                </a>
+              </li>
+            </ul>
+          </div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
   </div>
 </form>
 </div>
+
+<!-- Delete Profile Modal -->
+<?php if ((int)$this->session->userdata('role_id') === 1): // Admin only ?>
+<div class="modal fade" id="deleteProfileModal" tabindex="-1" aria-labelledby="deleteProfileModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteProfileModalLabel">
+          <i class="bi bi-exclamation-triangle me-2"></i>Delete Profile
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>Warning:</strong> This action cannot be undone!
+        </div>
+        
+        <p>This will permanently delete:</p>
+        <ul>
+          <li>Your user account</li>
+          <li>Your employee profile (if exists)</li>
+          <li>Your profile picture</li>
+          <li>All associated data and records</li>
+        </ul>
+        
+        <p class="text-danger">You will be logged out immediately after deletion.</p>
+        
+        <hr>
+        
+        <form method="post" action="<?php echo site_url('profile/delete_profile'); ?>">
+          <div class="mb-3">
+            <label for="confirmation" class="form-label">Type <code>DELETE</code> to confirm:</label>
+            <input type="text" class="form-control" id="confirmation" name="confirmation" required placeholder="DELETE">
+            <div class="form-text">This must match exactly to proceed with deletion</div>
+          </div>
+          
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-danger">
+              <i class="bi bi-trash me-1"></i>Delete My Profile
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
 function previewAvatar(event) {
@@ -271,18 +344,50 @@ function previewAvatar(event) {
   }
 }
 
-// Password validation
+// Password validation and mobile number validation
 document.addEventListener('DOMContentLoaded', function() {
   const password = document.getElementById('password');
   const confirmPassword = document.getElementById('confirm_password');
+  const phoneInput = document.querySelector('input[name="phone"]');
   const form = document.querySelector('form');
+  
+  // Mobile number validation
+  if (phoneInput) {
+    phoneInput.addEventListener('input', function(e) {
+      // Remove any non-digit characters
+      let value = e.target.value.replace(/\D/g, '');
+      // Limit to 10 digits
+      if (value.length > 10) {
+        value = value.substring(0, 10);
+      }
+      e.target.value = value;
+    });
+    
+    phoneInput.addEventListener('blur', function(e) {
+      const value = e.target.value;
+      if (value && value.length !== 10) {
+        e.target.setCustomValidity('Please enter exactly 10 digits');
+      } else {
+        e.target.setCustomValidity('');
+      }
+    });
+  }
   
   if (form) {
     form.addEventListener('submit', function(e) {
+      // Validate mobile number
+      if (phoneInput && phoneInput.value && phoneInput.value.length !== 10) {
+        e.preventDefault();
+        alert('Please enter a valid 10-digit mobile number!');
+        phoneInput.focus();
+        return false;
+      }
+      
       // Check if passwords match when new password is entered
       if (password.value && password.value !== confirmPassword.value) {
         e.preventDefault();
         alert('New passwords do not match!');
+        password.focus();
         return false;
       }
       
@@ -290,6 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (password.value && !document.querySelector('input[name="current_password"]').value) {
         e.preventDefault();
         alert('Please enter your current password to change your password!');
+        document.querySelector('input[name="current_password"]').focus();
         return false;
       }
     });

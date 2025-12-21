@@ -126,7 +126,17 @@ if (!function_exists('apply_group_filter_to_query')) {
                 if (strpos($field, '.') === false) {
                     // No table prefix, add appropriate prefix based on context
                     $prefixed_field = get_table_prefix_for_field($table, $field);
-                    $query->where($prefixed_field, $value);
+                    
+                    // Special handling for department field in attendance table
+                    if ($table === 'attendance' && $field === 'department') {
+                        // Need to join with employees table for department filtering
+                        $query->where("EXISTS (
+                            SELECT 1 FROM employees e 
+                            WHERE e.user_id = {$prefixed_field} AND e.department = '".$query->escape($value)."'
+                        )");
+                    } else {
+                        $query->where($prefixed_field, $value);
+                    }
                 } else {
                     // Already has table prefix, use as-is
                     $query->where($field, $value);

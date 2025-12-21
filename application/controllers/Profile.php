@@ -48,7 +48,38 @@ class Profile extends CI_Controller {
             
             // Handle password change
             $password = $this->input->post('password');
+            $current_password = $this->input->post('current_password');
+            
             if (!empty($password)) {
+                // Verify current password first
+                if (empty($current_password)) {
+                    $this->session->set_flashdata('error', 'Please enter your current password to change your password!');
+                    redirect('profile/edit');
+                    return;
+                }
+                
+                // Get current user data to verify password
+                $current_user = $this->User_model->get($uid);
+                if (!password_verify($current_password, $current_user->password)) {
+                    $this->session->set_flashdata('error', 'Current password is incorrect!');
+                    redirect('profile/edit');
+                    return;
+                }
+                
+                // Validate new password
+                if (strlen($password) < 6) {
+                    $this->session->set_flashdata('error', 'New password must be at least 6 characters long!');
+                    redirect('profile/edit');
+                    return;
+                }
+                
+                $confirm_password = $this->input->post('confirm_password');
+                if ($password !== $confirm_password) {
+                    $this->session->set_flashdata('error', 'New passwords do not match!');
+                    redirect('profile/edit');
+                    return;
+                }
+                
                 $data['password'] = password_hash($password, PASSWORD_DEFAULT);
             }
             
@@ -119,6 +150,60 @@ class Profile extends CI_Controller {
         
         $this->db->where('id', $uid)->update('users', ['avatar' => null]);
         $this->session->set_flashdata('success', 'Avatar removed successfully!');
+        redirect('profile/edit');
+    }
+    
+    public function delete_profile()
+    {
+        $uid = (int)$this->session->userdata('user_id');
+        if (!$uid) { redirect('login'); return; }
+        
+        // Only allow admins to delete their own profile or users to delete themselves
+        $role_id = (int)$this->session->userdata('role_id');
+        if ($role_id !== 1) { // Only admins can delete profiles
+            $this->session->set_flashdata('error', 'Only administrators can delete profiles!');
+            redirect('profile');
+            return;
+        }
+        
+        if ($this->input->method() === 'post') {
+            $confirmation = trim($this->input->post('confirmation'));
+            if ($confirmation !== 'DELETE') {
+                $this->session->set_flashdata('error', 'Please type DELETE exactly to confirm profile deletion!');
+                redirect('profile/edit');
+                return;
+            }
+            
+            try {
+                // Get user data before deletion
+                $user = $this->User_model->get($uid);
+                
+                // Delete avatar file if exists
+                if (!empty($user->avatar) && file_exists('./' . $user->avatar)) {
+                    unlink('./' . $user->avatar);
+                }
+                
+                // Delete employee record if exists
+                $this->db->where('user_id', $uid)->delete('employees');
+                
+                // Delete user record
+                $this->db->where('id', $uid)->delete('users');
+                
+                // Destroy session and redirect to login
+                $this->session->sess_destroy();
+                
+                echo '<script>
+                    alert("Profile deleted successfully! You will be redirected to the login page.");
+                    window.location.href = "' . site_url('login') . '";
+                </script>';
+                exit;
+                
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Failed to delete profile: ' . $e->getMessage());
+                redirect('profile/edit');
+            }
+        }
+        
         redirect('profile/edit');
     }
 }

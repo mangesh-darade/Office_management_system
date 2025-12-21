@@ -86,7 +86,8 @@
 
             <div class="col-md-4">
               <label class="form-label">Phone <span class="text-danger">*</span></label>
-              <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($row->phone) ? $row->phone : ''); ?>" required pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number">
+              <input type="tel" name="phone" id="userPhone" class="form-control" value="<?php echo htmlspecialchars(isset($row->phone) ? $row->phone : ''); ?>" required pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number">
+              <div class="form-text" id="phoneHelp"></div>
             </div>
 
             <div class="col-md-4">
@@ -181,9 +182,82 @@
     if (<?php echo $is_edit ? 'true' : 'false'; ?>) return;
     var site = '<?php echo rtrim(site_url(), "/"); ?>/';
     var emailInput = document.getElementById('userEmail');
+    var phoneInput = document.getElementById('userPhone');
     var btn = document.getElementById('btnSendCode');
     var help = document.getElementById('emailHelp');
+    var phoneHelp = document.getElementById('phoneHelp');
+    
     if (!emailInput || !btn || !help) return;
+    
+    // Check for existing values on page load (handles auto-fill)
+    setTimeout(function() {
+      var email = (emailInput.value || '').trim();
+      var phone = (phoneInput.value || '').trim();
+      
+      if (email && email.includes('@') && email.indexOf('@') < email.length - 1) {
+        checkExistingEmail(email);
+      }
+      if (phone && phone.length === 10) {
+        checkExistingPhone(phone);
+      }
+    }, 1000);
+    
+    // Email validation for existing users
+    emailInput.addEventListener('input', function(){
+      var email = (emailInput.value || '').trim();
+      if (email && email.includes('@') && email.indexOf('@') < email.length - 1) {
+        // Debounce to avoid too many requests
+        clearTimeout(emailInput.validationTimeout);
+        emailInput.validationTimeout = setTimeout(function() {
+          checkExistingEmail(email);
+        }, 800);
+      }
+    });
+    
+    // Phone validation for existing users
+    phoneInput.addEventListener('input', function(){
+      var phone = (phoneInput.value || '').trim();
+      if (phone.length === 10) {
+        // Debounce to avoid too many requests
+        clearTimeout(phoneInput.validationTimeout);
+        phoneInput.validationTimeout = setTimeout(function() {
+          checkExistingPhone(phone);
+        }, 800);
+      }
+    });
+    
+    function checkExistingEmail(email) {
+      fetch(site + 'users/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ email: email })
+      }).then(function(res){ return res.json(); }).then(function(data){
+        if (data && data.exists) {
+          alert('Email "' + email + '" already exists in the system!');
+          emailInput.value = '';
+          emailInput.focus();
+        }
+      }).catch(function(){
+        // Silent fail for network issues
+      });
+    }
+    
+    function checkExistingPhone(phone) {
+      fetch(site + 'users/check-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams({ phone: phone })
+      }).then(function(res){ return res.json(); }).then(function(data){
+        if (data && data.exists) {
+          alert('Phone number "' + phone + '" already exists in the system!');
+          phoneInput.value = '';
+          phoneInput.focus();
+        }
+      }).catch(function(){
+        // Silent fail for network issues
+      });
+    }
+    
     btn.addEventListener('click', function(){
       var email = (emailInput.value || '').trim();
       if (!email) {
