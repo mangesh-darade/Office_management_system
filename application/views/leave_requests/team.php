@@ -59,9 +59,9 @@
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-            <tr><td colspan="7" class="text-center text-muted">No leave requests found.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
-            <tr>
+            <tr class="leave-row-clickable" data-user-id="<?php echo (int)$r->user_id; ?>" data-user-email="<?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?>" style="cursor: pointer;">
               <td><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></td>
               <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
               <td>
@@ -91,14 +91,37 @@
               <td><?php echo htmlspecialchars(isset($r->created_at) ? $r->created_at : ''); ?></td>
               <td style="max-width:280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?></td>
               <td>
-                <div class="d-flex gap-2">
-                  <form method="post" action="<?php echo site_url('leave/approve/'.(int)$r->id); ?>" class="d-inline">
-                    <input type="text" class="form-control form-control-sm" name="comments" placeholder="Comments" />
-                    <button class="btn btn-success btn-sm mt-1" <?php echo ($r->status==='pending')?'':'disabled'; ?>>Approve</button>
-                  </form>
-                  <form method="post" action="<?php echo site_url('leave/reject/'.(int)$r->id); ?>" class="d-inline">
-                    <input type="text" class="form-control form-control-sm" name="comments" placeholder="Comments" />
-                    <button class="btn btn-danger btn-sm mt-1" <?php echo ($r->status==='pending')?'':'disabled'; ?>>Reject</button>
+                <div class="d-flex flex-column gap-2" onclick="event.stopPropagation();">
+                  <!-- Approve/Reject actions for managers - Single comment box -->
+                  <?php 
+                    $is_approved = in_array($r->status, ['lead_approved', 'hr_approved'], true);
+                    $is_rejected = ($r->status === 'rejected');
+                    $approve_disabled = $is_approved ? 'disabled' : '';
+                    $reject_disabled = $is_rejected ? 'disabled' : '';
+                  ?>
+                  <div class="mb-2">
+                    <input type="text" class="form-control form-control-sm mb-1" name="comments" id="comments_<?php echo $r->id; ?>" placeholder="Enter comments (optional)" value="<?php echo htmlspecialchars(isset($r->latest_remarks) ? $r->latest_remarks : ''); ?>" />
+                    <div class="d-flex gap-1 align-items-center">
+                      <form method="post" action="<?php echo site_url('leave/approve/'.(int)$r->id); ?>" class="d-inline">
+                        <input type="hidden" name="comments" value="" id="approve_comments_<?php echo $r->id; ?>" />
+                        <button type="submit" class="btn btn-success btn-sm" <?php echo $approve_disabled; ?> onclick="document.getElementById('approve_comments_<?php echo $r->id; ?>').value = document.getElementById('comments_<?php echo $r->id; ?>').value;">Approve</button>
+                      </form>
+                      <button type="button" class="btn btn-danger btn-sm" onclick="rejectLeave(<?php echo $r->id; ?>)" <?php echo $reject_disabled; ?>>Reject</button>
+                      <?php if (isset($is_admin) && $is_admin): ?>
+                        <!-- Admin Delete button - only visible to admin -->
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteLeave(<?php echo $r->id; ?>)" title="Delete Leave Request">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                  <?php if (isset($is_admin) && $is_admin): ?>
+                    <!-- Hidden delete form for admin -->
+                    <form method="post" action="<?php echo site_url('leave/delete/'.(int)$r->id); ?>" id="delete_form_<?php echo $r->id; ?>" style="display:none;">
+                    </form>
+                  <?php endif; ?>
+                  <form method="post" action="<?php echo site_url('leave/reject/'.(int)$r->id); ?>" id="reject_form_<?php echo $r->id; ?>" style="display:none;">
+                    <input type="hidden" name="comments" id="reject_comments_<?php echo $r->id; ?>" />
                   </form>
                 </div>
               </td>
@@ -110,4 +133,160 @@
   </div>
 </div>
 
+<!-- Tasks Modal -->
+<div class="modal fade" id="tasksModal" tabindex="-1" aria-labelledby="tasksModalLabel" aria-hidden="true">
+  <div class="modal-dialog" style="max-width: 85%; width: 85%;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tasksModalLabel">Employee Tasks</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="tasksLoading" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Loading tasks...</p>
+        </div>
+        <div id="tasksError" class="alert alert-danger" style="display: none;"></div>
+        <div id="tasksContent" style="display: none;">
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <p class="mb-2"><strong>Employee:</strong> <span id="employeeEmail" class="text-primary"></span></p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-2"><strong>Total Tasks:</strong> <span id="tasksCount" class="badge bg-info text-dark fs-6"></span></p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 30%;">Title & Description</th>
+                  <th style="width: 15%;">Project</th>
+                  <th style="width: 12%;">Status</th>
+                  <th style="width: 12%;">Priority</th>
+                  <th style="width: 15%;">Due Date</th>
+                  <th style="width: 16%;">Hours</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="tasksEmpty" class="text-center text-muted py-4" style="display: none;">
+          <p>No active tasks found for this employee.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function rejectLeave(leaveId) {
+  var comments = document.getElementById('comments_' + leaveId).value;
+  document.getElementById('reject_comments_' + leaveId).value = comments;
+  document.getElementById('reject_form_' + leaveId).submit();
+}
+
+function deleteLeave(leaveId) {
+  if (confirm('Are you sure you want to delete this leave request?')) {
+    document.getElementById('delete_form_' + leaveId).submit();
+  }
+}
+
+// Handle row click to show tasks
+document.addEventListener('DOMContentLoaded', function() {
+  var rows = document.querySelectorAll('.leave-row-clickable');
+  var modal = new bootstrap.Modal(document.getElementById('tasksModal'));
+  
+  rows.forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      // Don't trigger if clicking on action buttons
+      if (e.target.closest('button, input, form')) {
+        return;
+      }
+      
+      var userId = row.getAttribute('data-user-id');
+      var userEmail = row.getAttribute('data-user-email');
+      
+      if (!userId) return;
+      
+      // Show modal
+      document.getElementById('employeeEmail').textContent = userEmail || 'N/A';
+      document.getElementById('tasksLoading').style.display = 'block';
+      document.getElementById('tasksError').style.display = 'none';
+      document.getElementById('tasksContent').style.display = 'none';
+      document.getElementById('tasksEmpty').style.display = 'none';
+      document.getElementById('tasksTableBody').innerHTML = '';
+      
+      modal.show();
+      
+      // Fetch tasks via AJAX
+      fetch('<?php echo site_url('leave/get-employee-tasks'); ?>/' + userId)
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('tasksLoading').style.display = 'none';
+          
+          if (data.success) {
+            if (data.tasks && data.tasks.length > 0) {
+              document.getElementById('tasksCount').textContent = data.count;
+              document.getElementById('tasksContent').style.display = 'block';
+              
+              var tbody = document.getElementById('tasksTableBody');
+              tbody.innerHTML = '';
+              
+              data.tasks.forEach(function(task) {
+                var row = document.createElement('tr');
+                
+                // Status badge color
+                var statusClass = 'bg-secondary';
+                if (task.status === 'pending') statusClass = 'bg-warning text-dark';
+                else if (task.status === 'in_progress') statusClass = 'bg-info text-dark';
+                else if (task.status === 'blocked') statusClass = 'bg-danger';
+                
+                // Priority badge color
+                var priorityClass = 'bg-secondary';
+                if (task.priority === 'urgent') priorityClass = 'bg-danger';
+                else if (task.priority === 'high') priorityClass = 'bg-warning text-dark';
+                else if (task.priority === 'medium') priorityClass = 'bg-info text-dark';
+                else if (task.priority === 'low') priorityClass = 'bg-secondary';
+                
+                // Strip HTML tags from description for display
+                var descriptionText = task.description.replace(/<[^>]*>/g, '').trim();
+                if (!descriptionText || descriptionText === 'No description') {
+                  descriptionText = '<em class="text-muted">No description</em>';
+                }
+                
+                row.innerHTML = 
+                  '<td><strong class="fs-6">' + task.title + '</strong><br><small class="text-muted mt-1 d-block">' + descriptionText + '</small></td>' +
+                  '<td><span class="badge bg-secondary">' + task.project_name + '</span></td>' +
+                  '<td><span class="badge ' + statusClass + ' px-3 py-2">' + task.status.replace('_', ' ').toUpperCase() + '</span></td>' +
+                  '<td><span class="badge ' + priorityClass + ' px-3 py-2">' + task.priority.toUpperCase() + '</span></td>' +
+                  '<td>' + task.due_date + '</td>' +
+                  '<td><small>Est: <strong>' + task.estimate_hours + '</strong></small><br><small>Act: <strong>' + task.actual_hours + '</strong></small></td>';
+                
+                tbody.appendChild(row);
+              });
+            } else {
+              document.getElementById('tasksEmpty').style.display = 'block';
+            }
+          } else {
+            document.getElementById('tasksError').textContent = data.message || 'Failed to load tasks';
+            document.getElementById('tasksError').style.display = 'block';
+          }
+        })
+        .catch(error => {
+          document.getElementById('tasksLoading').style.display = 'none';
+          document.getElementById('tasksError').textContent = 'Error loading tasks: ' + error.message;
+          document.getElementById('tasksError').style.display = 'block';
+        });
+    });
+  });
+});
+</script>
 <?php $this->load->view('partials/footer'); ?>

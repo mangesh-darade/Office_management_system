@@ -93,40 +93,25 @@
           </div>
         </div>
 
-        <!-- Face Verification & Attachment -->
+        <!-- Face Verification -->
         <div class="row mb-4">
-          <div class="col-12 col-lg-6 mb-3 mb-lg-0">
+          <div class="col-12 col-md-8 col-lg-6 mx-auto">
             <label class="form-label fw-semibold">
               <i class="bi bi-camera"></i> Face Verification
             </label>
             <div class="position-relative">
-              <video id="attFaceVideo" class="w-100 rounded border" 
-                     autoplay muted playsinline style="height: 180px; background: #000;"></video>
+              <video id="attFaceVideo" class="w-100 rounded border shadow-sm" 
+                     autoplay muted playsinline style="height: 240px; background: #000; object-fit: cover;"></video>
               <div class="position-absolute top-50 start-50 translate-middle text-white text-center" id="cameraLoader">
                 <div class="spinner-border spinner-border-sm" role="status"></div>
                 <div class="small mt-1">Starting camera...</div>
               </div>
             </div>
-            <canvas id="attFaceCanvas" class="w-100 rounded border mt-2" style="height: 180px; display: none;"></canvas>
-            <div class="small mt-1" id="attFaceStatus"></div>
-            <button type="button" class="btn btn-primary btn-sm w-100 mt-2" id="btnAttFaceVerify" disabled>
-              <i class="bi bi-camera-fill"></i> Capture Face
+            <canvas id="attFaceCanvas" class="w-100 rounded border shadow-sm mt-2" style="height: 240px; display: none; object-fit: cover;"></canvas>
+            <div class="small mt-2 text-center" id="attFaceStatus"></div>
+            <button type="button" class="btn btn-primary btn-lg w-100 mt-3 fw-semibold" id="btnAttFaceVerify" disabled>
+              <i class="bi bi-camera-fill me-2"></i> Capture Face
             </button>
-          </div>
-          
-          <div class="col-12 col-lg-6">
-            <label class="form-label fw-semibold">
-              <i class="bi bi-paperclip"></i> Attachment
-            </label>
-            <div class="border rounded p-3 text-center bg-light">
-              <input type="file" name="attachment" id="attachmentFile" 
-                     class="d-none" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
-              <label for="attachmentFile" class="btn btn-outline-primary btn-sm cursor-pointer mb-2">
-                <i class="bi bi-upload"></i> Choose File
-              </label>
-              <div class="small text-muted" id="fileName">No file selected</div>
-              <div class="small text-secondary">Max 4MB • JPG, PNG, PDF, DOC</div>
-            </div>
           </div>
         </div>
 
@@ -170,26 +155,6 @@
           }
         } catch(e){}
         <?php endif; ?>
-        
-        // File upload handling
-        try {
-          var fileInput = document.getElementById('attachmentFile');
-          var fileName = document.getElementById('fileName');
-          if (fileInput && fileName) {
-            fileInput.addEventListener('change', function(e){
-              var file = e.target.files[0];
-              if (file) {
-                fileName.textContent = file.name + ' (' + (file.size/1024/1024).toFixed(2) + ' MB)';
-                fileName.classList.remove('text-muted');
-                fileName.classList.add('text-success');
-              } else {
-                fileName.textContent = 'No file selected';
-                fileName.classList.remove('text-success');
-                fileName.classList.add('text-muted');
-              }
-            });
-          }
-        } catch(e){}
         
         try {
           var hasLocation = false;

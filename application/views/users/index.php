@@ -126,24 +126,33 @@
                   </td>
                   <td>
                     <?php
+                      // Use the same roles array as the edit form for consistency
+                      $roleOptions = isset($roles) && is_array($roles) && !empty($roles)
+                        ? $roles
+                        : [1 => 'Admin', 2 => 'Manager', 3 => 'Lead', 4 => 'Staff'];
+                      
                       $roleLabel = '';
                       $roleIcon = '';
                       $roleColor = '';
-                      if (isset($r->role_id)) {
-                        $map = [1=>'admin', 2=>'hr', 3=>'lead', 4=>'employee'];
-                        $rid = (int)$r->role_id; 
-                        $roleLabel = isset($map[$rid]) ? $map[$rid] : 'employee';
+                      $rid = isset($r->role_id) ? (int)$r->role_id : null;
+                      
+                      // Get role name from roles array
+                      if ($rid && isset($roleOptions[$rid])) {
+                        $roleName = $roleOptions[$rid];
+                        $roleLabel = strtolower(trim($roleName));
                       } else if (isset($r->role) && $r->role !== '') { 
-                        $roleLabel = strtolower($r->role); 
+                        $roleLabel = strtolower(trim($r->role)); 
                       } else { 
-                        $roleLabel = 'employee'; 
+                        $roleLabel = 'staff'; 
                       }
                       
+                      // Map role labels to icons and colors
                       switch($roleLabel) {
                         case 'admin':
                           $roleIcon = 'bi-shield-fill';
                           $roleColor = 'danger';
                           break;
+                        case 'manager':
                         case 'hr':
                           $roleIcon = 'bi-people-fill';
                           $roleColor = 'info';
@@ -156,10 +165,13 @@
                           $roleIcon = 'bi-person-fill';
                           $roleColor = 'secondary';
                       }
+                      
+                      // Display the role name from roles array (same as edit form)
+                      $displayName = $rid && isset($roleOptions[$rid]) ? $roleOptions[$rid] : ucfirst($roleLabel);
                     ?>
                     <span class="badge bg-<?php echo $roleColor; ?> bg-opacity-10 text-<?php echo $roleColor; ?> border border-<?php echo $roleColor; ?> bg-opacity-25">
                       <i class="bi <?php echo $roleIcon; ?> me-1"></i>
-                      <?php echo ucfirst($roleLabel); ?>
+                      <?php echo htmlspecialchars($displayName); ?>
                     </span>
                   </td>
                   <td>

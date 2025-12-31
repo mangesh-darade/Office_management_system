@@ -172,6 +172,7 @@ $route['leave/team'] = 'leave_requests/team';
 $route['leave/approve/(:num)'] = 'leave_requests/approve/$1';
 $route['leave/reject/(:num)'] = 'leave_requests/reject/$1';
 $route['leave/calendar'] = 'leave_requests/calendar';
+$route['leave/get-employee-tasks/(:num)'] = 'leave_requests/get_employee_tasks/$1';
 
 // Notifications
 $route['notifications'] = 'notifications/index';

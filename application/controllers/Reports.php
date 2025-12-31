@@ -1294,10 +1294,37 @@ class Reports extends CI_Controller {
     // GET /reports/attendance-employee
     public function attendance_employee($user_id = null)
     {
+        // Check permission-based access
+        $has_access = false;
+        if (function_exists('has_module_access')) {
+            // Check specific permission for attendance-employee report
+            $has_access = has_module_access('reports_attendance_employee');
+            // Fallback: check general reports permission if specific one doesn't exist
+            if (!$has_access) {
+                $has_access = has_module_access('reports');
+            }
+        }
+        
+        // If no permission system or no access, check if user is logged in
+        if (!$has_access) {
+            $user_id_check = (int)$this->session->userdata('user_id');
+            if (!$user_id_check) {
+                redirect('auth/login');
+                return;
+            }
+            // If permission system exists but user doesn't have access, show error
+            if (function_exists('has_module_access')) {
+                $this->session->set_flashdata('error', 'You do not have permission to access Employee Attendance Reports.');
+                redirect('reports');
+                return;
+            }
+            // Fallback: if no permission system configured, allow Admin/HR (role 1,2) for backward compatibility
         $role_id = (int)$this->session->userdata('role_id');
         if (!in_array($role_id, [1, 2], true)) {
-            redirect('reports/attendance');
+                $this->session->set_flashdata('error', 'You do not have permission to access Employee Attendance Reports.');
+                redirect('reports');
             return;
+            }
         }
 
         // Get period filter (daily, weekly, monthly)
@@ -2284,6 +2311,46 @@ class Reports extends CI_Controller {
     
     // Export attendance employee report
     public function export_attendance_employee() {
+        // Check permission-based access
+        $has_access = false;
+        if (function_exists('has_module_access')) {
+            // Check specific permission for attendance-employee report
+            $has_access = has_module_access('reports_attendance_employee');
+            // Fallback: check general reports permission if specific one doesn't exist
+            if (!$has_access) {
+                $has_access = has_module_access('reports');
+            }
+        }
+        
+        // If no permission system or no access, check if user is logged in
+        if (!$has_access) {
+            $user_id_check = (int)$this->session->userdata('user_id');
+            if (!$user_id_check) {
+                $this->output
+                    ->set_status_header(401)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'Please login to access this resource.']));
+                return;
+            }
+            // If permission system exists but user doesn't have access, show error
+            if (function_exists('has_module_access')) {
+                $this->output
+                    ->set_status_header(403)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'You do not have permission to export Employee Attendance Reports.']));
+                return;
+            }
+            // Fallback: if no permission system configured, allow Admin/HR (role 1,2) for backward compatibility
+            $role_id = (int)$this->session->userdata('role_id');
+            if (!in_array($role_id, [1, 2], true)) {
+                $this->output
+                    ->set_status_header(403)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'You do not have permission to export Employee Attendance Reports.']));
+                return;
+            }
+        }
+        
         try {
             $format = $this->input->get('export'); // 'excel' or 'pdf'
             $userIdsStr = $this->input->get('user_ids');

@@ -53,11 +53,12 @@
             <th>Status</th>
             <th>Applied On</th>
             <th>Reason</th>
+            <th>Comments</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-            <tr><td colspan="5" class="text-center text-muted">No leave requests found.</td></tr>
+            <tr><td colspan="7" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr>
               <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
@@ -84,10 +85,37 @@
                   echo htmlspecialchars($daysText);
                 ?>
               </td>
-              <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->status))); ?></span></td>
+              <td>
+                <?php 
+                  $status = strtolower($r->status);
+                  $badge_class = 'bg-secondary';
+                  if (in_array($status, ['lead_approved', 'hr_approved', 'approved'], true)) {
+                    $badge_class = 'bg-success';
+                  } elseif ($status === 'rejected') {
+                    $badge_class = 'bg-danger';
+                  } elseif ($status === 'pending') {
+                    $badge_class = 'bg-warning text-dark';
+                  } elseif ($status === 'cancelled') {
+                    $badge_class = 'bg-secondary';
+                  }
+                ?>
+                <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->status))); ?></span>
+              </td>
               <td><?php echo htmlspecialchars(isset($r->created_at) ? $r->created_at : ''); ?></td>
               <td style="max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 <?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?>
+              </td>
+              <td style="max-width: 300px;">
+                <?php if (!empty($r->comments)): ?>
+                  <div class="small">
+                    <strong><?php echo htmlspecialchars(isset($r->approver_name) ? $r->approver_name : 'Manager'); ?>:</strong>
+                    <span class="text-<?php echo (isset($r->decision) && $r->decision === 'approved') ? 'success' : 'danger'; ?>">
+                      <?php echo htmlspecialchars($r->comments); ?>
+                    </span>
+                  </div>
+                <?php else: ?>
+                  <span class="text-muted small">No comments</span>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; endif; ?>

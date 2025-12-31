@@ -36,6 +36,7 @@ class Users extends CI_Controller {
         }
         
         $data['rows'] = $rows;
+        $data['roles'] = $this->roles(); // Pass roles array to view for consistent display
         $this->load->view('users/index', $data);
     }
 

@@ -38,11 +38,11 @@
         </div>
         <div class="col-md-3 range-only">
           <label class="form-label">Start Date</label>
-          <input type="date" class="form-control" name="start_date" id="start_date" required />
+          <input type="date" class="form-control" name="start_date" id="start_date" value="<?php echo isset($today_date) ? htmlspecialchars($today_date) : date('Y-m-d'); ?>" required />
         </div>
         <div class="col-md-3 range-only">
           <label class="form-label">End Date</label>
-          <input type="date" class="form-control" name="end_date" id="end_date" required />
+          <input type="date" class="form-control" name="end_date" id="end_date" value="<?php echo isset($today_date) ? htmlspecialchars($today_date) : date('Y-m-d'); ?>" required />
         </div>
         <div class="col-md-3 range-only">
           <label class="form-label">Duration</label>
@@ -84,14 +84,63 @@
 
 <script>
 (function(){
+  // Get holidays and weekend days from PHP
+  var holidays = <?php echo json_encode(isset($holidays) ? $holidays : []); ?>;
+  var weekendDays = <?php echo json_encode(isset($weekend_days) ? $weekend_days : [0, 6]); ?>;
+  
+  // Get today's date from server (Asia/Kolkata timezone)
+  var todayStr = <?php echo json_encode(isset($today_date) ? $today_date : date('Y-m-d')); ?>;
+  var today = new Date(todayStr + 'T00:00:00');
+  today.setHours(0, 0, 0, 0);
+
   function setBalance(){
     var sel = document.getElementById('type_id');
     var opt = sel.options[sel.selectedIndex];
     var bal = opt ? (opt.getAttribute('data-balance') || '0') : '0';
     document.getElementById('balance').innerText = bal;
   }
-  function isWeekend(d){ var day = d.getDay(); return day === 0 || day === 6; }
+  
+  function isWeekend(d){ 
+    var day = d.getDay();
+    return weekendDays.indexOf(day) !== -1;
+  }
+  
+  function isHoliday(dateStr) {
+    return holidays.indexOf(dateStr) !== -1;
+  }
+  
+  function isPastDate(dateStr) {
+    return dateStr < todayStr;
+  }
+  
+  function isDisabledDate(dateStr) {
+    if (isPastDate(dateStr)) return true;
+    var d = new Date(dateStr + 'T00:00:00');
+    if (isWeekend(d)) return true;
+    if (isHoliday(dateStr)) return true;
+    return false;
+  }
+  
   function parseDate(id){ var el=document.getElementById(id); var v=el?el.value:''; return v? new Date(v+'T00:00:00') : null; }
+  
+  function setupDateInput(input) {
+    if (!input) return;
+    
+    // Set min date to today
+    input.setAttribute('min', todayStr);
+    
+    // Add change event to validate
+    input.addEventListener('change', function() {
+      var selectedDate = this.value;
+      if (selectedDate && isDisabledDate(selectedDate)) {
+        alert('Selected date is either a past date, weekend, or holiday. Please select a valid working day.');
+        this.value = '';
+        calcDays();
+      } else {
+        calcDays();
+      }
+    });
+  }
 
   function calcDays(){
     var total = 0;
@@ -151,7 +200,15 @@
     input.type = 'date';
     input.name = 'dates[]';
     input.className = 'form-control specific-date-input';
-    input.addEventListener('change', calcDays);
+    setupDateInput(input);
+    input.addEventListener('change', function() {
+      var selectedDate = this.value;
+      if (selectedDate && isDisabledDate(selectedDate)) {
+        alert('Selected date is either a past date, weekend, or holiday. Please select a valid working day.');
+        this.value = '';
+      }
+      calcDays();
+    });
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn btn-outline-danger btn-sm btn-remove-date';
@@ -164,8 +221,26 @@
   document.getElementById('type_id').addEventListener('change', setBalance);
   var sEl = document.getElementById('start_date');
   var eEl = document.getElementById('end_date');
-  if (sEl) sEl.addEventListener('change', calcDays);
-  if (eEl) eEl.addEventListener('change', calcDays);
+  setupDateInput(sEl);
+  setupDateInput(eEl);
+  if (sEl) sEl.addEventListener('change', function() {
+    var selectedDate = this.value;
+    if (selectedDate && isDisabledDate(selectedDate)) {
+      alert('Start date cannot be a past date, weekend, or holiday. Please select a valid working day.');
+      this.value = '';
+      return;
+    }
+    calcDays();
+  });
+  if (eEl) eEl.addEventListener('change', function() {
+    var selectedDate = this.value;
+    if (selectedDate && isDisabledDate(selectedDate)) {
+      alert('End date cannot be a past date, weekend, or holiday. Please select a valid working day.');
+      this.value = '';
+      return;
+    }
+    calcDays();
+  });
   var durEl = document.getElementById('duration_type');
   if (durEl){ durEl.addEventListener('change', calcDays); }
 
@@ -176,7 +251,16 @@
 
   // Wire existing specific-date row
   document.querySelectorAll('.specific-date-input').forEach(function(inp){
-    inp.addEventListener('change', calcDays);
+    setupDateInput(inp);
+    inp.addEventListener('change', function() {
+      var selectedDate = this.value;
+      if (selectedDate && isDisabledDate(selectedDate)) {
+        alert('Selected date is either a past date, weekend, or holiday. Please select a valid working day.');
+        this.value = '';
+        return;
+      }
+      calcDays();
+    });
   });
   document.querySelectorAll('.btn-remove-date').forEach(function(btn){
     btn.addEventListener('click', function(){
@@ -188,8 +272,55 @@
   var addBtn = document.getElementById('btnAddDate');
   if (addBtn) addBtn.addEventListener('click', function(){ addSpecificDateRow(); });
 
+  // Function to get next valid working day
+  function getNextValidDate(startDate) {
+    var date = new Date(startDate);
+    date.setHours(0, 0, 0, 0);
+    var maxAttempts = 30; // Prevent infinite loop
+    var attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      var dateStr = date.toISOString().split('T')[0];
+      if (!isDisabledDate(dateStr)) {
+        return dateStr;
+      }
+      date.setDate(date.getDate() + 1);
+      attempts++;
+    }
+    return startDate; // Fallback to original date
+  }
+  
+  // Set default dates on page load - ensure they are valid working days
+  function setDefaultDates() {
+    var startEl = document.getElementById('start_date');
+    var endEl = document.getElementById('end_date');
+    
+    if (startEl) {
+      var currentValue = startEl.value || todayStr;
+      // If current value is invalid, find next valid date
+      if (isDisabledDate(currentValue)) {
+        currentValue = getNextValidDate(today);
+      }
+      startEl.value = currentValue;
+    }
+    
+    if (endEl) {
+      var currentValue = endEl.value || todayStr;
+      // If current value is invalid, find next valid date
+      if (isDisabledDate(currentValue)) {
+        currentValue = getNextValidDate(today);
+      }
+      endEl.value = currentValue;
+    }
+    
+    // Recalculate days after setting defaults
+    calcDays();
+  }
+  
   setBalance();
   updateMode();
+  // Set defaults after a short delay to ensure DOM is ready
+  setTimeout(setDefaultDates, 100);
 })();
 </script>
 

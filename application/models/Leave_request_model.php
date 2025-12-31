@@ -75,6 +75,43 @@ class Leave_request_model extends CI_Model {
                 $this->update_leave_balance((int)$leave->user_id, (int)$leave->type_id, $days);
             }
         }
+        
+        // Handle status change from approved to rejected (restore balance)
+        if ($status === 'rejected' && in_array($old_status, $approved_statuses, true)) {
+            $days = (float)$leave->days;
+            if ($days > 0) {
+                // Restore balance by subtracting from used
+                $year = (int)date('Y');
+                $balance_row = $this->db->get_where('leave_balances', [
+                    'user_id' => (int)$leave->user_id,
+                    'type_id' => (int)$leave->type_id,
+                    'year' => $year,
+                ])->row();
+                
+                if ($balance_row) {
+                    $used = max(0, (float)$balance_row->used - $days);
+                    $total = (float)$balance_row->opening_balance + (float)$balance_row->accrued;
+                    $closing = $total - $used;
+                    if ($closing < 0) {
+                        $closing = 0.0;
+                    }
+                    
+                    $this->db->where('id', (int)$balance_row->id)->update('leave_balances', [
+                        'used' => $used,
+                        'closing_balance' => $closing,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            }
+        }
+        
+        // Handle status change from rejected to approved (deduct balance)
+        if (in_array($status, $approved_statuses, true) && $old_status === 'rejected') {
+            $days = (float)$leave->days;
+            if ($days > 0) {
+                $this->update_leave_balance((int)$leave->user_id, (int)$leave->type_id, $days);
+            }
+        }
 
         return true;
     }

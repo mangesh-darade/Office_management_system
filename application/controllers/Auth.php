@@ -5,6 +5,7 @@ class Auth extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->model('User_model');
+        $this->load->helper('cookie'); // Load cookie helper for set_cookie() function
         
         // Store intended URL for redirect after login
         if ($this->input->method() === 'get' && $this->uri->uri_string() !== 'auth/login') {
@@ -227,6 +228,8 @@ class Auth extends CI_Controller {
         
         // For now, just set a simple cookie (enhance this with proper token storage)
         $cookie_value = $selector . ':' . $token;
+        // Load cookie helper if not already loaded
+        $this->load->helper('cookie');
         set_cookie('remember_me', $cookie_value, $expires, '/', '', false, true);
     }
 
