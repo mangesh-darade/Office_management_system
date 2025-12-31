@@ -3,6 +3,8 @@
   <h1 class="h4 mb-0">DB Manager</h1>
   <div class="d-flex gap-2">
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('db/compare'); ?>">DB Compare</a>
+    <a class="btn btn-info btn-sm" href="<?php echo site_url('db/difference'); ?>">DB Difference</a>
+    <a class="btn btn-secondary btn-sm" href="<?php echo site_url('db/clients'); ?>">Client DB Panel</a>
     <a class="btn btn-secondary btn-sm" href="<?php echo site_url('dashboard'); ?>">Back</a>
   </div>
 </div>

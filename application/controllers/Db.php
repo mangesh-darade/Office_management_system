@@ -1470,4 +1470,356 @@ class Db extends CI_Controller {
         header('Content-Type: application/json'); echo json_encode(['success'=>true]); return;
     }
 
+    // DB Difference: Compare two client databases
+    public function db_difference(){
+        $clients = [];
+        if ($this->db->table_exists('clients')) {
+            $sel = ['id','company_name','db_name','db_username','db_password'];
+            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            $this->db->select(implode(',', $sel));
+            $clients = $this->db->from('clients')
+                                ->where('db_name IS NOT NULL')
+                                ->where('db_name !=', '')
+                                ->order_by('company_name','ASC')
+                                ->get()->result();
+        }
+        $this->load->view('db/db_difference', [
+            'clients' => $clients,
+        ]);
+    }
+
+    // AJAX: Compare two databases
+    public function compare_databases(){
+        $source_db = trim((string)$this->input->post('source_db'));
+        $target_db = trim((string)$this->input->post('target_db'));
+        $source_client_id = (int)$this->input->post('source_client_id');
+        $target_client_id = (int)$this->input->post('target_client_id');
+        
+        if ($source_db === '' || $target_db === ''){
+            header('Content-Type: application/json'); 
+            echo json_encode(['success'=>false,'message'=>'Both source and target databases are required']); 
+            return;
+        }
+        
+        if ($source_db === $target_db){
+            header('Content-Type: application/json'); 
+            echo json_encode(['success'=>false,'message'=>'Source and target databases cannot be the same']); 
+            return;
+        }
+        
+        try {
+            // Get client credentials
+            $source_client = null;
+            $target_client = null;
+            
+            if ($source_client_id > 0){
+                $source_client = $this->db->select('db_name,db_username,db_password')
+                                         ->from('clients')
+                                         ->where('id', $source_client_id)
+                                         ->get()->row();
+            }
+            
+            if ($target_client_id > 0){
+                $target_client = $this->db->select('db_name,db_username,db_password')
+                                         ->from('clients')
+                                         ->where('id', $target_client_id)
+                                         ->get()->row();
+            }
+            
+            // Connect to source database
+            if ($source_client && !empty($source_client->db_username)){
+                $defaultHost = property_exists($this->db, 'hostname') ? $this->db->hostname : 'localhost';
+                $source_conn = $this->connect_custom($defaultHost, $source_client->db_username, $source_client->db_password, $source_db);
+            } else {
+                $source_conn = $this->connect_to($source_db);
+            }
+            
+            // Connect to target database
+            if ($target_client && !empty($target_client->db_username)){
+                $defaultHost = property_exists($this->db, 'hostname') ? $this->db->hostname : 'localhost';
+                $target_conn = $this->connect_custom($defaultHost, $target_client->db_username, $target_client->db_password, $target_db);
+            } else {
+                $target_conn = $this->connect_to($target_db);
+            }
+            
+            // Get source database structure
+            $source_tables = [];
+            $source_tableMap = [];
+            $source_cols = [];
+            $q = $source_conn->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$source_db]);
+            foreach ($q->result() as $r){
+                $lower = strtolower($r->TABLE_NAME);
+                $source_tables[$lower] = true;
+                $source_tableMap[$lower] = $r->TABLE_NAME;
+            }
+            
+            if (!empty($source_tables)){
+                $rs = $source_conn->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$source_db]);
+                foreach ($rs->result() as $r){
+                    $t = strtolower($r->TABLE_NAME);
+                    $c = strtolower($r->COLUMN_NAME);
+                    if (!isset($source_cols[$t])) $source_cols[$t] = [];
+                    // Store both lowercase key and actual column name
+                    $source_cols[$t][$c] = $r->COLUMN_NAME;
+                }
+            }
+            
+            // Get target database structure
+            $target_tables = [];
+            $target_tableMap = [];
+            $target_cols = [];
+            $q = $target_conn->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$target_db]);
+            foreach ($q->result() as $r){
+                $lower = strtolower($r->TABLE_NAME);
+                $target_tables[$lower] = true;
+                $target_tableMap[$lower] = $r->TABLE_NAME;
+            }
+            
+            if (!empty($target_tables)){
+                $rs = $target_conn->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$target_db]);
+                foreach ($rs->result() as $r){
+                    $t = strtolower($r->TABLE_NAME);
+                    $c = strtolower($r->COLUMN_NAME);
+                    if (!isset($target_cols[$t])) $target_cols[$t] = [];
+                    // Store both lowercase key and actual column name
+                    $target_cols[$t][$c] = $r->COLUMN_NAME;
+                }
+            }
+            
+            // Find differences: tables/columns in source but not in target
+            $missing_tables = [];
+            $missing_columns = [];
+            $tables_sql = [];
+            $columns_sql = [];
+            
+            // Missing tables
+            foreach ($source_tables as $tLower => $_){
+                if (!isset($target_tables[$tLower])){
+                    $tName = $source_tableMap[$tLower];
+                    try {
+                        $res = $source_conn->query('SHOW CREATE TABLE `'.$tName.'`');
+                        if ($res && $res->num_rows() > 0){
+                            $row = $res->row_array();
+                            $sqlCreate = '';
+                            if (isset($row['Create Table'])){ $sqlCreate = $row['Create Table']; }
+                            else { $vals = array_values($row); if (isset($vals[1])) $sqlCreate = $vals[1]; }
+                            if ($sqlCreate !== ''){
+                                $missing_tables[] = $tName;
+                                $tables_sql[] = rtrim($sqlCreate, "; \r\n").";";
+                            }
+                        }
+                    } catch (Exception $e) { }
+                }
+            }
+            
+            // Missing columns
+            foreach ($source_tables as $tLower => $_){
+                if (isset($target_tables[$tLower])){
+                    $tName = $source_tableMap[$tLower];
+                    $sourceTableCols = isset($source_cols[$tLower]) ? $source_cols[$tLower] : [];
+                    $targetTableCols = isset($target_cols[$tLower]) ? $target_cols[$tLower] : [];
+                    
+                    foreach ($sourceTableCols as $cLower => $cName){
+                        if (!isset($targetTableCols[$cLower])){
+                            // cName already contains the actual column name from source_cols array
+                            if (empty($cName)) continue;
+                            
+                            try {
+                                $ci = $source_conn->query('SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1', [$source_db, $tName, $cName]);
+                                if ($ci && $ci->num_rows() > 0){
+                                    $row = $ci->row_array();
+                                    $defParts = [];
+                                    $defParts[] = '`'.$row['COLUMN_NAME'].'`';
+                                    $defParts[] = $row['COLUMN_TYPE'];
+                                    if (!empty($row['CHARACTER_SET_NAME'])){ $defParts[] = 'CHARACTER SET '.$row['CHARACTER_SET_NAME']; }
+                                    if (!empty($row['COLLATION_NAME'])){ $defParts[] = 'COLLATE '.$row['COLLATION_NAME']; }
+                                    $nullable = strtoupper($row['IS_NULLABLE']) === 'YES';
+                                    $defParts[] = $nullable ? 'NULL' : 'NOT NULL';
+                                    if (!is_null($row['COLUMN_DEFAULT'])){
+                                        $def = $row['COLUMN_DEFAULT'];
+                                        $upper = strtoupper($def);
+                                        $isNumeric = is_numeric($def);
+                                        $isFunc = in_array($upper, ['CURRENT_TIMESTAMP','CURRENT_TIMESTAMP()','NOW()'], true);
+                                        if ($isFunc){ $defParts[] = 'DEFAULT '.$upper; }
+                                        else if ($isNumeric){ $defParts[] = 'DEFAULT '.$def; }
+                                        else if ($def === 'NULL'){ $defParts[] = 'DEFAULT NULL'; }
+                                        else { $defParts[] = "DEFAULT '".str_replace("'","''", $def)."'"; }
+                                    } else if ($nullable){ }
+                                    if (!empty($row['EXTRA'])){ $defParts[] = $row['EXTRA']; }
+                                    $colDef = implode(' ', array_filter($defParts));
+                                    $missing_columns[] = ['table' => $tName, 'column' => $cName];
+                                    $columns_sql[] = 'ALTER TABLE `'.$tName.'` ADD COLUMN '.$colDef.';';
+                                }
+                            } catch (Exception $e) { }
+                        }
+                    }
+                }
+            }
+            
+            $tables_sql_output = implode("\n\n", $tables_sql);
+            $columns_sql_output = implode("\n\n", $columns_sql);
+            $all_sql_output = implode("\n\n", array_merge($tables_sql, $columns_sql));
+            
+            // Calculate reverse direction: B→A (what's in target but missing in source)
+            $reverse_missing_tables = [];
+            $reverse_missing_columns = [];
+            $reverse_tables_sql = [];
+            $reverse_columns_sql = [];
+            
+            // Missing tables in source (present in target, not in source)
+            foreach ($target_tables as $tLower => $_){
+                if (!isset($source_tables[$tLower])){
+                    $tName = $target_tableMap[$tLower];
+                    try {
+                        $res = $target_conn->query('SHOW CREATE TABLE `'.$tName.'`');
+                        if ($res && $res->num_rows() > 0){
+                            $row = $res->row_array();
+                            $sqlCreate = '';
+                            if (isset($row['Create Table'])){ $sqlCreate = $row['Create Table']; }
+                            else { $vals = array_values($row); if (isset($vals[1])) $sqlCreate = $vals[1]; }
+                            if ($sqlCreate !== ''){
+                                $reverse_missing_tables[] = $tName;
+                                $reverse_tables_sql[] = rtrim($sqlCreate, "; \r\n").";";
+                            }
+                        }
+                    } catch (Exception $e) { }
+                }
+            }
+            
+            // Missing columns in source (present in target table, not in source table)
+            foreach ($target_tables as $tLower => $_){
+                if (isset($source_tables[$tLower])){
+                    $tName = $target_tableMap[$tLower];
+                    $targetTableCols = isset($target_cols[$tLower]) ? $target_cols[$tLower] : [];
+                    $sourceTableCols = isset($source_cols[$tLower]) ? $source_cols[$tLower] : [];
+                    
+                    foreach ($targetTableCols as $cLower => $cName){
+                        if (!isset($sourceTableCols[$cLower])){
+                            // cName already contains the actual column name from target_cols array
+                            if (empty($cName)) continue;
+                            
+                            try {
+                                $ci = $target_conn->query('SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1', [$target_db, $tName, $cName]);
+                                if ($ci && $ci->num_rows() > 0){
+                                    $row = $ci->row_array();
+                                    $defParts = [];
+                                    $defParts[] = '`'.$row['COLUMN_NAME'].'`';
+                                    $defParts[] = $row['COLUMN_TYPE'];
+                                    if (!empty($row['CHARACTER_SET_NAME'])){ $defParts[] = 'CHARACTER SET '.$row['CHARACTER_SET_NAME']; }
+                                    if (!empty($row['COLLATION_NAME'])){ $defParts[] = 'COLLATE '.$row['COLLATION_NAME']; }
+                                    $nullable = strtoupper($row['IS_NULLABLE']) === 'YES';
+                                    $defParts[] = $nullable ? 'NULL' : 'NOT NULL';
+                                    if (!is_null($row['COLUMN_DEFAULT'])){
+                                        $def = $row['COLUMN_DEFAULT'];
+                                        $upper = strtoupper($def);
+                                        $isNumeric = is_numeric($def);
+                                        $isFunc = in_array($upper, ['CURRENT_TIMESTAMP','CURRENT_TIMESTAMP()','NOW()'], true);
+                                        if ($isFunc){ $defParts[] = 'DEFAULT '.$upper; }
+                                        else if ($isNumeric){ $defParts[] = 'DEFAULT '.$def; }
+                                        else if ($def === 'NULL'){ $defParts[] = 'DEFAULT NULL'; }
+                                        else { $defParts[] = "DEFAULT '".str_replace("'","''", $def)."'"; }
+                                    } else if ($nullable){ }
+                                    if (!empty($row['EXTRA'])){ $defParts[] = $row['EXTRA']; }
+                                    $colDef = implode(' ', array_filter($defParts));
+                                    $reverse_missing_columns[] = ['table' => $tName, 'column' => $cName];
+                                    $reverse_columns_sql[] = 'ALTER TABLE `'.$tName.'` ADD COLUMN '.$colDef.';';
+                                }
+                            } catch (Exception $e) { }
+                        }
+                    }
+                }
+            }
+            
+            $reverse_tables_sql_output = implode("\n\n", $reverse_tables_sql);
+            $reverse_columns_sql_output = implode("\n\n", $reverse_columns_sql);
+            $reverse_all_sql_output = implode("\n\n", array_merge($reverse_tables_sql, $reverse_columns_sql));
+            
+            // Build full structure lists for side-by-side comparison
+            $source_all_tables = [];
+            $target_all_tables = [];
+            foreach ($source_tableMap as $tLower => $tName){
+                $source_all_tables[] = [
+                    'name' => $tName,
+                    'exists_in_target' => isset($target_tables[$tLower])
+                ];
+            }
+            foreach ($target_tableMap as $tLower => $tName){
+                $target_all_tables[] = [
+                    'name' => $tName,
+                    'exists_in_source' => isset($source_tables[$tLower])
+                ];
+            }
+            
+            // Build full column lists for side-by-side comparison
+            $source_all_columns = [];
+            $target_all_columns = [];
+            foreach ($source_cols as $tLower => $cols){
+                $tName = $source_tableMap[$tLower];
+                foreach ($cols as $cLower => $cName){
+                    $existsInTarget = (isset($target_tables[$tLower]) && isset($target_cols[$tLower]) && isset($target_cols[$tLower][$cLower]));
+                    $source_all_columns[] = [
+                        'table' => $tName,
+                        'column' => $cName,
+                        'exists_in_target' => $existsInTarget
+                    ];
+                }
+            }
+            foreach ($target_cols as $tLower => $cols){
+                $tName = $target_tableMap[$tLower];
+                foreach ($cols as $cLower => $_){
+                    // Get actual column name from target
+                    $cName = null;
+                    try {
+                        $colCheck = $target_conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND LOWER(COLUMN_NAME) = ? LIMIT 1", [$target_db, $tName, $cLower]);
+                        if ($colCheck && $colCheck->num_rows() > 0){
+                            $cName = $colCheck->row()->COLUMN_NAME;
+                        }
+                    } catch (Exception $e) { }
+                    if (!$cName) continue;
+                    
+                    $existsInSource = (isset($source_tables[$tLower]) && isset($source_cols[$tLower]) && isset($source_cols[$tLower][$cLower]));
+                    $target_all_columns[] = [
+                        'table' => $tName,
+                        'column' => $cName,
+                        'exists_in_source' => $existsInSource
+                    ];
+                }
+            }
+            
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'source_db' => $source_db,
+                'target_db' => $target_db,
+                // A→B (source to target)
+                'missing_tables' => $missing_tables,
+                'missing_columns' => $missing_columns,
+                'sql' => $all_sql_output,
+                'tables_sql' => $tables_sql_output,
+                'columns_sql' => $columns_sql_output,
+                'tables_count' => count($missing_tables),
+                'columns_count' => count($missing_columns),
+                // B→A (target to source)
+                'reverse_missing_tables' => $reverse_missing_tables,
+                'reverse_missing_columns' => $reverse_missing_columns,
+                'reverse_sql' => $reverse_all_sql_output,
+                'reverse_tables_sql' => $reverse_tables_sql_output,
+                'reverse_columns_sql' => $reverse_columns_sql_output,
+                'reverse_tables_count' => count($reverse_missing_tables),
+                'reverse_columns_count' => count($reverse_missing_columns),
+                // Full structure for display
+                'source_all_tables' => $source_all_tables,
+                'target_all_tables' => $target_all_tables,
+                'source_all_columns' => $source_all_columns,
+                'target_all_columns' => $target_all_columns
+            ]);
+            return;
+            
+        } catch (Exception $e){
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'message'=>'Failed to compare databases: '.$e->getMessage()]);
+            return;
+        }
+    }
+
 }
