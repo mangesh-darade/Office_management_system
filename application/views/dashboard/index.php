@@ -27,6 +27,39 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       </div>
       <?php endif; ?>
       
+      <!-- Announcements at Top -->
+      <?php if (!empty($announcements)): ?>
+      <div class="mb-4">
+        <div class="card shadow-sm border-primary announcement-card-top">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0"><i class="bi bi-megaphone me-2 text-primary"></i>Latest Announcements</h5>
+              <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements'); ?>">View all</a>
+            </div>
+            <div class="row g-3">
+              <?php foreach ($announcements as $a): ?>
+                <div class="col-12 col-md-6">
+                  <div class="d-flex align-items-start p-3 rounded bg-light">
+                    <div class="me-3">
+                      <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="bi bi-bullhorn"></i>
+                      </div>
+                    </div>
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1 fw-semibold"><?php echo htmlspecialchars($a->title); ?></h6>
+                      <?php if (!empty($a->start_date) || !empty($a->end_date)): ?>
+                        <small class="text-muted"><?php echo htmlspecialchars(($a->start_date?:'—').' to '.($a->end_date?:'—')); ?></small>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+      
       <!-- Dashboard Statistics Cards -->
       <div class="row g-3 mb-4">
         <?php if (empty($accessible_modules) || in_array('employees', $accessible_modules)): ?>
@@ -117,38 +150,6 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
         <?php endif; ?>
       </div>
-
-      <?php if (!empty($announcements)): ?>
-      <div class="mb-4">
-        <div class="card shadow-sm announcement-card">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h5 class="mb-0"><i class="bi bi-megaphone me-2 text-primary"></i>Latest Announcements</h5>
-              <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements'); ?>">View all</a>
-            </div>
-            <div class="row g-3">
-              <?php foreach ($announcements as $a): ?>
-                <div class="col-12 col-md-6">
-                  <div class="d-flex align-items-start p-3 rounded bg-light">
-                    <div class="me-3">
-                      <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                        <i class="bi bi-bullhorn"></i>
-                      </div>
-                    </div>
-                    <div class="flex-grow-1">
-                      <h6 class="mb-1 fw-semibold"><?php echo htmlspecialchars($a->title); ?></h6>
-                      <?php if (!empty($a->start_date) || !empty($a->end_date)): ?>
-                        <small class="text-muted"><?php echo htmlspecialchars(($a->start_date?:'—').' to '.($a->end_date?:'—')); ?></small>
-                      <?php endif; ?>
-                    </div>
-                  </div>
-                </div>
-              <?php endforeach; ?>
-            </div>
-          </div>
-        </div>
-      </div>
-      <?php endif; ?>
 
       <div class="row g-3">
         <?php if(function_exists('has_module_access') && has_module_access('employees')): ?>
@@ -345,6 +346,14 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
 .fade-in:nth-child(6) { animation-delay: 0.6s; }
 .fade-in:nth-child(7) { animation-delay: 0.7s; }
 .fade-in:nth-child(8) { animation-delay: 0.8s; }
+
+.announcement-card-top {
+  border-top: 3px solid #007bff !important;
+}
+
+.announcement-card-top .card-body {
+  padding: 1.25rem;
+}
 </style>
 
 <?php $this->load->view('partials/footer'); ?>

@@ -449,28 +449,53 @@
     }
     
     window.verifyTimeout = setTimeout(function() {
+      // Show verifying state
+      feedbackDiv.className = 'verification-feedback text-muted small mt-1';
+      feedbackDiv.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Verifying...';
+      
       fetch(site + 'auth/verify-code', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-        body: new URLSearchParams({ code: code })
-      }).then(function(res){ return res.json(); }).then(function(data){
-        if (data && data.valid) {
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded', 
+          'X-Requested-With': 'XMLHttpRequest' 
+        },
+        body: new URLSearchParams({ code: code }),
+        credentials: 'same-origin'
+      })
+      .then(function(res) {
+        if (!res.ok) {
+          return res.text().then(function(text) {
+            try {
+              var errorData = JSON.parse(text);
+              throw new Error(errorData.error || 'HTTP error! status: ' + res.status);
+            } catch(e) {
+              throw new Error('HTTP error! status: ' + res.status);
+            }
+          });
+        }
+        return res.json();
+      })
+      .then(function(data) {
+        if (data && data.valid === true) {
           feedbackDiv.className = 'verification-feedback text-success small mt-1';
           feedbackDiv.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Code verified successfully';
-          // Optionally add visual indication to input
           verifyCodeInput.classList.add('is-valid');
           verifyCodeInput.classList.remove('is-invalid');
         } else {
+          var errorMsg = (data && data.error) ? data.error : 'Invalid verification code';
           feedbackDiv.className = 'verification-feedback text-danger small mt-1';
-          feedbackDiv.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Invalid verification code';
+          feedbackDiv.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>' + errorMsg;
           verifyCodeInput.classList.add('is-invalid');
           verifyCodeInput.classList.remove('is-valid');
         }
-      }).catch(function(){
+      })
+      .catch(function(error) {
         feedbackDiv.className = 'verification-feedback text-warning small mt-1';
-        feedbackDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Unable to verify code';
+        feedbackDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Unable to verify code. Please try again.';
+        verifyCodeInput.classList.remove('is-valid');
+        verifyCodeInput.classList.remove('is-invalid');
       });
-    }, 500); // Wait 500ms after user stops typing
+    }, 500);
   }
 
   // Form validation and submission

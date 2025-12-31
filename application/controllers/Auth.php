@@ -9,8 +9,13 @@ class Auth extends CI_Controller {
         // Store intended URL for redirect after login
         if ($this->input->method() === 'get' && $this->uri->uri_string() !== 'auth/login') {
             $current_url = current_url();
-            // Don't store register page URLs as redirect targets after login
-            if (strpos($current_url, 'register') === false && strpos($current_url, 'auth/register') === false) {
+            // Don't store register/reset password page URLs as redirect targets after login
+            if (strpos($current_url, 'register') === false && 
+                strpos($current_url, 'auth/register') === false &&
+                strpos($current_url, 'reset_password') === false &&
+                strpos($current_url, 'auth/reset_password') === false &&
+                strpos($current_url, 'forgot_password') === false &&
+                strpos($current_url, 'auth/forgot_password') === false) {
                 $this->session->set_userdata('redirect_url', $current_url);
             }
         }
@@ -141,6 +146,9 @@ class Auth extends CI_Controller {
             // Clear failed attempts on successful login
             $this->session->unset_userdata([$rate_limit_key, $rate_limit_key . '_time']);
 
+            // Clear any password reset session data on successful login
+            $this->session->unset_userdata(['pw_reset_phone','pw_reset_code_hash','pw_reset_expires']);
+            
             // Set session data
             $this->session->set_userdata('user_id', (int)$user->id);
             $this->session->set_userdata('role_id', (int)$user->role_id);
@@ -158,8 +166,13 @@ class Auth extends CI_Controller {
             if ($is_ajax) {
                 $redirect_url = $this->session->userdata('redirect_url') ?: site_url('dashboard');
                 $this->session->unset_userdata('redirect_url');
-                // Ensure redirect URL is not register page
-                if (strpos($redirect_url, 'register') !== false || strpos($redirect_url, 'auth/register') !== false) {
+                // Ensure redirect URL is not register/reset password page
+                if (strpos($redirect_url, 'register') !== false || 
+                    strpos($redirect_url, 'auth/register') !== false ||
+                    strpos($redirect_url, 'reset_password') !== false ||
+                    strpos($redirect_url, 'auth/reset_password') !== false ||
+                    strpos($redirect_url, 'forgot_password') !== false ||
+                    strpos($redirect_url, 'auth/forgot_password') !== false) {
                     $redirect_url = site_url('dashboard');
                 }
                 header('Content-Type: application/json');
@@ -170,8 +183,13 @@ class Auth extends CI_Controller {
             // Redirect to intended page or dashboard for non-AJAX requests
             $redirect_url = $this->session->userdata('redirect_url') ?: 'dashboard';
             $this->session->unset_userdata('redirect_url');
-            // Ensure redirect URL is not register page
-            if (strpos($redirect_url, 'register') !== false || strpos($redirect_url, 'auth/register') !== false) {
+            // Ensure redirect URL is not register/reset password page
+            if (strpos($redirect_url, 'register') !== false || 
+                strpos($redirect_url, 'auth/register') !== false ||
+                strpos($redirect_url, 'reset_password') !== false ||
+                strpos($redirect_url, 'auth/reset_password') !== false ||
+                strpos($redirect_url, 'forgot_password') !== false ||
+                strpos($redirect_url, 'auth/forgot_password') !== false) {
                 $redirect_url = 'dashboard';
             }
             redirect($redirect_url);
@@ -303,29 +321,64 @@ class Auth extends CI_Controller {
     }
 
     public function verify_code(){
-        if ($this->input->method() !== 'post') { show_404(); }
+        // Set JSON header first and prevent any output
+        header('Content-Type: application/json');
         
-        $code = trim((string)$this->input->post('code'));
-        if ($code === '') {
-            $this->_json(['valid'=>false,'error'=>'Verification code is required.']);
-            return;
+        // Only allow POST requests
+        if ($this->input->method() !== 'post') {
+            http_response_code(405);
+            echo json_encode(['valid'=>false,'error'=>'Method not allowed.']);
+            exit;
         }
         
-        $this->load->library('session');
-        $sessionHash = (string)$this->session->userdata('reg_code_hash');
-        $sessionExp = (int)$this->session->userdata('reg_code_expires');
-        
-        // Check if code has expired
-        if (!$sessionHash || !$sessionExp || time() > $sessionExp) {
-            $this->_json(['valid'=>false,'error'=>'Verification code has expired.']);
-            return;
-        }
-        
-        // Verify the code
-        if (password_verify($code, $sessionHash)) {
-            $this->_json(['valid'=>true,'message'=>'Code verified successfully.']);
-        } else {
-            $this->_json(['valid'=>false,'error'=>'Invalid verification code.']);
+        try {
+            $code = trim((string)$this->input->post('code'));
+            if ($code === '') {
+                echo json_encode(['valid'=>false,'error'=>'Verification code is required.']);
+                exit;
+            }
+            
+            // Ensure session is loaded (it should be autoloaded, but ensure it's available)
+            if (!isset($this->session)) {
+                $this->load->library('session');
+            }
+            
+            // Get session data
+            $sessionHash = $this->session->userdata('reg_code_hash');
+            $sessionExp = $this->session->userdata('reg_code_expires');
+            
+            // Convert to proper types
+            $sessionHash = $sessionHash ? (string)$sessionHash : '';
+            $sessionExp = $sessionExp ? (int)$sessionExp : 0;
+            
+            // Check if verification code was ever sent
+            if (empty($sessionHash)) {
+                echo json_encode(['valid'=>false,'error'=>'Please click "Send Code" button first to receive a verification code.']);
+                exit;
+            }
+            
+            // Check if code has expired
+            if (!$sessionExp || time() > $sessionExp) {
+                echo json_encode(['valid'=>false,'error'=>'Verification code has expired. Please request a new code.']);
+                exit;
+            }
+            
+            // Verify the code
+            if (password_verify($code, $sessionHash)) {
+                echo json_encode(['valid'=>true,'message'=>'Code verified successfully.']);
+                exit;
+            } else {
+                echo json_encode(['valid'=>false,'error'=>'Invalid verification code. Please check and try again.']);
+                exit;
+            }
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['valid'=>false,'error'=>'An error occurred while verifying the code. Please try again.']);
+            exit;
+        } catch (Error $e) {
+            http_response_code(500);
+            echo json_encode(['valid'=>false,'error'=>'An error occurred while verifying the code. Please try again.']);
+            exit;
         }
     }
 
@@ -376,8 +429,8 @@ class Auth extends CI_Controller {
             }
             $user = $this->User_model->get_by_phone($phone);
             if (!$user) {
-                // Do not reveal whether the phone exists; show generic success
-                $this->session->set_flashdata('success', 'If this mobile number is registered, an OTP has been sent to the linked email address.');
+                // Show error if mobile number is not found in database
+                $this->session->set_flashdata('error', 'This mobile number is not registered. Please check and try again.');
                 redirect('auth/forgot_password');
                 return;
             }
@@ -440,10 +493,19 @@ class Auth extends CI_Controller {
 
     public function reset_password(){
         $this->load->library('session');
+        
+        // If user is already logged in, redirect to dashboard
+        if ((int)$this->session->userdata('user_id') > 0) {
+            redirect('dashboard');
+            return;
+        }
+        
         $phone = (string)$this->session->userdata('pw_reset_phone');
         $hash = (string)$this->session->userdata('pw_reset_code_hash');
         $expires = (int)$this->session->userdata('pw_reset_expires');
         if ($phone === '' || !$hash || !$expires || time() > $expires) {
+            // Clear any stale session data
+            $this->session->unset_userdata(['pw_reset_phone','pw_reset_code_hash','pw_reset_expires']);
             $this->session->set_flashdata('error', 'Invalid or expired OTP. Please request a new one.');
             redirect('auth/forgot_password');
             return;

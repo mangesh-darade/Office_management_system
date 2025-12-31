@@ -26,6 +26,7 @@ class AuthHook {
             'auth/register', 'register',
             // email verification & code sending must be usable before login
             'auth/send-verify-code',
+            'auth/verify-code',
             'auth/verify',
             // password reset (phone + OTP) must be accessible before login
             'auth/forgot_password',
