@@ -15,8 +15,12 @@ class Leave_requests extends CI_Controller {
     // GET/POST /leave/apply
     public function apply(){
         $user_id = (int)$this->session->userdata('user_id');
-        // Read leave types
-        $types = $this->db->order_by('name','ASC')->get('leave_types')->result();
+        // Read leave types (only active ones)
+        $this->db->order_by('name','ASC');
+        if ($this->db->field_exists('status', 'leave_types')) {
+            $this->db->where('status', 'active');
+        }
+        $types = $this->db->get('leave_types')->result();
 
         if ($this->input->method() === 'post'){
             $type_id = (int)$this->input->post('type_id');
@@ -42,6 +46,31 @@ class Leave_requests extends CI_Controller {
                 }
                 if (empty($unique)) {
                     $this->session->set_flashdata('error', 'Please select at least one date.');
+                    redirect('leave/apply');
+                    return;
+                }
+
+                // Check for existing leave requests on selected dates
+                $existing_dates = [];
+                if (!empty($unique)) {
+                    $existing_leaves = $this->db->select('start_date, end_date, status')
+                                              ->from('leave_requests')
+                                              ->where('user_id', $user_id)
+                                              ->where('status !=', 'rejected') // Don't check rejected leaves
+                                              ->where_in('start_date', array_keys($unique))
+                                              ->get()
+                                              ->result();
+                    
+                    foreach ($existing_leaves as $existing) {
+                        $existing_dates[] = $existing->start_date;
+                    }
+                }
+                
+                if (!empty($existing_dates)) {
+                    $date_list = implode(', ', array_map(function($date) {
+                        return date('M d, Y', strtotime($date));
+                    }, $existing_dates));
+                    $this->session->set_flashdata('error', 'You already have leave requests for the following dates: ' . $date_list . '. Please select different dates or check your existing requests.');
                     redirect('leave/apply');
                     return;
                 }
@@ -150,6 +179,28 @@ class Leave_requests extends CI_Controller {
             }
             if ($days <= 0){
                 $this->session->set_flashdata('error', 'Selected range contains no working days.');
+                redirect('leave/apply');
+                return;
+            }
+
+            // Check for overlapping leave requests in the selected date range
+            $overlapping_leaves = $this->db->select('start_date, end_date, status')
+                                         ->from('leave_requests')
+                                         ->where('user_id', $user_id)
+                                         ->where('status !=', 'rejected') // Don't check rejected leaves
+                                         ->where('(start_date <= ' . $this->db->escape($end_date) . ' AND end_date >= ' . $this->db->escape($start_date) . ')')
+                                         ->get()
+                                         ->result();
+            
+            if (!empty($overlapping_leaves)) {
+                $conflict_dates = [];
+                foreach ($overlapping_leaves as $overlap) {
+                    $conflict_dates[] = date('M d, Y', strtotime($overlap->start_date)) . 
+                                       ($overlap->start_date !== $overlap->end_date ? 
+                                        ' - ' . date('M d, Y', strtotime($overlap->end_date)) : '');
+                }
+                $conflict_list = implode(', ', $conflict_dates);
+                $this->session->set_flashdata('error', 'You already have leave requests that overlap with your selected dates: ' . $conflict_list . '. Please select different dates or check your existing requests.');
                 redirect('leave/apply');
                 return;
             }
@@ -460,8 +511,12 @@ class Leave_requests extends CI_Controller {
             return;
         }
         
-        // Load leave types for dropdown
-        $types = $this->db->order_by('name','ASC')->get('leave_types')->result();
+        // Load leave types for dropdown (only active ones)
+        $this->db->order_by('name','ASC');
+        if ($this->db->field_exists('status', 'leave_types')) {
+            $this->db->where('status', 'active');
+        }
+        $types = $this->db->get('leave_types')->result();
         $this->load->view('leave_requests/edit', [
             'leave' => $leave,
             'types' => $types,
@@ -489,9 +544,13 @@ class Leave_requests extends CI_Controller {
     /**
      * Send email notification when leave is applied
      * Sends to department manager and admin (with manager in CC)
+     * Consolidates multiple leave requests into a single email
      */
     private function _notify_leave_applied($leave_ids, $user_id, $type_id, $approver_id){
         if (empty($leave_ids)) return;
+        
+        // Debug: Log email consolidation
+        error_log('Leave notification: Processing ' . count($leave_ids) . ' leave requests in single email');
         
         try {
             // Get leave request details
@@ -509,19 +568,27 @@ class Leave_requests extends CI_Controller {
             $employee_name = !empty($first_leave->user_name) ? $first_leave->user_name : $first_leave->user_email;
             $leave_type = $first_leave->type_name;
             
-            // Build date range string
-            $date_ranges = [];
+            // Build consolidated leave details
+            $leave_details = [];
+            $total_days = 0;
             foreach ($leaves as $l) {
+                $date_str = '';
                 if ($l->start_date === $l->end_date) {
-                    $date_ranges[] = date('M d, Y', strtotime($l->start_date));
+                    $date_str = date('M d, Y', strtotime($l->start_date));
                 } else {
-                    $date_ranges[] = date('M d', strtotime($l->start_date)) . ' - ' . date('M d, Y', strtotime($l->end_date));
+                    $date_str = date('M d', strtotime($l->start_date)) . ' - ' . date('M d, Y', strtotime($l->end_date));
                 }
+                
+                $leave_details[] = [
+                    'date' => $date_str,
+                    'days' => (float)$l->days,
+                    'reason' => !empty($l->reason) ? $l->reason : 'No reason provided'
+                ];
+                $total_days += (float)$l->days;
             }
-            $date_string = implode(', ', $date_ranges);
             
-            $total_days = array_sum(array_column($leaves, 'days'));
             $reason = !empty($first_leave->reason) ? $first_leave->reason : 'No reason provided';
+            $request_count = count($leaves);
             
             // Get manager email
             $manager_email = null;
@@ -551,8 +618,41 @@ class Leave_requests extends CI_Controller {
             if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
             $fromName = get_company_name();
             
+            // Build consolidated email content
+            $subject = 'New Leave Request - ' . $employee_name;
+            if ($request_count > 1) {
+                $subject .= ' (' . $request_count . ' requests)';
+            }
+            
+            $message = '<html><body>';
+            $message .= '<h3>New Leave Request</h3>';
+            $message .= '<p><strong>Employee:</strong> ' . htmlspecialchars($employee_name) . ' (' . htmlspecialchars($first_leave->user_email) . ')</p>';
+            $message .= '<p><strong>Leave Type:</strong> ' . htmlspecialchars($leave_type) . '</p>';
+            $message .= '<p><strong>Total Requests:</strong> ' . $request_count . '</p>';
+            $message .= '<p><strong>Total Days:</strong> ' . number_format($total_days, 1) . '</p>';
+            
+            // Add detailed leave breakdown
+            $message .= '<h4>Leave Details:</h4>';
+            $message .= '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
+            $message .= '<tr style="background-color: #f2f2f2;"><th>Date(s)</th><th>Days</th><th>Reason</th></tr>';
+            
+            foreach ($leave_details as $detail) {
+                $message .= '<tr>';
+                $message .= '<td>' . htmlspecialchars($detail['date']) . '</td>';
+                $message .= '<td>' . number_format($detail['days'], 1) . '</td>';
+                $message .= '<td>' . htmlspecialchars($detail['reason']) . '</td>';
+                $message .= '</tr>';
+            }
+            $message .= '</table>';
+            
+            $message .= '<p><strong>Status:</strong> Pending Approval</p>';
+            $message .= '<p>Please review and approve/reject this leave request from the <a href="' . site_url('leave/team') . '">Team Leaves</a> page.</p>';
+            $message .= '<p>Thank you.</p>';
+            $message .= '</body></html>';
+            
             // Email to Department Manager
             if ($manager_email) {
+                error_log('Leave notification: Sending consolidated email to manager: ' . $manager_email);
                 $this->email->clear(true);
                 $this->email->from($fromAddr, $fromName);
                 $this->email->to($manager_email);
@@ -562,26 +662,15 @@ class Leave_requests extends CI_Controller {
                     $this->email->cc($admin_email);
                 }
                 
-                $subject = 'New Leave Request - ' . $employee_name;
-                $message = '<html><body>';
-                $message .= '<h3>New Leave Request</h3>';
-                $message .= '<p><strong>Employee:</strong> ' . htmlspecialchars($employee_name) . ' (' . htmlspecialchars($first_leave->user_email) . ')</p>';
-                $message .= '<p><strong>Leave Type:</strong> ' . htmlspecialchars($leave_type) . '</p>';
-                $message .= '<p><strong>Date(s):</strong> ' . htmlspecialchars($date_string) . '</p>';
-                $message .= '<p><strong>Total Days:</strong> ' . number_format($total_days, 1) . '</p>';
-                $message .= '<p><strong>Reason:</strong> ' . nl2br(htmlspecialchars($reason)) . '</p>';
-                $message .= '<p><strong>Status:</strong> Pending Approval</p>';
-                $message .= '<p>Please review and approve/reject this leave request from the <a href="' . site_url('leave/team') . '">Team Leaves</a> page.</p>';
-                $message .= '<p>Thank you.</p>';
-                $message .= '</body></html>';
-                
                 $this->email->subject($subject);
                 $this->email->message($message);
                 @$this->email->send();
+                error_log('Leave notification: Manager email sent successfully');
             }
             
             // Email to Admin (if admin is not the manager)
             if ($admin_email && $admin_email !== $manager_email) {
+                error_log('Leave notification: Sending consolidated email to admin: ' . $admin_email);
                 $this->email->clear(true);
                 $this->email->from($fromAddr, $fromName);
                 $this->email->to($admin_email);
@@ -591,30 +680,15 @@ class Leave_requests extends CI_Controller {
                     $this->email->cc($manager_email);
                 }
                 
-                $subject = 'New Leave Request - ' . $employee_name;
-                $message = '<html><body>';
-                $message .= '<h3>New Leave Request</h3>';
-                $message .= '<p><strong>Employee:</strong> ' . htmlspecialchars($employee_name) . ' (' . htmlspecialchars($first_leave->user_email) . ')</p>';
-                $message .= '<p><strong>Leave Type:</strong> ' . htmlspecialchars($leave_type) . '</p>';
-                $message .= '<p><strong>Date(s):</strong> ' . htmlspecialchars($date_string) . '</p>';
-                $message .= '<p><strong>Total Days:</strong> ' . number_format($total_days, 1) . '</p>';
-                $message .= '<p><strong>Reason:</strong> ' . nl2br(htmlspecialchars($reason)) . '</p>';
-                $message .= '<p><strong>Status:</strong> Pending Approval</p>';
-                if ($manager_name) {
-                    $message .= '<p><strong>Assigned Approver:</strong> ' . htmlspecialchars($manager_name) . '</p>';
-                }
-                $message .= '<p>Please review this leave request from the <a href="' . site_url('leave/team') . '">Team Leaves</a> page.</p>';
-                $message .= '<p>Thank you.</p>';
-                $message .= '</body></html>';
-                
                 $this->email->subject($subject);
                 $this->email->message($message);
                 @$this->email->send();
+                error_log('Leave notification: Admin email sent successfully');
             }
             
         } catch (Exception $e) {
-            // Silently fail - don't break the leave application process
-            error_log('Leave application email notification failed: ' . $e->getMessage());
+            // Log error but don't break the application
+            error_log('Leave notification email failed: ' . $e->getMessage());
         }
     }
 

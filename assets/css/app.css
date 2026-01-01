@@ -56,9 +56,10 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
   box-orient: vertical;
 }
 
-/* Kanban */
-.kanban-column { min-height: 200px; border: 1px dashed rgba(0,0,0,.08); border-radius: .5rem; padding: .5rem; background: #fff; }
-.kanban-card { background: #fff; border: 1px solid rgba(0,0,0,.06); border-radius: .5rem; padding: .5rem .6rem; margin-bottom: .5rem; cursor: grab; }
+/* Kanban - Basic fallback styles (detailed styles in tasks.css) */
+/* These are minimal fallbacks - tasks.css has the full implementation */
+.kanban-column { min-height: 200px; }
+.kanban-card { cursor: grab; }
 .kanban-card:active { cursor: grabbing; }
 .board-responsive .card { height: 100%; }
 

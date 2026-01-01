@@ -15,6 +15,12 @@ if (!(int)$this->session->userdata('user_id')) {
       <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
       <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
       <?php endif; ?>
+      <?php 
+      $role_id = (int)$this->session->userdata('role_id');
+      $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+      if ($is_admin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
       <?php endif; ?>
@@ -285,17 +291,20 @@ if (!(int)$this->session->userdata('user_id')) {
       $settings_group_show = function_exists('has_module_access') && (
         has_module_access('settings') ||
         has_module_access('permissions') ||
+        has_module_access('email_settings') ||
         has_module_access('db') ||
         has_module_access('reminders') ||
         has_module_access('activity') ||
         has_module_access('departments') ||
-        has_module_access('designations')
+        has_module_access('designations') ||
+        has_module_access('admin') ||
+        has_module_access('statuses')
       );
       ?>
       <?php if($settings_group_show): ?>
       <div class="nav-item" id="settings-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations']) ? 'active' : ''; ?>" href="#">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-gear me-2"></i>Settings
           </a>
           <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
@@ -307,8 +316,14 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
             <a class="submenu-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
+            <a class="submenu-link <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
             <a class="submenu-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
@@ -320,6 +335,12 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
             <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('statuses'))): ?>
+            <a class="submenu-link <?php echo $active==='statuses'?'active':''; ?>" href="<?php echo site_url('statuses'); ?>"><i class="bi bi-tags me-2"></i>Status Management</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
+            <a class="submenu-link <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>
             <?php endif; ?>
           </div>
         </div>
@@ -341,7 +362,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations']) ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });

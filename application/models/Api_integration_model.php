@@ -1,0 +1,107 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Api_integration_model extends CI_Model {
+    private $table = 'api_integrations';
+    
+    public function __construct() {
+        parent::__construct();
+        $this->load->database();
+        $this->ensure_schema();
+    }
+    
+    private function ensure_schema() {
+        if (!$this->db->table_exists($this->table)) {
+            $sql = "CREATE TABLE `{$this->table}` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `service_type` varchar(50) NOT NULL COMMENT 'sendgrid, whatsapp, smtp',
+                `service_name` varchar(100) NOT NULL,
+                `account_id` varchar(255) DEFAULT NULL COMMENT 'Account SID, API Key, etc.',
+                `auth_token` text DEFAULT NULL COMMENT 'Auth Token, API Secret, Password',
+                `from_email` varchar(255) DEFAULT NULL COMMENT 'For email services',
+                `from_name` varchar(255) DEFAULT NULL COMMENT 'For email services',
+                `from_number` varchar(50) DEFAULT NULL COMMENT 'For WhatsApp/SMS',
+                `content_sid` varchar(255) DEFAULT NULL COMMENT 'Twilio Content Template SID',
+                `is_active` tinyint(1) DEFAULT 1,
+                `is_default` tinyint(1) DEFAULT 0 COMMENT 'Default service for this type',
+                `notes` text DEFAULT NULL,
+                `created_at` datetime DEFAULT NULL,
+                `updated_at` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_service_type` (`service_type`),
+                KEY `idx_is_active` (`is_active`),
+                KEY `idx_is_default` (`is_default`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $this->db->query($sql);
+        }
+    }
+    
+    public function get_all($service_type = null) {
+        if ($service_type) {
+            $this->db->where('service_type', $service_type);
+        }
+        $this->db->order_by('service_type', 'ASC');
+        $this->db->order_by('is_default', 'DESC');
+        $this->db->order_by('service_name', 'ASC');
+        return $this->db->get($this->table)->result();
+    }
+    
+    public function get_by_id($id) {
+        return $this->db->where('id', (int)$id)->get($this->table)->row();
+    }
+    
+    public function get_default($service_type) {
+        $result = $this->db->where('service_type', $service_type)
+            ->where('is_default', 1)
+            ->where('is_active', 1)
+            ->get($this->table)
+            ->row();
+        
+        // If no default, get first active
+        if (!$result) {
+            $result = $this->db->where('service_type', $service_type)
+                ->where('is_active', 1)
+                ->limit(1)
+                ->get($this->table)
+                ->row();
+        }
+        
+        return $result;
+    }
+    
+    public function create($data) {
+        $data['created_at'] = date('Y-m-d H:i:s');
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        
+        // If this is set as default, unset other defaults for this service type
+        if (isset($data['is_default']) && $data['is_default'] == 1) {
+            $this->db->where('service_type', $data['service_type'])
+                ->update($this->table, ['is_default' => 0]);
+        }
+        
+        $this->db->insert($this->table, $data);
+        return $this->db->insert_id();
+    }
+    
+    public function update($id, $data) {
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        
+        // If this is set as default, unset other defaults for this service type
+        if (isset($data['is_default']) && $data['is_default'] == 1) {
+            $existing = $this->get_by_id($id);
+            if ($existing) {
+                $this->db->where('service_type', $existing->service_type)
+                    ->where('id !=', (int)$id)
+                    ->update($this->table, ['is_default' => 0]);
+            }
+        }
+        
+        $this->db->where('id', (int)$id)->update($this->table, $data);
+        return true;
+    }
+    
+    public function delete($id) {
+        return $this->db->where('id', (int)$id)->delete($this->table);
+    }
+}
+

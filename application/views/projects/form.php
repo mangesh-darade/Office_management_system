@@ -18,6 +18,13 @@
 </div>
 <?php endif; ?>
 
+<?php if ($this->session->flashdata('error')): ?>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<?php endif; ?>
+
 <div class="card shadow-soft my-3">
   <div class="card-body">
     <?php
@@ -39,21 +46,39 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Status</label>
-          <?php $st = isset($project) ? (string)$project->status : 'planned'; ?>
+          <?php $current_status = isset($project) ? (string)$project->status : 'planned'; ?>
           <select name="status" class="form-select">
-            <option value="planned" <?php echo $st==='planned'?'selected':''; ?>>Planned</option>
-            <option value="in_progress" <?php echo $st==='in_progress'?'selected':''; ?>>In Progress</option>
-            <option value="completed" <?php echo $st==='completed'?'selected':''; ?>>Completed</option>
-            <option value="on_hold" <?php echo $st==='on_hold'?'selected':''; ?>>On Hold</option>
+            <?php 
+            if (isset($statuses) && is_array($statuses) && !empty($statuses)): 
+              foreach ($statuses as $st): 
+                $selected = ($current_status === $st->code) ? 'selected' : '';
+            ?>
+              <option value="<?php echo htmlspecialchars($st->code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($st->name); ?></option>
+            <?php 
+              endforeach; 
+            else: 
+              // Fallback to hardcoded statuses if database is not available
+              $fallback_statuses = ['planned' => 'Planned', 'active' => 'Active', 'on_hold' => 'On Hold', 'completed' => 'Completed', 'cancelled' => 'Cancelled'];
+              foreach ($fallback_statuses as $code => $name):
+                $selected = ($current_status === $code) ? 'selected' : '';
+            ?>
+              <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($name); ?></option>
+            <?php 
+              endforeach; 
+            endif; 
+            ?>
           </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Start Date</label>
-          <input type="date" name="start_date" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->start_date) : ''; ?>">
+          <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->start_date) : ''; ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">End Date</label>
-          <input type="date" name="end_date" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->end_date) : ''; ?>">
+          <input type="date" name="end_date" id="end_date" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->end_date) : ''; ?>">
+          <div class="form-text text-danger" id="date-error" style="display: none;">
+            <small>End date must be on or after start date</small>
+          </div>
         </div>
       </div>
       <div class="mt-4 d-flex gap-2">
@@ -67,4 +92,47 @@
     </form>
   </div>
 </div>
+
+<script>
+  // Date validation: End date must be >= Start date
+  document.addEventListener('DOMContentLoaded', function() {
+    var startDateInput = document.getElementById('start_date');
+    var endDateInput = document.getElementById('end_date');
+    var dateError = document.getElementById('date-error');
+    var form = document.querySelector('form');
+    
+    function validateDates() {
+      if (startDateInput.value && endDateInput.value) {
+        var startDate = new Date(startDateInput.value);
+        var endDate = new Date(endDateInput.value);
+        
+        if (endDate < startDate) {
+          dateError.style.display = 'block';
+          endDateInput.classList.add('is-invalid');
+          return false;
+        } else {
+          dateError.style.display = 'none';
+          endDateInput.classList.remove('is-invalid');
+          return true;
+        }
+      }
+      dateError.style.display = 'none';
+      endDateInput.classList.remove('is-invalid');
+      return true;
+    }
+    
+    if (startDateInput) startDateInput.addEventListener('change', validateDates);
+    if (endDateInput) endDateInput.addEventListener('change', validateDates);
+    
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        if (!validateDates()) {
+          e.preventDefault();
+          return false;
+        }
+      });
+    }
+  });
+</script>
+
 <?php $this->load->view('partials/footer'); ?>

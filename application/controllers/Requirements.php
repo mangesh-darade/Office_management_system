@@ -85,6 +85,19 @@ class Requirements extends CI_Controller {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql3);
         }
+        if (!$this->db->table_exists('requirement_comments')){
+            $sql4 = "CREATE TABLE `requirement_comments` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `requirement_id` int(11) NOT NULL,
+                `user_id` int(11) NOT NULL,
+                `comment` text NOT NULL,
+                `created_at` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_req_comment` (`requirement_id`),
+                KEY `idx_user_comment` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $this->db->query($sql4);
+        }
         // Add missing columns to versions as well
         if ($this->db->table_exists('requirement_versions')){
             $vfields = $this->db->list_fields('requirement_versions');
@@ -121,6 +134,16 @@ class Requirements extends CI_Controller {
                 redirect('requirements/create');
                 return;
             }
+            $received_date = $this->input->post('received_date') ?: date('Y-m-d');
+            $expected_delivery_date = $this->input->post('expected_delivery_date') ?: null;
+            
+            // Server-side date validation
+            if ($received_date && $expected_delivery_date && $expected_delivery_date < $received_date) {
+                $this->session->set_flashdata('error', 'Expected delivery date must be on or after received date.');
+                redirect('requirements/create');
+                return;
+            }
+            
             $data = [
                 'req_number' => $this->generate_req_number(),
                 'client_id' => (int)$this->input->post('client_id'),
@@ -130,9 +153,8 @@ class Requirements extends CI_Controller {
                 'requirement_type' => $this->input->post('requirement_type') ?: 'new_feature',
                 'priority' => $this->input->post('priority') ?: 'medium',
                 'status' => $this->input->post('status') ?: 'received',
-                'budget_estimate' => $this->input->post('budget_estimate') !== '' ? (float)$this->input->post('budget_estimate') : null,
-                'expected_delivery_date' => $this->input->post('expected_delivery_date') ?: null,
-                'received_date' => $this->input->post('received_date') ?: date('Y-m-d'),
+                'expected_delivery_date' => $expected_delivery_date,
+                'received_date' => $received_date,
                 'owner_id' => (int)$owner_raw,
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'created_by' => (int)$this->session->userdata('user_id'),
@@ -142,6 +164,85 @@ class Requirements extends CI_Controller {
             $id = $this->requirements->create_requirement($data);
             // create initial version 1
             $this->requirements->create_version($id, 1, $data);
+            
+            // Send notification to owner and assigned_to when requirement is created (both in-app and email)
+            $notify_users = [];
+            if (isset($data['owner_id']) && (int)$data['owner_id'] > 0) {
+                $notify_users[] = (int)$data['owner_id'];
+            }
+            if (isset($data['assigned_to']) && (int)$data['assigned_to'] > 0 && !in_array((int)$data['assigned_to'], $notify_users)) {
+                $notify_users[] = (int)$data['assigned_to'];
+            }
+            
+            if (!empty($notify_users)) {
+                $req_number = isset($data['req_number']) ? $data['req_number'] : 'REQ-'.date('Y').'-'.str_pad($id, 5, '0', STR_PAD_LEFT);
+                $req_title = isset($data['title']) ? mb_substr($data['title'], 0, 50) : 'New Requirement';
+                $view_url = site_url('requirements/view/'.$id);
+                
+                // Load Reminder model for email notifications
+                $this->load->model('Reminder_model', 'reminders');
+                $this->reminders->ensure_schema();
+                
+                foreach ($notify_users as $uid) {
+                    // Get user email
+                    $user_email = '';
+                    $user_name = '';
+                    if ($this->db->table_exists('users')) {
+                        $sel = ['email'];
+                        if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+                        if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                        if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { 
+                            $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; 
+                        }
+                        $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id', (int)$uid)->get()->row();
+                        if ($u) {
+                            $user_email = isset($u->email) ? $u->email : '';
+                            if (isset($u->full_label) && $u->full_label !== '') { $user_name = $u->full_label; }
+                            else if (isset($u->full_name) && $u->full_name !== '') { $user_name = $u->full_name; }
+                            else if (isset($u->name) && $u->name !== '') { $user_name = $u->name; }
+                            else { $user_name = $user_email; }
+                        }
+                    }
+                    
+                    // In-app notification
+                    if ($this->db->table_exists('notifications')) {
+                        $this->db->insert('notifications', [
+                            'user_id' => $uid,
+                            'type' => 'system',
+                            'title' => 'New requirement assigned: '.$req_number,
+                            'body' => 'You have been assigned to requirement: '.$req_title,
+                            'channel' => 'in_app',
+                            'created_at' => date('Y-m-d H:i:s')
+                        ]);
+                    }
+                    
+                    // Email notification (queue via Reminder system)
+                    if ($user_email !== '') {
+                        $email_subject = 'New Requirement Assigned: '.$req_number;
+                        $email_body = "Hello ".$user_name.",\n\n";
+                        $email_body .= "You have been assigned to a new requirement:\n\n";
+                        $email_body .= "Requirement Number: ".$req_number."\n";
+                        $email_body .= "Title: ".$req_title."\n";
+                        if (isset($data['priority'])) {
+                            $email_body .= "Priority: ".ucfirst($data['priority'])."\n";
+                        }
+                        if (isset($data['expected_delivery_date'])) {
+                            $email_body .= "Expected Delivery: ".$data['expected_delivery_date']."\n";
+                        }
+                        $email_body .= "\nView requirement: ".$view_url."\n\n";
+                        $email_body .= "Thank you.";
+                        
+                        $this->reminders->enqueue([
+                            'user_id' => $uid,
+                            'email' => $user_email,
+                            'type' => 'requirement_assigned',
+                            'subject' => $email_subject,
+                            'body' => $email_body,
+                            'send_at' => date('Y-m-d H:i:00') // Send immediately (or queue for cron)
+                        ]);
+                    }
+                }
+            }
             // attachments (optional)
             if (!empty($_FILES['attachments']['name'][0])){
                 $upload_path = FCPATH.'uploads/requirements/';
@@ -183,7 +284,17 @@ class Requirements extends CI_Controller {
         $members = $this->requirements->get_team_members();
         $projects = [];
         if ($this->db->table_exists('projects')) { $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result(); }
-        $this->load->view('requirements/create', ['clients'=>$clients,'members'=>$members,'projects'=>$projects]);
+        
+        // Load statuses from database
+        $this->load->model('Status_model', 'statuses');
+        $statuses_list = $this->statuses->get_by_type('requirements', true);
+        
+        $this->load->view('requirements/create', [
+            'clients'=>$clients,
+            'members'=>$members,
+            'projects'=>$projects,
+            'statuses'=>$statuses_list
+        ]);
     }
 
     // GET/POST /requirements/edit/{id}
@@ -197,6 +308,16 @@ class Requirements extends CI_Controller {
                 redirect('requirements/edit/'.$id);
                 return;
             }
+            $received_date = $this->input->post('received_date') ?: $row->received_date;
+            $expected_delivery_date = $this->input->post('expected_delivery_date') ?: null;
+            
+            // Server-side date validation
+            if ($received_date && $expected_delivery_date && $expected_delivery_date < $received_date) {
+                $this->session->set_flashdata('error', 'Expected delivery date must be on or after received date.');
+                redirect('requirements/edit/'.$id);
+                return;
+            }
+            
             $data = [
                 'client_id' => (int)$this->input->post('client_id'),
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,
@@ -205,13 +326,17 @@ class Requirements extends CI_Controller {
                 'requirement_type' => $this->input->post('requirement_type') ?: $row->requirement_type,
                 'priority' => $this->input->post('priority') ?: $row->priority,
                 'status' => $this->input->post('status') ?: $row->status,
-                'budget_estimate' => $this->input->post('budget_estimate') !== '' ? (float)$this->input->post('budget_estimate') : null,
-                'expected_delivery_date' => $this->input->post('expected_delivery_date') ?: null,
-                'received_date' => $this->input->post('received_date') ?: $row->received_date,
+                'expected_delivery_date' => $expected_delivery_date,
+                'received_date' => $received_date,
                 'owner_id' => $this->input->post('owner_id') !== '' ? (int)$this->input->post('owner_id') : null,
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
+            // Check if status changed
+            $old_status = $row->status;
+            $new_status = $data['status'] ?: $row->status;
+            $status_changed = ($old_status !== $new_status);
+            
             $this->requirements->update_requirement((int)$id, $data);
             // compute next version number
             $nextVer = $this->requirements->next_version_no((int)$id);
@@ -219,6 +344,89 @@ class Requirements extends CI_Controller {
             $verData['created_by'] = (int)$this->session->userdata('user_id');
             $verData['created_at'] = date('Y-m-d H:i:s');
             $this->requirements->create_version((int)$id, $nextVer, $verData);
+            
+            // Send notifications if status changed (both in-app and email)
+            if ($status_changed) {
+                $notify_users = [];
+                // Notify owner
+                if (isset($row->owner_id) && (int)$row->owner_id > 0) {
+                    $notify_users[] = (int)$row->owner_id;
+                }
+                // Notify assigned_to
+                if (isset($row->assigned_to) && (int)$row->assigned_to > 0 && !in_array((int)$row->assigned_to, $notify_users)) {
+                    $notify_users[] = (int)$row->assigned_to;
+                }
+                // Notify creator
+                if (isset($row->created_by) && (int)$row->created_by > 0 && !in_array((int)$row->created_by, $notify_users)) {
+                    $notify_users[] = (int)$row->created_by;
+                }
+                
+                $req_number = isset($row->req_number) ? $row->req_number : '#'.$id;
+                $req_title = isset($row->title) ? mb_substr($row->title, 0, 50) : 'Requirement';
+                $status_from = ucwords(str_replace('_', ' ', $old_status));
+                $status_to = ucwords(str_replace('_', ' ', $new_status));
+                $view_url = site_url('requirements/view/'.$id);
+                
+                // Load Reminder model for email notifications
+                $this->load->model('Reminder_model', 'reminders');
+                $this->reminders->ensure_schema();
+                
+                foreach ($notify_users as $uid) {
+                    // Get user email
+                    $user_email = '';
+                    $user_name = '';
+                    if ($this->db->table_exists('users')) {
+                        $sel = ['email'];
+                        if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+                        if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                        if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { 
+                            $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; 
+                        }
+                        $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id', (int)$uid)->get()->row();
+                        if ($u) {
+                            $user_email = isset($u->email) ? $u->email : '';
+                            if (isset($u->full_label) && $u->full_label !== '') { $user_name = $u->full_label; }
+                            else if (isset($u->full_name) && $u->full_name !== '') { $user_name = $u->full_name; }
+                            else if (isset($u->name) && $u->name !== '') { $user_name = $u->name; }
+                            else { $user_name = $user_email; }
+                        }
+                    }
+                    
+                    // In-app notification
+                    if ($this->db->table_exists('notifications')) {
+                        $this->db->insert('notifications', [
+                            'user_id' => $uid,
+                            'type' => 'system',
+                            'title' => 'Requirement status changed: '.$req_number,
+                            'body' => 'Status changed from "'.$status_from.'" to "'.$status_to.'" for: '.$req_title,
+                            'channel' => 'in_app',
+                            'created_at' => date('Y-m-d H:i:s')
+                        ]);
+                    }
+                    
+                    // Email notification (queue via Reminder system)
+                    if ($user_email !== '') {
+                        $email_subject = 'Requirement Status Changed: '.$req_number;
+                        $email_body = "Hello ".$user_name.",\n\n";
+                        $email_body .= "The status of requirement ".$req_number." has been changed:\n\n";
+                        $email_body .= "Requirement: ".$req_title."\n";
+                        $email_body .= "Previous Status: ".$status_from."\n";
+                        $email_body .= "New Status: ".$status_to."\n\n";
+                        $email_body .= "View requirement: ".$view_url."\n\n";
+                        $email_body .= "Thank you.";
+                        
+                        $this->reminders->enqueue([
+                            'user_id' => $uid,
+                            'email' => $user_email,
+                            'type' => 'requirement_status_change',
+                            'subject' => $email_subject,
+                            'body' => $email_body,
+                            'send_at' => date('Y-m-d H:i:00') // Send immediately (or queue for cron)
+                        ]);
+                    }
+                }
+            }
+            
             $this->session->set_flashdata('success','Requirement updated');
             redirect('requirements/view/'.$id);
             return;
@@ -227,7 +435,18 @@ class Requirements extends CI_Controller {
         $members = $this->requirements->get_team_members();
         $projects = [];
         if ($this->db->table_exists('projects')) { $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result(); }
-        $this->load->view('requirements/edit', ['row'=>$row,'clients'=>$clients,'members'=>$members,'projects'=>$projects]);
+        
+        // Load statuses from database
+        $this->load->model('Status_model', 'statuses');
+        $statuses_list = $this->statuses->get_by_type('requirements', true);
+        
+        $this->load->view('requirements/edit', [
+            'row'=>$row,
+            'clients'=>$clients,
+            'members'=>$members,
+            'projects'=>$projects,
+            'statuses'=>$statuses_list
+        ]);
     }
 
     // GET /requirements/view/{id}
@@ -237,10 +456,12 @@ class Requirements extends CI_Controller {
         $attachments = $this->requirements->get_attachments((int)$id);
         $type = $this->input->get('type');
         $versions = $this->requirements->get_versions((int)$id, $type);
+        $comments = $this->requirements->get_requirement_comments((int)$id);
         $this->load->view('requirements/view', [
             'req'=>$req,
             'attachments'=>$attachments,
             'versions'=>$versions,
+            'comments'=>$comments,
             'type_filter'=>$type
         ]);
     }
@@ -307,5 +528,90 @@ class Requirements extends CI_Controller {
         }
         fclose($out);
         exit;
+    }
+
+    // POST /requirements/{requirement_id}/comment
+    public function add_comment($requirement_id)
+    {
+        $requirement_id = (int)$requirement_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        if (!$user_id) { redirect('auth/login'); return; }
+        if ($this->input->method() !== 'post') { show_404(); }
+
+        $req = $this->requirements->get_requirement($requirement_id);
+        if (!$req) { show_404(); }
+        $comment = trim((string)$this->input->post('comment'));
+        if ($comment === '') {
+            $this->session->set_flashdata('error', 'Comment cannot be empty.');
+            redirect('requirements/view/'.$requirement_id);
+            return;
+        }
+        $this->requirements->add_comment($requirement_id, $user_id, $comment);
+        $this->load->helper('activity');
+        log_activity('requirements', 'commented', (int)$requirement_id, mb_substr($comment, 0, 120));
+
+        // Notify owner and assigned_to if exists and not self
+        $notify_users = [];
+        if (isset($req->owner_id) && (int)$req->owner_id > 0 && (int)$req->owner_id !== $user_id) {
+            $notify_users[] = (int)$req->owner_id;
+        }
+        if (isset($req->assigned_to) && (int)$req->assigned_to > 0 && (int)$req->assigned_to !== $user_id && !in_array((int)$req->assigned_to, $notify_users)) {
+            $notify_users[] = (int)$req->assigned_to;
+        }
+        
+        if (!empty($notify_users) && $this->db->table_exists('notifications')) {
+            foreach ($notify_users as $uid) {
+                $this->db->insert('notifications', [
+                    'user_id' => $uid,
+                    'type' => 'task_assigned', // Reuse type
+                    'title' => 'New comment on requirement '.($req->req_number ?: '#'.$requirement_id),
+                    'body' => mb_substr($comment, 0, 200),
+                    'channel' => 'in_app',
+                    'created_at' => date('Y-m-d H:i:s')
+                ]);
+            }
+        }
+
+        $this->session->set_flashdata('success', 'Comment added.');
+        redirect('requirements/view/'.$requirement_id);
+    }
+
+    // GET /requirements/{requirement_id}/comments (AJAX JSON)
+    public function get_comments($requirement_id)
+    {
+        $requirement_id = (int)$requirement_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        if (!$user_id) { $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'unauthorized'])); return; }
+        $req = $this->requirements->get_requirement($requirement_id);
+        if (!$req) { $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'not_found'])); return; }
+        $rows = $this->requirements->get_requirement_comments($requirement_id);
+        $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true,'comments'=>$rows]));
+    }
+
+    // POST /requirements/comment/{comment_id}/delete or GET mapped route
+    public function delete_comment($comment_id)
+    {
+        $comment_id = (int)$comment_id;
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!$user_id) { redirect('auth/login'); return; }
+
+        // If admin, allow delete unconditionally
+        if ($role_id === 1) {
+            $this->db->where('id', $comment_id)->delete('requirement_comments');
+            $this->session->set_flashdata('success', 'Comment deleted.');
+            $ref = $this->input->get('ref');
+            if ($ref) { redirect($ref); return; }
+            redirect('requirements');
+            return;
+        }
+
+        // Owner-only delete
+        $ok = $this->requirements->delete_comment($comment_id, $user_id);
+        if ($ok) { $this->session->set_flashdata('success', 'Comment deleted.'); }
+        else { $this->session->set_flashdata('error', 'Cannot delete this comment.'); }
+        $ref = $this->input->get('ref');
+        if ($ref) { redirect($ref); return; }
+        redirect('requirements');
     }
 }

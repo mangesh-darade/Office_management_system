@@ -5,9 +5,36 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter']);
+        $this->load->helper(['url','form','permission','group_filter','email_settings']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
+        $this->ensure_schema();
+    }
+
+    private function ensure_schema(){
+        if ($this->db->table_exists('tasks')){
+            $fields = $this->db->list_fields('tasks');
+            if (!in_array('requirement_id', $fields, true)) { 
+                $this->db->query("ALTER TABLE `tasks` ADD `requirement_id` INT(11) NULL AFTER `project_id`");
+                $this->db->query("ALTER TABLE `tasks` ADD INDEX `idx_tasks_requirement` (`requirement_id`)");
+            }
+            // Add priority if missing
+            if (!in_array('priority', $fields, true)) { 
+                $this->db->query("ALTER TABLE `tasks` ADD `priority` ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium' AFTER `status`");
+            }
+            // Add due_date if missing
+            if (!in_array('due_date', $fields, true)) { 
+                $this->db->query("ALTER TABLE `tasks` ADD `due_date` DATE NULL AFTER `status`");
+            }
+            // Add start_date if missing
+            if (!in_array('start_date', $fields, true)) { 
+                $this->db->query("ALTER TABLE `tasks` ADD `start_date` DATE NULL AFTER `status`");
+            }
+            // Add project_ids for multi-select support
+            if (!in_array('project_ids', $fields, true)) { 
+                $this->db->query("ALTER TABLE `tasks` ADD `project_ids` TEXT NULL AFTER `project_id`");
+            }
+        }
     }
 
     public function index() {
@@ -123,17 +150,40 @@ class Tasks extends CI_Controller {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
             $requirement_id = $this->input->post('requirement_id') !== '' ? (int)$this->input->post('requirement_id') : null;
+            // Handle multi-select projects
+            $project_ids = $this->input->post('project_ids');
+            $project_id = 0;
+            $project_ids_json = null;
+            if (is_array($project_ids) && !empty($project_ids)) {
+                $project_ids = array_map('intval', array_filter($project_ids));
+                if (!empty($project_ids)) {
+                    $project_id = $project_ids[0]; // First project for backward compatibility
+                    $project_ids_json = json_encode($project_ids);
+                }
+            } else {
+                // Fallback to single project_id if project_ids not provided
+                $project_id = (int)($this->input->post('project_id') ?: 0);
+                if ($project_id > 0) {
+                    $project_ids_json = json_encode([$project_id]);
+                }
+            }
+            
             $data = [
-                'project_id' => (int)($this->input->post('project_id') ?: 0),
+                'project_id' => $project_id,
+                'project_ids' => $project_ids_json,
+                'requirement_id' => $requirement_id,
                 'title' => trim($this->input->post('title')),
                 // Store HTML from editor as-is; display will sanitize allowed tags
                 'description' => $this->input->post('description'),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'status' => $this->input->post('status') ?: 'pending',
+                'priority' => $this->input->post('priority') ?: 'medium',
+                'start_date' => $this->input->post('start_date') ?: null,
+                'due_date' => $this->input->post('due_date') ?: null,
                 'created_by' => $user_id,
             ];
-            // If a requirement is selected, override the title with the requirement's title
-            if ($requirement_id) {
+            // If a requirement is selected, override the title with the requirement's title if title is empty
+            if ($requirement_id && empty($data['title'])) {
                 $reqTitleRow = $this->db->select('title')->from('requirements')->where('id', (int)$requirement_id)->get()->row();
                 if ($reqTitleRow && isset($reqTitleRow->title) && trim((string)$reqTitleRow->title) !== '') {
                     $data['title'] = (string)$reqTitleRow->title;
@@ -164,41 +214,59 @@ class Tasks extends CI_Controller {
             $id = $this->db->insert_id();
             $this->load->helper('activity');
             log_activity('tasks', 'created', (int)$id, 'Task: '.(string)$data['title']);
-            // Auto reminder to assignee if set
+            
+            // Send email notification using settings system
             if (isset($data['assigned_to']) && !empty($data['assigned_to'])){
-                $assignee_id = (int)$data['assigned_to'];
-                $email = '';
-                if ($this->db->table_exists('users')){
-                    $row = $this->db->select('email')->from('users')->where('id', $assignee_id)->get()->row();
-                    if ($row && isset($row->email)) { $email = $row->email; }
+                // Get task details for email
+                $task_details = $this->db->select('t.*, p.name as project_name')
+                    ->from('tasks t')
+                    ->join('projects p', 'p.id = t.project_id', 'left')
+                    ->where('t.id', $id)
+                    ->get()->row();
+                
+                if ($task_details) {
+                    $sent = send_notification_with_settings('tasks', 'created', $task_details, $task_details->assigned_to);
+                    
+                    if ($sent) {
+                        log_message('info', 'Task notification sent using settings system for task #' . $id);
+                    } else {
+                        log_message('info', 'Task notification disabled or failed for task #' . $id);
+                    }
                 }
-                if ($email !== ''){
-                    $this->load->model('Reminder_model','reminders');
-                    $this->reminders->ensure_schema();
-                    $subject = 'Task assigned: '.(string)$data['title'];
-                    $body = 'You have been assigned a task: '.(string)$data['title'].'\n\nOpen: '.site_url('tasks/'.$id);
-                    $this->reminders->enqueue([
-                        'user_id' => $assignee_id,
-                        'email' => $email,
-                        'type' => 'task_assigned',
-                        'subject' => $subject,
-                        'body' => $body,
-                        'send_at' => date('Y-m-d H:i:00')
-                    ]);
-                }
+                
+                // Also create reminder for backward compatibility
+                $this->load->model('Reminder_model','reminders');
+                $this->reminders->ensure_schema();
+                $subject = 'Task assigned: '.(string)$data['title'];
+                $body = 'You have been assigned a task: '.(string)$data['title'].'\n\nOpen: '.site_url('tasks/'.$id);
+                $this->reminders->enqueue([
+                    'user_id' => (int)$data['assigned_to'],
+                    'email' => get_user_email_by_id((int)$data['assigned_to']),
+                    'type' => 'task_assigned',
+                    'subject' => $subject,
+                    'body' => $body,
+                    'send_at' => date('Y-m-d H:i:00')
+                ]);
             }
             $this->session->set_flashdata('success', 'Task created');
             redirect('tasks/'.$id);
             return;
         }
         // GET: load projects, requirements, and users for dropdowns
-        $projects = $this->db->order_by('name','ASC')->get('projects')->result();
+        // Sort by name ascending, handling NULL/empty names
+        $projects = $this->db->select('id, name, code')
+                            ->from('projects')
+                            ->order_by('name IS NULL ASC', '', false)
+                            ->order_by('name', 'ASC')
+                            ->get()->result();
         $requirements = [];
         if ($this->db->table_exists('requirements')) {
-            $this->db->select('id, project_id, title')->from('requirements');
+            $this->db->select('id, project_id, title, req_number')->from('requirements');
             $this->db->order_by('title','ASC');
             $requirements = $this->db->get()->result();
         }
+        // Check if requirement_id is passed via query string
+        $preselected_requirement = $this->input->get('requirement_id') ? (int)$this->input->get('requirement_id') : null;
         // Prefer employee name when available
         if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
             $select = ['users.id','users.email'];
@@ -224,7 +292,213 @@ class Tasks extends CI_Controller {
                               ->order_by('email','ASC')
                               ->get()->result();
         }
-        $this->load->view('tasks/form', ['action' => 'create', 'projects' => $projects, 'users' => $users, 'requirements' => $requirements]);
+        $this->load->view('tasks/form', [
+            'action' => 'create', 
+            'projects' => $projects, 
+            'users' => $users, 
+            'requirements' => $requirements,
+            'preselected_requirement' => $preselected_requirement
+        ]);
+    }
+
+    // GET /tasks/{id}/preview
+    public function preview($id)
+    {
+        // Debug: Log the request
+        error_log("Preview method called with ID: " . $id);
+        
+        $this->db->from('tasks t');
+        $select = ['t.*'];
+        
+        // Join projects for name if available
+        if ($this->db->table_exists('projects')) {
+            if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+            $this->db->join('projects p','p.id = t.project_id','left');
+        }
+        
+        // Join users for assignee info
+        if ($this->db->table_exists('users')) {
+            $select[] = 'u.email AS assignee_email';
+            if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
+            if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+            $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+        }
+        
+        // Join employees for assignee employee name
+        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+            if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+            $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+        }
+        
+        // Join users for creator info
+        if ($this->db->table_exists('users')) {
+            $select[] = 'cu.email AS creator_email';
+            if ($this->db->field_exists('full_name','users')) { $select[] = 'cu.full_name AS creator_full_name'; }
+            if ($this->db->field_exists('name','users')) { $select[] = 'cu.name AS creator_name'; }
+            $this->db->join('users cu', 'cu.id = t.created_by', 'left');
+        }
+        
+        // Join requirements if requirement_id exists
+        if ($this->db->table_exists('requirements') && $this->db->field_exists('requirement_id', 'tasks')) {
+            $select[] = 'r.id AS requirement_id';
+            $select[] = 'r.req_number AS requirement_number';
+            $select[] = 'r.title AS requirement_title';
+            $select[] = 'r.status AS requirement_status';
+            $this->db->join('requirements r', 'r.id = t.requirement_id', 'left');
+        }
+        
+        $this->db->select(implode(',', $select));
+        $this->db->where('t.id', (int)$id);
+        $task = $this->db->get()->row();
+        
+        error_log("Task query result: " . ($task ? "Found task" : "Task not found"));
+        
+        if (!$task) {
+            error_log("Task not found, returning 404");
+            return $this->output->set_status_header(404)
+                ->set_content_type('application/json')
+                ->set_output(json_encode(['error' => 'Task not found']));
+        }
+        
+        // Visibility: non-admin group can only preview tasks assigned to them (or created_by them when available)
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        error_log("User permissions - ID: $user_id, Role: $role_id, Admin: " . ($is_admin ? 'Yes' : 'No'));
+        
+        if ($user_id && !$is_admin) {
+            $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
+            $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
+            error_log("Access check - Assigned: $assigned, Creator: $creator, User: $user_id");
+            
+            if ($assigned !== $user_id && $creator !== $user_id) { 
+                error_log("Access denied");
+                return $this->output->set_status_header(403)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(['error' => 'Access denied']));
+            }
+        }
+        
+        // Helper functions for names
+        $assigneeName = function($task) {
+            $name = '';
+            if (isset($task->emp_name) && trim((string)$task->emp_name) !== '') { $name = $task->emp_name; }
+            else if (isset($task->full_name) && trim((string)$task->full_name) !== '') { $name = $task->full_name; }
+            else if (isset($task->name) && trim((string)$task->name) !== '') { $name = $task->name; }
+            else if (isset($task->assignee_email)) { $name = $task->assignee_email; }
+            return trim((string)$name);
+        };
+        
+        $creatorName = function($task) {
+            $name = '';
+            if (isset($task->creator_full_name) && trim((string)$task->creator_full_name) !== '') { $name = $task->creator_full_name; }
+            else if (isset($task->creator_name) && trim((string)$task->creator_name) !== '') { $name = $task->creator_name; }
+            else if (isset($task->creator_email)) { $name = $task->creator_email; }
+            return trim((string)$name);
+        };
+        
+        // Generate preview HTML
+        $html = '<div class="task-preview">';
+        $html .= '<div class="row">';
+        $html .= '<div class="col-md-8">';
+        
+        // Task title and status
+        $html .= '<h4 class="mb-3">' . htmlspecialchars($task->title) . '</h4>';
+        $html .= '<div class="d-flex gap-2 mb-3">';
+        $status_labels = ['pending' => 'Pending', 'in_progress' => 'In Progress', 'completed' => 'Completed', 'blocked' => 'Blocked'];
+        $status_colors = ['pending' => 'secondary', 'in_progress' => 'info', 'completed' => 'success', 'blocked' => 'danger'];
+        $status = isset($task->status) ? $task->status : 'pending';
+        $html .= '<span class="badge bg-' . $status_colors[$status] . '">' . $status_labels[$status] . '</span>';
+        
+        if (isset($task->priority)) {
+            $priority_colors = ['low' => 'success', 'medium' => 'warning', 'high' => 'danger', 'urgent' => 'dark'];
+            $html .= '<span class="badge bg-' . $priority_colors[$task->priority] . '">Priority: ' . ucfirst($task->priority) . '</span>';
+        }
+        $html .= '</div>';
+        
+        // Description
+        if (!empty($task->description)) {
+            $allowed = '<p><br><strong><em><b><i><ul><ol><li><a><h1><h2><h3><h4><h5><h6>';
+            $desc = strip_tags($task->description, $allowed);
+            $html .= '<div class="task-description mb-4">' . $desc . '</div>';
+        }
+        
+        // Dates
+        $html .= '<div class="row mb-3">';
+        if (!empty($task->start_date)) {
+            $html .= '<div class="col-sm-6"><small class="text-muted">Start Date:</small><br><strong>' . date('M j, Y', strtotime($task->start_date)) . '</strong></div>';
+        }
+        if (!empty($task->due_date)) {
+            $html .= '<div class="col-sm-6"><small class="text-muted">Due Date:</small><br><strong>' . date('M j, Y', strtotime($task->due_date)) . '</strong></div>';
+        }
+        $html .= '</div>';
+        
+        // Attachment
+        if (!empty($task->attachment_path)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">Attachment:</small><br>';
+            $html .= '<a href="' . base_url($task->attachment_path) . '" target="_blank" class="btn btn-sm btn-outline-primary">';
+            $html .= '<i class="bi bi-file-earmark me-1"></i>View Attachment</a>';
+            $html .= '</div>';
+        }
+        
+        $html .= '</div>';
+        $html .= '<div class="col-md-4">';
+        
+        // Sidebar info
+        $html .= '<div class="card bg-light">';
+        $html .= '<div class="card-body">';
+        
+        // Task ID
+        $html .= '<div class="mb-3">';
+        $html .= '<small class="text-muted">Task ID:</small><br><strong>#' . $task->id . '</strong>';
+        $html .= '</div>';
+        
+        // Project
+        if (!empty($task->project_name)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">Project:</small><br><strong>' . htmlspecialchars($task->project_name) . '</strong>';
+            $html .= '</div>';
+        }
+        
+        // Requirement
+        if (!empty($task->requirement_title)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">Requirement:</small><br><strong>' . htmlspecialchars($task->requirement_title) . '</strong>';
+            $html .= '</div>';
+        }
+        
+        // Assignee
+        $assignee = $assigneeName($task);
+        if (!empty($assignee)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">Assigned to:</small><br><strong>' . htmlspecialchars($assignee) . '</strong>';
+            $html .= '</div>';
+        }
+        
+        // Creator
+        $creator = $creatorName($task);
+        if (!empty($creator)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">Created by:</small><br><strong>' . htmlspecialchars($creator) . '</strong>';
+            $html .= '</div>';
+        }
+        
+        // Created date
+        if (!empty($task->created_at)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">Created:</small><br><strong>' . date('M j, Y H:i', strtotime($task->created_at)) . '</strong>';
+            $html .= '</div>';
+        }
+        
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        error_log("Generated HTML length: " . strlen($html));
+        
+        return $this->output->set_content_type('text/html')->set_output($html);
     }
 
     // GET /tasks/{id}
@@ -261,6 +535,15 @@ class Tasks extends CI_Controller {
             $this->db->join('users cu', 'cu.id = t.created_by', 'left');
         }
         
+        // Join requirements if requirement_id exists
+        if ($this->db->table_exists('requirements') && $this->db->field_exists('requirement_id', 'tasks')) {
+            $select[] = 'r.id AS requirement_id';
+            $select[] = 'r.req_number AS requirement_number';
+            $select[] = 'r.title AS requirement_title';
+            $select[] = 'r.status AS requirement_status';
+            $this->db->join('requirements r', 'r.id = t.requirement_id', 'left');
+        }
+        
         $this->db->select(implode(',', $select));
         $this->db->where('t.id', (int)$id);
         $task = $this->db->get()->row();
@@ -288,18 +571,44 @@ class Tasks extends CI_Controller {
             show_error('You do not have permission to edit tasks.', 403);
         }
         
+        // Initialize variables
+        $requirements = [];
+        
         $task = $this->db->where('id', (int)$id)->get('tasks')->row();
         if (!$task) show_404();
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
+            // Handle multi-select projects
+            $project_ids = $this->input->post('project_ids');
+            $project_id = isset($task) ? (int)$task->project_id : 0;
+            $project_ids_json = null;
+            if (is_array($project_ids) && !empty($project_ids)) {
+                $project_ids = array_map('intval', array_filter($project_ids));
+                if (!empty($project_ids)) {
+                    $project_id = $project_ids[0]; // First project for backward compatibility
+                    $project_ids_json = json_encode($project_ids);
+                }
+            } else {
+                // Fallback to single project_id if project_ids not provided
+                $project_id = (int)($this->input->post('project_id') ?: $project_id);
+                if ($project_id > 0) {
+                    $project_ids_json = json_encode([$project_id]);
+                }
+            }
+            
             $data = [
-                'project_id' => (int)($this->input->post('project_id') ?: 0),
+                'project_id' => $project_id,
+                'project_ids' => $project_ids_json,
+                'requirement_id' => $this->input->post('requirement_id') !== '' ? (int)$this->input->post('requirement_id') : null,
                 'title' => trim($this->input->post('title')),
                 // Store HTML from editor
                 'description' => $this->input->post('description'),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'status' => $this->input->post('status') ?: 'pending',
+                'priority' => $this->input->post('priority') ?: 'medium',
+                'start_date' => $this->input->post('start_date') ?: null,
+                'due_date' => $this->input->post('due_date') ?: null,
             ];
             // Only set updated_by if the column exists in tasks table
             if ($this->db->field_exists('updated_by', 'tasks')) {
@@ -342,12 +651,84 @@ class Tasks extends CI_Controller {
             }
             $this->load->helper('activity');
             log_activity('tasks', 'updated', (int)$id, 'Task: '.(string)$data['title']);
+            
+            // Send email notification if assignee changed
+            $old_assignee_id = isset($task->assigned_to) ? (int)$task->assigned_to : null;
+            $new_assignee_id = isset($data['assigned_to']) ? (int)$data['assigned_to'] : null;
+            
+            if ($new_assignee_id && $new_assignee_id !== $old_assignee_id) {
+                $email = get_user_email_by_id($new_assignee_id);
+                
+                if ($email) {
+                    // Get updated task details with project info for email
+                    $task_details = $this->db->select('t.*, p.name as project_name')
+                        ->from('tasks t')
+                        ->join('projects p', 'p.id = t.project_id', 'left')
+                        ->where('t.id', $id)
+                        ->get()->row();
+                    
+                    if ($task_details) {
+                        $subject = 'Task Updated: ' . $task_details->title;
+                        $sent = send_task_notification($email, $subject, $task_details, 'updated');
+                        
+                        if ($sent) {
+                            log_message('info', 'Task update notification email sent to ' . $email . ' for task #' . $id);
+                        } else {
+                            log_message('error', 'Failed to send task update notification email to ' . $email . ' for task #' . $id);
+                        }
+                    }
+                }
+            }
+            
+            // Also send notification if status changed (to current assignee)
+            $old_status = isset($task->status) ? $task->status : 'pending';
+            $new_status = $data['status'];
+            
+            if ($old_status !== $new_status && $new_assignee_id) {
+                $email = get_user_email_by_id($new_assignee_id);
+                
+                if ($email) {
+                    // Get updated task details with project info for email
+                    $task_details = $this->db->select('t.*, p.name as project_name')
+                        ->from('tasks t')
+                        ->join('projects p', 'p.id = t.project_id', 'left')
+                        ->where('t.id', $id)
+                        ->get()->row();
+                    
+                    if ($task_details) {
+                        $subject = 'Task Status Changed: ' . $task_details->title;
+                        $sent = send_task_notification($email, $subject, $task_details, 'status_changed');
+                        
+                        if ($sent) {
+                            log_message('info', 'Task status change notification email sent to ' . $email . ' for task #' . $id);
+                        } else {
+                            log_message('error', 'Failed to send task status change notification email to ' . $email . ' for task #' . $id);
+                        }
+                    }
+                }
+            }
+            
             $this->session->set_flashdata('success', 'Task updated');
             redirect('tasks/'.$id);
             return;
         }
-        // GET: load projects and users for dropdowns
-        $projects = $this->db->order_by('name','ASC')->get('projects')->result();
+        // GET: load projects, requirements, and users for dropdowns
+        // Sort by name ascending, handling NULL/empty names
+        $projects = $this->db->select('id, name, code')
+                            ->from('projects')
+                            ->order_by('name IS NULL ASC', '', false)
+                            ->order_by('name', 'ASC')
+                            ->get()->result();
+        
+        // Load requirements
+        $requirements = [];
+        if ($this->db->table_exists('requirements')) {
+            $this->db->select('id, project_id, title, req_number')->from('requirements');
+            $this->db->order_by('title','ASC');
+            $requirements = $this->db->get()->result();
+        }
+        
+        // Load users
         if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
             $select = ['users.id','users.email'];
             if ($this->db->field_exists('name','users')) { $select[] = 'users.name'; }
@@ -372,7 +753,18 @@ class Tasks extends CI_Controller {
                               ->order_by('email','ASC')
                               ->get()->result();
         }
-        $this->load->view('tasks/form', ['action' => 'edit', 'task' => $task, 'projects' => $projects, 'users' => $users]);
+        // Load statuses from database
+        $this->load->model('Status_model', 'statuses');
+        $statuses_list = $this->statuses->get_by_type('tasks', true);
+        
+        $this->load->view('tasks/form', [
+            'action' => 'edit', 
+            'task' => $task, 
+            'projects' => $projects, 
+            'users' => $users, 
+            'requirements' => $requirements,
+            'statuses' => $statuses_list
+        ]);
     }
 
     // POST /tasks/{id}/delete
@@ -506,10 +898,107 @@ class Tasks extends CI_Controller {
         if (!$id || !in_array($status, ['pending','in_progress','completed','blocked'])) {
             return $this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Invalid input']));
         }
+        
+        // Get current task details before update
+        $task = $this->db->where('id', $id)->get('tasks')->row();
+        if (!$task) {
+            return $this->output->set_status_header(404)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Task not found']));
+        }
+        
+        $old_status = $task->status;
+        
+        // Update task status
         $this->db->where('id',$id)->update('tasks',['status'=>$status]);
         $this->load->helper('activity');
         log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$status);
+        
+        // Send email notification if status changed and task has assignee
+        if ($old_status !== $status && !empty($task->assigned_to)) {
+            $email = get_user_email_by_id($task->assigned_to);
+            
+            if ($email) {
+                // Get updated task details with project info for email
+                $task_details = $this->db->select('t.*, p.name as project_name')
+                    ->from('tasks t')
+                    ->join('projects p', 'p.id = t.project_id', 'left')
+                    ->where('t.id', $id)
+                    ->get()->row();
+                
+                if ($task_details) {
+                    $subject = 'Task Status Changed: ' . $task_details->title;
+                    $sent = send_task_notification($email, $subject, $task_details, 'status_changed');
+                    
+                    if ($sent) {
+                        log_message('info', 'Task status change notification email sent to ' . $email . ' for task #' . $id);
+                    } else {
+                        log_message('error', 'Failed to send task status change notification email to ' . $email . ' for task #' . $id);
+                    }
+                }
+            }
+        }
+        
         return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true]));
+    }
+
+    // POST /tasks/bulk-update-status
+    public function bulk_update_status()
+    {
+        if ($this->input->method() !== 'post') show_404();
+        
+        $task_ids = $this->input->post('task_ids');
+        $status = trim($this->input->post('status'));
+        
+        // Validate input
+        if (empty($task_ids) || !is_array($task_ids) || !in_array($status, ['pending','in_progress','completed','blocked'])) {
+            return $this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Invalid input']));
+        }
+        
+        // Filter and validate task IDs
+        $valid_ids = array_filter($task_ids, function($id) {
+            return is_numeric($id) && $id > 0;
+        });
+        
+        if (empty($valid_ids)) {
+            return $this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'No valid task IDs']));
+        }
+        
+        // Check permissions for each task
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        
+        if (!$is_admin && $user_id) {
+            // For non-admin users, verify they can update these tasks
+            $tasks = $this->db->where_in('id', $valid_ids)->get('tasks')->result();
+            $valid_ids = array_filter($valid_ids, function($id) use ($tasks, $user_id) {
+                foreach ($tasks as $task) {
+                    if ($task->id == $id) {
+                        return (int)$task->assigned_to === $user_id || (isset($task->created_by) && (int)$task->created_by === $user_id);
+                    }
+                }
+                return false;
+            });
+        }
+        
+        if (empty($valid_ids)) {
+            return $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Permission denied']));
+        }
+        
+        // Perform bulk update
+        $this->db->where_in('id', $valid_ids)->update('tasks', ['status' => $status]);
+        $updated_count = $this->db->affected_rows();
+        
+        // Log activity for each task
+        $this->load->helper('activity');
+        foreach ($valid_ids as $id) {
+            log_activity('tasks', 'bulk_status_changed', (int)$id, 'Bulk Status: '.$status);
+        }
+        
+        return $this->output->set_content_type('application/json')->set_output(json_encode([
+            'ok' => true, 
+            'updated' => $updated_count,
+            'message' => "Updated {$updated_count} tasks to {$status}"
+        ]));
     }
 
     // GET/POST /tasks/import
@@ -548,6 +1037,85 @@ class Tasks extends CI_Controller {
         $this->load->view('tasks/import');
     }
 
+    // POST /tasks/send-daily-summary
+    public function send_daily_summary()
+    {
+        if ($this->input->method() !== 'post') show_404();
+        
+        $user_id = (int)$this->input->post('user_id');
+        if (!$user_id) {
+            return $this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'User ID required']));
+        }
+        
+        // Get user's tasks ordered by priority
+        $tasks = get_user_tasks_by_priority($user_id);
+        
+        if (empty($tasks)) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true,'message'=>'No active tasks found']));
+        }
+        
+        // Get user email
+        $email = get_user_email_by_id($user_id);
+        if (!$email) {
+            return $this->output->set_status_header(404)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'User email not found']));
+        }
+        
+        // Send email with priority-ordered tasks
+        $subject = 'Your Daily Task Summary - ' . count($tasks) . ' Tasks';
+        $sent = send_multiple_tasks_notification($email, $subject, $tasks, 'daily_summary');
+        
+        if ($sent) {
+            log_message('info', 'Daily task summary sent to user ' . $user_id . ' (' . $email . ')');
+            return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true,'message'=>'Daily summary sent successfully']));
+        } else {
+            log_message('error', 'Failed to send daily task summary to user ' . $user_id . ' (' . $email . ')');
+            return $this->output->set_status_header(500)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Failed to send email']));
+        }
+    }
+
+    // GET /tasks/send-all-summaries (Admin only)
+    public function send_all_summaries()
+    {
+        // Check admin permission
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        
+        if (!$is_admin) {
+            show_error('Admin access required', 403);
+        }
+        
+        // Get all users with active tasks
+        $this->db->select('DISTINCT t.assigned_to, u.email');
+        $this->db->from('tasks t');
+        $this->db->join('users u', 'u.id = t.assigned_to', 'inner');
+        $this->db->where('t.status !=', 'completed');
+        $this->db->where('t.assigned_to IS NOT NULL');
+        $users = $this->db->get()->result();
+        
+        $sent_count = 0;
+        $failed_count = 0;
+        
+        foreach ($users as $user) {
+            $tasks = get_user_tasks_by_priority($user->assigned_to);
+            
+            if (!empty($tasks) && $user->email) {
+                $subject = 'Your Daily Task Summary - ' . count($tasks) . ' Tasks';
+                $sent = send_multiple_tasks_notification($user->email, $subject, $tasks, 'daily_summary');
+                
+                if ($sent) {
+                    $sent_count++;
+                    log_message('info', 'Daily summary sent to user ' . $user->assigned_to . ' (' . $user->email . ')');
+                } else {
+                    $failed_count++;
+                    log_message('error', 'Failed to send daily summary to user ' . $user->assigned_to . ' (' . $user->email . ')');
+                }
+            }
+        }
+        
+        $this->session->set_flashdata('success', "Daily summaries sent: $sent_count successful, $failed_count failed");
+        redirect('tasks');
+    }
+
     // POST /tasks/{task_id}/comment
     public function add_comment($task_id)
     {
@@ -558,6 +1126,7 @@ class Tasks extends CI_Controller {
 
         $task = $this->db->where('id', $task_id)->get('tasks')->row();
         if (!$task) { show_404(); }
+        
         $comment = trim((string)$this->input->post('comment'));
         if ($comment === '') {
             $this->session->set_flashdata('error', 'Comment cannot be empty.');

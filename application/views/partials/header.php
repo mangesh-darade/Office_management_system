@@ -94,6 +94,12 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
       <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
       <?php endif; ?>
+      <?php 
+      $role_id = (int)$this->session->userdata('role_id');
+      $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+      if ($is_admin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+      <?php endif; ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
@@ -259,12 +265,15 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('reminders') ||
         has_module_access('activity') ||
         has_module_access('departments') ||
-        has_module_access('designations')
+        has_module_access('designations') ||
+        has_module_access('admin') ||
+        has_module_access('statuses') ||
+        has_module_access('settings')
       );
       ?>
       <?php if($settings_group_show): ?>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
+        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations','statuses','api-integrations']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
         <div class="collapse" id="mobile-settings-submenu">
@@ -285,6 +294,12 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('statuses'))): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='statuses'?'active':''; ?>" href="<?php echo site_url('statuses'); ?>"><i class="bi bi-tags me-2"></i>Status Management</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>
             <?php endif; ?>
           </div>
         </div>

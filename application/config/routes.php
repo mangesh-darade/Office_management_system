@@ -118,19 +118,46 @@ $route['projects/(:num)/add-member'] = 'projects/add_member/$1';
 $route['projects/(:num)/remove-member/(:num)'] = 'projects/remove_member/$1/$2';
 $route['projects/(:num)/member/(:num)/role'] = 'projects/update_member_role/$1/$2';
 
+// System Settings
+$route['system-settings'] = 'system_settings/index';
+$route['system-settings/update-settings'] = 'system_settings/update_settings';
+$route['system-settings/permissions'] = 'system_settings/permissions';
+$route['system-settings/update-permissions'] = 'system_settings/update_permissions';
+$route['system-settings/user-access'] = 'system_settings/user_access';
+$route['system-settings/update-user-access'] = 'system_settings/update_user_access';
+$route['system-settings/success-screen'] = 'system_settings/success_screen';
+$route['system-settings/update-success-screen'] = 'system_settings/update_success_screen';
+
+// Email Settings
+$route['email-settings'] = 'email_settings/index';
+$route['email-settings/update'] = 'email_settings/update';
+$route['email-settings/user-preferences'] = 'email_settings/user_preferences';
+$route['email-settings/test-email'] = 'email_settings/test_email';
+
 // Tasks
 $route['tasks'] = 'tasks/index';
 $route['tasks/create'] = 'tasks/create';
 $route['tasks/(:num)'] = 'tasks/show/$1';
 $route['tasks/(:num)/edit'] = 'tasks/edit/$1';
 $route['tasks/(:num)/delete'] = 'tasks/delete/$1';
+$route['tasks/(:num)/preview'] = 'tasks/preview/$1';
 $route['tasks/import'] = 'tasks/import';
 $route['tasks/board'] = 'tasks/board';
 $route['tasks/update-status'] = 'tasks/update_status';
+$route['tasks/send-daily-summary'] = 'tasks/send_daily_summary';
+$route['tasks/send-all-summaries'] = 'tasks/send_all_summaries';
 // Task comments
 $route['tasks/(:num)/comment'] = 'tasks/add_comment/$1';
 $route['tasks/(:num)/comments'] = 'tasks/get_comments/$1';
 $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
+
+// Statuses Management
+$route['statuses'] = 'statuses/index';
+$route['statuses/create'] = 'statuses/create';
+$route['statuses/view/(:num)'] = 'statuses/view/$1';
+$route['statuses/edit/(:num)'] = 'statuses/edit/$1';
+$route['statuses/delete/(:num)'] = 'statuses/delete/$1';
+$route['statuses/(:num)'] = 'statuses/show/$1';
 
 // Permissions Manager
 $route['permissions'] = 'permissions/index';
@@ -201,6 +228,20 @@ $route['settings'] = 'settings/index';
 $route['settings/update'] = 'settings/update';
 $route['settings/upload-logo'] = 'settings/upload_logo';
 $route['settings/test-email'] = 'settings/test_email';
+// Leave Types Management
+$route['settings/leave-types'] = 'settings/leave_types';
+$route['settings/leave-types/create'] = 'settings/leave_types_create';
+$route['settings/leave-types/(:num)/edit'] = 'settings/leave_types_edit/$1';
+$route['settings/leave-types/(:num)/delete'] = 'settings/leave_types_delete/$1';
+$route['settings/leave-types/(:num)/restore'] = 'settings/leave_types_restore/$1';
+
+// API Integrations
+$route['api-integrations'] = 'api_integrations/index';
+$route['api-integrations/create'] = 'api_integrations/create';
+$route['api-integrations/store'] = 'api_integrations/store';
+$route['api-integrations/edit/(:num)'] = 'api_integrations/edit/$1';
+$route['api-integrations/update/(:num)'] = 'api_integrations/update/$1';
+$route['api-integrations/delete/(:num)'] = 'api_integrations/delete/$1';
 
 // DB Manager (MVC + AJAX)
 $route['db'] = 'db/index';
@@ -274,6 +315,12 @@ $route['mail/send'] = 'mail/send';
 $route['sendgrid'] = 'sendgrid/index';
 $route['sendgrid/send'] = 'sendgrid/send';
 $route['sendgrid/test'] = 'sendgrid/test';
+
+// WhatsApp Integration
+$route['whatsapp'] = 'whatsapp/index';
+$route['whatsapp/send'] = 'whatsapp/send';
+$route['whatsapp/send-task'] = 'whatsapp/send_task';
+$route['whatsapp/send-report'] = 'whatsapp/send_report';
 
 // Reminders
 $route['reminders'] = 'reminders/index';

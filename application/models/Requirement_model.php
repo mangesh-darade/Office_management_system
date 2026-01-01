@@ -150,4 +150,36 @@ class Requirement_model extends CI_Model {
                         ->limit(1)
                         ->get('requirement_versions')->row();
     }
+
+    // Comments
+    public function get_requirement_comments($requirement_id){
+        if (!$this->db->table_exists('requirement_comments')){ return []; }
+        $sel = ['c.*', 'u.email'];
+        if ($this->db->field_exists('name','users')) { $sel[] = 'u.name'; }
+        if ($this->db->field_exists('full_name','users')) { $sel[] = 'u.full_name'; }
+        $this->db->select(implode(', ', $sel))
+                 ->from('requirement_comments c')
+                 ->join('users u', 'u.id = c.user_id', 'left')
+                 ->where('c.requirement_id', (int)$requirement_id)
+                 ->order_by('c.created_at','DESC');
+        return $this->db->get()->result();
+    }
+
+    public function add_comment($requirement_id, $user_id, $comment){
+        if (!$this->db->table_exists('requirement_comments')){ return false; }
+        $this->db->insert('requirement_comments', [
+            'requirement_id' => (int)$requirement_id,
+            'user_id' => (int)$user_id,
+            'comment' => (string)$comment,
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
+        return (int)$this->db->insert_id();
+    }
+
+    public function delete_comment($comment_id, $user_id){
+        if (!$this->db->table_exists('requirement_comments')){ return false; }
+        // Allow owner to delete
+        $this->db->where(['id' => (int)$comment_id, 'user_id' => (int)$user_id])->delete('requirement_comments');
+        return $this->db->affected_rows() > 0;
+    }
 }

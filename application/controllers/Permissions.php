@@ -261,7 +261,10 @@ class Permissions extends CI_Controller {
                     'reminders_edit' => 'Edit Reminder',
                     'reminders_delete' => 'Delete Reminder',
                     'activity' => 'Activity Log',
-                    'mail' => 'Mail Configuration'
+                    'mail' => 'Mail Configuration',
+                    'whatsapp' => 'WhatsApp Integration',
+                    'statuses' => 'Status Management',
+                    'api_integrations' => 'API Integrations'
                 ]
             ]
         ];

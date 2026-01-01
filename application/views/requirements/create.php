@@ -62,24 +62,37 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Status</label>
-          <?php $statuses = array('received','under_review','approved','in_progress','completed','on_hold','rejected','cancelled'); ?>
           <select name="status" class="form-select">
-            <?php foreach ($statuses as $st): ?>
+            <?php 
+            if (isset($statuses) && is_array($statuses) && !empty($statuses)): 
+              foreach ($statuses as $st): 
+                $selected = ($st->code === 'received') ? 'selected' : '';
+            ?>
+              <option value="<?php echo htmlspecialchars($st->code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($st->name); ?></option>
+            <?php 
+              endforeach; 
+            else: 
+              // Fallback to hardcoded statuses if database is not available
+              $fallback_statuses = ['received','under_review','approved','in_progress','completed','on_hold','rejected','cancelled'];
+              foreach ($fallback_statuses as $st):
+            ?>
               <option value="<?php echo htmlspecialchars($st); ?>"><?php echo ucfirst(str_replace('_',' ',$st)); ?></option>
-            <?php endforeach; ?>
+            <?php 
+              endforeach; 
+            endif; 
+            ?>
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label">Expected Delivery</label>
-          <input type="date" name="expected_delivery_date" class="form-control">
-        </div>
-        <div class="col-md-3">
           <label class="form-label">Received Date</label>
-          <input type="date" name="received_date" class="form-control" value="<?php echo date('Y-m-d'); ?>">
+          <input type="date" name="received_date" id="received_date" class="form-control" value="<?php echo date('Y-m-d'); ?>">
         </div>
         <div class="col-md-3">
-          <label class="form-label">Budget (<?php echo 'INR'; ?>)</label>
-          <input type="number" step="0.01" name="budget_estimate" class="form-control">
+          <label class="form-label">Expected Delivery</label>
+          <input type="date" name="expected_delivery_date" id="expected_delivery_date" class="form-control">
+          <div class="form-text text-danger" id="date-error" style="display: none;">
+            <small>Expected delivery date must be on or after received date</small>
+          </div>
         </div>
         <div class="col-md-3">
           <label class="form-label">Owner <span class="text-danger">*</span></label>
@@ -124,16 +137,57 @@
 </div>
 
 <?php $this->load->view('partials/footer'); ?>
-<script src="https://cdn.ckeditor.com/4.21.0/standard-all/ckeditor.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
-  if (window.CKEDITOR){
-    CKEDITOR.replace('description', {
-      extraPlugins: 'table,autogrow',
-      autoGrow_minHeight: 200,
-      removePlugins: 'elementspath',
-      resize_enabled: true
-    });
-  }
+  // Initialize TinyMCE for description field
+  tinymce.init({
+    selector: '#description',
+    menubar: 'edit view insert format tools',
+    statusbar: true,
+    plugins: [
+      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+      'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount',
+      'textcolor', 'colorpicker', 'fontselect', 'fontsizeselect'
+    ],
+    toolbar: 'undo redo | formatselect | ' +
+      'bold italic underline strikethrough | forecolor backcolor | ' +
+      'alignleft aligncenter alignright alignjustify | ' +
+      'bullist numlist outdent indent | ' +
+      'removeformat | link image | code | fullscreen | help',
+    branding: false,
+    height: 400,
+    width: '100%',
+    convert_urls: false,
+    default_link_target: '_blank',
+    font_formats: 'Arial=arial,helvetica,sans-serif; Courier New=courier new,courier; Georgia=georgia,palatino; Helvetica=helvetica; Impact=impact,chicago; Tahoma=tahoma,arial,helvetica,sans-serif; Times New Roman=times new roman,times; Trebuchet MS=trebuchet ms,geneva; Verdana=verdana,geneva',
+    fontsize_formats: '8pt 10pt 12pt 14pt 16pt 18pt 24pt 36pt 48pt',
+    formats: {
+      bold: { inline: 'strong', classes: 'fw-bold' },
+      italic: { inline: 'em', classes: 'fst-italic' },
+      underline: { inline: 'u', classes: 'text-decoration-underline' },
+      strikethrough: { inline: 'del' }
+    },
+    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+    setup: function(editor) {
+      editor.on('init', function() {
+        editor.execCommand('FontName', false, 'Arial');
+        editor.execCommand('FontSize', false, '14pt');
+      });
+    }
+  });
+  
+  // Ensure content sync on submit
+  document.addEventListener('DOMContentLoaded', function() {
+    var form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', function() {
+        if (tinymce.get('description')) {
+          tinymce.get('description').save();
+        }
+      });
+    }
+  });
 
   function closeProjectModal(){
     var frame = document.getElementById('projectModalFrame');
@@ -193,4 +247,44 @@
       }
     });
   })();
+
+  // Date validation: Expected delivery date must be >= Received date
+  document.addEventListener('DOMContentLoaded', function() {
+    var receivedDateInput = document.getElementById('received_date');
+    var expectedDateInput = document.getElementById('expected_delivery_date');
+    var dateError = document.getElementById('date-error');
+    var form = document.querySelector('form');
+    
+    function validateDates() {
+      if (receivedDateInput && receivedDateInput.value && expectedDateInput && expectedDateInput.value) {
+        var receivedDate = new Date(receivedDateInput.value);
+        var expectedDate = new Date(expectedDateInput.value);
+        
+        if (expectedDate < receivedDate) {
+          if (dateError) dateError.style.display = 'block';
+          if (expectedDateInput) expectedDateInput.classList.add('is-invalid');
+          return false;
+        } else {
+          if (dateError) dateError.style.display = 'none';
+          if (expectedDateInput) expectedDateInput.classList.remove('is-invalid');
+          return true;
+        }
+      }
+      if (dateError) dateError.style.display = 'none';
+      if (expectedDateInput) expectedDateInput.classList.remove('is-invalid');
+      return true;
+    }
+    
+    if (receivedDateInput) receivedDateInput.addEventListener('change', validateDates);
+    if (expectedDateInput) expectedDateInput.addEventListener('change', validateDates);
+    
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        if (!validateDates()) {
+          e.preventDefault();
+          return false;
+        }
+      });
+    }
+  });
 </script>

@@ -39,12 +39,23 @@ class Projects extends CI_Controller {
         
         $embed = (bool)$this->input->get('embed');
         if ($this->input->method() === 'post') {
+            $code = trim($this->input->post('code'));
+            $start_date = $this->input->post('start_date') ?: null;
+            $end_date = $this->input->post('end_date') ?: null;
+            
+            // Server-side date validation
+            if ($start_date && $end_date && $end_date < $start_date) {
+                $this->session->set_flashdata('error', 'End date must be on or after start date.');
+                redirect('projects/create');
+                return;
+            }
+            
             $data = [
-                'code' => trim($this->input->post('code')),
+                'code' => $code !== '' ? $code : null, // Convert empty string to NULL to avoid UNIQUE constraint violation
                 'name' => trim($this->input->post('name')),
                 'status' => $this->input->post('status') ?: 'planned',
-                'start_date' => $this->input->post('start_date') ?: null,
-                'end_date' => $this->input->post('end_date') ?: null,
+                'start_date' => $start_date,
+                'end_date' => $end_date,
             ];
             $this->db->insert('projects', $data);
             $id = $this->db->insert_id();
@@ -71,7 +82,15 @@ class Projects extends CI_Controller {
             redirect('projects/'.$id);
             return;
         }
-        $this->load->view('projects/form', ['action' => 'create', 'embed' => $embed]);
+        // Load statuses from database
+        $this->load->model('Status_model', 'statuses');
+        $statuses_list = $this->statuses->get_by_type('projects', true);
+        
+        $this->load->view('projects/form', [
+            'action' => 'create', 
+            'embed' => $embed,
+            'statuses' => $statuses_list
+        ]);
     }
 
     // GET /projects/{id}
@@ -93,12 +112,23 @@ class Projects extends CI_Controller {
         $project = $this->db->where('id', (int)$id)->get('projects')->row();
         if (!$project) show_404();
         if ($this->input->method() === 'post') {
+            $code = trim($this->input->post('code'));
+            $start_date = $this->input->post('start_date') ?: null;
+            $end_date = $this->input->post('end_date') ?: null;
+            
+            // Server-side date validation
+            if ($start_date && $end_date && $end_date < $start_date) {
+                $this->session->set_flashdata('error', 'End date must be on or after start date.');
+                redirect('projects/'.$id.'/edit');
+                return;
+            }
+            
             $data = [
-                'code' => trim($this->input->post('code')),
+                'code' => $code !== '' ? $code : null, // Convert empty string to NULL to avoid UNIQUE constraint violation
                 'name' => trim($this->input->post('name')),
                 'status' => $this->input->post('status') ?: 'planned',
-                'start_date' => $this->input->post('start_date') ?: null,
-                'end_date' => $this->input->post('end_date') ?: null,
+                'start_date' => $start_date,
+                'end_date' => $end_date,
             ];
             $this->db->where('id', (int)$id)->update('projects', $data);
             $this->load->helper('activity');
@@ -107,7 +137,15 @@ class Projects extends CI_Controller {
             redirect('projects/'.$id);
             return;
         }
-        $this->load->view('projects/form', ['action' => 'edit', 'project' => $project]);
+        // Load statuses from database
+        $this->load->model('Status_model', 'statuses');
+        $statuses_list = $this->statuses->get_by_type('projects', true);
+        
+        $this->load->view('projects/form', [
+            'action' => 'edit', 
+            'project' => $project,
+            'statuses' => $statuses_list
+        ]);
     }
 
     // POST /projects/{id}/delete

@@ -78,6 +78,12 @@ $creatorName = $getDisplayName((object)[
         <li><a class="dropdown-item" href="<?php echo site_url('tasks'); ?>">
           <i class="bi bi-list me-2"></i>List View
         </a></li>
+        <?php if(function_exists('has_module_access') && has_module_access('whatsapp')): ?>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#" onclick="sendTaskViaWhatsApp(<?php echo (int)$task->id; ?>); return false;">
+          <i class="bi bi-whatsapp me-2"></i>Send via WhatsApp
+        </a></li>
+        <?php endif; ?>
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item text-danger" href="<?php echo site_url('tasks/'.$task->id.'/delete'); ?>" onclick="return confirm('Are you sure you want to delete this task?')">
           <i class="bi bi-trash me-2"></i>Delete Task
@@ -93,12 +99,27 @@ $creatorName = $getDisplayName((object)[
     <div class="row align-items-center">
       <div class="col-md-8">
         <h5 class="mb-1"><?php echo htmlspecialchars($task->title); ?></h5>
-        <?php if (!empty($task->project_name)): ?>
-          <div class="d-flex align-items-center gap-2 text-muted">
-            <i class="bi bi-folder"></i>
-            <span>Project: <?php echo htmlspecialchars($task->project_name); ?></span>
-          </div>
-        <?php endif; ?>
+        <div class="d-flex flex-wrap align-items-center gap-3 flex-column flex-md-row">
+          <?php if (!empty($task->project_name)): ?>
+            <div class="d-flex align-items-center gap-2 text-muted">
+              <i class="bi bi-folder text-primary"></i>
+              <span><strong>Project:</strong> <?php echo htmlspecialchars($task->project_name); ?></span>
+            </div>
+          <?php endif; ?>
+          <?php if (isset($task->requirement_id) && $task->requirement_id): ?>
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-link-45deg text-info"></i>
+              <span><strong>Requirement:</strong> 
+                <a href="<?php echo site_url('requirements/view/'.(int)$task->requirement_id); ?>" class="text-decoration-none">
+                  <?php echo htmlspecialchars(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
+                </a>
+                <?php if (isset($task->requirement_title)): ?>
+                  <span class="text-muted small">- <?php echo htmlspecialchars(mb_substr($task->requirement_title, 0, 50)); ?><?php echo mb_strlen($task->requirement_title) > 50 ? '...' : ''; ?></span>
+                <?php endif; ?>
+              </span>
+            </div>
+          <?php endif; ?>
+        </div>
       </div>
       <div class="col-md-4 text-end">
         <div class="btn-group" role="group">
@@ -223,6 +244,46 @@ $creatorName = $getDisplayName((object)[
               <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-folder text-primary"></i>
                 <span><?php echo htmlspecialchars($task->project_name); ?></span>
+              </div>
+            </div>
+          <?php endif; ?>
+          
+          <?php if (isset($task->requirement_id) && $task->requirement_id): ?>
+            <div>
+              <label class="text-muted small">Linked Requirement</label>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <i class="bi bi-link-45deg text-info"></i>
+                <a href="<?php echo site_url('requirements/view/'.(int)$task->requirement_id); ?>" class="text-decoration-none">
+                  <?php echo htmlspecialchars(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
+                </a>
+                <?php if (isset($task->requirement_status)): ?>
+                  <span class="badge bg-secondary small"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $task->requirement_status))); ?></span>
+                <?php endif; ?>
+              </div>
+            </div>
+          <?php endif; ?>
+          
+          <?php if (isset($task->start_date) && $task->start_date): ?>
+            <div>
+              <label class="text-muted small">Start Date</label>
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-calendar-event text-primary"></i>
+                <span><?php echo date('M j, Y', strtotime($task->start_date)); ?></span>
+              </div>
+            </div>
+          <?php endif; ?>
+          
+          <?php if (isset($task->due_date) && $task->due_date): ?>
+            <div>
+              <label class="text-muted small">Due Date</label>
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-calendar-check <?php echo strtotime($task->due_date) < strtotime('today') ? 'text-danger' : 'text-warning'; ?>"></i>
+                <span><?php echo date('M j, Y', strtotime($task->due_date)); ?></span>
+                <?php if (strtotime($task->due_date) < strtotime('today')): ?>
+                  <span class="badge bg-danger small">Overdue</span>
+                <?php elseif (strtotime($task->due_date) <= strtotime('+3 days')): ?>
+                  <span class="badge bg-warning small">Due Soon</span>
+                <?php endif; ?>
               </div>
             </div>
           <?php endif; ?>
@@ -435,6 +496,33 @@ function showNotification(message, type) {
   setTimeout(function() {
     alertDiv.remove();
   }, 5000);
+}
+
+// Send task via WhatsApp
+function sendTaskViaWhatsApp(taskId) {
+  if (!confirm('Send this task notification via WhatsApp to the assigned employee?')) {
+    return;
+  }
+  
+  fetch('<?php echo site_url('whatsapp/send-task'); ?>', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'task_id=' + taskId,
+    credentials: 'same-origin'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showNotification('✅ ' + data.message, 'success');
+    } else {
+      showNotification('❌ ' + data.message, 'error');
+    }
+  })
+  .catch(error => {
+    showNotification('❌ Network error. Please try again.', 'error');
+  });
 }
 </script>
 

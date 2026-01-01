@@ -96,6 +96,67 @@ if (!function_exists('can_access_any_module')) {
     }
 }
 
+if (!function_exists('add_permission')) {
+    /**
+     * Add a permission to the permissions table
+     * 
+     * @param string $module Module name
+     * @param int|array $role_ids Role ID(s) to grant access to
+     * @param bool $can_access Whether access is granted
+     * @return bool Success status
+     */
+    function add_permission($module, $role_ids, $can_access = true) {
+        $CI =& get_instance();
+        
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions')) {
+            return false;
+        }
+        
+        if (!is_array($role_ids)) {
+            $role_ids = array($role_ids);
+        }
+        
+        foreach ($role_ids as $role_id) {
+            $CI->db->replace('permissions', array(
+                'module' => strtolower(trim($module)),
+                'role_id' => (int)$role_id,
+                'can_access' => $can_access ? 1 : 0
+            ));
+        }
+        
+        return true;
+    }
+}
+
+if (!function_exists('remove_permission')) {
+    /**
+     * Remove a permission from the permissions table
+     * 
+     * @param string $module Module name
+     * @param int|array $role_ids Role ID(s) to remove access from
+     * @return bool Success status
+     */
+    function remove_permission($module, $role_ids) {
+        $CI =& get_instance();
+        
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions')) {
+            return false;
+        }
+        
+        if (!is_array($role_ids)) {
+            $role_ids = array($role_ids);
+        }
+        
+        foreach ($role_ids as $role_id) {
+            $CI->db->where('module', strtolower(trim($module)));
+            $CI->db->where('role_id', (int)$role_id);
+            $CI->db->delete('permissions');
+        }
+        
+        return true;
+    }
+}
+
 if (!function_exists('is_admin_group')) {
     function is_admin_group() {
         $CI =& get_instance();

@@ -16,17 +16,6 @@
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
-    <div class="btn-group" role="group">
-      <button type="button" class="btn btn-outline-secondary" id="filterProject">
-        <i class="bi bi-folder me-1"></i> Project
-      </button>
-      <button type="button" class="btn btn-outline-secondary" id="filterAssignee">
-        <i class="bi bi-person me-1"></i> Assignee
-      </button>
-      <button type="button" class="btn btn-outline-secondary" id="filterPriority">
-        <i class="bi bi-flag me-1"></i> Priority
-      </button>
-    </div>
     <a class="btn btn-primary" href="<?php echo site_url('tasks/create'); ?>">
       <i class="bi bi-plus-lg me-1"></i> New Task
     </a>
@@ -36,42 +25,7 @@
   </div>
 </div>
 
-<!-- Filter Dropdowns (Hidden by default) -->
-<div class="row mb-3" id="filterRow" style="display: none;">
-  <div class="col-12">
-    <div class="card card-body">
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Project</label>
-          <select class="form-select" id="projectFilter">
-            <option value="">All Projects</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Assignee</label>
-          <select class="form-select" id="assigneeFilter">
-            <option value="">All Assignees</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Priority</label>
-          <select class="form-select" id="priorityFilter">
-            <option value="">All Priorities</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-      </div>
-      <div class="d-flex gap-2 mt-3">
-        <button class="btn btn-primary btn-sm" id="applyFilters">Apply Filters</button>
-        <button class="btn btn-outline-secondary btn-sm" id="resetFilters">Reset</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-  <div class="kanban board-responsive">
+<div class="kanban board-responsive">
     <?php
       $labels = [
         'pending' => 'Pending',
@@ -104,7 +58,7 @@
     ?>
     <div class="row g-3">
       <?php foreach ($columns as $status => $items): ?>
-        <div class="col-12 col-md-6 col-lg-3">
+        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
           <div class="card shadow-sm kanban-column-card fade-in">
             <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
               <div class="d-flex align-items-center">
@@ -145,52 +99,65 @@
                     $created_date = isset($t->created_at) ? date('M j', strtotime($t->created_at)) : '';
                   ?>
                   <div class="kanban-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int)$t->id; ?>" data-status="<?php echo $status; ?>" data-priority="<?php echo $priority; ?>" data-project="<?php echo htmlspecialchars(isset($t->project_name) ? $t->project_name : ''); ?>" data-assignee="<?php echo htmlspecialchars($assignee); ?>" data-title="<?php echo htmlspecialchars($t->title); ?>">
-                    <div class="card-header d-flex justify-content-between align-items-center py-1">
-                      <div class="d-flex align-items-center">
-                        <span class="priority-indicator priority-<?php echo $priority; ?> me-2" title="Priority: <?php echo ucfirst($priority); ?>"></span>
-                        <span class="task-id text-muted small">#<?php echo (int)$t->id; ?></span>
-                      </div>
-                      <div class="dropdown">
-                        <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
-                          <i class="bi bi-three-dots"></i>
-                        </button>
-                        <ul class="dropdown-menu">
-                          <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id); ?>">
-                            <i class="bi bi-eye me-2"></i>View Details
-                          </a></li>
-                          <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>">
-                            <i class="bi bi-pencil me-2"></i>Edit
-                          </a></li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li><a class="dropdown-item text-danger" href="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" onclick="return confirm('Delete this task?')">
-                            <i class="bi bi-trash me-2"></i>Delete
-                          </a></li>
-                        </ul>
+                    <div class="kanban-card-header">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="priority-indicator priority-<?php echo $priority; ?>" title="Priority: <?php echo ucfirst($priority); ?>"></span>
+                          <span class="task-id text-muted small fw-mono">#<?php echo (int)$t->id; ?></span>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                          <button class="btn btn-sm btn-link text-muted p-0" type="button" onclick="showTaskPreview(<?php echo (int)$t->id; ?>)" title="Quick Preview">
+                            <i class="bi bi-eye"></i>
+                          </button>
+                          <div class="dropdown">
+                            <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                              <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                              <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id); ?>">
+                                <i class="bi bi-eye me-2"></i>View Details
+                              </a></li>
+                              <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                              </a></li>
+                              <li><hr class="dropdown-divider"></li>
+                              <li><a class="dropdown-item text-danger" href="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" onclick="return confirm('Delete this task?')">
+                                <i class="bi bi-trash me-2"></i>Delete
+                              </a></li>
+                            </ul>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div class="card-body py-2">
-                      <div class="fw-semibold mb-2 task-title">
+                    <div class="kanban-card-body">
+                      <h6 class="task-title mb-2">
                         <?php echo htmlspecialchars($t->title); ?>
-                      </div>
+                      </h6>
                       <?php if (!empty($t->description)): ?>
-                        <div class="text-muted small mb-2 task-description">
+                        <div class="task-description mb-2">
                           <?php 
                             $allowed = '<p><br><strong><em><b><i><ul><ol><li><a>';
                             $desc = isset($t->description) ? strip_tags($t->description, $allowed) : '';
-                            echo strlen($desc) > 100 ? substr($desc, 0, 100) . '...' : $desc;
+                            $desc = trim($desc);
+                            if (!empty($desc)) {
+                              echo strlen($desc) > 80 ? htmlspecialchars(substr($desc, 0, 80)) . '...' : htmlspecialchars($desc);
+                            }
                           ?>
                         </div>
                       <?php endif; ?>
+                    </div>
+                    <div class="kanban-card-footer">
                       <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
+                        <div class="d-flex align-items-center flex-wrap gap-1">
                           <?php if (!empty($t->project_name)): ?>
-                            <span class="project-chip me-2" title="Project: <?php echo htmlspecialchars($t->project_name); ?>">
-                              <i class="bi bi-folder me-1"></i><?php echo htmlspecialchars($t->project_name); ?>
+                            <span class="project-chip" title="Project: <?php echo htmlspecialchars($t->project_name); ?>">
+                              <i class="bi bi-folder me-1"></i>
+                              <span class="project-name"><?php echo htmlspecialchars(mb_substr($t->project_name, 0, 15)); ?><?php echo mb_strlen($t->project_name) > 15 ? '...' : ''; ?></span>
                             </span>
                           <?php endif; ?>
                           <?php if ($created_date): ?>
                             <span class="date-chip text-muted">
-                              <i class="bi bi-calendar me-1"></i><?php echo $created_date; ?>
+                              <i class="bi bi-calendar3 me-1"></i><?php echo $created_date; ?>
                             </span>
                           <?php endif; ?>
                         </div>
@@ -209,9 +176,101 @@
     </div>
   </div>
 
+  <!-- Task Preview Modal -->
+  <div class="modal fade" id="taskPreviewModal" tabindex="-1" aria-labelledby="taskPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title" id="taskPreviewModalLabel">
+            <i class="bi bi-eye me-2"></i>Task Preview
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="taskPreviewContent">
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading task details...</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="editTaskBtn">
+            <i class="bi bi-pencil me-1"></i>Edit Task
+          </button>
+          <button type="button" class="btn btn-info" id="viewTaskBtn">
+            <i class="bi bi-eye me-1"></i>Full Details
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let draggedId = null;
     let draggedElement = null;
+    let currentPreviewTask = null;
+    
+    // Task Preview functions
+    async function showTaskPreview(taskId) {
+      currentPreviewTask = taskId;
+      const modal = new bootstrap.Modal(document.getElementById('taskPreviewModal'));
+      const content = document.getElementById('taskPreviewContent');
+      
+      // Reset content to loading state
+      content.innerHTML = `
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2 text-muted">Loading task details...</p>
+        </div>
+      `;
+      
+      // Show modal
+      modal.show();
+      
+      try {
+        const res = await fetch('<?php echo site_url('tasks/' . ''); ?>' + taskId + '/preview', {
+          method: 'GET',
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'text/html',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
+        
+        console.log('Response status:', res.status);
+        console.log('Response ok:', res.ok);
+        
+        if (res.ok) {
+          const html = await res.text();
+          console.log('Response HTML length:', html.length);
+          content.innerHTML = html;
+          
+          // Update modal footer buttons
+          document.getElementById('editTaskBtn').onclick = () => {
+            window.location.href = '<?php echo site_url('tasks/'); ?>' + taskId + '/edit';
+          };
+          document.getElementById('viewTaskBtn').onclick = () => {
+            window.location.href = '<?php echo site_url('tasks/'); ?>' + taskId;
+          };
+        } else {
+          console.error('Response not ok:', res.status, res.statusText);
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+      } catch (error) {
+        console.error('Preview error:', error);
+        content.innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Failed to load task details: ${error.message}
+            <br><small>Please try again or contact support.</small>
+          </div>
+        `;
+      }
+    }
     
     function handleDragStart(e){
       draggedId = e.target?.dataset?.id || null;
@@ -273,10 +332,18 @@
     function updateColumnCounts() {
       ['pending', 'in_progress', 'completed', 'blocked'].forEach(status => {
         const column = document.querySelector(`.kanban-column[data-status="${status}"]`);
-        const count = column.querySelectorAll('.kanban-card').length;
+        if (!column) return;
+        // Count only visible cards (not hidden by search)
+        const cards = column.querySelectorAll('.kanban-card');
+        let visibleCount = 0;
+        cards.forEach(card => {
+          if (card.style.display !== 'none') {
+            visibleCount++;
+          }
+        });
         const badge = document.getElementById(`count-${status}`);
         if (badge) {
-          badge.textContent = count;
+          badge.textContent = visibleCount;
         }
       });
     }
@@ -296,98 +363,7 @@
       }, 5000);
     }
     
-    // Search functionality
-    document.getElementById('searchTasks').addEventListener('input', function(e) {
-      const searchTerm = e.target.value.toLowerCase();
-      document.querySelectorAll('.kanban-card').forEach(card => {
-        const title = card.dataset.title?.toLowerCase() || '';
-        const project = card.dataset.project?.toLowerCase() || '';
-        const assignee = card.dataset.assignee?.toLowerCase() || '';
-        
-        if (title.includes(searchTerm) || project.includes(searchTerm) || assignee.includes(searchTerm)) {
-          card.style.display = '';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    });
-    
-    document.getElementById('clearSearch').addEventListener('click', function() {
-      document.getElementById('searchTasks').value = '';
-      document.getElementById('searchTasks').dispatchEvent(new Event('input'));
-    });
-    
-    // Filter toggle and functionality
-    let filterRowVisible = false;
-    document.getElementById('filterProject').addEventListener('click', function() {
-      filterRowVisible = !filterRowVisible;
-      document.getElementById('filterRow').style.display = filterRowVisible ? 'block' : 'none';
-    });
-    
-    // Populate filter dropdowns
-    document.addEventListener('DOMContentLoaded', function() {
-      // Populate projects
-      <?php if (isset($projects)): ?>
-        const projectFilter = document.getElementById('projectFilter');
-        <?php foreach ($projects as $project): ?>
-          const option = document.createElement('option');
-          option.value = '<?php echo $project->id; ?>';
-          option.textContent = '<?php echo htmlspecialchars($project->name); ?>';
-          projectFilter.appendChild(option);
-        <?php endforeach; ?>
-        <?php if ($filter_project_id): ?>
-          projectFilter.value = '<?php echo $filter_project_id; ?>';
-        <?php endif; ?>
-      <?php endif; ?>
-      
-      // Populate assignees
-      <?php if (isset($assignees)): ?>
-        const assigneeFilter = document.getElementById('assigneeFilter');
-        <?php foreach ($assignees as $assignee): ?>
-          <?php 
-            $name = '';
-            if (isset($assignee->emp_name) && trim((string)$assignee->emp_name) !== '') { $name = $assignee->emp_name; }
-            else if (isset($assignee->full_name) && trim((string)$assignee->full_name) !== '') { $name = $assignee->full_name; }
-            else if (isset($assignee->name) && trim((string)$assignee->name) !== '') { $name = $assignee->name; }
-            else { $name = $assignee->email; }
-          ?>
-          const option = document.createElement('option');
-          option.value = '<?php echo $assignee->id; ?>';
-          option.textContent = '<?php echo htmlspecialchars($name); ?>';
-          assigneeFilter.appendChild(option);
-        <?php endforeach; ?>
-        <?php if ($filter_assigned_to): ?>
-          assigneeFilter.value = '<?php echo $filter_assigned_to; ?>';
-        <?php endif; ?>
-      <?php endif; ?>
-      
-      // Set priority filter
-      <?php if ($filter_priority): ?>
-        document.getElementById('priorityFilter').value = '<?php echo $filter_priority; ?>';
-      <?php endif; ?>
-    });
-    
-    // Apply filters
-    document.getElementById('applyFilters').addEventListener('click', function() {
-      const projectId = document.getElementById('projectFilter').value;
-      const assigneeId = document.getElementById('assigneeFilter').value;
-      const priority = document.getElementById('priorityFilter').value;
-      
-      const params = new URLSearchParams();
-      if (projectId) params.append('project_id', projectId);
-      if (assigneeId) params.append('assigned_to', assigneeId);
-      if (priority) params.append('priority', priority);
-      
-      const url = '<?php echo site_url('tasks/board'); ?>' + (params.toString() ? '?' + params.toString() : '');
-      window.location.href = url;
-    });
-    
-    // Reset filters
-    document.getElementById('resetFilters').addEventListener('click', function() {
-      window.location.href = '<?php echo site_url('tasks/board'); ?>';
-    });
-    
-    // Column expand/collapse
+    // Column expand/collapse functions
     function expandColumn(status) {
       const column = document.querySelector(`.kanban-column[data-status="${status}"]`).parentElement.parentElement;
       column.classList.remove('collapsed');
@@ -396,6 +372,44 @@
     function collapseColumn(status) {
       const column = document.querySelector(`.kanban-column[data-status="${status}"]`).parentElement.parentElement;
       column.classList.add('collapsed');
+    }
+    
+    // Search functionality
+    const searchInput = document.getElementById('searchTasks');
+    const clearBtn = document.getElementById('clearSearch');
+    
+    if (searchInput && clearBtn) {
+      searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+        const cards = document.querySelectorAll('.kanban-card');
+        
+        cards.forEach(card => {
+          const title = (card.dataset.title || '').toLowerCase();
+          const project = (card.dataset.project || '').toLowerCase();
+          const assignee = (card.dataset.assignee || '').toLowerCase();
+          
+          if (searchTerm === '' || 
+              title.includes(searchTerm) || 
+              project.includes(searchTerm) || 
+              assignee.includes(searchTerm)) {
+            card.style.display = '';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+        
+        // Update column counts after filtering
+        updateColumnCounts();
+      });
+      
+      clearBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        const cards = document.querySelectorAll('.kanban-card');
+        cards.forEach(card => {
+          card.style.display = '';
+        });
+        updateColumnCounts();
+      });
     }
     
     // Initialize

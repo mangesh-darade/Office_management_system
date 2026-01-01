@@ -321,6 +321,52 @@
   updateMode();
   // Set defaults after a short delay to ensure DOM is ready
   setTimeout(setDefaultDates, 100);
+  
+  // Add form submission validation for duplicate dates
+  var leaveForm = document.querySelector('form[method="post"]');
+  if (leaveForm) {
+    leaveForm.addEventListener('submit', function(e) {
+      var modeSpecific = document.getElementById('mode_specific') && document.getElementById('mode_specific').checked;
+      
+      if (modeSpecific) {
+        // Check for duplicate dates in specific dates mode
+        var dateInputs = document.querySelectorAll('.specific-date-input');
+        var selectedDates = [];
+        var duplicates = [];
+        
+        dateInputs.forEach(function(input) {
+          var value = input.value.trim();
+          if (value) {
+            if (selectedDates.includes(value)) {
+              duplicates.push(value);
+            } else {
+              selectedDates.push(value);
+            }
+          }
+        });
+        
+        if (duplicates.length > 0) {
+          e.preventDefault();
+          alert('You have selected duplicate dates: ' + duplicates.join(', ') + '. Please remove duplicates and try again.');
+          return false;
+        }
+      } else {
+        // Check for date validation in range mode
+        var startDate = document.getElementById('start_date').value;
+        var endDate = document.getElementById('end_date').value;
+        
+        if (startDate && endDate && startDate === endDate) {
+          var duration = document.getElementById('duration_type').value;
+          if (duration === 'half') {
+            // Half-day is allowed for same date
+            return true;
+          }
+        }
+      }
+      
+      return true;
+    });
+  }
 })();
 </script>
 

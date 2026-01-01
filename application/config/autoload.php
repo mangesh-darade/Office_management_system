@@ -94,6 +94,8 @@ $autoload['helper'] = array('url','form','download');
 $autoload['helper'][] = 'permission';
 // Load company helper for dynamic company name retrieval
 $autoload['helper'][] = 'company';
+// Load API integration helper for retrieving credentials from database
+$autoload['helper'][] = 'api_integration';
 
 /*
 | -------------------------------------------------------------------

@@ -250,6 +250,20 @@
         </form>
       </div>
     </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-light">
+        <h5 class="card-title mb-0">
+          <i class="bi bi-list-ul me-2"></i>Leave Types Management
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Manage leave types such as Annual Leave, Sick Leave, Casual Leave, etc. Configure annual quotas and paid/unpaid status for each type.</p>
+        <a href="<?php echo site_url('settings/leave-types'); ?>" class="btn btn-primary">
+          <i class="bi bi-gear me-1"></i>Manage Leave Types
+        </a>
+      </div>
+    </div>
   </div>
 
   <div class="tab-pane fade" id="email" role="tabpanel">
