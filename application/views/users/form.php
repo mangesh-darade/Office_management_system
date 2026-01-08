@@ -14,7 +14,13 @@
 
     <div class="card shadow-soft border-0">
       <div class="card-body">
-        <form method="post" enctype="multipart/form-data" action="<?php echo $is_edit ? site_url('users/update/'.(int)$row->id) : site_url('users/store'); ?>">
+        <?php 
+        // Use CodeIgniter form helper to automatically include CSRF token
+        // form_open_multipart() automatically adds the CSRF token
+        $form_action = $is_edit ? site_url('users/update/'.(int)$row->id) : site_url('users/store');
+        $form_attrs = array('id' => 'userForm', 'class' => 'needs-validation', 'novalidate' => '');
+        echo form_open_multipart($form_action, $form_attrs);
+        ?>
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label">Name <span class="text-danger">*</span></label>
@@ -85,8 +91,8 @@
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Phone <span class="text-danger">*</span></label>
-              <input type="tel" name="phone" id="userPhone" class="form-control" value="<?php echo htmlspecialchars(isset($row->phone) ? $row->phone : ''); ?>" required pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number">
+              <label class="form-label">Phone</label>
+              <input type="tel" name="phone" id="userPhone" class="form-control" value="<?php echo htmlspecialchars(isset($row->phone) ? $row->phone : ''); ?>" pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number (optional)">
               <div class="form-text" id="phoneHelp"></div>
             </div>
 
@@ -120,14 +126,10 @@
               <label class="form-label"><?php echo $is_edit ? 'Reset Password (optional)' : 'Password <span class="text-danger">*</span>'; ?></label>
               <input type="password" name="password" class="form-control" <?php echo $is_edit ? '' : 'required'; ?> autocomplete="new-password">
               <?php if ($is_edit): ?><div class="form-text">Leave blank to keep current password.</div><?php endif; ?>
-            </div>
+          </div>
           </div>
 
-          <div class="mt-3 d-flex gap-2">
-            <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> Save</button>
-            <a class="btn btn-outline-secondary" href="<?php echo site_url('users'); ?>">Cancel</a>
-          </div>
-        </form>
+        <?php echo form_close(); ?>
       </div>
     </div>
 
@@ -158,22 +160,35 @@
         </p>
         <div class="row g-2 align-items-start">
           <div class="col-12 col-md-6">
-            <video id="faceVideo" class="w-100 border rounded" autoplay muted playsinline style="max-height:260px; background:#000;"></video>
+            <video id="faceVideo" class="w-100 border rounded" autoplay muted playsinline style="width:100%; height:400px; object-fit:cover; background:#000;"></video>
           </div>
           <div class="col-12 col-md-6">
-            <canvas id="faceCanvas" class="w-100 border rounded" style="max-height:260px;"></canvas>
+            <canvas id="faceCanvas" class="w-100 border rounded" style="width:100%; height:400px; object-fit:contain; background:#f8f9fa;"></canvas>
             <div class="small text-muted mt-2" id="faceStatus"></div>
           </div>
         </div>
-        <div class="mt-2 d-flex flex-wrap gap-2">
-          <button type="button" class="btn btn-outline-primary btn-sm" id="btnFaceStart">Start Camera</button>
-          <button type="button" class="btn btn-primary btn-sm" id="btnFaceCapture" disabled>Capture &amp; Save Face</button>
+        <div class="mt-3 d-flex justify-content-center gap-2">
+          <button type="button" class="btn btn-outline-primary" id="btnFaceStart">
+            <i class="bi bi-camera-video me-2"></i> Start Camera
+          </button>
+          <button type="button" class="btn btn-primary" id="btnFaceCapture" disabled>
+            <i class="bi bi-camera-fill me-2"></i> Capture &amp; Save Face
+          </button>
         </div>
       </div>
     </div>
     <?php else: ?>
     <div class="alert alert-info mt-3 small">After creating the user, open Edit User to register their face for attendance.</div>
     <?php endif; ?>
+
+    <div class="mt-4 d-flex justify-content-end gap-2">
+      <a class="btn btn-outline-secondary" href="<?php echo site_url('users'); ?>">
+        <i class="bi bi-x-circle me-2"></i> Cancel
+      </a>
+      <button class="btn btn-primary" type="submit" form="userForm">
+        <i class="bi bi-check2-circle me-2"></i> Save
+      </button>
+    </div>
   </div>
 </div>
 <script>
@@ -304,11 +319,33 @@
   var modelsLoaded = false;
   var userId = <?php echo isset($row->id) ? (int)$row->id : 0; ?>;
   var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
+  var existingFaceImageUrl = '<?php echo (isset($row->face_image) && $row->face_image) ? base_url($row->face_image) : ''; ?>';
 
   function setStatus(msg, isError){
     if (!statusEl) return;
     statusEl.textContent = msg || '';
     statusEl.classList.toggle('text-danger', !!isError);
+  }
+
+  function loadExistingFace(){
+    if (!existingFaceImageUrl || !canvas) return;
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){
+      // Set canvas to match the display size (400px height)
+      var displayHeight = 400;
+      var displayWidth = (img.width / img.height) * displayHeight;
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+      var ctx = canvas.getContext('2d');
+      // Clear canvas and draw image scaled to fit
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.onerror = function(){
+      console.warn('Failed to load existing face image');
+    };
+    img.src = existingFaceImageUrl;
   }
 
   async function ensureModels(){
@@ -385,6 +422,9 @@
 
   btnStart.addEventListener('click', function(ev){ ev.preventDefault(); startCamera(); });
   btnCapture.addEventListener('click', function(ev){ ev.preventDefault(); captureFace(); });
+
+  // Load existing face image into canvas on page load (if available)
+  loadExistingFace();
 
   window.addEventListener('beforeunload', function(){
     try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } } catch(e){}

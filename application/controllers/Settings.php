@@ -38,6 +38,9 @@ class Settings extends CI_Controller {
         if ($this->input->method() !== 'post') { show_404(); }
         $data = $this->input->post();
         
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+        
         // Handle weekend checkboxes
         if (isset($data['attendance_weekends']) && is_array($data['attendance_weekends'])) {
             $data['attendance_weekends'] = implode(',', $data['attendance_weekends']);
@@ -51,12 +54,33 @@ class Settings extends CI_Controller {
             $data[$field] = isset($data[$field]) ? $data[$field] : 'no';
         }
         
+        // Get old settings before update and track changes
+        $old_settings = [];
+        $changed_settings = [];
         foreach ($data as $k=>$v){
             // Only allow known prefixes
             if (preg_match('/^(company_|attendance_|leave_|email_|notify_)/', $k)){
-                $this->settings->set_setting($k, is_array($v) ? json_encode($v) : $v);
+                $old_value = $this->settings->get_setting($k);
+                $old_settings[$k] = $old_value;
+                $new_value = is_array($v) ? json_encode($v) : $v;
+                
+                if ($old_value !== $new_value) {
+                    $changed_settings[$k] = [
+                        'before' => $old_value,
+                        'after' => $new_value
+                    ];
+                }
+                
+                $this->settings->set_setting($k, $new_value);
             }
         }
+        
+        // Log settings update if any changes were made
+        if (!empty($changed_settings)) {
+            $description = 'Settings updated: ' . count($changed_settings) . ' setting(s) changed';
+            log_activity_with_changes('settings', 'updated', null, $old_settings, $data, $description);
+        }
+        
         $this->session->set_flashdata('success', 'Settings saved successfully.');
         redirect('settings');
     }

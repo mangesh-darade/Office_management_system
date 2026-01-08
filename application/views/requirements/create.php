@@ -11,7 +11,7 @@
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="" class="vstack gap-3" enctype="multipart/form-data">
+    <form method="post" action="" class="vstack gap-3" enctype="multipart/form-data" data-validate="true">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Client <span class="text-danger">*</span></label>

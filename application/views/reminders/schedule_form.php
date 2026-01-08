@@ -19,7 +19,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Sched
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="<?php echo isset($form_action) ? $form_action : site_url('reminders/schedules/create'); ?>" class="vstack gap-3">
+    <form method="post" action="<?php echo isset($form_action) ? $form_action : site_url('reminders/schedules/create'); ?>" class="vstack gap-3" data-validate="true">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Schedule Name</label>

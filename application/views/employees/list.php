@@ -21,7 +21,7 @@
           <thead class="table-light">
             <tr>
               <th>#</th>
-              <th>Emp Code</th>
+              <th>Code</th>
               <th>Name</th>
               <th class="d-none d-md-table-cell">Email</th>
               <th class="d-none d-lg-table-cell">Department</th>

@@ -107,10 +107,13 @@
                 <div class="small mt-1">Starting camera...</div>
               </div>
             </div>
-            <canvas id="attFaceCanvas" class="w-100 rounded border shadow-sm mt-2" style="height: 240px; display: none; object-fit: cover;"></canvas>
+            <canvas id="attFaceCanvas" class="w-100 rounded border shadow-sm mt-2" style="height: 240px; display: none; object-fit: cover; background: #000;"></canvas>
             <div class="small mt-2 text-center" id="attFaceStatus"></div>
             <button type="button" class="btn btn-primary btn-lg w-100 mt-3 fw-semibold" id="btnAttFaceVerify" disabled>
               <i class="bi bi-camera-fill me-2"></i> Capture Face
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-lg w-100 mt-2 fw-semibold" id="btnRetakeFace" style="display: none;">
+              <i class="bi bi-arrow-clockwise me-2"></i> Retake Face
             </button>
           </div>
         </div>
@@ -437,14 +440,48 @@
               var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
               if (!det || !det.descriptor){ setFaceStatus('No face detected', true); return; }
               
+              // Get actual video dimensions
+              var videoWidth = video.videoWidth || 640;
+              var videoHeight = video.videoHeight || 480;
+              
+              // Set canvas dimensions to match video
+              canvas.width = videoWidth;
+              canvas.height = videoHeight;
+              
+              // Get canvas context and clear it first
               var ctx = canvas.getContext('2d');
-              canvas.width = video.videoWidth || 320;
-              canvas.height = video.videoHeight || 240;
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              
+              // Draw the video frame to canvas
+              ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+              
+              // Verify the image was drawn (optional check)
+              var imageData = ctx.getImageData(0, 0, Math.min(10, canvas.width), Math.min(10, canvas.height));
+              var hasData = false;
+              for (var i = 0; i < imageData.data.length; i += 4) {
+                if (imageData.data[i] !== 0 || imageData.data[i+1] !== 0 || imageData.data[i+2] !== 0) {
+                  hasData = true;
+                  break;
+                }
+              }
+              
+              if (!hasData) {
+                setFaceStatus('Failed to capture image', true);
+                return;
+              }
               
               // Show canvas, hide video
               video.style.display = 'none';
               canvas.style.display = 'block';
+              
+              // Ensure canvas is visible with proper styling
+              canvas.style.background = '#000';
+              canvas.style.objectFit = 'cover';
+              
+              // Hide capture button, show retake button
+              if (btnVerify) btnVerify.style.display = 'none';
+              var retakeBtn = document.getElementById('btnRetakeFace');
+              if (retakeBtn) retakeBtn.style.display = 'block';
               
               var descArr = Array.prototype.slice.call(det.descriptor);
               if (faceDescEl) faceDescEl.value = JSON.stringify(descArr);
@@ -463,7 +500,10 @@
                 // Just validate, don't auto-submit
                 validateMandatoryFields();
               }
-            } catch(e){ setFaceStatus('Capture failed: '+e.message, true); }
+            } catch(e){ 
+              console.error('Face capture error:', e);
+              setFaceStatus('Capture failed: '+e.message, true); 
+            }
           }
           
           function startCameraAfterLocation() {
@@ -483,6 +523,43 @@
             });
             window.addEventListener('beforeunload', function(){ 
               try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } } catch(e){}
+            });
+          }
+          
+          // Retake face button handler
+          var retakeBtn = document.getElementById('btnRetakeFace');
+          if (retakeBtn) {
+            retakeBtn.addEventListener('click', function(ev){
+              ev.preventDefault();
+              
+              // Clear face data
+              if (faceDescEl) faceDescEl.value = '';
+              if (faceReqEl) faceReqEl.value = '0';
+              hasFaceCapture = false;
+              
+              // Hide canvas, show video
+              if (canvas) canvas.style.display = 'none';
+              if (video) video.style.display = 'block';
+              
+              // Show capture button, hide retake button
+              if (btnVerify) {
+                btnVerify.style.display = 'block';
+                btnVerify.disabled = false;
+              }
+              retakeBtn.style.display = 'none';
+              
+              // Clear canvas
+              if (canvas) {
+                var ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+              }
+              
+              // Restart camera
+              setFaceStatus('Restarting camera...', false);
+              startCam(false);
+              
+              // Validate mandatory fields
+              validateMandatoryFields();
             });
           }
           

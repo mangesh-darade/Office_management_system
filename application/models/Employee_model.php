@@ -146,4 +146,71 @@ class Employee_model extends CI_Model
         $this->db->where('id', $id)->delete($this->table);
         return $this->db->affected_rows() > 0;
     }
+
+    /**
+     * Generate a unique employee code
+     * Format: E + 3-digit sequential number (e.g., E001, E002)
+     * 
+     * @param string|null $exclude_code Optional code to exclude from uniqueness check (for edit)
+     * @return string Unique employee code
+     */
+    public function generate_emp_code($exclude_code = null)
+    {
+        // Try to find the highest existing numeric part
+        $this->db->select('emp_code')
+                 ->from($this->table)
+                 ->where('emp_code IS NOT NULL')
+                 ->where('emp_code !=', '')
+                 ->like('emp_code', 'E', 'after');
+        
+        if ($exclude_code) {
+            $this->db->where('emp_code !=', $exclude_code);
+        }
+        
+        $results = $this->db->order_by('emp_code', 'DESC')
+                           ->limit(100)
+                           ->get()
+                           ->result();
+        
+        $max_num = 0;
+        foreach ($results as $row) {
+            if (preg_match('/^E(\d+)$/i', $row->emp_code, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $max_num) {
+                    $max_num = $num;
+                }
+            }
+        }
+        
+        // Generate next code
+        $next_num = $max_num + 1;
+        $code = 'E' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+        
+        // Double-check uniqueness (in case of race condition)
+        $exists = $this->db->where('emp_code', $code)->get($this->table)->row();
+        if ($exists) {
+            // If exists, try next number
+            $next_num++;
+            $code = 'E' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+        }
+        
+        return $code;
+    }
+
+    /**
+     * Check if employee code exists
+     * 
+     * @param string $code Employee code to check
+     * @param int|null $exclude_id Employee ID to exclude from check (for edit)
+     * @return bool True if exists, false otherwise
+     */
+    public function emp_code_exists($code, $exclude_id = null)
+    {
+        $this->db->from($this->table);
+        $this->db->where('emp_code', $code);
+        if ($exclude_id !== null) {
+            $this->db->where('id !=', (int)$exclude_id);
+        }
+        return $this->db->count_all_results() > 0;
+    }
 }

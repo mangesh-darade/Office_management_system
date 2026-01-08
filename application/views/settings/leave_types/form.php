@@ -28,7 +28,7 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" id="leaveTypeForm">
+    <form method="post" id="leaveTypeForm" data-validate="true">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label fw-semibold">Leave Type Name <span class="text-danger">*</span></label>

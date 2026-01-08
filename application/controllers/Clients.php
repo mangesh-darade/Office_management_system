@@ -5,7 +5,7 @@ class Clients extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission']);
+        $this->load->helper(['url','form','permission','error_handler']);
         $this->load->library(['session']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         if (!function_exists('has_module_access') || !has_module_access('clients')) { show_error('Access Denied', 403); }
@@ -117,153 +117,394 @@ class Clients extends CI_Controller {
 
     // GET /clients
     public function index(){
-        $filters = [
-            'status' => $this->input->get('status'),
-            'client_type' => $this->input->get('client_type'),
-            'search' => $this->input->get('q')
-        ];
-        $rows = $this->clients->get_clients($filters, null, 0);
-        $this->load->view('clients/index', ['rows'=>$rows, 'filters'=>$filters]);
+        try {
+            $filters = [
+                'status' => $this->input->get('status'),
+                'client_type' => $this->input->get('client_type'),
+                'search' => $this->input->get('q')
+            ];
+            
+            $result = safe_db_operation(function() use ($filters) {
+                return $this->clients->get_clients($filters, null, 0);
+            }, 'Unable to load clients. Please try again.');
+            
+            if (!$result['success']) {
+                $this->session->set_flashdata('error', $result['error']);
+                $rows = [];
+            } else {
+                $rows = $result['data'];
+            }
+            
+            $this->load->view('clients/index', ['rows'=>$rows, 'filters'=>$filters]);
+            
+        } catch (Exception $e) {
+            $error_message = handle_database_error($e, 'Unable to load clients list. Please try again.');
+            $this->session->set_flashdata('error', $error_message);
+            $this->load->view('clients/index', ['rows'=>[], 'filters'=>[]]);
+        } catch (Throwable $e) {
+            $error_message = handle_database_error($e, 'Unable to load clients list. Please try again.');
+            $this->session->set_flashdata('error', $error_message);
+            $this->load->view('clients/index', ['rows'=>[], 'filters'=>[]]);
+        }
     }
 
     // GET/POST /clients/create
     public function create(){
         if ($this->input->method() === 'post'){
-            // Validation rules
-            $this->load->library('form_validation');
-            
-            $this->form_validation->set_rules('company_name', 'Company Name', 'required|trim|min_length[2]|max_length[255]');
-            $this->form_validation->set_rules('contact_person', 'Contact Person', 'trim|min_length[2]|max_length[200]');
-            $this->form_validation->set_rules('email', 'Email', 'trim|valid_email|max_length[255]');
-            $this->form_validation->set_rules('phone', 'Phone', 'trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
-            $this->form_validation->set_rules('alternate_phone', 'Alternate Phone', 'trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
-            $this->form_validation->set_rules('website', 'Website', 'trim|max_length[255]|valid_url');
-            $this->form_validation->set_rules('demo_url', 'Demo URL', 'trim|max_length[255]|valid_url');
-            $this->form_validation->set_rules('pos_url', 'POS URL', 'trim|max_length[255]|valid_url');
-            $this->form_validation->set_rules('db_name', 'DB Name', 'trim|max_length[255]|alpha_dash');
-            $this->form_validation->set_rules('db_username', 'DB Username', 'trim|max_length[255]|alpha_dash');
-            $this->form_validation->set_rules('db_password', 'DB Password', 'trim|max_length[255]');
-            
-          
-            if ($this->form_validation->run() == FALSE) {
-                $errors = validation_errors();
-                $this->session->set_flashdata('error', strip_tags($errors));
+            try {
+                // Validation rules - Mandatory fields
+                $this->load->library('form_validation');
+                
+                // Mandatory fields
+                $this->form_validation->set_rules('company_name', 'Company Name', 'required|trim|min_length[2]|max_length[255]');
+                $this->form_validation->set_rules('contact_person', 'Contact Person', 'required|trim|min_length[2]|max_length[200]');
+                $this->form_validation->set_rules('phone', 'Phone', 'required|trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
+                
+               
+              
+              
+                if ($this->form_validation->run() == FALSE) {
+                    $errors = validation_errors();
+                    $this->session->set_flashdata('error', handle_validation_error($errors));
+                    redirect('clients/create');
+                    return;
+                }
+                
+                // Additional business logic validation
+                $company_name = trim($this->input->post('company_name'));
+                $contact_person = trim($this->input->post('contact_person'));
+                $email = trim($this->input->post('email'));
+                $phone = trim($this->input->post('phone'));
+                
+                // Double-check mandatory fields (server-side validation)
+                if (empty($company_name)) {
+                    $this->session->set_flashdata('error', 'Company Name is required.');
+                    redirect('clients/create');
+                    return;
+                }
+                if (empty($contact_person)) {
+                    $this->session->set_flashdata('error', 'Contact Person is required.');
+                    redirect('clients/create');
+                    return;
+                }
+                if (empty($phone)) {
+                    $this->session->set_flashdata('error', 'Phone is required.');
+                    redirect('clients/create');
+                    return;
+                }
+                
+                // Check if email already exists
+                if (!empty($email)) {
+                    if (!method_exists($this->clients, 'email_exists')) {
+                        log_message('error', 'Client_model::email_exists() method not found');
+                        $this->session->set_flashdata('error', 'System error: Unable to validate email. Please contact administrator.');
+                        redirect('clients/create');
+                        return;
+                    }
+                    if ($this->clients->email_exists($email)) {
+                        $this->session->set_flashdata('error', 'This email address is already registered. Please use a different email.');
+                        redirect('clients/create');
+                        return;
+                    }
+                }
+                
+                // Check if phone already exists
+                if (!empty($phone)) {
+                    if (!method_exists($this->clients, 'phone_exists')) {
+                        log_message('error', 'Client_model::phone_exists() method not found');
+                        $this->session->set_flashdata('error', 'System error: Unable to validate phone. Please contact administrator.');
+                        redirect('clients/create');
+                        return;
+                    }
+                    if ($this->clients->phone_exists($phone)) {
+                        $this->session->set_flashdata('error', 'This phone number is already registered. Please use a different phone number.');
+                        redirect('clients/create');
+                        return;
+                    }
+                }
+                
+                // Generate client code
+                $client_code = $this->clients->generate_client_code();
+                if (empty($client_code)) {
+                    $this->session->set_flashdata('error', 'Unable to generate client code. Please try again.');
+                    redirect('clients/create');
+                    return;
+                }
+                
+                // Upload logo
+                $logo_path = $this->upload_logo();
+                
+                // Prepare data
+                $data = [
+                    'client_code' => $client_code,
+                    'company_name' => $company_name,
+                    'contact_person' => $contact_person,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'alternate_phone' => trim($this->input->post('alternate_phone')),
+                    'website' => trim($this->input->post('website')),
+                    'demo_url' => trim($this->input->post('demo_url')),
+                    'pos_url' => trim($this->input->post('pos_url')),
+                    'address' => trim($this->input->post('address')),
+                    'city' => trim($this->input->post('city')),
+                    'state' => trim($this->input->post('state')),
+                    'country' => trim($this->input->post('country')) ?: 'India',
+                    'zip_code' => trim($this->input->post('zip_code')),
+                    'gstin' => trim($this->input->post('gstin')),
+                    'pan_number' => trim($this->input->post('pan_number')),
+                    'industry' => trim($this->input->post('industry')),
+                    'onboarding_date' => $this->input->post('onboarding_date') ?: null,
+                    'client_type' => $this->input->post('client_type') ?: 'company',
+                    'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
+                    'notes' => trim($this->input->post('notes')),
+                    'db_name' => trim($this->input->post('db_name')),
+                    'db_username' => trim($this->input->post('db_username')),
+                    'db_password' => trim($this->input->post('db_password')),
+                    'logo' => $logo_path,
+                    'status' => 'active',
+                    'created_by' => (int)$this->session->userdata('user_id'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ];
+                
+                // Create client with error handling
+                $result = safe_db_operation(function() use ($data) {
+                    return $this->clients->create_client($data);
+                }, 'Failed to create client. Please try again.');
+                
+                if (!$result['success']) {
+                    $this->session->set_flashdata('error', $result['error']);
+                    redirect('clients/create');
+                    return;
+                }
+                
+                $id = $result['data'];
+                if (empty($id) || $id <= 0) {
+                    $this->session->set_flashdata('error', 'Client creation failed. Please try again.');
+                    redirect('clients/create');
+                    return;
+                }
+                
+                $this->session->set_flashdata('success', 'Client created successfully!');
+                redirect('clients/view/'.$id);
+                return;
+                
+            } catch (Exception $e) {
+                $error_message = handle_database_error($e, 'An error occurred while creating the client. Please try again.');
+                $this->session->set_flashdata('error', $error_message);
+                redirect('clients/create');
+                return;
+            } catch (Throwable $e) {
+                $error_message = handle_database_error($e, 'An error occurred while creating the client. Please try again.');
+                $this->session->set_flashdata('error', $error_message);
                 redirect('clients/create');
                 return;
             }
-            
-            // Additional business logic validation
-            $email = trim($this->input->post('email'));
-            $phone = trim($this->input->post('phone'));
-            
-            // Check if email already exists
-            if (!empty($email) && $this->clients->email_exists($email)) {
-                $this->session->set_flashdata('error', 'Email already exists in the system!');
-                redirect('clients/create');
-                return;
-            }
-            
-            // Check if phone already exists
-            if (!empty($phone) && $this->clients->phone_exists($phone)) {
-                $this->session->set_flashdata('error', 'Phone number already exists in the system!');
-                redirect('clients/create');
-                return;
-            }
-            
-            $client_code = $this->clients->generate_client_code();
-            $logo_path = $this->upload_logo();
-            $data = [
-                'client_code' => $client_code,
-                'company_name' => trim($this->input->post('company_name')),
-                'contact_person' => trim($this->input->post('contact_person')),
-                'email' => $email,
-                'phone' => $phone,
-                'alternate_phone' => trim($this->input->post('alternate_phone')),
-                'website' => trim($this->input->post('website')),
-                'demo_url' => trim($this->input->post('demo_url')),
-                'pos_url' => trim($this->input->post('pos_url')),
-                'address' => trim($this->input->post('address')),
-                'city' => trim($this->input->post('city')),
-                'state' => trim($this->input->post('state')),
-                'country' => trim($this->input->post('country')),
-                'zip_code' => trim($this->input->post('zip_code')),
-                'gstin' => trim($this->input->post('gstin')),
-                'pan_number' => trim($this->input->post('pan_number')),
-                'industry' => trim($this->input->post('industry')),
-                'onboarding_date' => $this->input->post('onboarding_date') ?: null,
-                'client_type' => $this->input->post('client_type') ?: 'company',
-                'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
-                'notes' => trim($this->input->post('notes')),
-                'db_name' => trim($this->input->post('db_name')),
-                'db_username' => trim($this->input->post('db_username')),
-                'db_password' => trim($this->input->post('db_password')),
-                'logo' => $logo_path,
-                'status' => 'active',
-                'created_by' => (int)$this->session->userdata('user_id'),
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ];
-            $id = $this->clients->create_client($data);
-            $this->session->set_flashdata('success','Client created successfully');
-            redirect('clients/view/'.$id);
+        }
+        
+        try {
+            $managers = $this->clients->get_account_managers();
+            $this->load->view('clients/create', ['managers'=>$managers]);
+        } catch (Exception $e) {
+            $error_message = handle_database_error($e, 'Unable to load client creation form. Please try again.');
+            $this->session->set_flashdata('error', $error_message);
+            redirect('clients');
             return;
         }
-        $managers = $this->clients->get_account_managers();
-        $this->load->view('clients/create', ['managers'=>$managers]);
     }
 
     // GET /clients/view/{id}
     public function view($id){
-        $c = $this->clients->get_client((int)$id);
-        if (!$c) { show_404(); }
-        $contacts = $this->clients->get_client_contacts((int)$id);
-        $this->load->view('clients/view', ['client'=>$c, 'contacts'=>$contacts]);
+        $id = (int)$id;
+        if ($id <= 0) {
+            show_404();
+            return;
+        }
+        
+        try {
+            $result = safe_db_operation(function() use ($id) {
+                return $this->clients->get_client($id);
+            }, 'Unable to load client details. Please try again.');
+            
+            if (!$result['success'] || !$result['data']) {
+                if (!$result['data']) {
+                    show_404();
+                    return;
+                }
+                $this->session->set_flashdata('error', $result['error']);
+                redirect('clients');
+                return;
+            }
+            
+            $c = $result['data'];
+            
+            $contacts_result = safe_db_operation(function() use ($id) {
+                return $this->clients->get_client_contacts($id);
+            }, 'Unable to load client contacts. Please try again.');
+            
+            $contacts = $contacts_result['success'] ? $contacts_result['data'] : [];
+            
+            if (!$contacts_result['success']) {
+                $this->session->set_flashdata('error', $contacts_result['error']);
+            }
+            
+            $this->load->view('clients/view', ['client'=>$c, 'contacts'=>$contacts]);
+            
+        } catch (Exception $e) {
+            $error_message = handle_database_error($e, 'Unable to load client details. Please try again.');
+            $this->session->set_flashdata('error', $error_message);
+            redirect('clients');
+            return;
+        } catch (Throwable $e) {
+            $error_message = handle_database_error($e, 'Unable to load client details. Please try again.');
+            $this->session->set_flashdata('error', $error_message);
+            redirect('clients');
+            return;
+        }
     }
 
     public function edit($id){
         $id = (int)$id;
-        $c = $this->clients->get_client($id);
-        if (!$c) { show_404(); }
-        if ($this->input->method() === 'post'){
-            $logo_path = $this->upload_logo(isset($c->logo) ? $c->logo : null);
-            $data = [
-                'company_name' => trim($this->input->post('company_name')),
-                'contact_person' => trim($this->input->post('contact_person')),
-                'email' => trim($this->input->post('email')),
-                'phone' => trim($this->input->post('phone')),
-                'alternate_phone' => trim($this->input->post('alternate_phone')),
-                'website' => trim($this->input->post('website')),
-                'demo_url' => trim($this->input->post('demo_url')),
-                'pos_url' => trim($this->input->post('pos_url')),
-                'address' => trim($this->input->post('address')),
-                'city' => trim($this->input->post('city')),
-                'state' => trim($this->input->post('state')),
-                'country' => trim($this->input->post('country')),
-                'zip_code' => trim($this->input->post('zip_code')),
-                'gstin' => trim($this->input->post('gstin')),
-                'pan_number' => trim($this->input->post('pan_number')),
-                'industry' => trim($this->input->post('industry')),
-                'onboarding_date' => $this->input->post('onboarding_date') ?: null,
-                'client_type' => $this->input->post('client_type') ?: 'company',
-                'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
-                'notes' => trim($this->input->post('notes')),
-                'db_name' => trim($this->input->post('db_name')),
-                'db_username' => trim($this->input->post('db_username')),
-                'db_password' => trim($this->input->post('db_password')),
-                'logo' => $logo_path,
-                'updated_at' => date('Y-m-d H:i:s'),
-            ];
-            $status = $this->input->post('status');
-            if ($status !== null && $status !== ''){
-                $data['status'] = $status;
-            }
-            $this->clients->update_client($id, $data);
-            $this->session->set_flashdata('success','Client updated');
-            redirect('clients/view/'.$id);
+        if ($id <= 0) {
+            show_404();
             return;
         }
-        $managers = $this->clients->get_account_managers();
-        $this->load->view('clients/edit', ['client'=>$c, 'managers'=>$managers]);
+        
+        try {
+            $c = $this->clients->get_client($id);
+            if (!$c) { 
+                show_404();
+                return;
+            }
+            
+            if ($this->input->method() === 'post'){
+                try {
+                    // Validation - Mandatory fields only
+                    $this->load->library('form_validation');
+                    
+                    // Mandatory fields
+                    $this->form_validation->set_rules('company_name', 'Company Name', 'required|trim|min_length[2]|max_length[255]');
+                    $this->form_validation->set_rules('contact_person', 'Contact Person', 'required|trim|min_length[2]|max_length[200]');
+                    $this->form_validation->set_rules('phone', 'Phone', 'required|trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
+                    
+                    if ($this->form_validation->run() == FALSE) {
+                        $errors = validation_errors();
+                        $this->session->set_flashdata('error', handle_validation_error($errors));
+                        redirect('clients/edit/'.$id);
+                        return;
+                    }
+                    
+                    // Extract and validate mandatory fields
+                    $company_name = trim($this->input->post('company_name'));
+                    $contact_person = trim($this->input->post('contact_person'));
+                    $phone = trim($this->input->post('phone'));
+                    $email = trim($this->input->post('email'));
+                    
+                    // Double-check mandatory fields (server-side validation)
+                    if (empty($company_name)) {
+                        $this->session->set_flashdata('error', 'Company Name is required.');
+                        redirect('clients/edit/'.$id);
+                        return;
+                    }
+                    if (empty($contact_person)) {
+                        $this->session->set_flashdata('error', 'Contact Person is required.');
+                        redirect('clients/edit/'.$id);
+                        return;
+                    }
+                    if (empty($phone)) {
+                        $this->session->set_flashdata('error', 'Phone is required.');
+                        redirect('clients/edit/'.$id);
+                        return;
+                    }
+                    
+                    // Check email uniqueness (excluding current client)
+                    if (!empty($email) && method_exists($this->clients, 'email_exists')) {
+                        if ($this->clients->email_exists($email, $id)) {
+                            $this->session->set_flashdata('error', 'This email address is already registered to another client.');
+                            redirect('clients/edit/'.$id);
+                            return;
+                        }
+                    }
+                    
+                    // Check phone uniqueness (excluding current client)
+                    if (!empty($phone) && method_exists($this->clients, 'phone_exists')) {
+                        if ($this->clients->phone_exists($phone, $id)) {
+                            $this->session->set_flashdata('error', 'This phone number is already registered to another client.');
+                            redirect('clients/edit/'.$id);
+                            return;
+                        }
+                    }
+                    
+                    $logo_path = $this->upload_logo(isset($c->logo) ? $c->logo : null);
+                    $data = [
+                        'company_name' => $company_name,
+                        'contact_person' => $contact_person,
+                        'email' => $email,
+                        'phone' => $phone,
+                        'alternate_phone' => trim($this->input->post('alternate_phone')),
+                        'website' => trim($this->input->post('website')),
+                        'demo_url' => trim($this->input->post('demo_url')),
+                        'pos_url' => trim($this->input->post('pos_url')),
+                        'address' => trim($this->input->post('address')),
+                        'city' => trim($this->input->post('city')),
+                        'state' => trim($this->input->post('state')),
+                        'country' => trim($this->input->post('country')) ?: 'India',
+                        'zip_code' => trim($this->input->post('zip_code')),
+                        'gstin' => trim($this->input->post('gstin')),
+                        'pan_number' => trim($this->input->post('pan_number')),
+                        'industry' => trim($this->input->post('industry')),
+                        'onboarding_date' => $this->input->post('onboarding_date') ?: null,
+                        'client_type' => $this->input->post('client_type') ?: 'company',
+                        'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
+                        'notes' => trim($this->input->post('notes')),
+                        'db_name' => trim($this->input->post('db_name')),
+                        'db_username' => trim($this->input->post('db_username')),
+                        'db_password' => trim($this->input->post('db_password')),
+                        'logo' => $logo_path,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ];
+                    $status = $this->input->post('status');
+                    if ($status !== null && $status !== ''){
+                        $data['status'] = $status;
+                    }
+                    
+                    // Update with error handling
+                    $result = safe_db_operation(function() use ($id, $data) {
+                        return $this->clients->update_client($id, $data);
+                    }, 'Failed to update client. Please try again.');
+                    
+                    if (!$result['success']) {
+                        $this->session->set_flashdata('error', $result['error']);
+                        redirect('clients/edit/'.$id);
+                        return;
+                    }
+                    
+                    $this->session->set_flashdata('success', 'Client updated successfully!');
+                    redirect('clients/view/'.$id);
+                    return;
+                    
+                } catch (Exception $e) {
+                    $error_message = handle_database_error($e, 'An error occurred while updating the client. Please try again.');
+                    $this->session->set_flashdata('error', $error_message);
+                    redirect('clients/edit/'.$id);
+                    return;
+                } catch (Throwable $e) {
+                    $error_message = handle_database_error($e, 'An error occurred while updating the client. Please try again.');
+                    $this->session->set_flashdata('error', $error_message);
+                    redirect('clients/edit/'.$id);
+                    return;
+                }
+            }
+            
+            $managers = $this->clients->get_account_managers();
+            $this->load->view('clients/edit', ['client'=>$c, 'managers'=>$managers]);
+            
+        } catch (Exception $e) {
+            $error_message = handle_database_error($e, 'Unable to load client. Please try again.');
+            $this->session->set_flashdata('error', $error_message);
+            redirect('clients');
+            return;
+        }
     }
     
     // GET /clients/export

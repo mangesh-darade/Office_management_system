@@ -13,6 +13,7 @@
 <script src="https://cdn.datatables.net/2.0.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/3.0.2/js/responsive.bootstrap5.min.js"></script>
+<script src="<?php echo base_url('assets/js/form-validation.js'); ?>"></script>
 <script src="<?php echo base_url('assets/js/app.js'); ?>"></script>
 <script>
   if ('serviceWorker' in navigator) {

@@ -12,34 +12,21 @@ class Timesheets extends CI_Controller {
         $this->ensure_schema();
     }
 
+    /**
+     * Ensure schema - DEPRECATED: Use migrations instead
+     * This method is kept for backward compatibility but should not be used
+     * Run migrations using: php index.php migrate
+     */
     private function ensure_schema(){
-        // Minimal schema to avoid runtime errors if installer wasn't run
-        $this->db->query("CREATE TABLE IF NOT EXISTS timesheets (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            week_start_date DATE NOT NULL,
-            week_end_date DATE NOT NULL,
-            total_hours DECIMAL(5,2) DEFAULT 0,
-            status ENUM('draft','submitted','approved','rejected') DEFAULT 'draft',
-            submitted_at DATETIME NULL,
-            approved_by INT NULL,
-            approved_at DATETIME NULL,
-            comments TEXT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_user_week (user_id, week_start_date)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        $this->db->query("CREATE TABLE IF NOT EXISTS timesheet_entries (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            timesheet_id INT NOT NULL,
-            task_id INT NULL,
-            project_id INT NULL,
-            work_date DATE NOT NULL,
-            hours DECIMAL(5,2) NOT NULL,
-            description TEXT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            INDEX (timesheet_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        // Schema changes have been moved to migrations
+        // See: application/migrations/002_Create_timesheets_tables.php
+        // Run migrations using: php index.php migrate
+        log_message('debug', 'Timesheets::ensure_schema() called - consider using migrations instead');
+        
+        // Only create tables if they don't exist (backward compatibility)
+        if (!$this->db->table_exists('timesheets') || !$this->db->table_exists('timesheet_entries')) {
+            log_message('error', 'Timesheets tables missing - please run migrations: php index.php migrate');
+        }
     }
 
     // GET/POST /timesheets (My Timesheet)
@@ -54,39 +41,105 @@ class Timesheets extends CI_Controller {
 
         // Handle add entry (POST)
         if ($this->input->method() === 'post'){
-            $timesheet = $this->db->get_where('timesheets', ['user_id'=>$user_id, 'week_start_date'=>$week_start])->row();
-            if (!$timesheet){
-                $tid = $this->ts->create_timesheet([
-                    'user_id' => $user_id,
-                    'week_start_date' => $week_start,
-                    'week_end_date' => date('Y-m-d', strtotime($week_start.' +6 days')),
-                    'status' => 'draft',
-                    'created_at' => date('Y-m-d H:i:s')
-                ]);
-            } else { $tid = (int)$timesheet->id; }
+            try {
+                // Validate input
+                $work_date = $this->input->post('work_date');
+                $hours = (float)$this->input->post('hours');
+                
+                if (empty($work_date)) {
+                    $this->session->set_flashdata('error', 'Work date is required.');
+                    redirect('timesheets?week='.$week_start);
+                    return;
+                }
+                
+                // Validate date format
+                $date_parts = explode('-', $work_date);
+                if (count($date_parts) !== 3 || !checkdate((int)$date_parts[1], (int)$date_parts[2], (int)$date_parts[0])) {
+                    $this->session->set_flashdata('error', 'Invalid date format.');
+                    redirect('timesheets?week='.$week_start);
+                    return;
+                }
+                
+                // Validate hours (must be positive and reasonable)
+                if ($hours <= 0 || $hours > 24) {
+                    $this->session->set_flashdata('error', 'Hours must be between 0 and 24.');
+                    redirect('timesheets?week='.$week_start);
+                    return;
+                }
+                
+                // Check if date is within the week
+                $week_end = date('Y-m-d', strtotime($week_start.' +6 days'));
+                if ($work_date < $week_start || $work_date > $week_end) {
+                    $this->session->set_flashdata('error', 'Work date must be within the selected week.');
+                    redirect('timesheets?week='.$week_start);
+                    return;
+                }
+                
+                $timesheet = $this->db->get_where('timesheets', ['user_id'=>$user_id, 'week_start_date'=>$week_start])->row();
+                if (!$timesheet){
+                    $tid = $this->ts->create_timesheet([
+                        'user_id' => $user_id,
+                        'week_start_date' => $week_start,
+                        'week_end_date' => date('Y-m-d', strtotime($week_start.' +6 days')),
+                        'status' => 'draft',
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+                } else { 
+                    $tid = (int)$timesheet->id;
+                    // Don't allow adding entries to submitted/approved timesheets
+                    if (in_array($timesheet->status, ['submitted', 'approved'], true)) {
+                        $this->session->set_flashdata('error', 'Cannot add entries to a submitted or approved timesheet.');
+                        redirect('timesheets?week='.$week_start);
+                        return;
+                    }
+                }
 
-            $entry = [
-                'project_id' => (int)($this->input->post('project_id') ?: 0),
-                'task_id' => (int)($this->input->post('task_id') ?: 0),
-                'work_date' => $this->input->post('work_date'),
-                'hours' => (float)$this->input->post('hours'),
-                'description' => trim((string)$this->input->post('description')),
-                'created_at' => date('Y-m-d H:i:s')
-            ];
-            if ($entry['work_date']){ $this->ts->add_entry($tid, $entry); }
-            $this->session->set_flashdata('success', 'Entry added.');
-            redirect('timesheets?week='.$week_start); return;
+                $entry = [
+                    'project_id' => (int)($this->input->post('project_id') ?: 0),
+                    'task_id' => (int)($this->input->post('task_id') ?: 0),
+                    'work_date' => $work_date,
+                    'hours' => $hours,
+                    'description' => trim((string)$this->input->post('description')),
+                    'billable' => (int)($this->input->post('billable') ?: 1), // Default to billable
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+                
+                $this->ts->add_entry($tid, $entry);
+                $this->session->set_flashdata('success', 'Entry added.');
+                redirect('timesheets?week='.$week_start);
+                return;
+            } catch (Exception $e) {
+                log_message('error', 'Timesheet entry error: ' . $e->getMessage());
+                $this->session->set_flashdata('error', 'An error occurred while adding the entry.');
+                redirect('timesheets?week='.$week_start);
+                return;
+            }
         }
 
         list($row, $entries) = $this->ts->get_user_timesheet($user_id, $week_start);
+        
+        // Get entries with task and project details
+        $entries_with_details = [];
+        if (!empty($row->id)) {
+            $entries_with_details = $this->ts->get_entries_with_details($row->id);
+        }
+        
+        // Get billable hours summary
+        $billable_summary = ['billable' => 0, 'non_billable' => 0, 'total' => 0];
+        if (!empty($row->id)) {
+            $billable_summary = $this->ts->get_billable_hours($row->id);
+        }
+        
         $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result();
         $tasks = $this->db->select('id,title')->from('tasks')->order_by('id','DESC')->limit(500)->get()->result();
+        
         $this->load->view('timesheets/index', [
             'timesheet' => $row,
-            'entries' => $entries,
+            'entries' => $entries_with_details ?: $entries,
             'week_start' => $week_start,
             'projects' => $projects,
             'tasks' => $tasks,
+            'billable_summary' => $billable_summary,
         ]);
     }
 
@@ -137,5 +190,77 @@ class Timesheets extends CI_Controller {
         $month = (int)($this->input->get('month') ?: date('m'));
         $rows = $this->ts->report_monthly_hours($year, $month);
         $this->load->view('timesheets/report', ['rows'=>$rows,'year'=>$year,'month'=>$month]);
+    }
+    
+    // GET /timesheets/analytics
+    public function analytics(){
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        
+        // Only admins and managers can view analytics
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+            show_error('Access denied', 403);
+            return;
+        }
+        
+        $start_date = $this->input->get('start_date') ?: date('Y-m-01'); // First day of current month
+        $end_date = $this->input->get('end_date') ?: date('Y-m-t'); // Last day of current month
+        $project_id = $this->input->get('project_id') ? (int)$this->input->get('project_id') : null;
+        $user_filter = $this->input->get('user_id') ? (int)$this->input->get('user_id') : null;
+        
+        // Project analytics
+        $project_analytics = $this->ts->get_project_analytics($project_id, $start_date, $end_date);
+        
+        // User analytics
+        $user_analytics = $this->ts->get_user_analytics($user_filter, $start_date, $end_date);
+        
+        // Task time tracking
+        $task_tracking = $this->ts->get_task_time_tracking(null, $start_date, $end_date);
+        
+        $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result();
+        $users = $this->db->select('id,email')->from('users')->order_by('email','ASC')->get()->result();
+        
+        $this->load->view('timesheets/analytics', [
+            'project_analytics' => $project_analytics,
+            'user_analytics' => $user_analytics,
+            'task_tracking' => $task_tracking,
+            'projects' => $projects,
+            'users' => $users,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'selected_project' => $project_id,
+            'selected_user' => $user_filter,
+        ]);
+    }
+    
+    // GET /timesheets/task-tracking/{task_id}
+    public function task_tracking($task_id = null){
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        
+        // Only admins and managers can view task tracking
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+            show_error('Access denied', 403);
+            return;
+        }
+        
+        if (!$task_id) {
+            show_404();
+            return;
+        }
+        
+        $start_date = $this->input->get('start_date');
+        $end_date = $this->input->get('end_date');
+        
+        $tracking = $this->ts->get_task_time_tracking((int)$task_id, $start_date, $end_date);
+        
+        $task = $this->db->where('id', (int)$task_id)->get('tasks')->row();
+        
+        $this->load->view('timesheets/task_tracking', [
+            'task' => $task,
+            'tracking' => $tracking,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+        ]);
     }
 }

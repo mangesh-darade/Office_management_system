@@ -33,6 +33,54 @@
   ?>
   <!-- jQuery must be loaded early so that inline view scripts relying on it (e.g., chats/app.php) can use $.ajax and delegated events -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script>
+  // Global CSRF token helper for AJAX requests
+  (function() {
+    window.getCsrfToken = function() {
+      // Try to get from cookie
+      var cookies = document.cookie.split(';');
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i].trim();
+        if (cookie.indexOf('ci_csrf_token=') === 0) {
+          return cookie.substring('ci_csrf_token='.length);
+        }
+      }
+      // Fallback: try to get from form
+      var csrfInput = document.querySelector('input[name="ci_csrf_token"]');
+      if (csrfInput) {
+        return csrfInput.value;
+      }
+      return '';
+    };
+    
+    // Auto-include CSRF token in jQuery AJAX requests
+    if (window.$ && $.ajaxSetup) {
+      $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          // Only add CSRF token for POST/PUT/DELETE requests
+          if (settings.type && /^(POST|PUT|DELETE)$/i.test(settings.type)) {
+            var token = window.getCsrfToken();
+            if (token) {
+              // Add to form data if it's FormData or URLSearchParams
+              if (settings.data instanceof FormData) {
+                settings.data.append('ci_csrf_token', token);
+              } else if (settings.data instanceof URLSearchParams) {
+                settings.data.append('ci_csrf_token', token);
+              } else if (typeof settings.data === 'string') {
+                // If it's a string, append to it
+                var separator = settings.data.indexOf('=') !== -1 ? '&' : '';
+                settings.data = settings.data + separator + 'ci_csrf_token=' + encodeURIComponent(token);
+              } else if (typeof settings.data === 'object' && settings.data !== null) {
+                // If it's an object, add the token
+                settings.data.ci_csrf_token = token;
+              }
+            }
+          }
+        }
+      });
+    }
+  })();
+  </script>
 </head>
 <body>
 <?php if (empty($hide_navbar)): ?>

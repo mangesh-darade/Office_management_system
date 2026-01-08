@@ -13,7 +13,7 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post">
+    <form method="post" data-validate="true">
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Title</label>

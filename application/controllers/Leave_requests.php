@@ -18,7 +18,7 @@ class Leave_requests extends CI_Controller {
         // Read leave types (only active ones)
         $this->db->order_by('name','ASC');
         if ($this->db->field_exists('status', 'leave_types')) {
-            $this->db->where('status', 'active');
+            $this->db->where('status', STATUS_ACTIVE);
         }
         $types = $this->db->get('leave_types')->result();
 
@@ -26,12 +26,21 @@ class Leave_requests extends CI_Controller {
             $type_id = (int)$this->input->post('type_id');
             $mode = $this->input->post('mode');
             $mode = ($mode === 'specific') ? 'specific' : 'range';
-            $reason     = trim((string)$this->input->post('reason'));
+            $reason = trim((string)$this->input->post('reason'));
 
             if (!$type_id){
                 $this->session->set_flashdata('error', 'Please select a leave type.');
                 redirect('leave/apply');
                 return;
+            }
+            
+            // Check if selected leave type is "Work From Home"
+            $leave_type = $this->db->select('name')->from('leave_types')->where('id', $type_id)->get()->row();
+            $is_wfh = false;
+            if ($leave_type && strtolower(trim($leave_type->name)) === 'work from home') {
+                $is_wfh = true;
+                // Prefix reason with WFH marker
+                $reason = 'WFH: ' . ($reason ? $reason : 'Work From Home Request');
             }
 
             if ($mode === 'specific') {
@@ -89,12 +98,14 @@ class Leave_requests extends CI_Controller {
                     return;
                 }
 
-                // Check leave balance once for total days
-                $bal = $this->leaves->get_leave_balance($user_id, $type_id);
-                if ($bal && isset($bal->available) && (float)$bal->available < $days){
-                    $this->session->set_flashdata('error', 'Insufficient balance for this leave type. Available: '.(float)$bal->available);
-                    redirect('leave/apply');
-                    return;
+                // Check leave balance only if not WFH
+                if (!$is_wfh) {
+                    $bal = $this->leaves->get_leave_balance($user_id, $type_id);
+                    if ($bal && isset($bal->available) && (float)$bal->available < $days){
+                        $this->session->set_flashdata('error', 'Insufficient balance for this leave type. Available: '.(float)$bal->available);
+                        redirect('leave/apply');
+                        return;
+                    }
                 }
 
                 // Find department manager as approver if available
@@ -117,6 +128,9 @@ class Leave_requests extends CI_Controller {
                     }
                 }
 
+                // Use transaction for data integrity
+                $this->db->trans_start();
+
                 $leave_ids = [];
                 foreach ($perDateDays as $d => $wd) {
                     $data = [
@@ -126,7 +140,7 @@ class Leave_requests extends CI_Controller {
                         'end_date' => $d,
                         'days' => $wd,
                         'reason' => $reason,
-                        'status' => 'pending',
+                        'status' => STATUS_PENDING,
                         'current_approver_id' => $approver_id,
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
@@ -134,15 +148,35 @@ class Leave_requests extends CI_Controller {
                     $leave_id = $this->leaves->apply_leave($data);
                     if ($leave_id) {
                         $leave_ids[] = $leave_id;
+                    } else {
+                        // Rollback on failure
+                        $this->db->trans_rollback();
+                        $this->session->set_flashdata('error', 'Failed to create leave request. Please try again.');
+                        redirect('leave/apply');
+                        return;
                     }
+                }
+                
+                $this->db->trans_complete();
+                
+                if ($this->db->trans_status() === FALSE) {
+                    log_message('error', 'Leave application transaction failed for user: ' . $user_id);
+                    $this->session->set_flashdata('error', 'Failed to submit leave request. Please try again.');
+                    redirect('leave/apply');
+                    return;
                 }
 
                 // Send email notifications after all leave requests are created
                 if (!empty($leave_ids)) {
+                    try {
                     $this->_notify_leave_applied($leave_ids, $user_id, $type_id, $approver_id);
+                    } catch (Exception $e) {
+                        log_message('error', 'Leave notification error: ' . $e->getMessage());
+                        // Don't fail the request if notification fails
+                    }
                 }
 
-                $this->session->set_flashdata('success', 'Leave request submitted.');
+                $this->session->set_flashdata('success', 'Leave request submitted successfully.');
                 redirect('leave/my');
                 return;
             }
@@ -153,16 +187,45 @@ class Leave_requests extends CI_Controller {
             $duration_type = $this->input->post('duration_type');
             $duration_type = ($duration_type === 'half') ? 'half' : 'full';
 
-            // Basic validation
+            // Enhanced validation using validation helper
+            $this->load->helper('validation');
+            
             if (!$start_date || !$end_date){
                 $this->session->set_flashdata('error', 'Please select type and date range.');
                 redirect('leave/apply');
                 return;
             }
-            if (strtotime($end_date) < strtotime($start_date)){
-                $this->session->set_flashdata('error', 'End date cannot be before start date.');
+            
+            // Validate date formats
+            $start_validation = validate_date($start_date);
+            $end_validation = validate_date($end_date);
+            
+            if (!$start_validation['valid']) {
+                $this->session->set_flashdata('error', 'Invalid start date format.');
                 redirect('leave/apply');
                 return;
+            }
+            
+            if (!$end_validation['valid']) {
+                $this->session->set_flashdata('error', 'Invalid end date format.');
+                redirect('leave/apply');
+                return;
+            }
+            
+            // PHP 5.6+ compatible date comparison
+            if (class_exists('DateTime') && $start_validation['date'] instanceof DateTime && $end_validation['date'] instanceof DateTime) {
+                if ($end_validation['date'] < $start_validation['date']) {
+                    $this->session->set_flashdata('error', 'End date cannot be before start date.');
+                    redirect('leave/apply');
+                    return;
+                }
+            } else {
+                // Fallback for older PHP
+                if (strtotime($end_date) < strtotime($start_date)){
+                    $this->session->set_flashdata('error', 'End date cannot be before start date.');
+                    redirect('leave/apply');
+                    return;
+                }
             }
 
             // Calculate working days
@@ -205,12 +268,14 @@ class Leave_requests extends CI_Controller {
                 return;
             }
 
-            // Check leave balance
-            $bal = $this->leaves->get_leave_balance($user_id, $type_id);
-            if ($bal && isset($bal->available) && (float)$bal->available < $days){
-                $this->session->set_flashdata('error', 'Insufficient balance for this leave type. Available: '.(float)$bal->available);
-                redirect('leave/apply');
-                return;
+            // Check leave balance only if not WFH
+            if (!$is_wfh) {
+                $bal = $this->leaves->get_leave_balance($user_id, $type_id);
+                if ($bal && isset($bal->available) && (float)$bal->available < $days){
+                    $this->session->set_flashdata('error', 'Insufficient balance for this leave type. Available: '.(float)$bal->available);
+                    redirect('leave/apply');
+                    return;
+                }
             }
 
             // Find department manager as approver if available
@@ -514,7 +579,7 @@ class Leave_requests extends CI_Controller {
         // Load leave types for dropdown (only active ones)
         $this->db->order_by('name','ASC');
         if ($this->db->field_exists('status', 'leave_types')) {
-            $this->db->where('status', 'active');
+            $this->db->where('status', STATUS_ACTIVE);
         }
         $types = $this->db->get('leave_types')->result();
         $this->load->view('leave_requests/edit', [
@@ -532,6 +597,49 @@ class Leave_requests extends CI_Controller {
         $id = (int)$id;
         $leave = $this->db->get_where('leave_requests', ['id' => $id])->row();
         if (!$leave) { show_404(); }
+        
+        // Check if this is a WFH request and if it was approved, remove WFH attendance records
+        $is_wfh = false;
+        if (isset($leave->reason) && strpos($leave->reason, 'WFH:') === 0) {
+            $is_wfh = true;
+        } else {
+            $leave_type = $this->db->select('name')->from('leave_types')->where('id', (int)$leave->type_id)->get()->row();
+            if ($leave_type && strtolower(trim($leave_type->name)) === 'work from home') {
+                $is_wfh = true;
+            }
+        }
+        
+        // If WFH was approved, remove attendance records
+        if ($is_wfh && in_array($leave->status, ['lead_approved', 'hr_approved'], true)) {
+            $this->load->model('Leave_request_model', 'leaves');
+            // Use reflection or make method public/protected, or call directly
+            // For now, we'll handle it inline
+            $dateCol = 'att_date';
+            $statusCol = 'status';
+            if (!$this->db->field_exists($dateCol, 'attendance')) {
+                $dateCol = 'date';
+            }
+            if ($this->db->field_exists($statusCol, 'attendance')) {
+                $startTs = strtotime($leave->start_date);
+                $endTs = strtotime($leave->end_date);
+                $dates = [];
+                $current = $startTs;
+                while ($current !== false && $current <= $endTs) {
+                    $dateStr = date('Y-m-d', $current);
+                    $dayOfWeek = (int)date('w', $current);
+                    if ($dayOfWeek != 0 && $dayOfWeek != 6) {
+                        $dates[] = $dateStr;
+                    }
+                    $current = strtotime('+1 day', $current);
+                }
+                if (!empty($dates)) {
+                    $this->db->where('user_id', (int)$leave->user_id)
+                             ->where($statusCol, 'work_from_home')
+                             ->where_in($dateCol, $dates)
+                             ->delete('attendance');
+                }
+            }
+        }
         
         // Delete leave request
         $this->db->where('id', $id)->delete('leave_requests');
@@ -567,6 +675,14 @@ class Leave_requests extends CI_Controller {
             $first_leave = $leaves[0];
             $employee_name = !empty($first_leave->user_name) ? $first_leave->user_name : $first_leave->user_email;
             $leave_type = $first_leave->type_name;
+            
+            // Check if this is a WFH request
+            $is_wfh = false;
+            if (isset($first_leave->reason) && strpos($first_leave->reason, 'WFH:') === 0) {
+                $is_wfh = true;
+            } elseif (isset($leave_type) && strtolower(trim($leave_type)) === 'work from home') {
+                $is_wfh = true;
+            }
             
             // Build consolidated leave details
             $leave_details = [];
@@ -619,20 +735,21 @@ class Leave_requests extends CI_Controller {
             $fromName = get_company_name();
             
             // Build consolidated email content
-            $subject = 'New Leave Request - ' . $employee_name;
+            $request_type = $is_wfh ? 'WFH Request' : 'Leave Request';
+            $subject = 'New ' . $request_type . ' - ' . $employee_name;
             if ($request_count > 1) {
                 $subject .= ' (' . $request_count . ' requests)';
             }
             
             $message = '<html><body>';
-            $message .= '<h3>New Leave Request</h3>';
+            $message .= '<h3>New ' . htmlspecialchars($request_type) . '</h3>';
             $message .= '<p><strong>Employee:</strong> ' . htmlspecialchars($employee_name) . ' (' . htmlspecialchars($first_leave->user_email) . ')</p>';
-            $message .= '<p><strong>Leave Type:</strong> ' . htmlspecialchars($leave_type) . '</p>';
+            $message .= '<p><strong>' . ($is_wfh ? 'WFH Type' : 'Leave Type') . ':</strong> ' . htmlspecialchars($leave_type) . '</p>';
             $message .= '<p><strong>Total Requests:</strong> ' . $request_count . '</p>';
             $message .= '<p><strong>Total Days:</strong> ' . number_format($total_days, 1) . '</p>';
             
-            // Add detailed leave breakdown
-            $message .= '<h4>Leave Details:</h4>';
+            // Add detailed leave/WFH breakdown
+            $message .= '<h4>' . ($is_wfh ? 'WFH' : 'Leave') . ' Details:</h4>';
             $message .= '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
             $message .= '<tr style="background-color: #f2f2f2;"><th>Date(s)</th><th>Days</th><th>Reason</th></tr>';
             
@@ -646,7 +763,7 @@ class Leave_requests extends CI_Controller {
             $message .= '</table>';
             
             $message .= '<p><strong>Status:</strong> Pending Approval</p>';
-            $message .= '<p>Please review and approve/reject this leave request from the <a href="' . site_url('leave/team') . '">Team Leaves</a> page.</p>';
+            $message .= '<p>Please review and approve/reject this ' . strtolower($request_type) . ' from the <a href="' . site_url('leave/team') . '">Team Leaves</a> page.</p>';
             $message .= '<p>Thank you.</p>';
             $message .= '</body></html>';
             
@@ -705,6 +822,14 @@ class Leave_requests extends CI_Controller {
                         ->where('lr.id', (int)$leave_id)->get()->row();
         if (!$row || empty($row->user_email)) return;
         
+        // Check if this is a WFH request
+        $is_wfh = false;
+        if (isset($row->reason) && strpos($row->reason, 'WFH:') === 0) {
+            $is_wfh = true;
+        } elseif (isset($row->type_name) && strtolower(trim($row->type_name)) === 'work from home') {
+            $is_wfh = true;
+        }
+        
         // Best-effort email
         try {
             // Initialize email config
@@ -728,15 +853,16 @@ class Leave_requests extends CI_Controller {
             
             $status_text = ($status === 'rejected') ? 'Rejected' : 'Approved';
             $status_color = ($status === 'rejected') ? '#dc3545' : '#28a745';
+            $request_type = $is_wfh ? 'WFH Request' : 'Leave Request';
             
-            $subject = 'Leave Request ' . $status_text . ' - ' . $date_string;
+            $subject = $request_type . ' ' . $status_text . ' - ' . $date_string;
             $message = '<html><body>';
-            $message .= '<h3 style="color: ' . $status_color . ';">Leave Request ' . $status_text . '</h3>';
+            $message .= '<h3 style="color: ' . $status_color . ';">' . htmlspecialchars($request_type) . ' ' . $status_text . '</h3>';
             $message .= '<p>Dear ' . htmlspecialchars(!empty($row->user_name) ? $row->user_name : $row->user_email) . ',</p>';
-            $message .= '<p>Your leave request has been <strong style="color: ' . $status_color . ';">' . $status_text . '</strong>.</p>';
-            $message .= '<p><strong>Leave Details:</strong></p>';
+            $message .= '<p>Your ' . strtolower($request_type) . ' has been <strong style="color: ' . $status_color . ';">' . $status_text . '</strong>.</p>';
+            $message .= '<p><strong>' . ($is_wfh ? 'WFH' : 'Leave') . ' Details:</strong></p>';
             $message .= '<ul>';
-            $message .= '<li><strong>Leave Type:</strong> ' . htmlspecialchars($row->type_name) . '</li>';
+            $message .= '<li><strong>' . ($is_wfh ? 'WFH Type' : 'Leave Type') . ':</strong> ' . htmlspecialchars($row->type_name) . '</li>';
             $message .= '<li><strong>Date(s):</strong> ' . htmlspecialchars($date_string) . '</li>';
             $message .= '<li><strong>Days:</strong> ' . number_format((float)$row->days, 1) . '</li>';
             $message .= '<li><strong>Status:</strong> ' . htmlspecialchars($status_text) . '</li>';
@@ -745,7 +871,7 @@ class Leave_requests extends CI_Controller {
                 $message .= '<p><strong>Comments:</strong></p>';
                 $message .= '<p>' . nl2br(htmlspecialchars($comments)) . '</p>';
             }
-            $message .= '<p>You can view your leave requests from the <a href="' . site_url('leave/my') . '">My Leaves</a> page.</p>';
+            $message .= '<p>You can view your ' . strtolower($request_type) . 's from the <a href="' . site_url('leave/my') . '">My Leaves</a> page.</p>';
             $message .= '<p>Thank you.</p>';
             $message .= '</body></html>';
             

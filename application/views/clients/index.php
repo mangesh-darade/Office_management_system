@@ -51,7 +51,7 @@
             <th>Logo</th>
             <th>Code</th>
             <th>Company</th>
-            <th>Contact</th>
+            <th>Name</th>
             <th>Phone</th>
             <th style="width:150px;">Demo URL</th>
             <th style="width:150px;">POS URL</th>

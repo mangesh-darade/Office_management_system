@@ -1520,6 +1520,10 @@ class Reports extends CI_Controller {
             if ($this->db->field_exists('checkout_location_name', 'attendance')) {
                 $selectCols[] = "`checkout_location_name` AS cout_loc";
             }
+            // Add notes field if it exists
+            if ($this->db->field_exists('notes', 'attendance')) {
+                $selectCols[] = "`notes` AS notes";
+            }
 
             $this->db->select(implode(', ', $selectCols))
                 ->from('attendance')
@@ -1534,6 +1538,7 @@ class Reports extends CI_Controller {
             $coutMap = [];
             $cinLocMap = [];
             $coutLocMap = [];
+            $notesMap = [];
             foreach ($rows as $r) {
                 $d = isset($r->d) ? (string)$r->d : '';
                 if ($d === '') { continue; }
@@ -1551,18 +1556,34 @@ class Reports extends CI_Controller {
                 if (isset($r->cout_loc) && !empty($r->cout_loc)) {
                     $coutLocMap[$d] = (string)$r->cout_loc;
                 }
+                if (isset($r->notes) && !empty(trim($r->notes))) {
+                    $notesMap[$d] = trim((string)$r->notes);
+                }
             }
 
             $leaveMap = [];
             if ($this->db->table_exists('leave_requests')) {
-                $lrows = $this->db->select('start_date, end_date, status')
-                    ->from('leave_requests')
-                    ->where('user_id', $user_id)
-                    ->where_in('status', ['lead_approved','hr_approved'])
-                    ->where('start_date <=', $to)
-                    ->where('end_date >=', $from)
+                // Get leave requests, excluding WFH requests (they are handled via attendance status)
+                $lrows = $this->db->select('lr.start_date, lr.end_date, lr.status, lr.reason, lt.name AS type_name')
+                    ->from('leave_requests lr')
+                    ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
+                    ->where('lr.user_id', $user_id)
+                    ->where_in('lr.status', ['lead_approved','hr_approved'])
+                    ->where('lr.start_date <=', $to)
+                    ->where('lr.end_date >=', $from)
                     ->get()->result();
                 foreach ($lrows as $lr) {
+                    // Skip WFH requests - they should not appear in leave map
+                    $is_wfh = false;
+                    if (isset($lr->reason) && strpos($lr->reason, 'WFH:') === 0) {
+                        $is_wfh = true;
+                    } elseif (isset($lr->type_name) && strtolower(trim($lr->type_name)) === 'work from home') {
+                        $is_wfh = true;
+                    }
+                    if ($is_wfh) {
+                        continue; // Skip WFH requests
+                    }
+                    
                     $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
                     $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
                     if ($sd === '' || $ed === '') { continue; }
@@ -1722,6 +1743,12 @@ class Reports extends CI_Controller {
                 if (isset($coutLocMap[$d])) {
                     $checkOutLocation = $coutLocMap[$d];
                 }
+                
+                // Get notes
+                $notes = '—';
+                if (isset($notesMap[$d])) {
+                    $notes = $notesMap[$d];
+                }
 
                 $obj = new stdClass();
                 $obj->date = $d;
@@ -1737,6 +1764,7 @@ class Reports extends CI_Controller {
                 $obj->check_out_location = $checkOutLocation;
                 $obj->worked_hours = round($workedHours, 2); // Total hours worked
                 $obj->extra_hours = round($extraHours, 2); // Extra hours beyond standard
+                $obj->notes = $notes;
                 $days[] = $obj;
                 $startTs = strtotime('+1 day', $startTs);
             }
@@ -1941,14 +1969,26 @@ class Reports extends CI_Controller {
         }
 
         if ($this->db->table_exists('leave_requests')) {
-            // Calculate leave days excluding weekends and future dates
-            $lrows = $this->db->select('lr.user_id, lr.start_date, lr.end_date, lr.status')
+            // Calculate leave days excluding weekends, future dates, and WFH requests
+            $lrows = $this->db->select('lr.user_id, lr.start_date, lr.end_date, lr.status, lr.reason, lt.name AS type_name')
                 ->from('leave_requests lr')
+                ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                 ->where_in('lr.status', ['lead_approved','hr_approved'])
                 ->where('lr.start_date <=', $to)
                 ->where('lr.end_date >=', $from)
                 ->get()->result();
             foreach ($lrows as $lr) {
+                // Skip WFH requests - they should not be counted as leave
+                $is_wfh = false;
+                if (isset($lr->reason) && strpos($lr->reason, 'WFH:') === 0) {
+                    $is_wfh = true;
+                } elseif (isset($lr->type_name) && strtolower(trim($lr->type_name)) === 'work from home') {
+                    $is_wfh = true;
+                }
+                if ($is_wfh) {
+                    continue; // Skip WFH requests - they are counted in WFH days, not leave days
+                }
+                
                 $uid = (int)$lr->user_id;
                 $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
                 $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
@@ -2009,6 +2049,44 @@ class Reports extends CI_Controller {
             return strcmp($a->name, $b->name);
         });
 
+        // Fetch attendance notes for the selected period
+        $attendanceNotes = [];
+        if ($this->db->field_exists('notes', 'attendance')) {
+            $notesQuery = $this->db->select("`$userCol` AS uid, `$dateCol` AS d, `notes`")
+                ->from('attendance')
+                ->where("`$dateCol` >=", $from)
+                ->where("`$dateCol` <=", $to)
+                ->where("`notes` IS NOT NULL")
+                ->where("`notes` !=", '')
+                ->where("TRIM(`notes`) !=", '')
+                ->order_by($dateCol, 'ASC')
+                ->order_by($userCol, 'ASC')
+                ->get();
+            
+            if ($notesQuery && $notesQuery->num_rows() > 0) {
+                foreach ($notesQuery->result() as $noteRow) {
+                    $uid = (int)$noteRow->uid;
+                    $attDate = isset($noteRow->d) ? (string)$noteRow->d : '';
+                    $notes = isset($noteRow->notes) ? trim((string)$noteRow->notes) : '';
+                    
+                    if ($attDate === '' || $notes === '') continue;
+                    
+                    // Extract date part if datetime
+                    if (strpos($attDate, ' ') !== false) {
+                        $attDate = trim(explode(' ', $attDate)[0]);
+                    }
+                    
+                    if (!isset($attendanceNotes[$uid])) {
+                        $attendanceNotes[$uid] = [];
+                    }
+                    if (!isset($attendanceNotes[$uid][$attDate])) {
+                        $attendanceNotes[$uid][$attDate] = [];
+                    }
+                    $attendanceNotes[$uid][$attDate][] = $notes;
+                }
+            }
+        }
+        
         // Get settings for display
         $officeStartDisplay = $officeStart;
         $graceMinutesDisplay = $graceMinutes;
@@ -2024,7 +2102,9 @@ class Reports extends CI_Controller {
             'office_start_time' => $officeStartDisplay,
             'grace_minutes' => $graceMinutesDisplay,
             'standard_working_hours' => $standardHoursDisplay,
-            'rows' => $rowsOut
+            'rows' => $rowsOut,
+            'attendance_notes' => $attendanceNotes,
+            'getName' => $getName
         ]);
     }
 
@@ -2408,10 +2488,20 @@ class Reports extends CI_Controller {
                 $to = date('Y-m-d');
             }
             
-            if ($format === 'excel') {
-                $this->export_attendance_employee_excel($userIds, $period, $from, $to, $month, $date);
-            } elseif ($format === 'pdf') {
-                $this->export_attendance_employee_pdf($userIds, $period, $from, $to, $month, $date);
+            // Check if it's a single user export (detail view) - export daily details
+            if (count($userIds) === 1) {
+                if ($format === 'excel') {
+                    $this->export_attendance_employee_detail_excel($userIds[0], $period, $from, $to, $month, $date);
+                } elseif ($format === 'pdf') {
+                    $this->export_attendance_employee_detail_pdf($userIds[0], $period, $from, $to, $month, $date);
+                }
+            } else {
+                // Multiple users - export summary
+                if ($format === 'excel') {
+                    $this->export_attendance_employee_excel($userIds, $period, $from, $to, $month, $date);
+                } elseif ($format === 'pdf') {
+                    $this->export_attendance_employee_pdf($userIds, $period, $from, $to, $month, $date);
+                }
             }
         } catch (Exception $e) {
             log_message('error', 'Export attendance employee error: ' . $e->getMessage());
@@ -2923,5 +3013,401 @@ class Reports extends CI_Controller {
 </html>';
         
         return $html;
+    }
+    
+    // Helper method to generate daily details data (reused from attendance_employee method)
+    private function generate_daily_details_data($user_id, $from, $to) {
+        // Detect columns
+        $fields = $this->db->list_fields('attendance');
+        $userCandidates = ['user_id','employee_id','emp_id','staff_id','uid'];
+        $dateCandidates = ['att_date','date','attendance_date','created_at','checked_at'];
+        $statusCandidates = ['status','attendance_status','state'];
+        $userCol = $dateCol = $statusCol = null;
+        foreach ($userCandidates as $c) { if (in_array($c, $fields, true)) { $userCol = $c; break; } }
+        foreach ($dateCandidates as $c) { if (in_array($c, $fields, true)) { $dateCol = $c; break; } }
+        foreach ($statusCandidates as $c) { if (in_array($c, $fields, true)) { $statusCol = $c; break; } }
+        if ($userCol === null) { $userCol = isset($fields[0]) ? $fields[0] : 'user_id'; }
+        if ($dateCol === null) { $dateCol = isset($fields[1]) ? $fields[1] : 'att_date'; }
+        if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
+        
+        // Detect check-in/out columns
+        $checkInCol = null;
+        $checkOutCol = null;
+        if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
+        elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
+        if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
+        elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+        
+        $selectCols = ["`$dateCol` AS d", "`$statusCol` AS st"];
+        if ($checkInCol !== null) { $selectCols[] = "`".$checkInCol."` AS cin"; }
+        if ($checkOutCol !== null) { $selectCols[] = "`".$checkOutCol."` AS cout"; }
+        if ($this->db->field_exists('checkin_location_name', 'attendance')) {
+            $selectCols[] = "`checkin_location_name` AS cin_loc";
+        }
+        if ($this->db->field_exists('checkout_location_name', 'attendance')) {
+            $selectCols[] = "`checkout_location_name` AS cout_loc";
+        }
+        if ($this->db->field_exists('notes', 'attendance')) {
+            $selectCols[] = "`notes` AS notes";
+        }
+        
+        $this->db->select(implode(', ', $selectCols))
+            ->from('attendance')
+            ->where($userCol, $user_id)
+            ->where("`$dateCol` >=", $from)
+            ->where("`$dateCol` <=", $to)
+            ->order_by($dateCol, 'ASC');
+        $rows = $this->db->get()->result();
+        
+        $attMap = []; $cinMap = []; $coutMap = []; $cinLocMap = []; $coutLocMap = []; $notesMap = [];
+        foreach ($rows as $r) {
+            $d = isset($r->d) ? (string)$r->d : '';
+            if ($d === '') { continue; }
+            if (strpos($d, ' ') !== false) { $d = trim(explode(' ', $d)[0]); }
+            $attMap[$d] = (string)$r->st;
+            if ($checkInCol !== null && isset($r->cin)) { $cinMap[$d] = (string)$r->cin; }
+            if ($checkOutCol !== null && isset($r->cout)) { $coutMap[$d] = (string)$r->cout; }
+            if (isset($r->cin_loc) && !empty($r->cin_loc)) { $cinLocMap[$d] = (string)$r->cin_loc; }
+            if (isset($r->cout_loc) && !empty($r->cout_loc)) { $coutLocMap[$d] = (string)$r->cout_loc; }
+            if (isset($r->notes) && !empty(trim($r->notes))) { $notesMap[$d] = trim((string)$r->notes); }
+        }
+        
+        // Get leave map
+        $leaveMap = [];
+        if ($this->db->table_exists('leave_requests')) {
+            $lrows = $this->db->select('start_date, end_date, status')
+                ->from('leave_requests')
+                ->where('user_id', $user_id)
+                ->where_in('status', ['lead_approved','hr_approved'])
+                ->where('start_date <=', $to)
+                ->where('end_date >=', $from)
+                ->get()->result();
+            foreach ($lrows as $lr) {
+                $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
+                $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
+                if ($sd === '' || $ed === '') { continue; }
+                $cur = strtotime(max($from, substr($sd, 0, 10)));
+                $endTs = strtotime(min($to, substr($ed, 0, 10)));
+                $txt = 'Leave ('.(string)$lr->status.')';
+                while ($cur !== false && $cur <= $endTs) {
+                    $k = date('Y-m-d', $cur);
+                    if (!isset($leaveMap[$k])) { $leaveMap[$k] = $txt; }
+                    $cur = strtotime('+1 day', $cur);
+                }
+            }
+        }
+        
+        // Get settings
+        $officeStart = '09:30';
+        $graceMinutes = 15;
+        $standardHours = 8.0;
+        if (isset($this->settings)) {
+            try {
+                $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) { $officeStart = $stVal; }
+                $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                if (is_numeric($gmVal)) { $graceMinutes = (int)$gmVal; }
+                $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                if ($shVal === null || $shVal === '') {
+                    $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                }
+                if (is_numeric($shVal)) { $standardHours = (float)$shVal; }
+            } catch (Exception $e) { }
+        }
+        
+        // Generate days array
+        $days = [];
+        $startTs = strtotime($from);
+        $endTs = strtotime($to);
+        while ($startTs !== false && $startTs <= $endTs) {
+            $d = date('Y-m-d', $startTs);
+            $dayOfWeek = (int)date('w', $startTs);
+            $isWeekend = ($dayOfWeek == 0 || $dayOfWeek == 6);
+            
+            $raw = isset($attMap[$d]) ? $attMap[$d] : '';
+            $st = strtolower(trim($raw));
+            $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+            
+            if ($raw === '' && $leave === '—' && !$isWeekend) {
+                $st = 'absent';
+                $raw = 'absent';
+            }
+            
+            $labelSt = '—';
+            if ($st === 'present') { $labelSt = 'Present'; }
+            elseif ($st === 'half_day') { $labelSt = 'Half Day'; }
+            elseif ($st === 'work_from_home') { $labelSt = 'Work From Home'; }
+            elseif ($st === 'absent') { $labelSt = 'Absent'; }
+            elseif ($st !== '') { $labelSt = $raw; }
+            elseif ($isWeekend) { $labelSt = 'Weekend'; }
+            
+            $lateLabel = '—';
+            $lateStatus = '';
+            $lateMinutes = 0;
+            $checkInTime = '—';
+            $checkOutTime = '—';
+            $checkInLocation = '—';
+            $checkOutLocation = '—';
+            
+            if ($checkInCol !== null && isset($cinMap[$d]) && $st !== '' && $st !== 'absent') {
+                $cinRaw = (string)$cinMap[$d];
+                $cinTime = $cinRaw;
+                if (strpos($cinRaw, ' ') !== false) {
+                    $parts = explode(' ', $cinRaw);
+                    $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
+                    $checkInTime = substr($cinTime, 0, 5);
+                } else {
+                    $checkInTime = substr($cinTime, 0, 5);
+                }
+                
+                if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
+                    $officeTs = strtotime($d.' '.$officeStart.':00');
+                    $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
+                    $cinTs    = strtotime($d.' '.$cinTime);
+                    
+                    if ($graceTs !== false && $cinTs !== false) {
+                        if ($cinTs > $graceTs) {
+                            $lateMinutes = (int)round(($cinTs - $graceTs) / 60);
+                            $lateStatus = 'late';
+                            $lateLabel = 'Late: '.substr($cinTime, 0, 5).' ('.$lateMinutes.' min)';
+                        } else {
+                            $lateStatus = 'on_time';
+                            $lateLabel = 'On Time: '.substr($cinTime, 0, 5);
+                        }
+                    }
+                }
+            }
+            
+            $workedHours = 0;
+            $extraHours = 0;
+            if ($checkOutCol !== null && isset($coutMap[$d])) {
+                $coutRaw = (string)$coutMap[$d];
+                $coutTime = $coutRaw;
+                if (strpos($coutRaw, ' ') !== false) {
+                    $parts = explode(' ', $coutRaw);
+                    $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
+                }
+                if (preg_match('/^\d{2}:\d{2}/', $coutTime)) {
+                    $checkOutTime = substr($coutTime, 0, 5);
+                    
+                    if ($checkInTime !== '—' && preg_match('/^\d{2}:\d{2}/', $checkInTime)) {
+                        $cinTs = strtotime($d.' '.$checkInTime.':00');
+                        $coutTs = strtotime($d.' '.$coutTime.':00');
+                        if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
+                            $workedHours = ($coutTs - $cinTs) / 3600;
+                            if ($workedHours > $standardHours) {
+                                $extraHours = $workedHours - $standardHours;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (isset($cinLocMap[$d])) { $checkInLocation = $cinLocMap[$d]; }
+            if (isset($coutLocMap[$d])) { $checkOutLocation = $coutLocMap[$d]; }
+            $notes = isset($notesMap[$d]) ? $notesMap[$d] : '—';
+            
+            $obj = new stdClass();
+            $obj->date = $d;
+            $obj->status = $labelSt;
+            $obj->leave = $leave;
+            $obj->late = $lateLabel;
+            $obj->late_status = $lateStatus;
+            $obj->check_in_time = $checkInTime;
+            $obj->check_out_time = $checkOutTime;
+            $obj->check_in_location = $checkInLocation;
+            $obj->check_out_location = $checkOutLocation;
+            $obj->worked_hours = round($workedHours, 2);
+            $obj->extra_hours = round($extraHours, 2);
+            $obj->notes = $notes;
+            $days[] = $obj;
+            $startTs = strtotime('+1 day', $startTs);
+        }
+        
+        return $days;
+    }
+    
+    // Export daily details to Excel
+    private function export_attendance_employee_detail_excel($user_id, $period, $from, $to, $month, $date) {
+        try {
+            // Get user name
+            $userName = 'Unknown';
+            if ($this->db->table_exists('users')) {
+                $this->db->select('u.id');
+                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
+                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+                else { $this->db->select('u.email AS name'); }
+                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                    $this->db->join('employees e','e.user_id = u.id','left');
+                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
+                }
+                $user = $this->db->from('users u')->where('u.id', $user_id)->get()->row();
+                if ($user) { $userName = isset($user->name) ? $user->name : 'Unknown'; }
+            }
+            
+            // Generate daily details
+            $days = $this->generate_daily_details_data($user_id, $from, $to);
+            
+            // Prepare CSV data
+            $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.csv';
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            
+            $output = fopen('php://output', 'w');
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM for UTF-8
+            
+            // Headers
+            fputcsv($output, [
+                'Date',
+                'Status',
+                'Check-In Time',
+                'Check-Out Time',
+                'Check-In Location',
+                'Check-Out Location',
+                'Late/On Time',
+                'Worked Hours',
+                'Extra Hours',
+                'Leave',
+                'Notes'
+            ]);
+            
+            // Data rows
+            foreach ($days as $day) {
+                fputcsv($output, [
+                    $day->date,
+                    $day->status,
+                    $day->check_in_time !== '—' ? $day->check_in_time : '',
+                    $day->check_out_time !== '—' ? $day->check_out_time : '',
+                    $day->check_in_location !== '—' ? $day->check_in_location : '',
+                    $day->check_out_location !== '—' ? $day->check_out_location : '',
+                    $day->late !== '—' ? $day->late : '',
+                    $day->worked_hours > 0 ? number_format($day->worked_hours, 2) : '',
+                    $day->extra_hours > 0 ? number_format($day->extra_hours, 2) : '',
+                    $day->leave !== '—' ? $day->leave : '',
+                    $day->notes !== '—' ? $day->notes : ''
+                ]);
+            }
+            
+            fclose($output);
+            exit;
+        } catch (Exception $e) {
+            log_message('error', 'Export Detail Excel error: ' . $e->getMessage());
+            show_error('Error generating Excel export: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    // Export daily details to PDF
+    private function export_attendance_employee_detail_pdf($user_id, $period, $from, $to, $month, $date) {
+        try {
+            // Get user name
+            $userName = 'Unknown';
+            if ($this->db->table_exists('users')) {
+                $this->db->select('u.id');
+                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
+                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
+                else { $this->db->select('u.email AS name'); }
+                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                    $this->db->join('employees e','e.user_id = u.id','left');
+                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
+                }
+                $user = $this->db->from('users u')->where('u.id', $user_id)->get()->row();
+                if ($user) { $userName = isset($user->name) ? $user->name : 'Unknown'; }
+            }
+            
+            // Generate daily details
+            $days = $this->generate_daily_details_data($user_id, $from, $to);
+            
+            $periodLabel = $period === 'daily' ? ($date ?: date('Y-m-d')) : ($period === 'weekly' ? ($from . ' to ' . $to) : ($month ?: date('Y-m')));
+            
+            $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Attendance Detail Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 9px; }
+        h1 { color: #2563eb; margin-bottom: 10px; font-size: 16px; }
+        h2 { color: #64748b; margin-bottom: 15px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background-color: #2563eb; color: white; padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 8px; }
+        td { padding: 4px; border: 1px solid #ddd; font-size: 8px; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .header-info { margin-bottom: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 4px; }
+        .header-info p { margin: 3px 0; }
+    </style>
+</head>
+<body>
+    <h1>Employee Attendance Detail Report</h1>
+    <div class="header-info">
+        <p><strong>Employee:</strong> ' . htmlspecialchars($userName) . ' (ID: ' . $user_id . ')</p>
+        <p><strong>Period:</strong> ' . ucfirst($period) . ' - ' . htmlspecialchars($periodLabel) . '</p>
+        <p><strong>Date Range:</strong> ' . htmlspecialchars($from) . ' to ' . htmlspecialchars($to) . '</p>
+        <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Check-In</th>
+                <th>Check-Out</th>
+                <th>Check-In Location</th>
+                <th>Check-Out Location</th>
+                <th>Late/On Time</th>
+                <th>Worked Hours</th>
+                <th>Extra Hours</th>
+                <th>Leave</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>';
+            
+            foreach ($days as $day) {
+                $html .= '<tr>
+                    <td>' . htmlspecialchars($day->date) . '</td>
+                    <td>' . htmlspecialchars($day->status) . '</td>
+                    <td>' . htmlspecialchars($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
+                    <td>' . htmlspecialchars($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
+                    <td>' . htmlspecialchars($day->check_in_location !== '—' ? (strlen($day->check_in_location) > 30 ? substr($day->check_in_location, 0, 30) . '...' : $day->check_in_location) : '') . '</td>
+                    <td>' . htmlspecialchars($day->check_out_location !== '—' ? (strlen($day->check_out_location) > 30 ? substr($day->check_out_location, 0, 30) . '...' : $day->check_out_location) : '') . '</td>
+                    <td>' . htmlspecialchars($day->late !== '—' ? $day->late : '') . '</td>
+                    <td>' . ($day->worked_hours > 0 ? number_format($day->worked_hours, 2) : '') . '</td>
+                    <td>' . ($day->extra_hours > 0 ? number_format($day->extra_hours, 2) : '') . '</td>
+                    <td>' . htmlspecialchars($day->leave !== '—' ? $day->leave : '') . '</td>
+                    <td>' . htmlspecialchars($day->notes !== '—' ? (strlen($day->notes) > 50 ? substr($day->notes, 0, 50) . '...' : $day->notes) : '') . '</td>
+                </tr>';
+            }
+            
+            $html .= '</tbody>
+    </table>
+</body>
+</html>';
+            
+            // Try to use DomPDF if available
+            if (class_exists('\\Dompdf\\Dompdf')) {
+                $dompdf = new \Dompdf\Dompdf();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'landscape');
+                $dompdf->render();
+                
+                $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.pdf';
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                echo $dompdf->output();
+                exit;
+            } else {
+                // Fallback to HTML
+                $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.html';
+                header('Content-Type: text/html; charset=utf-8');
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                echo $html;
+                exit;
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Export Detail PDF error: ' . $e->getMessage());
+            show_error('Error generating PDF export: ' . $e->getMessage(), 500);
+        }
     }
 }

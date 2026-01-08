@@ -21,7 +21,7 @@ class Attendance extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
-        $canViewAll = $isAdminGroup || in_array($role_id, [1,2], true);
+        $canViewAll = $isAdminGroup || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
         $canAddAttendance = true; // All logged-in users can add their own attendance
         
         // Get group-based filters
@@ -257,7 +257,7 @@ class Attendance extends CI_Controller {
             // Get current user info for permission checks
             $current_user_id = (int)$this->session->userdata('user_id');
             $current_role_id = (int)$this->session->userdata('role_id');
-            $is_admin = (function_exists('is_admin_group') && is_admin_group()) || in_array($current_role_id, [1,2], true);
+            $is_admin = (function_exists('is_admin_group') && is_admin_group()) || in_array($current_role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
             $can_edit = function_exists('has_module_access') && has_module_access('attendance_edit');
             $can_delete = function_exists('has_module_access') && has_module_access('attendance_delete');
             
@@ -307,7 +307,7 @@ class Attendance extends CI_Controller {
         $role_id = (int)$this->session->userdata('role_id');
         
         // Check permissions - only admins can perform bulk operations
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [1,2], true);
+        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
         if (!$canManageAll) {
             $this->session->set_flashdata('error', 'You do not have permission to perform bulk operations');
             redirect('attendance');
@@ -489,10 +489,12 @@ class Attendance extends CI_Controller {
                 return;
             }
 
-            // Get current date/time
-            $nowDateTime = date('Y-m-d H:i:s');
-            $nowTime = date('H:i:s');
-            $today = date('Y-m-d');
+            // Get current date/time with timezone support
+            $this->load->helper('date');
+            $user_timezone = get_user_timezone($user_id);
+            $nowDateTime = get_current_datetime($user_timezone, 'Y-m-d H:i:s');
+            $nowTime = get_current_datetime($user_timezone, 'H:i:s');
+            $today = get_current_datetime($user_timezone, 'Y-m-d');
 
             // Schema-aware column names
             $col_date = 'att_date';
@@ -837,7 +839,7 @@ class Attendance extends CI_Controller {
         // Ownership: only Admin/HR or owner can edit
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [1,2], true);
+        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
         if (!$canManageAll && (int)$att->user_id !== $user_id) { show_error('Forbidden', 403); }
         if ($this->input->method() === 'post') {
             // Optional face verification: mirror create() behavior when descriptor is provided
@@ -939,7 +941,7 @@ class Attendance extends CI_Controller {
         if (!$row) { show_404(); }
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [1,2], true);
+        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
         if (!$canManageAll && (int)$row->user_id !== $user_id) { show_error('Forbidden', 403); }
         $this->db->where('id', (int)$id)->delete('attendance');
         $this->session->set_flashdata('success', 'Attendance deleted');
@@ -950,7 +952,7 @@ class Attendance extends CI_Controller {
     private function calculateAttendanceStatistics() {
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [1,2], true);
+        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
         
         // Base query
         $this->db->from('attendance a');

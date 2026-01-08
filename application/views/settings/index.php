@@ -53,7 +53,7 @@
         </h5>
       </div>
       <div class="card-body">
-        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="companyForm">
+        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="companyForm" data-validate="true">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Company Name</label>
@@ -150,7 +150,7 @@
         </h5>
       </div>
       <div class="card-body">
-        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="attendanceForm">
+        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="attendanceForm" data-validate="true">
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Office Start Time</label>
@@ -212,7 +212,7 @@
         </h5>
       </div>
       <div class="card-body">
-        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="leaveForm">
+        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="leaveForm" data-validate="true">
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Carry Forward Leave</label>
@@ -274,7 +274,7 @@
         </h5>
       </div>
       <div class="card-body">
-        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="emailForm">
+        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="emailForm" data-validate="true">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">SMTP User</label>
@@ -334,7 +334,7 @@
         </h5>
       </div>
       <div class="card-body">
-        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="notifyForm">
+        <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="notifyForm" data-validate="true">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">In-App Notifications</label>

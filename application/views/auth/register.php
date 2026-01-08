@@ -236,7 +236,7 @@
       <p>Fill in your information to register</p>
     </div>
     
-    <form method="post" id="registerForm" novalidate>
+    <?php echo form_open('auth/register', array('id' => 'registerForm', 'novalidate' => '')); ?>
       <div class="form-floating">
         <input type="text" name="name" class="form-control" id="nameInput" placeholder="Your full name" required>
         <label for="nameInput">Full Name</label>
@@ -260,9 +260,9 @@
       </div>
       
       <div class="form-floating">
-        <input type="text" name="phone" class="form-control" id="phoneInput" placeholder="Enter mobile number" required>
-        <label for="phoneInput">Mobile Number</label>
-        <div class="invalid-feedback">Please enter your mobile number</div>
+        <input type="text" name="phone" class="form-control" id="phoneInput" placeholder="Enter mobile number (optional)">
+        <label for="phoneInput">Mobile Number (optional)</label>
+        <div class="invalid-feedback">If you enter a mobile number, it must be at least 10 digits.</div>
       </div>
       
       <div class="form-floating">
@@ -289,7 +289,7 @@
       <div class="d-grid gap-2 mt-2">
         <button class="btn btn-register" type="submit" id="registerBtn">Create Account</button>
       </div>
-    </form>
+    <?php echo form_close(); ?>
     
     <div class="signin-link">
       Already have an account? <a href="<?php echo site_url('auth/login'); ?>">Sign in</a>
@@ -299,6 +299,24 @@
 
 <script>
 (function(){
+  // Get CSRF token from cookie or form
+  function getCsrfToken() {
+    // Try to get from cookie
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var cookie = cookies[i].trim();
+      if (cookie.indexOf('ci_csrf_token=') === 0) {
+        return cookie.substring('ci_csrf_token='.length);
+      }
+    }
+    // Fallback: try to get from form
+    var csrfInput = document.querySelector('input[name="ci_csrf_token"]');
+    if (csrfInput) {
+      return csrfInput.value;
+    }
+    return '';
+  }
+  
   // Show flash messages as toasts on page load
   <?php if($this->session->flashdata('success')): ?>
     showToast('success', '<?php echo htmlspecialchars($this->session->flashdata('success')); ?>');
@@ -406,10 +424,17 @@
     }
     feedbackDiv.innerHTML = 'Sending verification code...';
     
+    var csrfToken = getCsrfToken();
+    var params = new URLSearchParams({ email: email });
+    if (csrfToken) {
+      params.append('ci_csrf_token', csrfToken);
+    }
+    
     fetch(site + 'auth/send-verify-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-      body: new URLSearchParams({ email: email })
+      body: params,
+      credentials: 'same-origin'
     }).then(function(res){ return res.json(); }).then(function(data){
       if (data && data.ok) {
         showToast('success', 'Verification code sent to your email');
@@ -453,13 +478,19 @@
       feedbackDiv.className = 'verification-feedback text-muted small mt-1';
       feedbackDiv.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Verifying...';
       
+      var csrfToken = getCsrfToken();
+      var params = new URLSearchParams({ code: code });
+      if (csrfToken) {
+        params.append('ci_csrf_token', csrfToken);
+      }
+      
       fetch(site + 'auth/verify-code', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/x-www-form-urlencoded', 
           'X-Requested-With': 'XMLHttpRequest' 
         },
-        body: new URLSearchParams({ code: code }),
+        body: params,
         credentials: 'same-origin'
       })
       .then(function(res) {
@@ -553,11 +584,8 @@
         verifyCodeInput.classList.remove('is-invalid');
       }
       
-      // Phone validation
-      if (!phoneInput.value.trim()) {
-        errors.push('Please enter your mobile number');
-        phoneInput.classList.add('is-invalid');
-      } else if (phoneInput.value.trim().length < 10) {
+      // Phone validation (optional)
+      if (phoneInput.value.trim() && phoneInput.value.trim().length < 10) {
         errors.push('Mobile number must be at least 10 digits');
         phoneInput.classList.add('is-invalid');
       } else {
@@ -649,7 +677,7 @@
       return false;
     }
     
-    if (field.id === 'phoneInput' && field.value.length < 10) {
+    if (field.id === 'phoneInput' && field.value && field.value.length < 10) {
       field.classList.add('is-invalid');
       return false;
     }

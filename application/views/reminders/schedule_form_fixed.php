@@ -16,7 +16,7 @@
 
 <div class="card">
   <div class="card-body">
-    <form method="post" action="<?php echo isset($form_action) ? $form_action : site_url('reminders/schedules/create'); ?>" id="scheduleForm">
+    <form method="post" action="<?php echo isset($form_action) ? $form_action : site_url('reminders/schedules/create'); ?>" id="scheduleForm" data-validate="true">
       
       <div class="row g-3 mb-4">
         <div class="col-md-6">

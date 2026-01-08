@@ -23,7 +23,7 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" enctype="multipart/form-data" action="<?php echo $action === 'edit' ? site_url('tasks/'.$task->id.'/edit') : site_url('tasks/create'); ?>">
+    <form method="post" enctype="multipart/form-data" action="<?php echo $action === 'edit' ? site_url('tasks/'.$task->id.'/edit') : site_url('tasks/create'); ?>" data-validate="true">
       <div class="row g-3">
          <div class="col-md-12">
            <label class="form-label">

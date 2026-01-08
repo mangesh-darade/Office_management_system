@@ -19,7 +19,7 @@
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="" id="designationForm">
+    <form method="post" action="" id="designationForm" data-validate="true">
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Code</label>

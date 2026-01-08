@@ -23,7 +23,7 @@
 </div>
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" id="departmentForm">
+    <form method="post" id="departmentForm" data-validate="true">
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Code</label>

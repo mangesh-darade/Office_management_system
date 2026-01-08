@@ -202,6 +202,29 @@ body {
   color: white;
 }
 
+.btn-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.btn-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
 /* Compact Table Section */
 .table-section {
   background: white;
@@ -486,6 +509,25 @@ body {
     height: 28px;
     font-size: 0.7rem;
   }
+  
+  .export-actions-bar {
+    gap: 0.4rem !important;
+    padding: 0.5rem 0.75rem !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .export-actions-bar label {
+    font-size: 0.8rem;
+  }
+  
+  .export-text-full {
+    display: none !important;
+  }
+  
+  .export-text-short {
+    display: inline !important;
+  }
 }
 </style>
 
@@ -497,135 +539,143 @@ body {
     <span>Employee Attendance</span>
   </div>
   
-  <h1 class="report-title">
-    <i class="bi bi-people-fill"></i>
-    Employee Attendance
-  </h1>
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+    <h1 class="report-title" style="margin: 0; flex: 1;">
+      <i class="bi bi-people-fill"></i>
+      Employee Attendance
+      <?php if (isset($period) && $period === 'monthly'): ?>
+        <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-left: 0.75rem;">
+          <?php 
+            if (isset($month) && $month) {
+              $monthDate = DateTime::createFromFormat('Y-m', $month);
+              if ($monthDate) {
+                echo $monthDate->format('F Y');
+              } else {
+                echo htmlspecialchars($month);
+              }
+            } else {
+              $currentMonth = date('Y-m');
+              $monthDate = DateTime::createFromFormat('Y-m', $currentMonth);
+              echo $monthDate->format('F Y');
+            }
+          ?>
+        </span>
+      <?php endif; ?>
+    </h1>
+    <a href="<?php echo site_url('reports'); ?>" class="btn btn-outline-secondary" style="white-space: nowrap;">
+      <i class="bi bi-arrow-left"></i>
+      Back
+    </a>
+  </div>
 </div>
 
 <!-- Compact Statistics Cards -->
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon primary">
-      <i class="bi bi-calendar-month"></i>
-    </div>
-    <div class="stat-value">
-      <?php 
-        if (isset($period) && $period === 'daily') {
-          echo isset($date) ? htmlspecialchars($date) : date('Y-m-d');
-        } elseif (isset($period) && $period === 'weekly') {
-          echo isset($from) && isset($to) ? htmlspecialchars($from . ' to ' . $to) : 'This Week';
-        } else {
-          echo isset($month) ? htmlspecialchars($month) : date('Y-m');
-        }
-      ?>
-    </div>
-    <div class="stat-label"><?php echo isset($period) ? ucfirst($period) : 'Monthly'; ?></div>
-  </div>
-  
-  <div class="stat-card success">
-    <div class="stat-icon success">
-      <i class="bi bi-check-circle"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalPresent = 0;
-      foreach ($rows as $r) { $totalPresent += (float)$r->present_days; }
-      echo number_format($totalPresent, 1);
-    ?></div>
-    <div class="stat-label">Present</div>
-  </div>
-  
-  <div class="stat-card warning">
-    <div class="stat-icon warning">
-      <i class="bi bi-clock"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalHalf = 0;
-      foreach ($rows as $r) { $totalHalf += (float)$r->half_days; }
-      echo number_format($totalHalf, 1);
-    ?></div>
-    <div class="stat-label">Half Days</div>
-  </div>
-  
-  <div class="stat-card info">
-    <div class="stat-icon info">
-      <i class="bi bi-house"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalWfh = 0;
-      foreach ($rows as $r) { $totalWfh += (float)$r->wfh_days; }
-      echo number_format($totalWfh, 1);
-    ?></div>
-    <div class="stat-label">WFH</div>
-  </div>
-  
-  <div class="stat-card danger">
-    <div class="stat-icon danger">
-      <i class="bi bi-x-circle"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalAbsent = 0;
-      foreach ($rows as $r) { $totalAbsent += (float)$r->absent_days; }
-      echo number_format($totalAbsent, 1);
-    ?></div>
-    <div class="stat-label">Absent</div>
-  </div>
-  
-  <div class="stat-card success">
-    <div class="stat-icon success">
-      <i class="bi bi-check-circle-fill"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalOnTime = 0;
-      foreach ($rows as $r) { $totalOnTime += isset($r->on_time_days) ? (float)$r->on_time_days : 0; }
-      echo number_format($totalOnTime, 1);
-    ?></div>
-    <div class="stat-label">On Time</div>
-  </div>
-  
-  <div class="stat-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%);">
-    <div class="stat-icon" style="background: rgba(251, 191, 36, 0.2); color: #d97706;">
-      <i class="bi bi-exclamation-triangle"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalLate = 0;
-      foreach ($rows as $r) { $totalLate += (float)$r->late_days; }
-      echo number_format($totalLate, 1);
-    ?></div>
-    <div class="stat-label">Late Days</div>
-  </div>
-  
-  <div class="stat-card" style="background: linear-gradient(135deg, #fee2e2 0%, #f87171 100%);">
-    <div class="stat-icon" style="background: rgba(248, 113, 113, 0.2); color: #dc2626;">
-      <i class="bi bi-clock-history"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalLateHours = 0;
-      foreach ($rows as $r) { $totalLateHours += isset($r->late_hours) ? (float)$r->late_hours : 0; }
-      echo number_format($totalLateHours, 1);
-    ?>h</div>
-    <div class="stat-label">Late Hours</div>
-  </div>
-  
-  <div class="stat-card" style="background: linear-gradient(135deg, #d1fae5 0%, #34d399 100%);">
-    <div class="stat-icon" style="background: rgba(52, 211, 153, 0.2); color: #059669;">
-      <i class="bi bi-hourglass-split"></i>
-    </div>
-    <div class="stat-value"><?php 
-      $totalExtraHours = 0;
-      foreach ($rows as $r) { $totalExtraHours += isset($r->extra_hours) ? (float)$r->extra_hours : 0; }
-      echo number_format($totalExtraHours, 1);
-    ?>h</div>
-    <div class="stat-label">Extra Hours</div>
-  </div>
-  
-  <div class="stat-card">
     <div class="stat-icon">
       <i class="bi bi-people"></i>
     </div>
     <div class="stat-value"><?php echo count($rows); ?></div>
-    <div class="stat-label">Employees</div>
+    <div class="stat-label">Total Employees</div>
   </div>
+  
+  <?php 
+    $totalPresent = 0;
+    foreach ($rows as $r) { $totalPresent += (float)$r->present_days; }
+    if ($totalPresent > 0):
+  ?>
+  <div class="stat-card success">
+    <div class="stat-icon success">
+      <i class="bi bi-check-circle"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalPresent, 1); ?></div>
+    <div class="stat-label">Total Present</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
+    $totalAbsent = 0;
+    foreach ($rows as $r) { $totalAbsent += (float)$r->absent_days; }
+    if ($totalAbsent > 0):
+  ?>
+  <div class="stat-card danger">
+    <div class="stat-icon danger">
+      <i class="bi bi-x-circle"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalAbsent, 1); ?></div>
+    <div class="stat-label">Total Absent</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
+    $totalWfh = 0;
+    foreach ($rows as $r) { $totalWfh += (float)$r->wfh_days; }
+    if ($totalWfh > 0):
+  ?>
+  <div class="stat-card info">
+    <div class="stat-icon info">
+      <i class="bi bi-house"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalWfh, 1); ?></div>
+    <div class="stat-label">Total WFH</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
+    $totalOnTime = 0;
+    foreach ($rows as $r) { $totalOnTime += isset($r->on_time_days) ? (float)$r->on_time_days : 0; }
+    if ($totalOnTime > 0):
+  ?>
+  <div class="stat-card success">
+    <div class="stat-icon success">
+      <i class="bi bi-check-circle-fill"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalOnTime, 1); ?></div>
+    <div class="stat-label">Total On Time</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
+    $totalLate = 0;
+    foreach ($rows as $r) { $totalLate += (float)$r->late_days; }
+    if ($totalLate > 0):
+  ?>
+  <div class="stat-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%);">
+    <div class="stat-icon" style="background: rgba(251, 191, 36, 0.2); color: #d97706;">
+      <i class="bi bi-exclamation-triangle"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalLate, 1); ?></div>
+    <div class="stat-label">Total Late Days</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
+    $totalLateHours = 0;
+    foreach ($rows as $r) { $totalLateHours += isset($r->late_hours) ? (float)$r->late_hours : 0; }
+    if ($totalLateHours > 0):
+  ?>
+  <div class="stat-card" style="background: linear-gradient(135deg, #fee2e2 0%, #f87171 100%);">
+    <div class="stat-icon" style="background: rgba(248, 113, 113, 0.2); color: #dc2626;">
+      <i class="bi bi-clock-history"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalLateHours, 1); ?>h</div>
+    <div class="stat-label">Total Late Hours</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
+    $totalExtraHours = 0;
+    foreach ($rows as $r) { $totalExtraHours += isset($r->extra_hours) ? (float)$r->extra_hours : 0; }
+    if ($totalExtraHours > 0):
+  ?>
+  <div class="stat-card" style="background: linear-gradient(135deg, #d1fae5 0%, #34d399 100%);">
+    <div class="stat-icon" style="background: rgba(52, 211, 153, 0.2); color: #059669;">
+      <i class="bi bi-hourglass-split"></i>
+    </div>
+    <div class="stat-value"><?php echo number_format($totalExtraHours, 1); ?>h</div>
+    <div class="stat-label">Total Extra Hours</div>
+  </div>
+  <?php endif; ?>
 </div>
 
 <!-- Compact Filter Section -->
@@ -655,13 +705,6 @@ body {
         <i class="bi bi-funnel-fill"></i>
         Filter
       </button>
-    </div>
-    
-    <div class="form-group">
-      <a href="<?php echo site_url('reports'); ?>" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i>
-        Back
-      </a>
     </div>
   </form>
   
@@ -706,18 +749,18 @@ body {
   </div>
   
   <!-- Export Actions Bar -->
-  <div class="export-actions-bar" style="background: white; padding: 0.75rem 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
+  <div class="export-actions-bar" style="background: white; padding: 0.75rem 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; overflow-x: auto;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
       <input type="checkbox" id="select-all" onchange="toggleSelectAll()" style="width: 18px; height: 18px; cursor: pointer;">
-      <label for="select-all" style="margin: 0; cursor: pointer; font-weight: 500;">Select All</label>
+      <label for="select-all" style="margin: 0; cursor: pointer; font-weight: 500; white-space: nowrap;">Select All</label>
     </div>
-    <div style="flex: 1;"></div>
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-      <button class="btn btn-success btn-sm" onclick="exportSelected('excel')" id="export-excel-btn" disabled>
-        <i class="bi bi-file-earmark-excel"></i> Export Excel (Selected)
+    <div style="flex: 1; min-width: 0.5rem;"></div>
+    <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+      <button class="btn btn-success btn-sm" onclick="exportSelected('excel')" id="export-excel-btn" disabled style="white-space: nowrap; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+        <i class="bi bi-file-earmark-excel"></i> <span class="export-text-full">Export Excel</span><span class="export-text-short" style="display: none;">Excel</span>
       </button>
-      <button class="btn btn-danger btn-sm" onclick="exportSelected('pdf')" id="export-pdf-btn" disabled>
-        <i class="bi bi-file-earmark-pdf"></i> Export PDF (Selected)
+      <button class="btn btn-danger btn-sm" onclick="exportSelected('pdf')" id="export-pdf-btn" disabled style="white-space: nowrap; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+        <i class="bi bi-file-earmark-pdf"></i> <span class="export-text-full">Export PDF</span><span class="export-text-short" style="display: none;">PDF</span>
       </button>
     </div>
   </div>
@@ -736,27 +779,24 @@ body {
             Present <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
           <th onclick="sortTable(2)" class="text-center">
-            Half <i class="bi bi-arrow-down-up sort-icon"></i>
-          </th>
-          <th onclick="sortTable(3)" class="text-center">
             WFH <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
-          <th onclick="sortTable(4)" class="text-center">
+          <th onclick="sortTable(3)" class="text-center">
             Absent <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
-          <th onclick="sortTable(5)" class="text-center">
+          <th onclick="sortTable(4)" class="text-center">
             On Time <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
-          <th onclick="sortTable(6)" class="text-center">
+          <th onclick="sortTable(5)" class="text-center">
             Late <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
-          <th onclick="sortTable(7)" class="text-center">
+          <th onclick="sortTable(6)" class="text-center">
             Leave <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
-          <th onclick="sortTable(8)" class="text-center">
+          <th onclick="sortTable(7)" class="text-center">
             Late Hours <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
-          <th onclick="sortTable(10)" class="text-center">
+          <th onclick="sortTable(8)" class="text-center">
             Extra Hours <i class="bi bi-arrow-down-up sort-icon"></i>
           </th>
           <th class="text-end">Actions</th>
@@ -782,7 +822,18 @@ body {
             </td>
           </tr>
         <?php else: ?>
-          <?php foreach ($rows as $index => $r): ?>
+          <?php foreach ($rows as $index => $r): 
+            // Only show row if at least one value is greater than 0
+            $hasData = (float)$r->present_days > 0 || 
+                       (float)$r->absent_days > 0 || 
+                       (float)$r->wfh_days > 0 || 
+                       (isset($r->on_time_days) && (float)$r->on_time_days > 0) || 
+                       (float)$r->late_days > 0 || 
+                       (float)$r->leave_days > 0 || 
+                       (isset($r->late_hours) && (float)$r->late_hours > 0) || 
+                       (isset($r->extra_hours) && (float)$r->extra_hours > 0);
+            if (!$hasData) continue;
+          ?>
             <tr data-searchable="<?php echo strtolower(htmlspecialchars($r->name)); ?>" data-index="<?php echo $index; ?>" data-user-id="<?php echo $r->user_id; ?>">
               <td style="text-align: center;">
                 <input type="checkbox" class="employee-checkbox" value="<?php echo $r->user_id; ?>" onchange="updateExportButtons()" style="width: 18px; height: 18px; cursor: pointer;">
@@ -802,12 +853,6 @@ body {
                 <div><?php echo htmlspecialchars($r->present_days); ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: <?php echo min(100, ($r->present_days / 30) * 100); ?>%"></div>
-                </div>
-              </td>
-              <td class="status-cell half">
-                <div><?php echo htmlspecialchars($r->half_days); ?></div>
-                <div class="progress-bar">
-                  <div class="progress-fill half" style="width: <?php echo min(100, ($r->half_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
               <td class="status-cell wfh">
@@ -1056,37 +1101,33 @@ function sortTable(columnIndex) {
         aValue = parseFloat(a.cells[2].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[2].textContent.trim()) || 0;
         break;
-      case 2: // Half days
+      case 3: // WFH days
         aValue = parseFloat(a.cells[3].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[3].textContent.trim()) || 0;
         break;
-      case 3: // WFH days
+      case 4: // Absent days
         aValue = parseFloat(a.cells[4].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[4].textContent.trim()) || 0;
         break;
-      case 4: // Absent days
+      case 5: // On Time days
         aValue = parseFloat(a.cells[5].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[5].textContent.trim()) || 0;
         break;
-      case 5: // On Time days
+      case 6: // Late days
         aValue = parseFloat(a.cells[6].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[6].textContent.trim()) || 0;
         break;
-      case 6: // Late days
+      case 7: // Leave days
         aValue = parseFloat(a.cells[7].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[7].textContent.trim()) || 0;
         break;
-      case 7: // Leave days
-        aValue = parseFloat(a.cells[8].textContent.trim()) || 0;
-        bValue = parseFloat(b.cells[8].textContent.trim()) || 0;
-        break;
       case 8: // Late hours
-        aValue = parseFloat(a.cells[9].textContent.replace('h', '').trim()) || 0;
-        bValue = parseFloat(b.cells[9].textContent.replace('h', '').trim()) || 0;
+        aValue = parseFloat(a.cells[8].textContent.replace('h', '').trim()) || 0;
+        bValue = parseFloat(b.cells[8].textContent.replace('h', '').trim()) || 0;
         break;
       case 9: // Extra hours
-        aValue = parseFloat(a.cells[10].textContent.replace('h', '').trim()) || 0;
-        bValue = parseFloat(b.cells[10].textContent.replace('h', '').trim()) || 0;
+        aValue = parseFloat(a.cells[9].textContent.replace('h', '').trim()) || 0;
+        bValue = parseFloat(b.cells[9].textContent.replace('h', '').trim()) || 0;
         break;
     }
     

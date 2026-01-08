@@ -8,33 +8,19 @@ class Tasks extends CI_Controller {
         $this->load->helper(['url','form','permission','group_filter','email_settings']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
-        $this->ensure_schema();
+        // Schema changes moved to migrations - run: php index.php migrate
     }
 
+    /**
+     * Ensure schema - DEPRECATED: Use migrations instead
+     * This method is kept for backward compatibility but should not be used
+     * Run migrations using: php index.php migrate
+     */
     private function ensure_schema(){
-        if ($this->db->table_exists('tasks')){
-            $fields = $this->db->list_fields('tasks');
-            if (!in_array('requirement_id', $fields, true)) { 
-                $this->db->query("ALTER TABLE `tasks` ADD `requirement_id` INT(11) NULL AFTER `project_id`");
-                $this->db->query("ALTER TABLE `tasks` ADD INDEX `idx_tasks_requirement` (`requirement_id`)");
-            }
-            // Add priority if missing
-            if (!in_array('priority', $fields, true)) { 
-                $this->db->query("ALTER TABLE `tasks` ADD `priority` ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium' AFTER `status`");
-            }
-            // Add due_date if missing
-            if (!in_array('due_date', $fields, true)) { 
-                $this->db->query("ALTER TABLE `tasks` ADD `due_date` DATE NULL AFTER `status`");
-            }
-            // Add start_date if missing
-            if (!in_array('start_date', $fields, true)) { 
-                $this->db->query("ALTER TABLE `tasks` ADD `start_date` DATE NULL AFTER `status`");
-            }
-            // Add project_ids for multi-select support
-            if (!in_array('project_ids', $fields, true)) { 
-                $this->db->query("ALTER TABLE `tasks` ADD `project_ids` TEXT NULL AFTER `project_id`");
-            }
-        }
+        // Schema changes have been moved to migrations
+        // See: application/migrations/001_Add_task_schema_fields.php
+        // Run migrations using: php index.php migrate
+        log_message('debug', 'Tasks::ensure_schema() called - consider using migrations instead');
     }
 
     public function index() {
@@ -212,8 +198,11 @@ class Tasks extends CI_Controller {
             }
             $this->db->insert('tasks', $data);
             $id = $this->db->insert_id();
-            $this->load->helper('activity');
-            log_activity('tasks', 'created', (int)$id, 'Task: '.(string)$data['title']);
+            
+            // Log task creation with change tracking
+            $this->load->helper('change_tracker');
+            $description = 'Task: ' . (string)$data['title'];
+            auto_log_insert('tasks', 'tasks', (int)$id, $data, $description);
             
             // Send email notification using settings system
             if (isset($data['assigned_to']) && !empty($data['assigned_to'])){
@@ -649,8 +638,16 @@ class Tasks extends CI_Controller {
                 redirect('tasks/'.$id.'/edit');
                 return;
             }
-            $this->load->helper('activity');
-            log_activity('tasks', 'updated', (int)$id, 'Task: '.(string)$data['title']);
+            
+            // Load activity tracking helper
+            $this->load->helper('change_tracker');
+            
+            // Get old data before update (already fetched above as $task)
+            $old_data = $task ? (array)$task : track_changes_before('tasks', (int)$id);
+            
+            // Log update with change tracking
+            $description = 'Task: ' . (string)$data['title'];
+            track_changes_after('tasks', 'tasks', (int)$id, $old_data, $data, $description);
             
             // Send email notification if assignee changed
             $old_assignee_id = isset($task->assigned_to) ? (int)$task->assigned_to : null;
@@ -787,9 +784,18 @@ class Tasks extends CI_Controller {
             if ($assigned !== $currentUser && $creator !== $currentUser) { show_error('Forbidden', 403); }
         }
 
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+        
+        // Get old data before delete (already fetched above as $task)
+        $old_data = $task ? (array)$task : track_changes_before('tasks', (int)$id);
+
         $this->db->where('id', (int)$id)->delete('tasks');
-        $this->load->helper('activity');
-        log_activity('tasks', 'deleted', (int)$id, 'Task deleted');
+        
+        // Log deletion
+        $description = 'Task deleted' . ($task && isset($task->title) ? ': ' . $task->title : '');
+        auto_log_delete('tasks', 'tasks', (int)$id, $old_data, $description);
+        
         $this->session->set_flashdata('success', 'Task deleted');
         redirect('tasks');
     }

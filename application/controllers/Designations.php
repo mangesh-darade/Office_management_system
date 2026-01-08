@@ -113,8 +113,12 @@ class Designations extends CI_Controller {
             try {
                 $this->db->insert('designations', $data);
                 $id = (int)$this->db->insert_id();
-                $this->load->helper('activity');
-                log_activity('designations', 'created', $id, 'Designation: '.$data['designation_name']);
+                
+                // Log designation creation with change tracking
+                $this->load->helper('change_tracker');
+                $description = 'Designation: ' . $data['designation_name'];
+                auto_log_insert('designations', 'designations', $id, $data, $description);
+                
                 $this->session->set_flashdata('success', 'Designation created successfully');
                 redirect('designations'); return;
             } catch (Exception $e) {
@@ -164,9 +168,18 @@ class Designations extends CI_Controller {
             ];
             
             try {
+                // Load activity tracking helper
+                $this->load->helper('change_tracker');
+                
+                // Get old data before update
+                $old_data = track_changes_before('designations', (int)$id);
+                
                 $this->designations->update((int)$id, $data);
-                $this->load->helper('activity');
-                log_activity('designations', 'updated', (int)$id, 'Designation: '.$data['designation_name']);
+                
+                // Log update with change tracking
+                $description = 'Designation: ' . $data['designation_name'];
+                track_changes_after('designations', 'designations', (int)$id, $old_data, $data, $description);
+                
                 $this->session->set_flashdata('success', 'Designation updated successfully');
                 redirect('designations'); return;
             } catch (Exception $e) {
@@ -183,9 +196,18 @@ class Designations extends CI_Controller {
 
     // POST /designations/{id}/delete
     public function delete($id){
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+        
+        // Get old data before delete
+        $old_data = track_changes_before('designations', (int)$id);
+        
         $this->designations->soft_delete((int)$id);
-        $this->load->helper('activity');
-        log_activity('designations', 'deleted', (int)$id, 'Designation removed');
+        
+        // Log deletion
+        $description = 'Designation removed';
+        auto_log_delete('designations', 'designations', (int)$id, $old_data, $description);
+        
         $this->session->set_flashdata('success', 'Designation removed');
         redirect('designations');
     }

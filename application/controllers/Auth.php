@@ -6,6 +6,7 @@ class Auth extends CI_Controller {
         parent::__construct();
         $this->load->model('User_model');
         $this->load->helper('cookie'); // Load cookie helper for set_cookie() function
+        // Note: Security is a core class, automatically available as $this->security
         
         // Store intended URL for redirect after login
         if ($this->input->method() === 'get' && $this->uri->uri_string() !== 'auth/login') {
@@ -79,11 +80,9 @@ class Auth extends CI_Controller {
             // Find user by email or phone
             $user = $this->User_model->get_by_login($identifier);
             
-            // Debug logging (remove in production)
-            error_log("Login attempt for: " . $identifier);
-            error_log("User found: " . ($user ? 'YES' : 'NO'));
-            if ($user) {
-                error_log("User ID: {$user->id}, Email: {$user->email}, Role: {$user->role_id}");
+            // Log login attempts only in development or for security monitoring
+            if (ENVIRONMENT === 'development') {
+                log_message('debug', "Login attempt for identifier: " . substr($identifier, 0, 3) . '***');
             }
             
             if (!$user) {
@@ -129,9 +128,7 @@ class Auth extends CI_Controller {
 
             // Email verification check
             if (isset($this->db) && $this->db->field_exists('email_verified', 'users')) {
-                error_log("Login: Checking email verification for user ID: {$user->id}, email_verified: " . (isset($user->email_verified) ? $user->email_verified : 'NULL'));
                 if (isset($user->email_verified) && (int)$user->email_verified !== 1) {
-                    error_log("Login: Email not verified for user: {$user->email}");
                     if ($is_ajax) {
                         header('Content-Type: application/json');
                         echo json_encode(['success' => false, 'error' => 'Please verify your email address before logging in.']);
@@ -149,6 +146,9 @@ class Auth extends CI_Controller {
 
             // Clear any password reset session data on successful login
             $this->session->unset_userdata(['pw_reset_phone','pw_reset_code_hash','pw_reset_expires']);
+            
+            // Regenerate session ID on login for security (prevents session fixation)
+            $this->session->sess_regenerate(TRUE);
             
             // Set session data
             $this->session->set_userdata('user_id', (int)$user->id);
@@ -217,20 +217,44 @@ class Auth extends CI_Controller {
             $selector = bin2hex(openssl_random_pseudo_bytes(8));
         }
         $expires = time() + (86400 * 30); // 30 days
+        $expires_date = date('Y-m-d H:i:s', $expires);
         
-        // Store in database (you'll need to create a remember_tokens table)
+        // Ensure remember_tokens table exists
+        $this->load->database();
+        if (!$this->db->table_exists('remember_tokens')) {
+            $this->db->query("CREATE TABLE IF NOT EXISTS `remember_tokens` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `selector` varchar(16) NOT NULL,
+                `token_hash` varchar(64) NOT NULL,
+                `user_id` int(11) NOT NULL,
+                `expires` datetime NOT NULL,
+                `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `selector` (`selector`),
+                KEY `user_id` (`user_id`),
+                KEY `expires` (`expires`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        }
+        
+        // Delete old tokens for this user
+        $this->db->where('user_id', (int)$user->id)->delete('remember_tokens');
+        
+        // Store token in database
         $data = [
             'selector' => $selector,
-            'token' => hash('sha256', $token),
-            'user_id' => $user->id,
-            'expires' => date('Y-m-d H:i:s', $expires)
+            'token_hash' => hash('sha256', $token),
+            'user_id' => (int)$user->id,
+            'expires' => $expires_date,
+            'created_at' => date('Y-m-d H:i:s')
         ];
+        $this->db->insert('remember_tokens', $data);
         
-        // For now, just set a simple cookie (enhance this with proper token storage)
+        // Set secure cookie with selector:token
         $cookie_value = $selector . ':' . $token;
-        // Load cookie helper if not already loaded
         $this->load->helper('cookie');
-        set_cookie('remember_me', $cookie_value, $expires, '/', '', false, true);
+        // Use secure cookie in production (HTTPS)
+        $cookie_secure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
+        set_cookie('remember_me', $cookie_value, $expires, '/', '', $cookie_secure, true);
     }
 
     private function _record_login($user) {
@@ -527,8 +551,18 @@ class Auth extends CI_Controller {
                 redirect('auth/reset_password');
                 return;
             }
-            if (strlen($password) < 6) {
-                $this->session->set_flashdata('error', 'Password must be at least 6 characters.');
+            // Validate password strength
+            $this->load->helper('password');
+            $validation = validate_password_strength($password, [
+                'min_length' => 8,
+                'require_uppercase' => true,
+                'require_lowercase' => true,
+                'require_number' => true,
+                'require_special' => false
+            ]);
+            
+            if (!$validation['valid']) {
+                $this->session->set_flashdata('error', implode(' ', $validation['errors']));
                 redirect('auth/reset_password');
                 return;
             }
@@ -556,6 +590,8 @@ class Auth extends CI_Controller {
     }
 
     public function register(){
+        // Security is a core class, automatically available as $this->security
+        
         if ($this->input->method() === 'post') {
             $full_name = trim((string)$this->input->post('name'));
             $email     = trim((string)$this->input->post('email'));
@@ -571,14 +607,13 @@ class Auth extends CI_Controller {
                 return;
             }
             // Enforce Gmail-only registration: email must be @gmail.com (or @googlemail.com)
+            // TODO: Make this configurable via settings instead of hardcoding
             $domain = '';
             if (strpos($email, '@') !== false) {
                 $parts = explode('@', $email);
                 $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
             }
-            error_log("Register: Email domain validation - email: $email, domain: $domain");
             if ($domain !== 'gmail.com' && $domain !== 'googlemail.com') {
-                error_log("Register: Invalid domain - not Gmail: $domain");
                 $this->session->set_flashdata('error', 'Please register with a Gmail address (example@gmail.com).');
                 redirect('auth/register');
                 return;
@@ -600,7 +635,6 @@ class Auth extends CI_Controller {
             
             // Check if verification code was requested for this email
             if ($sessionEmail === '' || strcasecmp($sessionEmail, $email) !== 0) {
-                error_log("Register: Email mismatch - session: $sessionEmail, form: $email");
                 $this->session->set_flashdata('error', 'Please click "Send Code" button first to receive verification code.');
                 redirect('auth/register');
                 return;
@@ -615,7 +649,6 @@ class Auth extends CI_Controller {
             
             // Check if code has expired
             if (!$sessionHash || !$sessionExp || time() > $sessionExp) {
-                error_log("Register: Code expired - hash: $sessionHash, exp: $sessionExp, current: " . time());
                 $this->session->set_flashdata('error', 'Verification code has expired. Please request a new code.');
                 redirect('auth/register');
                 return;
@@ -623,18 +656,28 @@ class Auth extends CI_Controller {
             
             // Verify the code
             if (!password_verify($verify_code, $sessionHash)) {
-                error_log("Register: Invalid code - entered: $verify_code");
                 $this->session->set_flashdata('error', 'Invalid verification code. Please check and try again.');
                 redirect('auth/register');
                 return;
             }
-            if ($phone === '') {
-                $this->session->set_flashdata('error', 'Mobile number is required.');
+            // Phone is optional; validate format only if provided
+            if ($phone !== '' && !preg_match('/^[0-9]{10}$/', $phone)) {
+                $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number, or leave it blank.');
                 redirect('auth/register');
                 return;
             }
-            if (strlen($password) < 6) {
-                $this->session->set_flashdata('error', 'Password must be at least 6 characters.');
+            // Validate password strength
+            $this->load->helper('password');
+            $validation = validate_password_strength($password, [
+                'min_length' => 8,
+                'require_uppercase' => true,
+                'require_lowercase' => true,
+                'require_number' => true,
+                'require_special' => false
+            ]);
+            
+            if (!$validation['valid']) {
+                $this->session->set_flashdata('error', implode(' ', $validation['errors']));
                 redirect('auth/register');
                 return;
             }
@@ -720,18 +763,15 @@ class Auth extends CI_Controller {
                 }
             }
             
-            error_log("Register: Creating user with data: " . json_encode($data));
             $id = $this->User_model->create($data);
 
             // Check if user creation was successful
             if (!$id) {
-                error_log("Register: Failed to create user - database error: " . $this->db->error()['message']);
+                log_message('error', 'Failed to create user during registration');
                 $this->session->set_flashdata('error', 'Failed to create account. Please try again.');
                 redirect('auth/register');
                 return;
             }
-            
-            error_log("Register: User created successfully with ID: $id");
 
             // Send verification email if token/columns are available
             if ($id && $verifyToken) {

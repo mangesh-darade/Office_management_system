@@ -106,7 +106,6 @@
                       </div>
                       <div>
                         <div class="fw-semibold text-dark"><?php echo htmlspecialchars(isset($r->name) ? $r->name : 'Unknown'); ?></div>
-                        <div class="text-muted small">ID: #<?php echo (int)$r->id; ?></div>
                       </div>
                     </div>
                   </td>

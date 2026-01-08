@@ -96,6 +96,8 @@ $autoload['helper'][] = 'permission';
 $autoload['helper'][] = 'company';
 // Load API integration helper for retrieving credentials from database
 $autoload['helper'][] = 'api_integration';
+// Load error handler helper for centralized error handling
+$autoload['helper'][] = 'error_handler';
 
 /*
 | -------------------------------------------------------------------

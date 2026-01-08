@@ -34,7 +34,7 @@
         $form_action = site_url('projects/create'.($embed ? '?embed=1' : ''));
       }
     ?>
-    <form method="post" action="<?php echo $form_action; ?>">
+    <form method="post" action="<?php echo $form_action; ?>" data-validate="true">
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Code</label>

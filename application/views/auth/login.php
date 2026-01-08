@@ -264,7 +264,7 @@
       <p>Please enter your credentials</p>
     </div>
     
-    <form method="post" id="loginForm" novalidate>
+    <?php echo form_open('auth/login', array('id' => 'loginForm', 'novalidate' => '')); ?>
       <div class="form-floating">
         <input type="text" name="login" class="form-control" id="loginInput" placeholder="Enter email or phone" required autocomplete="tel">
         <label for="loginInput">Email or Phone Number</label>
@@ -289,7 +289,7 @@
       </div>
       
       <button class="btn btn-login" type="submit">Sign In</button>
-    </form>
+    <?php echo form_close(); ?>
     
     <div class="signup-link">
       Don't have an account? <a href="<?php echo site_url('auth/register'); ?>">Sign up</a>

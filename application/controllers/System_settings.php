@@ -233,14 +233,40 @@ class System_settings extends CI_Controller {
             show_404();
         }
 
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+
         $settings = $this->input->post('settings');
         
+        // Get old settings before update
+        $old_settings = [];
+        $changed_settings = [];
         foreach ($settings as $key => $value) {
+            $old_setting = $this->db->where('setting_key', $key)->get('system_settings')->row();
+            if ($old_setting) {
+                $old_value = $old_setting->setting_value;
+                $old_settings[$key] = $old_value;
+                $new_value = is_array($value) ? json_encode($value) : $value;
+                
+                if ($old_value !== $new_value) {
+                    $changed_settings[$key] = [
+                        'before' => $old_value,
+                        'after' => $new_value
+                    ];
+                }
+            }
+            
             $this->db->where('setting_key', $key);
             $this->db->update('system_settings', [
                 'setting_value' => is_array($value) ? json_encode($value) : $value,
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
+        }
+
+        // Log settings update if any changes were made
+        if (!empty($changed_settings)) {
+            $description = 'System settings updated: ' . count($changed_settings) . ' setting(s) changed';
+            log_activity_with_changes('settings', 'updated', null, $old_settings, $settings, $description);
         }
 
         $this->session->set_flashdata('success', 'System settings updated successfully');
@@ -277,8 +303,26 @@ class System_settings extends CI_Controller {
             show_404();
         }
 
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+
         $permissions = $this->input->post('permissions');
         
+        // Get old permissions before update
+        $old_permissions = [];
+        if ($this->db->table_exists('role_permissions')) {
+            $old_rows = $this->db->get('role_permissions')->result();
+            foreach ($old_rows as $row) {
+                $old_permissions[] = [
+                    'role_id' => (int)$row->role_id,
+                    'module' => $row->module,
+                    'permission' => $row->permission,
+                    'is_allowed' => (int)$row->is_allowed
+                ];
+            }
+        }
+        
+        $new_permissions = [];
         foreach ($permissions as $role_id => $modules) {
             foreach ($modules as $module => $module_perms) {
                 foreach ($module_perms as $permission => $is_allowed) {
@@ -289,9 +333,19 @@ class System_settings extends CI_Controller {
                         'is_allowed' => (int)$is_allowed,
                         'updated_at' => date('Y-m-d H:i:s')
                     ]);
+                    $new_permissions[] = [
+                        'role_id' => (int)$role_id,
+                        'module' => $module,
+                        'permission' => $permission,
+                        'is_allowed' => (int)$is_allowed
+                    ];
                 }
             }
         }
+
+        // Log permissions update
+        $description = 'Role permissions updated for ' . count($permissions) . ' role(s)';
+        log_activity_with_changes('permissions', 'updated', null, $old_permissions, $new_permissions, $description);
 
         $this->session->set_flashdata('success', 'Permission settings updated successfully');
         redirect('system-settings/permissions');

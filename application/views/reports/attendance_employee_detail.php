@@ -221,6 +221,24 @@ body {
   color: white;
 }
 
+.btn-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
 /* Compact Table Section */
 .table-section {
   background: white;
@@ -347,6 +365,12 @@ body {
 .status-badge.ontime {
   background: rgba(16, 185, 129, 0.1);
   color: var(--success-color);
+}
+
+.status-badge.work_from_home {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .status-badge.leave {
@@ -550,54 +574,63 @@ body {
     <div class="stat-label"><?php echo isset($period) ? ucfirst($period) : 'Monthly'; ?></div>
   </div>
   
+  <?php 
+    $presentCount = 0;
+    foreach ($days as $d) { if (strtolower($d->status) === 'present') $presentCount++; }
+    if ($presentCount > 0):
+  ?>
   <div class="stat-card success">
     <div class="stat-icon success">
       <i class="bi bi-check-circle"></i>
     </div>
-    <div class="stat-value"><?php 
-      $presentCount = 0;
-      foreach ($days as $d) { if (strtolower($d->status) === 'present') $presentCount++; }
-      echo $presentCount;
-    ?></div>
+    <div class="stat-value"><?php echo $presentCount; ?></div>
     <div class="stat-label">Present</div>
   </div>
+  <?php endif; ?>
   
+  <?php 
+    $lateCount = 0;
+    foreach ($days as $d) { if (isset($d->late) && strpos(strtolower($d->late), 'late') === 0) $lateCount++; }
+    if ($lateCount > 0):
+  ?>
   <div class="stat-card warning">
     <div class="stat-icon warning">
       <i class="bi bi-clock"></i>
     </div>
-    <div class="stat-value"><?php 
-      $lateCount = 0;
-      foreach ($days as $d) { if (isset($d->late) && strpos(strtolower($d->late), 'late') === 0) $lateCount++; }
-      echo $lateCount;
-    ?></div>
+    <div class="stat-value"><?php echo $lateCount; ?></div>
     <div class="stat-label">Late</div>
   </div>
+  <?php endif; ?>
   
+  <?php 
+    $wfhCount = 0;
+    foreach ($days as $d) { if (strtolower($d->status) === 'work from home') $wfhCount++; }
+    if ($wfhCount > 0):
+  ?>
   <div class="stat-card info">
     <div class="stat-icon info">
       <i class="bi bi-house"></i>
     </div>
-    <div class="stat-value"><?php 
-      $wfhCount = 0;
-      foreach ($days as $d) { if (strtolower($d->status) === 'work from home') $wfhCount++; }
-      echo $wfhCount;
-    ?></div>
+    <div class="stat-value"><?php echo $wfhCount; ?></div>
     <div class="stat-label">WFH</div>
   </div>
+  <?php endif; ?>
   
+  <?php 
+    $absentCount = 0;
+    foreach ($days as $d) { if (strtolower($d->status) === 'absent') $absentCount++; }
+    if ($absentCount > 0):
+  ?>
   <div class="stat-card danger">
     <div class="stat-icon danger">
       <i class="bi bi-x-circle"></i>
     </div>
-    <div class="stat-value"><?php 
-      $absentCount = 0;
-      foreach ($days as $d) { if (strtolower($d->status) === 'absent') $absentCount++; }
-      echo $absentCount;
-    ?></div>
+    <div class="stat-value"><?php echo $absentCount; ?></div>
     <div class="stat-label">Absent</div>
   </div>
+  <?php endif; ?>
   
+  <?php if (count($days) > 0): ?>
   <div class="stat-card">
     <div class="stat-icon">
       <i class="bi bi-calendar-check"></i>
@@ -605,6 +638,7 @@ body {
     <div class="stat-value"><?php echo count($days); ?></div>
     <div class="stat-label">Total</div>
   </div>
+  <?php endif; ?>
 </div>
 
 <!-- Compact Filter Section -->
@@ -628,11 +662,20 @@ body {
     </div>
     
     <div class="form-group">
-      <a href="<?php echo $backUrl; ?>" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i>
-        Back
-      </a>
+      <button type="button" class="btn btn-success" onclick="exportDetailExcel()" title="Export to Excel">
+        <i class="bi bi-file-earmark-excel"></i>
+        Export Excel
+      </button>
     </div>
+    
+    <div class="form-group">
+      <button type="button" class="btn btn-danger" onclick="exportDetailPDF()" title="Export to PDF">
+        <i class="bi bi-file-earmark-pdf"></i>
+        Export PDF
+      </button>
+    </div>
+    
+   
   </form>
   
   <?php if (isset($from) && isset($to)): ?>
@@ -677,7 +720,7 @@ body {
       <thead>
         <tr>
           <th style="width: 10%">Date</th>
-          <th style="width: 10%">Status</th>
+          <th style="width: 12%">Status</th>
           <th style="width: 9%">Check-In</th>
           <th style="width: 9%">Check-Out</th>
           <th style="width: 12%">Check-In Location</th>
@@ -685,19 +728,38 @@ body {
           <th style="width: 11%">Late/On Time</th>
           <th style="width: 10%">Worked Hours</th>
           <th style="width: 10%">Extra Hours</th>
-          <th style="width: 12%">Leave</th>
+          <th style="width: 15%">Notes</th>
         </tr>
       </thead>
       <tbody id="detail-tbody">
         <?php if (!empty($days)): ?>
-          <?php foreach ($days as $index => $d): ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave . ' ' . (isset($d->check_in_time) ? $d->check_in_time : '') . ' ' . (isset($d->check_out_time) ? $d->check_out_time : '') . ' ' . (isset($d->check_in_location) ? $d->check_in_location : '') . ' ' . (isset($d->check_out_location) ? $d->check_out_location : '') . ' ' . (isset($d->worked_hours) ? $d->worked_hours : '') . ' ' . (isset($d->extra_hours) ? $d->extra_hours : ''))); ?>" data-index="<?php echo $index; ?>">
+          <?php foreach ($days as $index => $d): 
+            // Only show row if there's actual data (not just weekend or empty)
+            $hasData = false;
+            $status = strtolower(trim($d->status));
+            if ($status !== '—' && $status !== 'weekend' && $status !== '') {
+              $hasData = true;
+            }
+            if (!$hasData && ($d->check_in_time !== '—' || $d->check_out_time !== '—' || 
+                (isset($d->worked_hours) && (float)$d->worked_hours > 0) || 
+                (isset($d->extra_hours) && (float)$d->extra_hours > 0) || 
+                ($d->leave !== '—' && $d->leave !== '') || 
+                ($d->notes !== '—' && $d->notes !== ''))) {
+              $hasData = true;
+            }
+            if (!$hasData) continue;
+          ?>
+            <tr data-searchable="<?php echo strtolower(htmlspecialchars($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave . ' ' . (isset($d->check_in_time) ? $d->check_in_time : '') . ' ' . (isset($d->check_out_time) ? $d->check_out_time : '') . ' ' . (isset($d->check_in_location) ? $d->check_in_location : '') . ' ' . (isset($d->check_out_location) ? $d->check_out_location : '') . ' ' . (isset($d->worked_hours) ? $d->worked_hours : '') . ' ' . (isset($d->extra_hours) ? $d->extra_hours : '') . ' ' . (isset($d->notes) ? $d->notes : ''))); ?>" data-index="<?php echo $index; ?>">
               <td class="date-cell"><?php echo htmlspecialchars($d->date); ?></td>
               <td>
                 <?php 
                   $status = strtolower(trim($d->status));
                   $statusClass = '';
                   $statusIcon = '';
+                  $leaveText = isset($d->leave) ? trim($d->leave) : '';
+                  $hasLeave = ($leaveText !== '' && $leaveText !== '—');
+                  $isWFH = ($status === 'work from home' || $status === 'work_from_home');
+                  
                   switch($status) {
                     case 'present': 
                       $statusClass = 'present'; 
@@ -716,6 +778,7 @@ body {
                       $statusIcon = 'bi-clock';
                       break;
                     case 'work from home': 
+                    case 'work_from_home':
                       $statusClass = 'work_from_home'; 
                       $statusIcon = 'bi-house';
                       break;
@@ -728,10 +791,21 @@ body {
                       $statusIcon = 'bi-question-circle';
                   }
                 ?>
-                <span class="status-badge <?php echo $statusClass; ?>">
-                  <i class="bi <?php echo $statusIcon; ?>"></i>
-                  <?php echo htmlspecialchars($d->status); ?>
-                </span>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <span class="status-badge <?php echo $statusClass; ?>">
+                    <i class="bi <?php echo $statusIcon; ?>"></i>
+                    <?php echo htmlspecialchars($d->status); ?>
+                  </span>
+                  <?php 
+                    // Only show "Leave" badge if there's an actual leave record
+                    // Don't show redundant "WFH" badge if status already says "Work From Home"
+                    if ($hasLeave): 
+                  ?>
+                    <span class="status-badge leave" style="font-size: 0.75rem; padding: 2px 6px;">
+                      <i class="bi bi-calendar-x"></i> Leave
+                    </span>
+                  <?php endif; ?>
+                </div>
               </td>
               <td>
                 <?php 
@@ -855,11 +929,11 @@ body {
               </td>
               <td>
                 <?php 
-                  $leaveText = strtolower(trim($d->leave));
-                  if ($leaveText === '' || $leaveText === '—') {
+                  $notes = isset($d->notes) ? trim($d->notes) : '';
+                  if ($notes === '' || $notes === '—') {
                     echo '<span class="status-badge">—</span>';
                   } else {
-                    echo '<span class="status-badge leave"><i class="bi bi-calendar-x"></i>' . htmlspecialchars($d->leave) . '</span>';
+                    echo '<span class="status-badge" style="background: rgba(37, 99, 235, 0.1); color: var(--primary-color); text-align: left; max-width: 200px; white-space: normal; word-wrap: break-word;" title="' . htmlspecialchars($notes) . '"><i class="bi bi-chat-text"></i>' . htmlspecialchars(strlen($notes) > 50 ? substr($notes, 0, 50) . '...' : $notes) . '</span>';
                   }
                 ?>
               </td>
@@ -1019,6 +1093,122 @@ function resetSearch() {
 
 function clearMonthFilter() {
   window.location.href = '<?php echo site_url('reports/attendance-employee'); ?>';
+}
+
+// Get user_id from URL path
+function getUserIdFromUrl() {
+  const pathParts = window.location.pathname.split('/');
+  const attendanceIndex = pathParts.indexOf('attendance-employee');
+  if (attendanceIndex !== -1 && pathParts[attendanceIndex + 1]) {
+    const userId = parseInt(pathParts[attendanceIndex + 1]);
+    if (!isNaN(userId) && userId > 0) {
+      return userId;
+    }
+  }
+  return 0;
+}
+
+// Get current filter values
+function getCurrentFilters() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const period = urlParams.get('period') || 'monthly';
+  const month = urlParams.get('month') || '';
+  const date = urlParams.get('date') || '';
+  
+  // Also check form values if URL params are not available
+  const periodSelect = document.querySelector('input[name="period"]');
+  const monthInput = document.querySelector('input[name="month"]');
+  const dateInput = document.querySelector('input[name="date"]');
+  
+  return {
+    period: period || (periodSelect ? periodSelect.value : 'monthly'),
+    month: month || (monthInput ? monthInput.value : ''),
+    date: date || (dateInput ? dateInput.value : '')
+  };
+}
+
+// Export to Excel function
+function exportDetailExcel() {
+  const userId = getUserIdFromUrl();
+  if (!userId) {
+    alert('User ID not found.');
+    return;
+  }
+  
+  const filters = getCurrentFilters();
+  
+  // Show loading indicator
+  const btn = event ? (window.event ? window.event.target.closest('button') : null) : null;
+  let originalText = '';
+  if (btn) {
+    originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
+  }
+  
+  // Build URL
+  const baseUrl = '<?php echo site_url("reports/export-attendance-employee"); ?>';
+  const params = new URLSearchParams();
+  params.append('export', 'excel');
+  params.append('user_ids', userId);
+  params.append('period', filters.period);
+  if (filters.month) params.append('month', filters.month);
+  if (filters.date) params.append('date', filters.date);
+  
+  const url = baseUrl + '?' + params.toString();
+  
+  // Use window.location for file downloads
+  window.location.href = url;
+  
+  // Reset button after 3 seconds
+  if (btn) {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }, 3000);
+  }
+}
+
+// Export to PDF function
+function exportDetailPDF() {
+  const userId = getUserIdFromUrl();
+  if (!userId) {
+    alert('User ID not found.');
+    return;
+  }
+  
+  const filters = getCurrentFilters();
+  
+  // Show loading indicator
+  const btn = event ? (window.event ? window.event.target.closest('button') : null) : null;
+  let originalText = '';
+  if (btn) {
+    originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
+  }
+  
+  // Build URL
+  const baseUrl = '<?php echo site_url("reports/export-attendance-employee"); ?>';
+  const params = new URLSearchParams();
+  params.append('export', 'pdf');
+  params.append('user_ids', userId);
+  params.append('period', filters.period);
+  if (filters.month) params.append('month', filters.month);
+  if (filters.date) params.append('date', filters.date);
+  
+  const url = baseUrl + '?' + params.toString();
+  
+  // Use window.location for file downloads
+  window.location.href = url;
+  
+  // Reset button after 3 seconds
+  if (btn) {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }, 3000);
+  }
 }
 </script>
 

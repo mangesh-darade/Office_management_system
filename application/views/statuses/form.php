@@ -15,7 +15,7 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="<?php echo $action === 'edit' ? site_url('statuses/edit/'.$status->id) : site_url('statuses/create'); ?>">
+    <form method="post" action="<?php echo $action === 'edit' ? site_url('statuses/edit/'.$status->id) : site_url('statuses/create'); ?>" data-validate="true">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Name <span class="text-danger">*</span></label>

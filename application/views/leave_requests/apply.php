@@ -13,14 +13,14 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="<?php echo site_url('leave/apply'); ?>">
+    <form method="post" action="<?php echo site_url('leave/apply'); ?>" data-validate="true">
       <div class="row g-3">
         <div class="col-md-3">
           <label class="form-label">Leave Type</label>
           <select class="form-select" name="type_id" id="type_id" required>
             <option value="">Select</option>
             <?php foreach ($types as $t): $tid=(int)$t->id; ?>
-              <option value="<?php echo $tid; ?>" data-balance="<?php echo isset($balances[$tid]) ? (float)$balances[$tid] : 0; ?>">
+              <option value="<?php echo $tid; ?>" data-balance="<?php echo isset($balances[$tid]) ? (float)$balances[$tid] : 0; ?>" data-name="<?php echo htmlspecialchars(strtolower($t->name)); ?>">
                 <?php echo htmlspecialchars($t->name); ?>
               </option>
             <?php endforeach; ?>
@@ -218,7 +218,36 @@
     row.appendChild(btn);
     wrap.appendChild(row);
   }
-  document.getElementById('type_id').addEventListener('change', setBalance);
+  // Check if selected leave type is "Work From Home" and update balance display
+  var typeIdSelect = document.getElementById('type_id');
+  
+  function checkWFHType() {
+    if (typeIdSelect && typeIdSelect.selectedIndex > 0) {
+      var selectedOption = typeIdSelect.options[typeIdSelect.selectedIndex];
+      var typeName = selectedOption.getAttribute('data-name') || '';
+      var isWFH = typeName.indexOf('work from home') !== -1;
+      
+      if (isWFH) {
+        // WFH type selected - show N/A for balance
+        document.getElementById('balance').innerText = 'N/A (WFH - No balance deduction)';
+      } else {
+        // Regular leave type - show balance
+        setBalance();
+      }
+    } else {
+      setBalance();
+    }
+  }
+  
+  if (typeIdSelect) {
+    typeIdSelect.addEventListener('change', function() {
+      setBalance();
+      checkWFHType();
+    });
+  }
+  
+  // Initial check
+  checkWFHType();
   var sEl = document.getElementById('start_date');
   var eEl = document.getElementById('end_date');
   setupDateInput(sEl);
@@ -326,6 +355,13 @@
   var leaveForm = document.querySelector('form[method="post"]');
   if (leaveForm) {
     leaveForm.addEventListener('submit', function(e) {
+      // Validate Leave Type
+      if (!typeIdSelect || !typeIdSelect.value) {
+        e.preventDefault();
+        alert('Please select a leave type.');
+        return false;
+      }
+      
       var modeSpecific = document.getElementById('mode_specific') && document.getElementById('mode_specific').checked;
       
       if (modeSpecific) {

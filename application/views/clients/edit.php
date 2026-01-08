@@ -11,23 +11,23 @@
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="" enctype="multipart/form-data" class="vstack gap-3">
+    <form method="post" action="" enctype="multipart/form-data" class="vstack gap-3" data-validate="true">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Company Name</label>
-          <input type="text" name="company_name" class="form-control" required value="<?php echo htmlspecialchars(isset($client->company_name)?$client->company_name:''); ?>">
+          <label class="form-label" for="company_name">Company Name <span class="text-danger">*</span></label>
+          <input type="text" name="company_name" id="company_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="255" required value="<?php echo htmlspecialchars(isset($client->company_name)?$client->company_name:''); ?>">
         </div>
         <div class="col-md-6">
-          <label class="form-label">Contact Person</label>
-          <input type="text" name="contact_person" class="form-control" value="<?php echo htmlspecialchars(isset($client->contact_person)?$client->contact_person:''); ?>">
+          <label class="form-label" for="contact_person">Contact Person <span class="text-danger">*</span></label>
+          <input type="text" name="contact_person" id="contact_person" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="200" required value="<?php echo htmlspecialchars(isset($client->contact_person)?$client->contact_person:''); ?>">
         </div>
         <div class="col-md-6">
-          <label class="form-label">Email</label>
-          <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($client->email)?$client->email:''); ?>">
+          <label class="form-label" for="email">Email</label>
+          <input type="email" name="email" id="email" class="form-control" value="<?php echo htmlspecialchars(isset($client->email)?$client->email:''); ?>">
         </div>
         <div class="col-md-6">
-          <label class="form-label">Phone</label>
-          <input type="text" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($client->phone)?$client->phone:''); ?>">
+          <label class="form-label" for="phone">Phone <span class="text-danger">*</span></label>
+          <input type="text" name="phone" id="phone" class="form-control" data-mandatory="true" data-min-length="10" data-max-length="20" data-pattern="^[0-9+\s\-\(\)]+$" required value="<?php echo htmlspecialchars(isset($client->phone)?$client->phone:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label">Alternate Phone</label>
@@ -136,7 +136,7 @@
         </div>
       </div>
       <div>
-        <button class="btn btn-primary">Save Changes</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Save Changes</button>
         <a class="btn btn-light" href="<?php echo site_url('clients/view/'.(int)$client->id); ?>">Cancel</a>
       </div>
     </form>

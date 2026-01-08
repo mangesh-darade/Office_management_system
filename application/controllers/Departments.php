@@ -113,8 +113,12 @@ class Departments extends CI_Controller {
             try {
                 $this->db->insert('departments', $data);
                 $id = (int)$this->db->insert_id();
-                $this->load->helper('activity');
-                log_activity('employees', 'created', $id, 'Department: '.$data['dept_name']);
+                
+                // Log department creation with change tracking
+                $this->load->helper('change_tracker');
+                $description = 'Department: ' . $data['dept_name'];
+                auto_log_insert('departments', 'departments', $id, $data, $description);
+                
                 $this->session->set_flashdata('success', 'Department created successfully');
                 redirect('departments'); return;
             } catch (Exception $e) {
@@ -162,9 +166,18 @@ class Departments extends CI_Controller {
             ];
             
             try {
+                // Load activity tracking helper
+                $this->load->helper('change_tracker');
+                
+                // Get old data before update
+                $old_data = track_changes_before('departments', (int)$id);
+                
                 $this->departments->update((int)$id, $data);
-                $this->load->helper('activity');
-                log_activity('employees', 'updated', (int)$id, 'Department: '.$data['dept_name']);
+                
+                // Log update with change tracking
+                $description = 'Department: ' . $data['dept_name'];
+                track_changes_after('departments', 'departments', (int)$id, $old_data, $data, $description);
+                
                 $this->session->set_flashdata('success', 'Department updated successfully');
                 redirect('departments'); return;
             } catch (Exception $e) {
@@ -178,9 +191,18 @@ class Departments extends CI_Controller {
 
     // POST /departments/{id}/delete
     public function delete($id){
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+        
+        // Get old data before delete
+        $old_data = track_changes_before('departments', (int)$id);
+        
         $this->departments->soft_delete((int)$id);
-        $this->load->helper('activity');
-        log_activity('employees', 'deleted', (int)$id, 'Department removed');
+        
+        // Log deletion
+        $description = 'Department removed';
+        auto_log_delete('departments', 'departments', (int)$id, $old_data, $description);
+        
         $this->session->set_flashdata('success', 'Department removed');
         redirect('departments');
     }

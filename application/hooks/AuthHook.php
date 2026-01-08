@@ -83,7 +83,9 @@ class AuthHook {
         }
         if (isset($routes_roles[$controller])) {
             if (!in_array($role_id, $routes_roles[$controller], true)) {
+                // Use show_error which will trigger our custom 403 page
                 show_error('You do not have permission to access this page.', 403);
+                exit;
             }
         }
     }

@@ -6,7 +6,7 @@ class Permissions extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','activity']);
         $this->load->library(['session']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         $this->ensure_schema();
@@ -324,6 +324,22 @@ class Permissions extends CI_Controller {
         $modules = $this->modules();
         $perms = $this->input->post('perms'); // perms[role_id][module] = 1
 
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+
+        // Get old permissions data before update
+        $old_permissions = [];
+        if ($this->db->table_exists('permissions')) {
+            $old_rows = $this->db->get('permissions')->result();
+            foreach ($old_rows as $row) {
+                $old_permissions[] = [
+                    'role_id' => (int)$row->role_id,
+                    'module' => $row->module,
+                    'can_access' => (int)$row->can_access
+                ];
+            }
+        }
+
         // Clear and re-insert (simple approach for small matrix)
         $this->db->trans_start();
         $this->db->truncate('permissions');
@@ -336,6 +352,7 @@ class Permissions extends CI_Controller {
             }
         }
         
+        $new_permissions = [];
         foreach ($roles as $rid => $rname) {
             foreach ($all_module_keys as $key => $label) {
                 $can = (isset($perms[$rid]) && isset($perms[$rid][$key]) && (int)$perms[$rid][$key] === 1) ? 1 : 0;
@@ -344,9 +361,18 @@ class Permissions extends CI_Controller {
                     'module' => $key,
                     'can_access' => $can
                 ]);
+                $new_permissions[] = [
+                    'role_id' => (int)$rid,
+                    'module' => $key,
+                    'can_access' => $can
+                ];
             }
         }
         $this->db->trans_complete();
+
+        // Log bulk permissions update
+        $description = 'Permissions matrix updated for ' . count($roles) . ' roles and ' . count($all_module_keys) . ' modules';
+        log_activity_with_changes('permissions', 'updated', null, $old_permissions, $new_permissions, $description);
 
         $this->session->set_flashdata('success', 'Permissions updated successfully.');
         redirect('permissions');

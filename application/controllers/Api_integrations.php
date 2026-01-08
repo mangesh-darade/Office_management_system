@@ -72,6 +72,11 @@ class Api_integrations extends CI_Controller {
         $id = $this->api->create($data);
         
         if ($id) {
+            // Log API integration creation
+            $this->load->helper('change_tracker');
+            $description = 'API Integration: ' . $data['service_name'] . ' (' . $data['service_type'] . ')';
+            auto_log_insert('api_integrations', 'api_integrations', $id, $data, $description);
+            
             $this->session->set_flashdata('success', 'API integration created successfully.');
             redirect('api-integrations');
         } else {
@@ -106,6 +111,12 @@ class Api_integrations extends CI_Controller {
             show_404();
         }
         
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+        
+        // Get old data before update
+        $old_data = track_changes_before('api_integrations', (int)$id);
+        
         $data = [
             'service_type' => $this->input->post('service_type'),
             'service_name' => trim($this->input->post('service_name')),
@@ -128,6 +139,11 @@ class Api_integrations extends CI_Controller {
         }
         
         $this->api->update($id, $data);
+        
+        // Log update with change tracking
+        $description = 'API Integration: ' . $data['service_name'] . ' (' . $data['service_type'] . ')';
+        track_changes_after('api_integrations', 'api_integrations', (int)$id, $old_data, $data, $description);
+        
         $this->session->set_flashdata('success', 'API integration updated successfully.');
         redirect('api-integrations');
     }
@@ -142,7 +158,18 @@ class Api_integrations extends CI_Controller {
             show_404();
         }
         
+        // Load activity tracking helper
+        $this->load->helper('change_tracker');
+        
+        // Get old data before delete
+        $old_data = track_changes_before('api_integrations', (int)$id);
+        
         $this->api->delete($id);
+        
+        // Log deletion
+        $description = 'API Integration deleted: ' . (isset($integration->service_name) ? $integration->service_name : 'ID #' . $id);
+        auto_log_delete('api_integrations', 'api_integrations', (int)$id, $old_data, $description);
+        
         $this->session->set_flashdata('success', 'API integration deleted successfully.');
         redirect('api-integrations');
     }

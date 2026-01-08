@@ -83,4 +83,40 @@ class Client_model extends CI_Model {
         if ($this->db->field_exists('name','users')) { $select[] = 'name'; }
         return $this->db->select(implode(',', $select))->from('users')->order_by('email','ASC')->get()->result();
     }
+
+    /**
+     * Check if email already exists in clients table
+     * @param string $email Email address to check
+     * @param int|null $exclude_id Client ID to exclude from check (for updates)
+     * @return bool True if email exists, false otherwise
+     */
+    public function email_exists($email, $exclude_id = null){
+        if (empty($email)) {
+            return false;
+        }
+        $this->db->from('clients');
+        $this->db->where('email', trim($email));
+        if ($exclude_id !== null) {
+            $this->db->where('id !=', (int)$exclude_id);
+        }
+        return $this->db->count_all_results() > 0;
+    }
+
+    /**
+     * Check if phone number already exists in clients table
+     * @param string $phone Phone number to check
+     * @param int|null $exclude_id Client ID to exclude from check (for updates)
+     * @return bool True if phone exists, false otherwise
+     */
+    public function phone_exists($phone, $exclude_id = null){
+        if (empty($phone)) {
+            return false;
+        }
+        $this->db->from('clients');
+        $this->db->where('phone', trim($phone));
+        if ($exclude_id !== null) {
+            $this->db->where('id !=', (int)$exclude_id);
+        }
+        return $this->db->count_all_results() > 0;
+    }
 }

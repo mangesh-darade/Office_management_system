@@ -20,7 +20,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
 
 <div class="card shadow-sm">
   <div class="card-body">
-    <form method="post" action="<?php echo site_url('api-integrations/' . ($is_edit ? 'update/' . $integration->id : 'store')); ?>">
+    <form method="post" action="<?php echo site_url('api-integrations/' . ($is_edit ? 'update/' . $integration->id : 'store')); ?>" data-validate="true">
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Service Type <span class="text-danger">*</span></label>

@@ -50,7 +50,26 @@ class Payroll extends CI_Controller {
                 'allowances' => (float)($this->input->post('allowances') ?: 0),
                 'deductions' => (float)($this->input->post('deductions') ?: 0),
             ];
+            // Load activity tracking helper
+            $this->load->helper('change_tracker');
+            
+            // Check if structure exists (update) or new (insert)
+            $existing = $this->payroll->get_structure($user_id);
+            $old_data = $existing ? (array)$existing : null;
+            
             $this->payroll->save_structure($user_id, $data);
+            
+            // Log payroll structure save
+            if ($existing) {
+                // Update
+                $description = 'Payroll structure updated for user ID: ' . $user_id;
+                track_changes_after('payroll', 'payroll_structures', $user_id, $old_data, $data, $description);
+            } else {
+                // Insert
+                $description = 'Payroll structure created for user ID: ' . $user_id;
+                auto_log_insert('payroll', 'payroll_structures', $user_id, $data, $description);
+            }
+            
             $this->session->set_flashdata('success','Salary structure saved.');
             redirect('payroll/structures');
             return;

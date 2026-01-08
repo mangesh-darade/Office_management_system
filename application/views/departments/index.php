@@ -31,7 +31,7 @@
             <th>Manager</th>
             <th>Status</th>
             <th>Deleted At</th>
-            <th style="width:180px"></th>
+            <th style="width:120px" class="text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -52,12 +52,28 @@
               <td><span class="badge bg-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'danger' : 'light'; ?> text-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'light' : 'dark'; ?> border"><?php echo htmlspecialchars(isset($r->status) ? $r->status : 'active'); ?></span></td>
               <td><?php echo isset($r->deleted_at) ? '<span class="text-muted small">'.date('M j, Y H:i', strtotime($r->deleted_at)).'</span>' : '<span class="text-muted">—</span>'; ?></td>
               <td>
+                <div class="d-flex justify-content-center gap-1">
                 <?php if (isset($r->status) && $r->status === 'inactive'): ?>
-                  <a class="btn btn-outline-success btn-sm" onclick="return confirm('Restore this department?')" href="<?php echo site_url('departments/'.(int)$r->id.'/restore'); ?>">Restore</a>
+                    <a class="btn btn-sm btn-outline-success btn-icon" 
+                       onclick="return confirm('Restore this department?')" 
+                       href="<?php echo site_url('departments/'.(int)$r->id.'/restore'); ?>"
+                       data-bs-toggle="tooltip" title="Restore Department">
+                      <i class="bi bi-arrow-clockwise"></i>
+                    </a>
                 <?php else: ?>
-                  <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('departments/'.(int)$r->id.'/edit'); ?>">Edit</a>
-                  <a class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to remove this department? It will be marked as inactive and can be restored later.')" href="<?php echo site_url('departments/'.(int)$r->id.'/delete'); ?>">Remove</a>
+                    <a class="btn btn-sm btn-outline-primary btn-icon" 
+                       href="<?php echo site_url('departments/'.(int)$r->id.'/edit'); ?>"
+                       data-bs-toggle="tooltip" title="Edit Department">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <a class="btn btn-sm btn-outline-danger btn-icon" 
+                       onclick="return confirm('Are you sure you want to remove this department? It will be marked as inactive and can be restored later.')" 
+                       href="<?php echo site_url('departments/'.(int)$r->id.'/delete'); ?>"
+                       data-bs-toggle="tooltip" title="Remove Department">
+                      <i class="bi bi-trash"></i>
+                    </a>
                 <?php endif; ?>
+                </div>
               </td>
             </tr>
           <?php endforeach; endif; ?>
@@ -66,4 +82,32 @@
     </div>
   </div>
 </div>
+<style>
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize tooltips
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
+</script>
+
 <?php $this->load->view('partials/footer'); ?>

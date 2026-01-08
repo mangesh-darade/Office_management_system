@@ -32,7 +32,7 @@
 
 <div class="card">
   <div class="card-body">
-    <form method="post">
+    <form method="post" data-validate="true">
       <!-- Tabs Navigation -->
       <ul class="nav nav-tabs mb-4" id="announcementTabs" role="tablist">
         <li class="nav-item" role="presentation">

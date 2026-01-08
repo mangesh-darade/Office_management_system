@@ -194,6 +194,8 @@ $route['leaves/test-email'] = 'leaves/test_email';
 // Leave Requests (Phase 1)
 $route['leave/apply'] = 'leave_requests/apply';
 $route['leave/my'] = 'leave_requests/my';
+$route['leave/edit/(:num)'] = 'leave_requests/edit/$1';
+$route['leave/delete/(:num)'] = 'leave_requests/delete/$1';
 // Leave Requests (Phase 2)
 $route['leave/team'] = 'leave_requests/team';
 $route['leave/approve/(:num)'] = 'leave_requests/approve/$1';

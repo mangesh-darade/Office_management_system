@@ -24,7 +24,7 @@ class Employees extends CI_Controller {
         $filters = get_user_group_filter($user_id, $role_id);
         
         // Admin sees all, others see department-based
-        if (!in_array($role_id, [1,2], true)) {
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
             // For non-admin users, show department employees or redirect to own profile
             if (can_view_group_data($role_id)) {
                 // Managers can see department employees
@@ -60,7 +60,9 @@ class Employees extends CI_Controller {
         
         // Only Admin/HR can create employee records
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2], true)) { show_error('Forbidden', 403); }
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) { 
+            show_error('Forbidden', 403); 
+        }
         if ($this->input->method() === 'post') {
             $dept_id = $this->input->post('department_id');
             $desg_id = $this->input->post('designation_id');
@@ -88,9 +90,23 @@ class Employees extends CI_Controller {
                 redirect('employees/'.(int)$existing->id);
                 return;
             }
+            
+            // Auto-generate employee code if blank
+            $emp_code = trim($this->input->post('emp_code'));
+            if (empty($emp_code)) {
+                $emp_code = $this->Employee_model->generate_emp_code();
+            } else {
+                // Check if code already exists
+                if ($this->Employee_model->emp_code_exists($emp_code)) {
+                    $this->session->set_flashdata('error', 'Employee Code already exists. Please use a different code or leave it blank to auto-generate.');
+                    redirect('employees/create');
+                    return;
+                }
+            }
+            
             $payload = [
                 'user_id' => $uid,
-                'emp_code' => trim($this->input->post('emp_code')),
+                'emp_code' => $emp_code,
                 'first_name' => trim($this->input->post('first_name')),
                 'last_name' => trim($this->input->post('last_name')),
                 'department' => $dept_name,
@@ -114,7 +130,24 @@ class Employees extends CI_Controller {
                 'bank_ac_no' => trim($this->input->post('bank_ac_no')),
                 'pan_no' => trim($this->input->post('pan_no')),
             ];
-            $id = $this->Employee_model->create($payload);
+            
+            // Validate employee data
+            $this->load->helper('validation');
+            $validation = validate_employee_data($payload);
+            if (!$validation['valid']) {
+                $this->session->set_flashdata('error', implode(' ', $validation['errors']));
+                redirect('employees/create');
+                return;
+            }
+            
+            try {
+                $id = $this->Employee_model->create($payload);
+            } catch (Exception $e) {
+                log_message('error', 'Employee creation error: ' . $e->getMessage());
+                $this->session->set_flashdata('error', 'Failed to create employee. Please try again.');
+                redirect('employees/create');
+                return;
+            }
             $this->load->helper('activity');
             $fn = isset($payload['first_name']) ? $payload['first_name'] : '';
             $ln = isset($payload['last_name']) ? $payload['last_name'] : '';
@@ -138,6 +171,8 @@ class Employees extends CI_Controller {
             'users' => $this->get_user_options(),
             'departments' => $departments,
             'designations' => $designations,
+            // Pre-generate an employee code to show on the create form
+            'generated_emp_code' => $this->Employee_model->generate_emp_code(),
         ];
         $this->load->view('employees/form', $data);
     }
@@ -149,11 +184,20 @@ class Employees extends CI_Controller {
         if (!$employee) show_404();
         // Ownership check: non Admin/HR can view only their own record
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2], true)) {
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
-        $this->load->view('employees/view', ['employee' => $employee]);
+            // Check access to sensitive data
+            $this->load->helper('validation');
+            $role_id = (int)$this->session->userdata('role_id');
+            $user_id = (int)$this->session->userdata('user_id');
+            $can_view_sensitive = can_access_sensitive_employee_data($role_id, $user_id, $employee);
+            
+            $this->load->view('employees/view', [
+                'employee' => $employee,
+                'can_view_sensitive' => $can_view_sensitive
+            ]);
     }
 
     // GET /employees/{id}/edit, POST /employees/{id}/edit
@@ -168,7 +212,7 @@ class Employees extends CI_Controller {
         if (!$employee) show_404();
         // Ownership check: non Admin/HR can edit only their own record
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2], true)) {
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
@@ -186,8 +230,21 @@ class Employees extends CI_Controller {
                 $d = $this->db->select('designation_name')->from('designations')->where('id', (int)$desg_id)->get()->row();
                 if ($d) { $desg_name = $d->designation_name; }
             }
+            // Auto-generate employee code if blank
+            $emp_code = trim($this->input->post('emp_code'));
+            if (empty($emp_code)) {
+                $emp_code = $this->Employee_model->generate_emp_code($employee->emp_code);
+            } else {
+                // Check if code already exists (excluding current employee)
+                if ($this->Employee_model->emp_code_exists($emp_code, (int)$id)) {
+                    $this->session->set_flashdata('error', 'Employee Code already exists. Please use a different code or leave it blank to auto-generate.');
+                    redirect('employees/'.$id.'/edit');
+                    return;
+                }
+            }
+            
             $payload = [
-                'emp_code' => trim($this->input->post('emp_code')),
+                'emp_code' => $emp_code,
                 'first_name' => trim($this->input->post('first_name')),
                 'last_name' => trim($this->input->post('last_name')),
                 'department' => $dept_name,
@@ -211,13 +268,18 @@ class Employees extends CI_Controller {
                 'bank_ac_no' => trim($this->input->post('bank_ac_no')),
                 'pan_no' => trim($this->input->post('pan_no')),
             ];
+            // Track changes before update
+            $this->load->helper(['activity', 'change_tracker']);
+            $old_data = track_changes_before('employees', (int)$id);
+            
             $this->Employee_model->update((int)$id, $payload);
-            $this->load->helper('activity');
+            
+            // Track changes after update - automatically logs what changed
             $fn = isset($payload['first_name']) ? $payload['first_name'] : '';
             $ln = isset($payload['last_name']) ? $payload['last_name'] : '';
             $name = trim($fn.' '.$ln);
             $desc = $name !== '' ? ('Employee: '.$name) : ('Employee #'.(int)$id);
-            log_activity('employees', 'updated', (int)$id, $desc);
+            track_changes_after('employees', 'employees', (int)$id, $old_data, $payload, $desc);
             $this->session->set_flashdata('success', 'Employee updated');
             redirect('employees/'.$id);
             return;
@@ -240,6 +302,39 @@ class Employees extends CI_Controller {
         $this->load->view('employees/form', $data);
     }
 
+    // AJAX: Generate employee code
+    // GET /employees/generate-emp-code
+    public function generate_emp_code()
+    {
+        $this->output->set_content_type('application/json');
+        
+        $exclude_code = $this->input->get('exclude');
+        $exclude_id = $this->input->get('exclude_id');
+        
+        try {
+            // If exclude_id provided, use that employee's current code as exclude
+            if ($exclude_id) {
+                $employee = $this->Employee_model->find((int)$exclude_id);
+                if ($employee && $employee->emp_code) {
+                    $exclude_code = $employee->emp_code;
+                }
+            }
+            
+            $code = $this->Employee_model->generate_emp_code($exclude_code);
+            
+            $this->output->set_output(json_encode([
+                'success' => true,
+                'code' => $code
+            ]));
+        } catch (Exception $e) {
+            log_message('error', 'Employee code generation error: ' . $e->getMessage());
+            $this->output->set_output(json_encode([
+                'success' => false,
+                'error' => 'Failed to generate employee code.'
+            ]));
+        }
+    }
+
     // POST /employees/{id}/delete
     public function delete($id)
     {
@@ -260,54 +355,84 @@ class Employees extends CI_Controller {
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2], true)) {
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
 
         if ($this->input->method() === 'post') {
-            if (!isset($_FILES['document']) || empty($_FILES['document']['name'])) {
-                $this->session->set_flashdata('error', 'Please choose a file to upload.');
-                redirect('employees/'.$id.'/documents');
-                return;
-            }
-            $upload_path = FCPATH.'uploads/employees/';
-            if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
-            $config = [
-                'upload_path' => $upload_path,
-                'allowed_types' => 'pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|zip',
-                'max_size' => 10240,
-                'encrypt_name' => true,
-            ];
-            $this->load->library('upload');
-            $this->upload->initialize($config);
-            if (!$this->upload->do_upload('document')) {
-                $error = trim(strip_tags($this->upload->display_errors('', '')));
-                if ($error !== '') {
-                    $this->session->set_flashdata('error', $error);
-                } else {
-                    $this->session->set_flashdata('error', 'Unable to upload file.');
+            try {
+                // Validate file upload using secure helper
+                $this->load->helper('upload');
+                $document_file = isset($_FILES['document']) ? $_FILES['document'] : null;
+                $validation = validate_uploaded_file($document_file, [
+                    'allowed_types' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'zip'],
+                    'max_size' => 10485760, // 10MB
+                    'required' => true,
+                    'check_mime' => true,
+                    'check_content' => true
+                ]);
+                
+                if (!$validation['valid']) {
+                    $this->session->set_flashdata('error', implode(' ', $validation['errors']));
+                    redirect('employees/'.$id.'/documents');
+                    return;
                 }
+                
+                $file_info = $validation['file_info'];
+                
+                // Create upload directory with secure permissions
+                $upload_path = FCPATH.'uploads/employees/';
+                if (!is_dir($upload_path)) {
+                    if (!@mkdir($upload_path, 0755, true)) {
+                        $this->session->set_flashdata('error', 'Unable to create upload directory.');
+                        redirect('employees/'.$id.'/documents');
+                        return;
+                    }
+                }
+                
+                // Generate secure filename
+                $extension = $file_info['extension'];
+                $secure_filename = bin2hex(random_bytes(16)) . '.' . $extension;
+                $target_path = $upload_path . $secure_filename;
+                
+                // Move uploaded file
+                if (!move_uploaded_file($file_info['tmp_name'], $target_path)) {
+                    $this->session->set_flashdata('error', 'Failed to save uploaded file.');
+                    redirect('employees/'.$id.'/documents');
+                    return;
+                }
+                
+                // Sanitize original filename
+                $originalName = sanitize_filename($file_info['name']);
+                
+                // Save document record
+                $doc_type = trim($this->input->post('doc_type'));
+                $this->Employee_model->add_document([
+                    'employee_id' => (int)$id,
+                    'doc_type' => $doc_type !== '' ? $doc_type : null,
+                    'original_name' => $originalName,
+                    'file_name' => $secure_filename,
+                    'file_path' => 'uploads/employees/'.$secure_filename,
+                    'file_size' => $file_info['size'],
+                    'file_type' => $file_info['type'],
+                    'uploaded_by' => (int)$this->session->userdata('user_id'),
+                    'uploaded_at' => date('Y-m-d H:i:s'),
+                ]);
+                
+                // Log activity
+                $this->load->helper('activity');
+                log_activity('employees', 'document_uploaded', (int)$id, 'Document: ' . $originalName);
+                
+                $this->session->set_flashdata('success', 'Document uploaded successfully');
+                redirect('employees/'.$id.'/documents');
+                return;
+            } catch (Exception $e) {
+                log_message('error', 'Document upload error: ' . $e->getMessage());
+                $this->session->set_flashdata('error', 'An error occurred while uploading the document.');
                 redirect('employees/'.$id.'/documents');
                 return;
             }
-            $up = $this->upload->data();
-            $doc_type = trim($this->input->post('doc_type'));
-            $originalName = isset($_FILES['document']['name']) ? $_FILES['document']['name'] : $up['file_name'];
-            $this->Employee_model->add_document([
-                'employee_id' => (int)$id,
-                'doc_type' => $doc_type !== '' ? $doc_type : null,
-                'original_name' => $originalName,
-                'file_name' => $up['file_name'],
-                'file_path' => 'uploads/employees/'.$up['file_name'],
-                'file_size' => isset($up['file_size']) ? (int)$up['file_size'] : null,
-                'file_type' => isset($up['file_type']) ? $up['file_type'] : null,
-                'uploaded_by' => (int)$this->session->userdata('user_id'),
-                'uploaded_at' => date('Y-m-d H:i:s'),
-            ]);
-            $this->session->set_flashdata('success', 'Document uploaded');
-            redirect('employees/'.$id.'/documents');
-            return;
         }
 
         $documents = $this->Employee_model->get_documents((int)$id);
@@ -321,7 +446,7 @@ class Employees extends CI_Controller {
         $employee = $this->Employee_model->find((int)$doc->employee_id);
         if (!$employee) { show_404(); }
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2], true)) {
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
@@ -345,7 +470,7 @@ class Employees extends CI_Controller {
         $employee = $this->Employee_model->find((int)$doc->employee_id);
         if (!$employee) { show_404(); }
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2], true)) { show_error('Forbidden', 403); }
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Forbidden', 403); }
         $path = FCPATH.$doc->file_path;
         $ok = $this->Employee_model->delete_document((int)$id);
         if ($ok && $doc->file_path && is_file($path)) {

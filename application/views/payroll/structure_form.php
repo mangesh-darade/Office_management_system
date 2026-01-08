@@ -6,7 +6,7 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post">
+    <form method="post" data-validate="true">
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Employee <span class="text-danger">*</span></label>

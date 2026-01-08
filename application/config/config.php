@@ -409,9 +409,21 @@ $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
 $config['sess_regenerate_destroy'] = FALSE;
 
-// Ensure encryption key is set; replace with a strong random string in production
+// Ensure encryption key is set; generate a secure random key if not set
 if (empty($config['encryption_key'])) {
-    $config['encryption_key'] = 'CHANGE_ME_TO_A_RANDOM_32_PLUS_CHAR_SECRET_KEY';
+    // Generate a secure 32-byte (256-bit) key
+    if (function_exists('random_bytes')) {
+        $config['encryption_key'] = bin2hex(random_bytes(32));
+    } elseif (function_exists('openssl_random_pseudo_bytes')) {
+        $config['encryption_key'] = bin2hex(openssl_random_pseudo_bytes(32));
+    } else {
+        // Fallback - WARNING: This is less secure, should be changed manually
+        $config['encryption_key'] = 'CHANGE_ME_TO_A_RANDOM_32_PLUS_CHAR_SECRET_KEY_' . md5(uniqid(mt_rand(), true));
+    }
+    // Log info in development
+    if (ENVIRONMENT === 'development') {
+        log_message('info', 'Encryption key was auto-generated. Change it in production!');
+    }
 }
 
 /*
@@ -434,8 +446,8 @@ $config['cookie_prefix']	= '';
 $config['cookie_domain']	= '';
 $config['cookie_path']		= '/';
 $config['cookie_secure']	= FALSE;
-$config['cookie_httponly'] 	= FALSE;
-$config['cookie_samesite'] 	= 'Lax';
+$config['cookie_httponly'] 	= TRUE; // Set to TRUE for security (prevents JavaScript access)
+$config['cookie_samesite'] 	= 'Lax'; // Changed from Strict to Lax for better compatibility
 
 /*
 |--------------------------------------------------------------------------
@@ -479,12 +491,6 @@ $config['global_xss_filtering'] = FALSE;
 | 'csrf_regenerate' = Regenerate token on every submission
 | 'csrf_exclude_uris' = Array of URIs which ignore CSRF checks
 */
-$config['csrf_protection'] = FALSE;
-$config['csrf_token_name'] = 'csrf_test_name';
-$config['csrf_cookie_name'] = 'csrf_cookie_name';
-$config['csrf_expire'] = 7200;
-$config['csrf_regenerate'] = TRUE;
-$config['csrf_exclude_uris'] = array();
 
 /*
 |--------------------------------------------------------------------------

@@ -174,12 +174,7 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
-        if ($this->db->field_exists('phone', 'users')) {
-            if ($in['phone'] === '') {
-                $this->session->set_flashdata('error', 'Mobile number is required.');
-                redirect('users/create');
-                return;
-            }
+        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '') {
             if (!preg_match('/^[0-9]{10}$/', $in['phone'])) {
                 $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number.');
                 redirect('users/create');
@@ -202,8 +197,17 @@ class Users extends CI_Controller {
         // Handle avatar upload
         $avatarPath = $this->_handle_avatar_upload();
         if ($avatarPath && $this->db->field_exists('avatar', 'users')) { $data['avatar'] = $avatarPath; }
+        
+        // Auto-track creation
+        $this->load->helper('change_tracker');
+        
         $ok = $this->users->insert($data);
         if ($ok) {
+            $new_id = $this->db->insert_id();
+            if ($new_id) {
+                $description = 'User: ' . (isset($data['name']) ? $data['name'] : (isset($data['email']) ? $data['email'] : 'User #' . $new_id));
+                auto_track_insert('users', $new_id, $data, $description);
+            }
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
         }
         $this->_flash_redirect($ok, 'User created', 'users');
@@ -214,11 +218,15 @@ class Users extends CI_Controller {
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
         
+        // CSRF cookie is automatically set by CodeIgniter on GET requests
+        // No need to manually set it
+        
         // Check if face is already registered
         $this->faces->ensure_schema();
         $faceRecord = $this->faces->get_by_user($id);
         $row->face_registered = ($faceRecord && !empty($faceRecord->descriptor)) ? true : false;
         $row->face_registered_date = $faceRecord ? $faceRecord->created_at : null;
+        $row->face_image = ($faceRecord && !empty($faceRecord->image_path)) ? $faceRecord->image_path : null;
         
         $data = [
             'title' => 'Edit User',
@@ -269,12 +277,7 @@ class Users extends CI_Controller {
             redirect('users/edit/'.$id);
             return;
         }
-        if ($this->db->field_exists('phone', 'users')) {
-            if ($in['phone'] === '') {
-                $this->session->set_flashdata('error', 'Mobile number is required.');
-                redirect('users/edit/'.$id);
-                return;
-            }
+        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '') {
             if (!preg_match('/^[0-9]{10}$/', $in['phone'])) {
                 $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number.');
                 redirect('users/edit/'.$id);
@@ -297,11 +300,24 @@ class Users extends CI_Controller {
         // Handle avatar upload (replace if new file uploaded)
         $avatarPath = $this->_handle_avatar_upload();
         if ($avatarPath && $this->db->field_exists('avatar', 'users')) { $data['avatar'] = $avatarPath; }
+        
+        // Auto-track changes before update
+        $this->load->helper('change_tracker');
+        $old_data = track_changes_before('users', $id);
+        
         $ok = $this->users->update($id, $data);
+        
+        // Auto-track changes after update
+        if ($ok && $old_data) {
+            $description = 'User: ' . (isset($data['name']) ? $data['name'] : (isset($row->name) ? $row->name : 'User #' . $id));
+            track_changes_after('users', 'users', $id, $old_data, $data, $description);
+        }
+        
         $this->_flash_redirect($ok, 'User updated', 'users');
     }
 
     public function delete($id = null) {
+        $this->load->helper('change_tracker');
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
@@ -313,7 +329,17 @@ class Users extends CI_Controller {
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
+        
+        // Auto-track deletion
+        $this->load->helper('change_tracker');
+        $old_data = (array)$row;
+        
         $ok = $this->users->delete($id);
+        if ($ok) {
+            $description = 'User: ' . (isset($row->name) ? $row->name : (isset($row->email) ? $row->email : 'User #' . $id));
+            auto_track_delete('users', $id, $old_data, $description);
+        }
+        
         $this->_flash_redirect($ok, 'User deleted', 'users');
     }
 
