@@ -170,6 +170,26 @@
               <input type="number" class="form-control" name="attendance_standard_working_hours" value="<?php echo htmlspecialchars(isset($settings['attendance_standard_working_hours']) ? $settings['attendance_standard_working_hours'] : (isset($settings['standard_working_hours']) ? $settings['standard_working_hours'] : '8')); ?>" step="0.5" min="1" max="24" />
               <div class="form-text">Standard working hours per day (for overtime calculation)</div>
             </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Late Mark Notification</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="attendance_late_mark_notification" value="yes" <?php echo (isset($settings['attendance_late_mark_notification']) && $settings['attendance_late_mark_notification'] === 'yes') ? 'checked' : ''; ?> id="attendance_late_mark_notification">
+                <label class="form-check-label" for="attendance_late_mark_notification">
+                  Send late mark email when employee checks in late
+                </label>
+              </div>
+              <div class="form-text">Enable to send emails with late time when check-in is after start time + grace period</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Face Capture Mode</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="attendance_auto_capture" value="yes" <?php echo (isset($settings['attendance_auto_capture']) && $settings['attendance_auto_capture'] === 'yes') ? 'checked' : ''; ?> id="attendance_auto_capture">
+                <label class="form-check-label" for="attendance_auto_capture">
+                  Enable auto face capture
+                </label>
+              </div>
+              <div class="form-text">When enabled, face will be captured automatically after 3 seconds. When disabled, user must click "Capture Face" button manually.</div>
+            </div>
             <div class="col-md-12">
               <label class="form-label fw-semibold">Weekend Days</label>
               <div class="row g-2">
@@ -237,6 +257,21 @@
               <label class="form-label fw-semibold">Default Annual Leave Days</label>
               <input type="number" class="form-control" step="0.5" min="0" name="leave_default_days" value="<?php echo htmlspecialchars(isset($settings['leave_default_days']) ? $settings['leave_default_days'] : '0'); ?>" />
               <div class="form-text">Leave days per year for new employees</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">HR Manager</label>
+              <select class="form-select" name="leave_hr_user_id" id="leave_hr_user_id">
+                <option value="">Select HR Manager</option>
+                <?php if (isset($all_users) && is_array($all_users)): ?>
+                  <?php foreach ($all_users as $user): ?>
+                    <?php $selected = (isset($settings['leave_hr_user_id']) && $settings['leave_hr_user_id'] == $user->id) ? 'selected' : ''; ?>
+                    <option value="<?php echo (int)$user->id; ?>" <?php echo $selected; ?>>
+                      <?php echo htmlspecialchars(!empty($user->name) ? $user->name : $user->email); ?>
+                    </option>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </select>
+              <div class="form-text">HR will receive emails when leave is approved/rejected</div>
             </div>
           </div>
           <div class="d-flex gap-2">

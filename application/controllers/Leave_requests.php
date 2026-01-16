@@ -34,6 +34,16 @@ class Leave_requests extends CI_Controller {
                 return;
             }
             
+            // Validate Lead selection (Admin is optional)
+            $selected_lead_id = $this->input->post('selected_lead_id') ? (int)$this->input->post('selected_lead_id') : null;
+            $selected_admin_id = $this->input->post('selected_admin_id') ? (int)$this->input->post('selected_admin_id') : null;
+            
+            if (!$selected_lead_id) {
+                $this->session->set_flashdata('error', 'Please select a Lead.');
+                redirect('leave/apply');
+                return;
+            }
+            
             // Check if selected leave type is "Work From Home"
             $leave_type = $this->db->select('name')->from('leave_types')->where('id', $type_id)->get()->row();
             $is_wfh = false;
@@ -108,24 +118,12 @@ class Leave_requests extends CI_Controller {
                     }
                 }
 
-                // Find department manager as approver if available
-                $approver_id = null;
-                if ($this->db->table_exists('employees') && $this->db->table_exists('departments')){
-                    $emp = $this->db->where('user_id', $user_id)->get('employees')->row();
-                    if ($emp && !empty($emp->department)) {
-                        // Find department by name and get its manager
-                        $dept = $this->db->select('manager_id')->from('departments')
-                            ->where('dept_name', $emp->department)
-                            ->where('status', 'active')
-                            ->get()->row();
-                        if ($dept && !empty($dept->manager_id)) {
-                            $approver_id = (int)$dept->manager_id;
-                        }
-                    }
-                    // Fallback to reporting_to if department manager not found
-                    if (!$approver_id && $emp && !empty($emp->reporting_to)) {
-                        $approver_id = (int)$emp->reporting_to;
-                    }
+                // Use Lead as approver (already validated above)
+                $approver_id = $selected_lead_id;
+
+                // Ensure manager_id column exists in leave_requests table
+                if ($this->db->table_exists('leave_requests') && !$this->db->field_exists('manager_id', 'leave_requests')) {
+                    $this->db->query("ALTER TABLE leave_requests ADD COLUMN manager_id BIGINT UNSIGNED NULL AFTER current_approver_id");
                 }
 
                 // Use transaction for data integrity
@@ -142,6 +140,7 @@ class Leave_requests extends CI_Controller {
                         'reason' => $reason,
                         'status' => STATUS_PENDING,
                         'current_approver_id' => $approver_id,
+                        'manager_id' => $selected_admin_id, // Store manager/admin ID
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];
@@ -169,7 +168,7 @@ class Leave_requests extends CI_Controller {
                 // Send email notifications after all leave requests are created
                 if (!empty($leave_ids)) {
                     try {
-                    $this->_notify_leave_applied($leave_ids, $user_id, $type_id, $approver_id);
+                    $this->_notify_leave_applied($leave_ids, $user_id, $type_id, $selected_lead_id, $selected_admin_id);
                     } catch (Exception $e) {
                         log_message('error', 'Leave notification error: ' . $e->getMessage());
                         // Don't fail the request if notification fails
@@ -278,24 +277,12 @@ class Leave_requests extends CI_Controller {
                 }
             }
 
-            // Find department manager as approver if available
-            $approver_id = null;
-            if ($this->db->table_exists('employees') && $this->db->table_exists('departments')){
-                $emp = $this->db->where('user_id', $user_id)->get('employees')->row();
-                if ($emp && !empty($emp->department)) {
-                    // Find department by name and get its manager
-                    $dept = $this->db->select('manager_id')->from('departments')
-                        ->where('dept_name', $emp->department)
-                        ->where('status', 'active')
-                        ->get()->row();
-                    if ($dept && !empty($dept->manager_id)) {
-                        $approver_id = (int)$dept->manager_id;
-                    }
-                }
-                // Fallback to reporting_to if department manager not found
-                if (!$approver_id && $emp && !empty($emp->reporting_to)) {
-                    $approver_id = (int)$emp->reporting_to;
-                }
+            // Use Lead as approver (already validated above)
+            $approver_id = $selected_lead_id;
+
+            // Ensure manager_id column exists in leave_requests table
+            if ($this->db->table_exists('leave_requests') && !$this->db->field_exists('manager_id', 'leave_requests')) {
+                $this->db->query("ALTER TABLE leave_requests ADD COLUMN manager_id BIGINT UNSIGNED NULL AFTER current_approver_id");
             }
 
             // Insert
@@ -308,6 +295,7 @@ class Leave_requests extends CI_Controller {
                 'reason' => $reason,
                 'status' => 'pending',
                 'current_approver_id' => $approver_id,
+                'manager_id' => $selected_admin_id, // Store manager/admin ID
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
@@ -315,7 +303,7 @@ class Leave_requests extends CI_Controller {
 
             // Send email notifications
             if ($id) {
-                $this->_notify_leave_applied([$id], $user_id, $type_id, $approver_id);
+                $this->_notify_leave_applied([$id], $user_id, $type_id, $selected_lead_id, $selected_admin_id);
             }
 
             $this->session->set_flashdata('success', 'Leave request submitted.');
@@ -329,6 +317,26 @@ class Leave_requests extends CI_Controller {
             $b = $this->leaves->get_leave_balance($user_id, (int)$t->id);
             $balances[(int)$t->id] = $b ? $b->available : 0;
         }
+
+        // Get Lead users (role_id = 3)
+        $this->db->select('u.id, u.name, u.email');
+        $this->db->from('users u');
+        $this->db->where('u.role_id', 3); // Lead role
+        if ($this->db->field_exists('status', 'users')) {
+            $this->db->where('u.status', 'active');
+        }
+        $this->db->order_by('u.name', 'ASC');
+        $leads = $this->db->get()->result();
+
+        // Get Admin users (role_id = 1)
+        $this->db->select('u.id, u.name, u.email');
+        $this->db->from('users u');
+        $this->db->where('u.role_id', 1); // Admin role
+        if ($this->db->field_exists('status', 'users')) {
+            $this->db->where('u.status', 'active');
+        }
+        $this->db->order_by('u.name', 'ASC');
+        $admins = $this->db->get()->result();
 
         // Get holidays from database
         $holidays = [];
@@ -363,6 +371,8 @@ class Leave_requests extends CI_Controller {
         $this->load->view('leave_requests/apply', [
             'types' => $types,
             'balances' => $balances,
+            'leads' => $leads,
+            'admins' => $admins,
             'holidays' => $holidays,
             'weekend_days' => $weekend_days,
             'today_date' => $today_date,
@@ -651,10 +661,10 @@ class Leave_requests extends CI_Controller {
 
     /**
      * Send email notification when leave is applied
-     * Sends to department manager and admin (with manager in CC)
+     * Sends to selected Lead and Admin
      * Consolidates multiple leave requests into a single email
      */
-    private function _notify_leave_applied($leave_ids, $user_id, $type_id, $approver_id){
+    private function _notify_leave_applied($leave_ids, $user_id, $type_id, $selected_lead_id, $selected_admin_id){
         if (empty($leave_ids)) return;
         
         // Debug: Log email consolidation
@@ -706,24 +716,26 @@ class Leave_requests extends CI_Controller {
             $reason = !empty($first_leave->reason) ? $first_leave->reason : 'No reason provided';
             $request_count = count($leaves);
             
-            // Get manager email
-            $manager_email = null;
-            $manager_name = null;
-            if ($approver_id) {
-                $manager = $this->db->select('email, name')->from('users')->where('id', $approver_id)->get()->row();
-                if ($manager && !empty($manager->email)) {
-                    $manager_email = $manager->email;
-                    $manager_name = !empty($manager->name) ? $manager->name : $manager->email;
+            // Get selected Lead email
+            $lead_email = null;
+            $lead_name = null;
+            if ($selected_lead_id) {
+                $lead = $this->db->select('email, name')->from('users')->where('id', $selected_lead_id)->get()->row();
+                if ($lead && !empty($lead->email)) {
+                    $lead_email = $lead->email;
+                    $lead_name = !empty($lead->name) ? $lead->name : $lead->email;
                 }
             }
             
-            // Get admin email (role_id = 1)
-            $admin = $this->db->select('email, name')->from('users')->where('role_id', 1)->where('status', 'active')->limit(1)->get()->row();
+            // Get selected Admin email
             $admin_email = null;
             $admin_name = null;
-            if ($admin && !empty($admin->email)) {
-                $admin_email = $admin->email;
-                $admin_name = !empty($admin->name) ? $admin->name : $admin->email;
+            if ($selected_admin_id) {
+                $admin = $this->db->select('email, name')->from('users')->where('id', $selected_admin_id)->get()->row();
+                if ($admin && !empty($admin->email)) {
+                    $admin_email = $admin->email;
+                    $admin_name = !empty($admin->name) ? $admin->name : $admin->email;
+                }
             }
             
             // Initialize email config
@@ -767,34 +779,34 @@ class Leave_requests extends CI_Controller {
             $message .= '<p>Thank you.</p>';
             $message .= '</body></html>';
             
-            // Email to Department Manager
-            if ($manager_email) {
-                error_log('Leave notification: Sending consolidated email to manager: ' . $manager_email);
+            // Email to selected Lead
+            if ($lead_email) {
+                error_log('Leave notification: Sending consolidated email to Lead: ' . $lead_email);
                 $this->email->clear(true);
                 $this->email->from($fromAddr, $fromName);
-                $this->email->to($manager_email);
+                $this->email->to($lead_email);
                 
-                // Add admin in CC
-                if ($admin_email && $admin_email !== $manager_email) {
+                // Add admin in CC if selected and different from lead
+                if ($admin_email && $admin_email !== $lead_email) {
                     $this->email->cc($admin_email);
                 }
                 
                 $this->email->subject($subject);
                 $this->email->message($message);
                 @$this->email->send();
-                error_log('Leave notification: Manager email sent successfully');
+                error_log('Leave notification: Lead email sent successfully');
             }
             
-            // Email to Admin (if admin is not the manager)
-            if ($admin_email && $admin_email !== $manager_email) {
-                error_log('Leave notification: Sending consolidated email to admin: ' . $admin_email);
+            // Email to selected Admin (if admin is different from lead, or if only admin is selected)
+            if ($admin_email && (!$lead_email || $admin_email !== $lead_email)) {
+                error_log('Leave notification: Sending consolidated email to Admin: ' . $admin_email);
                 $this->email->clear(true);
                 $this->email->from($fromAddr, $fromName);
                 $this->email->to($admin_email);
                 
-                // Add manager in CC if exists
-                if ($manager_email) {
-                    $this->email->cc($manager_email);
+                // Add lead in CC if exists and different
+                if ($lead_email && $lead_email !== $admin_email) {
+                    $this->email->cc($lead_email);
                 }
                 
                 $this->email->subject($subject);
@@ -811,9 +823,12 @@ class Leave_requests extends CI_Controller {
 
     /**
      * Send email notification when leave is approved or rejected
-     * Sends to the employee who applied for leave
+     * Sends to the employee who applied for leave, Lead, Manager, and HR
      */
     private function _notify_leave_change($leave_id, $status, $comments){
+        // Load settings model to get HR user ID
+        $this->load->model('Setting_model', 'settings');
+        
         // Fetch requester email and leave details
         $row = $this->db->select('lr.*, lt.name AS type_name, u.name AS user_name, u.email AS user_email')
                         ->from('leave_requests lr')
@@ -821,6 +836,55 @@ class Leave_requests extends CI_Controller {
                         ->join('users u','u.id = lr.user_id','left')
                         ->where('lr.id', (int)$leave_id)->get()->row();
         if (!$row || empty($row->user_email)) return;
+        
+        // Get Lead and Manager from leave request (they were selected during application)
+        $lead_id = null;
+        $manager_id = null;
+        
+        // Get Lead from current_approver_id (Lead is stored as approver)
+        if (!empty($row->current_approver_id)) {
+            $lead_id = (int)$row->current_approver_id;
+        }
+        
+        // Get Manager from manager_id field (stored during application)
+        if (!empty($row->manager_id)) {
+            $manager_id = (int)$row->manager_id;
+        }
+        
+        // Get HR user ID from settings
+        $hr_user_id = $this->settings->get_setting('leave_hr_user_id');
+        $hr_user_id = !empty($hr_user_id) ? (int)$hr_user_id : null;
+        
+        // Get email addresses for Lead, Manager, and HR
+        $lead_email = null;
+        $lead_name = null;
+        if ($lead_id) {
+            $lead = $this->db->select('email, name')->from('users')->where('id', $lead_id)->get()->row();
+            if ($lead && !empty($lead->email)) {
+                $lead_email = $lead->email;
+                $lead_name = !empty($lead->name) ? $lead->name : $lead->email;
+            }
+        }
+        
+        $manager_email = null;
+        $manager_name = null;
+        if ($manager_id) {
+            $manager = $this->db->select('email, name')->from('users')->where('id', $manager_id)->get()->row();
+            if ($manager && !empty($manager->email)) {
+                $manager_email = $manager->email;
+                $manager_name = !empty($manager->name) ? $manager->name : $manager->email;
+            }
+        }
+        
+        $hr_email = null;
+        $hr_name = null;
+        if ($hr_user_id) {
+            $hr = $this->db->select('email, name')->from('users')->where('id', $hr_user_id)->get()->row();
+            if ($hr && !empty($hr->email)) {
+                $hr_email = $hr->email;
+                $hr_name = !empty($hr->name) ? $hr->name : $hr->email;
+            }
+        }
         
         // Check if this is a WFH request
         $is_wfh = false;
@@ -878,6 +942,47 @@ class Leave_requests extends CI_Controller {
             $this->email->subject($subject);
             $this->email->message($message);
             @$this->email->send();
+            
+            // Send email to Lead, Manager, and HR
+            $recipients = [];
+            if ($lead_email) {
+                $recipients[] = ['email' => $lead_email, 'name' => $lead_name];
+            }
+            if ($manager_email && $manager_email !== $lead_email) {
+                $recipients[] = ['email' => $manager_email, 'name' => $manager_name];
+            }
+            if ($hr_email && $hr_email !== $lead_email && $hr_email !== $manager_email) {
+                $recipients[] = ['email' => $hr_email, 'name' => $hr_name];
+            }
+            
+            // Send notification email to Lead, Manager, and HR
+            if (!empty($recipients)) {
+                $notification_subject = 'Leave Request ' . $status_text . ' - ' . htmlspecialchars(!empty($row->user_name) ? $row->user_name : $row->user_email);
+                $notification_message = '<html><body>';
+                $notification_message .= '<h3>Leave Request ' . $status_text . '</h3>';
+                $notification_message .= '<p><strong>Employee:</strong> ' . htmlspecialchars(!empty($row->user_name) ? $row->user_name : $row->user_email) . '</p>';
+                $notification_message .= '<p><strong>Leave Type:</strong> ' . htmlspecialchars($row->type_name) . '</p>';
+                $notification_message .= '<p><strong>Date(s):</strong> ' . htmlspecialchars($date_string) . '</p>';
+                $notification_message .= '<p><strong>Days:</strong> ' . number_format((float)$row->days, 1) . '</p>';
+                $notification_message .= '<p><strong>Status:</strong> <span style="color: ' . $status_color . ';">' . htmlspecialchars($status_text) . '</span></p>';
+                if ($comments) {
+                    $notification_message .= '<p><strong>Comments:</strong> ' . nl2br(htmlspecialchars($comments)) . '</p>';
+                }
+                $notification_message .= '</body></html>';
+                
+                foreach ($recipients as $recipient) {
+                    try {
+                        $this->email->clear(true);
+                        $this->email->from($fromAddr, $fromName);
+                        $this->email->to($recipient['email']);
+                        $this->email->subject($notification_subject);
+                        $this->email->message($notification_message);
+                        @$this->email->send();
+                    } catch (Exception $e) {
+                        error_log('Leave notification email to ' . $recipient['email'] . ' failed: ' . $e->getMessage());
+                    }
+                }
+            }
         } catch (Exception $e) {
             // Silently fail - don't break the approval process
             error_log('Leave approval email notification failed: ' . $e->getMessage());

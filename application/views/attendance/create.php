@@ -11,39 +11,53 @@
   </div>
 
   <?php if($this->session->flashdata('success')): ?>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){
+        var toastEl = document.createElement('div');
+        toastEl.className = 'toast align-items-center text-white bg-success border-0';
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        toastEl.setAttribute('data-bs-autohide', 'true');
+        toastEl.setAttribute('data-bs-delay', '3000');
+        toastEl.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-check-circle-fill me-2"></i><strong>Success!</strong> <?php echo htmlspecialchars($this->session->flashdata('success')); ?></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+        document.querySelector('.toast-container').appendChild(toastEl);
+        var toast = new bootstrap.Toast(toastEl);
+        toast.show();
+        
+        // Redirect to attendance index page after successful submission
+        setTimeout(function(){
+          window.location.href = '<?php echo site_url('attendance'); ?>';
+        }, 3000);
+      });
+    </script>
   <?php endif; ?>
   <?php if($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){
+        var toastEl = document.createElement('div');
+        toastEl.className = 'toast align-items-center text-white bg-danger border-0';
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        toastEl.setAttribute('data-bs-autohide', 'true');
+        toastEl.setAttribute('data-bs-delay', '5000');
+        var errorMsg = '<?php echo htmlspecialchars($this->session->flashdata('error')); ?>';
+        var tipHtml = '';
+        <?php if(strpos($this->session->flashdata('error'), 'Face verification') !== false): ?>
+          tipHtml = '<div class="mt-2 small"><i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Make sure you\'re in good lighting and facing the camera directly.</div>';
+        <?php endif; ?>
+        toastEl.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> ' + errorMsg + tipHtml + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+        document.querySelector('.toast-container').appendChild(toastEl);
+        var toast = new bootstrap.Toast(toastEl);
+        toast.show();
+      });
+    </script>
   <?php endif; ?>
 
   <!-- Toast Container -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
-    <div id="locationToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="toast-header">
-        <i class="bi bi-geo-alt-fill text-primary me-2"></i>
-        <strong class="me-auto">Location Status</strong>
-        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-      <div class="toast-body" id="toastMessage">
-        Getting location...
-      </div>
-    </div>
-    <div id="attendanceToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="toast-header">
-        <i class="bi bi-info-circle-fill text-info me-2"></i>
-        <strong class="me-auto">Attendance Status</strong>
-        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-      <div class="toast-body" id="attendanceToastMessage">
-      </div>
-    </div>
+    <!-- Toasts will be dynamically created here -->
   </div>
 
   <div class="card shadow-sm border-0">
@@ -55,20 +69,70 @@
         <input type="hidden" name="face_required" id="faceRequired" value="0" />
         <input type="hidden" name="face_descriptor" id="faceDescriptor" value="" />
         
+        <?php if(isset($attendance_status) && ($attendance_status['has_checkin'] || $attendance_status['has_checkout'])): ?>
+        <script>
+          document.addEventListener('DOMContentLoaded', function(){
+            // Only show attendance status toast if no error message is shown
+            var hasError = <?php echo $this->session->flashdata('error') ? 'true' : 'false'; ?>;
+            if (!hasError) {
+              var toastEl = document.createElement('div');
+              toastEl.className = 'toast align-items-center text-white bg-info border-0';
+              toastEl.setAttribute('role', 'alert');
+              toastEl.setAttribute('aria-live', 'assertive');
+              toastEl.setAttribute('aria-atomic', 'true');
+              toastEl.setAttribute('data-bs-autohide', 'true');
+              toastEl.setAttribute('data-bs-delay', '5000');
+              var msg = '';
+              <?php if($attendance_status['has_checkin'] && $attendance_status['has_checkout']): ?>
+                msg = '<i class="bi bi-info-circle-fill me-2"></i><strong>Today\'s Attendance Status:</strong><div class="mt-2"><div><i class="bi bi-check-circle"></i> Check-in: <strong><?php echo htmlspecialchars($attendance_status['checkin_time']); ?></strong></div><div><i class="bi bi-check-circle"></i> Check-out: <strong><?php echo htmlspecialchars($attendance_status['checkout_time']); ?></strong></div><div class="mt-2 small">You have already completed attendance for today.</div></div>';
+              <?php elseif($attendance_status['has_checkin']): ?>
+                msg = '<i class="bi bi-info-circle-fill me-2"></i><strong>Today\'s Attendance Status:</strong><div class="mt-2"><div><i class="bi bi-check-circle"></i> Check-in: <strong><?php echo htmlspecialchars($attendance_status['checkin_time']); ?></strong></div><div class="mt-2 small">You have already checked in today. You can now check out.</div></div>';
+              <?php endif; ?>
+              toastEl.innerHTML = '<div class="d-flex"><div class="toast-body">' + msg + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+              var container = document.querySelector('.toast-container');
+              if (container) {
+                container.appendChild(toastEl);
+                var toast = new bootstrap.Toast(toastEl);
+                toast.show();
+                
+                // Remove toast element after it's hidden
+                toastEl.addEventListener('hidden.bs.toast', function() {
+                  toastEl.remove();
+                });
+              }
+            }
+          });
+        </script>
+        <?php endif; ?>
+
         <!-- Action Selection -->
         <div class="row mb-3">
           <div class="col-12">
             <div class="btn-group w-100" role="group">
-              <input type="radio" class="btn-check" name="action" id="actionIn" value="in" checked>
+              <input type="radio" class="btn-check" name="action" id="actionIn" value="in" 
+                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && !$attendance_status['has_checkout']) ? '' : 'checked'; ?>
+                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && $attendance_status['has_checkout']) ? 'disabled' : ''; ?>>
               <label class="btn btn-outline-success" for="actionIn">
                 <i class="bi bi-box-arrow-in-right"></i> Check IN
               </label>
               
-              <input type="radio" class="btn-check" name="action" id="actionOut" value="out">
+              <input type="radio" class="btn-check" name="action" id="actionOut" value="out"
+                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && !$attendance_status['has_checkout']) ? 'checked' : ''; ?>
+                     <?php echo (isset($attendance_status) && !$attendance_status['has_checkin']) ? 'disabled' : ''; ?>
+                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && $attendance_status['has_checkout']) ? 'disabled' : ''; ?>>
               <label class="btn btn-outline-danger" for="actionOut">
                 <i class="bi bi-box-arrow-right"></i> Check OUT
               </label>
             </div>
+            <?php if(isset($attendance_status) && $attendance_status['has_checkin'] && $attendance_status['has_checkout']): ?>
+            <div class="text-center mt-2">
+              <small class="text-muted"><i class="bi bi-info-circle"></i> Attendance already completed for today</small>
+            </div>
+            <?php elseif(isset($attendance_status) && !$attendance_status['has_checkin']): ?>
+            <div class="text-center mt-2">
+              <small class="text-muted"><i class="bi bi-info-circle"></i> Please check in first</small>
+            </div>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -141,24 +205,6 @@
       document.addEventListener('DOMContentLoaded', function(){
         try { tick(); setInterval(tick, 1000); } catch(e){}
         
-        // Check existing attendance status and show toast
-        <?php if(isset($attendance_status) && ($attendance_status['has_checkin'] || $attendance_status['has_checkout'])): ?>
-        try {
-          var attendanceToast = new bootstrap.Toast(document.getElementById('attendanceToast'));
-          var toastMsg = document.getElementById('attendanceToastMessage');
-          var msg = '';
-          <?php if($attendance_status['has_checkin'] && $attendance_status['has_checkout']): ?>
-            msg = 'You have already checked in and checked out today.<br>Check-in: <?php echo htmlspecialchars($attendance_status['checkin_time']); ?><br>Check-out: <?php echo htmlspecialchars($attendance_status['checkout_time']); ?>';
-          <?php elseif($attendance_status['has_checkin']): ?>
-            msg = 'You have already checked in today at <?php echo htmlspecialchars($attendance_status['checkin_time']); ?>. You can now check out.';
-          <?php endif; ?>
-          if (toastMsg && msg) {
-            toastMsg.innerHTML = msg;
-            attendanceToast.show();
-          }
-        } catch(e){}
-        <?php endif; ?>
-        
         try {
           var hasLocation = false;
           var locationCaptured = false;
@@ -221,6 +267,65 @@
           validateMandatoryFields();
           setInterval(validateMandatoryFields, 1000);
           
+          // Track shown toasts to prevent duplicates
+          var shownToasts = {};
+          
+          // Function to show custom toast notifications
+          function showCustomToast(message, type = 'info', delay = 3000) {
+            // Create unique key for this toast message
+            var toastKey = type + '_' + message.substring(0, 50);
+            
+            // Check if this toast was already shown recently (within 5 seconds)
+            if (shownToasts[toastKey] && (Date.now() - shownToasts[toastKey]) < 5000) {
+              return; // Skip duplicate toast
+            }
+            
+            // Mark this toast as shown
+            shownToasts[toastKey] = Date.now();
+            
+            var bgClass = 'bg-info';
+            var icon = 'bi-info-circle-fill';
+            
+            switch(type) {
+              case 'success':
+                bgClass = 'bg-success';
+                icon = 'bi-check-circle-fill';
+                break;
+              case 'error':
+                bgClass = 'bg-danger';
+                icon = 'bi-exclamation-triangle-fill';
+                break;
+              case 'warning':
+                bgClass = 'bg-warning';
+                icon = 'bi-exclamation-circle-fill';
+                break;
+              default:
+                bgClass = 'bg-info';
+                icon = 'bi-info-circle-fill';
+            }
+            
+            var toastEl = document.createElement('div');
+            toastEl.className = 'toast align-items-center text-white ' + bgClass + ' border-0';
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            toastEl.setAttribute('data-bs-autohide', 'true');
+            toastEl.setAttribute('data-bs-delay', delay);
+            toastEl.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi ' + icon + ' me-2"></i>' + message + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+            
+            var container = document.querySelector('.toast-container');
+            if (container) {
+              container.appendChild(toastEl);
+              var toast = new bootstrap.Toast(toastEl);
+              toast.show();
+              
+              // Remove toast element after it's hidden
+              toastEl.addEventListener('hidden.bs.toast', function() {
+                toastEl.remove();
+              });
+            }
+          }
+          
           // Form submission validation
           var attendanceForm = document.getElementById('attendanceForm');
           if (attendanceForm) {
@@ -239,8 +344,31 @@
                 var missingFields = [];
                 if (!locationValid) missingFields.push('Location');
                 if (!faceValid) missingFields.push('Face Verification');
-                showToast('Please complete all mandatory fields: ' + missingFields.join(', '), 'error');
+                showCustomToast('Please complete all mandatory fields: ' + missingFields.join(', '), 'error', 5000);
                 return false;
+              }
+              
+              // Get the selected action (check-in or check-out)
+              var actionIn = document.getElementById('actionIn');
+              var actionOut = document.getElementById('actionOut');
+              var action = '';
+              var actionText = '';
+              
+              if (actionOut && actionOut.checked) {
+                action = 'out';
+                actionText = 'Check-out';
+              } else {
+                action = 'in';
+                actionText = 'Check-in';
+              }
+              
+              // Show toast notification for the action being performed
+              showCustomToast('<strong>' + actionText + ' in progress...</strong><div class="small mt-1">Please wait while we process your attendance.</div>', 'info', 2000);
+              
+              // Disable submit button to prevent double submission
+              if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
               }
               
               // Ensure face_required is set to 1
@@ -250,34 +378,23 @@
             });
           }
           
+          // Track shown toasts to prevent duplicates
+          var shownToasts = {};
+          
           function showToast(message, type = 'info') {
-            var toastEl = document.getElementById('locationToast');
-            var toastMessage = document.getElementById('toastMessage');
-            var toastHeader = toastEl.querySelector('.toast-header i');
+            // Create unique key for this toast message
+            var toastKey = type + '_' + message.substring(0, 50);
             
-            if (!locationToast) {
-              locationToast = new bootstrap.Toast(toastEl);
+            // Check if this toast was already shown recently (within 5 seconds)
+            if (shownToasts[toastKey] && (Date.now() - shownToasts[toastKey]) < 5000) {
+              return; // Skip duplicate toast
             }
             
-            toastMessage.textContent = message;
+            // Mark this toast as shown
+            shownToasts[toastKey] = Date.now();
             
-            // Update icon and color based on type
-            toastHeader.className = 'bi me-2';
-            switch(type) {
-              case 'success':
-                toastHeader.classList.add('bi-check-circle-fill', 'text-success');
-                break;
-              case 'error':
-                toastHeader.classList.add('bi-exclamation-triangle-fill', 'text-danger');
-                break;
-              case 'warning':
-                toastHeader.classList.add('bi-exclamation-circle-fill', 'text-warning');
-                break;
-              default:
-                toastHeader.classList.add('bi-geo-alt-fill', 'text-primary');
-            }
-            
-            locationToast.show();
+            // Use showCustomToast function to show the toast
+            showCustomToast(message, type, type === 'error' ? 5000 : 3000);
           }
           
           function resolveAddress(lat, lng, hint, locEl){
@@ -511,7 +628,9 @@
             showToast('Starting camera for face verification...', 'info');
             if (btnVerify) {
               btnVerify.disabled = false;
-              startCam(true); // Start with auto-capture
+              // Check if auto capture is enabled from settings
+              var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+              startCam(autoCaptureEnabled); // Use setting to determine auto or manual capture
             }
           }
           

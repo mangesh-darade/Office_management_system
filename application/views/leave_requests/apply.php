@@ -44,13 +44,6 @@
           <label class="form-label">End Date</label>
           <input type="date" class="form-control" name="end_date" id="end_date" value="<?php echo isset($today_date) ? htmlspecialchars($today_date) : date('Y-m-d'); ?>" required />
         </div>
-        <div class="col-md-3 range-only">
-          <label class="form-label">Duration</label>
-          <select class="form-select" name="duration_type" id="duration_type">
-            <option value="full">Full Day</option>
-            <option value="half">Half Day</option>
-          </select>
-        </div>
         <div class="col-md-6 specific-only d-none">
           <label class="form-label">Specific Dates</label>
           <div id="specificDatesWrapper" class="d-grid gap-2">
@@ -65,6 +58,39 @@
             <i class="bi bi-plus-lg me-1"></i>Add Date
           </button>
           <div class="form-text">Use this mode for separate days like 3, 8, 15 of the month.</div>
+        </div>
+        <div class="col-md-12">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Duration</label>
+              <select class="form-select" name="duration_type" id="duration_type">
+                <option value="full">Full Day</option>
+                <option value="half">Half Day</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label"> Lead <span class="text-danger">*</span></label>
+              <select class="form-select" name="selected_lead_id" id="selected_lead_id" required>
+                <option value="">Select Lead</option>
+                <?php foreach ($leads as $lead): ?>
+                  <option value="<?php echo (int)$lead->id; ?>">
+                    <?php echo htmlspecialchars(!empty($lead->name) ? $lead->name : $lead->email); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Manager</label>
+              <select class="form-select" name="selected_admin_id" id="selected_admin_id">
+                <option value="">Select Manager</option>
+                <?php foreach ($admins as $admin): ?>
+                  <option value="<?php echo (int)$admin->id; ?>">
+                    <?php echo htmlspecialchars(!empty($admin->name) ? $admin->name : $admin->email); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="col-md-12">
           <label class="form-label">Reason</label>

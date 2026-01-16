@@ -6,6 +6,122 @@
  * Provides functions for sending emails with notification settings
  */
 
+if (!function_exists('ensure_email_settings_schema')) {
+    /**
+     * Ensure email_settings and user_email_preferences tables exist
+     * Creates them if they don't exist
+     */
+    function ensure_email_settings_schema() {
+        $CI =& get_instance();
+        
+        // Disable error reporting temporarily to handle "table already exists" gracefully
+        $prev_debug = $CI->db->db_debug;
+        $CI->db->db_debug = false;
+        
+        // Create email_settings table if it doesn't exist
+        if (!$CI->db->table_exists('email_settings')) {
+            $sql = "CREATE TABLE IF NOT EXISTS `email_settings` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `module` varchar(50) NOT NULL,
+                `event_type` varchar(50) NOT NULL,
+                `is_enabled` tinyint(1) DEFAULT 1,
+                `recipient_type` varchar(20) DEFAULT 'assignee',
+                `custom_recipients` text DEFAULT NULL,
+                `email_template` text DEFAULT NULL,
+                `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `idx_module_event` (`module`, `event_type`),
+                KEY `idx_module` (`module`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $CI->db->query($sql);
+            
+            // Insert default email settings only if they don't already exist
+            // Check if any settings exist first
+            $existing = $CI->db->get('email_settings')->result();
+            if (empty($existing)) {
+                $default_settings = [
+                    // Tasks module
+                    ['module' => 'tasks', 'event_type' => 'created', 'recipient_type' => 'assignee'],
+                    ['module' => 'tasks', 'event_type' => 'updated', 'recipient_type' => 'assignee'],
+                    ['module' => 'tasks', 'event_type' => 'status_changed', 'recipient_type' => 'assignee'],
+                    ['module' => 'tasks', 'event_type' => 'comment_added', 'recipient_type' => 'assignee'],
+                    ['module' => 'tasks', 'event_type' => 'daily_summary', 'recipient_type' => 'assignee'],
+                    
+                    // Projects module
+                    ['module' => 'projects', 'event_type' => 'created', 'recipient_type' => 'members'],
+                    ['module' => 'projects', 'event_type' => 'updated', 'recipient_type' => 'members'],
+                    ['module' => 'projects', 'event_type' => 'member_added', 'recipient_type' => 'new_member'],
+                    ['module' => 'projects', 'event_type' => 'status_changed', 'recipient_type' => 'members'],
+                    
+                    // Leave Requests module
+                    ['module' => 'leave_requests', 'event_type' => 'submitted', 'recipient_type' => 'manager'],
+                    ['module' => 'leave_requests', 'event_type' => 'approved', 'recipient_type' => 'employee'],
+                    ['module' => 'leave_requests', 'event_type' => 'rejected', 'recipient_type' => 'employee'],
+                    ['module' => 'leave_requests', 'event_type' => 'cancelled', 'recipient_type' => 'manager'],
+                    
+                    // Attendance module
+                    ['module' => 'attendance', 'event_type' => 'check_in', 'recipient_type' => 'self'],
+                    ['module' => 'attendance', 'event_type' => 'check_out', 'recipient_type' => 'self'],
+                    ['module' => 'attendance', 'event_type' => 'absent', 'recipient_type' => 'manager'],
+                    ['module' => 'attendance', 'event_type' => 'daily_summary', 'recipient_type' => 'admin'],
+                    
+                    // Announcements module
+                    ['module' => 'announcements', 'event_type' => 'published', 'recipient_type' => 'target_roles'],
+                    ['module' => 'announcements', 'event_type' => 'updated', 'recipient_type' => 'target_roles'],
+                    
+                    // Employees module
+                    ['module' => 'employees', 'event_type' => 'created', 'recipient_type' => 'admin'],
+                    ['module' => 'employees', 'event_type' => 'updated', 'recipient_type' => 'self'],
+                    ['module' => 'employees', 'event_type' => 'deleted', 'recipient_type' => 'admin'],
+                    
+                    // Timesheets module
+                    ['module' => 'timesheets', 'event_type' => 'submitted', 'recipient_type' => 'manager'],
+                    ['module' => 'timesheets', 'event_type' => 'approved', 'recipient_type' => 'employee'],
+                    ['module' => 'timesheets', 'event_type' => 'rejected', 'recipient_type' => 'employee'],
+                    ['module' => 'timesheets', 'event_type' => 'weekly_summary', 'recipient_type' => 'employee'],
+                    
+                    // Payroll module
+                    ['module' => 'payroll', 'event_type' => 'generated', 'recipient_type' => 'employee'],
+                    ['module' => 'payroll', 'event_type' => 'updated', 'recipient_type' => 'employee'],
+                    ['module' => 'payroll', 'event_type' => 'disbursed', 'recipient_type' => 'employee'],
+                ];
+                
+                foreach ($default_settings as $setting) {
+                    // Use INSERT IGNORE to avoid duplicate key errors
+                    $CI->db->where('module', $setting['module']);
+                    $CI->db->where('event_type', $setting['event_type']);
+                    $exists = $CI->db->get('email_settings')->row();
+                    
+                    if (!$exists) {
+                        $CI->db->insert('email_settings', $setting);
+                    }
+                }
+            }
+        }
+        
+        // Create user_email_preferences table if it doesn't exist
+        if (!$CI->db->table_exists('user_email_preferences')) {
+            $sql = "CREATE TABLE IF NOT EXISTS `user_email_preferences` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `user_id` int(11) NOT NULL,
+                `module` varchar(50) NOT NULL,
+                `event_type` varchar(50) NOT NULL,
+                `is_enabled` tinyint(1) DEFAULT 1,
+                `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `idx_user_module_event` (`user_id`, `module`, `event_type`),
+                KEY `idx_user` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $CI->db->query($sql);
+        }
+        
+        // Restore previous debug setting
+        $CI->db->db_debug = $prev_debug;
+    }
+}
+
 if (!function_exists('send_notification_with_settings')) {
     /**
      * Send email notification based on system settings
@@ -18,6 +134,9 @@ if (!function_exists('send_notification_with_settings')) {
      */
     function send_notification_with_settings($module, $event_type, $data, $related_user_id = null) {
         $CI =& get_instance();
+        
+        // Ensure tables exist before querying
+        ensure_email_settings_schema();
         
         // Check if email is enabled for this module/event
         $setting = $CI->db->where('module', $module)
@@ -180,6 +299,9 @@ if (!function_exists('check_user_email_preference')) {
      */
     function check_user_email_preference($user_id, $module, $event_type) {
         $CI =& get_instance();
+        
+        // Ensure tables exist before querying
+        ensure_email_settings_schema();
         
         $preference = $CI->db->where('user_id', (int)$user_id)
                            ->where('module', $module)

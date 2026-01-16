@@ -16,6 +16,79 @@
   $this->load->view('partials/header', ['title' => 'Attendance']); 
 ?>
 
+<!-- Toast Container for Flash Messages -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;">
+  <?php if($this->session->flashdata('success')): ?>
+    <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <strong>Success!</strong> <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  <?php endif; ?>
+  <?php if($this->session->flashdata('error')): ?>
+    <div class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <strong>Error:</strong> <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  <?php endif; ?>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  // Wait for Bootstrap to be fully loaded
+  function showToastNotifications() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+      // Wait a bit more if Bootstrap isn't loaded yet
+      setTimeout(showToastNotifications, 100);
+      return;
+    }
+    
+    // Find toast container - use the specific one for this page
+    var toastContainer = document.querySelector('.toast-container.position-fixed');
+    if (!toastContainer) {
+      toastContainer = document.querySelector('.toast-container');
+    }
+    
+    if (toastContainer) {
+      // Auto-show toast notifications on page load
+      var toastElements = toastContainer.querySelectorAll('.toast');
+      toastElements.forEach(function(toastEl) {
+        try {
+          var delay = toastEl.getAttribute('data-bs-delay') ? parseInt(toastEl.getAttribute('data-bs-delay')) : 3000;
+          var toast = new bootstrap.Toast(toastEl, {
+            autohide: true,
+            delay: delay
+          });
+          toast.show();
+          
+          // Remove toast element after it's hidden
+          toastEl.addEventListener('hidden.bs.toast', function() {
+            toastEl.remove();
+          });
+        } catch(e) {
+          console.error('Error showing toast:', e);
+        }
+      });
+    }
+  }
+  
+  // Try to show toasts immediately, then retry if Bootstrap isn't ready
+  showToastNotifications();
+  
+  // Also try after a short delay to ensure Bootstrap is loaded
+  setTimeout(showToastNotifications, 200);
+});
+</script>
+
 <?php if (!$canViewAll): ?>
 <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
   <i class="bi bi-info-circle me-2"></i>
@@ -258,6 +331,12 @@
   .attendance-header {
     padding: 0.75rem;
     text-align: center;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .attendance-header > div {
+    width: 100%;
+    text-align: center;
   }
   .attendance-title {
     font-size: 1.125rem;
@@ -279,32 +358,79 @@
   }
   .attendance-table-container {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .attendance-table {
-    min-width: 550px;
+    min-width: 100%;
+    display: block;
   }
-  .attendance-table thead th {
-    padding: 0.5rem 0.25rem;
-    font-size: 0.625rem;
+  .attendance-table thead,
+  .attendance-table tbody,
+  .attendance-table tr {
+    display: block;
+  }
+  .attendance-table thead {
+    display: none;
+  }
+  .attendance-table tbody tr {
+    margin-bottom: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
   .attendance-table tbody td {
-    padding: 0.375rem 0.25rem;
+    display: block;
+    padding: 0.5rem 0;
+    border: none;
+    text-align: left;
+    font-size: 0.875rem;
+  }
+  .attendance-table tbody td:before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 0.25rem;
     font-size: 0.75rem;
   }
   .user-cell {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.125rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
   }
   .user-avatar {
-    width: 28px;
-    height: 28px;
-    font-size: 0.625rem;
+    width: 40px;
+    height: 40px;
+    font-size: 0.875rem;
   }
   .user-name {
-    font-size: 0.625rem;
+    font-size: 0.875rem;
   }
   .user-email {
+    font-size: 0.625rem;
+  }
+  .time-badge,
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .action-buttons {
+    justify-content: flex-start;
+  }
+  .modal-dialog {
+    max-width: 95% !important;
+    margin: 0.5rem;
+  }
+  .modal-body .row {
+    margin: 0;
+  }
+  .modal-body .col-md-4 {
+    padding: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+}
     font-size: 0.5rem;
   }
   .time-badge,
@@ -397,7 +523,7 @@
             $attendance_count = isset($r->attendance_count) ? $r->attendance_count : 0;
           ?>
           <tr data-user-id="<?php echo $r->user_id; ?>" onclick="showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($name); ?>')" style="cursor: pointer;">
-            <td>
+            <td data-label="Employee">
               <div class="user-cell">
                 <div class="user-avatar">
                   <?php echo strtoupper(substr($name, 0, 1)); ?>
@@ -410,17 +536,17 @@
                 </div>
               </div>
             </td>
-            <td>
+            <td data-label="Last Attendance">
               <?php if ($last_attendance_date): ?>
                 <span class="time-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
               <?php else: ?>
                 <span class="text-muted">—</span>
               <?php endif; ?>
             </td>
-            <td>
+            <td data-label="Total Records">
               <span class="status-badge present"><?php echo $attendance_count; ?></span>
             </td>
-            <td>
+            <td data-label="Actions">
               <div class="action-buttons">
                 <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($name); ?>')" title="View Details">
                   <i class="bi bi-eye"></i>

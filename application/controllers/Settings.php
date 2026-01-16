@@ -6,7 +6,7 @@ class Settings extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->library(['session','upload','email']);
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','activity']);
         $this->load->model('Setting_model','settings');
         $this->load->model('Leave_type_model','leave_types');
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
@@ -30,7 +30,20 @@ class Settings extends CI_Controller {
     // GET /settings
     public function index(){
         $all = $this->settings->get_all_settings();
-        $this->load->view('settings/index', ['settings' => $all]);
+        
+        // Get all active users for HR dropdown
+        $this->db->select('u.id, u.name, u.email');
+        $this->db->from('users u');
+        if ($this->db->field_exists('status', 'users')) {
+            $this->db->where('u.status', 'active');
+        }
+        $this->db->order_by('u.name', 'ASC');
+        $all_users = $this->db->get()->result();
+        
+        $this->load->view('settings/index', [
+            'settings' => $all,
+            'all_users' => $all_users
+        ]);
     }
 
     // POST /settings/update
@@ -38,8 +51,8 @@ class Settings extends CI_Controller {
         if ($this->input->method() !== 'post') { show_404(); }
         $data = $this->input->post();
         
-        // Load activity tracking helper
-        $this->load->helper('change_tracker');
+        // Load activity tracking helpers
+        $this->load->helper(['activity','change_tracker']);
         
         // Handle weekend checkboxes
         if (isset($data['attendance_weekends']) && is_array($data['attendance_weekends'])) {
@@ -49,7 +62,7 @@ class Settings extends CI_Controller {
         }
         
         // Handle checkbox values for switches
-        $checkbox_fields = ['leave_carry_forward', 'notify_in_app', 'notify_email'];
+        $checkbox_fields = ['leave_carry_forward', 'notify_in_app', 'notify_email', 'attendance_auto_capture', 'attendance_late_mark_notification'];
         foreach ($checkbox_fields as $field) {
             $data[$field] = isset($data[$field]) ? $data[$field] : 'no';
         }
