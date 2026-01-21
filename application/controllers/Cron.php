@@ -33,18 +33,13 @@ class Cron extends CI_Controller {
             $sent = 0;
             $failed = 0;
 
+            // Load email helper and configure from settings
+            $this->load->helper('email');
+            configure_email_from_settings();
+            
             foreach ($queue as $reminder) {
-                // Load email library
-                $this->load->library('email');
-                
-                // Configure email
-                $config['mailtype'] = 'html';
-                $config['charset'] = 'utf-8';
-                $config['wordwrap'] = TRUE;
-                $this->email->initialize($config);
-
-                // Set email parameters
-                $from_email = $reminder->from_email ?: 'noreply@officemanagement.com';
+                // Set email parameters - use reminder's from_email if set, otherwise use system email from settings
+                $from_email = $reminder->from_email ?: get_system_from_email();
                 $from_name = $reminder->from_name ?: get_company_name();
                 
                 $this->email->from($from_email, $from_name);
@@ -118,14 +113,11 @@ class Cron extends CI_Controller {
     // Test email functionality
     // Can be called via: http://localhost/Office_management_system/cron/test_email
     public function test_email() {
-        $this->load->library('email');
-        
-        $config['mailtype'] = 'html';
-        $config['charset'] = 'utf-8';
-        $config['wordwrap'] = TRUE;
-        $this->email->initialize($config);
+        // Load email helper and configure from settings
+        $this->load->helper('email');
+        configure_email_from_settings();
 
-        $this->email->from('noreply@officemanagement.com', get_company_name());
+        $this->email->from(get_system_from_email(), get_company_name());
         $this->email->to('test@example.com'); // Change to your test email
         $this->email->subject('🧪 Test Email from Announcement System');
         $this->email->message('

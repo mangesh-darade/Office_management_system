@@ -303,11 +303,12 @@ class Payroll extends CI_Controller {
                 $body = "Hello,\nPlease find your salary slip for " . $label . " attached as an " . $fileType . " document.\n\nYou can also view your payslip online at: " . $short_url . "\n\nThanks & Regards,\n" . $company_name;
             }
 
+            // Load email helper and configure from settings
+            $this->load->helper('email');
+            configure_email_from_settings();
+            
             $this->email->clear(true);
-            $fromAddr = getenv('SMTP_USER');
-            if (!$fromAddr || $fromAddr===''){
-                $fromAddr = 'no-reply@example.com';
-            }
+            $fromAddr = get_system_from_email();
             $this->email->from($fromAddr, $company_name);
             $this->email->to($to);
             $this->email->subject($subject);

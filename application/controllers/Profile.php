@@ -66,9 +66,12 @@ class Profile extends CI_Controller {
                     return;
                 }
                 
-                // Validate new password
-                if (strlen($password) < 6) {
-                    $this->session->set_flashdata('error', 'New password must be at least 6 characters long!');
+                // Validate new password using settings
+                $this->load->helper('password');
+                $validation = validate_password_strength($password); // Uses settings automatically
+                
+                if (!$validation['valid']) {
+                    $this->session->set_flashdata('error', implode(' ', $validation['errors']));
                     redirect('profile/edit');
                     return;
                 }
@@ -80,7 +83,28 @@ class Profile extends CI_Controller {
                     return;
                 }
                 
-                $data['password'] = password_hash($password, PASSWORD_DEFAULT);
+                // Update password_hash field (check which field name is used)
+                $password_field = 'password_hash';
+                if (!$this->db->field_exists($password_field, 'users')) {
+                    $password_field = 'password';
+                }
+                $data[$password_field] = password_hash($password, PASSWORD_DEFAULT);
+                
+                // Update password_changed_at if field exists
+                if ($this->db->field_exists('password_changed_at', 'users')) {
+                    $data['password_changed_at'] = date('Y-m-d H:i:s');
+                }
+                
+                // Log password change if audit logging enabled
+                $this->load->model('Setting_model', 'settings');
+                $this->load->model('Security_audit_model', 'audit');
+                if ($this->settings->get_setting('security_audit_password_change', 'no') === 'yes') {
+                    $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+                    $this->audit->log('password_changed', $uid, "User changed password", $ip);
+                }
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('profile', 'password_change', 'success');
+                $this->session->set_flashdata('success', $success_msg);
             }
             
             // Handle avatar upload
@@ -128,7 +152,9 @@ class Profile extends CI_Controller {
                 $this->db->where('user_id', $uid)->update('employees', $emp_data);
             }
             
-            $this->session->set_flashdata('success', 'Profile updated successfully!');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('profile', 'update', 'success');
+            $this->session->set_flashdata('success', $success_msg);
             redirect('profile');
         }
         

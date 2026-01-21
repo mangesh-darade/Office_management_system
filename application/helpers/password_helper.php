@@ -8,23 +8,40 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  */
 
 /**
- * Validate password strength
+ * Validate password strength using security settings
  * 
  * @param string $password The password to validate
- * @param array $options Validation options (min_length, require_uppercase, require_lowercase, require_number, require_special)
+ * @param array $options Optional overrides (if null, uses settings from database)
  * @return array ['valid' => bool, 'errors' => array]
  */
 if (!function_exists('validate_password_strength')) {
-    function validate_password_strength($password, $options = []) {
-        $defaults = [
-            'min_length' => 8,
-            'require_uppercase' => true,
-            'require_lowercase' => true,
-            'require_number' => true,
-            'require_special' => false
-        ];
+    function validate_password_strength($password, $options = null) {
+        $CI =& get_instance();
         
-        $options = array_merge($defaults, $options);
+        // If options provided, use them; otherwise load from settings
+        if ($options === null) {
+            $CI->load->model('Setting_model', 'settings');
+            
+            // Get settings from database
+            $options = [
+                'min_length' => (int)($CI->settings->get_setting('security_min_password_length', 8)),
+                'require_uppercase' => ($CI->settings->get_setting('security_require_uppercase', 'no') === 'yes'),
+                'require_lowercase' => ($CI->settings->get_setting('security_require_lowercase', 'no') === 'yes'),
+                'require_number' => ($CI->settings->get_setting('security_require_number', 'no') === 'yes'),
+                'require_special' => ($CI->settings->get_setting('security_require_special', 'no') === 'yes')
+            ];
+        } else {
+            // Use provided options with defaults
+            $defaults = [
+                'min_length' => 8,
+                'require_uppercase' => true,
+                'require_lowercase' => true,
+                'require_number' => true,
+                'require_special' => false
+            ];
+            $options = array_merge($defaults, $options);
+        }
+        
         $errors = [];
         
         if (strlen($password) < $options['min_length']) {
@@ -55,22 +72,37 @@ if (!function_exists('validate_password_strength')) {
 }
 
 /**
- * Get password policy description
+ * Get password policy description from settings
  * 
- * @param array $options Policy options
+ * @param array $options Optional overrides (if null, uses settings from database)
  * @return string Human-readable policy description
  */
 if (!function_exists('get_password_policy_description')) {
-    function get_password_policy_description($options = []) {
-        $defaults = [
-            'min_length' => 8,
-            'require_uppercase' => true,
-            'require_lowercase' => true,
-            'require_number' => true,
-            'require_special' => false
-        ];
+    function get_password_policy_description($options = null) {
+        $CI =& get_instance();
         
-        $options = array_merge($defaults, $options);
+        // If options provided, use them; otherwise load from settings
+        if ($options === null) {
+            $CI->load->model('Setting_model', 'settings');
+            
+            $options = [
+                'min_length' => (int)($CI->settings->get_setting('security_min_password_length', 8)),
+                'require_uppercase' => ($CI->settings->get_setting('security_require_uppercase', 'no') === 'yes'),
+                'require_lowercase' => ($CI->settings->get_setting('security_require_lowercase', 'no') === 'yes'),
+                'require_number' => ($CI->settings->get_setting('security_require_number', 'no') === 'yes'),
+                'require_special' => ($CI->settings->get_setting('security_require_special', 'no') === 'yes')
+            ];
+        } else {
+            $defaults = [
+                'min_length' => 8,
+                'require_uppercase' => true,
+                'require_lowercase' => true,
+                'require_number' => true,
+                'require_special' => false
+            ];
+            $options = array_merge($defaults, $options);
+        }
+        
         $requirements = ["at least {$options['min_length']} characters"];
         
         if ($options['require_uppercase']) $requirements[] = "one uppercase letter";

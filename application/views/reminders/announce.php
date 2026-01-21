@@ -1,4 +1,11 @@
-<?php $this->load->view('partials/header', ['title' => 'Announce']); ?>
+<?php
+$this->load->view('partials/header', ['title' => 'Announce']);
+$ci =& get_instance();
+if (!isset($ci->settings)) {
+  $ci->load->model('Setting_model', 'settings');
+}
+$default_from_email = $ci->settings->get_setting('email_smtp_user', '');
+?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Announce (Send to all users)</h1>
   <a class="btn btn-light btn-sm" href="<?php echo site_url('reminders'); ?>">Back</a>
@@ -19,7 +26,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">From Email (optional)</label>
-          <input type="email" name="from_email" class="form-control" placeholder="e.g. sateri.mangesh@domain.com">
+          <input type="email" name="from_email" class="form-control" placeholder="e.g. user@domain.com" value="<?php echo htmlspecialchars($default_from_email); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">From Name (optional)</label>

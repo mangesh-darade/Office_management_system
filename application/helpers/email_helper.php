@@ -2,9 +2,75 @@
 
 /**
  * Email Helper Functions
- * 
- * Provides functions for sending emails with templates
+ *
+ * Provides functions for sending emails with templates and
+ * centralised configuration that reads from Settings > Email.
  */
+
+if (!function_exists('get_system_from_email')) {
+    /**
+     * Get the "from" email address from settings with config/env fallback.
+     *
+     * @return string
+     */
+    function get_system_from_email() {
+        $CI =& get_instance();
+
+        // Load settings model if not already loaded
+        if (!isset($CI->settings)) {
+            $CI->load->model('Setting_model', 'settings');
+        }
+
+        $smtp_user = $CI->settings->get_setting('email_smtp_user');
+        if ($smtp_user) {
+            return trim((string)$smtp_user);
+        }
+
+        // Fallback to config/email.php (which may use env vars)
+        return trim((string)$CI->config->item('smtp_user'));
+    }
+}
+
+if (!function_exists('configure_email_from_settings')) {
+    /**
+     * Initialize CI Email library using values from Settings > Email.
+     *
+     * This will override the base email config with runtime values from
+     * settings: email_smtp_host, email_smtp_port, email_smtp_user,
+     * email_smtp_pass, email_smtp_crypto.
+     */
+    function configure_email_from_settings() {
+        $CI =& get_instance();
+
+        // Load dependencies
+        if (!isset($CI->settings)) {
+            $CI->load->model('Setting_model', 'settings');
+        }
+        $CI->load->library('email');
+
+        $smtp_user   = $CI->settings->get_setting('email_smtp_user');
+        $smtp_pass   = $CI->settings->get_setting('email_smtp_pass');
+        $smtp_host   = $CI->settings->get_setting('email_smtp_host', 'smtp.gmail.com');
+        $smtp_port   = $CI->settings->get_setting('email_smtp_port', '587');
+        $smtp_crypto = $CI->settings->get_setting('email_smtp_crypto', 'tls');
+
+        if ($smtp_user && $smtp_pass) {
+            $config = array(
+                'protocol'   => 'smtp',
+                'smtp_host'  => $smtp_host,
+                'smtp_port'  => $smtp_port,
+                'smtp_user'  => $smtp_user,
+                'smtp_pass'  => $smtp_pass,
+                'smtp_crypto'=> $smtp_crypto,
+                'mailtype'   => 'html',
+                'charset'    => 'utf-8',
+                'wordwrap'   => true,
+            );
+
+            $CI->email->initialize($config);
+        }
+    }
+}
 
 if (!function_exists('send_task_notification')) {
     /**
@@ -18,10 +84,12 @@ if (!function_exists('send_task_notification')) {
      */
     function send_task_notification($to, $subject, $task, $action = 'created') {
         $CI =& get_instance();
-        $CI->load->library('email');
-        
+        configure_email_from_settings();
+
         // Configure email
-        $CI->email->from($CI->config->item('smtp_user'), 'Office Management System');
+        $from = get_system_from_email();
+        $from_name = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
+        $CI->email->from($from ?: 'no-reply@example.com', $from_name);
         $CI->email->to($to);
         $CI->email->subject($subject);
         
@@ -46,10 +114,12 @@ if (!function_exists('send_multiple_tasks_notification')) {
      */
     function send_multiple_tasks_notification($to, $subject, $tasks, $action = 'created') {
         $CI =& get_instance();
-        $CI->load->library('email');
-        
+        configure_email_from_settings();
+
         // Configure email
-        $CI->email->from($CI->config->item('smtp_user'), 'Office Management System');
+        $from = get_system_from_email();
+        $from_name = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
+        $CI->email->from($from ?: 'no-reply@example.com', $from_name);
         $CI->email->to($to);
         $CI->email->subject($subject);
         

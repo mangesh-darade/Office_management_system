@@ -1,4 +1,13 @@
-<?php $this->load->view('partials/header', ['title' => 'Send Email', 'active' => 'mail']); ?>
+<?php
+$this->load->view('partials/header', ['title' => 'Send Email', 'active' => 'mail']);
+$ci =& get_instance();
+if (!isset($ci->settings)) {
+  $ci->load->model('Setting_model', 'settings');
+}
+// Load email helper to get system email
+$ci->load->helper('email');
+$smtp_from = get_system_from_email();
+?>
 <div class="row justify-content-center">
   <div class="col-12 col-md-8 col-lg-6">
     <?php if($this->session->flashdata('success')): ?>
@@ -47,7 +56,7 @@
         </form>
       </div>
       <div class="card-footer small text-muted">
-        From: <code><?php echo htmlspecialchars($this->config->item('smtp_user') ?: 'sateri.mangesh@gmail.com'); ?></code> via Gmail SMTP. Configure password with <code>SMTP_PASS</code> env or in <code>application/config/email.php</code>.
+        From: <code><?php echo htmlspecialchars($smtp_from ?: 'not-configured'); ?></code> via SMTP. Configure in <code>Settings &rarr; Email</code>.
       </div>
     </div>
   </div>

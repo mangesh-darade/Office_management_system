@@ -150,21 +150,16 @@ class Reminders extends CI_Controller {
         $sent = 0; $failed = 0;
         // Smaller batch to avoid timeouts
         $queue = $this->reminders->fetch_queue(10);
-        // Initialize minimal email config to reduce SMTP hang
-        $cfg = array(
-            'smtp_timeout' => 10,
-            'mailtype' => 'text',
-            'newline' => "\r\n",
-            'crlf' => "\r\n",
-            'charset' => 'utf-8'
-        );
-        $this->email->initialize($cfg);
+        // Load email helper and configure from settings
+        $this->load->helper('email');
+        configure_email_from_settings();
+        
         foreach ($queue as $q){
             // Clear previous recipients/headers
             $this->email->clear(true);
             if (!isset($q->email) || $q->email==='') { $this->reminders->mark_error($q->id); $failed++; continue; }
-            $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : getenv('SMTP_USER');
-            if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
+            // Use reminder's from_email if set, otherwise use system email from settings
+            $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : get_system_from_email();
             $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : get_company_name();
             $this->email->from($fromAddr, $fromName);
             $this->email->to($q->email);
@@ -212,14 +207,17 @@ class Reminders extends CI_Controller {
         $sent = 0; $failed = 0;
         // Initialize email config
         $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
-        $this->email->initialize($cfg);
+        // Load email helper and configure from settings
+        $this->load->helper('email');
+        configure_email_from_settings();
+        
         foreach ($ids as $id){
             $q = $this->db->get_where('reminders', array('id'=>(int)$id))->row();
             if (!$q || $q->status==='sent'){ continue; }
             $this->email->clear(true);
             if (!isset($q->email) || $q->email==='') { $this->reminders->mark_error($q->id); $failed++; continue; }
-            $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : getenv('SMTP_USER');
-            if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
+            // Use reminder's from_email if set, otherwise use system email from settings
+            $fromAddr = isset($q->from_email) && $q->from_email!=='' ? $q->from_email : get_system_from_email();
             $fromName = isset($q->from_name) && $q->from_name!=='' ? $q->from_name : get_company_name();
             $subject = $q->subject;
             $body = $q->body;
@@ -330,12 +328,15 @@ class Reminders extends CI_Controller {
                 
                 // If immediate delivery requested, send right away
                 if ($send_immediately && $rid) {
-                    $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
-                    $this->email->initialize($cfg);
+                    // Load email helper and configure from settings
+                    $this->load->helper('email');
+                    configure_email_from_settings();
+                    
                     $row = $this->db->get_where('reminders', array('id'=>(int)$rid))->row();
                     if ($row && isset($row->email) && $row->email!==''){
                         $this->email->clear(true);
-                        $fromAddr = isset($row->from_email) && $row->from_email!=='' ? $row->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
+                        // Use reminder's from_email if set, otherwise use system email from settings
+                        $fromAddr = isset($row->from_email) && $row->from_email!=='' ? $row->from_email : get_system_from_email();
                         $fromName = isset($row->from_name) && $row->from_name!=='' ? $row->from_name : get_company_name();
                         $this->email->from($fromAddr, $fromName);
                         $this->email->to($row->email);
@@ -726,8 +727,9 @@ class Reminders extends CI_Controller {
                 redirect('reminders/bulk'); return;
             }
             if ($from_email===''){
-                $from_email = getenv('SMTP_USER');
-                if (!$from_email || $from_email==='') { $from_email = 'no-reply@example.com'; }
+                // Load email helper and get from settings
+                $this->load->helper('email');
+                $from_email = get_system_from_email();
             }
             if ($from_name===''){
                 $from_name = get_company_name();
@@ -826,8 +828,9 @@ class Reminders extends CI_Controller {
                 redirect('reminders/import'); return;
             }
             if ($from_email===''){
-                $from_email = getenv('SMTP_USER');
-                if (!$from_email || $from_email==='') { $from_email = 'no-reply@example.com'; }
+                // Load email helper and get from settings
+                $this->load->helper('email');
+                $from_email = get_system_from_email();
             }
             if ($from_name===''){
                 $from_name = get_company_name();
@@ -883,13 +886,14 @@ class Reminders extends CI_Controller {
             return;
         }
         
-        // Initialize email config
-        $cfg = array('smtp_timeout'=>10,'mailtype'=>'text','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
-        $this->email->initialize($cfg);
+        // Load email helper and configure from settings
+        $this->load->helper('email');
+        configure_email_from_settings();
         
         // Send the email immediately
         $this->email->clear(true);
-        $fromAddr = isset($reminder->from_email) && $reminder->from_email !== '' ? $reminder->from_email : (getenv('SMTP_USER') ?: 'no-reply@example.com');
+        // Use reminder's from_email if set, otherwise use system email from settings
+        $fromAddr = isset($reminder->from_email) && $reminder->from_email !== '' ? $reminder->from_email : get_system_from_email();
         $fromName = isset($reminder->from_name) && $reminder->from_name !== '' ? $reminder->from_name : get_company_name();
         
         $this->email->from($fromAddr, $fromName);

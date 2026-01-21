@@ -16,23 +16,31 @@ $config['wordwrap']   = true;
 $config['useragent']  = 'CodeIgniter Mailer';
 $config['smtp_timeout'] = 10; // seconds
 
-// Gmail SMTP settings
-$config['smtp_host']  = 'smtp.gmail.com';
-$config['smtp_port']  = 587; // TLS port
-$config['smtp_crypto']= 'tls';
+// --------------------------------------------------------------------------
+// Default SMTP settings (no hardcoded credentials)
+// --------------------------------------------------------------------------
+// Real SMTP details are stored in Settings > Email as:
+//   email_smtp_host, email_smtp_port, email_smtp_user,
+//   email_smtp_pass, email_smtp_crypto
+// Controllers/helpers should load those settings and override this base
+// config at runtime. Here we only keep generic defaults and optional
+// environment overrides (for CLI/testing).
 
-// Use env vars to avoid committing secrets
-$env_user = getenv('SMTP_USER');
-$env_pass = getenv('SMTP_PASS');
+// Basic defaults
+$config['smtp_host']   = 'smtp.gmail.com';
+$config['smtp_port']   = 587; // TLS port
+$config['smtp_crypto'] = 'tls';
 
-// Default user to requested Gmail if env not set; password must be set via env
-$config['smtp_user']  = $env_user ?: 'sateri.mangesh@gmail.com';
-$config['smtp_pass']  = $env_pass ?: 'umvj fwhe frmp kutu';
+// Optional env/constant overrides
+$env_user = getenv('SMTP_USER') ?: '';
+$env_pass = getenv('SMTP_PASS') ?: '';
 
-// Optional: define constants in index.php or Apache env if getenv isn't available
+$config['smtp_user'] = $env_user;
+$config['smtp_pass'] = $env_pass;
+
 if (defined('SMTP_USER') && SMTP_USER) { $config['smtp_user'] = SMTP_USER; }
 if (defined('SMTP_PASS') && SMTP_PASS) { $config['smtp_pass'] = SMTP_PASS; }
 
-// Sanitize: remove any whitespace that may be pasted into App Passwords
+// Sanitize
 $config['smtp_user'] = trim((string)$config['smtp_user']);
 $config['smtp_pass'] = preg_replace('/\s+/', '', (string)$config['smtp_pass']);

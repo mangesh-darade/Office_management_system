@@ -30,7 +30,8 @@ $config['sendgrid_api_key'] = getenv('SENDGRID_API_KEY') ?: '';
 // Or set via environment variable: SENDGRID_FROM_EMAIL
 // 
 // WARNING: Using an unverified email will result in HTTP 403 errors
-$config['sendgrid_from_email'] = getenv('SENDGRID_FROM_EMAIL') ?: 'sateri.mangesh@gmail.com';
+// Prefer Settings > Email "from" address if present, otherwise env/config.
+$config['sendgrid_from_email'] = getenv('SENDGRID_FROM_EMAIL') ?: '';
 
 // From Name
 // Display name for the sender

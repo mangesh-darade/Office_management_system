@@ -4,10 +4,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Mail extends CI_Controller {
     public function __construct() {
         parent::__construct();
-        $this->load->helper(['url','form']);
-        // Load email config BEFORE initializing email library
+        $this->load->helper(['url','form','email']);
+        // Load email config BEFORE initializing email library (base defaults)
         $this->config->load('email');
         $this->load->library(['session','email']);
+
+        // Configure SMTP from Settings > Email
+        configure_email_from_settings();
+
         // Require login
         if (!$this->session->userdata('user_id')) { redirect('auth/login'); exit; }
     }
@@ -48,15 +52,15 @@ class Mail extends CI_Controller {
             }
         }
 
-        $from = $this->config->item('smtp_user');
-        if (!$from) { $from = 'sateri.mangesh@gmail.com'; }
+        $from = get_system_from_email();
+        if (!$from) { $from = 'no-reply@example.com'; }
 
-        // Warn if SMTP_PASS is not configured (check both config and email library)
-        $smtpPassCfg = (string)$this->config->item('smtp_pass');
-        $smtpPassLib = (isset($this->email->smtp_pass) ? (string)$this->email->smtp_pass : '');
-        if ($smtpPassCfg === '' && $smtpPassLib === '') {
-            $fromDbg = (string)$this->config->item('smtp_user') ?: 'not-set';
-            $this->session->set_flashdata('error', 'SMTP password not set. Set SMTP_PASS via env or in application/config/email.php for user: '.$fromDbg);
+        // Warn if SMTP credentials are not configured in Settings
+        $this->load->model('Setting_model', 'settings');
+        $smtp_user_setting = $this->settings->get_setting('email_smtp_user');
+        $smtp_pass_setting = $this->settings->get_setting('email_smtp_pass');
+        if (!$smtp_user_setting || !$smtp_pass_setting) {
+            $this->session->set_flashdata('error', 'SMTP is not configured. Please set email settings in Settings → Email section.');
             redirect('mail');
             return;
         }
@@ -99,10 +103,10 @@ class Mail extends CI_Controller {
     // GET /mail/test - send a test email to the logged-in user email
     public function test() {
         $to = $this->session->userdata('email');
-        if (!$to) { $to = $this->config->item('smtp_user'); }
+        if (!$to) { $to = get_system_from_email(); }
 
-        $from = $this->config->item('smtp_user');
-        if (!$from) { $from = 'sateri.mangesh@gmail.com'; }
+        $from = get_system_from_email();
+        if (!$from) { $from = 'no-reply@example.com'; }
 
         $this->email->clear(true);
         $this->email->from($from, 'System Mailer');

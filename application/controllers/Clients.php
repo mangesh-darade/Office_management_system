@@ -280,12 +280,16 @@ class Clients extends CI_Controller {
                 
                 $id = $result['data'];
                 if (empty($id) || $id <= 0) {
-                    $this->session->set_flashdata('error', 'Client creation failed. Please try again.');
+                    $this->load->helper('notification');
+                    $error_msg = get_notification_message('clients', 'create', 'error');
+                    $this->session->set_flashdata('error', $error_msg);
                     redirect('clients/create');
                     return;
                 }
                 
-                $this->session->set_flashdata('success', 'Client created successfully!');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('clients', 'create', 'success');
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('clients/view/'.$id);
                 return;
                 
@@ -479,7 +483,9 @@ class Clients extends CI_Controller {
                         return;
                     }
                     
-                    $this->session->set_flashdata('success', 'Client updated successfully!');
+                    $this->load->helper('notification');
+                    $success_msg = get_notification_message('clients', 'update', 'success');
+                    $this->session->set_flashdata('success', $success_msg);
                     redirect('clients/view/'.$id);
                     return;
                     

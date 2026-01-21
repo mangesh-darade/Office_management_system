@@ -62,7 +62,14 @@ class Settings extends CI_Controller {
         }
         
         // Handle checkbox values for switches
-        $checkbox_fields = ['leave_carry_forward', 'notify_in_app', 'notify_email', 'attendance_auto_capture', 'attendance_late_mark_notification'];
+        $checkbox_fields = ['leave_carry_forward', 'notify_in_app', 'notify_email', 'attendance_auto_capture', 'attendance_late_mark_notification', 'attendance_face_verification_required', 'security_require_uppercase', 'security_require_lowercase', 'security_require_number', 'security_require_special', 'security_single_session', 'security_session_timeout_enabled', 'security_remember_me', 'security_2fa_enabled', 'security_enable_2fa', 'security_2fa_required_admin', 'security_ip_whitelist_enabled', 'security_enable_ip_whitelist', 'security_password_expiry_enabled', 'security_log_failed_attempts', 'security_log_login_attempts', 'security_audit_login', 'security_audit_password_change', 'security_audit_settings', 'security_audit_data', 'system_maintenance_mode', 'system_enable_debug_mode', 'system_enable_location_strict'];
+        
+        // Add all module maintenance checkboxes dynamically
+        $modules_list = ['dashboard', 'employees', 'users', 'projects', 'tasks', 'attendance', 'leaves', 'departments', 'designations', 'clients', 'assets', 'announcements', 'chats', 'calls', 'timesheets', 'reports', 'settings', 'reminders', 'activity', 'permissions', 'payroll'];
+        foreach ($modules_list as $module) {
+            $checkbox_fields[] = 'system_maintenance_module_' . $module;
+        }
+        
         foreach ($checkbox_fields as $field) {
             $data[$field] = isset($data[$field]) ? $data[$field] : 'no';
         }
@@ -71,8 +78,8 @@ class Settings extends CI_Controller {
         $old_settings = [];
         $changed_settings = [];
         foreach ($data as $k=>$v){
-            // Only allow known prefixes
-            if (preg_match('/^(company_|attendance_|leave_|email_|notify_)/', $k)){
+            // Only allow known prefixes (including notification_ and system_)
+            if (preg_match('/^(company_|attendance_|leave_|email_|notify_|security_|notification_|system_)/', $k)){
                 $old_value = $this->settings->get_setting($k);
                 $old_settings[$k] = $old_value;
                 $new_value = is_array($v) ? json_encode($v) : $v;
@@ -94,7 +101,9 @@ class Settings extends CI_Controller {
             log_activity_with_changes('settings', 'updated', null, $old_settings, $data, $description);
         }
         
-        $this->session->set_flashdata('success', 'Settings saved successfully.');
+        $this->load->helper('notification');
+        $success_msg = get_notification_message('settings', 'update', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('settings');
     }
 
@@ -155,31 +164,13 @@ class Settings extends CI_Controller {
             redirect('settings'); return;
         }
         
-        // Configure email settings from database
-        $smtp_user = $this->settings->get_setting('email_smtp_user');
-        $smtp_pass = $this->settings->get_setting('email_smtp_pass');
-        $smtp_host = $this->settings->get_setting('email_smtp_host', 'smtp.gmail.com');
-        $smtp_port = $this->settings->get_setting('email_smtp_port', '587');
-        $smtp_crypto = $this->settings->get_setting('email_smtp_crypto', 'tls');
-        
-        if ($smtp_user && $smtp_pass) {
-            $config = [
-                'protocol' => 'smtp',
-                'smtp_host' => $smtp_host,
-                'smtp_port' => $smtp_port,
-                'smtp_user' => $smtp_user,
-                'smtp_pass' => $smtp_pass,
-                'smtp_crypto' => $smtp_crypto,
-                'mailtype' => 'html',
-                'charset' => 'utf-8',
-                'wordwrap' => TRUE
-            ];
-            $this->email->initialize($config);
-        }
+        // Load email helper and configure from settings
+        $this->load->helper('email');
+        configure_email_from_settings();
         
         $this->email->clear(true);
         $this->email->to($to);
-        $this->email->from($smtp_user ?: 'noreply@example.com', get_company_name());
+        $this->email->from(get_system_from_email(), get_company_name());
         $this->email->subject('Settings: Test Email');
         $this->email->message('<p>This is a test email from ' . get_company_name() . ' settings.</p><p>If you receive this email, your SMTP configuration is working correctly.</p>');
         

@@ -144,17 +144,20 @@ class Employees extends CI_Controller {
                 $id = $this->Employee_model->create($payload);
             } catch (Exception $e) {
                 log_message('error', 'Employee creation error: ' . $e->getMessage());
-                $this->session->set_flashdata('error', 'Failed to create employee. Please try again.');
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('employees', 'create', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('employees/create');
                 return;
             }
-            $this->load->helper('activity');
+            $this->load->helper(['activity', 'notification']);
             $fn = isset($payload['first_name']) ? $payload['first_name'] : '';
             $ln = isset($payload['last_name']) ? $payload['last_name'] : '';
             $name = trim($fn.' '.$ln);
             $desc = $name !== '' ? ('Employee: '.$name) : ('Employee code: '.$payload['emp_code']);
             log_activity('employees', 'created', (int)$id, $desc);
-            $this->session->set_flashdata('success', 'Employee created');
+            $success_msg = get_notification_message('employees', 'create', 'success', ['name' => $name ?: $payload['emp_code']]);
+            $this->session->set_flashdata('success', $success_msg);
             redirect('employees/'.$id);
             return;
         }
@@ -280,7 +283,9 @@ class Employees extends CI_Controller {
             $name = trim($fn.' '.$ln);
             $desc = $name !== '' ? ('Employee: '.$name) : ('Employee #'.(int)$id);
             track_changes_after('employees', 'employees', (int)$id, $old_data, $payload, $desc);
-            $this->session->set_flashdata('success', 'Employee updated');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('employees', 'update', 'success', ['name' => $name ?: 'Employee #' . $id]);
+            $this->session->set_flashdata('success', $success_msg);
             redirect('employees/'.$id);
             return;
         }
@@ -344,9 +349,10 @@ class Employees extends CI_Controller {
         }
         
         $this->Employee_model->delete((int)$id);
-        $this->load->helper('activity');
+        $this->load->helper(['activity', 'notification']);
         log_activity('employees', 'deleted', (int)$id, 'Employee deleted');
-        $this->session->set_flashdata('success', 'Employee deleted');
+        $success_msg = get_notification_message('employees', 'delete', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('employees');
     }
 
@@ -421,10 +427,11 @@ class Employees extends CI_Controller {
                 ]);
                 
                 // Log activity
-                $this->load->helper('activity');
+                $this->load->helper(['activity', 'notification']);
                 log_activity('employees', 'document_uploaded', (int)$id, 'Document: ' . $originalName);
                 
-                $this->session->set_flashdata('success', 'Document uploaded successfully');
+                $success_msg = get_notification_message('documents', 'upload', 'success', ['name' => $originalName]);
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('employees/'.$id.'/documents');
                 return;
             } catch (Exception $e) {
@@ -476,7 +483,9 @@ class Employees extends CI_Controller {
         if ($ok && $doc->file_path && is_file($path)) {
             @unlink($path);
         }
-        $this->session->set_flashdata('success', 'Document deleted');
+        $this->load->helper('notification');
+        $success_msg = get_notification_message('documents', 'delete', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('employees/'.$employee->id.'/documents');
     }
 
@@ -522,9 +531,10 @@ class Employees extends CI_Controller {
                     $inserted++;
                 }
             }
-            $this->load->helper('activity');
+            $this->load->helper(['activity', 'notification']);
             log_activity('employees', 'created', null, 'Imported '.$inserted.' employees');
-            $this->session->set_flashdata('success', "Imported $inserted employees");
+            $success_msg = get_notification_message('employees', 'import', 'success', ['count' => $inserted]);
+            $this->session->set_flashdata('success', $success_msg);
             redirect('employees');
             return;
         }

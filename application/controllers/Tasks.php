@@ -237,7 +237,9 @@ class Tasks extends CI_Controller {
                     'send_at' => date('Y-m-d H:i:00')
                 ]);
             }
-            $this->session->set_flashdata('success', 'Task created');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('tasks', 'create', 'success');
+            $this->session->set_flashdata('success', $success_msg);
             redirect('tasks/'.$id);
             return;
         }
@@ -634,7 +636,9 @@ class Tasks extends CI_Controller {
                 if (!empty($db_error['message'])) {
                     log_message('error', 'Task update error: '.$db_error['message']);
                 }
-                $this->session->set_flashdata('error', 'Task update failed. Please check the data and try again.');
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('tasks', 'update', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('tasks/'.$id.'/edit');
                 return;
             }
@@ -705,7 +709,9 @@ class Tasks extends CI_Controller {
                 }
             }
             
-            $this->session->set_flashdata('success', 'Task updated');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('tasks', 'update', 'success');
+            $this->session->set_flashdata('success', $success_msg);
             redirect('tasks/'.$id);
             return;
         }
@@ -796,7 +802,9 @@ class Tasks extends CI_Controller {
         $description = 'Task deleted' . ($task && isset($task->title) ? ': ' . $task->title : '');
         auto_log_delete('tasks', 'tasks', (int)$id, $old_data, $description);
         
-        $this->session->set_flashdata('success', 'Task deleted');
+        $this->load->helper('notification');
+        $success_msg = get_notification_message('tasks', 'delete', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('tasks');
     }
 

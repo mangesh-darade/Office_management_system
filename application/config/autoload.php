@@ -98,6 +98,8 @@ $autoload['helper'][] = 'company';
 $autoload['helper'][] = 'api_integration';
 // Load error handler helper for centralized error handling
 $autoload['helper'][] = 'error_handler';
+// Load notification helper for customizable notification messages
+$autoload['helper'][] = 'notification';
 
 /*
 | -------------------------------------------------------------------

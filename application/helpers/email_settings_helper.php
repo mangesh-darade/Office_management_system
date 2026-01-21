@@ -173,10 +173,18 @@ if (!function_exists('send_notification_with_settings')) {
         foreach ($final_recipients as $recipient) {
             $subject = generate_email_subject($module, $event_type, $data);
             $template = generate_module_email_template($module, $event_type, $data);
-            
-            $CI->load->library('email');
-            $CI->email->from($CI->config->item('smtp_user'), 'Office Management System');
+
+            // Ensure email is configured from Settings > Email
+            if (!function_exists('configure_email_from_settings')) {
+                $CI->load->helper('email');
+            }
+            configure_email_from_settings();
+
+            $from = function_exists('get_system_from_email') ? get_system_from_email() : $CI->config->item('smtp_user');
+            $from_name = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
+
             $CI->email->to($recipient['email']);
+            $CI->email->from($from ?: 'no-reply@example.com', $from_name);
             $CI->email->subject($subject);
             $CI->email->message($template);
             

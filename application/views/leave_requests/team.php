@@ -48,6 +48,7 @@
         <thead>
           <tr>
             <th>Employee</th>
+            <th>Lead</th>
             <th>Type</th>
             <th>Dates</th>
             <th>Days</th>
@@ -59,10 +60,44 @@
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-            <tr><td colspan="8" class="text-center text-muted">No leave requests found.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr class="leave-row-clickable" data-user-id="<?php echo (int)$r->user_id; ?>" data-user-email="<?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?>" style="cursor: pointer;">
-              <td><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></td>
+              <td>
+                <?php 
+                  // Show employee name (user_name or first_name + last_name) with email
+                  $emp_name = '';
+                  if (!empty($r->user_name)) {
+                    $emp_name = htmlspecialchars($r->user_name);
+                  } elseif (!empty($r->emp_first_name)) {
+                    $emp_name = htmlspecialchars(trim($r->emp_first_name . ' ' . (!empty($r->emp_last_name) ? $r->emp_last_name : '')));
+                  }
+                  if (!empty($emp_name)) {
+                    echo $emp_name . '<br><small class="text-muted">' . htmlspecialchars(isset($r->user_email) ? $r->user_email : '') . '</small>';
+                  } else {
+                    echo htmlspecialchars(isset($r->user_email) ? $r->user_email : 'N/A');
+                  }
+                ?>
+              </td>
+              <td>
+                <?php 
+                  // Show lead name with email
+                  if (!empty($r->lead_name) || !empty($r->lead_email)) {
+                    $lead_display = '';
+                    if (!empty($r->lead_name)) {
+                      $lead_display = htmlspecialchars($r->lead_name);
+                      if (!empty($r->lead_email)) {
+                        $lead_display .= '<br><small class="text-muted">' . htmlspecialchars($r->lead_email) . '</small>';
+                      }
+                    } else {
+                      $lead_display = htmlspecialchars($r->lead_email);
+                    }
+                    echo $lead_display;
+                  } else {
+                    echo '<span class="text-muted">N/A</span>';
+                  }
+                ?>
+              </td>
               <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
               <td>
                 <?php

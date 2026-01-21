@@ -1821,7 +1821,7 @@ class Reports extends CI_Controller {
             $st = strtolower(trim((string)$r->st));
             $cnt = (float)$r->cnt;
             if (!isset($summary[$uid])) {
-                $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0];
+                $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
             }
             if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
             elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
@@ -1960,7 +1960,7 @@ class Reports extends CI_Controller {
                 
                 if ($workedHours > $standardHours) {
                     if (!isset($summary[$uid])) {
-                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
                     }
                     $extraHours = $workedHours - $standardHours;
                     $summary[$uid]['extra_hours'] += $extraHours;
@@ -2008,7 +2008,7 @@ class Reports extends CI_Controller {
                 }
                 
                 if (!isset($summary[$uid])) {
-                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
                 }
                 $summary[$uid]['leave'] += $leaveWorkingDays;
             }
@@ -2556,6 +2556,20 @@ class Reports extends CI_Controller {
                 elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
             }
             
+            // Initialize summary for all users (even those without attendance records)
+            foreach ($users as $user) {
+                $uid = (int)$user->id;
+                if (!isset($summary[$uid])) {
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                } else {
+                    // Ensure all keys exist
+                    if (!isset($summary[$uid]['late_hours'])) { $summary[$uid]['late_hours'] = 0.0; }
+                    if (!isset($summary[$uid]['extra_hours'])) { $summary[$uid]['extra_hours'] = 0.0; }
+                    if (!isset($summary[$uid]['on_time'])) { $summary[$uid]['on_time'] = 0.0; }
+                    if (!isset($summary[$uid]['leave'])) { $summary[$uid]['leave'] = 0.0; }
+                }
+            }
+            
             // Calculate late days, late hours, and extra hours (same logic as UI grid)
             // Get settings
             $officeStart = '09:30';
@@ -2679,6 +2693,57 @@ class Reports extends CI_Controller {
                         $extraHours = $workedHours - $standardHours;
                         $summary[$uid]['extra_hours'] += $extraHours;
                     }
+                }
+            }
+            
+            // Calculate leave days from leave_requests table
+            if ($this->db->table_exists('leave_requests')) {
+                $today = date('Y-m-d');
+                $lrows = $this->db->select('lr.user_id, lr.start_date, lr.end_date, lr.status, lr.reason, lt.name AS type_name')
+                    ->from('leave_requests lr')
+                    ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
+                    ->where_in('lr.user_id', $userIds)
+                    ->where_in('lr.status', ['lead_approved','hr_approved'])
+                    ->where('lr.start_date <=', $to)
+                    ->where('lr.end_date >=', $from)
+                    ->get()->result();
+                    
+                foreach ($lrows as $lr) {
+                    // Skip WFH requests - they should not be counted as leave
+                    $is_wfh = false;
+                    if (isset($lr->reason) && strpos($lr->reason, 'WFH:') === 0) {
+                        $is_wfh = true;
+                    } elseif (isset($lr->type_name) && strtolower(trim($lr->type_name)) === 'work from home') {
+                        $is_wfh = true;
+                    }
+                    if ($is_wfh) {
+                        continue; // Skip WFH requests
+                    }
+                    
+                    $uid = (int)$lr->user_id;
+                    $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
+                    $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
+                    if ($sd === '' || $ed === '') { continue; }
+                    
+                    // Initialize summary if not exists
+                    if (!isset($summary[$uid])) {
+                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                    }
+                    
+                    // Calculate working days in leave period (excluding weekends and future dates)
+                    $leaveStart = strtotime(max($from, substr($sd, 0, 10)));
+                    $leaveEnd = strtotime(min($to, substr($ed, 0, 10), $today));
+                    $leaveWorkingDays = 0;
+                    $cur = $leaveStart;
+                    while ($cur !== false && $cur <= $leaveEnd) {
+                        $dayOfWeek = (int)date('w', $cur); // 0=Sunday, 6=Saturday
+                        if ($dayOfWeek != 0 && $dayOfWeek != 6) { // Not Sunday or Saturday
+                            $leaveWorkingDays++;
+                        }
+                        $cur = strtotime('+1 day', $cur);
+                    }
+                    
+                    $summary[$uid]['leave'] += $leaveWorkingDays;
                 }
             }
             
@@ -2788,6 +2853,20 @@ class Reports extends CI_Controller {
                 elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
             }
             
+            // Initialize summary for all users (even those without attendance records)
+            foreach ($users as $user) {
+                $uid = (int)$user->id;
+                if (!isset($summary[$uid])) {
+                    $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                } else {
+                    // Ensure all keys exist
+                    if (!isset($summary[$uid]['late_hours'])) { $summary[$uid]['late_hours'] = 0.0; }
+                    if (!isset($summary[$uid]['extra_hours'])) { $summary[$uid]['extra_hours'] = 0.0; }
+                    if (!isset($summary[$uid]['on_time'])) { $summary[$uid]['on_time'] = 0.0; }
+                    if (!isset($summary[$uid]['leave'])) { $summary[$uid]['leave'] = 0.0; }
+                }
+            }
+            
             // Calculate late days, late hours, and extra hours (same logic as UI grid)
             // Get settings
             $officeStart = '09:30';
@@ -2911,6 +2990,57 @@ class Reports extends CI_Controller {
                         $extraHours = $workedHours - $standardHours;
                         $summary[$uid]['extra_hours'] += $extraHours;
                     }
+                }
+            }
+            
+            // Calculate leave days from leave_requests table
+            if ($this->db->table_exists('leave_requests')) {
+                $today = date('Y-m-d');
+                $lrows = $this->db->select('lr.user_id, lr.start_date, lr.end_date, lr.status, lr.reason, lt.name AS type_name')
+                    ->from('leave_requests lr')
+                    ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
+                    ->where_in('lr.user_id', $userIds)
+                    ->where_in('lr.status', ['lead_approved','hr_approved'])
+                    ->where('lr.start_date <=', $to)
+                    ->where('lr.end_date >=', $from)
+                    ->get()->result();
+                    
+                foreach ($lrows as $lr) {
+                    // Skip WFH requests - they should not be counted as leave
+                    $is_wfh = false;
+                    if (isset($lr->reason) && strpos($lr->reason, 'WFH:') === 0) {
+                        $is_wfh = true;
+                    } elseif (isset($lr->type_name) && strtolower(trim($lr->type_name)) === 'work from home') {
+                        $is_wfh = true;
+                    }
+                    if ($is_wfh) {
+                        continue; // Skip WFH requests
+                    }
+                    
+                    $uid = (int)$lr->user_id;
+                    $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
+                    $ed = isset($lr->end_date) ? (string)$lr->end_date : '';
+                    if ($sd === '' || $ed === '') { continue; }
+                    
+                    // Initialize summary if not exists
+                    if (!isset($summary[$uid])) {
+                        $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+                    }
+                    
+                    // Calculate working days in leave period (excluding weekends and future dates)
+                    $leaveStart = strtotime(max($from, substr($sd, 0, 10)));
+                    $leaveEnd = strtotime(min($to, substr($ed, 0, 10), $today));
+                    $leaveWorkingDays = 0;
+                    $cur = $leaveStart;
+                    while ($cur !== false && $cur <= $leaveEnd) {
+                        $dayOfWeek = (int)date('w', $cur); // 0=Sunday, 6=Saturday
+                        if ($dayOfWeek != 0 && $dayOfWeek != 6) { // Not Sunday or Saturday
+                            $leaveWorkingDays++;
+                        }
+                        $cur = strtotime('+1 day', $cur);
+                    }
+                    
+                    $summary[$uid]['leave'] += $leaveWorkingDays;
                 }
             }
             

@@ -65,6 +65,7 @@ $route['logout'] = 'auth/logout';
 $route['register'] = 'auth/register';
 $route['auth/send-verify-code'] = 'auth/send_verify_code';
 $route['auth/verify-code'] = 'auth/verify_code';
+$route['auth/verify-2fa'] = 'auth/verify_2fa';
 $route['forgot-password'] = 'auth/forgot_password';
 $route['reset-password'] = 'auth/reset_password';
 

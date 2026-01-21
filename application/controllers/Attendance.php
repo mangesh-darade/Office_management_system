@@ -451,7 +451,9 @@ class Attendance extends CI_Controller {
                     if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
                     
                     if (!empty($cin) && !empty($cout)) {
-                        $this->session->set_flashdata('error', 'You have already completed attendance for today. Check-in and check-out are already recorded.');
+                        $this->load->helper('notification');
+                        $error_msg = get_notification_message('attendance', 'already_marked', 'error');
+                        $this->session->set_flashdata('error', $error_msg);
                     } elseif (!empty($cin)) {
                         $this->session->set_flashdata('error', 'You have already checked in today. Please select check-out action.');
                     } else {
@@ -489,36 +491,43 @@ class Attendance extends CI_Controller {
                 $attachment_path = 'uploads/attendance/' . $upload_data['file_name'];
             }
 
-            // Mandatory face verification
+            // Face verification (optional based on setting)
+            $face_verification_required = $this->settings->get_setting('attendance_face_verification_required', 'yes');
+            $face_verification_enabled = ($face_verification_required === 'yes' || $face_verification_required === '1' || $face_verification_required === 1 || $face_verification_required === true);
+            
             $face_required = (string)$this->input->post('face_required');
             $face_descriptor = (string)$this->input->post('face_descriptor');
             
-            // Face verification is mandatory
-            if (empty($face_descriptor)) {
-                $this->session->set_flashdata('error', 'Face verification is mandatory. Please capture your face before submitting.');
-                redirect('attendance/create');
-                return;
-            }
-            
-            // Verify face descriptor against stored template for this user
-            $stored = $this->faces->get_by_user($user_id);
-            if ($stored && !empty($stored->descriptor)) {
-                $threshold = 0.6;
-                $dist = $this->verify_face_descriptor($face_descriptor, $stored->descriptor);
-                if ($dist === null) {
-                    $this->session->set_flashdata('error', 'Face verification failed: Invalid face data format. Please try capturing your face again.');
+            // Face verification is mandatory only if setting is enabled
+            if ($face_verification_enabled) {
+                if (empty($face_descriptor)) {
+                    $this->load->helper('notification');
+                    $error_msg = get_notification_message('attendance', 'face_verification_failed', 'error');
+                    $this->session->set_flashdata('error', $error_msg);
                     redirect('attendance/create');
                     return;
                 }
-                if ($dist > $threshold) {
-                    $this->session->set_flashdata('error', 'Face verification failed: Your face does not match the registered face. Please ensure you are using the same face as registered in your profile.');
+                
+                // Verify face descriptor against stored template for this user
+                $stored = $this->faces->get_by_user($user_id);
+                if ($stored && !empty($stored->descriptor)) {
+                    $threshold = 0.6;
+                    $dist = $this->verify_face_descriptor($face_descriptor, $stored->descriptor);
+                    if ($dist === null) {
+                        $this->session->set_flashdata('error', 'Face verification failed: Invalid face data format. Please try capturing your face again.');
+                        redirect('attendance/create');
+                        return;
+                    }
+                    if ($dist > $threshold) {
+                        $this->session->set_flashdata('error', 'Face verification failed: Your face does not match the registered face. Please ensure you are using the same face as registered in your profile.');
+                        redirect('attendance/create');
+                        return;
+                    }
+                } else {
+                    $this->session->set_flashdata('error', 'No registered face found for this user. Please register your face in your profile first.');
                     redirect('attendance/create');
                     return;
                 }
-            } else {
-                $this->session->set_flashdata('error', 'No registered face found for this user. Please register your face in your profile first.');
-                redirect('attendance/create');
-                return;
             }
 
             // Location handling - MANDATORY
@@ -528,9 +537,34 @@ class Attendance extends CI_Controller {
             
             // Validate location is mandatory
             if (empty($lat) || empty($lng)) {
-                $this->session->set_flashdata('error', 'Location is mandatory. Please enable location services and allow location access.');
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('attendance', 'location_mismatch', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('attendance/create');
                 return;
+            }
+            
+            // Validate location against office coordinates if strict mode enabled
+            $location_strict = $this->settings->get_setting('system_enable_location_strict', 'no');
+            if ($location_strict === 'yes') {
+                $office_lat = $this->settings->get_setting('system_office_latitude', '');
+                $office_lng = $this->settings->get_setting('system_office_longitude', '');
+                $allowed_radius = (float)$this->settings->get_setting('system_attendance_radius_meters', 100);
+                
+                if (!empty($office_lat) && !empty($office_lng)) {
+                    $distance = $this->calculate_distance($lat, $lng, $office_lat, $office_lng);
+                    
+                    if ($distance > $allowed_radius) {
+                        $this->load->helper('notification');
+                        $error_msg = get_notification_message('attendance', 'location_mismatch', 'error');
+                        // Add distance info to message if possible
+                        $error_msg = str_replace('{distance}', round($distance, 0), $error_msg);
+                        $error_msg = str_replace('{radius}', round($allowed_radius, 0), $error_msg);
+                        $this->session->set_flashdata('error', $error_msg . ' (Distance: ' . round($distance, 0) . 'm, Allowed: ' . round($allowed_radius, 0) . 'm)');
+                        redirect('attendance/create');
+                        return;
+                    }
+                }
             }
 
             // Get current date/time with timezone support
@@ -633,7 +667,9 @@ class Attendance extends CI_Controller {
                         }
                         $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                        $this->session->set_flashdata('success', 'Checked in successfully');
+                        $this->load->helper('notification');
+                        $success_msg = get_notification_message('attendance', 'create', 'success');
+                        $this->session->set_flashdata('success', $success_msg);
                     } else {
                         $this->session->set_flashdata('error', 'You have already checked in today. Please check out first.');
                     }
@@ -657,7 +693,9 @@ class Attendance extends CI_Controller {
                                 }
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
-                                $this->session->set_flashdata('success', 'Checked out successfully');
+                                $this->load->helper('notification');
+                                $success_msg = get_notification_message('attendance', 'create', 'success');
+                                $this->session->set_flashdata('success', $success_msg);
                             } else {
                                 $this->session->set_flashdata('error', 'Checkout time cannot be before check-in time or on the same day.');
                             }
@@ -711,13 +749,17 @@ class Attendance extends CI_Controller {
                         }
                         $this->db->where('id', (int)$existing_final->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                        $this->session->set_flashdata('success', 'Checked in successfully');
+                        $this->load->helper('notification');
+                        $success_msg = get_notification_message('attendance', 'create', 'success');
+                        $this->session->set_flashdata('success', $success_msg);
                     } else {
                         // No existing record, safe to insert
                         try {
                             $this->db->insert('attendance', $data);
                             $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                            $this->session->set_flashdata('success', 'Checked in successfully');
+                            $this->load->helper('notification');
+                        $success_msg = get_notification_message('attendance', 'create', 'success');
+                        $this->session->set_flashdata('success', $success_msg);
                         } catch (Exception $e) {
                             // Handle duplicate key error (race condition)
                             if (strpos($e->getMessage(), 'Duplicate entry') !== false || strpos($e->getMessage(), 'uq_attendance') !== false || strpos($e->getMessage(), '1062') !== false) {
@@ -746,7 +788,9 @@ class Attendance extends CI_Controller {
                                     }
                                     $this->db->where('id', (int)$existing_after->id)->update('attendance', $updates);
                                     $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                                    $this->session->set_flashdata('success', 'Checked in successfully');
+                                    $this->load->helper('notification');
+                        $success_msg = get_notification_message('attendance', 'create', 'success');
+                        $this->session->set_flashdata('success', $success_msg);
                                 } else {
                                     $this->session->set_flashdata('error', 'Failed to save attendance: Record conflict');
                                 }
@@ -804,9 +848,14 @@ class Attendance extends CI_Controller {
         $auto_capture_setting = $this->settings->get_setting('attendance_auto_capture', 'yes');
         $auto_capture_enabled = ($auto_capture_setting === 'yes' || $auto_capture_setting === '1' || $auto_capture_setting === 1 || $auto_capture_setting === true);
         
+        // Get face verification required setting (default: enabled/yes)
+        $face_verification_setting = $this->settings->get_setting('attendance_face_verification_required', 'yes');
+        $face_verification_enabled = ($face_verification_setting === 'yes' || $face_verification_setting === '1' || $face_verification_setting === 1 || $face_verification_setting === true);
+        
         $this->load->view('attendance/create', [
             'attendance_status' => $attendance_status,
-            'auto_capture_enabled' => $auto_capture_enabled
+            'auto_capture_enabled' => $auto_capture_enabled,
+            'face_verification_enabled' => $face_verification_enabled
         ]);
     }
 
@@ -888,12 +937,11 @@ class Attendance extends CI_Controller {
         $late_mark_enabled = $this->settings->get_setting('attendance_late_mark_notification', 'no');
         $late_mark_enabled = ($late_mark_enabled === 'yes') ? true : false;
         
-        // Initialize email config
-        $cfg = array('smtp_timeout'=>10,'mailtype'=>'html','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
-        $this->email->initialize($cfg);
+        // Load email helper and configure from settings
+        $this->load->helper('email');
+        configure_email_from_settings();
         $this->email->clear(true);
-        $fromAddr = getenv('SMTP_USER');
-        if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
+        $fromAddr = get_system_from_email();
         $fromName = get_company_name();
         $this->email->from($fromAddr, $fromName);
         
@@ -1077,44 +1125,65 @@ class Attendance extends CI_Controller {
             }
         }
         
-        // Send email to each recipient
+        // Send ONE email to all recipients (consolidate to avoid duplicates)
         if (!empty($recipients)) {
-            $cfg = array('smtp_timeout'=>10,'mailtype'=>'html','newline'=>"\r\n",'crlf'=>"\r\n",'charset'=>'utf-8');
-            $fromAddr = getenv('SMTP_USER');
-            if (!$fromAddr || $fromAddr==='') { $fromAddr = 'no-reply@example.com'; }
+            // Load email helper and configure from settings
+            $this->load->helper('email');
+            configure_email_from_settings();
+            $fromAddr = get_system_from_email();
             $fromName = get_company_name();
             
             $subject = 'Late Mark - ' . htmlspecialchars($user_name) . ' - ' . date('Y-m-d', strtotime($checkin_time));
             
+            // Build email body (generic greeting since we're sending to multiple recipients)
+            $body = '<html><body>';
+            $body .= '<h3 style="color: #dc3545;">Late Mark Notification</h3>';
+            $body .= '<p><strong>Employee:</strong> ' . htmlspecialchars($user_name) . '</p>';
+            $body .= '<p><strong>Check-in Time:</strong> ' . htmlspecialchars($checkin_time) . '</p>';
+            $body .= '<p style="color: #dc3545; font-weight: bold;">Employee is marked LATE.</p>';
+            $body .= '<p><strong>Late Time Details:</strong></p>';
+            $body .= '<ul>';
+            $body .= '<li>Hours: ' . $late_info['hours'] . '</li>';
+            $body .= '<li>Minutes: ' . $late_info['minutes'] . '</li>';
+            $body .= '<li>Seconds: ' . $late_info['seconds'] . '</li>';
+            $body .= '</ul>';
+            $body .= '<p><strong>Total Late Time:</strong> ' . htmlspecialchars($late_info['formatted']) . '</p>';
+            $body .= '<p><strong>Expected Check-in Time:</strong> ' . htmlspecialchars($late_info['expected_time']) . '</p>';
+            $body .= '<p>Thank you.</p>';
+            $body .= '</body></html>';
+            
+            // Deduplicate recipients by email address
+            $unique_recipients = [];
             foreach ($recipients as $recipient) {
+                $email = strtolower(trim($recipient['email']));
+                if (!isset($unique_recipients[$email])) {
+                    $unique_recipients[$email] = $recipient;
+                }
+            }
+            
+            // Send ONE email: first recipient in TO, others in CC
+            if (!empty($unique_recipients)) {
+                $recipient_list = array_values($unique_recipients);
+                $primary_recipient = $recipient_list[0];
+                $cc_list = [];
+                
+                // Add remaining recipients to CC
+                for ($i = 1; $i < count($recipient_list); $i++) {
+                    $cc_list[] = $recipient_list[$i]['email'];
+                }
+                
                 try {
                     $this->email->clear(true);
-                    $this->email->initialize($cfg);
                     $this->email->from($fromAddr, $fromName);
-                    $this->email->to($recipient['email']);
+                    $this->email->to($primary_recipient['email']);
+                    if (!empty($cc_list)) {
+                        $this->email->cc($cc_list);
+                    }
                     $this->email->subject($subject);
-                    
-                    $body = '<html><body>';
-                    $body .= '<h3 style="color: #dc3545;">Late Mark Notification</h3>';
-                    $body .= '<p>Hello ' . htmlspecialchars($recipient['name']) . ',</p>';
-                    $body .= '<p><strong>Employee:</strong> ' . htmlspecialchars($user_name) . '</p>';
-                    $body .= '<p><strong>Check-in Time:</strong> ' . htmlspecialchars($checkin_time) . '</p>';
-                    $body .= '<p style="color: #dc3545; font-weight: bold;">Employee is marked LATE.</p>';
-                    $body .= '<p><strong>Late Time Details:</strong></p>';
-                    $body .= '<ul>';
-                    $body .= '<li>Hours: ' . $late_info['hours'] . '</li>';
-                    $body .= '<li>Minutes: ' . $late_info['minutes'] . '</li>';
-                    $body .= '<li>Seconds: ' . $late_info['seconds'] . '</li>';
-                    $body .= '</ul>';
-                    $body .= '<p><strong>Total Late Time:</strong> ' . htmlspecialchars($late_info['formatted']) . '</p>';
-                    $body .= '<p><strong>Expected Check-in Time:</strong> ' . htmlspecialchars($late_info['expected_time']) . '</p>';
-                    $body .= '<p>Thank you.</p>';
-                    $body .= '</body></html>';
-                    
                     $this->email->message($body);
                     @$this->email->send();
                 } catch (Exception $e) {
-                    error_log('Late mark notification email to ' . $recipient['email'] . ' failed: ' . $e->getMessage());
+                    error_log('Late mark notification email failed: ' . $e->getMessage());
                 }
             }
         }
@@ -1265,7 +1334,9 @@ class Attendance extends CI_Controller {
             if (!empty($data)) {
                 $this->db->where('id', (int)$id)->update('attendance', $data);
             }
-            $this->session->set_flashdata('success', 'Attendance updated');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('attendance', 'update', 'success');
+            $this->session->set_flashdata('success', $success_msg);
             redirect('attendance');
             return;
         }
@@ -1288,7 +1359,9 @@ class Attendance extends CI_Controller {
         $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
         if (!$canManageAll && (int)$row->user_id !== $user_id) { show_error('Forbidden', 403); }
         $this->db->where('id', (int)$id)->delete('attendance');
-        $this->session->set_flashdata('success', 'Attendance deleted');
+        $this->load->helper('notification');
+        $success_msg = get_notification_message('attendance', 'delete', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('attendance');
     }
 
@@ -1351,5 +1424,39 @@ class Attendance extends CI_Controller {
         }
         
         return $stats;
+    }
+    
+    /**
+     * Calculate distance between two GPS coordinates (Haversine formula)
+     * Returns distance in meters
+     * 
+     * @param float $lat1 Latitude 1
+     * @param float $lon1 Longitude 1
+     * @param float $lat2 Latitude 2
+     * @param float $lon2 Longitude 2
+     * @return float Distance in meters
+     */
+    private function calculate_distance($lat1, $lon1, $lat2, $lon2) {
+        $lat1 = (float)$lat1;
+        $lon1 = (float)$lon1;
+        $lat2 = (float)$lat2;
+        $lon2 = (float)$lon2;
+        
+        // Earth's radius in meters
+        $earth_radius = 6371000;
+        
+        // Convert degrees to radians
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        
+        // Haversine formula
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon / 2) * sin($dLon / 2);
+        
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $distance = $earth_radius * $c;
+        
+        return $distance;
     }
 }

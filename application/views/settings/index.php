@@ -43,6 +43,16 @@
       <i class="bi bi-bell me-1"></i> Notifications
     </button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+      <i class="bi bi-sliders me-1"></i> General & Display
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
+      <i class="bi bi-shield-check me-1"></i> Security & Protection
+    </button>
+  </li>
 </ul>
 <div class="tab-content pt-3">
   <div class="tab-pane fade show active" id="company" role="tabpanel">
@@ -189,6 +199,16 @@
                 </label>
               </div>
               <div class="form-text">When enabled, face will be captured automatically after 3 seconds. When disabled, user must click "Capture Face" button manually.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Face Verification Required</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="attendance_face_verification_required" value="yes" <?php echo (isset($settings['attendance_face_verification_required']) && $settings['attendance_face_verification_required'] === 'yes') ? 'checked' : ''; ?> id="attendance_face_verification_required">
+                <label class="form-check-label" for="attendance_face_verification_required">
+                  Require face verification for attendance
+                </label>
+              </div>
+              <div class="form-text">When enabled, employees must verify their face before marking attendance. When disabled, attendance can be marked without face verification.</div>
             </div>
             <div class="col-md-12">
               <label class="form-label fw-semibold">Weekend Days</label>
@@ -403,6 +423,741 @@
         </form>
       </div>
     </div>
+
+    <!-- Notification Messages Configuration -->
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">
+          <i class="bi bi-chat-text me-2"></i>Notification Messages Configuration
+        </h5>
+        <small class="opacity-75">Customize alert messages for different modules and actions</small>
+      </div>
+      <div class="card-body">
+        <?php
+        $this->load->helper('notification');
+        $modules_structure = get_notification_modules_structure();
+        $defaults = get_all_default_notification_messages();
+        ?>
+        
+        <form method="post" action="<?php echo site_url('settings/update'); ?>" id="notificationMessagesForm">
+          <div class="accordion" id="notificationModulesAccordion">
+            <?php 
+            $module_index = 0;
+            foreach ($modules_structure as $module_key => $module_info): 
+              $module_index++;
+            ?>
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading<?php echo $module_index; ?>">
+                  <button class="accordion-button <?php echo $module_index === 1 ? '' : 'collapsed'; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?php echo $module_index; ?>" aria-expanded="<?php echo $module_index === 1 ? 'true' : 'false'; ?>" aria-controls="collapse<?php echo $module_index; ?>">
+                    <i class="bi <?php echo htmlspecialchars($module_info['icon']); ?> me-2"></i>
+                    <?php echo htmlspecialchars($module_info['label']); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo count($module_info['actions']); ?> actions</span>
+                  </button>
+                </h2>
+                <div id="collapse<?php echo $module_index; ?>" class="accordion-collapse collapse <?php echo $module_index === 1 ? 'show' : ''; ?>" aria-labelledby="heading<?php echo $module_index; ?>" data-bs-parent="#notificationModulesAccordion">
+                  <div class="accordion-body">
+                    <div class="table-responsive">
+                      <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                          <tr>
+                            <th style="width: 25%;">Action</th>
+                            <th style="width: 37.5%;">Success Message</th>
+                            <th style="width: 37.5%;">Error Message</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <?php foreach ($module_info['actions'] as $action): ?>
+                            <?php
+                            $success_key = "notification_{$module_key}_{$action}_success";
+                            $error_key = "notification_{$module_key}_{$action}_error";
+                            
+                            $default_success = isset($defaults["{$module_key}_{$action}_success"]) ? $defaults["{$module_key}_{$action}_success"] : ucfirst($action) . ' completed successfully';
+                            $default_error = isset($defaults["{$module_key}_{$action}_error"]) ? $defaults["{$module_key}_{$action}_error"] : 'Failed to ' . $action;
+                            
+                            $current_success = isset($settings[$success_key]) ? $settings[$success_key] : $default_success;
+                            $current_error = isset($settings[$error_key]) ? $settings[$error_key] : $default_error;
+                            ?>
+                            <tr>
+                              <td>
+                                <strong><?php echo ucfirst(str_replace('_', ' ', $action)); ?></strong>
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="tooltip" title="Reset to default" onclick="resetNotificationMessage('<?php echo $success_key; ?>', '<?php echo htmlspecialchars(addslashes($default_success)); ?>'); resetNotificationMessage('<?php echo $error_key; ?>', '<?php echo htmlspecialchars(addslashes($default_error)); ?>');">
+                                  <i class="bi bi-arrow-counterclockwise text-secondary"></i>
+                                </button>
+                              </td>
+                              <td>
+                                <input type="text" class="form-control form-control-sm" 
+                                       name="<?php echo htmlspecialchars($success_key); ?>" 
+                                       value="<?php echo htmlspecialchars($current_success); ?>"
+                                       placeholder="<?php echo htmlspecialchars($default_success); ?>"
+                                       data-default="<?php echo htmlspecialchars($default_success); ?>">
+                              </td>
+                              <td>
+                                <input type="text" class="form-control form-control-sm" 
+                                       name="<?php echo htmlspecialchars($error_key); ?>" 
+                                       value="<?php echo htmlspecialchars($current_error); ?>"
+                                       placeholder="<?php echo htmlspecialchars($default_error); ?>"
+                                       data-default="<?php echo htmlspecialchars($default_error); ?>">
+                              </td>
+                            </tr>
+                          <?php endforeach; ?>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+          
+          <div class="alert alert-info mt-3 mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Tip:</strong> You can use placeholders in messages like <code>{name}</code> or <code>{count}</code> that will be replaced with actual values.
+            <br>Leave a field empty to use the default message. Click the reset icon next to each action to restore default messages.
+          </div>
+          
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i> Save Notification Messages
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="resetAllNotificationMessages()">
+              <i class="bi bi-arrow-clockwise me-1"></i> Reset All to Defaults
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- General & Display Settings Tab -->
+  <div class="tab-pane fade" id="general" role="tabpanel">
+    <div class="row g-4">
+      <!-- Display & Format Settings -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-display text-primary me-2"></i>Display & Format Settings
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalDisplayForm">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Date Format</label>
+                <select class="form-select" name="system_date_format">
+                  <option value="Y-m-d" <?php echo (isset($settings['system_date_format']) && $settings['system_date_format'] === 'Y-m-d') || (!isset($settings['system_date_format'])) ? 'selected' : ''; ?>>YYYY-MM-DD (2024-12-31)</option>
+                  <option value="d/m/Y" <?php echo (isset($settings['system_date_format']) && $settings['system_date_format'] === 'd/m/Y') ? 'selected' : ''; ?>>DD/MM/YYYY (31/12/2024)</option>
+                  <option value="m/d/Y" <?php echo (isset($settings['system_date_format']) && $settings['system_date_format'] === 'm/d/Y') ? 'selected' : ''; ?>>MM/DD/YYYY (12/31/2024)</option>
+                  <option value="d-m-Y" <?php echo (isset($settings['system_date_format']) && $settings['system_date_format'] === 'd-m-Y') ? 'selected' : ''; ?>>DD-MM-YYYY (31-12-2024)</option>
+                  <option value="M d, Y" <?php echo (isset($settings['system_date_format']) && $settings['system_date_format'] === 'M d, Y') ? 'selected' : ''; ?>>Dec 31, 2024</option>
+                  <option value="d M Y" <?php echo (isset($settings['system_date_format']) && $settings['system_date_format'] === 'd M Y') ? 'selected' : ''; ?>>31 Dec 2024</option>
+                </select>
+                <div class="form-text">Date format used throughout the application</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Time Format</label>
+                <select class="form-select" name="system_time_format">
+                  <option value="24h" <?php echo (isset($settings['system_time_format']) && $settings['system_time_format'] === '24h') || (!isset($settings['system_time_format'])) ? 'selected' : ''; ?>>24 Hour (14:30)</option>
+                  <option value="12h" <?php echo (isset($settings['system_time_format']) && $settings['system_time_format'] === '12h') ? 'selected' : ''; ?>>12 Hour (2:30 PM)</option>
+                </select>
+                <div class="form-text">Time format used throughout the application</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Currency</label>
+                <input type="text" class="form-control" name="system_currency" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_currency']) ? $settings['system_currency'] : 'USD'); ?>" 
+                       placeholder="USD" maxlength="3" style="text-transform:uppercase;">
+                <div class="form-text">ISO currency code (e.g., USD, INR, EUR, GBP)</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Currency Symbol</label>
+                <input type="text" class="form-control" name="system_currency_symbol" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_currency_symbol']) ? $settings['system_currency_symbol'] : '$'); ?>" 
+                       placeholder="$" maxlength="5">
+                <div class="form-text">Symbol displayed with currency amounts</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Default Items Per Page</label>
+                <select class="form-select" name="system_items_per_page">
+                  <option value="10" <?php echo (isset($settings['system_items_per_page']) && $settings['system_items_per_page'] == '10') ? 'selected' : ''; ?>>10</option>
+                  <option value="20" <?php echo (isset($settings['system_items_per_page']) && $settings['system_items_per_page'] == '20') || (!isset($settings['system_items_per_page'])) ? 'selected' : ''; ?>>20</option>
+                  <option value="50" <?php echo (isset($settings['system_items_per_page']) && $settings['system_items_per_page'] == '50') ? 'selected' : ''; ?>>50</option>
+                  <option value="100" <?php echo (isset($settings['system_items_per_page']) && $settings['system_items_per_page'] == '100') ? 'selected' : ''; ?>>100</option>
+                </select>
+                <div class="form-text">Default number of records per page in lists</div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-lg me-1"></i> Save Display Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employee & HR Settings -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-people text-success me-2"></i>Employee & HR Settings
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalHRForm">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Employee Code Prefix</label>
+                <input type="text" class="form-control" name="system_employee_code_prefix" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_employee_code_prefix']) ? $settings['system_employee_code_prefix'] : 'EMP'); ?>" 
+                       placeholder="EMP" maxlength="10">
+                <div class="form-text">Prefix for auto-generated employee codes (e.g., EMP001, DEV001)</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Employee Code Length</label>
+                <input type="number" class="form-control" name="system_employee_code_length" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_employee_code_length']) ? $settings['system_employee_code_length'] : '3'); ?>" 
+                       min="2" max="6">
+                <div class="form-text">Number of digits in employee code (e.g., 3 = EMP001, 4 = EMP0001)</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Default Probation Period (days)</label>
+                <input type="number" class="form-control" name="system_probation_period_days" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_probation_period_days']) ? $settings['system_probation_period_days'] : '90'); ?>" 
+                       min="0" max="365">
+                <div class="form-text">Default probation period for new employees</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Notice Period (days)</label>
+                <input type="number" class="form-control" name="system_notice_period_days" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_notice_period_days']) ? $settings['system_notice_period_days'] : '30'); ?>" 
+                       min="0" max="180">
+                <div class="form-text">Standard notice period for employee resignation</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Working Days Per Week</label>
+                <input type="number" class="form-control" name="system_working_days_per_week" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_working_days_per_week']) ? $settings['system_working_days_per_week'] : '5'); ?>" 
+                       min="1" max="7" step="0.5">
+                <div class="form-text">Average working days per week for calculations</div>
+              </div>
+              <button type="submit" class="btn btn-success w-100">
+                <i class="bi bi-check-lg me-1"></i> Save HR Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- System & Maintenance Settings -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-gear text-warning me-2"></i>System & Maintenance
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalSystemForm">
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="system_maintenance_mode" value="yes" 
+                         <?php echo (isset($settings['system_maintenance_mode']) && $settings['system_maintenance_mode'] === 'yes') ? 'checked' : ''; ?> 
+                         id="system_maintenance_mode">
+                  <label class="form-check-label" for="system_maintenance_mode">
+                    Enable Maintenance Mode
+                  </label>
+                </div>
+                <div class="form-text">When enabled, only admins can access the system</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Global Maintenance Message</label>
+                <textarea class="form-control" name="system_maintenance_message" rows="3" 
+                          placeholder="The system is currently under maintenance. Please try again later."><?php echo htmlspecialchars(isset($settings['system_maintenance_message']) ? $settings['system_maintenance_message'] : 'The system is currently under maintenance. Please try again later.'); ?></textarea>
+                <div class="form-text">Default message shown to non-admin users when no module-specific message is set</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Module-Specific Maintenance Messages</label>
+                <div class="alert alert-info d-flex align-items-start mb-3">
+                  <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+                  <div>
+                    <small>Configure maintenance messages for specific modules. When a module is in maintenance, users will see the module-specific message instead of the global message. Leave empty to use the global message.</small>
+                  </div>
+                </div>
+                <div class="accordion" id="moduleMaintenanceAccordion">
+                  <?php
+                  $modules_list = [
+                    'dashboard' => 'Dashboard',
+                    'employees' => 'Employees',
+                    'users' => 'Users',
+                    'projects' => 'Projects',
+                    'tasks' => 'Tasks',
+                    'attendance' => 'Attendance',
+                    'leaves' => 'Leaves',
+                    'departments' => 'Departments',
+                    'designations' => 'Designations',
+                    'clients' => 'Clients',
+                    'assets' => 'Assets',
+                    'announcements' => 'Announcements',
+                    'chats' => 'Chats',
+                    'calls' => 'Calls',
+                    'timesheets' => 'Timesheets',
+                    'reports' => 'Reports',
+                    'settings' => 'Settings',
+                    'reminders' => 'Reminders',
+                    'activity' => 'Activity Log',
+                    'permissions' => 'Permissions',
+                    'payroll' => 'Payroll'
+                  ];
+                  foreach ($modules_list as $module_key => $module_label):
+                    $module_maintenance_enabled_key = 'system_maintenance_module_' . $module_key;
+                    $module_maintenance_message_key = 'system_maintenance_module_' . $module_key . '_message';
+                    $module_enabled = isset($settings[$module_maintenance_enabled_key]) && $settings[$module_maintenance_enabled_key] === 'yes';
+                    $module_message = isset($settings[$module_maintenance_message_key]) ? $settings[$module_maintenance_message_key] : '';
+                  ?>
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="headingMaintenance<?php echo ucfirst($module_key); ?>">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaintenance<?php echo ucfirst($module_key); ?>" aria-expanded="false">
+                          <i class="bi bi-box me-2"></i> <?php echo htmlspecialchars($module_label); ?>
+                        </button>
+                      </h2>
+                      <div id="collapseMaintenance<?php echo ucfirst($module_key); ?>" class="accordion-collapse collapse" aria-labelledby="headingMaintenance<?php echo ucfirst($module_key); ?>" data-bs-parent="#moduleMaintenanceAccordion">
+                        <div class="accordion-body">
+                          <div class="mb-3">
+                            <div class="form-check form-switch">
+                              <input class="form-check-input" type="checkbox" name="<?php echo $module_maintenance_enabled_key; ?>" value="yes" 
+                                     <?php echo $module_enabled ? 'checked' : ''; ?> 
+                                     id="<?php echo $module_maintenance_enabled_key; ?>">
+                              <label class="form-check-label" for="<?php echo $module_maintenance_enabled_key; ?>">
+                                Enable Maintenance for <?php echo htmlspecialchars($module_label); ?>
+                              </label>
+                            </div>
+                            <div class="form-text">When enabled, this module will be unavailable to non-admin users</div>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label fw-semibold">Maintenance Message for <?php echo htmlspecialchars($module_label); ?></label>
+                            <textarea class="form-control" name="<?php echo $module_maintenance_message_key; ?>" rows="2" 
+                                      placeholder="The <?php echo htmlspecialchars($module_label); ?> module is currently under maintenance. Please try again later."><?php echo htmlspecialchars($module_message); ?></textarea>
+                            <div class="form-text">Leave empty to use global maintenance message</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Log Retention Period (days)</label>
+                <input type="number" class="form-control" name="system_log_retention_days" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_log_retention_days']) ? $settings['system_log_retention_days'] : '90'); ?>" 
+                       min="7" max="365">
+                <div class="form-text">How long to keep activity and audit logs (7-365 days)</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="system_enable_debug_mode" value="yes" 
+                         <?php echo (isset($settings['system_enable_debug_mode']) && $settings['system_enable_debug_mode'] === 'yes') ? 'checked' : ''; ?> 
+                         id="system_enable_debug_mode">
+                  <label class="form-check-label" for="system_enable_debug_mode">
+                    Enable Debug Mode
+                  </label>
+                </div>
+                <div class="form-text">Show detailed error messages (disable in production)</div>
+              </div>
+              <div class="alert alert-warning d-flex align-items-center mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <small>Debug mode should be disabled in production environments for security.</small>
+              </div>
+              <button type="submit" class="btn btn-warning w-100">
+                <i class="bi bi-check-lg me-1"></i> Save System Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location & Office Settings -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-geo-alt text-info me-2"></i>Location & Office Settings
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalLocationForm">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Default Office Location Name</label>
+                <input type="text" class="form-control" name="system_default_office_location" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_default_office_location']) ? $settings['system_default_office_location'] : ''); ?>" 
+                       placeholder="Head Office">
+                <div class="form-text">Default location name for attendance</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Office Latitude</label>
+                <input type="text" class="form-control" name="system_office_latitude" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_office_latitude']) ? $settings['system_office_latitude'] : ''); ?>" 
+                       placeholder="28.6139">
+                <div class="form-text">Office location latitude for attendance validation</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Office Longitude</label>
+                <input type="text" class="form-control" name="system_office_longitude" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_office_longitude']) ? $settings['system_office_longitude'] : ''); ?>" 
+                       placeholder="77.2090">
+                <div class="form-text">Office location longitude for attendance validation</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Allowed Radius (meters)</label>
+                <input type="number" class="form-control" name="system_attendance_radius_meters" 
+                       value="<?php echo htmlspecialchars(isset($settings['system_attendance_radius_meters']) ? $settings['system_attendance_radius_meters'] : '100'); ?>" 
+                       min="10" max="5000" step="10">
+                <div class="form-text">Maximum distance from office to mark attendance (10-5000 meters)</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="system_enable_location_strict" value="yes" 
+                         <?php echo (isset($settings['system_enable_location_strict']) && $settings['system_enable_location_strict'] === 'yes') ? 'checked' : ''; ?> 
+                         id="system_enable_location_strict">
+                  <label class="form-check-label" for="system_enable_location_strict">
+                    Strict Location Validation
+                  </label>
+                </div>
+                <div class="form-text">Enforce location check for attendance marking</div>
+              </div>
+              <button type="submit" class="btn btn-info w-100 text-white">
+                <i class="bi bi-check-lg me-1"></i> Save Location Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="security" role="tabpanel">
+    <div class="row g-4">
+      <!-- Security Overview Card -->
+      <div class="col-12">
+        <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <div class="card-body text-white p-4">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <h5 class="card-title mb-2">
+                  <i class="bi bi-shield-lock-fill me-2"></i>Security & Protection
+                </h5>
+                <p class="card-text mb-0 opacity-90">Manage system security settings and protection features</p>
+              </div>
+              <div class="text-end">
+                <i class="bi bi-shield-check" style="font-size: 3rem; opacity: 0.3;"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password Security -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-key-fill text-primary me-2"></i>Password Security
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityPasswordForm">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Minimum Password Length</label>
+                <input type="number" class="form-control" name="security_min_password_length" 
+                       value="<?php echo htmlspecialchars(isset($settings['security_min_password_length']) ? $settings['security_min_password_length'] : '8'); ?>" 
+                       min="6" max="32" />
+                <div class="form-text">Minimum number of characters required (6-32)</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_require_uppercase" value="yes" 
+                         <?php echo (isset($settings['security_require_uppercase']) && $settings['security_require_uppercase'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_require_uppercase">
+                  <label class="form-check-label" for="security_require_uppercase">
+                    Require Uppercase Letter
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_require_lowercase" value="yes" 
+                         <?php echo (isset($settings['security_require_lowercase']) && $settings['security_require_lowercase'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_require_lowercase">
+                  <label class="form-check-label" for="security_require_lowercase">
+                    Require Lowercase Letter
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_require_number" value="yes" 
+                         <?php echo (isset($settings['security_require_number']) && $settings['security_require_number'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_require_number">
+                  <label class="form-check-label" for="security_require_number">
+                    Require Number
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_require_special" value="yes" 
+                         <?php echo (isset($settings['security_require_special']) && $settings['security_require_special'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_require_special">
+                  <label class="form-check-label" for="security_require_special">
+                    Require Special Character
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Password Expiry (days)</label>
+                <input type="number" class="form-control" name="security_password_expiry" 
+                       value="<?php echo htmlspecialchars(isset($settings['security_password_expiry']) ? $settings['security_password_expiry'] : '90'); ?>" 
+                       min="0" max="365" />
+                <div class="form-text">0 = Never expire</div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-lg me-1"></i> Save Password Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Security -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-clock-history text-success me-2"></i>Session Security
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securitySessionForm">
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Session Timeout (minutes)</label>
+                <input type="number" class="form-control" name="security_session_timeout" 
+                       value="<?php echo htmlspecialchars(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '60'); ?>" 
+                       min="5" max="480" />
+                <div class="form-text">User will be logged out after inactivity</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_single_session" value="yes" 
+                         <?php echo (isset($settings['security_single_session']) && $settings['security_single_session'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_single_session">
+                  <label class="form-check-label" for="security_single_session">
+                    Single Session Only
+                  </label>
+                </div>
+                <div class="form-text">Allow only one active session per user</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_remember_me" value="yes" 
+                         <?php echo (isset($settings['security_remember_me']) && $settings['security_remember_me'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_remember_me">
+                  <label class="form-check-label" for="security_remember_me">
+                    Enable Remember Me
+                  </label>
+                </div>
+                <div class="form-text">Allow users to stay logged in for extended periods</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Max Failed Login Attempts</label>
+                <input type="number" class="form-control" name="security_max_login_attempts" 
+                       value="<?php echo htmlspecialchars(isset($settings['security_max_login_attempts']) ? $settings['security_max_login_attempts'] : '5'); ?>" 
+                       min="3" max="10" />
+                <div class="form-text">Account locked after exceeding attempts</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Lockout Duration (minutes)</label>
+                <input type="number" class="form-control" name="security_lockout_duration" 
+                       value="<?php echo htmlspecialchars(isset($settings['security_lockout_duration']) ? $settings['security_lockout_duration'] : '15'); ?>" 
+                       min="5" max="60" />
+                <div class="form-text">Time before user can attempt login again</div>
+              </div>
+              <button type="submit" class="btn btn-success w-100">
+                <i class="bi bi-check-lg me-1"></i> Save Session Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-Factor Authentication -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-shield-lock text-warning me-2"></i>Two-Factor Authentication
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="security2FAForm">
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_enable_2fa" value="yes" 
+                         <?php echo (isset($settings['security_enable_2fa']) && $settings['security_enable_2fa'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_enable_2fa">
+                  <label class="form-check-label fw-semibold" for="security_enable_2fa">
+                    Enable Two-Factor Authentication
+                  </label>
+                </div>
+                <div class="form-text">Add an extra layer of security with 2FA</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_2fa_required_admin" value="yes" 
+                         <?php echo (isset($settings['security_2fa_required_admin']) && $settings['security_2fa_required_admin'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_2fa_required_admin">
+                  <label class="form-check-label" for="security_2fa_required_admin">
+                    Require 2FA for Administrators
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">2FA Method</label>
+                <select class="form-select" name="security_2fa_method">
+                  <option value="email" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'email') ? 'selected' : ''; ?>>
+                    Email OTP
+                  </option>
+                  <option value="sms" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'sms') ? 'selected' : ''; ?>>
+                    SMS OTP
+                  </option>
+                  <option value="app" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'app') ? 'selected' : ''; ?>>
+                    Authenticator App
+                  </option>
+                </select>
+              </div>
+              <div class="alert alert-info d-flex align-items-center mb-3">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <small>Two-factor authentication adds an extra layer of security to user accounts.</small>
+              </div>
+              <button type="submit" class="btn btn-warning w-100 text-white">
+                <i class="bi bi-check-lg me-1"></i> Save 2FA Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- IP Security & Access Control -->
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-globe text-danger me-2"></i>IP Security & Access Control
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityIPForm">
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_enable_ip_whitelist" value="yes" 
+                         <?php echo (isset($settings['security_enable_ip_whitelist']) && $settings['security_enable_ip_whitelist'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_enable_ip_whitelist">
+                  <label class="form-check-label" for="security_enable_ip_whitelist">
+                    Enable IP Whitelist
+                  </label>
+                </div>
+                <div class="form-text">Restrict access to specific IP addresses</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Allowed IP Addresses</label>
+                <textarea class="form-control" name="security_allowed_ips" rows="4" 
+                          placeholder="192.168.1.1&#10;10.0.0.0/24&#10;203.0.113.0/24"><?php echo htmlspecialchars(isset($settings['security_allowed_ips']) ? $settings['security_allowed_ips'] : ''); ?></textarea>
+                <div class="form-text">One IP or CIDR range per line (e.g., 192.168.1.1 or 10.0.0.0/24)</div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="security_log_failed_attempts" value="yes" 
+                         <?php echo (isset($settings['security_log_failed_attempts']) && $settings['security_log_failed_attempts'] === 'yes') ? 'checked' : ''; ?> 
+                         id="security_log_failed_attempts">
+                  <label class="form-check-label" for="security_log_failed_attempts">
+                    Log Failed Login Attempts
+                  </label>
+                </div>
+                <div class="form-text">Keep a record of failed login attempts for security auditing</div>
+              </div>
+              <div class="alert alert-warning d-flex align-items-center mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <small>Be careful with IP restrictions. Make sure your own IP is included in the whitelist.</small>
+              </div>
+              <button type="submit" class="btn btn-danger w-100">
+                <i class="bi bi-check-lg me-1"></i> Save IP Security Settings
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Audit & Logs -->
+      <div class="col-12">
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-light border-0">
+            <h6 class="mb-0 fw-bold">
+              <i class="bi bi-clipboard-data text-info me-2"></i>Security Audit & Monitoring
+            </h6>
+          </div>
+          <div class="card-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityAuditForm">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="security_audit_login" value="yes" 
+                           <?php echo (isset($settings['security_audit_login']) && $settings['security_audit_login'] === 'yes') ? 'checked' : ''; ?> 
+                           id="security_audit_login">
+                    <label class="form-check-label fw-semibold" for="security_audit_login">
+                      Log All Login Attempts
+                    </label>
+                  </div>
+                  <div class="form-text">Record successful and failed login attempts</div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="security_audit_settings" value="yes" 
+                           <?php echo (isset($settings['security_audit_settings']) && $settings['security_audit_settings'] === 'yes') ? 'checked' : ''; ?> 
+                           id="security_audit_settings">
+                    <label class="form-check-label fw-semibold" for="security_audit_settings">
+                      Log Settings Changes
+                    </label>
+                  </div>
+                  <div class="form-text">Track all modifications to system settings</div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="security_audit_data" value="yes" 
+                           <?php echo (isset($settings['security_audit_data']) && $settings['security_audit_data'] === 'yes') ? 'checked' : ''; ?> 
+                           id="security_audit_data">
+                    <label class="form-check-label fw-semibold" for="security_audit_data">
+                      Log Data Changes
+                    </label>
+                  </div>
+                  <div class="form-text">Monitor critical data modifications</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Log Retention (days)</label>
+                  <input type="number" class="form-control" name="security_log_retention" 
+                         value="<?php echo htmlspecialchars(isset($settings['security_log_retention']) ? $settings['security_log_retention'] : '90'); ?>" 
+                         min="30" max="365" />
+                  <div class="form-text">How long to keep security logs (30-365 days)</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">&nbsp;</label>
+                  <div class="d-grid">
+                    <button type="submit" class="btn btn-info text-white">
+                      <i class="bi bi-check-lg me-1"></i> Save Audit Settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -467,6 +1222,173 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+// Security tab enhancements
+document.addEventListener('DOMContentLoaded', function() {
+  // Add smooth transitions to security cards
+  const securityCards = document.querySelectorAll('#security .card');
+  securityCards.forEach(card => {
+    card.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-2px)';
+      this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+    });
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0)';
+      this.style.boxShadow = '';
+    });
+  });
+
+  // Notification Messages Functions
+  function resetNotificationMessage(key, defaultValue) {
+    const input = document.querySelector(`input[name="${key}"]`);
+    if (input) {
+      input.value = defaultValue;
+    }
+  }
+
+  function resetAllNotificationMessages() {
+    if (confirm('Are you sure you want to reset all notification messages to their defaults? This will undo any customizations you have made.')) {
+      const inputs = document.querySelectorAll('#notificationMessagesForm input[data-default]');
+      inputs.forEach(input => {
+        input.value = input.getAttribute('data-default');
+      });
+    }
+  }
+
+  // Form submission handling for notification messages form
+  const notificationMessagesForm = document.getElementById('notificationMessagesForm');
+  if (notificationMessagesForm) {
+    notificationMessagesForm.addEventListener('submit', function(e) {
+      const submitBtn = this.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        const originalHTML = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+        
+        // Re-enable after 2 seconds in case of error
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalHTML;
+        }, 2000);
+      }
+    });
+  }
+
+  // Form submission handling for security forms
+  const securityForms = document.querySelectorAll('#security form');
+  securityForms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+      const submitBtn = this.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        const originalHTML = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+        
+        // Re-enable after 2 seconds in case of error
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalHTML;
+        }, 2000);
+      }
+    });
+  });
+
+  // IP whitelist toggle
+  const ipWhitelistToggle = document.getElementById('security_enable_ip_whitelist');
+  const ipTextarea = document.querySelector('textarea[name="security_allowed_ips"]');
+  if (ipWhitelistToggle && ipTextarea) {
+    function toggleIPField() {
+      ipTextarea.disabled = !ipWhitelistToggle.checked;
+      ipTextarea.style.opacity = ipWhitelistToggle.checked ? '1' : '0.5';
+    }
+    toggleIPField();
+    ipWhitelistToggle.addEventListener('change', toggleIPField);
+  }
+
+  // 2FA toggle
+  const enable2FAToggle = document.getElementById('security_enable_2fa');
+  const twoFAMethod = document.querySelector('select[name="security_2fa_method"]');
+  const twoFARequiredAdmin = document.getElementById('security_2fa_required_admin');
+  if (enable2FAToggle) {
+    function toggle2FAFields() {
+      const isEnabled = enable2FAToggle.checked;
+      if (twoFAMethod) {
+        twoFAMethod.disabled = !isEnabled;
+        twoFAMethod.style.opacity = isEnabled ? '1' : '0.5';
+      }
+      if (twoFARequiredAdmin) {
+        twoFARequiredAdmin.disabled = !isEnabled;
+        twoFARequiredAdmin.style.opacity = isEnabled ? '1' : '0.5';
+      }
+    }
+    toggle2FAFields();
+    enable2FAToggle.addEventListener('change', toggle2FAFields);
+  }
+});
 </script>
+
+<style>
+#security .card {
+  border: none;
+  transition: all 0.3s ease;
+}
+
+#security .card:hover {
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1) !important;
+}
+
+#security .bg-gradient {
+  border-radius: 0.5rem;
+}
+
+#security .form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+#security .alert {
+  border-left: 4px solid;
+  border-radius: 0.5rem;
+}
+
+#security .alert-info {
+  border-left-color: #0dcaf0;
+  background-color: #cff4fc;
+}
+
+#security .alert-warning {
+  border-left-color: #ffc107;
+  background-color: #fff3cd;
+}
+
+#security .card-header {
+  background-color: #f8f9fa !important;
+  border-bottom: 2px solid #e9ecef;
+  padding: 1rem 1.25rem;
+}
+
+#security .card-body {
+  padding: 1.5rem;
+}
+
+#security .btn {
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+#security .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 768px) {
+  #security .col-lg-6 {
+    margin-bottom: 1.5rem;
+  }
+}
+</style>
 
 <?php $this->load->view('partials/footer'); ?>

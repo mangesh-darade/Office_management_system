@@ -119,10 +119,14 @@ class Designations extends CI_Controller {
                 $description = 'Designation: ' . $data['designation_name'];
                 auto_log_insert('designations', 'designations', $id, $data, $description);
                 
-                $this->session->set_flashdata('success', 'Designation created successfully');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('designations', 'create', 'success');
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('designations'); return;
             } catch (Exception $e) {
-                $this->session->set_flashdata('error', 'Error creating designation: '.$e->getMessage());
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('designations', 'create', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('designations/create'); return;
             }
         }
@@ -180,10 +184,14 @@ class Designations extends CI_Controller {
                 $description = 'Designation: ' . $data['designation_name'];
                 track_changes_after('designations', 'designations', (int)$id, $old_data, $data, $description);
                 
-                $this->session->set_flashdata('success', 'Designation updated successfully');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('designations', 'update', 'success');
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('designations'); return;
             } catch (Exception $e) {
-                $this->session->set_flashdata('error', 'Error updating designation: '.$e->getMessage());
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('designations', 'update', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('designations/'.$id.'/edit'); return;
             }
         }
@@ -208,7 +216,9 @@ class Designations extends CI_Controller {
         $description = 'Designation removed';
         auto_log_delete('designations', 'designations', (int)$id, $old_data, $description);
         
-        $this->session->set_flashdata('success', 'Designation removed');
+        $this->load->helper('notification');
+        $success_msg = get_notification_message('designations', 'delete', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('designations');
     }
     
@@ -241,7 +251,9 @@ class Designations extends CI_Controller {
         if ($result) {
             $this->load->helper('activity');
             log_activity('designations', 'restored', $id, 'Designation restored');
-            $this->session->set_flashdata('success', 'Designation restored successfully');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('designations', 'restore', 'success');
+            $this->session->set_flashdata('success', $success_msg);
         } else {
             // Check if it's a code conflict
             $this->db->from('designations');

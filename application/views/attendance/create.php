@@ -158,10 +158,11 @@
         </div>
 
         <!-- Face Verification -->
-        <div class="row mb-4">
+        <?php $face_verification_enabled = isset($face_verification_enabled) ? $face_verification_enabled : true; ?>
+        <div class="row mb-4" id="faceVerificationSection" style="<?php echo $face_verification_enabled ? '' : 'display: none;'; ?>">
           <div class="col-12 col-md-8 col-lg-6 mx-auto">
             <label class="form-label fw-semibold">
-              <i class="bi bi-camera"></i> Face Verification
+              <i class="bi bi-camera"></i> Face Verification <?php echo $face_verification_enabled ? '<span class="text-danger">*</span>' : ''; ?>
             </label>
             <div class="position-relative">
               <video id="attFaceVideo" class="w-100 rounded border shadow-sm" 
@@ -189,7 +190,7 @@
               <i class="bi bi-check-circle"></i> Mark Attendance
             </button>
             <div class="small text-muted mt-2" id="validationStatus">
-              <i class="bi bi-info-circle"></i> Please complete all mandatory fields: Location, Face Verification
+              <i class="bi bi-info-circle"></i> Please complete all mandatory fields: Location<?php echo $face_verification_enabled ? ', Face Verification' : ''; ?>
             </div>
           </div>
         </div>
@@ -226,6 +227,9 @@
           var modelsLoaded = false;
           var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
           
+          // Check if face verification is required from PHP setting
+          var faceVerificationRequired = <?php echo $face_verification_enabled ? 'true' : 'false'; ?>;
+          
           // Function to validate mandatory fields and enable/disable submit button
           function validateMandatoryFields() {
             var latEl = document.querySelector('input[name="lat"]');
@@ -235,7 +239,7 @@
             var faceDesc = faceDescEl ? faceDescEl.value : '';
             
             var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
-            var faceValid = faceDesc && faceDesc.trim() !== '';
+            var faceValid = !faceVerificationRequired || (faceDesc && faceDesc.trim() !== '');
             
             if (submitBtn) {
               if (locationValid && faceValid) {
@@ -253,7 +257,7 @@
                 submitBtn.classList.add('btn-secondary');
                 var missingFields = [];
                 if (!locationValid) missingFields.push('Location');
-                if (!faceValid) missingFields.push('Face Verification');
+                if (faceVerificationRequired && !faceDesc) missingFields.push('Face Verification');
                 if (validationStatus) {
                   validationStatus.innerHTML = '<i class="bi bi-info-circle"></i> Please complete all mandatory fields: ' + missingFields.join(', ');
                   validationStatus.classList.remove('text-success', 'text-danger');
@@ -337,13 +341,13 @@
               var faceDesc = faceDescEl ? faceDescEl.value : '';
               
               var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
-              var faceValid = faceDesc && faceDesc.trim() !== '';
+              var faceValid = !faceVerificationRequired || (faceDesc && faceDesc.trim() !== '');
               
               if (!locationValid || !faceValid) {
                 e.preventDefault();
                 var missingFields = [];
                 if (!locationValid) missingFields.push('Location');
-                if (!faceValid) missingFields.push('Face Verification');
+                if (faceVerificationRequired && !faceDesc) missingFields.push('Face Verification');
                 showCustomToast('Please complete all mandatory fields: ' + missingFields.join(', '), 'error', 5000);
                 return false;
               }
@@ -371,8 +375,8 @@
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
               }
               
-              // Ensure face_required is set to 1
-              if (faceReqEl) faceReqEl.value = '1';
+              // Ensure face_required is set based on setting
+              if (faceReqEl) faceReqEl.value = faceVerificationRequired ? '1' : '0';
               
               return true;
             });
@@ -624,6 +628,12 @@
           }
           
           function startCameraAfterLocation() {
+            // Start camera only if face verification is required
+            if (!faceVerificationRequired) {
+              // Face verification disabled, skip camera
+              validateMandatoryFields();
+              return;
+            }
             // Start camera now that location is captured
             showToast('Starting camera for face verification...', 'info');
             if (btnVerify) {

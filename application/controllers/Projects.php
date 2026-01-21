@@ -119,10 +119,14 @@ class Projects extends CI_Controller {
                 $description = 'Project: ' . (string)$data['name'];
                 auto_log_insert('projects', 'projects', (int)$id, $data, $description);
                 
-                $this->session->set_flashdata('success', 'Project created successfully');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('projects', 'create', 'success');
+                $this->session->set_flashdata('success', $success_msg);
             } catch (Exception $e) {
                 log_message('error', 'Project creation error: ' . $e->getMessage());
-                $this->session->set_flashdata('error', 'Failed to create project. Please try again.');
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('projects', 'create', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('projects/create');
                 return;
             }
@@ -266,12 +270,16 @@ class Projects extends CI_Controller {
                 $description = 'Project: ' . (string)$data['name'];
                 track_changes_after('projects', 'projects', (int)$id, $old_data, $data, $description);
                 
-                $this->session->set_flashdata('success', 'Project updated successfully');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('projects', 'update', 'success');
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('projects/'.$id);
                 return;
             } catch (Exception $e) {
                 log_message('error', 'Project update error: ' . $e->getMessage());
-                $this->session->set_flashdata('error', 'Failed to update project. Please try again.');
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('projects', 'update', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('projects/'.$id.'/edit');
                 return;
             }
@@ -322,7 +330,9 @@ class Projects extends CI_Controller {
             $description = 'Project deleted: ' . $project->name;
             auto_log_delete('projects', 'projects', (int)$id, $old_data, $description);
             
-            $this->session->set_flashdata('success', 'Project deleted successfully');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('projects', 'delete', 'success');
+            $this->session->set_flashdata('success', $success_msg);
         } catch (Exception $e) {
             log_message('error', 'Project deletion error: ' . $e->getMessage());
             $this->session->set_flashdata('error', 'Failed to delete project. Please try again.');
@@ -472,7 +482,9 @@ class Projects extends CI_Controller {
             if ($ok) {
                 $this->load->helper('activity');
                 log_activity('projects', 'assigned', $project_id, 'Added member user#'.$user_id.' as '.$role);
-                $this->session->set_flashdata('success', 'Member added successfully.');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('projects', 'member_add', 'success');
+                $this->session->set_flashdata('success', $success_msg);
             } else {
                 $this->session->set_flashdata('error', 'Failed to add member. Please try again.');
             }
@@ -501,7 +513,11 @@ class Projects extends CI_Controller {
         $this->load->model('Project_model');
         $ok = $this->Project_model->remove_member($project_id, $user_id);
         if ($ok) { $this->load->helper('activity'); log_activity('projects', 'updated', $project_id, 'Removed member user#'.$user_id); }
-        if ($ok) { $this->session->set_flashdata('success', 'Member removed.'); }
+        $this->load->helper('notification');
+        if ($ok) { 
+            $success_msg = get_notification_message('projects', 'member_remove', 'success');
+            $this->session->set_flashdata('success', $success_msg);
+        }
         else { $this->session->set_flashdata('error', 'Failed to remove member.'); }
         redirect('projects/'.$project_id.'/members');
     }

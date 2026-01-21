@@ -5,7 +5,9 @@ class Auth extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->model('User_model');
-        $this->load->helper('cookie'); // Load cookie helper for set_cookie() function
+        $this->load->model('Setting_model', 'settings');
+        $this->load->model('Security_audit_model', 'audit');
+        $this->load->helper(['cookie', 'password']); // Load cookie and password helpers
         // Note: Security is a core class, automatically available as $this->security
         
         // Store intended URL for redirect after login
@@ -58,20 +60,41 @@ class Auth extends CI_Controller {
                 }
             }
 
-            // Rate limiting: check recent failed attempts from this IP
-            $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
-            $rate_limit_key = 'login_attempts_' . md5($ip);
-            $attempts = $this->session->userdata($rate_limit_key) ?: 0;
-            $last_attempt = $this->session->userdata($rate_limit_key . '_time') ?: 0;
-            
-            // Lock out after 5 failed attempts for 15 minutes
-            if ($attempts >= 5 && (time() - $last_attempt) < 900) {
+            // Check IP Whitelist first
+            if (!$this->check_ip_whitelist()) {
                 if ($is_ajax) {
                     header('Content-Type: application/json');
-                    echo json_encode(['success' => false, 'error' => 'Too many failed attempts. Please try again in 15 minutes.']);
+                    echo json_encode(['success' => false, 'error' => 'Access denied. Your IP address is not authorized.']);
                     exit;
                 } else {
-                    $this->session->set_flashdata('error', 'Too many failed attempts. Please try again in 15 minutes.');
+                    $this->session->set_flashdata('error', 'Access denied. Your IP address is not authorized.');
+                    redirect('auth/login');
+                    return;
+                }
+            }
+            
+            // Rate limiting: check recent failed attempts from this IP using settings
+            $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+            $max_attempts = (int)$this->settings->get_setting('security_max_login_attempts', 5);
+            $lockout_duration = (int)$this->settings->get_setting('security_lockout_duration', 15); // minutes
+            
+            // Check failed attempts from database or session
+            $attempt_check = $this->check_login_attempts($identifier, $ip, $max_attempts, $lockout_duration);
+            if ($attempt_check['locked']) {
+                $minutes = $attempt_check['minutes'];
+                $error_msg = "Too many failed attempts. Account locked for {$minutes} minutes.";
+                
+                // Log failed attempt if enabled
+                if ($this->settings->get_setting('security_log_failed_attempts', 'no') === 'yes') {
+                    $this->audit->log('login_locked', null, "IP: {$ip}, Identifier: " . substr($identifier, 0, 3) . '***', $ip);
+                }
+                
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => $error_msg]);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', $error_msg);
                     redirect('auth/login');
                     return;
                 }
@@ -86,7 +109,13 @@ class Auth extends CI_Controller {
             }
             
             if (!$user) {
-                $this->_record_failed_attempt($rate_limit_key, $attempts, $last_attempt);
+                $this->record_failed_attempt($identifier, $ip, $max_attempts, $lockout_duration);
+                
+                // Log failed attempt if enabled
+                if ($this->settings->get_setting('security_log_failed_attempts', 'no') === 'yes') {
+                    $this->audit->log('login_failed', null, "Invalid identifier: " . substr($identifier, 0, 3) . '***', $ip);
+                }
+                
                 if ($is_ajax) {
                     header('Content-Type: application/json');
                     echo json_encode(['success' => false, 'error' => 'Invalid credentials. Please check your email/phone and password.']);
@@ -100,7 +129,13 @@ class Auth extends CI_Controller {
 
             // Verify password
             if (!password_verify($password, $user->password_hash)) {
-                $this->_record_failed_attempt($rate_limit_key, $attempts, $last_attempt);
+                $this->record_failed_attempt($identifier, $ip, $max_attempts, $lockout_duration);
+                
+                // Log failed attempt if enabled
+                if ($this->settings->get_setting('security_log_failed_attempts', 'no') === 'yes') {
+                    $this->audit->log('login_failed', $user->id, "Invalid password for user ID: {$user->id}", $ip);
+                }
+                
                 if ($is_ajax) {
                     header('Content-Type: application/json');
                     echo json_encode(['success' => false, 'error' => 'Invalid credentials. Please check your email/phone and password.']);
@@ -108,6 +143,20 @@ class Auth extends CI_Controller {
                 } else {
                     $this->session->set_flashdata('error', 'Invalid credentials');
                     redirect('auth/login');
+                    return;
+                }
+            }
+            
+            // Check password expiry
+            if (!$this->check_password_expiry($user)) {
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'error' => 'Your password has expired. Please reset your password.', 'expired' => true]);
+                    exit;
+                } else {
+                    $this->session->set_flashdata('error', 'Your password has expired. Please reset your password.');
+                    $this->session->set_userdata('user_id', $user->id); // Set user_id for password reset
+                    redirect('auth/reset_password?expired=1');
                     return;
                 }
             }
@@ -142,10 +191,15 @@ class Auth extends CI_Controller {
             }
 
             // Clear failed attempts on successful login
-            $this->session->unset_userdata([$rate_limit_key, $rate_limit_key . '_time']);
+            $this->clear_failed_attempts($identifier, $ip);
 
             // Clear any password reset session data on successful login
             $this->session->unset_userdata(['pw_reset_phone','pw_reset_code_hash','pw_reset_expires']);
+            
+            // Check Single Session setting
+            if ($this->settings->get_setting('security_single_session', 'no') === 'yes') {
+                $this->destroy_other_sessions($user->id);
+            }
             
             // Regenerate session ID on login for security (prevents session fixation)
             $this->session->sess_regenerate(TRUE);
@@ -154,14 +208,55 @@ class Auth extends CI_Controller {
             $this->session->set_userdata('user_id', (int)$user->id);
             $this->session->set_userdata('role_id', (int)$user->role_id);
             $this->session->set_userdata('email', $user->email);
+            $this->session->set_userdata('last_activity', time()); // Track activity for timeout
+            $this->session->set_userdata('session_id', session_id()); // Store session ID for single session check
             
-            // Remember me functionality
-            if ($remember) {
+            // Remember me functionality (only if enabled)
+            $remember_enabled = ($this->settings->get_setting('security_remember_me', 'no') === 'yes');
+            if ($remember && $remember_enabled) {
                 $this->_set_remember_cookie($user);
             }
 
             // Record login details
             $this->_record_login($user);
+            
+            // Log successful login if enabled
+            if ($this->settings->get_setting('security_audit_login', 'no') === 'yes') {
+                $this->audit->log('login_success', $user->id, "User logged in successfully", $ip);
+            }
+            
+            // Check if 2FA is required
+            $require_2fa = $this->check_2fa_required($user);
+            if ($require_2fa) {
+                // Store pending login in session
+                $this->session->set_userdata('pending_login_user_id', $user->id);
+                $this->session->set_userdata('pending_login_ip', $ip);
+                
+                // Generate and send OTP
+                $otp_result = $this->send_2fa_otp($user);
+                
+                if (!$otp_result['success']) {
+                    if ($is_ajax) {
+                        header('Content-Type: application/json');
+                        echo json_encode(['success' => false, 'error' => $otp_result['error']]);
+                        exit;
+                    } else {
+                        $this->session->set_flashdata('error', $otp_result['error']);
+                        redirect('auth/login');
+                        return;
+                    }
+                }
+                
+                // Redirect to 2FA verification
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => true, 'require_2fa' => true, 'redirect' => site_url('auth/verify-2fa')]);
+                    exit;
+                } else {
+                    redirect('auth/verify-2fa');
+                    return;
+                }
+            }
 
             // Handle AJAX response
             if ($is_ajax) {
@@ -200,7 +295,355 @@ class Auth extends CI_Controller {
         $this->load->view('auth/login');
     }
 
+    /**
+     * Check IP whitelist
+     * @return bool True if IP is allowed
+     */
+    private function check_ip_whitelist() {
+        $ip_whitelist_enabled = $this->settings->get_setting('security_ip_whitelist_enabled', 'no');
+        if ($ip_whitelist_enabled !== 'yes') {
+            return true; // IP whitelist not enabled
+        }
+        
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+        if (empty($ip)) {
+            return false;
+        }
+        
+        $whitelist = $this->settings->get_setting('security_ip_whitelist', '');
+        if (empty($whitelist)) {
+            return true; // No whitelist configured, allow all
+        }
+        
+        $allowed_ips = array_map('trim', explode(',', $whitelist));
+        
+        // Check exact match
+        if (in_array($ip, $allowed_ips)) {
+            return true;
+        }
+        
+        // Check CIDR notation (basic support)
+        foreach ($allowed_ips as $allowed_ip) {
+            if (strpos($allowed_ip, '/') !== false) {
+                // CIDR notation
+                list($subnet, $mask) = explode('/', $allowed_ip);
+                if ($this->ip_in_range($ip, $subnet, $mask)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Check if IP is in CIDR range
+     */
+    private function ip_in_range($ip, $subnet, $mask) {
+        $ip_long = ip2long($ip);
+        $subnet_long = ip2long($subnet);
+        $mask_long = -1 << (32 - (int)$mask);
+        return ($ip_long & $mask_long) === ($subnet_long & $mask_long);
+    }
+    
+    /**
+     * Check login attempts for identifier/IP combination
+     */
+    private function check_login_attempts($identifier, $ip, $max_attempts, $lockout_duration) {
+        // Check in database for persistent tracking
+        $this->load->database();
+        if (!$this->db->table_exists('login_attempts')) {
+            // Create table if not exists
+            $sql = "CREATE TABLE IF NOT EXISTS `login_attempts` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `identifier` varchar(255) NOT NULL,
+                `ip_address` varchar(45) NOT NULL,
+                `attempts` int(11) DEFAULT 1,
+                `last_attempt` datetime DEFAULT CURRENT_TIMESTAMP,
+                `locked_until` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_identifier_ip` (`identifier`, `ip_address`),
+                KEY `idx_locked_until` (`locked_until`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+            $this->db->query($sql);
+        }
+        
+        $key = md5($identifier . '|' . $ip);
+        $attempt = $this->db->where('identifier', $identifier)
+                            ->where('ip_address', $ip)
+                            ->get('login_attempts')
+                            ->row();
+        
+        if (!$attempt) {
+            return ['locked' => false, 'minutes' => 0];
+        }
+        
+        // Check if locked
+        if ($attempt->locked_until && strtotime($attempt->locked_until) > time()) {
+            $minutes = ceil((strtotime($attempt->locked_until) - time()) / 60);
+            return ['locked' => true, 'minutes' => $minutes];
+        }
+        
+        // Check if attempts exceed limit
+        if ($attempt->attempts >= $max_attempts) {
+            // Check if lockout period has passed
+            $last_attempt_time = strtotime($attempt->last_attempt);
+            $lockout_seconds = $lockout_duration * 60;
+            
+            if ((time() - $last_attempt_time) < $lockout_seconds) {
+                $minutes = ceil(($lockout_seconds - (time() - $last_attempt_time)) / 60);
+                // Update locked_until
+                $this->db->where('id', $attempt->id)
+                         ->update('login_attempts', [
+                             'locked_until' => date('Y-m-d H:i:s', time() + $lockout_seconds)
+                         ]);
+                return ['locked' => true, 'minutes' => $minutes];
+            } else {
+                // Reset attempts after lockout period
+                $this->db->where('id', $attempt->id)
+                         ->update('login_attempts', [
+                             'attempts' => 0,
+                             'locked_until' => null
+                         ]);
+            }
+        }
+        
+        return ['locked' => false, 'minutes' => 0];
+    }
+    
+    /**
+     * Record failed login attempt
+     */
+    private function record_failed_attempt($identifier, $ip, $max_attempts, $lockout_duration) {
+        $this->load->database();
+        if (!$this->db->table_exists('login_attempts')) {
+            return; // Table will be created on next check
+        }
+        
+        $attempt = $this->db->where('identifier', $identifier)
+                            ->where('ip_address', $ip)
+                            ->get('login_attempts')
+                            ->row();
+        
+        $now = date('Y-m-d H:i:s');
+        
+        if ($attempt) {
+            $new_attempts = $attempt->attempts + 1;
+            $locked_until = null;
+            
+            // Lock if max attempts reached
+            if ($new_attempts >= $max_attempts) {
+                $locked_until = date('Y-m-d H:i:s', time() + ($lockout_duration * 60));
+            }
+            
+            $this->db->where('id', $attempt->id)
+                     ->update('login_attempts', [
+                         'attempts' => $new_attempts,
+                         'last_attempt' => $now,
+                         'locked_until' => $locked_until
+                     ]);
+        } else {
+            $this->db->insert('login_attempts', [
+                'identifier' => $identifier,
+                'ip_address' => $ip,
+                'attempts' => 1,
+                'last_attempt' => $now
+            ]);
+        }
+    }
+    
+    /**
+     * Clear failed login attempts
+     */
+    private function clear_failed_attempts($identifier, $ip) {
+        $this->load->database();
+        if ($this->db->table_exists('login_attempts')) {
+            $this->db->where('identifier', $identifier)
+                     ->where('ip_address', $ip)
+                     ->delete('login_attempts');
+        }
+    }
+    
+    /**
+     * Check if password has expired
+     */
+    private function check_password_expiry($user) {
+        $password_expiry_enabled = $this->settings->get_setting('security_password_expiry_enabled', 'no');
+        if ($password_expiry_enabled !== 'yes') {
+            return true; // Password expiry not enabled
+        }
+        
+        $expiry_days = (int)$this->settings->get_setting('security_password_expiry_days', 90);
+        if ($expiry_days <= 0) {
+            return true; // No expiry configured
+        }
+        
+        // Check if password_changed_at field exists
+        if (!$this->db->field_exists('password_changed_at', 'users')) {
+            return true; // Field doesn't exist, assume not expired
+        }
+        
+        if (empty($user->password_changed_at)) {
+            // Password never changed, consider expired if account is older than expiry_days
+            if (!empty($user->created_at)) {
+                $created_time = strtotime($user->created_at);
+                $expiry_time = $created_time + ($expiry_days * 86400);
+                return time() < $expiry_time;
+            }
+            return true;
+        }
+        
+        $changed_time = strtotime($user->password_changed_at);
+        $expiry_time = $changed_time + ($expiry_days * 86400);
+        
+        return time() < $expiry_time;
+    }
+    
+    /**
+     * Destroy other sessions for single session enforcement
+     */
+    private function destroy_other_sessions($user_id) {
+        // This is a simplified implementation
+        // In production, you might want to store session IDs in database
+        // For now, we'll just ensure only the current session is valid
+        $current_session_id = session_id();
+        
+        // Store current session ID in user's session data (already done in login method)
+        // Any other session checks can be done in AuthHook
+    }
+    
+    /**
+     * Check if 2FA is required for user
+     */
+    private function check_2fa_required($user) {
+        $require_2fa = $this->settings->get_setting('security_2fa_enabled', 'no');
+        if ($require_2fa !== 'yes') {
+            return false; // 2FA not enabled
+        }
+        
+        // Check if 2FA is enabled for this specific user (if field exists)
+        if ($this->db->field_exists('two_factor_enabled', 'users')) {
+            // Allow per-user 2FA settings
+            return (isset($user->two_factor_enabled) && $user->two_factor_enabled == 1);
+        }
+        
+        // Global 2FA setting applies to all users
+        return true;
+    }
+    
+    /**
+     * Send 2FA OTP to user
+     */
+    private function send_2fa_otp($user) {
+        try {
+            if (!function_exists('random_int')) {
+                $code = mt_rand(100000, 999999);
+            } else {
+                $code = random_int(100000, 999999);
+            }
+        } catch (Exception $e) {
+            $code = mt_rand(100000, 999999);
+        }
+        
+        // Store OTP in session
+        $this->session->set_userdata([
+            '2fa_otp_hash' => password_hash((string)$code, PASSWORD_DEFAULT),
+            '2fa_otp_expires' => time() + 300, // 5 minutes
+        ]);
+        
+        // Send OTP via email
+        try {
+            $this->config->load('email');
+            $this->load->library('email');
+            $this->load->helper('email');
+            configure_email_from_settings();
+            $this->email->clear(true);
+            $from = get_system_from_email();
+            if (!$from) { $from = 'no-reply@example.com'; }
+            $this->email->from($from, get_company_name());
+            $this->email->to($user->email);
+            $this->email->subject('Your Two-Factor Authentication Code');
+            $message = '<p>Your 2FA verification code is <strong>'.htmlspecialchars((string)$code, ENT_QUOTES, 'UTF-8').'</strong>.</p>';
+            $message .= '<p>It will expire in 5 minutes.</p>';
+            $this->email->message($message);
+            if (!$this->email->send()) {
+                return ['success' => false, 'error' => 'Failed to send 2FA code. Please try again.'];
+            }
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => 'Error sending 2FA code. Please try again.'];
+        }
+        
+        return ['success' => true];
+    }
+    
+    /**
+     * 2FA verification page
+     */
+    public function verify_2fa() {
+        $pending_user_id = (int)$this->session->userdata('pending_login_user_id');
+        
+        if (!$pending_user_id) {
+            $this->session->set_flashdata('error', 'Invalid 2FA verification request.');
+            redirect('auth/login');
+            return;
+        }
+        
+        if ($this->input->method() === 'post') {
+            $code = trim((string)$this->input->post('code'));
+            $otp_hash = (string)$this->session->userdata('2fa_otp_hash');
+            $otp_expires = (int)$this->session->userdata('2fa_otp_expires');
+            
+            if (empty($code) || empty($otp_hash) || !$otp_expires || time() > $otp_expires) {
+                $this->session->set_flashdata('error', 'Invalid or expired 2FA code. Please try again.');
+                redirect('auth/verify-2fa');
+                return;
+            }
+            
+            if (!password_verify($code, $otp_hash)) {
+                $this->session->set_flashdata('error', 'Invalid 2FA code. Please check and try again.');
+                redirect('auth/verify-2fa');
+                return;
+            }
+            
+            // 2FA verified, complete login
+            $user = $this->User_model->get($pending_user_id);
+            if (!$user) {
+                $this->session->set_flashdata('error', 'User not found.');
+                redirect('auth/login');
+                return;
+            }
+            
+            // Clear 2FA session data
+            $this->session->unset_userdata(['2fa_otp_hash', '2fa_otp_expires', 'pending_login_user_id', 'pending_login_ip']);
+            
+            // Regenerate session ID
+            $this->session->sess_regenerate(TRUE);
+            
+            // Set session data
+            $this->session->set_userdata('user_id', (int)$user->id);
+            $this->session->set_userdata('role_id', (int)$user->role_id);
+            $this->session->set_userdata('email', $user->email);
+            $this->session->set_userdata('last_activity', time());
+            $this->session->set_userdata('session_id', session_id());
+            
+            // Log 2FA success
+            $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+            if ($this->settings->get_setting('security_audit_login', 'no') === 'yes') {
+                $this->audit->log('2fa_verified', $user->id, "2FA verified successfully", $ip);
+            }
+            
+            // Redirect to dashboard
+            $redirect_url = $this->session->userdata('redirect_url') ?: 'dashboard';
+            $this->session->unset_userdata('redirect_url');
+            redirect($redirect_url);
+            return;
+        }
+        
+        $this->load->view('auth/verify_2fa');
+    }
+    
     private function _record_failed_attempt($key, $attempts, $last_attempt) {
+        // Legacy method - kept for backward compatibility
         $new_attempts = $attempts + 1;
         $this->session->set_userdata($key, $new_attempts);
         $this->session->set_userdata($key . '_time', time());
@@ -327,8 +770,10 @@ class Auth extends CI_Controller {
         try {
             $this->config->load('email');
             $this->load->library('email');
+            $this->load->helper('email');
+            configure_email_from_settings();
             $this->email->clear(true);
-            $from = $this->config->item('smtp_user');
+            $from = get_system_from_email();
             if (!$from) { $from = 'no-reply@example.com'; }
             $this->email->from($from, get_company_name());
             $this->email->to($email);
@@ -491,8 +936,10 @@ class Auth extends CI_Controller {
             try {
                 $this->config->load('email');
                 $this->load->library('email');
+                $this->load->helper('email');
+                configure_email_from_settings();
                 $this->email->clear(true);
-                $from = $this->config->item('smtp_user');
+                $from = get_system_from_email();
                 if (!$from) { $from = 'no-reply@example.com'; }
                 $this->email->from($from, get_company_name());
                 $this->email->to($user->email);
@@ -551,15 +998,9 @@ class Auth extends CI_Controller {
                 redirect('auth/reset_password');
                 return;
             }
-            // Validate password strength
+            // Validate password strength using settings
             $this->load->helper('password');
-            $validation = validate_password_strength($password, [
-                'min_length' => 8,
-                'require_uppercase' => true,
-                'require_lowercase' => true,
-                'require_number' => true,
-                'require_special' => false
-            ]);
+            $validation = validate_password_strength($password); // Uses settings automatically
             
             if (!$validation['valid']) {
                 $this->session->set_flashdata('error', implode(' ', $validation['errors']));
@@ -666,15 +1107,9 @@ class Auth extends CI_Controller {
                 redirect('auth/register');
                 return;
             }
-            // Validate password strength
+            // Validate password strength using settings
             $this->load->helper('password');
-            $validation = validate_password_strength($password, [
-                'min_length' => 8,
-                'require_uppercase' => true,
-                'require_lowercase' => true,
-                'require_number' => true,
-                'require_special' => false
-            ]);
+            $validation = validate_password_strength($password); // Uses settings automatically
             
             if (!$validation['valid']) {
                 $this->session->set_flashdata('error', implode(' ', $validation['errors']));
@@ -778,8 +1213,10 @@ class Auth extends CI_Controller {
                 try {
                     $this->config->load('email');
                     $this->load->library('email');
+                    $this->load->helper('email');
+                    configure_email_from_settings();
                     $this->email->clear(true);
-                    $from = $this->config->item('smtp_user');
+                    $from = get_system_from_email();
                     if (!$from) { $from = 'no-reply@example.com'; }
                     $this->email->from($from, get_company_name());
                     $this->email->to($email);

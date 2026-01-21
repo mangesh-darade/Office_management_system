@@ -119,10 +119,14 @@ class Departments extends CI_Controller {
                 $description = 'Department: ' . $data['dept_name'];
                 auto_log_insert('departments', 'departments', $id, $data, $description);
                 
-                $this->session->set_flashdata('success', 'Department created successfully');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('departments', 'create', 'success');
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('departments'); return;
             } catch (Exception $e) {
-                $this->session->set_flashdata('error', 'Error creating department: '.$e->getMessage());
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('departments', 'create', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('departments/create'); return;
             }
         }
@@ -178,10 +182,14 @@ class Departments extends CI_Controller {
                 $description = 'Department: ' . $data['dept_name'];
                 track_changes_after('departments', 'departments', (int)$id, $old_data, $data, $description);
                 
-                $this->session->set_flashdata('success', 'Department updated successfully');
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('departments', 'update', 'success');
+                $this->session->set_flashdata('success', $success_msg);
                 redirect('departments'); return;
             } catch (Exception $e) {
-                $this->session->set_flashdata('error', 'Error updating department: '.$e->getMessage());
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('departments', 'update', 'error');
+                $this->session->set_flashdata('error', $error_msg);
                 redirect('departments/'.$id.'/edit'); return;
             }
         }
@@ -203,7 +211,9 @@ class Departments extends CI_Controller {
         $description = 'Department removed';
         auto_log_delete('departments', 'departments', (int)$id, $old_data, $description);
         
-        $this->session->set_flashdata('success', 'Department removed');
+        $this->load->helper('notification');
+        $success_msg = get_notification_message('departments', 'delete', 'success');
+        $this->session->set_flashdata('success', $success_msg);
         redirect('departments');
     }
     
@@ -236,7 +246,9 @@ class Departments extends CI_Controller {
         if ($result) {
             $this->load->helper('activity');
             log_activity('employees', 'restored', $id, 'Department restored');
-            $this->session->set_flashdata('success', 'Department restored successfully');
+            $this->load->helper('notification');
+            $success_msg = get_notification_message('departments', 'restore', 'success');
+            $this->session->set_flashdata('success', $success_msg);
         } else {
             // Check if it's a code conflict
             $this->db->from('departments');

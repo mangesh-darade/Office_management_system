@@ -210,7 +210,15 @@ class Users extends CI_Controller {
             }
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
         }
-        $this->_flash_redirect($ok, 'User created', 'users');
+        $this->load->helper('notification');
+        if ($ok) {
+            $success_msg = get_notification_message('users', 'create', 'success');
+            $this->session->set_flashdata('success', $success_msg);
+        } else {
+            $error_msg = get_notification_message('users', 'create', 'error');
+            $this->session->set_flashdata('error', $error_msg);
+        }
+        redirect('users');
     }
 
     public function edit($id = null) {
@@ -313,7 +321,15 @@ class Users extends CI_Controller {
             track_changes_after('users', 'users', $id, $old_data, $data, $description);
         }
         
-        $this->_flash_redirect($ok, 'User updated', 'users');
+        $this->load->helper('notification');
+        if ($ok) {
+            $success_msg = get_notification_message('users', 'update', 'success');
+            $this->session->set_flashdata('success', $success_msg);
+        } else {
+            $error_msg = get_notification_message('users', 'update', 'error');
+            $this->session->set_flashdata('error', $error_msg);
+        }
+        redirect('users');
     }
 
     public function delete($id = null) {
@@ -452,8 +468,14 @@ class Users extends CI_Controller {
     }
 
     private function _flash_redirect($ok, $msg, $to) {
-        if ($ok) { $this->session->set_flashdata('success', $msg); }
-        else { $this->session->set_flashdata('error', 'Operation failed'); }
+        $this->load->helper('notification');
+        if ($ok) { 
+            $success_msg = get_notification_message('users', 'delete', 'success');
+            $this->session->set_flashdata('success', $success_msg);
+        } else { 
+            $error_msg = get_notification_message('users', 'delete', 'error');
+            $this->session->set_flashdata('error', $error_msg);
+        }
         redirect($to);
     }
 
