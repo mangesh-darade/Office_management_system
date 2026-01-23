@@ -318,6 +318,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
+            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>

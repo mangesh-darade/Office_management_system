@@ -180,27 +180,22 @@ $stats['scheduled'] = $scheduled_count;
     <h5 class="mb-0">🚀 Quick Actions</h5>
   </div>
   <div class="card-body">
-    <div class="row g-2">
-      <div class="col-md-3">
-        <a href="<?php echo site_url('reminders/cron/morning'); ?>" class="btn btn-info w-100">
-          <i class="bi bi-sunrise me-2"></i>Queue Morning Reminders
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="<?php echo site_url('reminders/cron/night'); ?>" class="btn btn-warning w-100">
-          <i class="bi bi-moon me-2"></i>Queue Night Reminders
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="<?php echo site_url('reminders/cron/send-queue'); ?>" class="btn btn-success w-100">
-          <i class="bi bi-send-check me-2"></i>Send Queued Emails
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="<?php echo site_url('reminders/cron/generate-today'); ?>" class="btn btn-primary w-100">
-          <i class="bi bi-calendar-day me-2"></i>Generate Today's Schedule
-        </a>
-      </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="<?php echo site_url('reminders/cron/morning'); ?>" class="btn btn-info flex-fill d-flex justify-content-center align-items-center" title="Queue Morning Reminders">
+        <i class="bi bi-sunrise"></i>
+      </a>
+      <a href="<?php echo site_url('reminders/cron/night'); ?>" class="btn btn-warning flex-fill d-flex justify-content-center align-items-center" title="Queue Night Reminders">
+        <i class="bi bi-moon"></i>
+      </a>
+      <a href="<?php echo site_url('reminders/cron/send-queue'); ?>" class="btn btn-success flex-fill d-flex justify-content-center align-items-center" title="Send Queued Emails">
+        <i class="bi bi-send-check"></i>
+      </a>
+      <a href="<?php echo site_url('reminders/cron/generate-today'); ?>" class="btn btn-primary flex-fill d-flex justify-content-center align-items-center" title="Generate Today's Schedule">
+        <i class="bi bi-calendar-day"></i>
+      </a>
+      <button type="button" class="btn btn-outline-danger flex-fill d-flex justify-content-center align-items-center" id="quickDeleteSelectedBtn" title="Delete selected reminders">
+        <i class="bi bi-trash"></i>
+      </button>
     </div>
   </div>
 </div>
@@ -217,10 +212,14 @@ $stats['scheduled'] = $scheduled_count;
     </div>
   </div>
   <div class="card-body p-0">
+    <form method="post" action="<?php echo site_url('reminders/delete-selected'); ?>" id="bulkDeleteForm">
     <div class="table-responsive">
       <table class="table table-hover mb-0">
         <thead class="table-light">
           <tr>
+            <th style="width: 32px;">
+              <input type="checkbox" id="selectAllReminders">
+            </th>
             <th>User</th>
             <th>Subject</th>
             <th>Type</th>
@@ -233,7 +232,7 @@ $stats['scheduled'] = $scheduled_count;
         <tbody>
           <?php if (empty($rows)): ?>
             <tr>
-              <td colspan="7" class="text-center py-4 text-muted">
+              <td colspan="8" class="text-center py-4 text-muted">
                 <i class="bi bi-inbox" style="font-size: 2rem;"></i>
                 <div class="mt-2">No reminders found</div>
                 <a href="<?php echo site_url('reminders/send'); ?>" class="btn btn-primary btn-sm mt-2">
@@ -244,6 +243,9 @@ $stats['scheduled'] = $scheduled_count;
           <?php else: 
           foreach ($rows as $r): ?>
             <tr>
+              <td>
+                <input type="checkbox" name="ids[]" value="<?php echo (int)$r->id; ?>" class="reminder-checkbox">
+              </td>
               <td>
                 <div class="d-flex align-items-center">
                   <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 0.75rem;">
@@ -330,6 +332,18 @@ $stats['scheduled'] = $scheduled_count;
         </tbody>
       </table>
     </div>
+    <?php if (!empty($rows)): ?>
+    <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="text-muted small">
+        <span id="selectedCount">0</span> selected
+      </div>
+      <button type="submit" class="btn btn-outline-danger btn-sm"
+              onclick="return confirm('Delete selected reminders?');">
+        <i class="bi bi-trash me-1"></i>Delete Selected
+      </button>
+    </div>
+    <?php endif; ?>
+    </form>
     <?php if (!empty($pagination_links)): ?>
       <div class="card-footer bg-white">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -346,3 +360,49 @@ $stats['scheduled'] = $scheduled_count;
 </div>
 
 <?php $this->load->view('partials/footer'); ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var selectAll = document.getElementById('selectAllReminders');
+  var checkboxes = document.querySelectorAll('.reminder-checkbox');
+  var selectedCountEl = document.getElementById('selectedCount');
+  var quickDeleteBtn = document.getElementById('quickDeleteSelectedBtn');
+
+  function updateSelectedCount() {
+    var count = 0;
+    checkboxes.forEach(function(cb) { if (cb.checked) count++; });
+    if (selectedCountEl) selectedCountEl.textContent = count;
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      var checked = this.checked;
+      checkboxes.forEach(function(cb) { cb.checked = checked; });
+      updateSelectedCount();
+    });
+  }
+
+  checkboxes.forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      if (!this.checked && selectAll) {
+        selectAll.checked = false;
+      }
+      updateSelectedCount();
+    });
+  });
+
+  if (quickDeleteBtn) {
+    quickDeleteBtn.addEventListener('click', function () {
+      var anySelected = false;
+      checkboxes.forEach(function (cb) { if (cb.checked) anySelected = true; });
+      if (!anySelected) {
+        alert('Please select at least one reminder to delete.');
+        return;
+      }
+      if (confirm('Delete selected reminders?')) {
+        var form = document.getElementById('bulkDeleteForm');
+        if (form) form.submit();
+      }
+    });
+  }
+});
+</script>

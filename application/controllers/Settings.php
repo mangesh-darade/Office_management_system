@@ -9,8 +9,10 @@ class Settings extends CI_Controller {
         $this->load->helper(['url','form','activity']);
         $this->load->model('Setting_model','settings');
         $this->load->model('Leave_type_model','leave_types');
+        $this->load->model('Holiday_model','holidays');
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         $this->ensure_leave_types_schema();
+        $this->ensure_holidays_schema();
     }
 
     private function ensure_leave_types_schema(){
@@ -24,6 +26,37 @@ class Settings extends CI_Controller {
             }
             // Update existing records to active if status is null
             $this->db->query("UPDATE leave_types SET status = 'active' WHERE status IS NULL");
+        }
+    }
+
+    /**
+     * Ensure holidays table exists with required columns.
+     * This is used by Settings > Holidays and by leave/attendance helpers.
+     */
+    private function ensure_holidays_schema(){
+        if (!$this->db->table_exists('holidays')) {
+            $this->db->query("
+                CREATE TABLE IF NOT EXISTS holidays (
+                    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    holiday_date DATE NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+                    created_at DATETIME NULL,
+                    updated_at DATETIME NULL,
+                    UNIQUE KEY uq_holidays_date (holiday_date)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
+        } else {
+            // Ensure required columns exist
+            if (!$this->db->field_exists('status', 'holidays')) {
+                $this->db->query("ALTER TABLE holidays ADD COLUMN status ENUM('active','inactive') NOT NULL DEFAULT 'active' AFTER name");
+            }
+            if (!$this->db->field_exists('created_at', 'holidays')) {
+                $this->db->query("ALTER TABLE holidays ADD COLUMN created_at DATETIME NULL AFTER status");
+            }
+            if (!$this->db->field_exists('updated_at', 'holidays')) {
+                $this->db->query("ALTER TABLE holidays ADD COLUMN updated_at DATETIME NULL AFTER created_at");
+            }
         }
     }
 
@@ -50,24 +83,90 @@ class Settings extends CI_Controller {
     public function update(){
         if ($this->input->method() !== 'post') { show_404(); }
         $data = $this->input->post();
+        $form_section = isset($data['form_section']) ? (string)$data['form_section'] : '';
         
         // Load activity tracking helpers
         $this->load->helper(['activity','change_tracker']);
         
-        // Handle weekend checkboxes
-        if (isset($data['attendance_weekends']) && is_array($data['attendance_weekends'])) {
-            $data['attendance_weekends'] = implode(',', $data['attendance_weekends']);
-        } elseif (!isset($data['attendance_weekends'])) {
-            $data['attendance_weekends'] = '';
+        // Handle weekend checkboxes only when attendance section is saved
+        if ($form_section === 'attendance') {
+            if (isset($data['attendance_weekends']) && is_array($data['attendance_weekends'])) {
+                $data['attendance_weekends'] = implode(',', $data['attendance_weekends']);
+            } elseif (!isset($data['attendance_weekends'])) {
+                $data['attendance_weekends'] = '';
+            }
         }
         
-        // Handle checkbox values for switches
-        $checkbox_fields = ['leave_carry_forward', 'notify_in_app', 'notify_email', 'attendance_auto_capture', 'attendance_late_mark_notification', 'attendance_face_verification_required', 'security_require_uppercase', 'security_require_lowercase', 'security_require_number', 'security_require_special', 'security_single_session', 'security_session_timeout_enabled', 'security_remember_me', 'security_2fa_enabled', 'security_enable_2fa', 'security_2fa_required_admin', 'security_ip_whitelist_enabled', 'security_enable_ip_whitelist', 'security_password_expiry_enabled', 'security_log_failed_attempts', 'security_log_login_attempts', 'security_audit_login', 'security_audit_password_change', 'security_audit_settings', 'security_audit_data', 'system_maintenance_mode', 'system_enable_debug_mode', 'system_enable_location_strict'];
-        
-        // Add all module maintenance checkboxes dynamically
-        $modules_list = ['dashboard', 'employees', 'users', 'projects', 'tasks', 'attendance', 'leaves', 'departments', 'designations', 'clients', 'assets', 'announcements', 'chats', 'calls', 'timesheets', 'reports', 'settings', 'reminders', 'activity', 'permissions', 'payroll'];
-        foreach ($modules_list as $module) {
-            $checkbox_fields[] = 'system_maintenance_module_' . $module;
+        // Handle checkbox values for switches, scoped per form section
+        $checkbox_fields = [];
+        switch ($form_section) {
+            case 'attendance':
+                $checkbox_fields = [
+                    'attendance_auto_capture',
+                    'attendance_auto_submit',
+                    'attendance_late_mark_notification',
+                    'attendance_show_notifications',
+                    'attendance_face_verification_required',
+                ];
+                break;
+            case 'leave':
+                $checkbox_fields = ['leave_carry_forward'];
+                break;
+            case 'notify_basic':
+                $checkbox_fields = ['notify_in_app', 'notify_email'];
+                break;
+            case 'general_system':
+                $checkbox_fields = [
+                    'system_maintenance_mode',
+                    'system_enable_debug_mode',
+                ];
+                // Add all module maintenance checkboxes dynamically
+                $modules_list = ['dashboard', 'employees', 'users', 'projects', 'tasks', 'attendance', 'leaves', 'departments', 'designations', 'clients', 'assets', 'announcements', 'chats', 'calls', 'timesheets', 'reports', 'settings', 'reminders', 'activity', 'permissions', 'payroll'];
+                foreach ($modules_list as $module) {
+                    $checkbox_fields[] = 'system_maintenance_module_' . $module;
+                }
+                break;
+            case 'general_location':
+                $checkbox_fields = ['system_enable_location_strict'];
+                break;
+            case 'security_password':
+                $checkbox_fields = [
+                    'security_require_uppercase',
+                    'security_require_lowercase',
+                    'security_require_number',
+                    'security_require_special',
+                ];
+                break;
+            case 'security_session':
+                $checkbox_fields = [
+                    'security_single_session',
+                    'security_remember_me',
+                ];
+                break;
+            case 'security_2fa':
+                $checkbox_fields = [
+                    'security_enable_2fa',
+                    'security_2fa_required_admin',
+                ];
+                break;
+            case 'security_ip':
+                $checkbox_fields = [
+                    'security_enable_ip_whitelist',
+                    'security_log_failed_attempts',
+                ];
+                break;
+            case 'security_audit':
+                $checkbox_fields = [
+                    'security_audit_login',
+                    'security_audit_settings',
+                    'security_audit_data',
+                ];
+                break;
+            default:
+                // Sections like company, email, notification messages, general display/HR
+                // don't have switches that need defaulting here
+                $checkbox_fields = [];
+                break;
         }
         
         foreach ($checkbox_fields as $field) {
@@ -181,6 +280,148 @@ class Settings extends CI_Controller {
             $this->session->set_flashdata('error', 'Failed to send test email. Please check your SMTP configuration.');
         }
         redirect('settings');
+    }
+
+    // GET /settings/holidays
+    public function holidays(){
+        // Restrict to users with settings access (admin area)
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to manage holidays.', 403);
+        }
+        $rows = $this->holidays->all();
+        $this->load->view('settings/holidays/index', [
+            'rows' => $rows
+        ]);
+    }
+
+    // GET/POST /settings/holidays/create
+    public function holidays_create(){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to manage holidays.', 403);
+        }
+        if ($this->input->method() === 'post'){
+            $date = trim((string)$this->input->post('holiday_date'));
+            $name = trim((string)$this->input->post('name'));
+            $status = $this->input->post('status') === 'inactive' ? 'inactive' : 'active';
+
+            if (empty($date) || empty($name)) {
+                $this->session->set_flashdata('error', 'Holiday date and name are required.');
+                redirect('settings/holidays/create'); return;
+            }
+
+            // Validate date format
+            $d = date_create_from_format('Y-m-d', $date);
+            if (!$d || $d->format('Y-m-d') !== $date) {
+                $this->session->set_flashdata('error', 'Invalid date format. Use YYYY-MM-DD.');
+                redirect('settings/holidays/create'); return;
+            }
+
+            // Prevent duplicate dates
+            $existing = $this->holidays->find_by_date($date);
+            if ($existing) {
+                $this->session->set_flashdata('error', 'A holiday already exists on '.$date.'.');
+                redirect('settings/holidays/create'); return;
+            }
+
+            $data = [
+                'holiday_date' => $date,
+                'name' => $name,
+                'status' => $status,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            try {
+                $id = $this->holidays->create($data);
+                $this->load->helper('activity');
+                log_activity('holidays', 'created', $id, 'Holiday: '.$data['name'].' ('.$data['holiday_date'].')');
+                $this->session->set_flashdata('success', 'Holiday created successfully.');
+                redirect('settings/holidays'); return;
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Error creating holiday: '.$e->getMessage());
+                redirect('settings/holidays/create'); return;
+            }
+        }
+        $this->load->view('settings/holidays/form', ['action' => 'create']);
+    }
+
+    // GET/POST /settings/holidays/{id}/edit
+    public function holidays_edit($id){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to manage holidays.', 403);
+        }
+        $row = $this->holidays->find((int)$id);
+        if (!$row) { show_404(); }
+
+        if ($this->input->method() === 'post'){
+            $date = trim((string)$this->input->post('holiday_date'));
+            $name = trim((string)$this->input->post('name'));
+            $status = $this->input->post('status') === 'inactive' ? 'inactive' : 'active';
+
+            if (empty($date) || empty($name)) {
+                $this->session->set_flashdata('error', 'Holiday date and name are required.');
+                redirect('settings/holidays/'.$id.'/edit'); return;
+            }
+
+            $d = date_create_from_format('Y-m-d', $date);
+            if (!$d || $d->format('Y-m-d') !== $date) {
+                $this->session->set_flashdata('error', 'Invalid date format. Use YYYY-MM-DD.');
+                redirect('settings/holidays/'.$id.'/edit'); return;
+            }
+
+            // Check for duplicate date on other records
+            $existing = $this->holidays->find_by_date($date);
+            if ($existing && (int)$existing->id !== (int)$id) {
+                $this->session->set_flashdata('error', 'Another holiday already exists on '.$date.'.');
+                redirect('settings/holidays/'.$id.'/edit'); return;
+            }
+
+            $data = [
+                'holiday_date' => $date,
+                'name' => $name,
+                'status' => $status,
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            try {
+                $this->holidays->update((int)$id, $data);
+                $this->load->helper('activity');
+                log_activity('holidays', 'updated', (int)$id, 'Holiday: '.$data['name'].' ('.$data['holiday_date'].')');
+                $this->session->set_flashdata('success', 'Holiday updated successfully.');
+                redirect('settings/holidays'); return;
+            } catch (Exception $e) {
+                $this->session->set_flashdata('error', 'Error updating holiday: '.$e->getMessage());
+                redirect('settings/holidays/'.$id.'/edit'); return;
+            }
+        }
+        $this->load->view('settings/holidays/form', ['action' => 'edit', 'row' => $row]);
+    }
+
+    // POST /settings/holidays/{id}/delete
+    public function holidays_delete($id){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to manage holidays.', 403);
+        }
+        $row = $this->holidays->find((int)$id);
+        if (!$row) {
+            $this->session->set_flashdata('error', 'Holiday not found.');
+            redirect('settings/holidays'); return;
+        }
+
+        // Soft delete: mark as inactive instead of removing row
+        try {
+            $this->holidays->update((int)$id, [
+                'status' => 'inactive',
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+            $this->load->helper('activity');
+            log_activity('holidays', 'deleted', (int)$id, 'Holiday deactivated: '.$row->name.' ('.$row->holiday_date.')');
+            $this->session->set_flashdata('success', 'Holiday deactivated successfully.');
+        } catch (Exception $e) {
+            $this->session->set_flashdata('error', 'Error deactivating holiday: '.$e->getMessage());
+        }
+
+        redirect('settings/holidays');
     }
 
     // GET /settings/leave-types

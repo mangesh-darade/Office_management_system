@@ -64,6 +64,7 @@
       </div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="companyForm" data-validate="true">
+          <input type="hidden" name="form_section" value="company">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Company Name</label>
@@ -161,6 +162,7 @@
       </div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="attendanceForm" data-validate="true">
+          <input type="hidden" name="form_section" value="attendance">
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Office Start Time</label>
@@ -199,6 +201,16 @@
                 </label>
               </div>
               <div class="form-text">When enabled, face will be captured automatically after 3 seconds. When disabled, user must click "Capture Face" button manually.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Auto Submit After Capture</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="attendance_auto_submit" value="yes" <?php echo (isset($settings['attendance_auto_submit']) && $settings['attendance_auto_submit'] === 'yes') ? 'checked' : ''; ?> id="attendance_auto_submit">
+                <label class="form-check-label" for="attendance_auto_submit">
+                  Enable auto submit after face capture
+                </label>
+              </div>
+              <div class="form-text">When enabled, attendance form will be automatically submitted after successful face capture. When disabled, user must manually click "Mark Attendance" button.</div>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Face Verification Required</label>
@@ -253,6 +265,7 @@
       </div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="leaveForm" data-validate="true">
+          <input type="hidden" name="form_section" value="leave">
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Carry Forward Leave</label>
@@ -319,6 +332,20 @@
         </a>
       </div>
     </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-light">
+        <h5 class="card-title mb-0">
+          <i class="bi bi-calendar-event me-2"></i>Holidays Management
+        </h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Configure company holidays. These dates will be treated as non-working days for leave validations and reports.</p>
+        <a href="<?php echo site_url('settings/holidays'); ?>" class="btn btn-outline-primary">
+          <i class="bi bi-gear me-1"></i>Manage Holidays
+        </a>
+      </div>
+    </div>
   </div>
 
   <div class="tab-pane fade" id="email" role="tabpanel">
@@ -330,6 +357,7 @@
       </div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="emailForm" data-validate="true">
+          <input type="hidden" name="form_section" value="email">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">SMTP User</label>
@@ -390,6 +418,7 @@
       </div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="notifyForm" data-validate="true">
+          <input type="hidden" name="form_section" value="notify_basic">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">In-App Notifications</label>
@@ -440,6 +469,7 @@
         ?>
         
         <form method="post" action="<?php echo site_url('settings/update'); ?>" id="notificationMessagesForm">
+          <input type="hidden" name="form_section" value="notify_messages">
           <div class="accordion" id="notificationModulesAccordion">
             <?php 
             $module_index = 0;
@@ -541,6 +571,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalDisplayForm">
+              <input type="hidden" name="form_section" value="general_display">
               <div class="mb-3">
                 <label class="form-label fw-semibold">Date Format</label>
                 <select class="form-select" name="system_date_format">
@@ -603,6 +634,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalHRForm">
+              <input type="hidden" name="form_section" value="general_hr">
               <div class="mb-3">
                 <label class="form-label fw-semibold">Employee Code Prefix</label>
                 <input type="text" class="form-control" name="system_employee_code_prefix" 
@@ -656,6 +688,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalSystemForm">
+              <input type="hidden" name="form_section" value="general_system">
               <div class="mb-3">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" name="system_maintenance_mode" value="yes" 
@@ -783,6 +816,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="generalLocationForm">
+              <input type="hidden" name="form_section" value="general_location">
               <div class="mb-3">
                 <label class="form-label fw-semibold">Default Office Location Name</label>
                 <input type="text" class="form-control" name="system_default_office_location" 
@@ -863,6 +897,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityPasswordForm">
+              <input type="hidden" name="form_section" value="security_password">
               <div class="mb-3">
                 <label class="form-label fw-semibold">Minimum Password Length</label>
                 <input type="number" class="form-control" name="security_min_password_length" 
@@ -935,6 +970,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securitySessionForm">
+              <input type="hidden" name="form_section" value="security_session">
               <div class="mb-3">
                 <label class="form-label fw-semibold">Session Timeout (minutes)</label>
                 <input type="number" class="form-control" name="security_session_timeout" 
@@ -996,6 +1032,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="security2FAForm">
+              <input type="hidden" name="form_section" value="security_2fa">
               <div class="mb-3">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" name="security_enable_2fa" value="yes" 
@@ -1053,6 +1090,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityIPForm">
+              <input type="hidden" name="form_section" value="security_ip">
               <div class="mb-3">
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" name="security_enable_ip_whitelist" value="yes" 
@@ -1103,6 +1141,7 @@
           </div>
           <div class="card-body">
             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityAuditForm">
+              <input type="hidden" name="form_section" value="security_audit">
               <div class="row g-3">
                 <div class="col-md-4">
                   <div class="form-check form-switch">

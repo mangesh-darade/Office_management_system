@@ -136,23 +136,6 @@
           </div>
         </div>
 
-        <?php if (isset($is_holiday) && $is_holiday): ?>
-        <div class="row mb-3">
-          <div class="col-12">
-            <div class="alert alert-warning d-flex align-items-center mb-0">
-              <i class="bi bi-calendar-event me-2"></i>
-              <div>
-                <strong>Today is a company holiday.</strong>
-                <?php if (!empty($holiday_name)): ?>
-                  <span class="ms-1"><?php echo htmlspecialchars($holiday_name); ?></span>
-                <?php endif; ?>
-                <div class="small text-muted">Attendance marking is disabled on company holidays.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <?php endif; ?>
-
         <!-- Notes and Location -->
         <div class="row mb-3">
           <div class="col-12">
@@ -176,11 +159,27 @@
 
         <!-- Face Verification -->
         <?php $face_verification_enabled = isset($face_verification_enabled) ? $face_verification_enabled : true; ?>
+        <?php $auto_submit_enabled = isset($auto_submit_enabled) ? $auto_submit_enabled : false; ?>
+        <?php $auto_capture_enabled = isset($auto_capture_enabled) ? $auto_capture_enabled : false; ?>
         <div class="row mb-4" id="faceVerificationSection" style="<?php echo $face_verification_enabled ? '' : 'display: none;'; ?>">
           <div class="col-12 col-md-8 col-lg-6 mx-auto">
             <label class="form-label fw-semibold">
               <i class="bi bi-camera"></i> Face Verification <?php echo $face_verification_enabled ? '<span class="text-danger">*</span>' : ''; ?>
             </label>
+            <?php if($auto_capture_enabled): ?>
+            <div class="alert alert-info alert-dismissible fade show mb-3" role="alert">
+              <i class="bi bi-info-circle-fill me-2"></i>
+              <strong>Auto Capture Enabled:</strong> Your face will be captured automatically when detected.
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php endif; ?>
+            <?php if($auto_submit_enabled): ?>
+            <div class="alert alert-info alert-dismissible fade show mb-3" role="alert">
+              <i class="bi bi-info-circle-fill me-2"></i>
+              <strong>Auto Submit Enabled:</strong> Your attendance will be automatically submitted after successful face capture.
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php endif; ?>
             <div class="position-relative">
               <video id="attFaceVideo" class="w-100 rounded border shadow-sm" 
                      autoplay muted playsinline style="height: 240px; background: #000; object-fit: cover;"></video>
@@ -191,9 +190,11 @@
             </div>
             <canvas id="attFaceCanvas" class="w-100 rounded border shadow-sm mt-2" style="height: 240px; display: none; object-fit: cover; background: #000;"></canvas>
             <div class="small mt-2 text-center" id="attFaceStatus"></div>
-            <button type="button" class="btn btn-primary btn-lg w-100 mt-3 fw-semibold" id="btnAttFaceVerify" disabled>
+            <?php if(!$auto_capture_enabled): ?>
+            <button type="button" class="btn btn-secondary btn-lg w-100 mt-3 fw-semibold" id="btnAttFaceVerify" disabled>
               <i class="bi bi-camera-fill me-2"></i> Capture Face
             </button>
+            <?php endif; ?>
             <button type="button" class="btn btn-outline-secondary btn-lg w-100 mt-2 fw-semibold" id="btnRetakeFace" style="display: none;">
               <i class="bi bi-arrow-clockwise me-2"></i> Retake Face
             </button>
@@ -201,6 +202,7 @@
         </div>
 
         <!-- Submit Button -->
+        <?php if(!$auto_submit_enabled): ?>
         <div class="row">
           <div class="col-12">
             <button class="btn btn-primary w-100 py-2 fw-semibold" type="submit" id="submitBtn" disabled>
@@ -211,6 +213,7 @@
             </div>
           </div>
         </div>
+        <?php endif; ?>
       </form>
     </div>
   </div>
@@ -229,7 +232,6 @@
           var cameraStarted = false;
           var locationToast = null;
           var hasFaceCapture = false;
-          var faceDetectionInterval = null;
           
           // Move face verification variables to outer scope
           var btnVerify = document.getElementById('btnAttFaceVerify');
@@ -244,17 +246,14 @@
           var stream = null;
           var modelsLoaded = false;
           var MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js/weights/';
+          var faceDetectionInterval = null; // For continuous face detection
+          var isFaceDetected = false; // Track if face is currently detected
           
           // Check if face verification is required from PHP setting
           var faceVerificationRequired = <?php echo $face_verification_enabled ? 'true' : 'false'; ?>;
           
-          // Check if auto capture is enabled from PHP setting
-          var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
-          
-          // Hide "Capture Face" button if auto capture is enabled
-          if (autoCaptureEnabled && btnVerify) {
-            btnVerify.style.display = 'none';
-          }
+          // Check if auto submit is enabled from PHP setting
+          var autoSubmitEnabled = <?php echo isset($auto_submit_enabled) && $auto_submit_enabled ? 'true' : 'false'; ?>;
           
           // Function to validate mandatory fields and enable/disable submit button
           function validateMandatoryFields() {
@@ -297,7 +296,7 @@
           validateMandatoryFields();
           setInterval(validateMandatoryFields, 1000);
           
-          // Track shown toasts to prevent duplicates
+          // Track shown toasts to prevent duplicates (declared once at top level)
           var shownToasts = {};
           
           // Function to show custom toast notifications
@@ -408,9 +407,7 @@
             });
           }
           
-          // Track shown toasts to prevent duplicates
-          var shownToasts = {};
-          
+          // Use the same shownToasts object declared above
           function showToast(message, type = 'info') {
             // Create unique key for this toast message
             var toastKey = type + '_' + message.substring(0, 50);
@@ -438,22 +435,14 @@
               
               // Use a CORS proxy or skip address resolution due to CORS issues
               // For now, we'll just mark location as captured without address resolution
+              // Note: locationCaptured is already set in geolocation success callback
+              // Camera is already started in geolocation success callback
               setTimeout(function(){
                 hint.textContent = 'Location captured successfully';
                 hint.classList.remove('text-primary');
                 hint.classList.add('text-success');
-                showToast('Location captured successfully', 'success');
-                
-                // Location is fully captured, now start camera
-                locationCaptured = true;
-                
                 // Validate mandatory fields after location capture
                 validateMandatoryFields();
-                
-                if (!cameraStarted) {
-                  cameraStarted = true;
-                  startCameraAfterLocation();
-                }
               }, 1000);
               
               // Alternative: You could use your own backend proxy for Nominatim
@@ -501,21 +490,12 @@
           
           function setFaceStatus(msg, isError){
             if (!statusEl) return;
-            statusEl.textContent = msg || '';
+            // Support HTML content in messages
+            statusEl.innerHTML = msg || '';
             statusEl.classList.toggle('text-danger', !!isError);
-            statusEl.classList.toggle('text-success', !isError && msg);
-            
-            // Show retake button if there's an error (like "No face detected")
-            if (isError) {
-              var retakeBtn = document.getElementById('btnRetakeFace');
-              if (retakeBtn && msg && (msg.indexOf('No face detected') !== -1 || msg.indexOf('Face verification failed') !== -1 || msg.indexOf('Capture failed') !== -1)) {
-                retakeBtn.style.display = 'block';
-                // Hide capture button if auto capture is enabled
-                if (btnVerify && autoCaptureEnabled) {
-                  btnVerify.style.display = 'none';
-                }
-              }
-            }
+            statusEl.classList.toggle('text-success', !isError && msg && msg.indexOf('success') > -1);
+            statusEl.classList.toggle('text-warning', !isError && msg && msg.indexOf('warning') > -1);
+            statusEl.classList.toggle('text-info', !isError && msg && msg.indexOf('info') > -1);
           }
 
           async function ensureModels(){
@@ -528,6 +508,88 @@
               modelsLoaded = true;
               setFaceStatus('Models loaded. Starting camera...', false);
             } catch(e){ setFaceStatus('Failed to load face models.', true); }
+          }
+
+          // Continuous face detection function
+          async function detectFaceContinuously(){
+            if (!modelsLoaded || !video || video.readyState < 2 || hasFaceCapture) {
+              return;
+            }
+            
+            // Check if auto-capture is enabled
+            var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+            
+            try {
+              var opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.6 });
+              var detection = await faceapi.detectSingleFace(video, opts);
+              
+              // Check if face is actually detected with valid score and bounding box
+              var faceCurrentlyDetected = false;
+              if (detection && typeof detection.score === 'number' && detection.score > 0.6) {
+                // Additional validation: check if bounding box exists and has valid dimensions
+                if (detection.box && typeof detection.box.width === 'number' && typeof detection.box.height === 'number') {
+                  if (detection.box.width > 0 && detection.box.height > 0) {
+                    faceCurrentlyDetected = true;
+                  }
+                }
+              }
+              
+              if (faceCurrentlyDetected) {
+                // Face detected - update status and button state
+                isFaceDetected = true;
+                
+                // Only enable button if it exists (not hidden when auto-capture is enabled)
+                if (btnVerify) {
+                  btnVerify.disabled = false;
+                  btnVerify.classList.remove('btn-secondary');
+                  btnVerify.classList.add('btn-primary');
+                }
+                
+                // When auto-capture is enabled, only show "Face detected! You can capture now."
+                // The auto-capture logic will handle the actual capture and auto-submit
+                if (autoCaptureEnabled) {
+                  setFaceStatus('<span class="text-success"><i class="bi bi-check-circle-fill"></i> Face detected! You can capture now.</span>', false);
+                } else {
+                  // Manual mode - show the same message
+                  setFaceStatus('<span class="text-success"><i class="bi bi-check-circle-fill"></i> Face detected! You can capture now.</span>', false);
+                }
+              } else {
+                // No face detected
+                isFaceDetected = false;
+                
+                // Only disable button if it exists (not hidden when auto-capture is enabled)
+                if (btnVerify) {
+                  btnVerify.disabled = true;
+                  btnVerify.classList.remove('btn-primary');
+                  btnVerify.classList.add('btn-secondary');
+                }
+                
+                // When auto-capture is enabled, don't show "Detecting face..." message
+                // Only show it in manual mode
+                if (!autoCaptureEnabled) {
+                  setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
+                }
+                // When auto-capture is enabled and no face detected, don't show any message
+                // (or show a minimal one if needed)
+              }
+            } catch(e) {
+              // Silently handle detection errors - don't show error during continuous detection
+              console.error('Face detection error:', e);
+              // Reset face detected state on error
+              isFaceDetected = false;
+              
+              // Keep showing detecting message even on error (only in manual mode)
+              if (!hasFaceCapture && !autoCaptureEnabled) {
+                setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
+              }
+              
+              // Disable button on error
+              if (btnVerify) {
+                btnVerify.disabled = true;
+                btnVerify.classList.remove('btn-primary');
+                btnVerify.classList.add('btn-secondary');
+              }
+            }
           }
 
           async function startCam(auto){
@@ -554,94 +616,74 @@
               });
               video.srcObject = stream;
               
+              // Initially disable capture button until face is detected
+              if (btnVerify) {
+                btnVerify.disabled = true;
+                btnVerify.classList.remove('btn-primary');
+                btnVerify.classList.add('btn-secondary');
+              }
+              
               // Hide camera loader
               if (cameraLoader) {
                 cameraLoader.style.display = 'none';
               }
               
-              if (auto) {
-                // Auto capture mode - hide "Capture Face" button, only show retake when needed
-                if (btnVerify) {
-                  btnVerify.style.display = 'none';
+              // Wait for video to be ready before starting face detection
+              function startFaceDetection() {
+                // Start continuous face detection
+                if (!faceDetectionInterval && video && video.readyState >= 2) {
+                  faceDetectionInterval = setInterval(detectFaceContinuously, 300); // Check every 300ms
+                  // Only show initial message in manual mode (not auto-capture)
+                  if (!auto) {
+                    setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
+                  }
+                  // In auto-capture mode, wait for face detection to show message
                 }
-                btnVerify.disabled = false; // Keep enabled for internal use but hidden
-                // Continuous face detection - capture immediately when face detected
-                setFaceStatus('Detecting face...', false);
-                var detectionInterval = null;
-                var isDetecting = false;
-                var detectionStartTime = Date.now();
-                var noFaceTimeout = null;
-                var retakeBtn = document.getElementById('btnRetakeFace');
-                
-                var detectFace = async function() {
-                  if (isDetecting || (faceDescEl && faceDescEl.value)) {
-                    return;
-                  }
-                  
-                  if (!hasLocation) {
-                    setFaceStatus('Location required first', true);
-                    return;
-                  }
-                  
-                  isDetecting = true;
-                  try {
-                    if (!modelsLoaded) {
-                      await ensureModels();
+              }
+              
+              // Check if video is already loaded
+              if (video.readyState >= 2) {
+                startFaceDetection();
+              } else {
+                // Wait for metadata to load
+                video.addEventListener('loadedmetadata', startFaceDetection, { once: true });
+              }
+              
+              if (auto) {
+                // For auto-capture, wait for face detection first
+                var autoCaptureTriggered = false; // Flag to prevent multiple captures
+                var autoCaptureCheck = setInterval(function(){
+                  if (isFaceDetected && locationCaptured && !autoCaptureTriggered) {
+                    // Validate all requirements before auto-capturing
+                    if (faceDescEl && faceDescEl.value) { 
+                      clearInterval(autoCaptureCheck);
+                      setFaceStatus('Face already captured', false);
+                      return; 
                     }
-                    if (!video || video.readyState < 2) {
-                      isDetecting = false;
+                    if (!locationCaptured) {
+                      setFaceStatus('Location required first', true);
                       return;
                     }
                     
-                    var opts = new faceapi.TinyFaceDetectorOptions();
-                    var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
+                    // Set flag to prevent multiple captures
+                    autoCaptureTriggered = true;
+                    clearInterval(autoCaptureCheck);
                     
-                    if (det && det.descriptor) {
-                      // Face detected! Stop detection and capture immediately
-                      if (detectionInterval) {
-                        clearInterval(detectionInterval);
-                        detectionInterval = null;
-                        faceDetectionInterval = null;
-                      }
-                      if (noFaceTimeout) {
-                        clearTimeout(noFaceTimeout);
-                        noFaceTimeout = null;
-                      }
-                      isDetecting = false;
-                      setFaceStatus('Face detected! Capturing...', false);
-                      captureFace(true);
-                    } else {
-                      isDetecting = false;
-                      // Show retake button if no face detected after 3 seconds
-                      var elapsedTime = Date.now() - detectionStartTime;
-                      if (elapsedTime > 3000 && retakeBtn && retakeBtn.style.display === 'none') {
-                        setFaceStatus('No face detected. Click Retake to try again.', true);
-                        retakeBtn.style.display = 'block';
-                        if (btnVerify) {
-                          btnVerify.style.display = 'none';
-                        }
-                      }
+                    // All validations passed - directly capture without countdown
+                    setFaceStatus('<span class="text-success"><i class="bi bi-check-circle"></i> Face detected! Capturing...</span>', false);
+                    
+                    // Stop continuous detection before capturing
+                    if (faceDetectionInterval) {
+                      clearInterval(faceDetectionInterval);
+                      faceDetectionInterval = null;
                     }
-                  } catch(e) {
-                    console.error('Face detection error:', e);
-                    isDetecting = false;
-                    // Show retake button on error
-                    if (retakeBtn) {
-                      retakeBtn.style.display = 'block';
-                    }
-                    if (btnVerify) {
-                      btnVerify.style.display = 'none';
-                    }
+                    
+                    // Directly capture face (no countdown)
+                    captureFace(autoSubmitEnabled);
                   }
-                };
-                
-                // Start continuous face detection every 500ms
-                detectionInterval = setInterval(detectFace, 500);
-                faceDetectionInterval = detectionInterval; // Store globally to stop later
-                // Also try immediately
-                detectFace();
+                }, 500);
               } else {
-                setFaceStatus('Align face and capture', false);
+                setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
               }
             } catch(e){ 
               setFaceStatus('Camera access denied', true);
@@ -652,34 +694,68 @@
           }
 
           async function captureFace(autoSubmit){
-            // Stop any ongoing face detection
+            // Validate prerequisites
+            if (!modelsLoaded){ 
+              try {
+                await ensureModels();
+              } catch(e) {
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Failed to load face models. Please refresh the page.</span>', true);
+                return;
+              }
+            }
+            
+            if (!video || video.readyState < 2){ 
+              setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Camera not ready. Please wait...</span>', true); 
+              return; 
+            }
+            
+            // Check if face already captured
+            if (hasFaceCapture && faceDescEl && faceDescEl.value) {
+              setFaceStatus('<span class="text-info"><i class="bi bi-info-circle"></i> Face already captured</span>', false);
+              return;
+            }
+            
+            // Stop continuous face detection
             if (faceDetectionInterval) {
               clearInterval(faceDetectionInterval);
               faceDetectionInterval = null;
             }
             
-            if (!modelsLoaded){ await ensureModels(); }
-            if (!video || video.readyState < 2){ setFaceStatus('Camera not ready', true); return; }
             try {
               var opts = new faceapi.TinyFaceDetectorOptions();
               var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
               if (!det || !det.descriptor){ 
-                setFaceStatus('No face detected', true); 
-                // Show retake button when face detection fails
-                var retakeBtn = document.getElementById('btnRetakeFace');
-                if (retakeBtn) {
-                  retakeBtn.style.display = 'block';
-                }
-                // Hide capture button if auto capture is enabled
-                if (btnVerify && autoCaptureEnabled) {
-                  btnVerify.style.display = 'none';
+                // Restart continuous detection first, then show appropriate message
+                var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+                if (!autoCaptureEnabled && video && video.readyState >= 2 && !hasFaceCapture) {
+                  // Restart continuous detection for manual mode
+                  faceDetectionInterval = setInterval(detectFaceContinuously, 300);
+                  setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
+                } else if (autoCaptureEnabled) {
+                  // For auto-capture mode, just show detecting message
+                  faceDetectionInterval = setInterval(detectFaceContinuously, 300);
+                  setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
+                } else {
+                  // Only show error if we can't restart detection
+                  setFaceStatus('<span class="text-warning"><i class="bi bi-exclamation-circle"></i> No face detected. Please position your face in front of the camera.</span>', false);
                 }
                 return; 
+              }
+              
+              // Validate required elements
+              if (!canvas) {
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Canvas element not found</span>', true);
+                return;
               }
               
               // Get actual video dimensions
               var videoWidth = video.videoWidth || 640;
               var videoHeight = video.videoHeight || 480;
+              
+              if (videoWidth <= 0 || videoHeight <= 0) {
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Invalid video dimensions</span>', true);
+                return;
+              }
               
               // Set canvas dimensions to match video
               canvas.width = videoWidth;
@@ -687,10 +763,20 @@
               
               // Get canvas context and clear it first
               var ctx = canvas.getContext('2d');
+              if (!ctx) {
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Failed to get canvas context</span>', true);
+                return;
+              }
+              
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               
               // Draw the video frame to canvas
-              ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+              try {
+                ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+              } catch(e) {
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Failed to draw video frame: ' + e.message + '</span>', true);
+                return;
+              }
               
               // Verify the image was drawn (optional check)
               var imageData = ctx.getImageData(0, 0, Math.min(10, canvas.width), Math.min(10, canvas.height));
@@ -703,53 +789,109 @@
               }
               
               if (!hasData) {
-                setFaceStatus('Failed to capture image', true);
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Failed to capture image. Please try again.</span>', true);
+                // Restart continuous detection if auto-capture is disabled
+                var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+                if (!autoCaptureEnabled && video && video.readyState >= 2 && !hasFaceCapture) {
+                  faceDetectionInterval = setInterval(detectFaceContinuously, 300);
+                }
                 return;
               }
               
               // Show canvas, hide video
-              video.style.display = 'none';
-              canvas.style.display = 'block';
+              if (video) video.style.display = 'none';
+              if (canvas) {
+                canvas.style.display = 'block';
+                // Ensure canvas is visible with proper styling
+                canvas.style.background = '#000';
+                canvas.style.objectFit = 'cover';
+              }
               
-              // Ensure canvas is visible with proper styling
-              canvas.style.background = '#000';
-              canvas.style.objectFit = 'cover';
-              
-              // Hide capture button (if visible), show retake button
+              // Hide capture button (if exists), show retake button
               if (btnVerify) btnVerify.style.display = 'none';
               var retakeBtn = document.getElementById('btnRetakeFace');
               if (retakeBtn) retakeBtn.style.display = 'block';
               
-              var descArr = Array.prototype.slice.call(det.descriptor);
-              if (faceDescEl) faceDescEl.value = JSON.stringify(descArr);
-              if (faceReqEl) faceReqEl.value = '1';
-              hasFaceCapture = true;
-              setFaceStatus('Face captured successfully', false);
+              // Store face descriptor
+              try {
+                var descArr = Array.prototype.slice.call(det.descriptor);
+                if (faceDescEl) faceDescEl.value = JSON.stringify(descArr);
+                if (faceReqEl) faceReqEl.value = '1';
+                hasFaceCapture = true;
+                setFaceStatus('<span class="text-success"><i class="bi bi-check-circle-fill"></i> Face captured successfully!</span>', false);
+              } catch(e) {
+                setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Failed to process face descriptor: ' + e.message + '</span>', true);
+                return;
+              }
               
               // Validate mandatory fields after face capture
               validateMandatoryFields();
               
               // Stop camera
-              try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; } } catch(e){}
-              
-              // Auto submit if enabled and all validations pass
-              if (autoSubmit) {
-                validateMandatoryFields();
-                // Check if auto-submit is enabled from settings
-                var autoSubmitEnabled = <?php echo isset($auto_submit_enabled) && $auto_submit_enabled ? 'true' : 'false'; ?>;
-                if (autoSubmitEnabled && submitBtn && !submitBtn.disabled) {
-                  // Small delay to ensure UI updates
-                  setTimeout(function() {
-                    if (submitBtn && !submitBtn.disabled) {
-                      submitBtn.click();
-                    }
-                  }, 500);
-                }
+              try { 
+                if (stream){ 
+                  stream.getTracks().forEach(function(t){ 
+                    try { t.stop(); } catch(e){} 
+                  }); 
+                  stream = null; 
+                } 
+              } catch(e){
+                console.error('Error stopping camera stream:', e);
               }
-            } catch(e){ 
-              console.error('Face capture error:', e);
-              setFaceStatus('Capture failed: '+e.message, true); 
+              
+            } catch(e) {
+              // Handle any unexpected errors during face capture
+              console.error('Error in captureFace:', e);
+              setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> An error occurred during face capture: ' + (e.message || 'Unknown error') + '</span>', true);
+              
+              // Restart continuous detection if auto-capture is disabled
+              var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+              if (!autoCaptureEnabled && video && video.readyState >= 2 && !hasFaceCapture) {
+                faceDetectionInterval = setInterval(detectFaceContinuously, 300);
+                setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please try again</span>', false);
+              }
+              return;
             }
+            
+            // Auto submit if enabled (autoSubmit parameter indicates if auto-submit should happen)
+            if (autoSubmitEnabled && autoSubmit) {
+                // Show submitting message
+                setFaceStatus('<span class="text-info"><i class="bi bi-hourglass-split"></i> Submitting attendance automatically...</span>', false);
+                
+                // Small delay to show the message, then submit
+                setTimeout(function() {
+                  if (attendanceForm) {
+                    // Double check all mandatory fields are complete
+                    var latEl = document.querySelector('input[name="lat"]');
+                    var lngEl = document.querySelector('input[name="lng"]');
+                    var lat = latEl ? latEl.value : '';
+                    var lng = lngEl ? lngEl.value : '';
+                    var faceDesc = faceDescEl ? faceDescEl.value : '';
+                    
+                    var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
+                    var faceValid = !faceVerificationRequired || (faceDesc && faceDesc.trim() !== '');
+                    
+                    if (locationValid && faceValid) {
+                      // All valid, submit the form
+                      showCustomToast('<strong>Auto-submitting attendance...</strong><div class="small mt-1">Please wait while we process your attendance.</div>', 'info', 2000);
+                      attendanceForm.submit();
+                    } else {
+                      // Validation failed, show error
+                      setFaceStatus('<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Cannot auto-submit: Missing required fields</span>', true);
+                      showCustomToast('Cannot auto-submit: Please complete all mandatory fields', 'error', 5000);
+                      // Re-enable submit button for manual submission
+                      if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('btn-secondary');
+                        submitBtn.classList.add('btn-primary');
+                      }
+                    }
+                  }
+                }, 1000);
+              } else {
+                // Auto-submit disabled or not triggered - just validate
+                validateMandatoryFields();
+              }
           }
           
           function startCameraAfterLocation() {
@@ -761,22 +903,40 @@
             }
             // Start camera now that location is captured
             showToast('Starting camera for face verification...', 'info');
+            
+            // Check if auto capture is enabled from settings
+            var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+            
+            // Enable button only if it exists (not hidden when auto-capture is enabled)
             if (btnVerify) {
               btnVerify.disabled = false;
-              // Check if auto capture is enabled from settings
-              var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
-              startCam(autoCaptureEnabled); // Use setting to determine auto or manual capture
             }
+            
+            // Start camera regardless of button existence (for auto-capture mode)
+            startCam(autoCaptureEnabled); // Use setting to determine auto or manual capture
           }
           
           // Move event listener to main scope
           if (btnVerify){
             btnVerify.addEventListener('click', function(ev){ 
               ev.preventDefault(); 
-              captureFace(false); 
+              // Pass autoSubmitEnabled flag to captureFace
+              // If auto-submit is enabled, it will auto-submit after capture
+              captureFace(autoSubmitEnabled); 
             });
             window.addEventListener('beforeunload', function(){ 
-              try { if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); } } catch(e){}
+              try { 
+                // Stop continuous face detection
+                if (faceDetectionInterval) {
+                  clearInterval(faceDetectionInterval);
+                  faceDetectionInterval = null;
+                }
+                // Stop camera stream
+                if (stream){ 
+                  stream.getTracks().forEach(function(t){ t.stop(); }); 
+                  stream = null;
+                } 
+              } catch(e){}
             });
           }
           
@@ -790,28 +950,20 @@
               if (faceDescEl) faceDescEl.value = '';
               if (faceReqEl) faceReqEl.value = '0';
               hasFaceCapture = false;
+              isFaceDetected = false;
               
               // Hide canvas, show video
               if (canvas) canvas.style.display = 'none';
               if (video) video.style.display = 'block';
               
-              // Hide retake button initially (will show again if needed)
-              retakeBtn.style.display = 'none';
-              
-              // Show capture button only if auto capture is disabled
+              // Show capture button, hide retake button
               if (btnVerify) {
-                if (!autoCaptureEnabled) {
-                  // Only show capture button if auto capture is disabled
-                  btnVerify.style.display = 'block';
-                } else {
-                  // Keep hidden if auto capture is enabled
-                  btnVerify.style.display = 'none';
-                }
-                btnVerify.disabled = false;
+                btnVerify.style.display = 'block';
+                btnVerify.disabled = true; // Disabled until face is detected
+                btnVerify.classList.remove('btn-primary');
+                btnVerify.classList.add('btn-secondary');
               }
-              
-              // Reset status message
-              setFaceStatus('', false);
+              retakeBtn.style.display = 'none';
               
               // Clear canvas
               if (canvas) {
@@ -819,9 +971,58 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
               }
               
-              // Restart camera - use auto capture setting to determine mode
-              setFaceStatus('Restarting camera...', false);
-              startCam(autoCaptureEnabled); // Use setting to determine auto or manual mode
+              // Check if auto capture is enabled
+              var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
+              
+              // Restart continuous face detection if video is ready
+              if (video && video.readyState >= 2) {
+                if (!faceDetectionInterval) {
+                  faceDetectionInterval = setInterval(detectFaceContinuously, 300);
+                }
+                // Only show detecting message in manual mode (not auto-capture)
+                if (!autoCaptureEnabled) {
+                  setFaceStatus('<span class="text-info"><i class="bi bi-search"></i> Detecting face... Please position your face in front of the camera</span>', false);
+                }
+                
+                // If auto-capture is enabled, restart auto-capture check
+                if (autoCaptureEnabled && locationCaptured) {
+                  var autoCaptureTriggered = false;
+                  var autoCaptureCheck = setInterval(function(){
+                    if (isFaceDetected && locationCaptured && !autoCaptureTriggered) {
+                      // Validate all requirements before auto-capturing
+                      if (faceDescEl && faceDescEl.value) { 
+                        clearInterval(autoCaptureCheck);
+                        setFaceStatus('Face already captured', false);
+                        return; 
+                      }
+                      if (!locationCaptured) {
+                        setFaceStatus('Location required first', true);
+                        return;
+                      }
+                      
+                      // Set flag to prevent multiple captures
+                      autoCaptureTriggered = true;
+                      clearInterval(autoCaptureCheck);
+                      
+                      // All validations passed - directly capture without countdown
+                      setFaceStatus('<span class="text-success"><i class="bi bi-check-circle"></i> Face detected! Capturing...</span>', false);
+                      
+                      // Stop continuous detection before capturing
+                      if (faceDetectionInterval) {
+                        clearInterval(faceDetectionInterval);
+                        faceDetectionInterval = null;
+                      }
+                      
+                      // Directly capture face (no countdown)
+                      captureFace(autoSubmitEnabled);
+                    }
+                  }, 500);
+                }
+              } else {
+                // Restart camera with auto-capture setting
+                setFaceStatus('Restarting camera...', false);
+                startCam(autoCaptureEnabled);
+              }
               
               // Validate mandatory fields
               validateMandatoryFields();
@@ -851,15 +1052,24 @@
                 latEl.value = lat;
                 lngEl.value = lng;
                 hasLocation = true;
+                locationCaptured = true; // Set locationCaptured immediately
                 showToast('Location captured successfully', 'success');
                 
                 // Validate mandatory fields after location capture
                 validateMandatoryFields();
                 
+                // Start camera immediately after location is captured (for auto-capture mode)
+                if (!cameraStarted && locationCaptured) {
+                  cameraStarted = true;
+                  startCameraAfterLocation();
+                }
+                
                 if (hint) {
                   resolveAddress(lat, lng, hint, locEl);
                 }
-              } catch(e){}
+              } catch(e){
+                console.error('Error processing location:', e);
+              }
             }, function(){ 
               try { 
                 showToast('Location access denied', 'error');

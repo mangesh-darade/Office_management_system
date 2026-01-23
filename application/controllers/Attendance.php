@@ -12,6 +12,7 @@ class Attendance extends CI_Controller {
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
         $this->load->model('Setting_model', 'settings');
+        $this->load->model('Holiday_model', 'holidays');
     }
 
     public function index() {
@@ -34,7 +35,6 @@ class Attendance extends CI_Controller {
         $this->db->select('COUNT(DISTINCT a.user_id) as total');
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
-        $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         
         // Apply group-based filtering
         if (!$canViewAll) {
@@ -53,13 +53,10 @@ class Attendance extends CI_Controller {
         $total_records = $total_query->total;
         
         // Fetch distinct users with their latest attendance and count
-        $this->db->select('a.user_id, u.email, e.first_name, e.last_name, COUNT(*) as attendance_count, MAX(a.att_date) as last_attendance_date');
+        // Get name only from users table, not from employees table
+        $this->db->select('a.user_id, u.email, u.name as user_name, COUNT(*) as attendance_count, MAX(a.att_date) as last_attendance_date');
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
-        $employee_exists = $this->db->table_exists('employees');
-        if ($employee_exists) {
-            $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
-        }
         
         // Apply group-based filtering
         if (!$canViewAll) {
@@ -74,50 +71,13 @@ class Attendance extends CI_Controller {
             }
         }
         
-        $this->db->group_by('a.user_id, u.email, e.first_name, e.last_name');
+        $this->db->group_by('a.user_id, u.email, u.name');
         
-        // Order by employee name (first_name, last_name) in ascending order, fallback to email
-        if ($employee_exists) {
-            $this->db->order_by('e.first_name', 'ASC');
-            $this->db->order_by('e.last_name', 'ASC');
-            $this->db->order_by('u.email', 'ASC');
-        } else {
-            $this->db->order_by('u.email', 'ASC');
-        }
+        // Order by user name alphabetically (A-Z) - only from users table
+        $this->db->order_by('u.name', 'ASC');
         
-        $records = $this->db->limit($per_page, $page)
-                           ->get()
-                           ->result();
-        
-        // Pagination config
-        $base_url = site_url('attendance/index');
-        $config['base_url'] = $base_url;
-        $config['total_rows'] = $total_records;
-        $config['per_page'] = $per_page;
-        $config['uri_segment'] = 3;
-        $config['num_links'] = 5;
-        $config['full_tag_open'] = '<nav class="d-flex justify-content-center mt-3"><ul class="pagination">';
-        $config['full_tag_close'] = '</ul></nav>';
-        $config['first_link'] = '&laquo; First';
-        $config['first_tag_open'] = '<li class="page-item">';
-        $config['first_tag_close'] = '</li>';
-        $config['last_link'] = 'Last &raquo;';
-        $config['last_tag_open'] = '<li class="page-item">';
-        $config['last_tag_close'] = '</li>';
-        $config['next_link'] = 'Next &rarr;';
-        $config['next_tag_open'] = '<li class="page-item">';
-        $config['next_tag_close'] = '</li>';
-        $config['prev_link'] = '&larr; Prev';
-        $config['prev_tag_open'] = '<li class="page-item">';
-        $config['prev_tag_close'] = '</li>';
-        $config['cur_tag_open'] = '<li class="page-item active"><span class="page-link">';
-        $config['cur_tag_close'] = '</span></li>';
-        $config['num_tag_open'] = '<li class="page-item">';
-        $config['num_tag_close'] = '</li>';
-        $config['attributes'] = ['class' => 'page-link'];
-        
-        $this->pagination->initialize($config);
-        $pagination_links = $this->pagination->create_links();
+        // Get all records - DataTables will handle pagination client-side
+        $records = $this->db->get()->result();
         
         // Check edit and delete permissions
         $this->load->helper('permission');
@@ -126,11 +86,7 @@ class Attendance extends CI_Controller {
         
         $this->load->view('attendance/index', [
             'records' => $records,
-            'employee_exists' => $employee_exists,
-            'pagination_links' => $pagination_links,
             'total_records' => $total_records,
-            'current_page' => $page + 1,
-            'per_page' => $per_page,
             'can_add_attendance' => $canAddAttendance,
             'can_view_all' => $canViewAll,
             'can_edit_attendance' => $canEditAttendance,
@@ -422,6 +378,29 @@ class Attendance extends CI_Controller {
                 $this->session->set_flashdata('error', 'Please login to mark attendance');
                 redirect('login'); 
                 return;
+            }
+
+            // Prevent marking attendance on company holidays
+            $this->load->helper('date');
+            $user_timezone = get_user_timezone($user_id);
+            $today = get_current_datetime($user_timezone, 'Y-m-d');
+            if ($this->db->table_exists('holidays')) {
+                $holiday_row = $this->db->select('name, status')
+                                        ->from('holidays')
+                                        ->where('holiday_date', $today)
+                                        ->limit(1)
+                                        ->get()
+                                        ->row();
+                if ($holiday_row && isset($holiday_row->status) && $holiday_row->status === 'active') {
+                    $name = isset($holiday_row->name) ? (string)$holiday_row->name : '';
+                    $msg = 'Attendance cannot be marked on company holidays.';
+                    if ($name !== '') {
+                        $msg .= ' Today is: '.$name.'.';
+                    }
+                    $this->session->set_flashdata('error', $msg);
+                    redirect('attendance/create');
+                    return;
+                }
             }
 
             // Enhanced validation
@@ -844,18 +823,88 @@ class Attendance extends CI_Controller {
             }
         }
         
-        // Get auto capture setting (default: enabled/yes)
+        // Get all attendance-related settings
         $auto_capture_setting = $this->settings->get_setting('attendance_auto_capture', 'yes');
         $auto_capture_enabled = ($auto_capture_setting === 'yes' || $auto_capture_setting === '1' || $auto_capture_setting === 1 || $auto_capture_setting === true);
         
-        // Get face verification required setting (default: enabled/yes)
         $face_verification_setting = $this->settings->get_setting('attendance_face_verification_required', 'yes');
         $face_verification_enabled = ($face_verification_setting === 'yes' || $face_verification_setting === '1' || $face_verification_setting === 1 || $face_verification_setting === true);
+        
+        $auto_submit_setting = $this->settings->get_setting('attendance_auto_submit', 'no');
+        $auto_submit_enabled = ($auto_submit_setting === 'yes' || $auto_submit_setting === '1' || $auto_submit_setting === 1 || $auto_submit_setting === true);
+        
+        // Get office hours and grace period
+        $office_start_time = $this->settings->get_setting('attendance_start_time', '09:30');
+        $office_end_time = $this->settings->get_setting('attendance_end_time', '18:30');
+        $grace_minutes = (int)$this->settings->get_setting('attendance_grace_minutes', 15);
+        $standard_working_hours = (float)$this->settings->get_setting('attendance_standard_working_hours', $this->settings->get_setting('standard_working_hours', 8));
+        
+        // Get weekend days
+        $weekends_str = $this->settings->get_setting('attendance_weekends', '0,6');
+        $weekend_days = !empty($weekends_str) ? explode(',', $weekends_str) : ['0', '6'];
+        $weekend_days = array_map('trim', $weekend_days);
+        
+        // Check if today is a weekend
+        $current_day_of_week = (int)date('w', strtotime($today)); // 0 = Sunday, 6 = Saturday
+        $is_weekend = in_array((string)$current_day_of_week, $weekend_days, true);
+
+        // Check if today is a holiday (using holidays table)
+        $is_holiday = false;
+        $holiday_name = '';
+        if ($this->db->table_exists('holidays')) {
+            $holiday_row = $this->db->select('name, status')
+                                    ->from('holidays')
+                                    ->where('holiday_date', $today)
+                                    ->limit(1)
+                                    ->get()
+                                    ->row();
+            if ($holiday_row && isset($holiday_row->status) && $holiday_row->status === 'active') {
+                $is_holiday = true;
+                $holiday_name = isset($holiday_row->name) ? (string)$holiday_row->name : '';
+            }
+        }
+        
+        // Get location settings
+        $location_strict = $this->settings->get_setting('system_enable_location_strict', 'no');
+        $location_strict_enabled = ($location_strict === 'yes' || $location_strict === '1' || $location_strict === 1 || $location_strict === true);
+        $office_latitude = $this->settings->get_setting('system_office_latitude', '');
+        $office_longitude = $this->settings->get_setting('system_office_longitude', '');
+        $attendance_radius = (float)$this->settings->get_setting('system_attendance_radius_meters', 100);
+        
+        // Get late mark notification setting
+        $late_mark_notification = $this->settings->get_setting('attendance_late_mark_notification', 'no');
+        $late_mark_enabled = ($late_mark_notification === 'yes' || $late_mark_notification === '1' || $late_mark_notification === 1 || $late_mark_notification === true);
+        
+        // Calculate expected check-in time (start time + grace period)
+        $expected_checkin_time = '';
+        if (!empty($office_start_time)) {
+            $start_timestamp = strtotime($today . ' ' . $office_start_time . ':00');
+            if ($start_timestamp !== false) {
+                $expected_timestamp = $start_timestamp + ($grace_minutes * 60);
+                $expected_checkin_time = date('H:i:s', $expected_timestamp);
+            }
+        }
         
         $this->load->view('attendance/create', [
             'attendance_status' => $attendance_status,
             'auto_capture_enabled' => $auto_capture_enabled,
-            'face_verification_enabled' => $face_verification_enabled
+            'face_verification_enabled' => $face_verification_enabled,
+            'auto_submit_enabled' => $auto_submit_enabled,
+            'office_start_time' => $office_start_time,
+            'office_end_time' => $office_end_time,
+            'grace_minutes' => $grace_minutes,
+            'standard_working_hours' => $standard_working_hours,
+            'is_weekend' => $is_weekend,
+            'is_holiday' => $is_holiday,
+            'holiday_name' => $holiday_name,
+            'weekend_days' => $weekend_days,
+            'location_strict_enabled' => $location_strict_enabled,
+            'office_latitude' => $office_latitude,
+            'office_longitude' => $office_longitude,
+            'attendance_radius' => $attendance_radius,
+            'late_mark_enabled' => $late_mark_enabled,
+            'expected_checkin_time' => $expected_checkin_time,
+            'today' => $today
         ]);
     }
 
@@ -1458,5 +1507,183 @@ class Attendance extends CI_Controller {
         $distance = $earth_radius * $c;
         
         return $distance;
+    }
+
+    // Export selected attendance records to Excel
+    public function export() {
+        $format = $this->input->post('format') ?: $this->input->get('format');
+        $userIdsStr = $this->input->post('user_ids') ?: $this->input->get('user_ids');
+        
+        if (!in_array($format, ['excel', 'pdf'])) {
+            $this->session->set_flashdata('error', 'Invalid export format.');
+            redirect('attendance');
+            return;
+        }
+        
+        if (empty($userIdsStr)) {
+            $this->session->set_flashdata('error', 'No employees selected for export.');
+            redirect('attendance');
+            return;
+        }
+        
+        $userIds = array_filter(array_map('intval', explode(',', $userIdsStr)));
+        if (empty($userIds)) {
+            $this->session->set_flashdata('error', 'Invalid employee selection.');
+            redirect('attendance');
+            return;
+        }
+        
+        // Get current user info for role-based access
+        $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
+        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
+        $canViewAll = $isAdminGroup || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
+        
+        // Get group-based filters
+        $filters = get_user_group_filter($user_id, $role_id);
+        
+        // Fetch attendance data for selected users
+        $this->db->select('a.user_id, u.name as user_name, u.email, COUNT(*) as attendance_count, MAX(a.att_date) as last_attendance_date, MIN(a.att_date) as first_attendance_date');
+        $this->db->from('attendance a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->where_in('a.user_id', $userIds);
+        
+        // Apply group-based filtering
+        if (!$canViewAll) {
+            if (can_view_group_data($role_id)) {
+                if (!empty($filters['attendance'])) {
+                    apply_group_filter_to_query($this->db, 'attendance', $filters);
+                }
+            } else {
+                // Regular users can only export their own data
+                $this->db->where('a.user_id', $user_id);
+            }
+        }
+        
+        $this->db->group_by('a.user_id, u.name, u.email');
+        $this->db->order_by('u.name', 'ASC');
+        
+        $records = $this->db->get()->result();
+        
+        if (empty($records)) {
+            $this->session->set_flashdata('error', 'No attendance records found for selected employees.');
+            redirect('attendance');
+            return;
+        }
+        
+        if ($format === 'excel') {
+            $this->export_excel($records);
+        } else {
+            $this->export_pdf($records);
+        }
+    }
+    
+    private function export_excel($records) {
+        $filename = 'attendance_export_' . date('Y-m-d_His') . '.csv';
+        
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Expires: 0');
+        header('Pragma: public');
+        
+        $output = fopen('php://output', 'w');
+        
+        // Add BOM for UTF-8 Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Headers
+        fputcsv($output, [
+            'Employee Name',
+            'Email',
+            'Total Attendance Records',
+            'First Attendance Date',
+            'Last Attendance Date'
+        ]);
+        
+        // Data rows
+        foreach ($records as $record) {
+            fputcsv($output, [
+                $record->user_name ?: 'Unknown',
+                $record->email ?: '',
+                $record->attendance_count,
+                $record->first_attendance_date ?: '',
+                $record->last_attendance_date ?: ''
+            ]);
+        }
+        
+        fclose($output);
+        exit;
+    }
+    
+    private function export_pdf($records) {
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Export</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background-color: #667eea; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .header-info { margin-bottom: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <h2>Attendance Summary Report</h2>
+    <div class="header-info">
+        <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
+        <p><strong>Total Employees:</strong> ' . count($records) . '</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee Name</th>
+                <th>Email</th>
+                <th>Total Records</th>
+                <th>First Attendance</th>
+                <th>Last Attendance</th>
+            </tr>
+        </thead>
+        <tbody>';
+        
+        foreach ($records as $record) {
+            $html .= '<tr>
+                <td>' . htmlspecialchars($record->user_name ?: 'Unknown') . '</td>
+                <td>' . htmlspecialchars($record->email ?: '') . '</td>
+                <td>' . $record->attendance_count . '</td>
+                <td>' . ($record->first_attendance_date ?: '—') . '</td>
+                <td>' . ($record->last_attendance_date ?: '—') . '</td>
+            </tr>';
+        }
+        
+        $html .= '</tbody>
+    </table>
+</body>
+</html>';
+        
+        // Try to use DomPDF if available
+        if (class_exists('\\Dompdf\\Dompdf')) {
+            $dompdf = new \Dompdf\Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
+            
+            $filename = 'attendance_export_' . date('Y-m-d_His') . '.pdf';
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo $dompdf->output();
+            exit;
+        } else {
+            // Fallback to HTML download
+            $filename = 'attendance_export_' . date('Y-m-d_His') . '.html';
+            header('Content-Type: text/html; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo $html;
+            exit;
+        }
     }
 }

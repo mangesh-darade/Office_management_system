@@ -323,6 +323,27 @@ document.addEventListener('DOMContentLoaded', function(){
   color: #9ca3af;
 }
 
+/* Export Actions Bar */
+.export-actions-bar {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+/* Checkbox Styles */
+.row-checkbox {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+#selectAll {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .attendance-container {
@@ -394,6 +415,22 @@ document.addEventListener('DOMContentLoaded', function(){
     display: block;
     margin-bottom: 0.25rem;
     font-size: 0.75rem;
+  }
+  .attendance-table tbody td[data-label=""]:before {
+    content: "";
+    display: none;
+  }
+  .export-actions-bar {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .export-actions-bar > div {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .export-actions-bar button {
+    flex: 1;
+    min-width: 120px;
   }
   .user-cell {
     flex-direction: row;
@@ -499,11 +536,41 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
   </div>
 
+  <!-- Export Actions Bar -->
+  <div class="export-actions-bar mb-3" id="exportActionsBar" style="display: none;">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <span class="text-muted small" id="selectedCount">0 selected</span>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button"
+                class="btn btn-sm btn-success d-flex justify-content-center align-items-center"
+                onclick="exportSelected('excel')"
+                title="Export selected to Excel">
+          <i class="bi bi-file-earmark-excel"></i>
+        </button>
+        <button type="button"
+                class="btn btn-sm btn-danger d-flex justify-content-center align-items-center"
+                onclick="exportSelected('pdf')"
+                title="Export selected to PDF">
+          <i class="bi bi-file-earmark-pdf"></i>
+        </button>
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary d-flex justify-content-center align-items-center"
+                onclick="clearSelection()"
+                title="Clear selection">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Attendance Table -->
   <div class="attendance-table-container">
     <table class="attendance-table" id="attendanceTable">
       <thead>
         <tr>
+          <th style="width: 40px;">
+            <input type="checkbox" id="selectAll" title="Select All" onchange="toggleSelectAll(this)">
+          </th>
           <th>Employee</th>
           <th>Last Attendance</th>
           <th>Total Records</th>
@@ -513,25 +580,39 @@ document.addEventListener('DOMContentLoaded', function(){
       <tbody>
         <?php if(!empty($records)) foreach($records as $r): ?>
           <?php 
-            $name = '';
-            if (!empty($r->first_name) || !empty($r->last_name)) {
-              $name = trim((isset($r->first_name) ? $r->first_name : '').' '.(isset($r->last_name) ? $r->last_name : ''));
+            // Get name and email ONLY from users table
+            $display_name = '';
+            if (!empty($r->user_name)) {
+              $display_name = trim($r->user_name);
             }
-            if ($name === '') { $name = isset($r->email) && $r->email !== '' ? $r->email : 'Unknown'; }
+            
+            // Get email from users table
+            $email = isset($r->email) && $r->email !== '' ? $r->email : '';
+            
+            // If no name, use email as fallback, or 'Unknown'
+            if (empty($display_name)) {
+              $display_name = !empty($email) ? $email : 'Unknown';
+            }
+            
+            // For avatar, use first letter of display name
+            $avatar_letter = strtoupper(substr($display_name, 0, 1));
             
             $last_attendance_date = isset($r->last_attendance_date) ? $r->last_attendance_date : '';
             $attendance_count = isset($r->attendance_count) ? $r->attendance_count : 0;
           ?>
-          <tr data-user-id="<?php echo $r->user_id; ?>" onclick="showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($name); ?>')" style="cursor: pointer;">
+          <tr data-user-id="<?php echo $r->user_id; ?>" onclick="handleRowClick(event, <?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($display_name); ?>')" style="cursor: pointer;">
+            <td data-label="Select" onclick="event.stopPropagation();">
+              <input type="checkbox" class="row-checkbox" value="<?php echo $r->user_id; ?>" onchange="updateSelection()" onclick="event.stopPropagation();">
+            </td>
             <td data-label="Employee">
               <div class="user-cell">
                 <div class="user-avatar">
-                  <?php echo strtoupper(substr($name, 0, 1)); ?>
+                  <?php echo htmlspecialchars($avatar_letter); ?>
                 </div>
                 <div class="user-details">
-                  <p class="user-name"><?php echo htmlspecialchars($name); ?></p>
-                  <?php if (isset($r->email) && $r->email !== '' && $name !== $r->email): ?>
-                    <p class="user-email"><?php echo htmlspecialchars($r->email); ?></p>
+                  <p class="user-name"><?php echo htmlspecialchars($display_name); ?></p>
+                  <?php if (!empty($email) && $display_name !== $email): ?>
+                    <p class="user-email"><?php echo htmlspecialchars($email); ?></p>
                   <?php endif; ?>
                 </div>
               </div>
@@ -548,7 +629,7 @@ document.addEventListener('DOMContentLoaded', function(){
             </td>
             <td data-label="Actions">
               <div class="action-buttons">
-                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($name); ?>')" title="View Details">
+                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($display_name); ?>')" title="View Details">
                   <i class="bi bi-eye"></i>
                 </button>
               </div>
@@ -558,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function(){
         
         <?php if(empty($records)): ?>
           <tr>
-            <td colspan="4" class="text-center">
+            <td colspan="5" class="text-center">
               <div class="empty-state">
                 <i class="bi bi-calendar-x empty-state-icon"></i>
                 <div class="empty-state-title">No attendance records found</div>
@@ -984,8 +1065,95 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     filterType.addEventListener('change', updateFilterInput);
-    // Don't call updateFilterInput() on load since modal will set its own values
-});
+      // Don't call updateFilterInput() on load since modal will set its own values
+  });
+
+  // Checkbox Selection Functions
+  function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = checkbox.checked;
+    });
+    updateSelection();
+  }
+
+  function updateSelection() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const count = checkboxes.length;
+    const exportBar = document.getElementById('exportActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (count > 0) {
+      exportBar.style.display = 'block';
+      selectedCount.textContent = count + ' selected';
+    } else {
+      exportBar.style.display = 'none';
+    }
+    
+    // Update select all checkbox
+    const selectAll = document.getElementById('selectAll');
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+  }
+
+  function handleRowClick(event, userId, userName) {
+    // Don't trigger if clicking on checkbox or button
+    if (event.target.type === 'checkbox' || event.target.closest('.btn') || event.target.closest('.action-buttons')) {
+      return;
+    }
+    showUserAttendanceDetails(userId, userName);
+  }
+
+  function clearSelection() {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelection();
+  }
+
+  function exportSelected(format) {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    if (checkboxes.length === 0) {
+      alert('Please select at least one employee to export.');
+      return;
+    }
+    
+    const userIds = Array.from(checkboxes).map(cb => cb.value);
+    const userIdsStr = userIds.join(',');
+    
+    // Show loading message
+    const exportBar = document.getElementById('exportActionsBar');
+    const originalHTML = exportBar.innerHTML;
+    exportBar.innerHTML = '<div class="text-center"><i class="bi bi-hourglass-split"></i> Preparing export...</div>';
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '<?php echo site_url("attendance/export"); ?>';
+    
+    const formatInput = document.createElement('input');
+    formatInput.type = 'hidden';
+    formatInput.name = 'format';
+    formatInput.value = format;
+    form.appendChild(formatInput);
+    
+    const userIdsInput = document.createElement('input');
+    userIdsInput.type = 'hidden';
+    userIdsInput.name = 'user_ids';
+    userIdsInput.value = userIdsStr;
+    form.appendChild(userIdsInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    
+    // Restore original HTML after a delay
+    setTimeout(() => {
+      exportBar.innerHTML = originalHTML;
+    }, 2000);
+  }
 </script>
 
 <?php $this->load->view('partials/footer'); ?>

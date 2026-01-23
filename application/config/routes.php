@@ -238,6 +238,12 @@ $route['settings/leave-types/(:num)/edit'] = 'settings/leave_types_edit/$1';
 $route['settings/leave-types/(:num)/delete'] = 'settings/leave_types_delete/$1';
 $route['settings/leave-types/(:num)/restore'] = 'settings/leave_types_restore/$1';
 
+// Holidays Management
+$route['settings/holidays'] = 'settings/holidays';
+$route['settings/holidays/create'] = 'settings/holidays_create';
+$route['settings/holidays/(:num)/edit'] = 'settings/holidays_edit/$1';
+$route['settings/holidays/(:num)/delete'] = 'settings/holidays_delete/$1';
+
 // API Integrations
 $route['api-integrations'] = 'api_integrations/index';
 $route['api-integrations/create'] = 'api_integrations/create';
