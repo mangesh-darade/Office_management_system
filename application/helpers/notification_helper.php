@@ -1,371 +1,349 @@
-<?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+<?php defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Notification Message Helper
+ * Notification Helper
  * 
- * Provides functions to retrieve and manage notification messages
- * for different modules and actions
+ * Helper functions for creating and managing notifications
  */
 
-/**
- * Get notification message for a specific module, action, and type
- * 
- * @param string $module Module name (e.g., 'employees', 'attendance', 'tasks')
- * @param string $action Action name (e.g., 'create', 'update', 'delete', 'import')
- * @param string $type Message type ('success', 'error', 'info', 'warning')
- * @param array $params Optional parameters for message placeholders (e.g., ['name' => 'John'])
- * @return string Notification message
- */
-if (!function_exists('get_notification_message')) {
-    function get_notification_message($module, $action, $type = 'success', $params = []) {
+if (!function_exists('create_notification')) {
+    /**
+     * Create a notification for a user
+     * 
+     * @param int $user_id User ID to notify
+     * @param string $title Notification title
+     * @param string $message Notification message
+     * @param string $type Type: info, success, warning, error
+     * @param string $module Module name (tasks, projects, leaves, etc.)
+     * @param int $related_id Related entity ID
+     * @param string $action_url Action URL
+     * @return int|bool Notification ID or false on failure
+     */
+    function create_notification($user_id, $title, $message, $type = 'info', $module = null, $related_id = null, $action_url = null)
+    {
         $CI =& get_instance();
-        $CI->load->model('Setting_model', 'settings');
         
-        // Build setting key
-        $setting_key = "notification_{$module}_{$action}_{$type}";
-        
-        // Try to get custom message from settings
-        $message = $CI->settings->get_setting($setting_key);
-        
-        // If no custom message, use default
-        if (empty($message)) {
-            $message = get_default_notification_message($module, $action, $type);
+        // Ensure notifications table exists
+        if (!$CI->db->table_exists('notifications')) {
+            return false;
         }
         
-        // Replace placeholders with actual values
-        if (!empty($params)) {
-            foreach ($params as $key => $value) {
-                $message = str_replace('{' . $key . '}', $value, $message);
+        // Map types to supported ENUM values
+        $valid_types = ['task_assigned', 'leave_request', 'leave_status', 'deadline_reminder', 'system'];
+        $db_type = in_array($type, $valid_types) ? $type : 'system';
+        
+        // Pack additional data into payload
+        $payload = [
+            'original_type' => $type,
+            'module' => $module,
+            'related_id' => $related_id,
+            'action_url' => $action_url
+        ];
+
+        $data = [
+            'user_id' => (int)$user_id,
+            'title' => $title,
+            'body' => $message, // Changed from message to body
+            'type' => $db_type,
+            'payload' => json_encode($payload),
+            'channel' => 'in_app',
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        
+        $CI->db->insert('notifications', $data);
+        return $CI->db->insert_id();
+    }
+}
+
+if (!function_exists('notify_task_assigned')) {
+    /**
+     * Notify user when task is assigned
+     * 
+     * @param int $user_id Assignee user ID
+     * @param int $task_id Task ID
+     * @param string $task_title Task title
+     * @param int $assigned_by_id User ID who assigned the task
+     * @return int|bool Notification ID or false
+     */
+    function notify_task_assigned($user_id, $task_id, $task_title, $assigned_by_id)
+    {
+        $CI =& get_instance();
+        
+        // Get assigner name
+        $assigner = $CI->db->get_where('users', ['id' => $assigned_by_id])->row();
+        $assigner_name = $assigner ? $assigner->username : 'Someone';
+        
+        return create_notification(
+            $user_id,
+            'New Task Assigned',
+            "$assigner_name assigned you a task: $task_title",
+            'info',
+            'tasks',
+            $task_id,
+            site_url("tasks/$task_id")
+        );
+    }
+}
+
+if (!function_exists('notify_leave_status')) {
+    /**
+     * Notify user about leave request status change
+     * 
+     * @param int $user_id User ID to notify
+     * @param int $leave_id Leave request ID
+     * @param string $status New status (approved, rejected, pending)
+     * @return int|bool Notification ID or false
+     */
+    function notify_leave_status($user_id, $leave_id, $status)
+    {
+        $status_messages = [
+            'approved' => ['title' => 'Leave Approved', 'type' => 'success', 'message' => 'Your leave request has been approved.'],
+            'rejected' => ['title' => 'Leave Rejected', 'type' => 'error', 'message' => 'Your leave request has been rejected.'],
+            'pending' => ['title' => 'Leave Pending', 'type' => 'warning', 'message' => 'Your leave request is pending approval.']
+        ];
+        
+        // PHP 5.6 compatible - use isset instead of ??
+        $config = isset($status_messages[$status]) ? $status_messages[$status] : $status_messages['pending'];
+        
+        return create_notification(
+            $user_id,
+            $config['title'],
+            $config['message'],
+            $config['type'],
+            'leaves',
+            $leave_id,
+            site_url("leave/my")
+        );
+    }
+}
+
+if (!function_exists('notify_project_update')) {
+    /**
+     * Notify project members about project update
+     * 
+     * @param int $project_id Project ID
+     * @param string $update_message Update message
+     * @param int $exclude_user_id User ID to exclude from notification (usually the updater)
+     * @return array Array of notification IDs
+     */
+    function notify_project_update($project_id, $update_message, $exclude_user_id = null)
+    {
+        $CI =& get_instance();
+        
+        // Get project members
+        $CI->db->select('user_id');
+        $CI->db->from('project_members');
+        $CI->db->where('project_id', $project_id);
+        if ($exclude_user_id) {
+            $CI->db->where('user_id !=', $exclude_user_id);
+        }
+        $members = $CI->db->get()->result();
+        
+        $notification_ids = [];
+        foreach ($members as $member) {
+            $id = create_notification(
+                $member->user_id,
+                'Project Updated',
+                $update_message,
+                'info',
+                'projects',
+                $project_id,
+                site_url("projects/$project_id")
+            );
+            if ($id) {
+                $notification_ids[] = $id;
             }
         }
         
-        return $message;
+        return $notification_ids;
     }
 }
 
-/**
- * Get default notification messages
- * 
- * @param string $module Module name
- * @param string $action Action name
- * @param string $type Message type
- * @return string Default message
- */
-if (!function_exists('get_default_notification_message')) {
-    function get_default_notification_message($module, $action, $type = 'success') {
-        $defaults = get_all_default_notification_messages();
+if (!function_exists('get_unread_notification_count')) {
+    /**
+     * Get unread notification count for current user
+     * 
+     * @param int $user_id User ID (optional, defaults to current user)
+     * @return int Unread count
+     */
+    function get_unread_notification_count($user_id = null)
+    {
+        $CI =& get_instance();
         
-        $key = "{$module}_{$action}_{$type}";
-        
-        if (isset($defaults[$key])) {
-            return $defaults[$key];
+        if (!$user_id) {
+            $user_id = (int)$CI->session->userdata('user_id');
         }
         
-        // Fallback generic messages
-        if ($type === 'success') {
-            return ucfirst($module) . ' ' . $action . ' successfully';
-        } elseif ($type === 'error') {
-            return 'Failed to ' . $action . ' ' . $module;
+        if (!$user_id || !$CI->db->table_exists('notifications')) {
+            return 0;
+        }
+        
+        $CI->db->where('user_id', $user_id);
+        $CI->db->where('is_read', 0);
+        $CI->db->where('is_deleted', 0);
+        return $CI->db->count_all_results('notifications');
+    }
+}
+
+if (!function_exists('notify_announcement')) {
+    /**
+     * Notify users about new announcement
+     * 
+     * @param int $announcement_id Announcement ID
+     * @param string $title Announcement title
+     * @param array $target_role_ids Array of role IDs to notify
+     * @return array Array of notification IDs
+     */
+    function notify_announcement($announcement_id, $title, $target_role_ids = [])
+    {
+        $CI =& get_instance();
+        
+        // Get users with target roles
+        if (empty($target_role_ids)) {
+            // Notify all users
+            $CI->db->select('id');
+            $users = $CI->db->get('users')->result();
         } else {
-            return ucfirst($module) . ' ' . $action;
+            $CI->db->select('id');
+            $CI->db->where_in('role_id', $target_role_ids);
+            $users = $CI->db->get('users')->result();
         }
+        
+        $notification_ids = [];
+        foreach ($users as $user) {
+            $id = create_notification(
+                $user->id,
+                'New Announcement',
+                $title,
+                'info',
+                'announcements',
+                $announcement_id,
+                site_url("announcements/$announcement_id")
+            );
+            if ($id) {
+                $notification_ids[] = $id;
+            }
+        }
+        
+        return $notification_ids;
     }
 }
 
-/**
- * Get all default notification messages
- * 
- * @return array All default messages
- */
-if (!function_exists('get_all_default_notification_messages')) {
-    function get_all_default_notification_messages() {
+if (!function_exists('get_notification_modules_structure')) {
+    /**
+     * Get notification modules structure for settings page
+     * 
+     * @return array Module structure with icons and actions
+     */
+    function get_notification_modules_structure()
+    {
         return [
-            // Employees Module
-            'employees_create_success' => 'Employee created successfully',
-            'employees_create_error' => 'Failed to create employee. Please try again.',
-            'employees_update_success' => 'Employee updated successfully',
-            'employees_update_error' => 'Failed to update employee. Please try again.',
-            'employees_delete_success' => 'Employee deleted successfully',
-            'employees_delete_error' => 'Failed to delete employee. Please try again.',
-            'employees_import_success' => 'Employees imported successfully',
-            'employees_import_error' => 'Failed to import employees. Please check the file format.',
-            
-            // Attendance Module
-            'attendance_create_success' => 'Attendance marked successfully',
-            'attendance_create_error' => 'Failed to mark attendance. Please try again.',
-            'attendance_update_success' => 'Attendance updated successfully',
-            'attendance_update_error' => 'Failed to update attendance. Please try again.',
-            'attendance_delete_success' => 'Attendance deleted successfully',
-            'attendance_delete_error' => 'Failed to delete attendance. Please try again.',
-            'attendance_already_marked' => 'Attendance already marked for today',
-            'attendance_location_mismatch' => 'You are not at the required location to mark attendance',
-            'attendance_face_verification_failed' => 'Face verification failed. Please try again.',
-            
-            // Tasks Module
-            'tasks_create_success' => 'Task created successfully',
-            'tasks_create_error' => 'Failed to create task. Please try again.',
-            'tasks_update_success' => 'Task updated successfully',
-            'tasks_update_error' => 'Failed to update task. Please try again.',
-            'tasks_delete_success' => 'Task deleted successfully',
-            'tasks_delete_error' => 'Failed to delete task. Please try again.',
-            'tasks_assign_success' => 'Task assigned successfully',
-            'tasks_status_update_success' => 'Task status updated successfully',
-            
-            // Projects Module
-            'projects_create_success' => 'Project created successfully',
-            'projects_create_error' => 'Failed to create project. Please try again.',
-            'projects_update_success' => 'Project updated successfully',
-            'projects_update_error' => 'Failed to update project. Please try again.',
-            'projects_delete_success' => 'Project deleted successfully',
-            'projects_delete_error' => 'Failed to delete project. Please try again.',
-            'projects_member_add_success' => 'Member added to project successfully',
-            'projects_member_remove_success' => 'Member removed from project successfully',
-            
-            // Leave Requests Module
-            'leave_requests_create_success' => 'Leave request submitted successfully',
-            'leave_requests_create_error' => 'Failed to submit leave request. Please try again.',
-            'leave_requests_update_success' => 'Leave request updated successfully',
-            'leave_requests_update_error' => 'Failed to update leave request. Please try again.',
-            'leave_requests_approve_success' => 'Leave request approved successfully',
-            'leave_requests_reject_success' => 'Leave request rejected',
-            'leave_requests_cancel_success' => 'Leave request cancelled successfully',
-            'leave_requests_insufficient_balance' => 'Insufficient leave balance',
-            
-            // Departments Module
-            'departments_create_success' => 'Department created successfully',
-            'departments_create_error' => 'Failed to create department. Please try again.',
-            'departments_update_success' => 'Department updated successfully',
-            'departments_update_error' => 'Failed to update department. Please try again.',
-            'departments_delete_success' => 'Department deleted successfully',
-            'departments_delete_error' => 'Failed to delete department. Please try again.',
-            'departments_restore_success' => 'Department restored successfully',
-            
-            // Designations Module
-            'designations_create_success' => 'Designation created successfully',
-            'designations_create_error' => 'Failed to create designation. Please try again.',
-            'designations_update_success' => 'Designation updated successfully',
-            'designations_update_error' => 'Failed to update designation. Please try again.',
-            'designations_delete_success' => 'Designation deleted successfully',
-            'designations_delete_error' => 'Failed to delete designation. Please try again.',
-            'designations_restore_success' => 'Designation restored successfully',
-            
-            // Clients Module
-            'clients_create_success' => 'Client created successfully',
-            'clients_create_error' => 'Failed to create client. Please try again.',
-            'clients_update_success' => 'Client updated successfully',
-            'clients_update_error' => 'Failed to update client. Please try again.',
-            'clients_delete_success' => 'Client deleted successfully',
-            'clients_delete_error' => 'Failed to delete client. Please try again.',
-            
-            // Users Module
-            'users_create_success' => 'User created successfully',
-            'users_create_error' => 'Failed to create user. Please try again.',
-            'users_update_success' => 'User updated successfully',
-            'users_update_error' => 'Failed to update user. Please try again.',
-            'users_delete_success' => 'User deleted successfully',
-            'users_delete_error' => 'Failed to delete user. Please try again.',
-            
-            // Profile Module
-            'profile_update_success' => 'Profile updated successfully',
-            'profile_update_error' => 'Failed to update profile. Please try again.',
-            'profile_password_change_success' => 'Password changed successfully',
-            'profile_password_change_error' => 'Failed to change password. Please check your current password.',
-            'profile_avatar_update_success' => 'Profile picture updated successfully',
-            'profile_avatar_delete_success' => 'Profile picture removed successfully',
-            
-            // Settings Module
-            'settings_update_success' => 'Settings saved successfully',
-            'settings_update_error' => 'Failed to save settings. Please try again.',
-            
-            // Documents/Files Module
-            'documents_upload_success' => 'Document uploaded successfully',
-            'documents_upload_error' => 'Failed to upload document. Please try again.',
-            'documents_delete_success' => 'Document deleted successfully',
-            'documents_delete_error' => 'Failed to delete document. Please try again.',
-            'documents_download_error' => 'Failed to download document. File not found.',
-            
-            // Timesheets Module
-            'timesheets_create_success' => 'Timesheet entry created successfully',
-            'timesheets_create_error' => 'Failed to create timesheet entry. Please try again.',
-            'timesheets_update_success' => 'Timesheet entry updated successfully',
-            'timesheets_update_error' => 'Failed to update timesheet entry. Please try again.',
-            'timesheets_delete_success' => 'Timesheet entry deleted successfully',
-            'timesheets_delete_error' => 'Failed to delete timesheet entry. Please try again.',
-            
-            // Assets Module
-            'assets_create_success' => 'Asset created successfully',
-            'assets_create_error' => 'Failed to create asset. Please try again.',
-            'assets_update_success' => 'Asset updated successfully',
-            'assets_update_error' => 'Failed to update asset. Please try again.',
-            'assets_delete_success' => 'Asset deleted successfully',
-            'assets_delete_error' => 'Failed to delete asset. Please try again.',
-            'assets_assign_success' => 'Asset assigned successfully',
-            'assets_return_success' => 'Asset returned successfully',
-            
-            // Announcements Module
-            'announcements_create_success' => 'Announcement created successfully',
-            'announcements_create_error' => 'Failed to create announcement. Please try again.',
-            'announcements_update_success' => 'Announcement updated successfully',
-            'announcements_update_error' => 'Failed to update announcement. Please try again.',
-            'announcements_delete_success' => 'Announcement deleted successfully',
-            'announcements_delete_error' => 'Failed to delete announcement. Please try again.',
-            'announcements_publish_success' => 'Announcement published successfully',
-            
-            // Chats Module
-            'chats_message_sent_success' => 'Message sent successfully',
-            'chats_message_sent_error' => 'Failed to send message. Please try again.',
-            'chats_delete_success' => 'Message deleted successfully',
-            
-            // Reports Module
-            'reports_generate_success' => 'Report generated successfully',
-            'reports_generate_error' => 'Failed to generate report. Please try again.',
-            'reports_export_success' => 'Report exported successfully',
-            'reports_export_error' => 'Failed to export report. Please try again.',
-            
-            // Reminders Module
-            'reminders_create_success' => 'Reminder created successfully',
-            'reminders_create_error' => 'Failed to create reminder. Please try again.',
-            'reminders_update_success' => 'Reminder updated successfully',
-            'reminders_update_error' => 'Failed to update reminder. Please try again.',
-            'reminders_delete_success' => 'Reminder deleted successfully',
-            'reminders_delete_error' => 'Failed to delete reminder. Please try again.',
+            'tasks' => [
+                'label' => 'Tasks',
+                'icon' => 'bi-list-check',
+                'actions' => ['create', 'update', 'delete', 'assign', 'complete']
+            ],
+            'projects' => [
+                'label' => 'Projects',
+                'icon' => 'bi-kanban',
+                'actions' => ['create', 'update', 'delete', 'complete']
+            ],
+            'leaves' => [
+                'label' => 'Leave Requests',
+                'icon' => 'bi-calendar-x',
+                'actions' => ['create', 'approve', 'reject', 'cancel']
+            ],
+            'attendance' => [
+                'label' => 'Attendance',
+                'icon' => 'bi-clock-history',
+                'actions' => ['checkin', 'checkout', 'late', 'absent']
+            ],
+            'users' => [
+                'label' => 'Users',
+                'icon' => 'bi-people',
+                'actions' => ['create', 'update', 'delete', 'activate', 'deactivate']
+            ],
+            'announcements' => [
+                'label' => 'Announcements',
+                'icon' => 'bi-megaphone',
+                'actions' => ['create', 'update', 'delete', 'publish']
+            ]
         ];
     }
 }
 
-/**
- * Get notification messages for a module
- * 
- * @param string $module Module name
- * @return array Array of messages for the module
- */
-if (!function_exists('get_module_notification_messages')) {
-    function get_module_notification_messages($module) {
-        $CI =& get_instance();
-        $CI->load->model('Setting_model', 'settings');
-        
-        // Get all notification settings for this module
-        $all_settings = $CI->settings->get_all_settings();
-        $module_messages = [];
-        
-        $pattern = "/^notification_{$module}_(.+)_(success|error|info|warning)$/";
-        
-        foreach ($all_settings as $key => $value) {
-            if (preg_match($pattern, $key, $matches)) {
-                $action = $matches[1];
-                $type = $matches[2];
-                
-                if (!isset($module_messages[$action])) {
-                    $module_messages[$action] = [];
-                }
-                
-                $module_messages[$action][$type] = $value;
-            }
-        }
-        
-        return $module_messages;
-    }
-}
-
-/**
- * Get all modules with their available actions
- * 
- * @return array Module actions structure
- */
-if (!function_exists('get_notification_modules_structure')) {
-    function get_notification_modules_structure() {
+if (!function_exists('get_all_default_notification_messages')) {
+    /**
+     * Get all default notification messages
+     * 
+     * @return array Default messages for all modules and actions
+     */
+    function get_all_default_notification_messages()
+    {
         return [
-            'employees' => [
-                'label' => 'Employees',
-                'actions' => ['create', 'update', 'delete', 'import'],
-                'icon' => 'bi-people'
-            ],
-            'attendance' => [
-                'label' => 'Attendance',
-                'actions' => ['create', 'update', 'delete', 'already_marked', 'location_mismatch', 'face_verification_failed'],
-                'icon' => 'bi-clock-history'
-            ],
-            'tasks' => [
-                'label' => 'Tasks',
-                'actions' => ['create', 'update', 'delete', 'assign', 'status_update'],
-                'icon' => 'bi-check2-square'
-            ],
-            'projects' => [
-                'label' => 'Projects',
-                'actions' => ['create', 'update', 'delete', 'member_add', 'member_remove'],
-                'icon' => 'bi-kanban'
-            ],
-            'leave_requests' => [
-                'label' => 'Leave Requests',
-                'actions' => ['create', 'update', 'approve', 'reject', 'cancel', 'insufficient_balance'],
-                'icon' => 'bi-calendar-x'
-            ],
-            'departments' => [
-                'label' => 'Departments',
-                'actions' => ['create', 'update', 'delete', 'restore'],
-                'icon' => 'bi-building'
-            ],
-            'designations' => [
-                'label' => 'Designations',
-                'actions' => ['create', 'update', 'delete', 'restore'],
-                'icon' => 'bi-person-badge'
-            ],
-            'clients' => [
-                'label' => 'Clients',
-                'actions' => ['create', 'update', 'delete'],
-                'icon' => 'bi-briefcase'
-            ],
-            'users' => [
-                'label' => 'Users',
-                'actions' => ['create', 'update', 'delete'],
-                'icon' => 'bi-person-lock'
-            ],
-            'profile' => [
-                'label' => 'Profile',
-                'actions' => ['update', 'password_change', 'avatar_update', 'avatar_delete'],
-                'icon' => 'bi-person-circle'
-            ],
-            'settings' => [
-                'label' => 'Settings',
-                'actions' => ['update'],
-                'icon' => 'bi-gear'
-            ],
-            'documents' => [
-                'label' => 'Documents',
-                'actions' => ['upload', 'delete', 'download_error'],
-                'icon' => 'bi-file-earmark'
-            ],
-            'timesheets' => [
-                'label' => 'Timesheets',
-                'actions' => ['create', 'update', 'delete'],
-                'icon' => 'bi-stopwatch'
-            ],
-            'assets' => [
-                'label' => 'Assets',
-                'actions' => ['create', 'update', 'delete', 'assign', 'return'],
-                'icon' => 'bi-box-seam'
-            ],
-            'announcements' => [
-                'label' => 'Announcements',
-                'actions' => ['create', 'update', 'delete', 'publish'],
-                'icon' => 'bi-megaphone'
-            ],
-            'chats' => [
-                'label' => 'Chats',
-                'actions' => ['message_sent', 'delete'],
-                'icon' => 'bi-chat-dots'
-            ],
-            'reports' => [
-                'label' => 'Reports',
-                'actions' => ['generate', 'export'],
-                'icon' => 'bi-graph-up'
-            ],
-            'reminders' => [
-                'label' => 'Reminders',
-                'actions' => ['create', 'update', 'delete'],
-                'icon' => 'bi-bell'
-            ],
+            // Tasks
+            'tasks_create_success' => 'Task created successfully',
+            'tasks_create_error' => 'Failed to create task',
+            'tasks_update_success' => 'Task updated successfully',
+            'tasks_update_error' => 'Failed to update task',
+            'tasks_delete_success' => 'Task deleted successfully',
+            'tasks_delete_error' => 'Failed to delete task',
+            'tasks_assign_success' => 'Task assigned successfully',
+            'tasks_assign_error' => 'Failed to assign task',
+            'tasks_complete_success' => 'Task marked as complete',
+            'tasks_complete_error' => 'Failed to complete task',
+            
+            // Projects
+            'projects_create_success' => 'Project created successfully',
+            'projects_create_error' => 'Failed to create project',
+            'projects_update_success' => 'Project updated successfully',
+            'projects_update_error' => 'Failed to update project',
+            'projects_delete_success' => 'Project deleted successfully',
+            'projects_delete_error' => 'Failed to delete project',
+            'projects_complete_success' => 'Project marked as complete',
+            'projects_complete_error' => 'Failed to complete project',
+            
+            // Leave Requests
+            'leaves_create_success' => 'Leave request submitted successfully',
+            'leaves_create_error' => 'Failed to submit leave request',
+            'leaves_approve_success' => 'Leave request approved',
+            'leaves_approve_error' => 'Failed to approve leave request',
+            'leaves_reject_success' => 'Leave request rejected',
+            'leaves_reject_error' => 'Failed to reject leave request',
+            'leaves_cancel_success' => 'Leave request cancelled',
+            'leaves_cancel_error' => 'Failed to cancel leave request',
+            
+            // Attendance
+            'attendance_checkin_success' => 'Checked in successfully',
+            'attendance_checkin_error' => 'Failed to check in',
+            'attendance_checkout_success' => 'Checked out successfully',
+            'attendance_checkout_error' => 'Failed to check out',
+            'attendance_late_success' => 'Late attendance marked',
+            'attendance_late_error' => 'Failed to mark late attendance',
+            'attendance_absent_success' => 'Absence marked',
+            'attendance_absent_error' => 'Failed to mark absence',
+            
+            // Users
+            'users_create_success' => 'User created successfully',
+            'users_create_error' => 'Failed to create user',
+            'users_update_success' => 'User updated successfully',
+            'users_update_error' => 'Failed to update user',
+            'users_delete_success' => 'User deleted successfully',
+            'users_delete_error' => 'Failed to delete user',
+            'users_activate_success' => 'User activated successfully',
+            'users_activate_error' => 'Failed to activate user',
+            'users_deactivate_success' => 'User deactivated successfully',
+            'users_deactivate_error' => 'Failed to deactivate user',
+            
+            // Announcements
+            'announcements_create_success' => 'Announcement created successfully',
+            'announcements_create_error' => 'Failed to create announcement',
+            'announcements_update_success' => 'Announcement updated successfully',
+            'announcements_update_error' => 'Failed to update announcement',
+            'announcements_delete_success' => 'Announcement deleted successfully',
+            'announcements_delete_error' => 'Failed to delete announcement',
+            'announcements_publish_success' => 'Announcement published successfully',
+            'announcements_publish_error' => 'Failed to publish announcement'
         ];
     }
 }

@@ -230,6 +230,11 @@ class Permissions extends CI_Controller {
                     'clients_edit' => 'Edit Client',
                     'clients_delete' => 'Delete Client',
                     'payroll' => 'Payroll',
+                    'expenses' => 'Expense Management',
+                    'expenses_approve' => 'Approve Expenses',
+                    'expenses_reimburse' => 'Reimburse Expenses',
+                    'expenses_reports' => 'Expense Reports',
+                    'expenses_categories' => 'Expense Categories',
                     'assets_mgmt' => 'Asset Management',
                     'assets_list' => 'Asset List',
                     'assets_add' => 'Add Asset',
@@ -240,6 +245,7 @@ class Permissions extends CI_Controller {
             'Reports & Analytics' => [
                 'icon' => 'bi-graph-up',
                 'modules' => [
+                    'analytics' => 'AI Analytics',
                     'reports' => 'Reports',
                     'reports_overview' => 'Overview Reports',
                     'reports_requirements' => 'Requirements Reports',
@@ -262,9 +268,14 @@ class Permissions extends CI_Controller {
                     'reminders_delete' => 'Delete Reminder',
                     'activity' => 'Activity Log',
                     'mail' => 'Mail Configuration',
+                    'sendgrid' => 'SendGrid Email API',
+                    'email_settings' => 'Email Settings',
                     'whatsapp' => 'WhatsApp Integration',
+                    'roles' => 'Role Management',
                     'statuses' => 'Status Management',
-                    'api_integrations' => 'API Integrations'
+                    'api_integrations' => 'API Integrations',
+                    'admin' => 'Admin Access',
+                    'notifications' => 'Notifications'
                 ]
             ]
         ];

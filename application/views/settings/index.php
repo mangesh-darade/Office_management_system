@@ -1239,6 +1239,19 @@ function removeLogo() {
 
 // Handle weekend checkboxes
 document.addEventListener('DOMContentLoaded', function() {
+  // Initialize Bootstrap tabs explicitly
+  const triggerTabList = document.querySelectorAll('#settingsTabs button[data-bs-toggle="tab"]');
+  if (window.bootstrap && bootstrap.Tab) {
+    triggerTabList.forEach(triggerEl => {
+      const tabTrigger = new bootstrap.Tab(triggerEl);
+      
+      triggerEl.addEventListener('click', event => {
+        event.preventDefault();
+        tabTrigger.show();
+      });
+    });
+  }
+  
   const weekendCheckboxes = document.querySelectorAll('input[name="attendance_weekends[]"]');
   weekendCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function() {
@@ -1262,6 +1275,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// Notification Messages Functions (Global scope for inline onclick)
+function resetNotificationMessage(key, defaultValue) {
+  const input = document.querySelector(`input[name="${key}"]`);
+  if (input) {
+    input.value = defaultValue;
+  }
+}
+
+function resetAllNotificationMessages() {
+  if (confirm('Are you sure you want to reset all notification messages to their defaults? This will undo any customizations you have made.')) {
+    const inputs = document.querySelectorAll('#notificationMessagesForm input[data-default]');
+    inputs.forEach(input => {
+      input.value = input.getAttribute('data-default');
+    });
+  }
+}
+
 // Security tab enhancements
 document.addEventListener('DOMContentLoaded', function() {
   // Add smooth transitions to security cards
@@ -1277,23 +1307,6 @@ document.addEventListener('DOMContentLoaded', function() {
       this.style.boxShadow = '';
     });
   });
-
-  // Notification Messages Functions
-  function resetNotificationMessage(key, defaultValue) {
-    const input = document.querySelector(`input[name="${key}"]`);
-    if (input) {
-      input.value = defaultValue;
-    }
-  }
-
-  function resetAllNotificationMessages() {
-    if (confirm('Are you sure you want to reset all notification messages to their defaults? This will undo any customizations you have made.')) {
-      const inputs = document.querySelectorAll('#notificationMessagesForm input[data-default]');
-      inputs.forEach(input => {
-        input.value = input.getAttribute('data-default');
-      });
-    }
-  }
 
   // Form submission handling for notification messages form
   const notificationMessagesForm = document.getElementById('notificationMessagesForm');

@@ -99,7 +99,12 @@
               </div>
             </div>
             
-            <?php if ($module !== array_key_last($grouped_settings)): ?>
+            <?php 
+            // PHP 5.6+ compatible way to get last array key
+            $module_keys = array_keys($grouped_settings);
+            $last_module = end($module_keys);
+            if ($module !== $last_module): 
+            ?>
               <hr class="my-4">
             <?php endif; ?>
           <?php endforeach; ?>

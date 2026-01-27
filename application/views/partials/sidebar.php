@@ -106,6 +106,55 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-cash-stack me-2"></i>Payroll</a>
       <?php endif; ?>
+      
+      <?php if(function_exists('has_module_access') && has_module_access('expenses')): ?>
+      <div class="nav-item" id="expense-group">
+        <div class="d-flex align-items-center justify-content-between">
+            <a id="expense-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='expenses'?'active':''; ?>" href="<?php echo site_url('expenses'); ?>">
+            <i class="bi bi-wallet2 me-2"></i>Expenses
+            </a>
+            <button id="expense-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="expense-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="expense-submenu">
+            <div class="submenu-list">
+            <a class="submenu-link <?php echo ($active==='expenses' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('expenses'); ?>">My Expenses</a>
+            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='create')?'active':''; ?>" href="<?php echo site_url('expenses/create'); ?>">Create Request</a>
+            <?php if(function_exists('has_module_access') && has_module_access('expenses_approve')): ?>
+            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='pending')?'active':''; ?>" href="<?php echo site_url('expenses/pending'); ?>">Approvals</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('expenses_reports')): ?>
+            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='report')?'active':''; ?>" href="<?php echo site_url('expenses/report'); ?>">Reports</a>
+            <?php endif; ?>
+            </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+            var key = 'sb_expense_open';
+            var group = document.getElementById('expense-group');
+            var btn = document.getElementById('expense-toggle');
+            var parentLink = document.getElementById('expense-parent');
+            var box = document.getElementById('expense-submenu');
+            if(!btn || !box) return;
+            function setOpen(open){
+            box.style.display = open ? 'block' : 'none';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.classList.toggle('rot', open);
+            if (group) { group.classList.toggle('open', open); }
+            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
+            }
+            var saved = null;
+            try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
+            var open = (saved === '1') || <?php echo $active==='expenses' ? 'true' : 'false'; ?>;
+            setOpen(open);
+            function toggle(){ setOpen(!(box.style.display !== 'none')); }
+            btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+        })();
+      </script>
+      <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
       <div class="nav-item" id="leave-group">
@@ -234,6 +283,9 @@ if (!(int)$this->session->userdata('user_id')) {
         <div class="ps-3 sidebar-submenu" id="reports-submenu">
           <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
           <div class="submenu-list">
+            <?php if(function_exists('has_module_access') && has_module_access('analytics')): ?>
+            <a class="submenu-link <?php echo $active==='analytics'?'active':''; ?>" href="<?php echo site_url('analytics'); ?>"><i class="bi bi-cpu me-2"></i>AI Analytics</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('reports_overview')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && ($seg2==='' || $seg2===null))?'active':''; ?>" href="<?php echo site_url('reports'); ?>">Overview</a>
             <?php endif; ?>
