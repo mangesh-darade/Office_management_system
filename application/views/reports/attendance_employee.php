@@ -676,6 +676,15 @@ body {
     <div class="stat-label">Total Extra Hours</div>
   </div>
   <?php endif; ?>
+
+  
+  <div class="stat-card" style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);">
+    <div class="stat-icon" style="background: rgba(99, 102, 241, 0.2); color: #4338ca;">
+      <i class="bi bi-calendar-event"></i>
+    </div>
+    <div class="stat-value"><?php echo isset($holidays) ? count($holidays) : 0; ?></div>
+    <div class="stat-label">Holidays in Month</div>
+  </div>
 </div>
 
 <!-- Compact Filter Section -->
@@ -723,6 +732,18 @@ body {
       <?php endif; ?>
       <?php if (isset($standard_working_hours)): ?>
         <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>
+      <?php endif; ?>
+      <?php if (isset($holidays) && !empty($holidays)): ?>
+        <div style="flex-basis: 100%; margin-top: 0.25rem;">
+          <strong style="color: var(--primary-color);">Holidays:</strong> 
+          <?php 
+            $hNames = [];
+            foreach($holidays as $h) {
+                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: var(--text-secondary); font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
+            }
+            echo implode(', ', $hNames);
+          ?>
+        </div>
       <?php endif; ?>
     </div>
   </div>

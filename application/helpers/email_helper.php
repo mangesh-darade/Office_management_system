@@ -54,6 +54,13 @@ if (!function_exists('configure_email_from_settings')) {
         $smtp_port   = $CI->settings->get_setting('email_smtp_port', '587');
         $smtp_crypto = $CI->settings->get_setting('email_smtp_crypto', 'tls');
 
+        // Auto-correct crypto based on port if needed
+        if ((int)$smtp_port === 465 && $smtp_crypto !== 'ssl') {
+            $smtp_crypto = 'ssl';
+        } elseif ((int)$smtp_port === 587 && $smtp_crypto !== 'tls') {
+            $smtp_crypto = 'tls';
+        }
+
         if ($smtp_user && $smtp_pass) {
             $config = array(
                 'protocol'   => 'smtp',
@@ -65,6 +72,8 @@ if (!function_exists('configure_email_from_settings')) {
                 'mailtype'   => 'html',
                 'charset'    => 'utf-8',
                 'wordwrap'   => true,
+                'newline'    => "\r\n",
+                'crlf'       => "\r\n",
             );
 
             $CI->email->initialize($config);

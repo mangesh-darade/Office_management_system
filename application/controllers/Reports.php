@@ -1384,7 +1384,21 @@ class Reports extends CI_Controller {
             $to = $today;
         }
         
-        // Calculate total working days (excluding weekends and future dates) - used in both branches
+        // Fetch holidays for the period
+        $holidays = [];
+        $holidayDates = [];
+        if ($this->db->table_exists('holidays')) {
+            $holidays = $this->db->where('holiday_date >=', $from)
+                                 ->where('holiday_date <=', $to)
+                                 ->order_by('holiday_date', 'ASC')
+                                 ->get('holidays')
+                                 ->result();
+            foreach ($holidays as $h) {
+                $holidayDates[] = $h->holiday_date;
+            }
+        }
+
+        // Calculate total working days (excluding weekends, future dates, AND holidays) - used in both branches
         $totalWorkingDays = 0;
         $startTs = strtotime($from);
         $endTs = strtotime($to);
@@ -1394,8 +1408,11 @@ class Reports extends CI_Controller {
             if ($startTs > $todayTs) {
                 break;
             }
+            $currentDate = date('Y-m-d', $startTs);
             $dayOfWeek = (int)date('w', $startTs); // 0=Sunday, 6=Saturday
-            if ($dayOfWeek != 0 && $dayOfWeek != 6) { // Not Sunday or Saturday
+            
+            // Not Sunday or Saturday AND not a holiday
+            if ($dayOfWeek != 0 && $dayOfWeek != 6 && !in_array($currentDate, $holidayDates)) { 
                 $totalWorkingDays++;
             }
             $startTs = strtotime('+1 day', $startTs);
@@ -1626,6 +1643,12 @@ class Reports extends CI_Controller {
                 }
             }
 
+        // Create holiday map
+        $holidayMap = [];
+        foreach ($holidays as $h) {
+            $holidayMap[$h->holiday_date] = $h->name;
+        }
+
             $days = [];
             $startTs = strtotime($from);
             $endTs = strtotime($to);
@@ -1637,15 +1660,25 @@ class Reports extends CI_Controller {
                 $raw = isset($attMap[$d]) ? $attMap[$d] : '';
                 $st = strtolower(trim($raw));
                 $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+                $holidayName = isset($holidayMap[$d]) ? $holidayMap[$d] : null;
                 
                 // Determine status: if no attendance record and not on leave and not weekend, mark as absent
                 if ($raw === '' && $leave === '—' && !$isWeekend) {
-                    $st = 'absent';
-                    $raw = 'absent';
+                    if ($holidayName) {
+                        $st = 'holiday';
+                        $raw = 'holiday';
+                    } else {
+                        $st = 'absent';
+                        $raw = 'absent';
+                    }
                 }
                 
                 $labelSt = '—';
-                if ($st === 'present') { $labelSt = 'Present'; }
+                if ($st === 'holiday') { $labelSt = 'Holiday: ' . $holidayName; }
+                elseif ($st === 'present') { 
+                    $labelSt = 'Present'; 
+                    if ($holidayName) { $labelSt .= ' (' . $holidayName . ')'; }
+                }
                 elseif ($st === 'half_day') { $labelSt = 'Half Day'; }
                 elseif ($st === 'work_from_home') { $labelSt = 'Work From Home'; }
                 elseif ($st === 'absent') { $labelSt = 'Absent'; }
@@ -1781,7 +1814,8 @@ class Reports extends CI_Controller {
                 'office_start_time'=>$officeStart,
                 'grace_minutes'=>$graceMinutes,
                 'standard_working_hours'=>$standardHours,
-                'days'=>$days
+                'days'=>$days,
+                'holidays'=>$holidays
             ]);
             return;
         }
@@ -2104,7 +2138,8 @@ class Reports extends CI_Controller {
             'standard_working_hours' => $standardHoursDisplay,
             'rows' => $rowsOut,
             'attendance_notes' => $attendanceNotes,
-            'getName' => $getName
+            'getName' => $getName,
+            'holidays' => $holidays
         ]);
     }
 

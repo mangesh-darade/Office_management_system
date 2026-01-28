@@ -347,3 +347,30 @@ if (!function_exists('get_all_default_notification_messages')) {
         ];
     }
 }
+
+if (!function_exists('get_notification_message')) {
+    /**
+     * Get notification message for a specific module and action
+     * 
+     * @param string $module Module name (tasks, projects, leaves, etc.)
+     * @param string $action Action name (create, update, delete, etc.)
+     * @param string $type Type (success, error)
+     * @return string Notification message
+     */
+    function get_notification_message($module, $action, $type = 'success')
+    {
+        $CI =& get_instance();
+        
+        // Normalize module name (e.g., leave_requests -> leaves)
+        if ($module == 'leave_requests') {
+            $module = 'leaves';
+        }
+        
+        $key = "{$module}_{$action}_{$type}";
+        
+        // Try to get from settings if implemented, otherwise use default
+        $messages = get_all_default_notification_messages();
+        
+        return isset($messages[$key]) ? $messages[$key] : ucfirst(str_replace('_', ' ', $key));
+    }
+}
