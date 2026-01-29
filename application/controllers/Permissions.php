@@ -246,6 +246,9 @@ class Permissions extends CI_Controller {
                 'icon' => 'bi-graph-up',
                 'modules' => [
                     'analytics' => 'AI Analytics',
+                    'ai' => 'AI Assistant',
+                    'ai_chat' => 'AI Chat',
+                    'ai_widget' => 'AI Floating Button',
                     'reports' => 'Reports',
                     'reports_overview' => 'Overview Reports',
                     'reports_requirements' => 'Requirements Reports',

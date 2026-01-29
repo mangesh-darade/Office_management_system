@@ -13,6 +13,11 @@
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
+<?php if ($this->session->flashdata('warning')): ?>
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('warning')); ?>
+  </div>
+<?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
@@ -51,6 +56,11 @@
   <li class="nav-item" role="presentation">
     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
       <i class="bi bi-shield-check me-1"></i> Security & Protection
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#ai_integration" type="button" role="tab">
+      <i class="bi bi-robot me-1"></i> AI Integration
     </button>
   </li>
 </ul>
@@ -794,10 +804,7 @@
                 </div>
                 <div class="form-text">Show detailed error messages (disable in production)</div>
               </div>
-              <div class="alert alert-warning d-flex align-items-center mb-3">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <small>Debug mode should be disabled in production environments for security.</small>
-              </div>
+
               <button type="submit" class="btn btn-warning w-100">
                 <i class="bi bi-check-lg me-1"></i> Save System Settings
               </button>
@@ -805,8 +812,7 @@
           </div>
         </div>
       </div>
-
-      <!-- Location & Office Settings -->
+      <!-- Location & Office Settings (Moved into General) -->
       <div class="col-lg-6">
         <div class="card shadow-sm border-0 h-100">
           <div class="card-header bg-light border-0">
@@ -863,339 +869,436 @@
           </div>
         </div>
       </div>
+    </div> <!-- End Row -->
+  </div> <!-- End General Tab -->
+
+  <!-- AI Integration Tab -->
+  <!-- AI Integration Tab -->
+  <div class="tab-pane fade" id="ai_integration" role="tabpanel">
+    <div class="card shadow-sm">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="bi bi-robot me-2"></i>AI Service Configuration</h5>
+        <div>
+             <button type="button" class="btn btn-primary btn-sm rounded-circle shadow-sm" data-bs-toggle="modal" data-bs-target="#aiConfigModal" title="Configure AI Services">
+                <i class="bi bi-plus-lg"></i>
+             </button>
+        </div>
+      </div>
+      <div class="card-body">
+         <!-- Status Overview List -->
+         <div class="list-group list-group-flush">
+            <?php 
+               $ai_services = [
+                   'openai' => ['name' => 'OpenAI', 'icon' => 'bi-cpu', 'color' => 'success', 'desc' => 'Premium Provider (GPT-4o).'],
+                   'gemini' => ['name' => 'Google Gemini', 'icon' => 'bi-google', 'color' => 'primary', 'desc' => 'Primary Provider for reasoning and RAG.'],
+                   'openrouter' => ['name' => 'OpenRouter', 'icon' => 'bi-motherboard', 'color' => 'dark', 'desc' => 'Fallback provider for advanced models.'],
+                   'huggingface' => ['name' => 'Hugging Face', 'icon' => 'bi-emoji-smile', 'color' => 'warning', 'desc' => 'Backup provider for open-source models.'],
+                   'azure_speech' => ['name' => 'Azure Speech', 'icon' => 'bi-mic', 'color' => 'info', 'desc' => 'Text-to-Speech and Speech-to-Text services.']
+               ];
+               
+               $has_active = false;
+               foreach($ai_services as $key => $service):
+                   $enabled_key = 'ai_' . $key . '_enabled';
+                   // Strict check: defaults to false if not set
+                   $is_active = isset($settings[$enabled_key]) && $settings[$enabled_key] === 'yes';
+                   
+                   if(!$is_active) continue;
+                   $has_active = true;
+            ?>
+            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+               <div class="d-flex align-items-center">
+                  <div class="rounded-circle bg-<?php echo $service['color']; ?> bg-opacity-10 p-2 me-3">
+                     <i class="bi <?php echo $service['icon']; ?> text-<?php echo $service['color']; ?> fs-4"></i>
+                  </div>
+                  <div>
+                     <h6 class="mb-0 fw-bold"><?php echo $service['name']; ?></h6>
+                     <small class="text-muted"><?php echo $service['desc']; ?></small>
+                  </div>
+               </div>
+               <span class="badge bg-success rounded-pill">Active</span>
+            </div>
+            <?php endforeach; ?>
+            
+            <?php if(!$has_active): ?>
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-robot display-4 d-block mb-3 opacity-25"></i>
+                <p>No AI services are currently active.</p>
+                <p class="small">Click the <strong>+</strong> button to configure and enable a service.</p>
+            </div>
+            <?php endif; ?>
+         </div>
+         
+         <div class="mt-4 text-center">
+            <small class="text-muted"><i class="bi bi-info-circle me-1"></i> Configured services are prioritized in the order: Gemini > OpenRouter > Hugging Face.</small>
+         </div>
+      </div>
     </div>
   </div>
 
-  <div class="tab-pane fade" id="security" role="tabpanel">
-    <div class="row g-4">
-      <!-- Security Overview Card -->
-      <div class="col-12">
-        <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-          <div class="card-body text-white p-4">
-            <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <h5 class="card-title mb-2">
-                  <i class="bi bi-shield-lock-fill me-2"></i>Security & Protection
-                </h5>
-                <p class="card-text mb-0 opacity-90">Manage system security settings and protection features</p>
-              </div>
-              <div class="text-end">
-                <i class="bi bi-shield-check" style="font-size: 3rem; opacity: 0.3;"></i>
-              </div>
-            </div>
-          </div>
+  <!-- AI Configuration Modal -->
+  <div class="modal fade" id="aiConfigModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-sliders me-2"></i>Configure AI Services</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-      </div>
-
-      <!-- Password Security -->
-      <div class="col-lg-6">
-        <div class="card shadow-sm border-0 h-100">
-          <div class="card-header bg-light border-0">
-            <h6 class="mb-0 fw-bold">
-              <i class="bi bi-key-fill text-primary me-2"></i>Password Security
-            </h6>
-          </div>
-          <div class="card-body">
-            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityPasswordForm">
-              <input type="hidden" name="form_section" value="security_password">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Minimum Password Length</label>
-                <input type="number" class="form-control" name="security_min_password_length" 
-                       value="<?php echo htmlspecialchars(isset($settings['security_min_password_length']) ? $settings['security_min_password_length'] : '8'); ?>" 
-                       min="6" max="32" />
-                <div class="form-text">Minimum number of characters required (6-32)</div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_require_uppercase" value="yes" 
-                         <?php echo (isset($settings['security_require_uppercase']) && $settings['security_require_uppercase'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_require_uppercase">
-                  <label class="form-check-label" for="security_require_uppercase">
-                    Require Uppercase Letter
-                  </label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_require_lowercase" value="yes" 
-                         <?php echo (isset($settings['security_require_lowercase']) && $settings['security_require_lowercase'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_require_lowercase">
-                  <label class="form-check-label" for="security_require_lowercase">
-                    Require Lowercase Letter
-                  </label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_require_number" value="yes" 
-                         <?php echo (isset($settings['security_require_number']) && $settings['security_require_number'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_require_number">
-                  <label class="form-check-label" for="security_require_number">
-                    Require Number
-                  </label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_require_special" value="yes" 
-                         <?php echo (isset($settings['security_require_special']) && $settings['security_require_special'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_require_special">
-                  <label class="form-check-label" for="security_require_special">
-                    Require Special Character
-                  </label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Password Expiry (days)</label>
-                <input type="number" class="form-control" name="security_password_expiry" 
-                       value="<?php echo htmlspecialchars(isset($settings['security_password_expiry']) ? $settings['security_password_expiry'] : '90'); ?>" 
-                       min="0" max="365" />
-                <div class="form-text">0 = Never expire</div>
-              </div>
-              <button type="submit" class="btn btn-primary w-100">
-                <i class="bi bi-check-lg me-1"></i> Save Password Settings
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Session Security -->
-      <div class="col-lg-6">
-        <div class="card shadow-sm border-0 h-100">
-          <div class="card-header bg-light border-0">
-            <h6 class="mb-0 fw-bold">
-              <i class="bi bi-clock-history text-success me-2"></i>Session Security
-            </h6>
-          </div>
-          <div class="card-body">
-            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securitySessionForm">
-              <input type="hidden" name="form_section" value="security_session">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Session Timeout (minutes)</label>
-                <input type="number" class="form-control" name="security_session_timeout" 
-                       value="<?php echo htmlspecialchars(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '60'); ?>" 
-                       min="5" max="480" />
-                <div class="form-text">User will be logged out after inactivity</div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_single_session" value="yes" 
-                         <?php echo (isset($settings['security_single_session']) && $settings['security_single_session'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_single_session">
-                  <label class="form-check-label" for="security_single_session">
-                    Single Session Only
-                  </label>
-                </div>
-                <div class="form-text">Allow only one active session per user</div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_remember_me" value="yes" 
-                         <?php echo (isset($settings['security_remember_me']) && $settings['security_remember_me'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_remember_me">
-                  <label class="form-check-label" for="security_remember_me">
-                    Enable Remember Me
-                  </label>
-                </div>
-                <div class="form-text">Allow users to stay logged in for extended periods</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Max Failed Login Attempts</label>
-                <input type="number" class="form-control" name="security_max_login_attempts" 
-                       value="<?php echo htmlspecialchars(isset($settings['security_max_login_attempts']) ? $settings['security_max_login_attempts'] : '5'); ?>" 
-                       min="3" max="10" />
-                <div class="form-text">Account locked after exceeding attempts</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Lockout Duration (minutes)</label>
-                <input type="number" class="form-control" name="security_lockout_duration" 
-                       value="<?php echo htmlspecialchars(isset($settings['security_lockout_duration']) ? $settings['security_lockout_duration'] : '15'); ?>" 
-                       min="5" max="60" />
-                <div class="form-text">Time before user can attempt login again</div>
-              </div>
-              <button type="submit" class="btn btn-success w-100">
-                <i class="bi bi-check-lg me-1"></i> Save Session Settings
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Two-Factor Authentication -->
-      <div class="col-lg-6">
-        <div class="card shadow-sm border-0 h-100">
-          <div class="card-header bg-light border-0">
-            <h6 class="mb-0 fw-bold">
-              <i class="bi bi-shield-lock text-warning me-2"></i>Two-Factor Authentication
-            </h6>
-          </div>
-          <div class="card-body">
-            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="security2FAForm">
-              <input type="hidden" name="form_section" value="security_2fa">
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_enable_2fa" value="yes" 
-                         <?php echo (isset($settings['security_enable_2fa']) && $settings['security_enable_2fa'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_enable_2fa">
-                  <label class="form-check-label fw-semibold" for="security_enable_2fa">
-                    Enable Two-Factor Authentication
-                  </label>
-                </div>
-                <div class="form-text">Add an extra layer of security with 2FA</div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_2fa_required_admin" value="yes" 
-                         <?php echo (isset($settings['security_2fa_required_admin']) && $settings['security_2fa_required_admin'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_2fa_required_admin">
-                  <label class="form-check-label" for="security_2fa_required_admin">
-                    Require 2FA for Administrators
-                  </label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">2FA Method</label>
-                <select class="form-select" name="security_2fa_method">
-                  <option value="email" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'email') ? 'selected' : ''; ?>>
-                    Email OTP
-                  </option>
-                  <option value="sms" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'sms') ? 'selected' : ''; ?>>
-                    SMS OTP
-                  </option>
-                  <option value="app" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'app') ? 'selected' : ''; ?>>
-                    Authenticator App
-                  </option>
-                </select>
-              </div>
-              <div class="alert alert-info d-flex align-items-center mb-3">
-                <i class="bi bi-info-circle-fill me-2"></i>
-                <small>Two-factor authentication adds an extra layer of security to user accounts.</small>
-              </div>
-              <button type="submit" class="btn btn-warning w-100 text-white">
-                <i class="bi bi-check-lg me-1"></i> Save 2FA Settings
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- IP Security & Access Control -->
-      <div class="col-lg-6">
-        <div class="card shadow-sm border-0 h-100">
-          <div class="card-header bg-light border-0">
-            <h6 class="mb-0 fw-bold">
-              <i class="bi bi-globe text-danger me-2"></i>IP Security & Access Control
-            </h6>
-          </div>
-          <div class="card-body">
-            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityIPForm">
-              <input type="hidden" name="form_section" value="security_ip">
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_enable_ip_whitelist" value="yes" 
-                         <?php echo (isset($settings['security_enable_ip_whitelist']) && $settings['security_enable_ip_whitelist'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_enable_ip_whitelist">
-                  <label class="form-check-label" for="security_enable_ip_whitelist">
-                    Enable IP Whitelist
-                  </label>
-                </div>
-                <div class="form-text">Restrict access to specific IP addresses</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Allowed IP Addresses</label>
-                <textarea class="form-control" name="security_allowed_ips" rows="4" 
-                          placeholder="192.168.1.1&#10;10.0.0.0/24&#10;203.0.113.0/24"><?php echo htmlspecialchars(isset($settings['security_allowed_ips']) ? $settings['security_allowed_ips'] : ''); ?></textarea>
-                <div class="form-text">One IP or CIDR range per line (e.g., 192.168.1.1 or 10.0.0.0/24)</div>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="security_log_failed_attempts" value="yes" 
-                         <?php echo (isset($settings['security_log_failed_attempts']) && $settings['security_log_failed_attempts'] === 'yes') ? 'checked' : ''; ?> 
-                         id="security_log_failed_attempts">
-                  <label class="form-check-label" for="security_log_failed_attempts">
-                    Log Failed Login Attempts
-                  </label>
-                </div>
-                <div class="form-text">Keep a record of failed login attempts for security auditing</div>
-              </div>
-              <div class="alert alert-warning d-flex align-items-center mb-3">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                <small>Be careful with IP restrictions. Make sure your own IP is included in the whitelist.</small>
-              </div>
-              <button type="submit" class="btn btn-danger w-100">
-                <i class="bi bi-check-lg me-1"></i> Save IP Security Settings
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Security Audit & Logs -->
-      <div class="col-12">
-        <div class="card shadow-sm border-0">
-          <div class="card-header bg-light border-0">
-            <h6 class="mb-0 fw-bold">
-              <i class="bi bi-clipboard-data text-info me-2"></i>Security Audit & Monitoring
-            </h6>
-          </div>
-          <div class="card-body">
-            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityAuditForm">
-              <input type="hidden" name="form_section" value="security_audit">
+        <div class="modal-body">
+            <form method="post" action="<?php echo site_url('settings/update'); ?>" class="vstack gap-3" id="aiForm">
+              <input type="hidden" name="form_section" value="ai_integration">
+              
               <div class="row g-3">
-                <div class="col-md-4">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" name="security_audit_login" value="yes" 
-                           <?php echo (isset($settings['security_audit_login']) && $settings['security_audit_login'] === 'yes') ? 'checked' : ''; ?> 
-                           id="security_audit_login">
-                    <label class="form-check-label fw-semibold" for="security_audit_login">
-                      Log All Login Attempts
-                    </label>
-                  </div>
-                  <div class="form-text">Record successful and failed login attempts</div>
-                </div>
-                <div class="col-md-4">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" name="security_audit_settings" value="yes" 
-                           <?php echo (isset($settings['security_audit_settings']) && $settings['security_audit_settings'] === 'yes') ? 'checked' : ''; ?> 
-                           id="security_audit_settings">
-                    <label class="form-check-label fw-semibold" for="security_audit_settings">
-                      Log Settings Changes
-                    </label>
-                  </div>
-                  <div class="form-text">Track all modifications to system settings</div>
-                </div>
-                <div class="col-md-4">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" name="security_audit_data" value="yes" 
-                           <?php echo (isset($settings['security_audit_data']) && $settings['security_audit_data'] === 'yes') ? 'checked' : ''; ?> 
-                           id="security_audit_data">
-                    <label class="form-check-label fw-semibold" for="security_audit_data">
-                      Log Data Changes
-                    </label>
-                  </div>
-                  <div class="form-text">Monitor critical data modifications</div>
-                </div>
+                <!-- Google Gemini -->
                 <div class="col-md-6">
-                  <label class="form-label fw-semibold">Log Retention (days)</label>
-                  <input type="number" class="form-control" name="security_log_retention" 
-                         value="<?php echo htmlspecialchars(isset($settings['security_log_retention']) ? $settings['security_log_retention'] : '90'); ?>" 
-                         min="30" max="365" />
-                  <div class="form-text">How long to keep security logs (30-365 days)</div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold">&nbsp;</label>
-                  <div class="d-grid">
-                    <button type="submit" class="btn btn-info text-white">
-                      <i class="bi bi-check-lg me-1"></i> Save Audit Settings
-                    </button>
+                  <div class="card h-100 border-primary border-opacity-25">
+                     <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="fw-bold text-primary"><i class="bi bi-google me-1"></i> Google Gemini</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ai_gemini_enabled" value="yes" id="ai_gemini_enabled" <?php echo (isset($settings['ai_gemini_enabled']) && $settings['ai_gemini_enabled'] === 'yes') || !isset($settings['ai_gemini_enabled']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="ai_gemini_enabled">Active</label>
+                            </div>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Key</span>
+                            <input type="password" class="form-control" name="ai_gemini_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_gemini_api_key']) ? $settings['ai_gemini_api_key'] : ''); ?>" id="geminiKey">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('geminiKey')"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <small class="text-muted d-block mt-1">Status: Primary Provider</small>
+                     </div>
                   </div>
+                </div>
+
+                <!-- OpenRouter -->
+                <div class="col-md-6">
+                   <div class="card h-100 border-secondary border-opacity-25">
+                     <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="fw-bold text-dark"><i class="bi bi-cpu me-1"></i> OpenRouter</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ai_openrouter_enabled" value="yes" id="ai_openrouter_enabled" <?php echo (isset($settings['ai_openrouter_enabled']) && $settings['ai_openrouter_enabled'] === 'yes') || !isset($settings['ai_openrouter_enabled']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="ai_openrouter_enabled">Active</label>
+                            </div>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Key</span>
+                            <input type="password" class="form-control" name="ai_openrouter_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_openrouter_api_key']) ? $settings['ai_openrouter_api_key'] : ''); ?>" id="openrouterKey">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('openrouterKey')"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <small class="text-muted d-block mt-1">Status: Fallback Provider</small>
+                     </div>
+                  </div>
+                </div>
+
+                <!-- Hugging Face -->
+                <div class="col-md-6">
+                    <div class="card h-100 border-warning border-opacity-25">
+                     <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="fw-bold text-warning"><i class="bi bi-emoji-smile me-1"></i> Hugging Face</label>
+                             <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ai_huggingface_enabled" value="yes" id="ai_huggingface_enabled" <?php echo (isset($settings['ai_huggingface_enabled']) && $settings['ai_huggingface_enabled'] === 'yes') || !isset($settings['ai_huggingface_enabled']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="ai_huggingface_enabled">Active</label>
+                            </div>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Key</span>
+                            <input type="password" class="form-control" name="ai_huggingface_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_huggingface_api_key']) ? $settings['ai_huggingface_api_key'] : ''); ?>" id="hfKey">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('hfKey')"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <small class="text-muted d-block mt-1">Status: Backup Provider</small>
+                     </div>
+                  </div>
+                </div>
+
+                <!-- Azure Speech -->
+                <div class="col-md-6">
+                   <div class="card h-100 border-info border-opacity-25">
+                     <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="fw-bold text-info"><i class="bi bi-mic me-1"></i> Azure Speech</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ai_azure_speech_enabled" value="yes" id="ai_azure_speech_enabled" <?php echo (isset($settings['ai_azure_speech_enabled']) && $settings['ai_azure_speech_enabled'] === 'yes') || !isset($settings['ai_azure_speech_enabled']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="ai_azure_speech_enabled">Active</label>
+                            </div>
+                        </div>
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text">Key</span>
+                            <input type="password" class="form-control" name="ai_azure_speech_key" value="<?php echo htmlspecialchars(isset($settings['ai_azure_speech_key']) ? $settings['ai_azure_speech_key'] : ''); ?>" id="azureKey">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('azureKey')"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <div class="input-group input-group-sm">
+                             <span class="input-group-text">Region</span>
+                            <input type="text" class="form-control" name="ai_azure_speech_region" value="<?php echo htmlspecialchars(isset($settings['ai_azure_speech_region']) ? $settings['ai_azure_speech_region'] : 'eastus'); ?>" placeholder="e.g. eastus">
+                        </div>
+                     </div>
+                  </div>
+                </div>
+
+                <!-- OpenAI -->
+                <div class="col-md-6">
+                   <div class="card h-100 border-success border-opacity-25">
+                     <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="fw-bold text-success"><i class="bi bi-cpu me-1"></i> OpenAI</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ai_openai_enabled" value="yes" id="ai_openai_enabled" <?php echo (isset($settings['ai_openai_enabled']) && $settings['ai_openai_enabled'] === 'yes') ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="ai_openai_enabled">Active</label>
+                            </div>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Key</span>
+                            <input type="password" class="form-control" name="ai_openai_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_openai_api_key']) ? $settings['ai_openai_api_key'] : ''); ?>" id="openaiKey" placeholder="sk-...">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('openaiKey')"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <small class="text-muted d-block mt-1">Status: Premium Provider</small>
+                     </div>
+                   </div>
                 </div>
               </div>
+
+              <!-- Custom AI Providers Section -->
+              <div class="col-12 mt-4">
+                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-puzzle me-2"></i>Custom AI Providers</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCustomProviderRow()">
+                        <i class="bi bi-plus-lg me-1"></i> Add Custom Service
+                    </button>
+                 </div>
+                 
+                 <div id="customAiProvidersList" class="vstack gap-2">
+                    <?php 
+                        $custom_providers = isset($settings['ai_custom_providers']) ? json_decode($settings['ai_custom_providers'], true) : [];
+                        if (!is_array($custom_providers)) $custom_providers = [];
+                        
+                        foreach($custom_providers as $index => $provider): 
+                    ?>
+                    <div class="row g-2 align-items-center custom-provider-row" id="provider_row_<?php echo $index; ?>">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control form-control-sm" name="ai_custom_providers[<?php echo $index; ?>][name]" value="<?php echo htmlspecialchars(isset($provider['name']) ? $provider['name'] : ''); ?>" placeholder="Provider Name (e.g. Anthropic)" required>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                <input type="password" class="form-control" name="ai_custom_providers[<?php echo $index; ?>][key]" value="<?php echo htmlspecialchars(isset($provider['key']) ? $provider['key'] : ''); ?>" placeholder="API Key" id="customKey_<?php echo $index; ?>">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('customKey_<?php echo $index; ?>')"><i class="bi bi-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check form-switch pt-1">
+                                <input class="form-check-input" type="checkbox" name="ai_custom_providers[<?php echo $index; ?>][enabled]" value="1" id="custom_enabled_<?php echo $index; ?>" <?php echo (isset($provider['enabled']) && $provider['enabled'] == '1') ? 'checked' : ''; ?>>
+                                <label class="form-check-label small" for="custom_enabled_<?php echo $index; ?>">Active</label>
+                            </div>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeCustomProviderRow('provider_row_<?php echo $index; ?>')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                 </div>
+                 <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> Add any other AI services you wish to integrate. These will be available for selection in supported modules.</div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 mt-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-primary px-4">
+                  <i class="bi bi-save me-1"></i> Save Changes
+                </button>
+              </div>
             </form>
-          </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div class="tab-pane fade" id="security" role="tabpanel">
+    <div class="card shadow-sm">
+       <div class="card-header bg-light">
+          <h5 class="card-title mb-0"><i class="bi bi-shield-check me-2"></i>Security & Protection</h5>
+       </div>
+       <div class="card-body">
+         <div class="accordion" id="securityAccordion">
+            
+            <!-- Password Policy -->
+            <div class="accordion-item">
+               <h2 class="accordion-header" id="headingPassword">
+                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePassword">
+                   <i class="bi bi-key me-2 text-primary"></i> Password Policy
+                 </button>
+               </h2>
+               <div id="collapsePassword" class="accordion-collapse collapse show" data-bs-parent="#securityAccordion">
+                  <div class="accordion-body">
+                     <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityPasswordForm">
+                        <input type="hidden" name="form_section" value="security_password">
+                        <div class="row g-3">
+                           <div class="col-md-3">
+                              <label class="form-label fw-semibold small">Min Length</label>
+                              <input type="number" class="form-control form-control-sm" name="security_min_password_length" value="<?php echo htmlspecialchars(isset($settings['security_min_password_length']) ? $settings['security_min_password_length'] : '8'); ?>" min="6" max="32">
+                           </div>
+                           <div class="col-md-3">
+                               <label class="form-label fw-semibold small">Expiry (Days)</label>
+                               <input type="number" class="form-control form-control-sm" name="security_password_expiry" value="<?php echo htmlspecialchars(isset($settings['security_password_expiry']) ? $settings['security_password_expiry'] : '90'); ?>" min="0" max="365">
+                           </div>
+                           <div class="col-md-6 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                               <div class="form-check form-switch">
+                                   <input class="form-check-input" type="checkbox" name="security_require_uppercase" value="yes" id="req_upper" <?php echo (isset($settings['security_require_uppercase']) && $settings['security_require_uppercase'] === 'yes') ? 'checked' : ''; ?>>
+                                   <label class="form-check-label small" for="req_upper">Uppercase</label>
+                               </div>
+                               <div class="form-check form-switch">
+                                   <input class="form-check-input" type="checkbox" name="security_require_lowercase" value="yes" id="req_lower" <?php echo (isset($settings['security_require_lowercase']) && $settings['security_require_lowercase'] === 'yes') ? 'checked' : ''; ?>>
+                                   <label class="form-check-label small" for="req_lower">Lowercase</label>
+                               </div>
+                               <div class="form-check form-switch">
+                                   <input class="form-check-input" type="checkbox" name="security_require_number" value="yes" id="req_num" <?php echo (isset($settings['security_require_number']) && $settings['security_require_number'] === 'yes') ? 'checked' : ''; ?>>
+                                   <label class="form-check-label small" for="req_num">Number</label>
+                               </div>
+                               <div class="form-check form-switch">
+                                   <input class="form-check-input" type="checkbox" name="security_require_special" value="yes" id="req_spec" <?php echo (isset($settings['security_require_special']) && $settings['security_require_special'] === 'yes') ? 'checked' : ''; ?>>
+                                   <label class="form-check-label small" for="req_spec">Special Char</label>
+                               </div>
+                           </div>
+                           <div class="col-12 text-end">
+                               <button type="submit" class="btn btn-sm btn-primary">Save Password Policy</button>
+                           </div>
+                        </div>
+                     </form>
+                  </div>
+               </div>
+            </div>
+
+            <!-- Session & 2FA -->
+            <div class="accordion-item">
+               <h2 class="accordion-header" id="headingSession">
+                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSession">
+                   <i class="bi bi-shield-lock me-2 text-warning"></i> Session & 2FA
+                 </button>
+               </h2>
+               <div id="collapseSession" class="accordion-collapse collapse" data-bs-parent="#securityAccordion">
+                  <div class="accordion-body">
+                     <div class="row g-4">
+                        <!-- Session -->
+                        <div class="col-md-6 border-end">
+                           <h6 class="text-secondary mb-3">Session Management</h6>
+                           <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securitySessionForm">
+                              <input type="hidden" name="form_section" value="security_session">
+                              <div class="row g-2">
+                                 <div class="col-md-6">
+                                     <label class="form-label small fw-bold">Timeout (Min)</label>
+                                     <input type="number" class="form-control form-control-sm" name="security_session_timeout" value="<?php echo htmlspecialchars(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '60'); ?>">
+                                 </div>
+                                 <div class="col-md-6">
+                                     <label class="form-label small fw-bold">Lockout (Min)</label>
+                                     <input type="number" class="form-control form-control-sm" name="security_lockout_duration" value="<?php echo htmlspecialchars(isset($settings['security_lockout_duration']) ? $settings['security_lockout_duration'] : '15'); ?>">
+                                 </div>
+                                 <div class="col-md-12">
+                                     <div class="form-check form-switch mb-1">
+                                         <input class="form-check-input" type="checkbox" name="security_single_session" value="yes" id="single_sess" <?php echo (isset($settings['security_single_session']) && $settings['security_single_session'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small" for="single_sess">Single Session per User</label>
+                                     </div>
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" name="security_remember_me" value="yes" id="rem_me" <?php echo (isset($settings['security_remember_me']) && $settings['security_remember_me'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small" for="rem_me">Enable 'Remember Me'</label>
+                                     </div>
+                                 </div>
+                                 <div class="col-12 mt-2 text-end">
+                                     <button type="submit" class="btn btn-sm btn-warning text-white">Save Session</button>
+                                 </div>
+                              </div>
+                           </form>
+                        </div>
+                        <!-- 2FA -->
+                        <div class="col-md-6">
+                           <h6 class="text-secondary mb-3">Two-Factor Auth</h6>
+                           <form method="post" action="<?php echo site_url('settings/update'); ?>" id="security2FAForm">
+                              <input type="hidden" name="form_section" value="security_2fa">
+                              <div class="row g-2">
+                                 <div class="col-md-6">
+                                     <label class="form-label small fw-bold">2FA Method</label>
+                                     <select class="form-select form-select-sm" name="security_2fa_method">
+                                        <option value="email" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'email') ? 'selected' : ''; ?>>Email OTP</option>
+                                        <option value="sms" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'sms') ? 'selected' : ''; ?>>SMS OTP</option>
+                                        <option value="app" <?php echo (isset($settings['security_2fa_method']) && $settings['security_2fa_method'] === 'app') ? 'selected' : ''; ?>>Auth App</option>
+                                     </select>
+                                 </div>
+                                 <div class="col-md-12">
+                                     <div class="form-check form-switch mb-1">
+                                         <input class="form-check-input" type="checkbox" name="security_enable_2fa" value="yes" id="enable_2fa" <?php echo (isset($settings['security_enable_2fa']) && $settings['security_enable_2fa'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small fw-bold" for="enable_2fa">Enable 2FA Globally</label>
+                                     </div>
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" name="security_2fa_required_admin" value="yes" id="req_2fa_admin" <?php echo (isset($settings['security_2fa_required_admin']) && $settings['security_2fa_required_admin'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small" for="req_2fa_admin">Enforce for Admins</label>
+                                     </div>
+                                 </div>
+                                 <div class="col-12 mt-2 text-end">
+                                     <button type="submit" class="btn btn-sm btn-warning text-white">Save 2FA</button>
+                                 </div>
+                              </div>
+                           </form>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            
+            <!-- IP & Audit -->
+             <div class="accordion-item">
+               <h2 class="accordion-header" id="headingAudit">
+                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAudit">
+                   <i class="bi bi-globe me-2 text-danger"></i> IP Access & Audit Logs
+                 </button>
+               </h2>
+               <div id="collapseAudit" class="accordion-collapse collapse" data-bs-parent="#securityAccordion">
+                  <div class="accordion-body">
+                      <div class="row g-4">
+                        <!-- IP Access -->
+                        <div class="col-md-6 border-end">
+                             <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityIPForm">
+                                <input type="hidden" name="form_section" value="security_ip">
+                                <div class=" mb-2">
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" name="security_enable_ip_whitelist" value="yes" id="ip_whitelist" <?php echo (isset($settings['security_enable_ip_whitelist']) && $settings['security_enable_ip_whitelist'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small fw-bold" for="ip_whitelist">Enable IP Whitelist</label>
+                                     </div>
+                                </div>
+                                <textarea class="form-control form-control-sm mb-2" name="security_allowed_ips" rows="3" placeholder="192.168.1.1 (One per line)"><?php echo htmlspecialchars(isset($settings['security_allowed_ips']) ? $settings['security_allowed_ips'] : ''); ?></textarea>
+                                <div class="text-end">
+                                     <button type="submit" class="btn btn-sm btn-danger">Save IP Rules</button>
+                                </div>
+                             </form>
+                        </div>
+                        <!-- Audit Logs -->
+                        <div class="col-md-6">
+                            <form method="post" action="<?php echo site_url('settings/update'); ?>" id="securityAuditForm">
+                                <input type="hidden" name="form_section" value="security_audit">
+                                <div class="d-flex flex-wrap gap-3 mb-2">
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" name="security_audit_login" value="yes" id="audit_login" <?php echo (isset($settings['security_audit_login']) && $settings['security_audit_login'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small" for="audit_login">Log Logins</label>
+                                     </div>
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" name="security_audit_settings" value="yes" id="audit_settings" <?php echo (isset($settings['security_audit_settings']) && $settings['security_audit_settings'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small" for="audit_settings">Log Settings</label>
+                                     </div>
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" name="security_audit_data" value="yes" id="audit_data" <?php echo (isset($settings['security_audit_data']) && $settings['security_audit_data'] === 'yes') ? 'checked' : ''; ?>>
+                                         <label class="form-check-label small" for="audit_data">Log Data</label>
+                                     </div>
+                                </div>
+                                <div class="input-group input-group-sm mb-3">
+                                   <span class="input-group-text">Retention (Days)</span>
+                                   <input type="number" class="form-control" name="security_log_retention" value="<?php echo htmlspecialchars(isset($settings['security_log_retention']) ? $settings['security_log_retention'] : '90'); ?>" min="30" max="365">
+                                </div>
+                                <div class="text-end">
+                                     <button type="submit" class="btn btn-sm btn-info text-white">Save Audit</button>
+                                </div>
+                            </form>
+                        </div>
+                      </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+       </div>
     </div>
   </div>
 </div>
@@ -1378,6 +1481,47 @@ document.addEventListener('DOMContentLoaded', function() {
     enable2FAToggle.addEventListener('change', toggle2FAFields);
   }
 });
+
+// Custom AI Providers Functions
+function addCustomProviderRow() {
+    const list = document.getElementById('customAiProvidersList');
+    const index = new Date().getTime(); // Unique index based on timestamp
+    
+    const div = document.createElement('div');
+    div.className = 'row g-2 align-items-center custom-provider-row';
+    div.id = 'provider_row_' + index;
+    
+    div.innerHTML = `
+        <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm" name="ai_custom_providers[${index}][name]" placeholder="Provider Name" required>
+        </div>
+        <div class="col-md-5">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                <input type="password" class="form-control" name="ai_custom_providers[${index}][key]" placeholder="API Key" id="customKey_${index}">
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('customKey_${index}')"><i class="bi bi-eye"></i></button>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="form-check form-switch pt-1">
+                <input class="form-check-input" type="checkbox" name="ai_custom_providers[${index}][enabled]" value="1" id="custom_enabled_${index}" checked>
+                <label class="form-check-label small" for="custom_enabled_${index}">Active</label>
+            </div>
+        </div>
+        <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeCustomProviderRow('provider_row_${index}')"><i class="bi bi-trash"></i></button>
+        </div>
+    `;
+    
+    list.appendChild(div);
+}
+
+function removeCustomProviderRow(id) {
+    const row = document.getElementById(id);
+    if (row) {
+        row.remove();
+    }
+}
 </script>
 
 <style>

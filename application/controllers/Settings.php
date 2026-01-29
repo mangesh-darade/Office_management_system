@@ -162,6 +162,65 @@ class Settings extends CI_Controller {
                     'security_audit_data',
                 ];
                 break;
+            case 'ai_integration':
+                $checkbox_fields = [
+                    'ai_gemini_enabled',
+                    'ai_openai_enabled',
+                    'ai_openrouter_enabled',
+                    'ai_huggingface_enabled',
+                    'ai_azure_speech_enabled'
+                ];
+                
+                // Handle custom AI providers array
+                if (isset($data['ai_custom_providers']) && is_array($data['ai_custom_providers'])) {
+                    // Clean and validate custom providers
+                    $cleaned_providers = [];
+                    foreach ($data['ai_custom_providers'] as $index => $provider) {
+                        if (isset($provider['name']) && !empty(trim($provider['name']))) {
+                            $cleaned_providers[] = [
+                                'name' => trim($provider['name']),
+                                'key' => isset($provider['key']) ? trim($provider['key']) : '',
+                                'enabled' => (isset($provider['enabled']) && $provider['enabled'] == '1') ? '1' : '0'
+                            ];
+                        }
+                    }
+                    $data['ai_custom_providers'] = $cleaned_providers;
+                } else {
+                    $data['ai_custom_providers'] = [];
+                }
+                
+                // Basic validation: Warn if provider is enabled but API key is empty (non-blocking)
+                $providers_to_check = [
+                    'ai_gemini' => 'Google Gemini',
+                    'ai_openai' => 'OpenAI',
+                    'ai_openrouter' => 'OpenRouter',
+                    'ai_huggingface' => 'Hugging Face',
+                    'ai_azure_speech' => 'Azure Speech'
+                ];
+                
+                $warnings = [];
+                foreach ($providers_to_check as $prefix => $name) {
+                    $enabled_key = $prefix . '_enabled';
+                    $api_key_key = $prefix . '_api_key';
+                    
+                    if (isset($data[$enabled_key]) && $data[$enabled_key] === 'yes') {
+                        $api_key = isset($data[$api_key_key]) ? trim($data[$api_key_key]) : '';
+                        if (empty($api_key)) {
+                            $warnings[] = "$name is enabled but API key is missing. It may not work properly.";
+                        }
+                    }
+                }
+                
+                // Store warnings in flashdata if any (non-blocking, just informational)
+                if (!empty($warnings)) {
+                    $existing_warning = $this->session->flashdata('warning');
+                    $warning_msg = implode(' ', $warnings);
+                    if ($existing_warning) {
+                        $warning_msg = $existing_warning . ' ' . $warning_msg;
+                    }
+                    $this->session->set_flashdata('warning', $warning_msg);
+                }
+                break;
             default:
                 // Sections like company, email, notification messages, general display/HR
                 // don't have switches that need defaulting here
@@ -178,7 +237,7 @@ class Settings extends CI_Controller {
         $changed_settings = [];
         foreach ($data as $k=>$v){
             // Only allow known prefixes (including notification_ and system_)
-            if (preg_match('/^(company_|attendance_|leave_|email_|notify_|security_|notification_|system_)/', $k)){
+            if (preg_match('/^(company_|attendance_|leave_|email_|notify_|security_|notification_|system_|ai_)/', $k)){
                 $old_value = $this->settings->get_setting($k);
                 $old_settings[$k] = $old_value;
                 $new_value = is_array($v) ? json_encode($v) : $v;

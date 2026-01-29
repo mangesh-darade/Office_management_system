@@ -160,6 +160,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php if(function_exists('has_module_access') && has_module_access('chats')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='chats'?'active':''; ?>" href="<?php echo site_url('chats/app'); ?>"><i class="bi bi-chat-dots me-2"></i>Chats</a>
       <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
+      <a id="sidebarAiLink" class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>
+      <?php endif; ?>
       
       <?php
       $user_group_show = function_exists('has_module_access') && (
