@@ -181,6 +181,72 @@
             btn.innerHTML = originalHtml;
         }
     });
+
+    // Export data function - uses POST method for security
+    async function exportData(dataEncoded, query, format) {
+        try {
+            const formData = new FormData();
+            formData.append('data', dataEncoded);
+            formData.append('format', format);
+            formData.append('query', query);
+            formData.append(csrfName, csrfToken);
+
+            const response = await fetch('<?php echo site_url("ai_chat/export"); ?>', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Export failed: ' + response.statusText);
+            }
+
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'export.' + format;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Create blob and trigger download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Failed to export file. Please try again.');
+        }
+    }
+
+    // Event delegation for export buttons (works with dynamically inserted HTML)
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.export-btn')) {
+            const btn = e.target.closest('.export-btn');
+            const dataEncoded = btn.getAttribute('data-export-data');
+            const query = btn.getAttribute('data-export-query');
+            const format = btn.getAttribute('data-export-format');
+            
+            if (dataEncoded && format) {
+                // Show loading state
+                const originalHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Exporting...';
+                
+                exportData(dataEncoded, query || 'Report', format).finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                });
+            }
+        }
+    });
 </script>
 
 <?php $this->load->view('partials/footer'); ?>

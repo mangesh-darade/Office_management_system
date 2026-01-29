@@ -149,25 +149,19 @@ class Ai_chat extends CI_Controller {
                         $final_answer = "I have generated the {$format_name} report for you. <br>";
                         $final_answer .= "<a href='{$download_url}' target='_blank' class='btn btn-primary btn-sm me-2'><i class='bi bi-download'></i> Download {$format_name}</a>";
                         
-                        // Use export endpoint for format conversion (proper URL with query parameters)
+                        // Use export endpoint for format conversion (POST method for security)
                         $export_data = base64_encode(json_encode($query_result));
-                        $export_query = urlencode($message);
+                        $export_query = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
                         
                         if ($detected_format === 'csv') {
-                            $excel_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=excel';
-                            $pdf_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=pdf';
-                            $final_answer .= "<a href='{$excel_url}' class='btn btn-success btn-sm me-2'><i class='bi bi-file-earmark-excel'></i> Excel</a>";
-                            $final_answer .= "<a href='{$pdf_url}' class='btn btn-danger btn-sm'><i class='bi bi-file-earmark-pdf'></i> PDF</a>";
+                            $final_answer .= "<button type='button' class='btn btn-success btn-sm me-2 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button>";
+                            $final_answer .= "<button type='button' class='btn btn-danger btn-sm export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
                         } elseif ($detected_format === 'excel') {
-                            $csv_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=csv';
-                            $pdf_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=pdf';
-                            $final_answer .= "<a href='{$csv_url}' class='btn btn-primary btn-sm me-2'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</a>";
-                            $final_answer .= "<a href='{$pdf_url}' class='btn btn-danger btn-sm'><i class='bi bi-file-earmark-pdf'></i> PDF</a>";
+                            $final_answer .= "<button type='button' class='btn btn-primary btn-sm me-2 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button>";
+                            $final_answer .= "<button type='button' class='btn btn-danger btn-sm export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
                         } elseif ($detected_format === 'pdf') {
-                            $csv_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=csv';
-                            $excel_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=excel';
-                            $final_answer .= "<a href='{$csv_url}' class='btn btn-primary btn-sm me-2'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</a>";
-                            $final_answer .= "<a href='{$excel_url}' class='btn btn-success btn-sm'><i class='bi bi-file-earmark-excel'></i> Excel</a>";
+                            $final_answer .= "<button type='button' class='btn btn-primary btn-sm me-2 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button>";
+                            $final_answer .= "<button type='button' class='btn btn-success btn-sm export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button>";
                         }
                     } else {
                         $final_answer = isset($file_info['error']) ? $file_info['error'] : 'Error generating export file.';
@@ -177,19 +171,15 @@ class Ai_chat extends CI_Controller {
                     $user_name = isset($user_info['name']) ? $user_info['name'] : null;
                     $final_answer = $this->ai_handler->summarize_data($message, $query_result, $user_name);
                     
-                    // Add export options if data is available
+                    // Add export options if data is available (POST method for security)
                     if (is_array($query_result) && !isset($query_result['error']) && !empty($query_result)) {
                         $export_data = base64_encode(json_encode($query_result));
-                        $export_query = urlencode($message);
-                        
-                        $csv_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=csv';
-                        $excel_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=excel';
-                        $pdf_url = site_url('ai_chat/export') . '?data=' . urlencode($export_data) . '&query=' . $export_query . '&format=pdf';
+                        $export_query = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
                         
                         $final_answer .= "<br><br><small>Export options: ";
-                        $final_answer .= "<a href='{$csv_url}' class='btn btn-sm btn-outline-primary me-1'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</a> ";
-                        $final_answer .= "<a href='{$excel_url}' class='btn btn-sm btn-outline-success me-1'><i class='bi bi-file-earmark-excel'></i> Excel</a> ";
-                        $final_answer .= "<a href='{$pdf_url}' class='btn btn-sm btn-outline-danger'><i class='bi bi-file-earmark-pdf'></i> PDF</a>";
+                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-primary me-1 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button> ";
+                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-success me-1 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button> ";
+                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-danger export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
                         $final_answer .= "</small>";
                     }
                 }
@@ -540,11 +530,18 @@ class Ai_chat extends CI_Controller {
     
     /**
      * Export endpoint for direct file downloads
+     * Changed to POST method for security - prevents data exposure in URLs
      */
     public function export() {
-        $data_encoded = $this->input->get('data');
-        $format = strtolower($this->input->get('format') ?: 'csv');
-        $query = $this->input->get('query') ?: 'Report';
+        // Only allow POST requests for security
+        if ($this->input->method() !== 'post') {
+            show_error('Method not allowed. Please use POST request.', 405);
+            return;
+        }
+        
+        $data_encoded = $this->input->post('data');
+        $format = strtolower($this->input->post('format') ?: 'csv');
+        $query = $this->input->post('query') ?: 'Report';
         
         if (empty($data_encoded)) {
             show_error('No data provided for export', 400);
