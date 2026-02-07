@@ -270,6 +270,7 @@
 </div>
 
 <script>
+  var csrf_token = '<?php echo $csrf_token; ?>';
 (function(){
   var form = document.getElementById('dbDifferenceForm');
   var resultsContainer = document.getElementById('resultsContainer');
@@ -342,7 +343,8 @@
       formData.append('target_db', targetDb);
       formData.append('source_client_id', sourceClientId);
       formData.append('target_client_id', targetClientId);
-      
+      formData.append('csrf_token', csrf_token);
+
       fetch('<?php echo site_url('db/compare-databases'); ?>', {
         method: 'POST',
         body: formData
@@ -555,6 +557,5 @@
   
 })();
 </script>
-
 <?php $this->load->view('partials/footer'); ?>
 

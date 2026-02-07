@@ -45,8 +45,6 @@
           <tr>
             <td><input type="checkbox" class="form-check-input js-client-select" value="<?php echo (int)$cl->id; ?>"
                        data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                       data-db-user="<?php echo htmlspecialchars(isset($cl->db_username)?$cl->db_username:''); ?>"
-                       data-db-pass="<?php echo htmlspecialchars(isset($cl->db_password)?$cl->db_password:''); ?>"
                        data-pos-url="<?php echo htmlspecialchars(isset($cl->pos_url)?$cl->pos_url:''); ?>"
                        data-name="<?php echo htmlspecialchars($cl->company_name); ?>" /></td>
             <td><?php echo htmlspecialchars($cl->company_name); ?></td>
@@ -68,9 +66,6 @@
                         class="btn btn-outline-primary js-client-compare"
                         data-client-id="<?php echo (int)$cl->id; ?>"
                         data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                        data-db-user="<?php echo htmlspecialchars(isset($cl->db_username)?$cl->db_username:''); ?>"
-                        data-db-pass="<?php echo htmlspecialchars(isset($cl->db_password)?$cl->db_password:''); ?>"
-                        data-pos-url="<?php echo htmlspecialchars(isset($cl->pos_url)?$cl->pos_url:''); ?>"
                         data-name="<?php echo htmlspecialchars($cl->company_name); ?>">
                   Compare
                 </button>
@@ -78,8 +73,6 @@
                         class="btn btn-outline-success js-client-migrate"
                         data-client-id="<?php echo (int)$cl->id; ?>"
                         data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                        data-db-user="<?php echo htmlspecialchars(isset($cl->db_username)?$cl->db_username:''); ?>"
-                        data-db-pass="<?php echo htmlspecialchars(isset($cl->db_password)?$cl->db_password:''); ?>"
                         data-name="<?php echo htmlspecialchars($cl->company_name); ?>">
                   Migrate
                 </button>
@@ -87,8 +80,6 @@
                         class="btn btn-outline-danger js-client-revert"
                         data-client-id="<?php echo (int)$cl->id; ?>"
                         data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                        data-db-user="<?php echo htmlspecialchars(isset($cl->db_username)?$cl->db_username:''); ?>"
-                        data-db-pass="<?php echo htmlspecialchars(isset($cl->db_password)?$cl->db_password:''); ?>"
                         data-name="<?php echo htmlspecialchars($cl->company_name); ?>">
                   Revert
                 </button>
@@ -125,6 +116,7 @@
 </div>
 
 <script>
+  var csrf_token = '<?php echo $csrf_token; ?>';
   (function(){
     var fileInput = document.getElementById('clientSqlPath');
     var table = document.getElementById('clientDbTable');
@@ -138,19 +130,19 @@
       var fp = fileInput ? (fileInput.value || '') : '';
       if (!fp){ alert('Set SQL File Path first.'); return; }
       var dbName = clientEl.getAttribute('data-db-name') || '';
-      var dbUser = clientEl.getAttribute('data-db-user') || '';
-      var dbPass = clientEl.getAttribute('data-db-pass') || '';
       var name = clientEl.getAttribute('data-name') || '';
       if (!dbName){ alert('Client '+name+' has no DB Name configured.'); return; }
+      
       var btn = triggerBtn || null;
       var originalText = btn ? (btn.textContent || 'Compare') : 'Compare';
       if (btn){ btn.disabled = true; btn.textContent = 'Comparing...'; }
+      
       var body = 'file_path='+encodeURIComponent(fp)+
                  '&database='+encodeURIComponent(dbName)+
-                 '&user='+encodeURIComponent(dbUser)+
-                 '&pass='+encodeURIComponent(dbPass)+
-                 '&client_id='+encodeURIComponent(clientEl.value||'')+
-                 '&client_name='+encodeURIComponent(name||'');
+                 '&client_id='+encodeURIComponent(clientEl.value||clientEl.getAttribute('data-client-id')||'')+
+                 '&client_name='+encodeURIComponent(name||'')+
+                 '&csrf_token='+encodeURIComponent(csrf_token);
+                 
       fetch('<?php echo site_url('db/compare/scan'); ?>', {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -206,20 +198,20 @@
       var fp = fileInput ? (fileInput.value || '') : '';
       if (!fp){ alert('Set SQL File Path first.'); return; }
       var dbName = clientEl.getAttribute('data-db-name') || '';
-      var dbUser = clientEl.getAttribute('data-db-user') || '';
-      var dbPass = clientEl.getAttribute('data-db-pass') || '';
       var name = clientEl.getAttribute('data-name') || '';
       if (!dbName){ alert('Client '+name+' has no DB Name configured.'); return; }
       if (!confirm('Migrate schema to client DB '+name+' ('+dbName+') ?')) return;
+      
       var btn = triggerBtn || null;
       var originalText = btn ? (btn.textContent || 'Migrate') : 'Migrate';
       if (btn){ btn.disabled = true; btn.textContent = 'Migrating...'; }
+      
       var body = 'file_path='+encodeURIComponent(fp)+
                  '&database='+encodeURIComponent(dbName)+
-                 '&user='+encodeURIComponent(dbUser)+
-                 '&pass='+encodeURIComponent(dbPass)+
-                 '&client_id='+encodeURIComponent(clientEl.value||'')+
-                 '&client_name='+encodeURIComponent(name||'');
+                 '&client_id='+encodeURIComponent(clientEl.value||clientEl.getAttribute('data-client-id')||'')+
+                 '&client_name='+encodeURIComponent(name||'')+
+                 '&csrf_token='+encodeURIComponent(csrf_token);
+                 
       fetch('<?php echo site_url('db/compare/merge'); ?>', {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -237,20 +229,27 @@
       var fp = fileInput ? (fileInput.value || '') : '';
       if (!fp){ alert('Set SQL File Path first.'); return; }
       var dbName = clientEl.getAttribute('data-db-name') || '';
-      var dbUser = clientEl.getAttribute('data-db-user') || '';
-      var dbPass = clientEl.getAttribute('data-db-pass') || '';
       var name = clientEl.getAttribute('data-name') || '';
       if (!dbName){ alert('Client '+name+' has no DB Name configured.'); return; }
-      if (!confirm('Revert client DB '+name+' ('+dbName+') to match the SQL file? This will DROP tables/columns that are not in the file.')) return;
+      
+      // Strict prompt for safety
+      var confirmName = prompt('DANGER: Revert client DB '+name+'? This will DROP tables/columns.\n\nPlease type the database name "'+dbName+'" to confirm:');
+      if (confirmName !== dbName) {
+          if (confirmName !== null) alert('Database name mismatch. Action cancelled.');
+          return;
+      }
+      
       var btn = triggerBtn || null;
       var originalText = btn ? (btn.textContent || 'Revert') : 'Revert';
       if (btn){ btn.disabled = true; btn.textContent = 'Reverting...'; }
+      
       var body = 'file_path='+encodeURIComponent(fp)+
                  '&database='+encodeURIComponent(dbName)+
-                 '&user='+encodeURIComponent(dbUser)+
-                 '&pass='+encodeURIComponent(dbPass)+
-                 '&client_id='+encodeURIComponent(clientEl.value||'')+
-                 '&client_name='+encodeURIComponent(name||'');
+                 '&confirm_db_name='+encodeURIComponent(confirmName)+
+                 '&client_id='+encodeURIComponent(clientEl.value||clientEl.getAttribute('data-client-id')||'')+
+                 '&client_name='+encodeURIComponent(name||'')+
+                 '&csrf_token='+encodeURIComponent(csrf_token);
+                 
       fetch('<?php echo site_url('db/compare/drop-db-only'); ?>', {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -270,23 +269,24 @@
     // Per-row buttons
     table.querySelectorAll('.js-client-compare').forEach(function(btn){
       btn.addEventListener('click', function(){
-        var id = this.getAttribute('data-client-id') || '';
-        var rowCb = table.querySelector('.js-client-select[value="'+id+'"]');
+        // Get data from button itself if row checkbox not convenient
+        var rowCb = table.querySelector('.js-client-select[value="'+this.getAttribute('data-client-id')+'"]');
         if (rowCb) runCompareForClient(rowCb, this);
+        else runCompareForClient(this, this); // Fallback: button has data attributes too
       });
     });
     table.querySelectorAll('.js-client-migrate').forEach(function(btn){
       btn.addEventListener('click', function(){
-        var id = this.getAttribute('data-client-id') || '';
-        var rowCb = table.querySelector('.js-client-select[value="'+id+'"]');
+        var rowCb = table.querySelector('.js-client-select[value="'+this.getAttribute('data-client-id')+'"]');
         if (rowCb) runMergeForClient(rowCb, this);
+        else runMergeForClient(this, this);
       });
     });
     table.querySelectorAll('.js-client-revert').forEach(function(btn){
       btn.addEventListener('click', function(){
-        var id = this.getAttribute('data-client-id') || '';
-        var rowCb = table.querySelector('.js-client-select[value="'+id+'"]');
+        var rowCb = table.querySelector('.js-client-select[value="'+this.getAttribute('data-client-id')+'"]');
         if (rowCb) runRevertForClient(rowCb, this);
+        else runRevertForClient(this, this);
       });
     });
 

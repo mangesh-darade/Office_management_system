@@ -2,7 +2,17 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Client_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    private $enc_prefix = 'ENC::';
+
+    public function __construct(){ 
+        parent::__construct(); 
+        $this->load->database(); 
+        $this->load->library('encryption');
+        // Set a default key if not set (fallback)
+        if (empty($this->config->item('encryption_key'))){
+            $this->encryption->initialize(['key' => md5(APPPATH.'Office_management_system')]);
+        }
+    }
 
     public function count_clients($filters = []){
         $this->apply_filters($filters);
@@ -14,7 +24,14 @@ class Client_model extends CI_Model {
         $this->apply_filters($filters);
         $this->db->order_by('created_at','DESC');
         if ($limit !== null){ $this->db->limit((int)$limit, (int)$offset); }
-        return $this->db->get()->result();
+        $res = $this->db->get()->result();
+        // Do not decrypt passwords in list view for performance and security
+        // Only return them if explicitly needed, or obscure them
+        foreach ($res as &$r){
+            // clear passwords from listing
+            if (isset($r->db_password)) { $r->db_password = '***'; }
+        }
+        return $res;
     }
 
     private function apply_filters($filters){
@@ -32,16 +49,69 @@ class Client_model extends CI_Model {
     }
 
     public function get_client($id){
-        return $this->db->where('id',(int)$id)->get('clients')->row();
+        $row = $this->db->where('id',(int)$id)->get('clients')->row();
+        if ($row) {
+            // Keep password as is (masked/encrypted) or decrypt if this method is used for edit forms?
+            // Usually for edit forms we might leave it blank or show placeholder.
+            // Let's decrypt it here but generic listing shouldn't.
+            if (!empty($row->db_password)) {
+                $row->db_password = $this->decrypt_password($row->db_password);
+            }
+        }
+        return $row;
+    }
+    
+    // Specific method to get sensitive credentials securely (backend only)
+    public function get_client_credentials($id){
+        $row = $this->db->select('db_name, db_username, db_password, pos_url')
+                        ->where('id', (int)$id)
+                        ->get('clients')
+                        ->row();
+        if ($row && !empty($row->db_password)){
+            $row->db_password = $this->decrypt_password($row->db_password);
+        }
+        return $row;
     }
 
     public function create_client($data){
+        if (isset($data['db_password']) && $data['db_password'] !== ''){
+            $data['db_password'] = $this->encrypt_password($data['db_password']);
+        }
         $this->db->insert('clients', $data);
         return (int)$this->db->insert_id();
     }
 
     public function update_client($id, $data){
+        if (isset($data['db_password'])){
+            if ($data['db_password'] !== '') {
+                $data['db_password'] = $this->encrypt_password($data['db_password']);
+            } else {
+                // If empty, don't update password (keep existing)
+                unset($data['db_password']);
+            }
+        }
         return $this->db->where('id',(int)$id)->update('clients', $data);
+    }
+
+    // Helper to Encrypt
+    private function encrypt_password($plain){
+        if (empty($plain)) return '';
+        // Use CI Encryption
+        $enc = $this->encryption->encrypt($plain);
+        return $this->enc_prefix . base64_encode($enc);
+    }
+
+    // Helper to Decrypt
+    private function decrypt_password($cipher){
+        if (empty($cipher)) return '';
+        // Check prefix
+        if (strpos($cipher, $this->enc_prefix) === 0){
+            $raw = substr($cipher, strlen($this->enc_prefix));
+            $decoded = base64_decode($raw);
+            return $this->encryption->decrypt($decoded);
+        }
+        // Fallback: assume plain text (legacy)
+        return $cipher;
     }
 
     public function delete_client($id){

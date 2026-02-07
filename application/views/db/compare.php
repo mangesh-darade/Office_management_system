@@ -136,6 +136,7 @@
   </div>
 </div>
 <script>
+var csrf_token = '<?php echo $csrf_token; ?>';
 function showLoader(){ try{ var el=document.getElementById('globalLoader'); if (el) el.hidden=false; }catch(e){} }
 function hideLoader(){ try{ var el=document.getElementById('globalLoader'); if (el) el.hidden=true; }catch(e){} }
 function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
@@ -160,13 +161,18 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
   var btnShowSqlLeft = document.getElementById('btnShowSqlLeft');
   var btnCopySqlLeft = document.getElementById('btnCopySqlLeft');
   var leftSql = document.getElementById('leftSql');
+  
+  var selectedClientId = '';
+
   function loadDatabases(){
     if (!inputDb) return;
     inputDb.innerHTML = '<option value="">-- Loading... --</option>';
     if (connBadge){ connBadge.textContent = 'Checking…'; connBadge.className = 'badge bg-warning text-dark'; }
     var body = 'host='+encodeURIComponent((inHost&&inHost.value)||'')+
                '&user='+encodeURIComponent((inUser&&inUser.value)||'')+
-               '&pass='+encodeURIComponent((inPass&&inPass.value)||'');
+               '&pass='+encodeURIComponent((inPass&&inPass.value)||'')+
+               '&client_id='+encodeURIComponent(selectedClientId)+
+               '&csrf_token='+encodeURIComponent(csrf_token);
     fetch('<?php echo site_url('db/databases'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body })
       .then(function(r){ return r.json(); })
       .then(function(j){
@@ -244,7 +250,7 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
     if (!fp){ showToast('Provide SQL file path'); return; }
     showLoader();
     // Step 1: detect database name from file
-    fetch('<?php echo site_url('db/file_tables'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'file_path='+encodeURIComponent(fp) })
+    fetch('<?php echo site_url('db/file_tables'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'file_path='+encodeURIComponent(fp)+'&csrf_token='+encodeURIComponent(csrf_token) })
       .then(function(r){ return r.json(); })
       .then(function(j){
         if (j && j.database){ inputDb.value = j.database; }
@@ -255,7 +261,9 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
                       '&database='+encodeURIComponent(dbName)+
                       '&host='+encodeURIComponent((inHost&&inHost.value)||'')+
                       '&user='+encodeURIComponent((inUser&&inUser.value)||'')+
-                      '&pass='+encodeURIComponent((inPass&&inPass.value)||'');
+                      '&pass='+encodeURIComponent((inPass&&inPass.value)||'')+
+                      '&client_id='+encodeURIComponent(selectedClientId)+
+                      '&csrf_token='+encodeURIComponent(csrf_token);
         return fetch('<?php echo site_url('db/compare/update-file-missing'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: bodyUpd })
           .then(function(r){ return r.json(); })
           .then(function(res){
@@ -276,7 +284,9 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
                    '&database='+encodeURIComponent(db)+
                    '&host='+encodeURIComponent((inHost&&inHost.value)||'')+
                    '&user='+encodeURIComponent((inUser&&inUser.value)||'')+
-                   '&pass='+encodeURIComponent((inPass&&inPass.value)||'');
+                   '&pass='+encodeURIComponent((inPass&&inPass.value)||'')+
+                   '&client_id='+encodeURIComponent(selectedClientId)+
+                   '&csrf_token='+encodeURIComponent(csrf_token);
     fetch('<?php echo site_url('db/compare/scan'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: bodyScan })
       .then(function(r){ return r.json(); })
       .then(function(j){ renderOps(j); })
@@ -292,7 +302,9 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
                     '&database='+encodeURIComponent(db)+
                     '&host='+encodeURIComponent((inHost&&inHost.value)||'')+
                     '&user='+encodeURIComponent((inUser&&inUser.value)||'')+
-                    '&pass='+encodeURIComponent((inPass&&inPass.value)||'');
+                    '&pass='+encodeURIComponent((inPass&&inPass.value)||'')+
+                    '&client_id='+encodeURIComponent(selectedClientId)+
+                    '&csrf_token='+encodeURIComponent(csrf_token);
     fetch('<?php echo site_url('db/compare/merge'); ?>', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: bodyMerge })
       .then(function(r){ return r.json(); })
       .then(function(j){ if (j && j.success){ showToast('Applied '+(j.applied||0)+' change(s)'); } else { showToast((j&&j.message)||'Failed','danger'); } })
@@ -301,30 +313,34 @@ function showToast(msg, variant){ try{ alert(msg); }catch(e){} }
   }); }
   if (inClient){ inClient.addEventListener('change', function(){
     var opt = inClient.options[inClient.selectedIndex] || null;
-    if (!opt) return;
+    if (!opt) { selectedClientId = ''; return; }
+    selectedClientId = opt.value;
+    
     var pos = opt.getAttribute('data-pos-url') || '';
     var dbName = opt.getAttribute('data-db-name') || '';
-    var dbUser = opt.getAttribute('data-db-user') || '';
-    var dbPass = opt.getAttribute('data-db-pass') || '';
+    
+    // We do NOT autofill user/password anymore.
+    // If selectedClientId is set, backend uses stored creds.
     if (inPosUrl){ inPosUrl.value = pos; }
-    if (inUser && dbUser){ inUser.value = dbUser; }
-    if (inPass && dbPass){ inPass.value = dbPass; }
-    if (inputDb && dbName){
-      var found = false;
-      for (var i=0; i<inputDb.options.length; i++){
-        if (inputDb.options[i].value === dbName){ inputDb.selectedIndex = i; found = true; break; }
-      }
-      if (!found){
-        var optDb = document.createElement('option');
-        optDb.value = dbName;
-        optDb.textContent = dbName;
-        inputDb.appendChild(optDb);
-        inputDb.value = dbName;
-      }
+    
+    // Auto-select DB in the list if available (we might need to refresh DB list via backend using client_id first)
+    // Actually, if we have client_id, we can just set the db name in the text/select if we knew it.
+    // But the DB select is populated by `loadDatabases` which connects to the server.
+    // So we should trigger `loadDatabases` essentially.
+    
+    if (dbName){
+         // Trigger check connection to populate drop down from this client creds
+         loadDatabases();
     }
   }); }
+  
   // Initial load
-  loadDatabases();
+  // If we want to check localhost initially?
+  // loadDatabases(); 
+  // Maybe better to wait for user to click "Check Connection" or select client.
+  // But legacy behavior was loadDatabases(); let's keep it but make it safe?
+  // loadDatabases(); 
+  
   if (btnCheckConn){ btnCheckConn.addEventListener('click', function(){ loadDatabases(); }); }
 })();
 </script>
