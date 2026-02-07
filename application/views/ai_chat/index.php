@@ -80,10 +80,26 @@
     function appendLoading() {
         const div = document.createElement('div');
         div.className = 'd-flex flex-row justify-content-start mb-3 loading-msg';
-        div.innerHTML = '<div class="p-3 bg-white rounded shadow-sm"><span class="spinner-border spinner-border-sm text-primary" role="status"></span> Thinking...</div>';
+        div.innerHTML = '<div class="p-3 bg-white rounded shadow-sm"><span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span id="loading-text">Thinking...</span></div>';
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
-        return div;
+        
+        let messages = [
+            'Analyzing context...',
+            'Querying database...',
+            'Processing results...',
+            'Formatting answer...'
+        ];
+        let i = 0;
+        const interval = setInterval(() => {
+            const span = div.querySelector('#loading-text');
+            if (span) {
+                span.innerText = messages[i % messages.length];
+                i++;
+            }
+        }, 2500);
+        
+        return { div: div, interval: interval };
     }
 
     // Rebuild conversation from session history on page load
@@ -109,7 +125,12 @@
 
         appendMessage(text, true);
         userInput.value = '';
-        const loader = appendLoading();
+        
+        // Disable UI
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+        
+        const loaderObj = appendLoading();
 
         try {
             const formData = new FormData();
@@ -121,8 +142,21 @@
                 body: formData
             });
 
+            // Stop loading animation
+            clearInterval(loaderObj.interval);
+            loaderObj.div.remove();
+
             const data = await response.json();
-            loader.remove();
+
+            // Update CSRF token for next request
+            if (data.csrf_token) {
+                // Update global variable if you used let/var, or better yet update the DOM element if exists
+                if(document.querySelector('input[name="'+csrfName+'"]')) {
+                    document.querySelector('input[name="'+csrfName+'"]').value = data.csrf_token;
+                }
+                // Update global const reference hack (since const can't change, we rely on reading form or using a let var next time)
+                window.currentCsrfToken = data.csrf_token; 
+            }
 
             if (data.status === 'success') {
                 appendMessage(data.response, false);
@@ -131,10 +165,21 @@
             }
 
         } catch (error) {
-            loader.remove();
+            if (loaderObj) {
+                clearInterval(loaderObj.interval);
+                loaderObj.div.remove();
+            }
+            console.error(error);
             appendMessage('<small class="text-danger">Network Error. Please try again.</small>', false);
+        } finally {
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
         }
     }
+
+    // Initialize trusted token variable
+    window.currentCsrfToken = csrfToken;
 
     // Speak last AI response using TTS endpoint
     document.getElementById('speak-last-btn').addEventListener('click', async function() {
@@ -152,7 +197,7 @@
             const formData = new FormData();
             formData.append('text', lastAiResponseText);
             formData.append('language', 'en-US'); // Change or detect language if needed
-            formData.append(csrfName, csrfToken);
+            formData.append(csrfName, window.currentCsrfToken || csrfToken);
 
             const response = await fetch('<?php echo site_url("ai_chat/tts"); ?>', {
                 method: 'POST',
@@ -189,7 +234,8 @@
             formData.append('data', dataEncoded);
             formData.append('format', format);
             formData.append('query', query);
-            formData.append(csrfName, csrfToken);
+            // Use updated token
+            formData.append(csrfName, window.currentCsrfToken || csrfToken);
 
             const response = await fetch('<?php echo site_url("ai_chat/export"); ?>', {
                 method: 'POST',
@@ -197,7 +243,8 @@
             });
 
             if (!response.ok) {
-                throw new Error('Export failed: ' + response.statusText);
+                const errText = await response.text();
+                throw new Error('Export failed: ' + response.status + ' ' + response.statusText + ' - ' + errText); // detailed error
             }
 
             // Get filename from Content-Disposition header or use default
@@ -222,31 +269,80 @@
             document.body.removeChild(a);
         } catch (error) {
             console.error('Export error:', error);
-            alert('Failed to export file. Please try again.');
+            alert('Failed to export file. Check console for details.');
         }
     }
 
-    // Event delegation for export buttons (works with dynamically inserted HTML)
+    // Event delegation for export buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.export-btn')) {
+            e.preventDefault();
             const btn = e.target.closest('.export-btn');
+            
+            // Visual feedback
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            btn.disabled = true;
+            
             const dataEncoded = btn.getAttribute('data-export-data');
             const query = btn.getAttribute('data-export-query');
             const format = btn.getAttribute('data-export-format');
             
             if (dataEncoded && format) {
-                // Show loading state
-                const originalHtml = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Exporting...';
-                
-                exportData(dataEncoded, query || 'Report', format).finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = originalHtml;
-                });
+                exportData(dataEncoded, query || 'Report', format);
             }
+            
+            // Reset button after a short delay (since we can't track form submit completion easily)
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+            }, 2000);
         }
     });
+
+    // Export data function - uses hidden FORM submit for reliable file download
+    function exportData(dataEncoded, query, format) {
+        try {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '<?php echo site_url("ai_chat/export"); ?>';
+            form.target = '_self'; // Download in same frame (triggers download dialog)
+            form.style.display = 'none';
+
+            const fields = {
+                'data': dataEncoded,
+                'query': query,
+                'format': format,
+            };
+            
+            // Add CSRF token dynamically
+            // Use the most recent token available
+            const currentToken = window.currentCsrfToken || document.querySelector('input[name="'+csrfName+'"]')?.value || csrfToken;
+            fields[csrfName] = currentToken;
+
+            for (const key in fields) {
+                if (fields.hasOwnProperty(key)) {
+                    const hiddenField = document.createElement('input');
+                    hiddenField.type = 'hidden';
+                    hiddenField.name = key;
+                    hiddenField.value = fields[key];
+                    form.appendChild(hiddenField);
+                }
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(form);
+            }, 1000);
+
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Failed to trigger export. Please try again.');
+        }
+    }
 </script>
 
 <?php $this->load->view('partials/footer'); ?>

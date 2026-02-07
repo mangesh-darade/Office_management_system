@@ -194,7 +194,8 @@ class Ai_chat extends CI_Controller {
                 echo json_encode([
                     'status' => 'success',
                     'response' => $final_answer,
-                    'debug_sql' => $response['query']
+                    'debug_sql' => isset($response['query']) ? $response['query'] : '',
+                    'csrf_token' => $this->security->get_csrf_hash()
                 ]);
             } else {
                 // Just a conversational response
@@ -209,7 +210,8 @@ class Ai_chat extends CI_Controller {
                 
                 echo json_encode([
                     'status' => 'success',
-                    'response' => $text_content
+                    'response' => $text_content,
+                    'csrf_token' => $this->security->get_csrf_hash()
                 ]);
             }
 
@@ -256,34 +258,51 @@ class Ai_chat extends CI_Controller {
         // SECURITY CRITICAL: Ensure this is a SELECT query only
         $sql = trim($sql);
         
-        // Check if query starts with SELECT (case-insensitive)
-        if (stripos($sql, 'SELECT') !== 0) {
+        // 1. Strip comments to prevent hidden commands handling
+        // Strip multi-line comments /* ... */
+        $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+        // Strip single line comments -- or # (be careful not to strip valid content)
+        // This is a basic strip, sophisticated SQL parsers do better but this is PHP 5.6 compliant
+        $sql = preg_replace('/--.*$/m', '', $sql);
+        $sql = preg_replace('/#.*$/m', '', $sql);
+        $sql = trim($sql);
+
+        // 2. Strict SELECT check
+        if (!preg_match('/^\s*SELECT\b/i', $sql)) {
             return ['error' => 'Only SELECT queries are allowed for safety.'];
         }
         
-        // Check for destructive SQL keywords as whole words (not substrings)
-        // Use regex with word boundaries to avoid false positives like "updated_at" matching "UPDATE"
+        // 3. Check for destructive SQL keywords as whole words
         $destructive_patterns = [
-            '/\bDROP\b/i',      // DROP TABLE, DROP DATABASE, etc.
+            '/\bDROP\b/i',      // DROP TABLE, DATABASE
             '/\bDELETE\b/i',    // DELETE FROM
-            '/\bUPDATE\b/i',    // UPDATE table SET
+            '/\bUPDATE\b/i',    // UPDATE table
             '/\bINSERT\b/i',    // INSERT INTO
             '/\bTRUNCATE\b/i',  // TRUNCATE TABLE
             '/\bALTER\b/i',     // ALTER TABLE
             '/\bCREATE\b/i',    // CREATE TABLE
             '/\bREPLACE\b/i',   // REPLACE INTO
-            '/\bEXEC\b/i',      // EXEC, EXECUTE
+            '/\bEXEC\b/i',      // EXEC
             '/\bEXECUTE\b/i',   // EXECUTE
-            '/\bCALL\b/i',      // CALL procedure
+            '/\bCALL\b/i',      // CALL
+            '/\bGRANT\b/i',     // GRANT permissions
+            '/\bREVOKE\b/i',    // REVOKE permissions
+            '/\bLOCK\b/i',      // LOCK TABLES
+            '/\bUNLOCK\b/i',    // UNLOCK TABLES
+            '/\bRENAME\b/i',    // RENAME TABLE
+            '/\bUNION\b/i',     // Block UNION to prevent accessing unpermitted tables via injection
+            '/\bINTO\b/i',      // SELECT ... INTO (file write)
+            '/\bOUTFILE\b/i',   // SELECT ... INTO OUTFILE
+            '/\bDUMPFILE\b/i'   // SELECT ... INTO DUMPFILE
         ];
         
         foreach ($destructive_patterns as $pattern) {
             if (preg_match($pattern, $sql)) {
-                return ['error' => 'Destructive queries are blocked.'];
+                return ['error' => 'Destructive or unsafe queries are blocked.'];
             }
         }
         
-        // Check table access permissions
+        // 4. Check table access permissions (Existing Logic)
         $this->load->helper('permission');
         $role_id = (int)$this->session->userdata('role_id');
         
@@ -295,6 +314,7 @@ class Ai_chat extends CI_Controller {
             'leave_requests' => 'leave_requests',
             'leave_types' => 'leave_requests',
             'leave_approvals' => 'leave_requests',
+            'leave_balances' => 'leave_balances',
             'projects' => 'projects',
             'tasks' => 'tasks',
             'requirements' => 'requirements',
@@ -316,7 +336,7 @@ class Ai_chat extends CI_Controller {
             'assets' => 'assets_mgmt'
         ];
         
-        // Extract table names from SQL query (simple regex match)
+        // Extract table names
         preg_match_all('/\bFROM\s+`?(\w+)`?/i', $sql, $from_matches);
         preg_match_all('/\bJOIN\s+`?(\w+)`?/i', $sql, $join_matches);
         
@@ -326,12 +346,11 @@ class Ai_chat extends CI_Controller {
         );
         $tables_in_query = array_unique(array_map('strtolower', $tables_in_query));
         
-        // Check permission for each table
         foreach ($tables_in_query as $table) {
             $module = isset($table_to_module_map[$table]) ? $table_to_module_map[$table] : null;
             
             if ($module === null) {
-                // System tables (settings, roles, etc.) - only allow admin
+                // System tables - Allow Admin (1) only
                 if ($role_id !== 1) {
                     return ['error' => "You do not have permission to access the '{$table}' table."];
                 }
@@ -348,6 +367,17 @@ class Ai_chat extends CI_Controller {
                     }
                 }
             }
+        }
+
+        // 5. Enforce LIMIT to prevent massive data dumps
+        // Remove trailing semicolon if present
+        $sql = rtrim($sql, ';');
+        
+        if (!preg_match('/\bLIMIT\b/i', $sql)) {
+            $sql .= " LIMIT 100";
+        } else {
+            // Optional: enforce max limit if needed
+            // preg_replace('/LIMIT\s+\d+/i', 'LIMIT 100', $sql); 
         }
 
         // Execute the query
@@ -548,9 +578,16 @@ class Ai_chat extends CI_Controller {
             return;
         }
         
-        $data = json_decode(base64_decode($data_encoded), true);
+        // Decode and validate
+        $decoded_json = base64_decode($data_encoded);
+        if ($decoded_json === false) {
+             show_error('Base64 decode failed', 400);
+             return;
+        }
+        
+        $data = json_decode($decoded_json, true);
         if (!is_array($data)) {
-            show_error('Invalid data format', 400);
+            show_error('Invalid data format (JSON decode failed)', 400);
             return;
         }
         
@@ -561,23 +598,31 @@ class Ai_chat extends CI_Controller {
             if (file_exists($filepath)) {
                 $mime_types = [
                     'csv' => 'text/csv',
-                    'excel' => 'text/csv',
+                    'excel' => 'text/csv', // CSV with BOM serves as Excel
                     'pdf' => 'application/pdf',
                     'html' => 'text/html'
                 ];
                 
                 $mime = isset($mime_types[$file_info['format']]) ? $mime_types[$file_info['format']] : 'application/octet-stream';
-                $ext = pathinfo($filepath, PATHINFO_EXTENSION);
+                
+                // CRITICAL: Clear any previous output buffers to prevent file corruption
+                if (ob_get_level()) {
+                    ob_end_clean();
+                }
                 
                 header('Content-Type: ' . $mime);
                 header('Content-Disposition: attachment; filename="' . basename($filepath) . '"');
                 header('Content-Length: ' . filesize($filepath));
+                header('Expires: 0');
+                header('Cache-Control: must-revalidate');
+                header('Pragma: public');
+                
                 readfile($filepath);
                 exit;
             }
         }
         
-        show_error('Error generating export file', 500);
+        show_error('Error generating export file: ' . (isset($file_info['error']) ? $file_info['error'] : 'Unknown error'), 500);
     }
     
     /**

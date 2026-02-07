@@ -198,14 +198,28 @@ class Ai_handler {
             if (count($query_vector) !== count($item['vector'])) continue;
 
             $similarity = $this->cosine_similarity($query_vector, $item['vector']);
-            if ($similarity > 0.6) { // Slightly lower threshold for broader matching
-                $matches["$similarity"] = $item['content'];
+            
+            // Lower threshold to capture more potentially relevant tables
+            if ($similarity > 0.4) { 
+                // Store match with similarity as key (string key to preserve duplicate float values)
+                $key = (string)$similarity;
+                while(isset($matches[$key])) { $key .= '1'; } // handle collision
+                $matches[$key] = $item['content'];
             }
         }
         krsort($matches); // Sort by similarity descending
 
-        // If matches found, return combined text, else return full schema
+        // If matches found, return combined text.
+        // CRITICAL FIX: If NO matches found (or very few), fallback to FULL schema.
+        // It's better to send too much context than to miss the relevant table.
         if (!empty($matches)) {
+            // If the best match is very weak (< 0.5), we might be missing something. 
+            // Append full schema if we are not confident.
+            $best_score = (float)array_key_first($matches);
+            if ($best_score < 0.5) {
+                 return $this->get_full_schema_text();
+            }
+            
             return implode("\n\n", array_slice($matches, 0, 5));
         }
 
@@ -799,10 +813,43 @@ class Ai_handler {
         return $txt;
     }
     
+    private function get_table_descriptions() {
+        return [
+            'users' => 'System users and login credentials. Columns: id, email, role_id, created_at, active status.',
+            'employees' => 'Employee profiles, personal details, joining date, and department links.',
+            'attendance' => 'Daily attendance logs (punch_in, punch_out, status). Use to find who is present, absent, late, or on time.',
+            'leave_requests' => 'Leave applications and status. Use for leave history, who is on leave, and approval status.',
+            'leave_types' => 'Types of leaves (Sick, Casual, Earned) and their rules.',
+            'leave_approvals' => 'Records of who approved/rejected leaves and when.',
+            'leave_balances' => 'Remaining leave quota for employees. Use to check "how many leaves do I have left".',
+            'projects' => 'Project details, client links, start/end dates, and status (open, completed, hold).',
+            'tasks' => 'Tasks assigned to users, deadlines, priority, and completion status.',
+            'requirements' => 'Project requirements or documentation linked to projects.',
+            'timesheets' => 'Hours logged by employees on specific tasks/projects.',
+            'departments' => 'Company departments and their IDs.',
+            'designations' => 'Job titles/designations and their IDs.',
+            'clients' => 'Client contact information and company details.',
+            'roles' => 'User roles and permissions definitions.',
+            'settings' => 'System-wide configuration settings.',
+            'activity_log' => 'Audit log of system actions (who did what).',
+            'notifications' => 'System notifications sent to users.',
+            'holidays' => 'Public holidays and non-working days list.',
+            'api_integrations' => 'Configuration for external APIs (Zoom, Slack, etc.).',
+            'expenses' => 'Expense claims submitted by employees.',
+            'payroll' => 'Salary processing records, basic pay, deductions, and net pay.',
+            'chats' => 'Internal chat messages between users.',
+            'announcements' => 'Company-wide announcements/news.',
+            'reminders' => 'Scheduled reminders for tasks or events.',
+            'assets' => 'Company assets (laptops, devices) assigned to employees.'
+        ];
+    }
+
     private function get_full_schema_array() {
         // Dynamic Schema Discovery
         $tables = $this->CI->db->list_tables();
         $schema = [];
+        
+        $descriptions = $this->get_table_descriptions();
         
         // Load permission helper
         $this->CI->load->helper('permission');
@@ -864,9 +911,12 @@ class Ai_handler {
                 $role_id = (int)$this->CI->session->userdata('role_id');
                 $has_access = false;
                 
-                if ($module === null) {
+                // Admin always has access to everything in the whitelist
+                if ($role_id === 1) {
+                    $has_access = true;
+                } elseif ($module === null) {
                     // System tables - only allow for admin
-                    $has_access = ($role_id === 1);
+                    $has_access = false;
                 } else {
                     // Check module access
                     if (function_exists('has_module_access')) {
@@ -875,16 +925,13 @@ class Ai_handler {
                         // Fallback: check accessible modules array
                         $has_access = in_array(strtolower($module), array_map('strtolower', $accessible_modules));
                     }
-                    // Admin always has access
-                    if (!$has_access && $role_id === 1) {
-                        $has_access = true;
-                    }
                 }
                 
                 if ($has_access) {
                     $fields = $this->CI->db->list_fields($table);
                     if (!empty($fields)) {
-                        $schema[$table] = implode(', ', $fields);
+                        $desc = isset($descriptions[$table]) ? " (" . $descriptions[$table] . ")" : "";
+                        $schema[$table] = $desc . " Columns: " . implode(', ', $fields);
                     }
                 }
             }
