@@ -568,10 +568,12 @@ class Attendance extends CI_Controller {
                                  ->get('attendance')
                                  ->row();
 
+            // Get raw input notes
+            $input_notes = trim((string)$this->input->post('notes'));
+
             // Prepare data array
             $data = [
                 'user_id' => $user_id,
-                'notes' => $this->input->post('notes'),
                 'attachment_path' => $attachment_path,
                 'ip_address' => $this->input->ip_address(),
                 $col_date => $today  // Add the date field
@@ -634,7 +636,12 @@ class Attendance extends CI_Controller {
                         $inType = $this->get_column_type('attendance', $col_in);
                         $updates = [];
                         $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                        if (array_key_exists('notes', $data)) { $updates['notes'] = $data['notes']; }
+                        
+                        // Handle Check-In Notes
+                        if ($input_notes !== '') {
+                            $updates['notes'] = "Check-In: " . $input_notes;
+                        }
+
                         if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
                         // Update location fields (backward compatibility)
                         foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
@@ -664,7 +671,17 @@ class Attendance extends CI_Controller {
                             if ($this->is_valid_checkout_time($cin, $proposedOut, $outType)) {
                                 $updates = [];
                                 $updates[$col_out] = $proposedOut;
-                                if (array_key_exists('notes', $data)) { $updates['notes'] = $data['notes']; }
+                                
+                                // Handle Check-Out Notes (Append to existing)
+                                $existing_notes = isset($existing->notes) ? trim((string)$existing->notes) : '';
+                                if ($input_notes !== '') {
+                                    if ($existing_notes !== '') {
+                                        $updates['notes'] = $existing_notes . " | Check-Out: " . $input_notes;
+                                    } else {
+                                        $updates['notes'] = "Check-Out: " . $input_notes;
+                                    }
+                                }
+
                                 if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
                                 // Update check-out location fields
                                 foreach (['checkout_lat','checkout_lng','checkout_location_name'] as $field) {
@@ -692,6 +709,12 @@ class Attendance extends CI_Controller {
                     // First check-in of the day
                     $inType = $this->get_column_type('attendance', $col_in);
                     $data[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                    
+                    // Handle Initial Check-In Notes
+                    if ($input_notes !== '') {
+                        $data['notes'] = "Check-In: " . $input_notes;
+                    }
+
                     // Populate human-readable location name if schema and coordinates are available
                     if ($this->db->field_exists('location_name','attendance')) {
                         $locFromPost = trim((string)$this->input->post('location_name'));
@@ -713,7 +736,13 @@ class Attendance extends CI_Controller {
                         // Record exists (race condition), update instead of insert
                         $updates = [];
                         $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                        foreach (['notes', 'attachment_path', 'ip_address'] as $field) {
+                        
+                        // Handle Check-In Notes for race condition
+                        if ($input_notes !== '') {
+                            $updates['notes'] = "Check-In: " . $input_notes;
+                        }
+
+                        foreach (['attachment_path', 'ip_address'] as $field) {
                             if (isset($data[$field])) $updates[$field] = $data[$field];
                         }
                         foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
@@ -752,7 +781,13 @@ class Attendance extends CI_Controller {
                                 if ($existing_after) {
                                     $updates = [];
                                     $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                                    foreach (['notes', 'attachment_path', 'ip_address'] as $field) {
+                                    
+                                    // Handle Check-In Notes for late race condition
+                                    if ($input_notes !== '') {
+                                        $updates['notes'] = "Check-In: " . $input_notes;
+                                    }
+
+                                    foreach (['attachment_path', 'ip_address'] as $field) {
                                         if (isset($data[$field])) $updates[$field] = $data[$field];
                                     }
                                     foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
