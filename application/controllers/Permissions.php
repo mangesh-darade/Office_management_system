@@ -194,6 +194,9 @@ class Permissions extends CI_Controller {
             'Attendance & Leave' => [
                 'icon' => 'bi-calendar-check',
                 'modules' => [
+                    'shifts' => 'Shift Management',
+                    'shifts_view' => 'View Shifts',
+                    'shifts_manage' => 'Manage Shifts',
                     'attendance' => 'Attendance',
                     'attendance_list' => 'Attendance List',
                     'attendance_add' => 'Mark Attendance',

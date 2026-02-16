@@ -27,6 +27,7 @@ class Employee_model extends CI_Model
         $addCol('bank_name', "`bank_name` varchar(190) DEFAULT NULL AFTER `phone`");
         $addCol('bank_ac_no', "`bank_ac_no` varchar(50) DEFAULT NULL AFTER `bank_name`");
         $addCol('pan_no', "`pan_no` varchar(20) DEFAULT NULL AFTER `bank_ac_no`");
+        $addCol('shift_id', "`shift_id` int(11) DEFAULT NULL AFTER `designation`"); // Added shift_id
 
         if (!$this->db->table_exists('employee_documents')) {
             $sql = "CREATE TABLE `employee_documents` (
@@ -145,6 +146,15 @@ class Employee_model extends CI_Model
     {
         $this->db->where('id', $id)->delete($this->table);
         return $this->db->affected_rows() > 0;
+    }
+
+    public function get_by_user_id($user_id)
+    {
+        $this->db->select('e.*, u.email, u.name as user_name, u.role_id');
+        $this->db->from($this->table.' e');
+        $this->db->join('users u', 'u.id = e.user_id', 'left');
+        $this->db->where('e.user_id', $user_id);
+        return $this->db->get()->row();
     }
 
     /**

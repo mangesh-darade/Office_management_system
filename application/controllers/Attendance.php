@@ -193,13 +193,16 @@ class Attendance extends CI_Controller {
             if ($cout_disp && strpos($cout_disp, ' ') !== false) { $cout_disp = trim(explode(' ', $cout_disp)[1]); }
             
             // Determine status
-            $status = 'incomplete';
-            if ($cin && $cout) {
-                $status = 'present';
-            } elseif ($cin && !$cout) {
-                $status = 'incomplete';
-            } else {
-                $status = 'absent';
+            // Determine status
+            $status = isset($r->status) ? $r->status : 'incomplete';
+            if ($status === 'incomplete' || empty($status)) {
+                if ($cin && $cout) {
+                    $status = 'present';
+                } elseif ($cin && !$cout) {
+                    $status = 'incomplete';
+                } else {
+                    $status = 'absent';
+                }
             }
             
             // Get check-in location
@@ -576,8 +579,19 @@ class Attendance extends CI_Controller {
                 'user_id' => $user_id,
                 'attachment_path' => $attachment_path,
                 'ip_address' => $this->input->ip_address(),
-                $col_date => $today  // Add the date field
+                $col_date => $today
             ];
+
+            // Get Employee Shift
+            $this->load->model('Shift_model');
+            $this->load->model('Employee_model');
+            $employee = $this->Employee_model->get_by_user_id($user_id);
+            $shift_id = ($employee && isset($employee->shift_id)) ? $employee->shift_id : 1; // Default to General Shift
+            $shift = $this->Shift_model->get($shift_id);
+            
+            if ($shift) {
+                $data['shift_id'] = $shift->id;
+            }
             
             // Helper function to get location name
             $self = $this;
@@ -642,6 +656,21 @@ class Attendance extends CI_Controller {
                             $updates['notes'] = "Check-In: " . $input_notes;
                         }
 
+
+                        // Calculate Status based on Shift (Late Check-in)
+                        if (isset($shift) && $shift) {
+                            $checkInTimeObj = new DateTime($nowDateTime);
+                            $shiftStartTime = new DateTime($today . ' ' . $shift->start_time);
+                            $lateGrace = new DateInterval('PT' . (int)$shift->late_grace_period . 'M');
+                            $shiftStartTime->add($lateGrace);
+
+                            if ($checkInTimeObj > $shiftStartTime) {
+                                $updates['status'] = 'late';
+                            } else {
+                                $updates['status'] = 'present';
+                            }
+                        }
+
                         if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
                         // Update location fields (backward compatibility)
                         foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
@@ -687,6 +716,27 @@ class Attendance extends CI_Controller {
                                 foreach (['checkout_lat','checkout_lng','checkout_location_name'] as $field) {
                                     if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
                                 }
+                                
+                                // Calculate Early Leave Status based on Shift
+                                if ($shift) {
+                                    $checkOutTimeObj = new DateTime($proposedOut);
+                                    $shiftEndTime = new DateTime($today . ' ' . $shift->end_time);
+                                    // Early exit grace period subtraction
+                                    $earlyGrace = new DateInterval('PT' . (int)$shift->early_exit_grace_period . 'M');
+                                    $shiftEndTime->sub($earlyGrace);
+
+                                    if ($checkOutTimeObj < $shiftEndTime) {
+                                        // If already late, stay late. If present, change to early_leave. 
+                                        // Priority: Late > Early Leave > Present (Business logic may vary, assuming Latest status is key or combination)
+                                        // Ideally, store flags, but enum status is single value. 
+                                        // Let's keep existing status if it was 'late', otherwise set to 'early_leave'
+                                        $currentStatus = isset($existing->status) ? $existing->status : 'present';
+                                        if ($currentStatus !== 'late') {
+                                            $updates['status'] = 'early_leave';
+                                        }
+                                    }
+                                }
+                                
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
                                 $this->load->helper('notification');
@@ -713,6 +763,20 @@ class Attendance extends CI_Controller {
                     // Handle Initial Check-In Notes
                     if ($input_notes !== '') {
                         $data['notes'] = "Check-In: " . $input_notes;
+                    }
+                    
+                    // Calculate Status based on Shift (Initial Check-in)
+                    if ($shift) {
+                        $checkInTimeObj = new DateTime($nowDateTime);
+                        $shiftStartTime = new DateTime($today . ' ' . $shift->start_time);
+                        $lateGrace = new DateInterval('PT' . (int)$shift->late_grace_period . 'M');
+                        $shiftStartTime->add($lateGrace);
+
+                        if ($checkInTimeObj > $shiftStartTime) {
+                            $data['status'] = 'late';
+                        } else {
+                            $data['status'] = 'present';
+                        }
                     }
 
                     // Populate human-readable location name if schema and coordinates are available
@@ -869,10 +933,32 @@ class Attendance extends CI_Controller {
         $auto_submit_enabled = ($auto_submit_setting === 'yes' || $auto_submit_setting === '1' || $auto_submit_setting === 1 || $auto_submit_setting === true);
         
         // Get office hours and grace period
+        // Get office hours and grace period from Settings first (default)
         $office_start_time = $this->settings->get_setting('attendance_start_time', '09:30');
         $office_end_time = $this->settings->get_setting('attendance_end_time', '18:30');
         $grace_minutes = (int)$this->settings->get_setting('attendance_grace_minutes', 15);
         $standard_working_hours = (float)$this->settings->get_setting('attendance_standard_working_hours', $this->settings->get_setting('standard_working_hours', 8));
+        
+        // Override with Employee Shift if available
+        $this->load->model('Employee_model');
+        $this->load->model('Shift_model');
+        $employee = $this->Employee_model->get_by_user_id($user_id);
+        if ($employee && isset($employee->shift_id)) {
+            $shift = $this->Shift_model->get($employee->shift_id);
+            if ($shift) {
+                // Use Shift Timings
+                $office_start_time = date('H:i', strtotime($shift->start_time));
+                $office_end_time = date('H:i', strtotime($shift->end_time));
+                $grace_minutes = (int)$shift->late_grace_period;
+                // Calculate standard hours from shift duration
+                $start_ts = strtotime($shift->start_time);
+                $end_ts = strtotime($shift->end_time);
+                $diff = $end_ts - $start_ts;
+                if ($diff > 0) {
+                    $standard_working_hours = round($diff / 3600, 1);
+                }
+            }
+        }
         
         // Get weekend days
         $weekends_str = $this->settings->get_setting('attendance_weekends', '0,6');

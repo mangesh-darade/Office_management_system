@@ -38,13 +38,15 @@ if (!(int)$this->session->userdata('user_id')) {
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('permissions') ||
-        has_module_access('assets_mgmt')
+        has_module_access('permissions') ||
+        has_module_access('assets_mgmt') ||
+        has_module_access('shifts')
       );
       ?>
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets']) ? 'active' : ''; ?>" href="#">
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets','shifts']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
           <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
@@ -67,6 +69,9 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+            <?php endif; ?>
+            <?php if((isset($is_admin) && $is_admin) || (function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('settings') || has_module_access('shifts_view')))): ?>
+            <a class="submenu-link <?php echo $active==='shifts'?'active':''; ?>" href="<?php echo site_url('shifts'); ?>"><i class="bi bi-clock me-2"></i>Shifts</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('departments')): ?>
             <a class="submenu-link <?php echo $active==='departments'?'active':''; ?>" href="<?php echo site_url('departments'); ?>"><i class="bi bi-diagram-3 me-2"></i>Department</a>
@@ -94,7 +99,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave']) ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','shifts']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });

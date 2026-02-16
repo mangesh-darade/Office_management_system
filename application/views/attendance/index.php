@@ -272,6 +272,14 @@ document.addEventListener('DOMContentLoaded', function(){
   background: #fff3cd;
   color: #856404;
 }
+.status-badge.late {
+  background: #fff3cd;
+  color: #856404;
+}
+.status-badge.early_leave {
+  background: #f8d7da;
+  color: #721c24;
+}
 .location-info {
   max-width: 150px;
 }
@@ -860,9 +868,17 @@ function displayAttendanceDetails(data, pagination) {
     
     let html = '';
     data.forEach(record => {
-        const statusClass = record.status === 'present' ? 'success' : 
-                           record.status === 'absent' ? 'danger' : 'warning';
-        const statusText = record.status.charAt(0).toUpperCase() + record.status.slice(1);
+        let statusClass = 'secondary';
+        switch(record.status) {
+            case 'present': statusClass = 'success'; break;
+            case 'absent': statusClass = 'danger'; break;
+            case 'late': statusClass = 'warning'; break;
+            case 'early_leave': statusClass = 'warning'; break; // or danger/info
+            case 'half_day': statusClass = 'info'; break;
+            default: statusClass = 'warning'; // incomplete
+        }
+        
+        let statusText = record.status.charAt(0).toUpperCase() + record.status.slice(1).replace('_', ' ');
         
         // Check permissions for this record
         const canEdit = record.can_edit !== undefined ? record.can_edit : false;

@@ -36,6 +36,12 @@ class Attendance_model extends CI_Model {
             if (!in_array('checkout_location_name', $fields, true)) {
                 $this->db->query("ALTER TABLE `".$this->table."` ADD `checkout_location_name` VARCHAR(255) NULL");
             }
+            if (!in_array('shift_id', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `shift_id` INT(11) NULL DEFAULT NULL");
+            }
+            if (!in_array('status', $fields, true)) {
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `status` ENUM('present', 'absent', 'late', 'early_leave', 'half_day') DEFAULT 'present'");
+            }
         }
     }
 }

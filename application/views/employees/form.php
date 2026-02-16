@@ -112,6 +112,21 @@
         </select>
       </div>
       <div class="col-12 col-md-6">
+        <label class="form-label" for="shift_id">Shift <span class="text-danger">*</span></label>
+        <select name="shift_id" id="shift_id" class="form-select" data-mandatory="true" required>
+          <?php 
+            $currentShift = isset($employee->shift_id) ? (int)$employee->shift_id : 1;
+            if (empty($shifts)) { echo '<option value="">No shifts available</option>'; } 
+            else {
+                foreach ($shifts as $s) {
+                    $sel = ($currentShift === (int)$s->id) ? 'selected' : '';
+                    echo '<option value="'.(int)$s->id.'" '.$sel.'>'.htmlspecialchars($s->name) . ' (' . date('h:i A', strtotime($s->start_time)) . ' - ' . date('h:i A', strtotime($s->end_time)) . ')</option>';
+                }
+            } 
+          ?>
+        </select>
+      </div>
+      <div class="col-12 col-md-6">
         <label class="form-label" for="join_date">Join Date <span class="text-danger">*</span></label>
         <input type="date" name="join_date" id="join_date" class="form-control" data-mandatory="true" required value="<?php echo htmlspecialchars(isset($employee->join_date) ? $employee->join_date : ''); ?>">
       </div>

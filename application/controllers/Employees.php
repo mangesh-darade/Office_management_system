@@ -9,6 +9,7 @@ class Employees extends CI_Controller {
         $this->load->helper(['url','form','group_filter','permission']);
         $this->load->library(['session']);
         $this->load->model('Employee_model');
+        $this->load->model('Shift_model');
         
         // Check module access - redirect to dashboard if not allowed
         require_module_access('employees', true);
@@ -129,6 +130,7 @@ class Employees extends CI_Controller {
                 'bank_name' => trim($this->input->post('bank_name')),
                 'bank_ac_no' => trim($this->input->post('bank_ac_no')),
                 'pan_no' => trim($this->input->post('pan_no')),
+                'shift_id' => $this->input->post('shift_id') ? (int)$this->input->post('shift_id') : null,
             ];
             
             // Validate employee data
@@ -174,6 +176,7 @@ class Employees extends CI_Controller {
             'users' => $this->get_user_options(),
             'departments' => $departments,
             'designations' => $designations,
+            'shifts' => $this->Shift_model->get_all(true),
             // Pre-generate an employee code to show on the create form
             'generated_emp_code' => $this->Employee_model->generate_emp_code(),
         ];
@@ -185,6 +188,16 @@ class Employees extends CI_Controller {
     {
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
+        
+        // Load Shift details
+        if ($employee->shift_id) {
+            $shift = $this->Shift_model->get($employee->shift_id);
+            if ($shift) {
+                $employee->shift_name = $shift->name;
+                $employee->shift_start = $shift->start_time;
+                $employee->shift_end = $shift->end_time;
+            }
+        }
         // Ownership check: non Admin/HR can view only their own record
         $role_id = (int)$this->session->userdata('role_id');
         if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
@@ -270,6 +283,7 @@ class Employees extends CI_Controller {
                 'bank_name' => trim($this->input->post('bank_name')),
                 'bank_ac_no' => trim($this->input->post('bank_ac_no')),
                 'pan_no' => trim($this->input->post('pan_no')),
+                'shift_id' => $this->input->post('shift_id') ? (int)$this->input->post('shift_id') : null,
             ];
             // Track changes before update
             $this->load->helper(['activity', 'change_tracker']);
@@ -303,6 +317,7 @@ class Employees extends CI_Controller {
             'users' => $this->get_user_options(),
             'departments' => $departments,
             'designations' => $designations,
+            'shifts' => $this->Shift_model->get_all(true),
         ];
         $this->load->view('employees/form', $data);
     }

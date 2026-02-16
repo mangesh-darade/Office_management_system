@@ -1643,6 +1643,26 @@ class Reports extends CI_Controller {
                 }
             }
 
+            // Override with Employee Shift if available
+            $this->load->model('Employee_model');
+            $this->load->model('Shift_model');
+            $employee = $this->Employee_model->get_by_user_id($user_id);
+            if ($employee && isset($employee->shift_id)) {
+                $shift = $this->Shift_model->get($employee->shift_id);
+                if ($shift) {
+                    // Use Shift Timings
+                    $officeStart = date('H:i', strtotime($shift->start_time));
+                    $graceMinutes = (int)$shift->late_grace_period;
+                    // Calculate standard hours from shift duration
+                    $start_ts = strtotime($shift->start_time);
+                    $end_ts = strtotime($shift->end_time);
+                    $diff = $end_ts - $start_ts;
+                    if ($diff > 0) {
+                        $standardHours = round($diff / 3600, 1);
+                    }
+                }
+            }
+
         // Create holiday map
         $holidayMap = [];
         foreach ($holidays as $h) {

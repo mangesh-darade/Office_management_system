@@ -73,6 +73,20 @@
             </div>
 
             <div class="col-md-4">
+              <label class="form-label">Shift</label>
+              <select name="shift_id" class="form-select">
+                <option value="">-- Default / No Shift --</option>
+                <?php if(isset($shifts) && !empty($shifts)): ?>
+                  <?php foreach($shifts as $shift): ?>
+                    <option value="<?php echo $shift->id; ?>" <?php echo (isset($current_shift_id) && $current_shift_id == $shift->id) ? 'selected' : ''; ?>>
+                      <?php echo htmlspecialchars($shift->name); ?> (<?php echo date('H:i', strtotime($shift->start_time)) . ' - ' . date('H:i', strtotime($shift->end_time)); ?>)
+                    </option>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </select>
+            </div>
+
+            <div class="col-md-4">
               <label class="form-label">Status <span class="text-danger">*</span></label>
               <?php
                 $stRaw = isset($row->status) ? $row->status : 1;

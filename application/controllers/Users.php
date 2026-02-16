@@ -6,6 +6,8 @@ class Users extends CI_Controller {
         parent::__construct();
         $this->load->model('User_model', 'users');
         $this->load->model('Face_model', 'faces');
+        $this->load->model('Employee_model');
+        $this->load->model('Shift_model');
         $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
         // Basic auth gate: redirect to login if not logged in
@@ -85,6 +87,7 @@ class Users extends CI_Controller {
             ],
             'is_edit' => false,
             'roles' => $this->roles(),
+            'shifts' => $this->Shift_model->get_all(true),
         ];
         $this->load->view('users/form', $data);
     }
@@ -207,6 +210,30 @@ class Users extends CI_Controller {
             if ($new_id) {
                 $description = 'User: ' . (isset($data['name']) ? $data['name'] : (isset($data['email']) ? $data['email'] : 'User #' . $new_id));
                 auto_track_insert('users', $new_id, $data, $description);
+
+                // Handle Shift Assignment (Create Employee Record if needed)
+                $shift_id = $this->input->post('shift_id');
+                if ($shift_id) {
+                    $emp = $this->Employee_model->get_by_user_id($new_id);
+                    if (!$emp) {
+                        // Create new employee record
+                        $nameParts = explode(' ', trim($data['name']), 2);
+                        $fname = $nameParts[0];
+                        $lname = isset($nameParts[1]) ? $nameParts[1] : '';
+                        $empData = [
+                            'user_id' => $new_id,
+                            'emp_code' => $this->Employee_model->generate_emp_code(),
+                            'first_name' => $fname,
+                            'last_name' => $lname,
+                            'personal_email' => $data['email'],
+                            'shift_id' => (int)$shift_id
+                        ];
+                        $this->Employee_model->create($empData);
+                    } else {
+                        // Update existing
+                        $this->Employee_model->update($emp->id, ['shift_id' => (int)$shift_id]);
+                    }
+                }
             }
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
         }
@@ -241,7 +268,10 @@ class Users extends CI_Controller {
             'row' => $row,
             'is_edit' => true,
             'roles' => $this->roles(),
+            'shifts' => $this->Shift_model->get_all(true),
         ];
+        $employee = $this->Employee_model->get_by_user_id($id);
+        $data['current_shift_id'] = $employee ? $employee->shift_id : null;
         $this->load->view('users/form', $data);
     }
 
@@ -319,6 +349,36 @@ class Users extends CI_Controller {
         if ($ok && $old_data) {
             $description = 'User: ' . (isset($data['name']) ? $data['name'] : (isset($row->name) ? $row->name : 'User #' . $id));
             track_changes_after('users', 'users', $id, $old_data, $data, $description);
+        }
+
+        // Handle Shift Assignment
+        if ($ok) {
+            $shift_id = $this->input->post('shift_id');
+            // Check if shift_id was actually posted (to distinguish from not set)
+            if ($this->input->post('shift_id') !== null) {
+                $shift_id = (int)$shift_id ?: null; // Handle empty string as null
+                $emp = $this->Employee_model->get_by_user_id($id);
+                if (!$emp && $shift_id) {
+                    // Create new employee record if assigning a shift
+                    $nameVal = isset($data['name']) ? $data['name'] : $row->name;
+                    $emailVal = isset($data['email']) ? $data['email'] : $row->email;
+                    $nameParts = explode(' ', trim($nameVal), 2);
+                    $fname = $nameParts[0];
+                    $lname = isset($nameParts[1]) ? $nameParts[1] : '';
+                    $empData = [
+                        'user_id' => $id,
+                        'emp_code' => $this->Employee_model->generate_emp_code(),
+                        'first_name' => $fname,
+                        'last_name' => $lname,
+                        'personal_email' => $emailVal,
+                        'shift_id' => $shift_id
+                    ];
+                    $this->Employee_model->create($empData);
+                } elseif ($emp) {
+                    // Update existing
+                    $this->Employee_model->update($emp->id, ['shift_id' => $shift_id]);
+                }
+            }
         }
         
         $this->load->helper('notification');
