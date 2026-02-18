@@ -53,7 +53,7 @@ if (!(int)$this->session->userdata('user_id')) {
         })();
       </script>
       <?php endif; ?>
-      <?php if((int)$this->session->userdata('role_id') === 8 || (function_exists('has_module_access') && has_module_access('superadmin'))): ?>
+      <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>

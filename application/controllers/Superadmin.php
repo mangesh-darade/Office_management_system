@@ -13,11 +13,8 @@ class Superadmin extends CI_Controller {
             redirect('auth/login');
         }
         
-        $role_id = (int)$this->session->userdata('role_id');
-        $role = $this->db->get_where('roles', ['id' => $role_id])->row();
-        $is_superadmin_role = ($role && strtolower(trim($role->name)) === 'superadmin');
         $has_superadmin_perm = function_exists('has_module_access') && has_module_access('superadmin');
-        if (!$is_superadmin_role && !$has_superadmin_perm) {
+        if (!$has_superadmin_perm) {
             show_error('Access Denied. You do not have permission to access Super Admin.', 403);
         }
     }
