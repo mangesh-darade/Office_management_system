@@ -1,14 +1,18 @@
 <?php $this->load->view('partials/header', ['title' => 'Reminders']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Reminders</h1>
-  <div class="d-flex gap-2">
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('reminders/schedules'); ?>">🗓 Schedules</a>
-    <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('reminders/send'); ?>">✉️ Send</a>
-    <a class="btn btn-outline-info btn-sm" href="<?php echo site_url('reminders/templates'); ?>">🧩 Templates</a>
-    <a class="btn btn-outline-warning btn-sm" href="<?php echo site_url('reminders/announce'); ?>">📣 Announce</a>
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reminders/import'); ?>">📂 Import CSV</a>
-    <button type="button" class="btn btn-success btn-sm" onclick="submitSelected()">🚀 Send Selected</button>
-    <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()">🗑️ Delete Selected</button>
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div>
+    <h1 class="h4 mb-1 fw-bold"><i class="bi bi-bell text-primary me-2"></i>Reminders</h1>
+    <p class="text-muted small mb-0">Manage notification reminders</p>
+  </div>
+  <div class="d-flex gap-1 flex-wrap mt-2 mt-sm-0">
+    <a class="btn btn-primary btn-sm" href="<?php echo site_url('reminders/schedules'); ?>"><i class="bi bi-calendar-event me-1"></i><span class="d-none d-md-inline">Schedules</span></a>
+    <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('reminders/send'); ?>"><i class="bi bi-send me-1"></i><span class="d-none d-md-inline">Send</span></a>
+    <a class="btn btn-outline-info btn-sm" href="<?php echo site_url('reminders/templates'); ?>"><i class="bi bi-file-text me-1"></i><span class="d-none d-md-inline">Templates</span></a>
+    <a class="btn btn-outline-warning btn-sm" href="<?php echo site_url('reminders/announce'); ?>"><i class="bi bi-megaphone me-1"></i><span class="d-none d-md-inline">Announce</span></a>
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reminders/import'); ?>"><i class="bi bi-upload me-1"></i><span class="d-none d-md-inline">Import</span></a>
+    <button type="button" class="btn btn-success btn-sm" onclick="submitSelected()"><i class="bi bi-send-check me-1"></i><span class="d-none d-lg-inline">Send Selected</span></button>
+    <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()"><i class="bi bi-trash me-1"></i><span class="d-none d-lg-inline">Delete</span></button>
   </div>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
@@ -194,4 +198,5 @@ document.getElementById('filterStatus').addEventListener('change', applyFilters)
 document.getElementById('filterType').addEventListener('change', applyFilters);
 document.getElementById('filterSearch').addEventListener('input', applyFilters);
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

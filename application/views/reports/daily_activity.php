@@ -1,17 +1,17 @@
 <?php $this->load->view('partials/header', ['title' => 'Daily Activity Report']); ?>
 
 <style>
-.stat-card {
+.daily-act-report .stat-card {
     border: none;
     border-radius: 12px;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     overflow: hidden;
 }
-.stat-card:hover {
+.daily-act-report .stat-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
 }
-.stat-card .stat-icon {
+.daily-act-report .stat-card .stat-icon {
     width: 48px;
     height: 48px;
     border-radius: 12px;
@@ -20,23 +20,23 @@
     justify-content: center;
     font-size: 1.25rem;
 }
-.stat-card .stat-value {
+.daily-act-report .stat-card .stat-value {
     font-size: 1.75rem;
     font-weight: 700;
     line-height: 1.2;
 }
-.stat-card .stat-label {
+.daily-act-report .stat-card .stat-label {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 600;
 }
-.filter-card {
+.daily-act-report .filter-card {
     border: none;
     border-radius: 12px;
     background: #fff;
 }
-.report-table thead th {
+.daily-act-report .report-table thead th {
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.8px;
@@ -46,18 +46,18 @@
     padding: 0.75rem 1rem;
     white-space: nowrap;
 }
-.report-table tbody td {
+.daily-act-report .report-table tbody td {
     padding: 0.875rem 1rem;
     vertical-align: middle;
 }
-.report-table tbody tr {
+.daily-act-report .report-table tbody tr {
     cursor: pointer;
     transition: background 0.1s;
 }
-.report-table tbody tr:hover {
+.daily-act-report .report-table tbody tr:hover {
     background: #f0f4ff !important;
 }
-.user-avatar {
+.daily-act-report .user-avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -68,7 +68,7 @@
     font-size: 0.75rem;
     flex-shrink: 0;
 }
-.activity-badge {
+.daily-act-report .activity-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -77,7 +77,7 @@
     font-size: 0.8rem;
     font-weight: 500;
 }
-.desc-preview {
+.daily-act-report .desc-preview {
     color: #6b7280;
     font-size: 0.85rem;
     max-width: 350px;
@@ -85,35 +85,35 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.empty-state {
+.daily-act-report .da-empty-state {
     padding: 4rem 2rem;
     text-align: center;
 }
-.empty-state i {
+.daily-act-report .da-empty-state i {
     font-size: 3.5rem;
     color: #d1d5db;
     margin-bottom: 1rem;
 }
-#viewReportModal .modal-content {
+.daily-act-report #viewReportModal .modal-content {
     border: none;
     border-radius: 16px;
     overflow: hidden;
 }
-#viewReportModal .modal-header {
+.daily-act-report #viewReportModal .modal-header {
     border-bottom: 1px solid #f3f4f6;
     padding: 1.25rem 1.5rem;
 }
-#viewReportModal .modal-body {
+.daily-act-report #viewReportModal .modal-body {
     padding: 1.5rem;
 }
-#viewRepDesc img {
+.daily-act-report #viewRepDesc img {
     max-width: 100%;
     height: auto;
     border-radius: 8px;
 }
 </style>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 daily-act-report">
 
     <!-- Page Header -->
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-2">
@@ -224,7 +224,7 @@
     <!-- Data Table -->
     <div class="card shadow-sm" style="border:none; border-radius:12px; overflow:hidden;">
         <?php if(empty($rows)): ?>
-            <div class="empty-state">
+            <div class="da-empty-state">
                 <i class="bi bi-inbox d-block"></i>
                 <h5 class="fw-semibold text-dark mb-2">No Activities Found</h5>
                 <p class="text-muted mb-3">No daily activity logs match the selected filters.</p>

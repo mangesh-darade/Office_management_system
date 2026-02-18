@@ -125,12 +125,13 @@ class Chat_model extends CI_Model {
 
     public function list_conversations($user_id, $filters = []) {
         $sql = "SELECT c.*, 
-                       GROUP_CONCAT(u.email ORDER BY u.email SEPARATOR ', ') AS members
+                       GROUP_CONCAT(u.email ORDER BY u.email SEPARATOR ', ') AS members,
+                       (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.id DESC LIMIT 1) AS last_message,
+                       (SELECT m3.created_at FROM messages m3 WHERE m3.conversation_id = c.id ORDER BY m3.id DESC LIMIT 1) AS last_message_at
                 FROM conversations c
                 JOIN conversation_participants cp ON cp.conversation_id=c.id
                 JOIN users u ON u.id=cp.user_id";
         
-        // Apply group filtering for non-admin users
         if (!empty($filters) && isset($filters['user_id'])) {
             $sql .= " JOIN conversation_participants cp2 ON cp2.conversation_id=c.id
                       WHERE cp.user_id = ? AND cp2.user_id IN (
@@ -142,7 +143,7 @@ class Chat_model extends CI_Model {
             $sql .= " WHERE c.id IN (SELECT conversation_id FROM conversation_participants WHERE user_id=?)";
         }
         
-        $sql .= " GROUP BY c.id ORDER BY c.created_at DESC";
+        $sql .= " GROUP BY c.id ORDER BY last_message_at DESC, c.created_at DESC";
         
         if (!empty($filters) && isset($filters['user_id'])) {
             return $this->db->query($sql, [$user_id, $user_id])->result();

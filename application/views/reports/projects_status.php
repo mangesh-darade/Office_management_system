@@ -1,15 +1,19 @@
 <?php $this->load->view('partials/header', ['title' => 'Projects Status Report']); ?>
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Projects Status Report</h1>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-primary btn-sm" onclick="toggleFilters()">🔍 Filters</button>
-      <button class="btn btn-outline-success btn-sm" onclick="exportCSV()">📥 Export CSV</button>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports'); ?>">Back to Reports</a>
+  <div class="container-fluid py-3">
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="bi bi-diagram-3 text-primary me-2"></i>Projects Status Report</h4>
+      <p class="text-muted small mb-0">Track project progress, timelines and team performance</p>
+    </div>
+    <div class="d-flex gap-2 mt-2 mt-sm-0">
+      <button class="btn btn-outline-primary btn-sm" onclick="toggleFilters()"><i class="bi bi-funnel me-1"></i>Filters</button>
+      <button class="btn btn-outline-success btn-sm" onclick="exportCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports'); ?>"><i class="bi bi-arrow-left me-1"></i>Reports</a>
     </div>
   </div>
 
   <!-- Filters Panel -->
-  <div id="filtersPanel" class="card shadow-soft mb-3" style="display:none;">
+  <div id="filtersPanel" class="card shadow-sm border-0 mb-3" style="display:none;">
     <div class="card-body">
       <form method="GET" class="row g-3">
         <div class="col-md-2">
@@ -64,91 +68,88 @@
       </form>
     </div>
   </div>
+
   <!-- Summary Statistics -->
-  <div class="row mb-3">
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-primary border-4">
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-primary border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">Total Projects</div>
-              <div class="h4 mb-0"><?php echo count($project_details); ?></div>
+              <div class="h4 mb-0 fw-bold"><?php echo count($project_details); ?></div>
             </div>
-            <div class="text-primary">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#folder"/></svg>
-            </div>
+            <div class="text-primary"><i class="bi bi-folder fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-success border-4">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-success border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
-              <div class="small text-muted">Completed Projects</div>
-              <div class="h4 mb-0"><?php 
+              <div class="small text-muted">Completed</div>
+              <div class="h4 mb-0 fw-bold"><?php 
                 $completed = array_filter($project_details, function($p) { return $p->project_status === 'completed'; });
                 echo count($completed); 
               ?></div>
             </div>
-            <div class="text-success">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#check-circle"/></svg>
-            </div>
+            <div class="text-success"><i class="bi bi-check-circle fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-warning border-4">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-warning border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">In Progress</div>
-              <div class="h4 mb-0"><?php 
+              <div class="h4 mb-0 fw-bold"><?php 
                 $in_progress = array_filter($project_details, function($p) { return $p->project_status === 'in_progress'; });
                 echo count($in_progress); 
               ?></div>
             </div>
-            <div class="text-warning">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#clock"/></svg>
-            </div>
+            <div class="text-warning"><i class="bi bi-clock-history fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-danger border-4">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-danger border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">Overdue</div>
-              <div class="h4 mb-0"><?php 
+              <div class="h4 mb-0 fw-bold"><?php 
                 $overdue = array_filter($project_details, function($p) { return isset($p->is_overdue) && $p->is_overdue; });
                 echo count($overdue); 
               ?></div>
             </div>
-            <div class="text-danger">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#exclamation-triangle"/></svg>
-            </div>
+            <div class="text-danger"><i class="bi bi-exclamation-triangle fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="row">
+  <div class="row g-3">
     <!-- Status Breakdown -->
-    <div class="col-md-4 mb-3">
-      <div class="card shadow-soft">
+    <div class="col-12 col-md-4 mb-3">
+      <div class="card shadow-sm border-0 h-100">
         <div class="card-body">
-          <h5 class="card-title mb-2">Status Breakdown</h5>
+          <h5 class="card-title mb-3 fw-semibold"><i class="bi bi-pie-chart me-2 text-primary"></i>Status Breakdown</h5>
           <?php if (empty($rows)): ?>
-            <div class="text-muted">No project data available.</div>
+            <div class="empty-state py-4">
+              <div class="empty-icon mx-auto"><i class="bi bi-diagram-3"></i></div>
+              <h6 class="fw-semibold">No project data</h6>
+              <p class="text-muted small mb-0">Projects will appear here once created</p>
+            </div>
           <?php else: ?>
             <div class="table-responsive">
-              <table class="table table-hover align-middle">
-                <thead>
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                   <tr>
                     <th>Status</th>
                     <th class="text-center">Projects</th>
@@ -170,21 +171,25 @@
     </div>
 
     <!-- Project Details -->
-    <div class="col-md-8 mb-3">
-      <div class="card shadow-soft">
+    <div class="col-12 col-md-8 mb-3">
+      <div class="card shadow-sm border-0">
         <div class="card-body">
-          <h5 class="card-title mb-2">Project Portfolio</h5>
+          <h5 class="card-title mb-3 fw-semibold"><i class="bi bi-collection me-2 text-primary"></i>Project Portfolio</h5>
           <?php if (empty($project_details)): ?>
-            <div class="text-muted">No project data available.</div>
+            <div class="empty-state py-5">
+              <div class="empty-icon mx-auto"><i class="bi bi-folder"></i></div>
+              <h6 class="fw-semibold">No projects found</h6>
+              <p class="text-muted small mb-0">Try adjusting your filters or create new projects</p>
+            </div>
           <?php else: ?>
             <div class="table-responsive">
-              <table class="table table-hover align-middle" id="projectsTable">
-                <thead>
+              <table class="table table-hover align-middle mb-0" id="projectsTable">
+                <thead class="table-light">
                   <tr>
                     <th>Project</th>
                     <th>Client</th>
                     <th>Manager</th>
-                    <th>Progress</th>
+                    <th style="min-width:140px;">Progress</th>
                     <th>Status</th>
                     <th>Timeline</th>
                   </tr>
@@ -196,7 +201,7 @@
                         <div class="fw-semibold"><?php echo htmlspecialchars($p->project_name); ?></div>
                         <div class="small text-muted">ID: <?php echo (int)$p->project_id; ?></div>
                         <?php if (isset($p->budget) && $p->budget): ?>
-                          <div class="small text-success">₹<?php echo number_format($p->budget, 2); ?></div>
+                          <div class="small text-success fw-medium"><?php echo number_format($p->budget, 2); ?></div>
                         <?php endif; ?>
                       </td>
                       <td><?php echo htmlspecialchars($p->client_name); ?></td>
@@ -213,28 +218,28 @@
                           </div>
                           <div class="small text-muted mt-1"><?php echo $p->completed_tasks; ?>/<?php echo $p->total_tasks; ?> tasks</div>
                         <?php else: ?>
-                          <span class="text-muted">No tasks</span>
+                          <span class="text-muted small"><i class="bi bi-dash-circle me-1"></i>No tasks</span>
                         <?php endif; ?>
                       </td>
                       <td><?php $this->load->view('partials/status_badge', ['status' => $p->project_status]); ?></td>
                       <td>
                         <?php if (isset($p->end_date) && $p->end_date): ?>
-                          <div class="small <?php echo (isset($p->is_overdue) && $p->is_overdue) ? 'text-danger' : 'text-dark'; ?>">
-                            <?php echo date('M d', strtotime($p->end_date)); ?>
+                          <div class="small <?php echo (isset($p->is_overdue) && $p->is_overdue) ? 'text-danger fw-medium' : 'text-dark'; ?>">
+                            <?php echo date('M d, Y', strtotime($p->end_date)); ?>
                           </div>
                           <?php if (isset($p->days_remaining) && $p->days_remaining !== null): ?>
                             <div class="small <?php echo (isset($p->is_overdue) && $p->is_overdue) ? 'text-danger' : 'text-muted'; ?>">
                               <?php if (isset($p->is_overdue) && $p->is_overdue): ?>
-                                ⚠️ <?php echo abs($p->days_remaining); ?> days overdue
+                                <i class="bi bi-exclamation-triangle-fill"></i> <?php echo abs($p->days_remaining); ?> days overdue
                               <?php elseif ($p->days_remaining == 0): ?>
-                                📅 Due today
+                                <i class="bi bi-calendar-event"></i> Due today
                               <?php else: ?>
-                                📅 <?php echo $p->days_remaining; ?> days left
+                                <i class="bi bi-calendar-event"></i> <?php echo $p->days_remaining; ?> days left
                               <?php endif; ?>
                             </div>
                           <?php endif; ?>
                         <?php else: ?>
-                          <span class="text-muted">No deadline</span>
+                          <span class="text-muted small">No deadline</span>
                         <?php endif; ?>
                       </td>
                     </tr>
@@ -247,29 +252,32 @@
       </div>
     </div>
   </div>
+
   <script>
   function toggleFilters() {
-    const panel = document.getElementById('filtersPanel');
+    var panel = document.getElementById('filtersPanel');
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
   }
   
   function exportCSV() {
-    const params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(window.location.search);
     params.set('export', 'csv');
     window.location.href = '<?php echo site_url("reports/projects-status"); ?>?' + params.toString();
   }
   
-  // Initialize DataTable for better UX
   $(document).ready(function() {
-    $('#projectsTable').DataTable({
-      pageLength: 25,
-      order: [[0, 'asc']], // Sort by project name
-      responsive: true,
-      language: {
-        search: 'Search projects:',
-        lengthMenu: 'Show _MENU_ projects per page'
-      }
-    });
+    if ($.fn.DataTable) {
+      $('#projectsTable').DataTable({
+        pageLength: 25,
+        order: [[0, 'asc']],
+        responsive: true,
+        language: {
+          search: 'Search projects:',
+          lengthMenu: 'Show _MENU_ projects per page'
+        }
+      });
+    }
   });
   </script>
+  </div><!-- .container-fluid -->
 <?php $this->load->view('partials/footer'); ?>

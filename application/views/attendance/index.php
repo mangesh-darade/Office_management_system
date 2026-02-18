@@ -476,33 +476,6 @@ document.addEventListener('DOMContentLoaded', function(){
     margin-bottom: 0.5rem;
   }
 }
-    font-size: 0.5rem;
-  }
-  .time-badge,
-  .status-badge {
-    font-size: 0.625rem;
-    padding: 0.125rem 0.375rem;
-  }
-  .location-info {
-    max-width: 100px;
-  }
-  .location-name {
-    font-size: 0.625rem;
-  }
-  .location-coords {
-    font-size: 0.5rem;
-  }
-  .notes-cell {
-    max-width: 80px;
-  }
-  .notes-text {
-    font-size: 0.625rem;
-  }
-  .action-buttons .btn {
-    padding: 0.125rem 0.25rem;
-    font-size: 0.75rem;
-  }
-}
 
 @media (max-width: 480px) {
   .attendance-table {

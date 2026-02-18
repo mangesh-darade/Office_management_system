@@ -42,7 +42,7 @@
             <div class="small text-muted mb-1"><?php echo htmlspecialchars($name); ?> · <?php echo htmlspecialchars($time); ?></div>
             <?php if (!empty($m->body)): ?>
               <div class="d-inline-block px-3 py-2 rounded <?php echo $isMe ? 'bg-primary text-white' : 'bg-light border'; ?>" style="max-width: 85%; text-align: left;">
-                <?php echo strip_tags($m->body, '<p><br><strong><em><b><i><ul><ol><li><a>'); ?>
+                <?php echo htmlspecialchars($m->body); ?>
               </div>
             <?php endif; ?>
             <?php if (!empty($m->attachment_path)): ?>
@@ -106,7 +106,7 @@
       body.className = 'd-inline-block px-3 py-2 rounded ' + (isMe ? 'bg-primary text-white' : 'bg-light border');
       body.style.maxWidth = '85%';
       body.style.textAlign = 'left';
-      body.innerHTML = m.body; // server sanitizes to allowed tags
+      body.textContent = m.body;
       wrap.appendChild(body);
     }
     if (m.attachment_path) {

@@ -1,14 +1,16 @@
 <?php $this->load->view('partials/header', ['title' => 'Permission Manager']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Permission Manager</h1>
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('dashboard'); ?>">Back to Dashboard</a>
+    <h1 class="h4 mb-1 fw-bold"><i class="bi bi-shield-lock text-primary me-2"></i>Permission Manager</h1>
+    <p class="text-muted small mb-0">Configure role-based access for each module</p>
   </div>
+  <a class="btn btn-outline-secondary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-arrow-left me-1"></i>Dashboard</a>
 </div>
 
-<div class="alert alert-info">
-  <i class="bi bi-shield-lock me-2"></i>
-  Configure which roles can access each module/screen. Changes apply immediately after save.
+<div class="alert alert-info d-flex align-items-center">
+  <i class="bi bi-info-circle me-2 fs-5"></i>
+  <span>Changes apply immediately after save. Admin role always has full access.</span>
 </div>
 
 <div class="card shadow-soft">
@@ -117,6 +119,7 @@
       </div>
     <?php echo form_close(); ?>
   </div>
+</div>
 </div>
 
 <?php $this->load->view('partials/footer'); ?>

@@ -2,12 +2,13 @@
   'title' => 'Task Board',
   'extra_css' => ['assets/css/tasks.css'],
 ]); ?>
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4">
   <div>
-    <h1 class="h3 mb-2">
-      <i class="bi bi-kanban me-2"></i>Task Board
+    <h1 class="h4 mb-1 fw-bold">
+      <i class="bi bi-kanban text-primary me-2"></i>Task Board
     </h1>
-    <p class="text-muted mb-0">Drag and drop tasks to update status</p>
+    <p class="text-muted mb-0 small">Drag and drop tasks to update status</p>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
     <form method="get" class="d-flex gap-2 flex-wrap">
@@ -454,4 +455,5 @@
       updateColumnCounts();
     });
   </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

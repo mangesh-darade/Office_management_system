@@ -18,13 +18,24 @@ class Calls extends CI_Controller {
             $this->_json(['ok'=>false, 'error'=>'access_denied']);
             exit;
         }
-        $this->Call_model->ensure_schema();
+        if (!$this->session->userdata('call_schema_ok')) {
+            $this->Call_model->ensure_schema();
+            $this->session->set_userdata('call_schema_ok', true);
+        }
     }
 
     // POST /calls/start/{conversation_id}
     public function start($conversation_id) {
         $conversation_id = (int)$conversation_id;
         $initiator = (int)$this->session->userdata('user_id');
+        $participant = $this->db->get_where('conversation_participants', [
+            'conversation_id' => $conversation_id,
+            'user_id' => $initiator
+        ])->row();
+        if (!$participant) {
+            $this->_json(['ok'=>false,'error'=>'Not a participant of this conversation']);
+            return;
+        }
         $call_id = $this->Call_model->start_call($conversation_id, $initiator);
         $this->_json(['ok'=>true,'call_id'=>$call_id]);
     }

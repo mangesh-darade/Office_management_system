@@ -1,242 +1,118 @@
 <?php $this->load->view('partials/header', ['title' => 'Employee Attendance']); ?>
 
 <style>
-/* Compact Employee Attendance Report Styles */
-:root {
-  --primary-color: #2563eb;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --info-color: #06b6d4;
-  --light-bg: #f8fafc;
-  --border-color: #e2e8f0;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
+.att-emp-report {
+  --att-emp-primary: #2563eb;
+  --att-emp-success: #10b981;
+  --att-emp-warning: #f59e0b;
+  --att-emp-danger: #ef4444;
+  --att-emp-info: #06b6d4;
+  --att-emp-light-bg: #f8fafc;
+  --att-emp-border: #e2e8f0;
+  --att-emp-text: #1e293b;
+  --att-emp-text-sec: #64748b;
+  --att-emp-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --att-emp-radius-sm: 0.375rem;
+  --att-emp-radius-md: 0.5rem;
 }
 
-body {
-  background: #f8fafc;
-  min-height: 100vh;
-}
-
-/* Compact Header */
-.report-header {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
-  border-left: 3px solid var(--primary-color);
-}
-
-.report-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.breadcrumb-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
-.breadcrumb-nav a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-
-.breadcrumb-nav a:hover {
-  color: var(--primary-dark);
-}
-
-/* Compact Stats Grid */
-.stats-grid {
+.att-emp-report .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
-.stat-card {
+.att-emp-report .stat-card {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: var(--att-emp-radius-md);
   padding: 0.5rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--att-emp-shadow);
+  border: 1px solid var(--att-emp-border);
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
 }
 
-.stat-card::before {
+.att-emp-report .stat-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--primary-color);
+  background: var(--att-emp-primary);
 }
 
-.stat-card.success::before { background: var(--success-color); }
-.stat-card.warning::before { background: var(--warning-color); }
-.stat-card.danger::before { background: var(--danger-color); }
-.stat-card.info::before { background: var(--info-color); }
+.att-emp-report .stat-card.success::before { background: var(--att-emp-success); }
+.att-emp-report .stat-card.warning::before { background: var(--att-emp-warning); }
+.att-emp-report .stat-card.danger::before { background: var(--att-emp-danger); }
+.att-emp-report .stat-card.info::before { background: var(--att-emp-info); }
 
-.stat-icon {
+.att-emp-report .stat-icon {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--att-emp-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.8rem;
   margin-bottom: 0.5rem;
-  background: var(--light-bg);
+  background: var(--att-emp-light-bg);
 }
 
-.stat-icon.primary { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
-.stat-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--success-color); }
-.stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
-.stat-icon.danger { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
-.stat-icon.info { background: rgba(6, 182, 212, 0.1); color: var(--info-color); }
+.att-emp-report .stat-icon.primary { background: rgba(37, 99, 235, 0.1); color: var(--att-emp-primary); }
+.att-emp-report .stat-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--att-emp-success); }
+.att-emp-report .stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--att-emp-warning); }
+.att-emp-report .stat-icon.danger { background: rgba(239, 68, 68, 0.1); color: var(--att-emp-danger); }
+.att-emp-report .stat-icon.info { background: rgba(6, 182, 212, 0.1); color: var(--att-emp-info); }
 
-.stat-value {
+.att-emp-report .stat-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--att-emp-text);
   margin-bottom: 0.125rem;
 }
 
-.stat-label {
-  color: var(--text-secondary);
+.att-emp-report .stat-label {
+  color: var(--att-emp-text-sec);
   font-size: 0.7rem;
   font-weight: 500;
 }
 
-/* Compact Filter Section */
-.filter-section {
+.att-emp-report .filter-section {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: var(--att-emp-radius-md);
   padding: 0.5rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--att-emp-shadow);
+  border: 1px solid var(--att-emp-border);
   margin-bottom: 0.5rem;
 }
 
-.filter-form {
+.att-emp-report .filter-form {
   display: flex;
   gap: 1rem;
   align-items: end;
   flex-wrap: wrap;
 }
 
-.form-group {
+.att-emp-report .form-group {
   display: flex;
   flex-direction: column;
   min-width: 150px;
 }
 
-.form-label {
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.form-control {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+.att-emp-report .table-section {
   background: white;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.btn-primary {
-  background: var(--primary-color);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--primary-dark);
-}
-
-.btn-outline-secondary {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--text-secondary);
-}
-
-.btn-outline-secondary:hover {
-  background: var(--text-secondary);
-  color: white;
-}
-
-.btn-sm {
-  padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
-}
-
-.btn-success {
-  background: var(--success-color);
-  color: white;
-}
-
-.btn-success:hover {
-  background: #059669;
-}
-
-.btn-danger {
-  background: var(--danger-color);
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
-}
-
-/* Compact Table Section */
-.table-section {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  border-radius: var(--att-emp-radius-md);
+  box-shadow: var(--att-emp-shadow);
+  border: 1px solid var(--att-emp-border);
   overflow: hidden;
 }
 
-.table-header {
+.att-emp-report .table-header {
   padding: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--att-emp-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -244,58 +120,58 @@ body {
   gap: 0.5rem;
 }
 
-.table-title {
+.att-emp-report .table-title {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--att-emp-text);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.table-actions {
+.att-emp-report .table-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
 
-.search-box {
+.att-emp-report .search-box {
   position: relative;
 }
 
-.search-input {
+.att-emp-report .search-input {
   padding: 0.375rem 0.75rem 0.375rem 2rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--att-emp-border);
+  border-radius: var(--att-emp-radius-sm);
   font-size: 0.85rem;
   width: 200px;
 }
 
-.search-icon {
+.att-emp-report .search-icon {
   position: absolute;
   left: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-secondary);
+  color: var(--att-emp-text-sec);
   font-size: 0.85rem;
 }
 
-.table-wrapper {
+.att-emp-report .table-wrapper {
   overflow-x: auto;
 }
 
-.data-table {
+.att-emp-report .data-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.data-table th {
-  background: var(--light-bg);
+.att-emp-report .data-table th {
+  background: var(--att-emp-light-bg);
   padding: 0.5rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
+  color: var(--att-emp-text);
+  border-bottom: 1px solid var(--att-emp-border);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
@@ -303,39 +179,39 @@ body {
   height: 45px;
 }
 
-.data-table th:hover {
+.att-emp-report .data-table th:hover {
   background: #f1f5f9;
 }
 
-.sort-icon {
+.att-emp-report .sort-icon {
   margin-left: 0.25rem;
   opacity: 0.5;
   font-size: 0.7rem;
 }
 
-.data-table td {
+.att-emp-report .data-table td {
   padding: 0.375rem 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--att-emp-border);
   vertical-align: middle;
   font-size: 0.8rem;
   height: 40px;
 }
 
-.data-table tr:hover {
-  background: var(--light-bg);
+.att-emp-report .data-table tr:hover {
+  background: var(--att-emp-light-bg);
 }
 
-.employee-cell {
+.att-emp-report .employee-cell {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.employee-avatar {
+.att-emp-report .employee-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--primary-color);
+  background: var(--att-emp-primary);
   color: white;
   display: flex;
   align-items: center;
@@ -344,35 +220,35 @@ body {
   font-size: 0.7rem;
 }
 
-.employee-info {
+.att-emp-report .employee-info {
   flex: 1;
 }
 
-.employee-name {
+.att-emp-report .employee-name {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--att-emp-text);
   margin-bottom: 0.125rem;
   font-size: 0.85rem;
 }
 
-.employee-id {
+.att-emp-report .employee-id {
   font-size: 0.7rem;
-  color: var(--text-secondary);
+  color: var(--att-emp-text-sec);
 }
 
-.status-cell {
+.att-emp-report .status-cell {
   text-align: center;
   font-weight: 600;
   font-size: 0.8rem;
 }
 
-.status-cell.present { color: var(--success-color); }
-.status-cell.half { color: var(--warning-color); }
-.status-cell.wfh { color: var(--info-color); }
-.status-cell.absent { color: var(--danger-color); }
-.status-cell.leave { color: var(--text-secondary); }
+.att-emp-report .status-cell.present { color: var(--att-emp-success); }
+.att-emp-report .status-cell.half { color: var(--att-emp-warning); }
+.att-emp-report .status-cell.wfh { color: var(--att-emp-info); }
+.att-emp-report .status-cell.absent { color: var(--att-emp-danger); }
+.att-emp-report .status-cell.leave { color: var(--att-emp-text-sec); }
 
-.progress-bar {
+.att-emp-report .progress-bar {
   width: 40px;
   height: 6px;
   background: #e2e8f0;
@@ -381,21 +257,20 @@ body {
   margin: 0.25rem auto 0;
 }
 
-.progress-fill {
+.att-emp-report .progress-fill {
   height: 100%;
-  background: var(--success-color);
+  background: var(--att-emp-success);
   transition: width 0.3s ease;
 }
 
-.progress-fill.half { background: var(--warning-color); }
-.progress-fill.wfh { background: var(--info-color); }
-.progress-fill.absent { background: var(--danger-color); }
-.progress-fill.leave { background: var(--text-secondary); }
+.att-emp-report .progress-fill.half { background: var(--att-emp-warning); }
+.att-emp-report .progress-fill.wfh { background: var(--att-emp-info); }
+.att-emp-report .progress-fill.absent { background: var(--att-emp-danger); }
+.att-emp-report .progress-fill.leave { background: var(--att-emp-text-sec); }
 
-/* Compact Pagination */
-.pagination-section {
+.att-emp-report .pagination-section {
   padding: 0.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--att-emp-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -403,173 +278,137 @@ body {
   gap: 0.5rem;
 }
 
-.pagination-info {
-  color: var(--text-secondary);
+.att-emp-report .pagination-info {
+  color: var(--att-emp-text-sec);
   font-size: 0.8rem;
 }
 
-.pagination-controls {
+.att-emp-report .pagination-controls {
   display: flex;
   gap: 0.25rem;
   align-items: center;
 }
 
-.pagination-btn {
+.att-emp-report .pagination-btn {
   padding: 0.25rem 0.375rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--att-emp-border);
   background: white;
-  color: var(--text-primary);
-  border-radius: var(--radius-sm);
+  color: var(--att-emp-text);
+  border-radius: var(--att-emp-radius-sm);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.75rem;
 }
 
-.pagination-btn:hover:not(:disabled) {
-  background: var(--light-bg);
-  border-color: var(--primary-color);
+.att-emp-report .pagination-btn:hover:not(:disabled) {
+  background: var(--att-emp-light-bg);
+  border-color: var(--att-emp-primary);
 }
 
-.pagination-btn.active {
-  background: var(--primary-color);
+.att-emp-report .pagination-btn.active {
+  background: var(--att-emp-primary);
   color: white;
-  border-color: var(--primary-color);
+  border-color: var(--att-emp-primary);
 }
 
-.pagination-btn:disabled {
+.att-emp-report .pagination-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Compact Empty State */
-.empty-state {
+.att-emp-report .att-emp-empty-state {
   text-align: center;
   padding: 1.5rem 0.75rem;
-  color: var(--text-secondary);
+  color: var(--att-emp-text-sec);
 }
 
-.empty-icon {
+.att-emp-report .att-emp-empty-icon {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
   opacity: 0.5;
 }
 
-.empty-title {
+.att-emp-report .att-emp-empty-title {
   font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
-  color: var(--text-primary);
+  color: var(--att-emp-text);
 }
 
-.empty-description {
+.att-emp-report .att-emp-empty-desc {
   margin-bottom: 0.75rem;
   font-size: 0.8rem;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .report-header {
-    padding: 1rem;
-  }
-  
-  .report-title {
-    font-size: 1.25rem;
-  }
-  
-  .stats-grid {
+  .att-emp-report .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
-  .filter-form {
+  .att-emp-report .filter-form {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .table-header {
+  .att-emp-report .table-header {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .table-actions {
+  .att-emp-report .table-actions {
     justify-content: space-between;
   }
   
-  .search-input {
+  .att-emp-report .search-input {
     width: 100%;
   }
   
-  .data-table th,
-  .data-table td {
+  .att-emp-report .data-table th,
+  .att-emp-report .data-table td {
     padding: 0.5rem 0.375rem;
     font-size: 0.8rem;
   }
   
-  .employee-avatar {
+  .att-emp-report .employee-avatar {
     width: 28px;
     height: 28px;
     font-size: 0.7rem;
   }
   
-  .export-actions-bar {
+  .att-emp-report .export-actions-bar {
     gap: 0.4rem !important;
     padding: 0.5rem 0.75rem !important;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
   
-  .export-actions-bar label {
+  .att-emp-report .export-actions-bar label {
     font-size: 0.8rem;
   }
   
-  .export-text-full {
+  .att-emp-report .export-text-full {
     display: none !important;
   }
   
-  .export-text-short {
+  .att-emp-report .export-text-short {
     display: inline !important;
   }
 }
 </style>
 
-<!-- Compact Header -->
-<div class="report-header">
-  <div class="breadcrumb-nav">
-    <a href="<?php echo site_url('reports'); ?>">Reports</a>
-    <span>/</span>
-    <span>Employee Attendance</span>
+<div class="container-fluid py-3">
+<div class="att-emp-report">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div>
+    <h4 class="mb-1 fw-bold"><i class="bi bi-person-badge text-primary me-2"></i>Employee Attendance</h4>
+    <p class="text-muted small mb-0">Individual employee attendance records and analytics</p>
   </div>
-  
-  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-    <h1 class="report-title" style="margin: 0; flex: 1;">
-      <i class="bi bi-people-fill"></i>
-      Employee Attendance
-      <?php if (isset($period) && $period === 'monthly'): ?>
-        <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); margin-left: 0.75rem;">
-          <?php 
-            if (isset($month) && $month) {
-              $monthDate = DateTime::createFromFormat('Y-m', $month);
-              if ($monthDate) {
-                echo $monthDate->format('F Y');
-              } else {
-                echo htmlspecialchars($month);
-              }
-            } else {
-              $currentMonth = date('Y-m');
-              $monthDate = DateTime::createFromFormat('Y-m', $currentMonth);
-              echo $monthDate->format('F Y');
-            }
-          ?>
-        </span>
-      <?php endif; ?>
-    </h1>
-    <a href="<?php echo site_url('reports'); ?>" class="btn btn-outline-secondary" style="white-space: nowrap;">
-      <i class="bi bi-arrow-left"></i>
-      Back
-    </a>
+  <div class="d-flex gap-2 mt-2 mt-sm-0">
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports/attendance'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
   </div>
 </div>
 
-<!-- Compact Statistics Cards -->
+<!-- Statistics Cards -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon">
@@ -687,7 +526,7 @@ body {
   </div>
 </div>
 
-<!-- Compact Filter Section -->
+<!-- Filter Section -->
 <div class="filter-section">
   <form method="get" class="filter-form">
     <div class="form-group">
@@ -718,7 +557,7 @@ body {
   </form>
   
   <?php if (isset($from) && isset($to)): ?>
-  <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);">
+  <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--att-emp-border); font-size: 0.85rem; color: var(--att-emp-text-sec);">
     <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
       <div><strong>Period:</strong> <?php echo htmlspecialchars($from); ?> to <?php echo htmlspecialchars($to); ?></div>
       <?php if (isset($total_working_days)): ?>
@@ -735,11 +574,11 @@ body {
       <?php endif; ?>
       <?php if (isset($holidays) && !empty($holidays)): ?>
         <div style="flex-basis: 100%; margin-top: 0.25rem;">
-          <strong style="color: var(--primary-color);">Holidays:</strong> 
+          <strong style="color: var(--att-emp-primary);">Holidays:</strong> 
           <?php 
             $hNames = [];
             foreach($holidays as $h) {
-                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: var(--text-secondary); font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
+                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: var(--att-emp-text-sec); font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
             }
             echo implode(', ', $hNames);
           ?>
@@ -750,7 +589,7 @@ body {
   <?php endif; ?>
 </div>
 
-<!-- Compact Table Section -->
+<!-- Table Section -->
 <div class="table-section">
   <div class="table-header">
     <h3 class="table-title">
@@ -770,7 +609,7 @@ body {
   </div>
   
   <!-- Export Actions Bar -->
-  <div class="export-actions-bar" style="background: white; padding: 0.75rem 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; overflow-x: auto;">
+  <div class="export-actions-bar" style="background: white; padding: 0.75rem 1rem; border-radius: var(--att-emp-radius-md); box-shadow: var(--att-emp-shadow); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; overflow-x: auto;">
     <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
       <input type="checkbox" id="select-all" onchange="toggleSelectAll()" style="width: 18px; height: 18px; cursor: pointer;">
       <label for="select-all" style="margin: 0; cursor: pointer; font-weight: 500; white-space: nowrap;">Select All</label>
@@ -827,12 +666,12 @@ body {
         <?php if (empty($rows)): ?>
           <tr>
             <td colspan="12">
-              <div class="empty-state">
-                <div class="empty-icon">
+              <div class="att-emp-empty-state">
+                <div class="att-emp-empty-icon">
                   <i class="bi bi-calendar-x"></i>
                 </div>
-                <div class="empty-title">No Data Found</div>
-                <div class="empty-description">
+                <div class="att-emp-empty-title">No Data Found</div>
+                <div class="att-emp-empty-desc">
                   No attendance data for selected month.
                 </div>
                 <button class="btn btn-primary" onclick="clearMonthFilter()">
@@ -844,7 +683,6 @@ body {
           </tr>
         <?php else: ?>
           <?php foreach ($rows as $index => $r): 
-            // Only show row if at least one value is greater than 0
             $hasData = (float)$r->present_days > 0 || 
                        (float)$r->absent_days > 0 || 
                        (float)$r->wfh_days > 0 || 
@@ -888,10 +726,10 @@ body {
                   <div class="progress-fill absent" style="width: <?php echo min(100, ($r->absent_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
-              <td class="status-cell" style="color: var(--success-color);">
+              <td class="status-cell" style="color: var(--att-emp-success);">
                 <div><?php echo isset($r->on_time_days) ? htmlspecialchars($r->on_time_days) : '0'; ?></div>
                 <div class="progress-bar">
-                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->on_time_days) ? (float)$r->on_time_days : 0) / 30 * 100); ?>%; background: var(--success-color);"></div>
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->on_time_days) ? (float)$r->on_time_days : 0) / 30 * 100); ?>%; background: var(--att-emp-success);"></div>
                 </div>
               </td>
               <td class="status-cell" style="color: #d97706;">
@@ -912,10 +750,10 @@ body {
                   <div class="progress-fill" style="width: <?php echo min(100, (isset($r->late_hours) ? (float)$r->late_hours : 0) * 10); ?>%; background: #d97706;"></div>
                 </div>
               </td>
-              <td class="status-cell" style="color: var(--success-color);">
+              <td class="status-cell" style="color: var(--att-emp-success);">
                 <div><?php echo isset($r->extra_hours) ? htmlspecialchars($r->extra_hours) : '0'; ?>h</div>
                 <div class="progress-bar">
-                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->extra_hours) ? (float)$r->extra_hours : 0) * 5); ?>%; background: var(--success-color);"></div>
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->extra_hours) ? (float)$r->extra_hours : 0) * 5); ?>%; background: var(--att-emp-success);"></div>
                 </div>
               </td>
               <td class="text-end">
@@ -951,16 +789,15 @@ body {
       Showing <strong id="showing-count"><?php echo count($rows); ?></strong> of <strong><?php echo count($rows); ?></strong>
     </div>
     <div class="pagination-controls" id="pagination-controls">
-      <!-- Pagination will be generated by JavaScript -->
     </div>
   </div>
   <?php endif; ?>
 </div>
 
-<script>
-// Compact Employee Attendance JavaScript
+</div><!-- .att-emp-report -->
+</div><!-- .container-fluid -->
 
-// Pagination settings
+<script>
 const ITEMS_PER_PAGE = 15;
 let currentPage = 1;
 let allRows = [];
@@ -968,7 +805,6 @@ let filteredRows = [];
 let sortColumn = -1;
 let sortDirection = 'asc';
 
-// Export functionality
 function toggleSelectAll() {
   const selectAll = document.getElementById('select-all');
   const selectAllHeader = document.getElementById('select-all-header');
@@ -995,7 +831,6 @@ function updateExportButtons() {
   if (exportExcelBtn) exportExcelBtn.disabled = !hasSelection;
   if (exportPdfBtn) exportPdfBtn.disabled = !hasSelection;
   
-  // Update select all checkbox state
   const allCheckboxes = document.querySelectorAll('.employee-checkbox');
   const selectAll = document.getElementById('select-all');
   const selectAllHeader = document.getElementById('select-all-header');
@@ -1034,7 +869,6 @@ function exportAttendance(userIds, format) {
   const month = getUrlParameter('month') || '';
   const date = getUrlParameter('date') || '';
   
-  // Show loading indicator
   const btn = event ? (window.event ? window.event.target.closest('button') : null) : null;
   let originalText = '';
   if (btn) {
@@ -1043,7 +877,6 @@ function exportAttendance(userIds, format) {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
   }
   
-  // Build URL
   const baseUrl = '<?php echo site_url("reports/export-attendance-employee"); ?>';
   const params = new URLSearchParams();
   params.append('export', format);
@@ -1054,10 +887,8 @@ function exportAttendance(userIds, format) {
   
   const url = baseUrl + '?' + params.toString();
   
-  // Use window.location for file downloads (more reliable)
   window.location.href = url;
   
-  // Reset button after 3 seconds
   if (btn) {
     setTimeout(() => {
       btn.disabled = false;
@@ -1071,7 +902,6 @@ function getUrlParameter(name) {
   return urlParams.get(name);
 }
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   allRows = Array.from(document.querySelectorAll('#employee-tbody tr[data-index]'));
   filteredRows = [...allRows];
@@ -1079,7 +909,6 @@ document.addEventListener('DOMContentLoaded', function() {
   updateDisplay();
 });
 
-// Search functionality
 document.getElementById('employee-search').addEventListener('input', function() {
   const searchTerm = this.value.toLowerCase();
   
@@ -1096,9 +925,7 @@ document.getElementById('employee-search').addEventListener('input', function() 
   updateDisplay();
 });
 
-// Sort functionality
 function sortTable(columnIndex) {
-  // Skip sorting for checkbox column (index 0)
   if (columnIndex === 0) {
     return;
   }
@@ -1114,39 +941,39 @@ function sortTable(columnIndex) {
     let aValue, bValue;
     
     switch(columnIndex) {
-      case 1: // Employee name
+      case 1:
         aValue = a.querySelector('.employee-name').textContent.trim();
         bValue = b.querySelector('.employee-name').textContent.trim();
         break;
-      case 2: // Present days
+      case 2:
         aValue = parseFloat(a.cells[2].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[2].textContent.trim()) || 0;
         break;
-      case 3: // WFH days
+      case 3:
         aValue = parseFloat(a.cells[3].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[3].textContent.trim()) || 0;
         break;
-      case 4: // Absent days
+      case 4:
         aValue = parseFloat(a.cells[4].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[4].textContent.trim()) || 0;
         break;
-      case 5: // On Time days
+      case 5:
         aValue = parseFloat(a.cells[5].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[5].textContent.trim()) || 0;
         break;
-      case 6: // Late days
+      case 6:
         aValue = parseFloat(a.cells[6].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[6].textContent.trim()) || 0;
         break;
-      case 7: // Leave days
+      case 7:
         aValue = parseFloat(a.cells[7].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[7].textContent.trim()) || 0;
         break;
-      case 8: // Late hours
+      case 8:
         aValue = parseFloat(a.cells[8].textContent.replace('h', '').trim()) || 0;
         bValue = parseFloat(b.cells[8].textContent.replace('h', '').trim()) || 0;
         break;
-      case 9: // Extra hours
+      case 9:
         aValue = parseFloat(a.cells[9].textContent.replace('h', '').trim()) || 0;
         bValue = parseFloat(b.cells[9].textContent.replace('h', '').trim()) || 0;
         break;
@@ -1178,7 +1005,6 @@ function updateSortIcons(activeColumn) {
   });
 }
 
-// Pagination functionality
 function initializePagination() {
   updatePaginationControls();
 }
@@ -1189,12 +1015,10 @@ function updatePaginationControls() {
   
   let paginationHTML = '';
   
-  // Previous button
   paginationHTML += `<button class="pagination-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
     <i class="bi bi-chevron-left"></i>
   </button>`;
   
-  // Page numbers
   const startPage = Math.max(1, currentPage - 2);
   const endPage = Math.min(totalPages, startPage + 4);
   
@@ -1216,7 +1040,6 @@ function updatePaginationControls() {
     paginationHTML += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
   }
   
-  // Next button
   paginationHTML += `<button class="pagination-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
     <i class="bi bi-chevron-right"></i>
   </button>`;
@@ -1236,23 +1059,18 @@ function updateDisplay() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   
-  // Hide all rows
   allRows.forEach(row => row.style.display = 'none');
   
-  // Show rows for current page
   for (let i = startIndex; i < endIndex && i < filteredRows.length; i++) {
     filteredRows[i].style.display = '';
   }
   
-  // Update pagination info
   const showingCount = Math.min(endIndex, filteredRows.length) - startIndex;
   document.getElementById('showing-count').textContent = showingCount;
   
-  // Update pagination controls
   updatePaginationControls();
 }
 
-// Utility functions
 function resetSearch() {
   document.getElementById('employee-search').value = '';
   document.getElementById('employee-search').dispatchEvent(new Event('input'));
@@ -1262,7 +1080,6 @@ function clearMonthFilter() {
   window.location.href = '<?php echo site_url('reports/attendance-employee'); ?>';
 }
 
-// Update period filters based on selection
 function updatePeriodFilters() {
   const periodSelect = document.getElementById('period-select');
   const period = periodSelect.value;

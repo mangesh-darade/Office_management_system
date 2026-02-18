@@ -1,11 +1,12 @@
 <?php $this->load->view('partials/header', ['title' => 'System Settings']); ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4">
   <div>
-    <h1 class="h3 mb-2">
-      <i class="bi bi-gear-fill me-2"></i>System Settings
+    <h1 class="h4 mb-1 fw-bold">
+      <i class="bi bi-gear-fill text-primary me-2"></i>System Settings
     </h1>
-    <p class="text-muted mb-0">Configure system-wide settings and preferences</p>
+    <p class="text-muted mb-0 small">Configure system-wide settings and preferences</p>
   </div>
   <div class="d-flex gap-2">
     <a href="<?php echo site_url('system-settings/permissions'); ?>" class="btn btn-outline-primary">
@@ -133,5 +134,6 @@ function get_category_icon($category) {
     return isset($icons[$category]) ? $icons[$category] : 'gear';
 }
 ?>
+</div>
 
 <?php $this->load->view('partials/footer'); ?>

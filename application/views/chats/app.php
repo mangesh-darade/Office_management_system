@@ -2,37 +2,60 @@
   'title' => 'Chat',
   'extra_css' => ['assets/css/chats.css'],
 ]); ?>
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="bi bi-chat-dots text-primary me-2"></i>Chat</h4>
+      <p class="text-muted mb-0 small">Real-time messaging and video calls</p>
+    </div>
+    <a class="btn btn-primary btn-sm" href="<?php echo site_url('chats'); ?>"><i class="bi bi-plus-lg me-1"></i> <span class="d-none d-sm-inline">New Conversation</span></a>
+  </div>
+</div>
 <div class="chat-app row g-3">
   <div class="col-12 col-md-4 col-lg-3">
-    <div class="card h-100">
+    <div class="card shadow-sm border-0 h-100">
       <div class="card-header gradient d-flex align-items-center justify-content-between">
-        <div class="fw-semibold">Conversations</div>
+        <div class="fw-semibold"><i class="bi bi-chat-left-text me-1"></i> Conversations</div>
         <a class="btn btn-sm btn-light" href="<?php echo site_url('chats'); ?>" title="New"><i class="bi bi-plus-lg"></i></a>
       </div>
       <div class="card-body p-0">
         <div class="list-group list-group-flush" id="convoList" data-initial-id="<?php echo (int) ((isset($open_id) && $open_id) ? $open_id : (!empty($conversations) ? (int)$conversations[0]->id : 0)); ?>">
           <?php if (!empty($conversations)) foreach ($conversations as $c): ?>
             <?php
-              $label = ($c->type === 'group') ? ($c->title ?: 'Untitled Group') : ($c->members ?: 'Direct Message');
+              $my_email = $this->session->userdata('email');
+              if ($c->type === 'group') {
+                  $label = $c->title ?: 'Untitled Group';
+              } else {
+                  $peer_emails = array_filter(array_map('trim', explode(',', $c->members)), function($e) use ($my_email) { return $e !== $my_email; });
+                  $label = !empty($peer_emails) ? implode(', ', $peer_emails) : 'Direct Message';
+              }
               $initial = strtoupper(substr(preg_replace('/[^A-Za-z]/','', $label), 0, 1));
               if ($initial === '') { $initial = '#'; }
+              $preview = '';
+              if (!empty($c->last_message)) {
+                  $preview = mb_strimwidth(strip_tags($c->last_message), 0, 50, '...');
+              }
             ?>
             <button type="button" class="list-group-item list-group-item-action d-flex align-items-center convo-item" data-id="<?php echo (int)$c->id; ?>" data-type="<?php echo htmlspecialchars($c->type); ?>" data-title="<?php echo htmlspecialchars($c->title ?: ''); ?>" data-members="<?php echo htmlspecialchars($c->members ?: ''); ?>">
               <span class="avatar flex-shrink-0"><?php echo htmlspecialchars($initial); ?></span>
-              <div class="flex-grow-1">
+              <div class="flex-grow-1 overflow-hidden">
                 <div class="d-flex align-items-center justify-content-between">
-                  <div class="fw-semibold"><?php echo htmlspecialchars($label); ?></div>
-                  <div class="d-flex align-items-center gap-2">
+                  <div class="fw-semibold text-truncate" style="max-width: 160px;"><?php echo htmlspecialchars($label); ?></div>
+                  <div class="d-flex align-items-center gap-1 flex-shrink-0">
                     <span class="badge type-badge" data-type="<?php echo htmlspecialchars($c->type==='group'?'group':'dm'); ?>"><?php echo htmlspecialchars(strtoupper($c->type)); ?></span>
                     <span class="badge rounded-pill bg-danger unread-badge d-none" data-cid="<?php echo (int)$c->id; ?>">0</span>
                   </div>
                 </div>
-                <div class="subtitle">ID #<?php echo (int)$c->id; ?></div>
+                <div class="subtitle text-truncate"><?php echo $preview ? htmlspecialchars($preview) : '<span class="text-muted fst-italic">No messages yet</span>'; ?></div>
               </div>
             </button>
           <?php endforeach; ?>
           <?php if (empty($conversations)): ?>
-            <div class="p-3 text-center text-muted">No conversations</div>
+            <div class="empty-state py-4">
+              <div class="empty-icon mx-auto"><i class="bi bi-chat-dots"></i></div>
+              <h6 class="fw-semibold">No conversations yet</h6>
+              <p class="text-muted small mb-0">Start a new conversation to begin chatting</p>
+            </div>
           <?php endif; ?>
         </div>
       </div>
@@ -40,7 +63,7 @@
   </div>
 
   <div class="col-12 col-md-8 col-lg-9">
-    <div class="card h-100">
+    <div class="card shadow-sm border-0 h-100">
       <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
         <div>
           <div class="fw-semibold">Conversation <span id="hdrConvId" class="text-muted"></span></div>
@@ -801,6 +824,10 @@
     } catch(e){}
   }
 
+  function scrollToBottom(){
+    try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e){}
+  }
+
   function clearEmptyPlaceholder(){
     try {
       if (!messagesEl) return;
@@ -838,7 +865,7 @@
     if (m.body) {
       const body = document.createElement('div');
       body.className = 'bubble ' + (isMe ? 'me' : 'them');
-      body.innerHTML = m.body; // server sanitizes
+      body.textContent = m.body;
       wrap.appendChild(body);
     }
     if (m.attachment_path) {
@@ -854,39 +881,8 @@
   }
 
   // Click to select conversation - jQuery delegated
-  if (window.$ && $.fn && document.getElementById('convoList')) {
-    $(document).on('click', '#convoList .convo-item', function(e){
-      e.preventDefault();
-      try { console.log('Convo click', {
-        id: parseInt($(this).data('id'),10),
-        type: String($(this).data('type')||''),
-        title: String($(this).data('title')||''),
-        members: String($(this).data('members')||'')
-      }); } catch(e){}
-      selectConvo(this);
-    });
-  } else if (convoList) {
-    // Fallback to native event if jQuery not available
-    convoList.addEventListener('click', (e) => {
-      const btn = e.target.closest('.convo-item');
-      if (!btn) return;
-      e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-id'),10);
-      const type = btn.getAttribute('data-type')||'';
-      const title = btn.getAttribute('data-title')||'';
-      const members = btn.getAttribute('data-members')||'';
-      if (!id) return;
-      document.querySelectorAll('#convoList .convo-item.active').forEach(x=>x.classList.remove('active'));
-      btn.classList.add('active');
-      convoId = id; lastId = 0; messages.innerHTML = '';
-      if (typeof inputConvo !== 'undefined' && inputConvo) { inputConvo.value = id; }
-      updateHeader({ id, type, title, members });
-      setUnread(id, 0);
-      if (typeof setFormEnabled === 'function') { setFormEnabled(true); }
-      fetchMessages();
-      ensurePolling();
-    });
-  }
+  // Single delegated click handler (no duplicates)
+  // Removed: jQuery handler + native fallback that duplicated selectConvo() calls
 
   async function fetchMessages(){
     if (!convoId) return;
@@ -945,11 +941,14 @@
     }
   }
 
-  // Start/refresh polling loop for messages
+  // Start/refresh polling loop for messages + typing indicators
   function ensurePolling(){
     try {
       if (pollTimer) { clearInterval(pollTimer); }
-      pollTimer = setInterval(fetchMessages, 2500);
+      pollTimer = setInterval(function(){
+        fetchMessages();
+        fetchTypingUsers();
+      }, 2500);
     } catch(e) { console.warn('ensurePolling error', e); }
   }
 
@@ -1094,8 +1093,21 @@
   textarea.addEventListener('keydown', (ev)=>{
     if (ev.key === 'Enter' && !ev.shiftKey) {
       ev.preventDefault();
-      form.requestSubmit();
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.click();
     }
+  });
+
+  // Typing indicator: fire on input
+  textarea.addEventListener('input', function(){
+    setTyping(true);
+  });
+
+  // Online status: mark online on load, offline on leave
+  setOnlineStatus(true);
+  window.addEventListener('beforeunload', function(){
+    setOnlineStatus(false);
+    stopTyping();
   });
 
   // WebRTC
@@ -1405,15 +1417,6 @@
     }
   });
   if (btnEndCall) btnEndCall.addEventListener('click', endCall);
-  btnToggleMic.addEventListener('click', ()=>{
-    if (!localStream) return;
-    const audioTracks = localStream.getAudioTracks();
-    if (!audioTracks || audioTracks.length === 0) return;
-    const enabled = audioTracks[0].enabled;
-    audioTracks.forEach(t => t.enabled = !enabled);
-    btnToggleMic.innerHTML = enabled ? '<i class="bi bi-mic-mute"></i>' : '<i class="bi bi-mic"></i>';
-    if (btnOverlayMic) btnOverlayMic.innerHTML = enabled ? '<i class="bi bi-mic-mute"></i>' : '<i class="bi bi-mic"></i>';
-  });
   // Speaker toggle controls remote audio playback
   btnToggleSpeaker.addEventListener('click', ()=>{
     const muted = !!remoteVideo.muted;

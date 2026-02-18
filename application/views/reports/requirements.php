@@ -1,15 +1,19 @@
 <?php $this->load->view('partials/header', ['title' => 'Requirements Report']); ?>
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Requirements Report</h1>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-primary btn-sm" onclick="toggleFilters()">🔍 Filters</button>
-      <button class="btn btn-outline-success btn-sm" onclick="exportCSV()">📥 Export CSV</button>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports'); ?>">Back to Reports</a>
+  <div class="container-fluid py-3">
+  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="bi bi-clipboard-data text-primary me-2"></i>Requirements Report</h4>
+      <p class="text-muted small mb-0">Track requirement progress and task completion</p>
+    </div>
+    <div class="d-flex gap-2 mt-2 mt-sm-0">
+      <button class="btn btn-outline-primary btn-sm" onclick="toggleFilters()"><i class="bi bi-funnel me-1"></i>Filters</button>
+      <button class="btn btn-outline-success btn-sm" onclick="exportCSV()"><i class="bi bi-download me-1"></i>Export CSV</button>
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports'); ?>"><i class="bi bi-arrow-left me-1"></i>Reports</a>
     </div>
   </div>
 
   <!-- Filters Panel -->
-  <div id="filtersPanel" class="card shadow-soft mb-3" style="display:none;">
+  <div id="filtersPanel" class="card shadow-sm border-0 mb-3" style="display:none;">
     <div class="card-body">
       <form method="GET" class="row g-3">
         <div class="col-md-3">
@@ -75,84 +79,80 @@
   </div>
 
   <!-- Summary Statistics -->
-  <div class="row mb-3">
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-primary border-4">
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-primary border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">Total Requirements</div>
-              <div class="h4 mb-0"><?php echo count($rows); ?></div>
+              <div class="h4 mb-0 fw-bold"><?php echo count($rows); ?></div>
             </div>
-            <div class="text-primary">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#document-text"/></svg>
-            </div>
+            <div class="text-primary"><i class="bi bi-file-earmark-text fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-success border-4">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-success border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">Completed Tasks</div>
-              <div class="h4 mb-0"><?php 
+              <div class="h4 mb-0 fw-bold"><?php 
                 $total_completed = array_sum(array_map(function($r) { return $r->counts['completed']; }, $rows));
                 echo $total_completed; 
               ?></div>
             </div>
-            <div class="text-success">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#check-circle"/></svg>
-            </div>
+            <div class="text-success"><i class="bi bi-check-circle fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-warning border-4">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-warning border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">In Progress</div>
-              <div class="h4 mb-0"><?php 
+              <div class="h4 mb-0 fw-bold"><?php 
                 $total_in_progress = array_sum(array_map(function($r) { return $r->counts['in_progress']; }, $rows));
                 echo $total_in_progress; 
               ?></div>
             </div>
-            <div class="text-warning">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#clock"/></svg>
-            </div>
+            <div class="text-warning"><i class="bi bi-clock-history fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="card shadow-soft border-start border-danger border-4">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 border-start border-danger border-4">
         <div class="card-body">
           <div class="d-flex align-items-center">
             <div class="flex-grow-1">
               <div class="small text-muted">Overdue</div>
-              <div class="h4 mb-0"><?php 
+              <div class="h4 mb-0 fw-bold"><?php 
                 $overdue = array_filter($rows, function($r) { 
                   return $r->expected_delivery_date && strtotime($r->expected_delivery_date) < strtotime('today'); 
                 });
                 echo count($overdue); 
               ?></div>
             </div>
-            <div class="text-danger">
-              <svg width="24" height="24" fill="currentColor"><use xlink:href="#exclamation-triangle"/></svg>
-            </div>
+            <div class="text-danger"><i class="bi bi-exclamation-triangle fs-4"></i></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="card shadow-soft">
+  <div class="card shadow-sm border-0">
     <div class="card-body">
       <?php if (empty($rows)): ?>
-        <div class="text-muted">No requirements found.</div>
+        <div class="empty-state py-5">
+          <div class="empty-icon mx-auto"><i class="bi bi-clipboard-data"></i></div>
+          <h6 class="fw-semibold">No requirements found</h6>
+          <p class="text-muted small mb-0">Try adjusting your filters or add new requirements</p>
+        </div>
       <?php else: ?>
         <div class="table-responsive">
           <table class="table table-hover align-middle" id="requirementsTable">
@@ -210,7 +210,7 @@
                       <div class="small <?php echo (strtotime($r->expected_delivery_date) < strtotime('today')) ? 'text-danger' : 'text-dark'; ?>">
                         <?php echo date('M d', strtotime($r->expected_delivery_date)); ?>
                         <?php if (strtotime($r->expected_delivery_date) < strtotime('today')): ?>
-                          <div class="text-danger">⚠️ Overdue</div>
+                          <div class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</div>
                         <?php endif; ?>
                       </div>
                     <?php else: ?>
@@ -251,4 +251,5 @@
     });
   });
   </script>
+  </div><!-- .container-fluid -->
 <?php $this->load->view('partials/footer'); ?>

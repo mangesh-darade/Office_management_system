@@ -1,11 +1,12 @@
 <?php $this->load->view('partials/header', ['title' => 'Email Notification Settings']); ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4">
   <div>
-    <h1 class="h3 mb-2">
-      <i class="bi bi-envelope-gear me-2"></i>Email Notification Settings
+    <h1 class="h4 mb-1 fw-bold">
+      <i class="bi bi-envelope-gear text-primary me-2"></i>Email Notification Settings
     </h1>
-    <p class="text-muted mb-0">Configure email notifications for all system modules</p>
+    <p class="text-muted mb-0 small">Configure email notifications for all system modules</p>
   </div>
   <div class="d-flex gap-2">
     <a href="<?php echo site_url('email-settings/user-preferences'); ?>" class="btn btn-outline-primary">
@@ -220,5 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+</div>
 
 <?php $this->load->view('partials/footer'); ?>

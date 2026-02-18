@@ -1,12 +1,18 @@
 <?php $this->load->view('partials/header', ['title' => 'Chats']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Chats</h1>
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="bi bi-chat-dots text-primary me-2"></i>New Conversation</h4>
+      <p class="text-muted mb-0 small">Start a direct message or create a group chat</p>
+    </div>
+    <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('chats/app'); ?>"><i class="bi bi-arrow-left me-1"></i> Back to Chat</a>
+  </div>
 </div>
 
 <div class="row g-3">
   <div class="col-12 col-lg-4">
-    <div class="card h-100">
-      <div class="card-header fw-semibold">Start Direct Message</div>
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-person me-1"></i> Start Direct Message</div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('chats/start-dm'); ?>">
           <div class="mb-2">
@@ -20,8 +26,8 @@
   </div>
 
   <div class="col-12 col-lg-8">
-    <div class="card h-100">
-      <div class="card-header fw-semibold">Create Group</div>
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-people me-1"></i> Create Group</div>
       <div class="card-body">
         <form method="post" action="<?php echo site_url('chats/create-group'); ?>">
           <div class="row g-2">
@@ -48,8 +54,8 @@
   </div>
 </div>
 
-<div class="card mt-4">
-  <div class="card-header fw-semibold">Your Conversations</div>
+<div class="card shadow-sm border-0 mt-4">
+  <div class="card-header fw-semibold"><i class="bi bi-chat-left-text me-1"></i> Your Conversations</div>
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
@@ -71,7 +77,12 @@
                 <?php if ($c->type === 'group'): ?>
                   <strong><?php echo htmlspecialchars($c->title ?: 'Untitled Group'); ?></strong>
                 <?php else: ?>
-                  <span><?php echo htmlspecialchars($c->members); ?></span>
+                  <?php
+                    $my_email = $this->session->userdata('email');
+                    $peer_emails = array_filter(array_map('trim', explode(',', $c->members)), function($e) use ($my_email) { return $e !== $my_email; });
+                    $dm_label = !empty($peer_emails) ? implode(', ', $peer_emails) : 'Direct Message';
+                  ?>
+                  <span><?php echo htmlspecialchars($dm_label); ?></span>
                 <?php endif; ?>
               </td>
               <td class="text-muted small"><?php echo htmlspecialchars($c->created_at); ?></td>
@@ -81,7 +92,13 @@
             </tr>
           <?php endforeach; ?>
           <?php if (empty($conversations)): ?>
-            <tr><td colspan="5" class="text-center text-muted py-4">No conversations yet.</td></tr>
+            <tr><td colspan="5">
+              <div class="empty-state py-4">
+                <div class="empty-icon mx-auto"><i class="bi bi-chat-dots"></i></div>
+                <h6 class="fw-semibold">No conversations yet</h6>
+                <p class="text-muted small mb-0">Start a DM or create a group to begin chatting</p>
+              </div>
+            </td></tr>
           <?php endif; ?>
         </tbody>
       </table>

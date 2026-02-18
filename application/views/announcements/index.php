@@ -1,8 +1,12 @@
 <?php $this->load->view('partials/header', ['title' => 'Announcements']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Announcements</h1>
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div>
+    <h1 class="h4 mb-1 fw-bold"><i class="bi bi-megaphone text-primary me-2"></i>Announcements</h1>
+    <p class="text-muted small mb-0">Company-wide announcements and notices</p>
+  </div>
   <?php if (!empty($can_manage) || (function_exists('has_module_access') && (has_module_access('announcements_add') || has_module_access('announcements')))): ?>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('announcements/create'); ?>">Create Announcement</a>
+    <a class="btn btn-primary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('announcements/create'); ?>"><i class="bi bi-plus-lg me-1"></i>Create Announcement</a>
   <?php endif; ?>
 </div>
 
@@ -75,6 +79,7 @@
       </table>
     </div>
   </div>
+</div>
 </div>
 
 <?php $this->load->view('partials/footer'); ?>

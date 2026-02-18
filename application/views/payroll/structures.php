@@ -1,10 +1,14 @@
 <?php $this->load->view('partials/header', ['title' => 'Salary Structures']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Salary Structures</h1>
-  <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('payroll/payslips'); ?>">Payslips</a>
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div>
+    <h1 class="h4 mb-1 fw-bold"><i class="bi bi-cash-stack text-primary me-2"></i>Salary Structures</h1>
+    <p class="text-muted small mb-0">Define pay components for each employee</p>
+  </div>
+  <div class="d-flex gap-2 mt-2 mt-sm-0">
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-receipt me-1"></i>Payslips</a>
     <?php if(function_exists('has_module_access') && (has_module_access('payroll_manage') || has_module_access('payroll'))): ?>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('payroll/structure'); ?>">Add / Edit Structure</a>
+    <a class="btn btn-primary btn-sm" href="<?php echo site_url('payroll/structure'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Structure</a>
     <?php endif; ?>
   </div>
 </div>
@@ -67,5 +71,6 @@
       </table>
     </div>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

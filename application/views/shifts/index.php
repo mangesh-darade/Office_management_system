@@ -1,9 +1,12 @@
 <?php $this->load->view('partials/header', ['title' => 'Employee Shifts']); ?>
 
-<div class="">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Employee Shifts</h1>
-        <a href="<?php echo base_url('shifts/create'); ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add New Shift</a>
+<div class="container-fluid py-3">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+        <div>
+            <h1 class="h4 mb-1 fw-bold"><i class="bi bi-clock text-primary me-2"></i>Employee Shifts</h1>
+            <p class="text-muted small mb-0">Manage work shift schedules</p>
+        </div>
+        <a href="<?php echo base_url('shifts/create'); ?>" class="btn btn-primary btn-sm mt-2 mt-sm-0"><i class="bi bi-plus-lg me-1"></i>Add Shift</a>
     </div>
 
     <?php if($this->session->flashdata('success')): ?>
@@ -51,9 +54,11 @@
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
                                         <?php if($shift->id != 1): ?>
-                                            <a class="btn btn-danger btn-sm" href="<?php echo base_url('shifts/delete/'.$shift->id); ?>" onclick="return confirm('Are you sure you want to delete this shift?');">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </a>
+                                            <form action="<?php echo base_url('shifts/delete/'.$shift->id); ?>" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this shift?');">
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

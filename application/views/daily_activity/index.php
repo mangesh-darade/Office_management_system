@@ -116,17 +116,17 @@
              </div>
         </div>
 
-        <!-- Activity Feed (Hidden on Mobile) -->
-        <div class="col-lg-8 d-none d-lg-block">
+        <!-- Activity Feed -->
+        <div class="col-lg-8">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                 <div>
                     <h4 class="mb-0 fw-bold">My Activities</h4>
                     <p class="text-muted small mb-0">Track your daily progress</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-sm btn-outline-secondary d-flex align-items-center"><i class="bi bi-list-ul me-2"></i>History</a>
+                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-sm btn-outline-secondary d-flex align-items-center"><i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">History</span></a>
                     <form class="d-flex position-relative" method="get">
-                        <input type="date" class="form-control form-control-sm" name="date" value="<?php echo $date; ?>" onchange="this.form.submit()" style="min-width: 140px;">
+                        <input type="date" class="form-control form-control-sm" name="date" value="<?php echo $date; ?>" onchange="this.form.submit()" style="min-width: 130px;">
                     </form>
                 </div>
             </div>

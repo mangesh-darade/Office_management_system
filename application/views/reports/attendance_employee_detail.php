@@ -1,256 +1,106 @@
 <?php $this->load->view('partials/header', ['title' => 'Employee Attendance Detail']); ?>
 
 <style>
-/* Compact Employee Attendance Detail Styles */
-:root {
-  --primary-color: #2563eb;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --info-color: #06b6d4;
-  --light-bg: #f8fafc;
-  --border-color: #e2e8f0;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-}
-
-body {
-  background: #f8fafc;
-  min-height: 100vh;
-}
-
-/* Compact Header */
-.report-header {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: 1rem 1.5rem;
-  margin-bottom: 1rem;
-  border-left: 3px solid var(--primary-color);
-}
-
-.employee-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.employee-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.employee-avatar-large {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 1.2rem;
-}
-
-.breadcrumb-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
-.breadcrumb-nav a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-
-.breadcrumb-nav a:hover {
-  color: var(--primary-dark);
-}
-
-/* Compact Stats Grid */
-.stats-grid {
+/* Scoped Employee Attendance Detail Styles */
+.att-det-report .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.stat-card {
+.att-det-report .stat-card {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: 0.5rem;
   padding: 0.75rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid #e2e8f0;
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
 }
 
-.stat-card::before {
+.att-det-report .stat-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--primary-color);
+  background: #2563eb;
 }
 
-.stat-card.success::before { background: var(--success-color); }
-.stat-card.warning::before { background: var(--warning-color); }
-.stat-card.danger::before { background: var(--danger-color); }
-.stat-card.info::before { background: var(--info-color); }
+.att-det-report .stat-card.success::before { background: #10b981; }
+.att-det-report .stat-card.warning::before { background: #f59e0b; }
+.att-det-report .stat-card.danger::before { background: #ef4444; }
+.att-det-report .stat-card.info::before { background: #06b6d4; }
 
-.stat-icon {
+.att-det-report .stat-icon {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
+  border-radius: 0.375rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
-  background: var(--light-bg);
+  background: #f8fafc;
 }
 
-.stat-icon.primary { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
-.stat-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--success-color); }
-.stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
-.stat-icon.danger { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
-.stat-icon.info { background: rgba(6, 182, 212, 0.1); color: var(--info-color); }
+.att-det-report .stat-icon.primary { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
+.att-det-report .stat-icon.success { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.att-det-report .stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.att-det-report .stat-icon.danger { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.att-det-report .stat-icon.info { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
 
-.stat-value {
+.att-det-report .stat-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #1e293b;
   margin-bottom: 0.125rem;
 }
 
-.stat-label {
-  color: var(--text-secondary);
+.att-det-report .stat-label {
+  color: #64748b;
   font-size: 0.75rem;
   font-weight: 500;
 }
 
-/* Compact Filter Section */
-.filter-section {
+/* Filter Section */
+.att-det-report .filter-section {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: 0.5rem;
   padding: 1rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid #e2e8f0;
   margin-bottom: 1rem;
 }
 
-.filter-form {
+.att-det-report .filter-form {
   display: flex;
   gap: 1rem;
   align-items: end;
   flex-wrap: wrap;
 }
 
-.form-group {
+.att-det-report .form-group {
   display: flex;
   flex-direction: column;
   min-width: 150px;
 }
 
-.form-label {
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.form-control {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+/* Table Section */
+.att-det-report .table-section {
   background: white;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.btn-primary {
-  background: var(--primary-color);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--primary-dark);
-}
-
-.btn-outline-secondary {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--text-secondary);
-}
-
-.btn-outline-secondary:hover {
-  background: var(--text-secondary);
-  color: white;
-}
-
-.btn-success {
-  background: var(--success-color);
-  color: white;
-}
-
-.btn-success:hover {
-  background: #059669;
-}
-
-.btn-danger {
-  background: var(--danger-color);
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
-}
-
-/* Compact Table Section */
-.table-section {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid #e2e8f0;
   overflow: hidden;
 }
 
-.table-header {
+.att-det-report .table-header {
   padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -258,76 +108,76 @@ body {
   gap: 1rem;
 }
 
-.table-title {
+.att-det-report .table-title {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #1e293b;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.table-actions {
+.att-det-report .table-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
 
-.search-box {
+.att-det-report .search-box {
   position: relative;
 }
 
-.search-input {
+.att-det-report .search-input {
   padding: 0.375rem 0.75rem 0.375rem 2rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
   font-size: 0.85rem;
   width: 200px;
 }
 
-.search-icon {
+.att-det-report .search-icon {
   position: absolute;
   left: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-secondary);
+  color: #64748b;
   font-size: 0.85rem;
 }
 
-.table-wrapper {
+.att-det-report .table-wrapper {
   overflow-x: auto;
 }
 
-.data-table {
+.att-det-report .data-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.data-table th {
-  background: var(--light-bg);
+.att-det-report .data-table th {
+  background: #f8fafc;
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
   white-space: nowrap;
   font-size: 0.85rem;
 }
 
-.data-table td {
+.att-det-report .data-table td {
   padding: 0.375rem 0.75rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #e2e8f0;
   vertical-align: middle;
   height: 35px;
   font-size: 0.85rem;
 }
 
-.data-table tr:hover {
-  background: var(--light-bg);
+.att-det-report .data-table tr:hover {
+  background: #f8fafc;
 }
 
 /* Status Badges */
-.status-badge {
+.att-det-report .att-det-status-badge {
   padding: 0.125rem 0.375rem;
   border-radius: 9999px;
   font-size: 0.7rem;
@@ -337,56 +187,51 @@ body {
   gap: 0.125rem;
 }
 
-.status-badge.present {
+.att-det-report .att-det-status-badge.present {
   background: rgba(16, 185, 129, 0.1);
-  color: var(--success-color);
+  color: #10b981;
 }
 
-.status-badge.half_day {
+.att-det-report .att-det-status-badge.half_day {
   background: rgba(245, 158, 11, 0.1);
-  color: var(--warning-color);
+  color: #f59e0b;
 }
 
-.status-badge.work_from_home {
-  background: rgba(6, 182, 212, 0.1);
-  color: var(--info-color);
-}
-
-.status-badge.absent {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger-color);
-}
-
-.status-badge.late {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning-color);
-}
-
-.status-badge.ontime {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success-color);
-}
-
-.status-badge.work_from_home {
+.att-det-report .att-det-status-badge.work_from_home {
   background: rgba(59, 130, 246, 0.1);
   color: #3b82f6;
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
-.status-badge.leave {
+.att-det-report .att-det-status-badge.absent {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.att-det-report .att-det-status-badge.late {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.att-det-report .att-det-status-badge.ontime {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.att-det-report .att-det-status-badge.leave {
   background: rgba(107, 114, 128, 0.1);
-  color: var(--text-secondary);
+  color: #64748b;
 }
 
-.date-cell {
+.att-det-report .date-cell {
   font-weight: 600;
-  color: var(--text-primary);
+  color: #1e293b;
 }
 
-/* Compact Pagination */
-.pagination-section {
+/* Pagination */
+.att-det-report .pagination-section {
   padding: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -394,167 +239,132 @@ body {
   gap: 0.5rem;
 }
 
-.pagination-info {
-  color: var(--text-secondary);
+.att-det-report .pagination-info {
+  color: #64748b;
   font-size: 0.85rem;
 }
 
-/* Pagination Controls */
-.pagination-controls {
+.att-det-report .pagination-controls {
   display: flex;
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.rows-selector {
+.att-det-report .rows-selector {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-right: auto;
 }
 
-.rows-select {
+.att-det-report .rows-select {
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
   font-size: 0.8rem;
   background: white;
   min-width: 60px;
 }
 
-.pagination-btn {
+.att-det-report .pagination-btn {
   padding: 0.375rem 0.5rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e2e8f0;
   background: white;
-  color: var(--text-primary);
-  border-radius: var(--radius-sm);
+  color: #1e293b;
+  border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.8rem;
 }
 
-.pagination-btn:hover:not(:disabled) {
-  background: var(--light-bg);
-  border-color: var(--primary-color);
+.att-det-report .pagination-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #2563eb;
 }
 
-.pagination-btn.active {
-  background: var(--primary-color);
+.att-det-report .pagination-btn.active {
+  background: #2563eb;
   color: white;
-  border-color: var(--primary-color);
+  border-color: #2563eb;
 }
 
-.pagination-btn:disabled {
+.att-det-report .pagination-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Compact Empty State */
-.empty-state {
+/* Empty State */
+.att-det-report .att-det-empty-state {
   text-align: center;
   padding: 2rem 1rem;
-  color: var(--text-secondary);
+  color: #64748b;
 }
 
-.empty-icon {
+.att-det-report .att-det-empty-icon {
   font-size: 2rem;
   margin-bottom: 0.5rem;
   opacity: 0.5;
 }
 
-.empty-title {
+.att-det-report .att-det-empty-title {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
-  color: var(--text-primary);
+  color: #1e293b;
 }
 
-.empty-description {
+.att-det-report .att-det-empty-desc {
   margin-bottom: 1rem;
   font-size: 0.85rem;
 }
 
-/* Responsive Design */
+/* Responsive */
 @media (max-width: 768px) {
-  .report-header {
-    padding: 1rem;
-  }
-  
-  .employee-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  
-  .employee-title {
-    font-size: 1.25rem;
-  }
-  
-  .stats-grid {
+  .att-det-report .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
-  .filter-form {
+
+  .att-det-report .filter-form {
     flex-direction: column;
     align-items: stretch;
   }
-  
-  .table-header {
+
+  .att-det-report .table-header {
     flex-direction: column;
     align-items: stretch;
   }
-  
-  .table-actions {
+
+  .att-det-report .table-actions {
     justify-content: space-between;
   }
-  
-  .search-input {
+
+  .att-det-report .search-input {
     width: 100%;
   }
-  
-  .data-table th,
-  .data-table td {
+
+  .att-det-report .data-table th,
+  .att-det-report .data-table td {
     padding: 0.5rem 0.375rem;
     font-size: 0.8rem;
   }
 }
 </style>
 
-<!-- Compact Header -->
-<div class="report-header">
-  <div class="breadcrumb-nav">
-    <a href="<?php echo site_url('reports'); ?>">Reports</a>
-    <span>/</span>
-    <?php 
-      $backParams = [];
-      if (isset($period)) $backParams['period'] = $period;
-      if (isset($month)) $backParams['month'] = $month;
-      if (isset($date)) $backParams['date'] = $date;
-      $backUrl = site_url('reports/attendance-employee?' . http_build_query($backParams));
-    ?>
-    <a href="<?php echo $backUrl; ?>">Employee Attendance</a>
-    <span>/</span>
-    <span>Details</span>
+<div class="container-fluid py-3">
+<div class="att-det-report">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div>
+    <h4 class="mb-1 fw-bold"><i class="bi bi-person-lines-fill text-primary me-2"></i>Attendance Detail</h4>
+    <p class="text-muted small mb-0">Detailed attendance log for individual employee</p>
   </div>
-  
-  <div class="employee-header">
-    <h1 class="employee-title">
-      <div class="employee-avatar-large">
-        <?php echo strtoupper(substr(htmlspecialchars($name), 0, 1)); ?>
-      </div>
-      <?php echo htmlspecialchars($name); ?>
-    </h1>
-    
-    <a href="<?php echo $backUrl; ?>" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i>
-      Back
-    </a>
+  <div class="d-flex gap-2 mt-2 mt-sm-0">
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports/attendance'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
   </div>
 </div>
 
 
-<!-- Compact Statistics Cards -->
+<!-- Statistics Cards -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon primary">
@@ -650,7 +460,7 @@ body {
 
 </div>
 
-<!-- Compact Filter Section -->
+<!-- Filter Section -->
 <div class="filter-section">
   <form method="get" class="filter-form">
     <input type="hidden" name="period" value="<?php echo isset($period) ? htmlspecialchars($period) : 'monthly'; ?>">
@@ -688,7 +498,7 @@ body {
   </form>
   
   <?php if (isset($from) && isset($to)): ?>
-  <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);">
+  <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem; color: #64748b;">
     <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
       <div><strong>Period:</strong> <?php echo htmlspecialchars($from); ?> to <?php echo htmlspecialchars($to); ?></div>
       <?php if (isset($office_start_time)): ?>
@@ -702,11 +512,11 @@ body {
       <?php endif; ?>
       <?php if (isset($holidays) && !empty($holidays)): ?>
         <div style="flex-basis: 100%; margin-top: 0.25rem;">
-          <strong style="color: var(--primary-color);">Holidays:</strong> 
+          <strong style="color: #2563eb;">Holidays:</strong> 
           <?php 
             $hNames = [];
             foreach($holidays as $h) {
-                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: var(--text-secondary); font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
+                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: #64748b; font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
             }
             echo implode(', ', $hNames);
           ?>
@@ -717,7 +527,7 @@ body {
   <?php endif; ?>
 </div>
 
-<!-- Compact Table Section -->
+<!-- Table Section -->
 <div class="table-section">
   <div class="table-header">
     <h3 class="table-title">
@@ -818,16 +628,14 @@ body {
                   }
                 ?>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <span class="status-badge <?php echo $statusClass; ?>">
+                  <span class="att-det-status-badge <?php echo $statusClass; ?>">
                     <i class="bi <?php echo $statusIcon; ?>"></i>
                     <?php echo htmlspecialchars($d->status); ?>
                   </span>
                   <?php 
-                    // Only show "Leave" badge if there's an actual leave record
-                    // Don't show redundant "WFH" badge if status already says "Work From Home"
                     if ($hasLeave): 
                   ?>
-                    <span class="status-badge leave" style="font-size: 0.75rem; padding: 2px 6px;">
+                    <span class="att-det-status-badge leave" style="font-size: 0.75rem; padding: 2px 6px;">
                       <i class="bi bi-calendar-x"></i> Leave
                     </span>
                   <?php endif; ?>
@@ -837,9 +645,9 @@ body {
                 <?php 
                   $checkInTime = isset($d->check_in_time) ? $d->check_in_time : '—';
                   if ($checkInTime !== '—' && $checkInTime !== '') {
-                    echo '<span class="status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkInTime) . '</span>';
+                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkInTime) . '</span>';
                   } else {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   }
                 ?>
               </td>
@@ -847,9 +655,9 @@ body {
                 <?php 
                   $checkOutTime = isset($d->check_out_time) ? $d->check_out_time : '—';
                   if ($checkOutTime !== '—' && $checkOutTime !== '') {
-                    echo '<span class="status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkOutTime) . '</span>';
+                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkOutTime) . '</span>';
                   } else {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   }
                 ?>
               </td>
@@ -857,9 +665,9 @@ body {
                 <?php 
                   $checkInLoc = isset($d->check_in_location) ? $d->check_in_location : '—';
                   if ($checkInLoc !== '—' && $checkInLoc !== '') {
-                    echo '<span class="status-badge" style="background: rgba(6, 182, 212, 0.1); color: var(--info-color);" title="' . htmlspecialchars($checkInLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkInLoc) > 30 ? substr($checkInLoc, 0, 30) . '...' : $checkInLoc) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;" title="' . htmlspecialchars($checkInLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkInLoc) > 30 ? substr($checkInLoc, 0, 30) . '...' : $checkInLoc) . '</span>';
                   } else {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   }
                 ?>
               </td>
@@ -867,9 +675,9 @@ body {
                 <?php 
                   $checkOutLoc = isset($d->check_out_location) ? $d->check_out_location : '—';
                   if ($checkOutLoc !== '—' && $checkOutLoc !== '') {
-                    echo '<span class="status-badge" style="background: rgba(6, 182, 212, 0.1); color: var(--info-color);" title="' . htmlspecialchars($checkOutLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkOutLoc) > 30 ? substr($checkOutLoc, 0, 30) . '...' : $checkOutLoc) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;" title="' . htmlspecialchars($checkOutLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkOutLoc) > 30 ? substr($checkOutLoc, 0, 30) . '...' : $checkOutLoc) . '</span>';
                   } else {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   }
                 ?>
               </td>
@@ -881,9 +689,8 @@ body {
                   $graceTime = isset($d->grace_time) ? $d->grace_time : '';
                   
                   if ($lateText === '' || $lateText === '—' || $checkInTime === '—') {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   } else {
-                    // Show check-in time and status
                     $displayText = '';
                     $badgeClass = '';
                     $icon = '';
@@ -908,7 +715,6 @@ body {
                       }
                       $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">On Time</small>';
                     } else {
-                      // Early or other status
                       $badgeClass = 'ontime';
                       $icon = 'bi-clock';
                       $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
@@ -917,7 +723,7 @@ body {
                       }
                     }
                     
-                    echo '<span class="status-badge ' . $badgeClass . '" style="text-align: left; line-height: 1.4;"><i class="bi ' . $icon . '"></i>' . $displayText . '</span>';
+                    echo '<span class="att-det-status-badge ' . $badgeClass . '" style="text-align: left; line-height: 1.4;"><i class="bi ' . $icon . '"></i>' . $displayText . '</span>';
                   }
                 ?>
               </td>
@@ -931,9 +737,9 @@ body {
                     if ($minutes > 0) {
                       $display .= ' ' . $minutes . 'm';
                     }
-                    echo '<span class="status-badge ontime"><i class="bi bi-clock-history"></i>' . htmlspecialchars($display) . '</span>';
+                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock-history"></i>' . htmlspecialchars($display) . '</span>';
                   } else {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   }
                 ?>
               </td>
@@ -947,9 +753,9 @@ body {
                     if ($minutes > 0) {
                       $display .= ' ' . $minutes . 'm';
                     }
-                    echo '<span class="status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . htmlspecialchars($display) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . htmlspecialchars($display) . '</span>';
                   } else {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   }
                 ?>
               </td>
@@ -957,9 +763,9 @@ body {
                 <?php 
                   $notes = isset($d->notes) ? trim($d->notes) : '';
                   if ($notes === '' || $notes === '—') {
-                    echo '<span class="status-badge">—</span>';
+                    echo '<span class="att-det-status-badge">—</span>';
                   } else {
-                    echo '<span class="status-badge" style="background: rgba(37, 99, 235, 0.1); color: var(--primary-color); text-align: left; max-width: 200px; white-space: normal; word-wrap: break-word;" title="' . htmlspecialchars($notes) . '"><i class="bi bi-chat-text"></i>' . htmlspecialchars(strlen($notes) > 50 ? substr($notes, 0, 50) . '...' : $notes) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; text-align: left; max-width: 200px; white-space: normal; word-wrap: break-word;" title="' . htmlspecialchars($notes) . '"><i class="bi bi-chat-text"></i>' . htmlspecialchars(strlen($notes) > 50 ? substr($notes, 0, 50) . '...' : $notes) . '</span>';
                   }
                 ?>
               </td>
@@ -976,14 +782,16 @@ body {
       Showing <strong id="showing-count"><?php echo min(20, count($days)); ?></strong> of <strong><?php echo count($days); ?></strong> days
     </div>
     <div class="pagination-controls" id="pagination-controls">
-      <!-- Pagination will be generated by JavaScript -->
     </div>
   </div>
   <?php endif; ?>
 </div>
 
+</div><!-- .att-det-report -->
+</div><!-- .container-fluid -->
+
 <script>
-// Compact Employee Attendance Detail JavaScript
+// Employee Attendance Detail JavaScript
 
 // Pagination settings
 let ITEMS_PER_PAGE = 20;
@@ -1035,10 +843,9 @@ function updatePaginationControls() {
   
   let paginationHTML = '';
   
-  // Add rows selector
   paginationHTML += `
     <div class="rows-selector">
-      <label class="form-label" style="margin: 0; font-size: 0.8rem;">Rows:</label>
+      <label style="margin: 0; font-size: 0.8rem; font-weight: 500;">Rows:</label>
       <select class="rows-select" id="rows-per-page" onchange="changeRowsPerPage()">
         <option value="10" ${ITEMS_PER_PAGE === 10 ? 'selected' : ''}>10</option>
         <option value="20" ${ITEMS_PER_PAGE === 20 ? 'selected' : ''}>20</option>
@@ -1141,7 +948,6 @@ function getCurrentFilters() {
   const month = urlParams.get('month') || '';
   const date = urlParams.get('date') || '';
   
-  // Also check form values if URL params are not available
   const periodSelect = document.querySelector('input[name="period"]');
   const monthInput = document.querySelector('input[name="month"]');
   const dateInput = document.querySelector('input[name="date"]');
@@ -1163,7 +969,6 @@ function exportDetailExcel() {
   
   const filters = getCurrentFilters();
   
-  // Show loading indicator
   const btn = event ? (window.event ? window.event.target.closest('button') : null) : null;
   let originalText = '';
   if (btn) {
@@ -1172,7 +977,6 @@ function exportDetailExcel() {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
   }
   
-  // Build URL
   const baseUrl = '<?php echo site_url("reports/export-attendance-employee"); ?>';
   const params = new URLSearchParams();
   params.append('export', 'excel');
@@ -1183,10 +987,8 @@ function exportDetailExcel() {
   
   const url = baseUrl + '?' + params.toString();
   
-  // Use window.location for file downloads
   window.location.href = url;
   
-  // Reset button after 3 seconds
   if (btn) {
     setTimeout(() => {
       btn.disabled = false;
@@ -1205,7 +1007,6 @@ function exportDetailPDF() {
   
   const filters = getCurrentFilters();
   
-  // Show loading indicator
   const btn = event ? (window.event ? window.event.target.closest('button') : null) : null;
   let originalText = '';
   if (btn) {
@@ -1214,7 +1015,6 @@ function exportDetailPDF() {
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Exporting...';
   }
   
-  // Build URL
   const baseUrl = '<?php echo site_url("reports/export-attendance-employee"); ?>';
   const params = new URLSearchParams();
   params.append('export', 'pdf');
@@ -1225,10 +1025,8 @@ function exportDetailPDF() {
   
   const url = baseUrl + '?' + params.toString();
   
-  // Use window.location for file downloads
   window.location.href = url;
   
-  // Reset button after 3 seconds
   if (btn) {
     setTimeout(() => {
       btn.disabled = false;

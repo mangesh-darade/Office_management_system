@@ -1,9 +1,11 @@
 <?php $this->load->view('partials/header', ['title' => 'Team Leaves']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Team Leave Requests</h1>
-  <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('leave/calendar'); ?>">Calendar View</a>
+<div class="container-fluid py-3">
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div>
+    <h1 class="h4 mb-1 fw-bold"><i class="bi bi-people text-primary me-2"></i>Team Leave Requests</h1>
+    <p class="text-muted small mb-0">Review and manage team leave applications</p>
   </div>
+  <a class="btn btn-outline-secondary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('leave/calendar'); ?>"><i class="bi bi-calendar-week me-1"></i>Calendar View</a>
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
@@ -333,4 +335,5 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

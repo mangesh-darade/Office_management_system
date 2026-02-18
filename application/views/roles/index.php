@@ -1,17 +1,25 @@
 <?php $this->load->view('partials/header', ['title' => isset($title) ? $title : 'Roles', 'active' => 'users']); ?>
-<div class="row g-3">
-  <div class="col-12">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0">Roles</h5>
-      <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#roleModal">
-        <i class="bi bi-plus-lg"></i> Add Role
-      </button>
-    </div>
-    <div class="card">
-      <div class="card-body p-0">
-        <?php if (empty($rows)): ?>
-          <div class="p-3 text-muted">No roles configured yet.</div>
-        <?php else: ?>
+<div class="container-fluid py-4">
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+        <div>
+          <h5 class="mb-1 fw-bold"><i class="bi bi-person-gear text-primary me-2"></i>Roles</h5>
+          <p class="text-muted small mb-0">Define user roles and their group types</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm mt-2 mt-sm-0" data-bs-toggle="modal" data-bs-target="#roleModal">
+          <i class="bi bi-plus-lg me-1"></i>Add Role
+        </button>
+      </div>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <?php if (empty($rows)): ?>
+            <div class="empty-state">
+              <div class="empty-icon"><i class="bi bi-person-gear"></i></div>
+              <h5>No roles configured yet</h5>
+              <p>Add your first role to get started with access control.</p>
+            </div>
+          <?php else: ?>
           <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle datatable">
               <thead class="table-light">
@@ -85,6 +93,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <div class="modal fade" id="roleModal" tabindex="-1" aria-hidden="true">

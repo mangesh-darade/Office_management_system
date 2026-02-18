@@ -28,8 +28,9 @@ class Chats extends CI_Controller {
     }
 
     private function _ensure_schema() {
-        // Create core tables if missing (lightweight installer)
+        if ($this->session->userdata('chat_schema_ok')) return;
         $this->Chat_model->ensure_schema();
+        $this->session->set_userdata('chat_schema_ok', true);
     }
 
     // GET /chats
@@ -115,14 +116,19 @@ class Chats extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         if (!$this->Chat_model->is_participant($conversation_id, $user_id)) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         $body = trim((string)$this->input->post('body'));
+        $body = htmlspecialchars($body, ENT_QUOTES, 'UTF-8');
         $attachment_path = null;
+        if ($body === '' && empty($_FILES['attachment']['name'])) {
+            $this->_json(['ok'=>false,'error'=>'Message body or attachment is required.']);
+            return;
+        }
         if (!empty($_FILES['attachment']['name'])) {
             $upload_path = FCPATH.'uploads/chats/';
             if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
             $config = [
                 'upload_path'   => $upload_path,
-                'allowed_types' => '*',      // allow all file types (security: relies on auth + path isolation)
-                'max_size'      => 10240,    // 10 MB per file (PHP ini limits still apply)
+                'allowed_types' => 'gif|jpg|jpeg|png|webp|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|csv|zip|rar|mp4|mp3|ogg|wav',
+                'max_size'      => 10240,
                 'encrypt_name'  => true,
             ];
             $this->upload->initialize($config);

@@ -46,6 +46,12 @@ if (!function_exists('track_changes_after')) {
         if (!$old_data || !is_array($old_data)) {
             return;
         }
+        if (is_object($new_data)) {
+            $new_data = (array)$new_data;
+        }
+        if (!is_array($new_data)) {
+            return;
+        }
         
         // Load activity helper to ensure log_activity_with_changes is available
         $CI =& get_instance();

@@ -1,566 +1,291 @@
 <?php $this->load->view('partials/header', ['title' => 'Attendance Report']); ?>
 
 <style>
-/* Compact Attendance Report Styles */
-:root {
-  --primary-color: #2563eb;
-  --primary-dark: #1e40af;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --info-color: #06b6d4;
-  --light-bg: #f8fafc;
-  --border-color: #e2e8f0;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
+/* Scoped Attendance Report Styles */
+.att-report {
+  --att-primary: #2563eb;
+  --att-primary-dark: #1e40af;
+  --att-success: #10b981;
+  --att-warning: #f59e0b;
+  --att-danger: #ef4444;
+  --att-info: #06b6d4;
+  --att-light-bg: #f8fafc;
+  --att-border: #e2e8f0;
+  --att-text: #1e293b;
+  --att-text-sec: #64748b;
+  --att-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --att-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --att-radius-sm: 0.375rem;
+  --att-radius-md: 0.5rem;
 }
 
-body {
-  background: var(--light-bg);
-  min-height: 100vh;
-}
-
-/* Compact Header */
-.report-header {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-left: 3px solid var(--primary-color);
-}
-
-.report-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.breadcrumb-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-.breadcrumb-nav a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-
-/* Compact Stats */
-.stats-row {
+.att-report .stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.stat-card {
+.att-report .stat-card {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: var(--att-radius-md);
   padding: 0.75rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--att-shadow-sm);
+  border: 1px solid var(--att-border);
   transition: all 0.2s;
 }
 
-.stat-card:hover {
+.att-report .stat-card:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--att-shadow-md);
 }
 
-.stat-icon {
+.att-report .stat-icon {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--att-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.9rem;
   margin-bottom: 0.375rem;
   background: rgba(37, 99, 235, 0.1);
-  color: var(--primary-color);
+  color: var(--att-primary);
 }
 
-.stat-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--success-color); }
-.stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
-.stat-icon.info { background: rgba(6, 182, 212, 0.1); color: var(--info-color); }
+.att-report .stat-icon.success { background: rgba(16, 185, 129, 0.1); color: var(--att-success); }
+.att-report .stat-icon.warning { background: rgba(245, 158, 11, 0.1); color: var(--att-warning); }
+.att-report .stat-icon.info { background: rgba(6, 182, 212, 0.1); color: var(--att-info); }
 
-.stat-value {
+.att-report .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  color: var(--att-text);
+  margin-bottom: 0.125rem;
 }
 
-.stat-label {
-  color: var(--text-secondary);
+.att-report .stat-label {
+  color: var(--att-text-sec);
   font-size: 0.8rem;
   font-weight: 500;
 }
 
-/* Compact Filters */
-.filter-section {
+.att-report .filter-section {
   background: white;
-  border-radius: var(--radius-md);
+  border-radius: var(--att-radius-md);
   padding: 1rem 1.5rem;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--att-shadow-sm);
+  border: 1px solid var(--att-border);
   margin-bottom: 1rem;
 }
 
-.filter-form {
+.att-report .filter-form {
   display: flex;
   gap: 1rem;
   align-items: end;
   flex-wrap: wrap;
 }
 
-.form-group {
+.att-report .form-group {
   display: flex;
   flex-direction: column;
   min-width: 150px;
 }
 
-.form-label {
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.form-control, .form-select {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+.att-report .tabs-section {
   background: white;
-}
-
-.form-control:focus, .form-select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-.btn-primary {
-  background: var(--primary-color);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: var(--primary-dark);
-}
-
-.btn-success {
-  background: var(--success-color);
-  color: white;
-}
-
-.btn-danger {
-  background: var(--danger-color);
-  color: white;
-}
-
-.btn-outline-primary {
-  background: transparent;
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
-}
-
-.btn-outline-primary:hover {
-  background: var(--primary-color);
-  color: white;
-}
-
-/* Compact Tabs */
-.tabs-section {
-  background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  border-radius: var(--att-radius-md);
+  box-shadow: var(--att-shadow-sm);
+  border: 1px solid var(--att-border);
   margin-bottom: 1rem;
 }
 
-.tabs-nav {
+.att-report .tabs-nav {
   display: flex;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--att-border);
 }
 
-.tab-button {
+.att-report .tab-button {
   padding: 0.75rem 1rem;
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--att-text-sec);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  position: relative;
   border-bottom: 2px solid transparent;
   font-size: 0.9rem;
 }
 
-.tab-button:hover {
-  color: var(--text-primary);
-  background: var(--light-bg);
+.att-report .tab-button:hover {
+  color: var(--att-text);
+  background: var(--att-light-bg);
 }
 
-.tab-button.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
+.att-report .tab-button.active {
+  color: var(--att-primary);
+  border-bottom-color: var(--att-primary);
 }
 
-/* Compact Table */
-.table-section {
+.att-report .table-section {
   background: white;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  border-radius: var(--att-radius-md);
+  box-shadow: var(--att-shadow-sm);
+  border: 1px solid var(--att-border);
   overflow: hidden;
 }
 
-.table-header {
+.att-report .table-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--att-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
 }
 
-.table-title {
+.att-report .table-title {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--att-text);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.table-actions {
+.att-report .table-actions {
   display: flex;
   gap: 0.75rem;
   align-items: center;
 }
 
-.search-box {
+.att-report .search-box {
   position: relative;
 }
 
-.search-input {
+.att-report .search-input {
   padding: 0.375rem 0.75rem 0.375rem 2rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--att-border);
+  border-radius: var(--att-radius-sm);
   font-size: 0.85rem;
   width: 200px;
 }
 
-.search-icon {
+.att-report .search-icon {
   position: absolute;
   left: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-secondary);
+  color: var(--att-text-sec);
   font-size: 0.85rem;
 }
 
-.table-wrapper {
-  overflow-x: auto;
-}
+.att-report .table-wrapper { overflow-x: auto; }
 
-.data-table {
+.att-report .data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
 
-.data-table th {
-  background: var(--light-bg);
+.att-report .data-table th {
+  background: var(--att-light-bg);
   padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
+  color: var(--att-text);
+  border-bottom: 1px solid var(--att-border);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   font-size: 0.85rem;
 }
 
-.data-table th:hover {
-  background: #f1f5f9;
-}
+.att-report .data-table th:hover { background: #f1f5f9; }
 
-.sort-icon {
-  margin-left: 0.25rem;
-  opacity: 0.5;
-  font-size: 0.7rem;
-}
+.att-report .sort-icon { margin-left: 0.25rem; opacity: 0.5; font-size: 0.7rem; }
 
-.data-table td {
+.att-report .data-table td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--att-border);
   vertical-align: middle;
 }
 
-.data-table tr:hover {
-  background: var(--light-bg);
+.att-report .data-table tr:hover { background: var(--att-light-bg); }
+
+.att-report .employee-cell { display: flex; align-items: center; gap: 0.5rem; }
+
+.att-report .employee-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--att-primary); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 0.75rem;
 }
 
-.employee-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+.att-report .employee-info { flex: 1; }
+.att-report .employee-name { font-weight: 600; color: var(--att-text); font-size: 0.9rem; }
+.att-report .employee-id { font-size: 0.75rem; color: var(--att-text-sec); }
 
-.employee-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.75rem;
+.att-report .att-status-badge {
+  padding: 0.25rem 0.5rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 0.25rem;
 }
+.att-report .att-status-badge.present  { background: rgba(16,185,129,0.1); color: var(--att-success); }
+.att-report .att-status-badge.absent   { background: rgba(239,68,68,0.1);  color: var(--att-danger); }
+.att-report .att-status-badge.half_day { background: rgba(245,158,11,0.1); color: var(--att-warning); }
+.att-report .att-status-badge.work_from_home { background: rgba(6,182,212,0.1); color: var(--att-info); }
 
-.employee-info {
-  flex: 1;
-}
+.att-report .count-cell { text-align: center; font-weight: 600; color: var(--att-text); }
 
-.employee-name {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.employee-id {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.status-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.status-badge.present {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success-color);
-}
-
-.status-badge.absent {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger-color);
-}
-
-.status-badge.half_day {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning-color);
-}
-
-.status-badge.work_from_home {
-  background: rgba(6, 182, 212, 0.1);
-  color: var(--info-color);
-}
-
-.count-cell {
-  text-align: center;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* Pagination Section */
-.pagination-section {
+.att-report .pagination-section {
   padding: 0.5rem 1rem;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  border-top: 1px solid var(--att-border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 0.5rem;
 }
-
-.pagination-info {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+.att-report .pagination-info { color: var(--att-text-sec); font-size: 0.75rem; }
+.att-report .pagination-controls { display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap; }
+.att-report .rows-selector { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; }
+.att-report .rows-select {
+  padding: 0.25rem 0.5rem; border: 1px solid var(--att-border);
+  border-radius: var(--att-radius-sm); font-size: 0.75rem; background: white; min-width: 60px;
 }
-
-.pagination-controls {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-  flex-wrap: wrap;
+.att-report .pagination-btn {
+  padding: 0.25rem 0.375rem; border: 1px solid var(--att-border);
+  background: white; color: var(--att-text); border-radius: var(--att-radius-sm);
+  cursor: pointer; transition: all 0.2s; font-size: 0.7rem;
 }
+.att-report .pagination-btn:hover:not(:disabled) { background: var(--att-light-bg); border-color: var(--att-primary); }
+.att-report .pagination-btn.active { background: var(--att-primary); color: white; border-color: var(--att-primary); }
+.att-report .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.rows-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-right: auto;
-}
+.att-report .att-empty-state { text-align: center; padding: 1.5rem 0.75rem; color: var(--att-text-sec); }
+.att-report .att-empty-icon { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
+.att-report .att-empty-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--att-text); }
+.att-report .att-empty-desc { margin-bottom: 1rem; font-size: 0.85rem; }
 
-.rows-select {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  background: white;
-  min-width: 60px;
-}
-
-.pagination-btn {
-  padding: 0.25rem 0.375rem;
-  border: 1px solid var(--border-color);
-  background: white;
-  color: var(--text-primary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.7rem;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: var(--light-bg);
-  border-color: var(--primary-color);
-}
-
-.pagination-btn.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Compact Empty State */
-.empty-state {
-  text-align: center;
-  padding: 1.5rem 0.75rem;
-  color: var(--text-secondary);
-}
-
-.empty-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  opacity: 0.5;
-}
-
-.empty-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: var(--text-primary);
-}
-
-.empty-description {
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-  .report-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-    padding: 1rem;
-  }
-  
-  .report-title {
-    font-size: 1.25rem;
-  }
-  
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-  
-  .filter-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .table-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  
-  .table-actions {
-    justify-content: space-between;
-  }
-  
-  .search-input {
-    width: 100%;
-  }
-  
-  .data-table {
-    font-size: 0.85rem;
-  }
-  
-  .data-table th,
-  .data-table td {
-    padding: 0.5rem;
-  }
-  
-  .employee-avatar {
-    width: 28px;
-    height: 28px;
-    font-size: 0.7rem;
-  }
+  .att-report .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .att-report .filter-form { flex-direction: column; align-items: stretch; }
+  .att-report .table-header { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+  .att-report .table-actions { justify-content: space-between; }
+  .att-report .search-input { width: 100%; }
+  .att-report .data-table { font-size: 0.85rem; }
+  .att-report .data-table th, .att-report .data-table td { padding: 0.5rem; }
 }
 </style>
 
-<!-- Compact Header -->
-<div class="report-header">
+<div class="container-fluid py-3">
+<div class="att-report">
+
+<!-- Professional Header -->
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
-    <div class="breadcrumb-nav">
-      <a href="<?php echo site_url('reports'); ?>">Reports</a>
-      <span>/</span>
-      <span>Attendance</span>
-    </div>
-    <h1 class="report-title">
-      <i class="bi bi-calendar-check"></i>
-      Attendance Report
-    </h1>
+    <h4 class="mb-1 fw-bold"><i class="bi bi-calendar-check text-primary me-2"></i>Attendance Report</h4>
+    <p class="text-muted small mb-0">Track daily, weekly, and monthly attendance patterns</p>
   </div>
+  <a class="btn btn-outline-secondary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('reports'); ?>"><i class="bi bi-arrow-left me-1"></i>Reports</a>
 </div>
 
 <!-- Compact Stats -->
@@ -732,12 +457,12 @@ body {
         <?php if (empty($daily)): ?>
           <tr>
             <td colspan="4">
-              <div class="empty-state">
-                <div class="empty-icon">
+              <div class="att-empty-state">
+                <div class="att-empty-icon">
                   <i class="bi bi-calendar-x"></i>
                 </div>
-                <div class="empty-title">No Data Found</div>
-                <div class="empty-description">
+                <div class="att-empty-title">No Data Found</div>
+                <div class="att-empty-desc">
                   No attendance data for selected criteria.
                 </div>
                 <button class="btn btn-primary" onclick="clearFilters()">
@@ -789,7 +514,7 @@ body {
                       $statusIcon = 'bi-question-circle';
                   }
                 ?>
-                <span class="status-badge <?php echo $statusClass; ?>">
+                <span class="att-status-badge <?php echo $statusClass; ?>">
                   <i class="bi <?php echo $statusIcon; ?>"></i>
                   <?php echo htmlspecialchars(ucfirst(isset($r->status)?$r->status:'Unknown')); ?>
                 </span>
@@ -807,9 +532,7 @@ body {
     <div class="pagination-info">
       Showing <strong id="daily-showing-count"><?php echo min(20, count($daily)); ?></strong> of <strong><?php echo count($daily); ?></strong> records
     </div>
-    <div class="pagination-controls" id="daily-pagination-controls">
-      <!-- Pagination will be generated by JavaScript -->
-    </div>
+    <div class="pagination-controls" id="daily-pagination-controls"></div>
   </div>
   <?php endif; ?>
 </div>
@@ -855,12 +578,12 @@ body {
         <?php if (empty($weekly)): ?>
           <tr>
             <td colspan="4">
-              <div class="empty-state">
-                <div class="empty-icon">
+              <div class="att-empty-state">
+                <div class="att-empty-icon">
                   <i class="bi bi-calendar-x"></i>
                 </div>
-                <div class="empty-title">No Data Found</div>
-                <div class="empty-description">
+                <div class="att-empty-title">No Data Found</div>
+                <div class="att-empty-desc">
                   No weekly attendance data for selected criteria.
                 </div>
                 <button class="btn btn-primary" onclick="clearFilters()">
@@ -912,7 +635,7 @@ body {
                       $statusIcon = 'bi-question-circle';
                   }
                 ?>
-                <span class="status-badge <?php echo $statusClass; ?>">
+                <span class="att-status-badge <?php echo $statusClass; ?>">
                   <i class="bi <?php echo $statusIcon; ?>"></i>
                   <?php echo htmlspecialchars(ucfirst(isset($r->status)?$r->status:'Unknown')); ?>
                 </span>
@@ -978,12 +701,12 @@ body {
         <?php if (empty($monthly)): ?>
           <tr>
             <td colspan="4">
-              <div class="empty-state">
-                <div class="empty-icon">
+              <div class="att-empty-state">
+                <div class="att-empty-icon">
                   <i class="bi bi-calendar-x"></i>
                 </div>
-                <div class="empty-title">No Data Found</div>
-                <div class="empty-description">
+                <div class="att-empty-title">No Data Found</div>
+                <div class="att-empty-desc">
                   No monthly attendance data for selected criteria.
                 </div>
                 <button class="btn btn-primary" onclick="clearFilters()">
@@ -1035,7 +758,7 @@ body {
                       $statusIcon = 'bi-question-circle';
                   }
                 ?>
-                <span class="status-badge <?php echo $statusClass; ?>">
+                <span class="att-status-badge <?php echo $statusClass; ?>">
                   <i class="bi <?php echo $statusIcon; ?>"></i>
                   <?php echo htmlspecialchars(ucfirst(isset($r->status)?$r->status:'Unknown')); ?>
                 </span>
@@ -1271,4 +994,6 @@ function clearFilters() {
   window.location.href = '<?php echo site_url('reports/attendance'); ?>';
 }
 </script>
-        <?php $this->load->view('partials/footer'); ?>
+</div><!-- .att-report -->
+</div><!-- .container-fluid -->
+<?php $this->load->view('partials/footer'); ?>

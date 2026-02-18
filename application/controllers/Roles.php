@@ -153,7 +153,7 @@ class Roles extends CI_Controller {
         }
         if (function_exists('auto_log_update')) {
             $description = 'Role updated: ' . $name;
-            auto_log_update('roles', 'roles', $id, $role, $data, $description);
+            auto_log_update('roles', 'roles', $id, $data, $description);
         }
 
         $this->session->set_flashdata('success', 'Role updated.');

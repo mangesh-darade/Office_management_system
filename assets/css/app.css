@@ -698,3 +698,130 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
     font-size: 0.8rem;
   }
 }
+
+/* ===== Global Professional Enhancements ===== */
+
+/* Page titles */
+h1.h4, h4.fw-bold, .page-title {
+  font-weight: 700 !important;
+  color: #1e293b;
+}
+
+/* Better table styling for all screens */
+.table { font-size: 0.9rem; }
+.table thead th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+  color: #6b7280;
+  background: #f8fafc;
+  white-space: nowrap;
+  padding: 0.75rem 1rem;
+}
+.table tbody td { padding: 0.75rem 1rem; }
+.table-hover tbody tr:hover { background: #f0f4ff !important; }
+
+/* Better form controls */
+.form-control:focus, .form-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.form-label {
+  font-weight: 500;
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+/* Better alert styling */
+.alert {
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+.alert-success { background: #ecfdf5; color: #065f46; border-left: 4px solid #10b981; }
+.alert-danger { background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444; }
+.alert-warning { background: #fffbeb; color: #92400e; border-left: 4px solid #f59e0b; }
+.alert-info { background: #eff6ff; color: #1e40af; border-left: 4px solid #3b82f6; }
+
+/* Better badges */
+.badge { font-weight: 500; letter-spacing: 0.3px; }
+
+/* Better modal styling */
+.modal-content { border: none; border-radius: 16px; overflow: hidden; }
+.modal-header { border-bottom: 1px solid #f3f4f6; }
+.modal-footer { border-top: 1px solid #f3f4f6; }
+
+/* Empty state pattern */
+.empty-state {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+.empty-state .empty-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.empty-state .empty-icon i { font-size: 2rem; color: #9ca3af; }
+.empty-state h5 { font-weight: 600; color: #1f2937; margin-bottom: 0.5rem; }
+.empty-state p { color: #6b7280; font-size: 0.9rem; }
+
+/* Disable hover lift on data-heavy cards (tables, forms, lists) */
+.card.shadow-sm:hover,
+.card.shadow-soft:hover,
+.card.border-0:hover { transform: none; }
+/* Re-enable hover only for dashboard stat cards */
+.stat-card:hover { transform: translateY(-8px); }
+
+/* Better button styles */
+.btn { font-weight: 500; border-radius: 8px; transition: all 0.2s; }
+.btn-primary { background: #3b82f6; border-color: #3b82f6; }
+.btn-primary:hover { background: #2563eb; border-color: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+.btn-sm { border-radius: 6px; font-size: 0.8rem; }
+
+/* User avatar circle */
+.avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Better pagination */
+.pagination { gap: 2px; }
+.page-link { border-radius: 6px !important; font-size: 0.85rem; padding: 0.35rem 0.65rem; }
+.page-item.active .page-link { background: #3b82f6; border-color: #3b82f6; }
+
+/* Card header clean style */
+.card-header { background: #fff; border-bottom: 1px solid #f3f4f6; font-weight: 600; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 0.85rem; }
+.breadcrumb-item a { color: #3b82f6; text-decoration: none; }
+.breadcrumb-item a:hover { text-decoration: underline; }
+
+/* Mobile spacing fix */
+@media (max-width: 767.98px) {
+  .container-fluid { padding-left: 1rem; padding-right: 1rem; }
+  .table { font-size: 0.82rem; }
+  .table thead th { font-size: 0.65rem; padding: 0.5rem 0.75rem; }
+  .table tbody td { padding: 0.5rem 0.75rem; }
+  .card-body { padding: 1rem; }
+  .btn-sm { font-size: 0.75rem; padding: 0.3rem 0.6rem; }
+  h1.h4, h4.fw-bold { font-size: 1.15rem !important; }
+  .page-link { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
+  .modal-dialog { margin: 0.5rem; }
+  .modal-dialog.modal-xl,
+  .modal-dialog.modal-lg { max-width: calc(100% - 1rem); }
+}

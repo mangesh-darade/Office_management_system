@@ -33,18 +33,18 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     }
-    .card {
+    .reports-dash .card {
       border: none;
       border-radius: 16px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.08);
       transition: all 0.3s ease;
       overflow: hidden;
     }
-    .card:hover {
+    .reports-dash .card:hover {
       transform: translateY(-5px);
       box-shadow: 0 8px 30px rgba(0,0,0,0.12);
     }
-    .card-body {
+    .reports-dash .card-body {
       padding: 1rem;
     }
     .metric-card {
@@ -89,6 +89,7 @@
       margin-left: 0.5rem;
     }
   </style>
+  <div class="reports-dash">
   <section class="hero-report mb-3 text-white rounded-3 p-4 p-md-5 position-relative overflow-hidden">
     <div class="row align-items-center">
       <div class="col-12">
@@ -104,13 +105,18 @@
           </a>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/projects-status'); ?>">
             <i class="bi bi-diagram-3 me-2"></i>Projects
-            <span class="badge-new">NEW</span>
           </a>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/leaves'); ?>">
             <i class="bi bi-calendar-check me-2"></i>Leaves
           </a>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/tasks-assignment'); ?>">
             <i class="bi bi-people me-2"></i>Team
+          </a>
+          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/attendance'); ?>">
+            <i class="bi bi-calendar-check me-2"></i>Attendance
+          </a>
+          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/daily_activity'); ?>">
+            <i class="bi bi-journal-text me-2"></i>Daily Activity
           </a>
         </div>
       </div>
@@ -353,6 +359,7 @@
     </div>
   </div>
 
+  </div><!-- .reports-dash -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     (function(){

@@ -181,10 +181,48 @@ class Timesheets extends CI_Controller {
     public function reject($id){
         if ($this->input->method() !== 'post') { show_404(); }
         $manager_id = (int)$this->session->userdata('user_id');
+        $ts = $this->db->where('id',(int)$id)->get('timesheets')->row();
+        if (!$ts) { show_404(); }
+        $ok = true;
+        if ($this->db->table_exists('employees')){
+            $emp = $this->db->select('reporting_to')->from('employees')->where('user_id',(int)$ts->user_id)->get()->row();
+            if ($emp && (int)$emp->reporting_to !== $manager_id) { $ok = false; }
+        }
+        if (!$ok) { show_error('Forbidden', 403); }
         $comments = trim((string)$this->input->post('comments'));
         $this->ts->approve_reject((int)$id, 'rejected', $manager_id, $comments);
         $this->session->set_flashdata('success', 'Timesheet rejected.');
         redirect('timesheets');
+    }
+
+    // POST /timesheets/delete-entry/{id}
+    public function delete_entry($entry_id){
+        if ($this->input->method() !== 'post') { show_404(); }
+        $user_id = (int)$this->session->userdata('user_id');
+        $entry_id = (int)$entry_id;
+        $week_start = $this->input->post('week_start');
+
+        $entry = $this->db->select('te.*, t.user_id, t.status')
+            ->from('timesheet_entries te')
+            ->join('timesheets t', 't.id = te.timesheet_id')
+            ->where('te.id', $entry_id)
+            ->get()->row();
+
+        if (!$entry || (int)$entry->user_id !== $user_id) {
+            $this->session->set_flashdata('error', 'Entry not found.');
+            redirect('timesheets' . ($week_start ? '?week='.$week_start : ''));
+            return;
+        }
+        if (in_array($entry->status, ['submitted', 'approved'], true)) {
+            $this->session->set_flashdata('error', 'Cannot delete entries from a submitted or approved timesheet.');
+            redirect('timesheets' . ($week_start ? '?week='.$week_start : ''));
+            return;
+        }
+
+        $this->db->where('id', $entry_id)->delete('timesheet_entries');
+        $this->ts->update_timesheet_total_hours((int)$entry->timesheet_id);
+        $this->session->set_flashdata('success', 'Entry deleted.');
+        redirect('timesheets' . ($week_start ? '?week='.$week_start : ''));
     }
 
     // GET /timesheets/report
