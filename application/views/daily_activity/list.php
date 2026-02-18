@@ -55,9 +55,9 @@
                     <input type="date" class="form-control form-control-sm" name="date_to" id="dateTo" value="<?php echo isset($filters['date_to']) ? htmlspecialchars($filters['date_to']) : ''; ?>" onchange="document.getElementById('filterPeriod').value='';">
                 </div>
                 
-                <div class="col-6 <?php echo ($is_admin) ? 'col-md-3' : 'col-md-3'; ?> d-flex gap-1">
-                    <button type="submit" class="btn btn-secondary btn-sm flex-grow-1" title="Apply Filter"><i class="bi bi-filter"></i><span class="d-none d-sm-inline ms-1">Filter</span></button>
-                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-outline-secondary btn-sm" title="Reset"><i class="bi bi-x-lg"></i></a>
+                <div class="col-6 <?php echo ($is_admin) ? 'col-md-3' : 'col-md-3'; ?> d-flex gap-1 align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm" title="Apply Filter" style="min-width:38px;"><i class="bi bi-funnel"></i></button>
+                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-outline-secondary btn-sm" title="Reset" style="min-width:38px;"><i class="bi bi-x-lg"></i></a>
                 </div>
             </form>
         </div>
