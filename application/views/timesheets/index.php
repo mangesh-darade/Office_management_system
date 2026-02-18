@@ -62,9 +62,8 @@
             <input type="date" class="form-control" name="work_date" required />
           </div>
           <div class="col-md-3">
-            <label class="form-label">Project</label>
-            <select class="form-select" name="project_id">
-              <option value="">--</option>
+            <select class="form-select" name="project_id" id="project_id">
+              <option value="">-- Select Project --</option>
               <?php foreach ($projects as $p): ?>
                 <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
               <?php endforeach; ?>
@@ -72,11 +71,9 @@
           </div>
           <div class="col-md-3">
             <label class="form-label">Task</label>
-            <select class="form-select" name="task_id">
-              <option value="">--</option>
-              <?php foreach ($tasks as $t): ?>
-                <option value="<?php echo (int)$t->id; ?>"><?php echo htmlspecialchars($t->title); ?></option>
-              <?php endforeach; ?>
+            <select class="form-select" name="task_id" id="task_id">
+              <option value="">-- Select Project First --</option>
+              <!-- Tasks will be loaded via JS -->
             </select>
           </div>
           <div class="col-md-3">
@@ -109,5 +106,44 @@
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const projectSelect = document.getElementById('project_id');
+    const taskSelect = document.getElementById('task_id');
+    
+    projectSelect.addEventListener('change', function() {
+        const projectId = this.value;
+        taskSelect.innerHTML = '<option value="">Loading...</option>';
+        taskSelect.disabled = true;
+        
+        if (!projectId) {
+            taskSelect.innerHTML = '<option value="">-- Select Project First --</option>';
+            taskSelect.disabled = false;
+            return;
+        }
+        
+        fetch('<?php echo site_url("tasks/get_by_project/"); ?>' + projectId)
+            .then(response => response.json())
+            .then(data => {
+                let options = '<option value="">-- Select Task --</option>';
+                if (data.length > 0) {
+                    data.forEach(task => {
+                        options += `<option value="${task.id}">${task.title}</option>`;
+                    });
+                } else {
+                    options = '<option value="">No tasks found</option>';
+                }
+                taskSelect.innerHTML = options;
+                taskSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error fetching tasks:', error);
+                taskSelect.innerHTML = '<option value="">Error loading tasks</option>';
+                taskSelect.disabled = false;
+            });
+    });
+});
+</script>
 
 <?php $this->load->view('partials/footer'); ?>

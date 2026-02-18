@@ -155,7 +155,7 @@ class Auth extends CI_Controller {
                     exit;
                 } else {
                     $this->session->set_flashdata('error', 'Your password has expired. Please reset your password.');
-                    $this->session->set_userdata('user_id', $user->id); // Set user_id for password reset
+                    $this->session->set_userdata('pw_expired_user_id', $user->id);
                     redirect('auth/reset_password?expired=1');
                     return;
                 }
@@ -201,6 +201,45 @@ class Auth extends CI_Controller {
                 $this->destroy_other_sessions($user->id);
             }
             
+            // Check if 2FA is required BEFORE setting full session
+            $require_2fa = $this->check_2fa_required($user);
+            if ($require_2fa) {
+                // Regenerate session ID for security
+                $this->session->sess_regenerate(TRUE);
+                
+                // Store ONLY pending login data - do NOT set user_id/role_id yet
+                $this->session->set_userdata('pending_login_user_id', $user->id);
+                $this->session->set_userdata('pending_login_ip', $ip);
+                
+                // Generate and send OTP
+                $otp_result = $this->send_2fa_otp($user);
+                
+                if (!$otp_result['success']) {
+                    // Clear pending data on failure
+                    $this->session->unset_userdata(['pending_login_user_id', 'pending_login_ip']);
+                    if ($is_ajax) {
+                        header('Content-Type: application/json');
+                        echo json_encode(['success' => false, 'error' => $otp_result['error']]);
+                        exit;
+                    } else {
+                        $this->session->set_flashdata('error', $otp_result['error']);
+                        redirect('auth/login');
+                        return;
+                    }
+                }
+                
+                // Redirect to 2FA verification - user is NOT authenticated yet
+                if ($is_ajax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => true, 'require_2fa' => true, 'redirect' => site_url('auth/verify-2fa')]);
+                    exit;
+                } else {
+                    redirect('auth/verify-2fa');
+                    return;
+                }
+            }
+
+            // No 2FA required - complete login immediately
             // Regenerate session ID on login for security (prevents session fixation)
             $this->session->sess_regenerate(TRUE);
             
@@ -208,8 +247,8 @@ class Auth extends CI_Controller {
             $this->session->set_userdata('user_id', (int)$user->id);
             $this->session->set_userdata('role_id', (int)$user->role_id);
             $this->session->set_userdata('email', $user->email);
-            $this->session->set_userdata('last_activity', time()); // Track activity for timeout
-            $this->session->set_userdata('session_id', session_id()); // Store session ID for single session check
+            $this->session->set_userdata('last_activity', time());
+            $this->session->set_userdata('session_id', session_id());
             
             // Remember me functionality (only if enabled)
             $remember_enabled = ($this->settings->get_setting('security_remember_me', 'no') === 'yes');
@@ -223,39 +262,6 @@ class Auth extends CI_Controller {
             // Log successful login if enabled
             if ($this->settings->get_setting('security_audit_login', 'no') === 'yes') {
                 $this->audit->log('login_success', $user->id, "User logged in successfully", $ip);
-            }
-            
-            // Check if 2FA is required
-            $require_2fa = $this->check_2fa_required($user);
-            if ($require_2fa) {
-                // Store pending login in session
-                $this->session->set_userdata('pending_login_user_id', $user->id);
-                $this->session->set_userdata('pending_login_ip', $ip);
-                
-                // Generate and send OTP
-                $otp_result = $this->send_2fa_otp($user);
-                
-                if (!$otp_result['success']) {
-                    if ($is_ajax) {
-                        header('Content-Type: application/json');
-                        echo json_encode(['success' => false, 'error' => $otp_result['error']]);
-                        exit;
-                    } else {
-                        $this->session->set_flashdata('error', $otp_result['error']);
-                        redirect('auth/login');
-                        return;
-                    }
-                }
-                
-                // Redirect to 2FA verification
-                if ($is_ajax) {
-                    header('Content-Type: application/json');
-                    echo json_encode(['success' => true, 'require_2fa' => true, 'redirect' => site_url('auth/verify-2fa')]);
-                    exit;
-                } else {
-                    redirect('auth/verify-2fa');
-                    return;
-                }
             }
 
             // Handle AJAX response

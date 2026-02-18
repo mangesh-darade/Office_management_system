@@ -264,8 +264,15 @@ class Reminders extends CI_Controller {
             $user_ids = $this->input->post('user_ids');
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
-            $from_email = trim((string)$this->input->post('from_email'));
-            $from_name = trim((string)$this->input->post('from_name'));
+            $role_id = (int)$this->session->userdata('role_id');
+            $is_admin = in_array($role_id, [1, 2], true);
+            if ($is_admin) {
+                $from_email = trim((string)$this->input->post('from_email'));
+                $from_name = trim((string)$this->input->post('from_name'));
+            } else {
+                $from_email = '';
+                $from_name = '';
+            }
             $send_at = $this->input->post('send_at');
             
             if (!$user_ids || empty($user_ids) || $subject === ''){
@@ -515,8 +522,9 @@ class Reminders extends CI_Controller {
         ));
     }
 
-    // GET /reminders/schedules/{id}/delete
+    // POST /reminders/schedules/{id}/delete
     public function schedule_delete($id){
+        if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         if ($id <= 0){ redirect('reminders/schedules'); return; }
         $schedule = $this->reminders->get_schedule($id);
@@ -617,8 +625,15 @@ class Reminders extends CI_Controller {
         if ($this->input->method() === 'post'){
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
-            $from_email = trim((string)$this->input->post('from_email'));
-            $from_name = trim((string)$this->input->post('from_name'));
+            $role_id = (int)$this->session->userdata('role_id');
+            $is_admin = in_array($role_id, [1, 2], true);
+            if ($is_admin) {
+                $from_email = trim((string)$this->input->post('from_email'));
+                $from_name = trim((string)$this->input->post('from_name'));
+            } else {
+                $from_email = '';
+                $from_name = '';
+            }
             if ($subject === ''){ $this->session->set_flashdata('error','Subject is required'); redirect('reminders/announce'); return; }
             $users = $this->reminders->all_users();
             $count = 0;
@@ -708,8 +723,15 @@ class Reminders extends CI_Controller {
             $to_raw = (string)$this->input->post('to_emails');
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
-            $from_email = trim((string)$this->input->post('from_email'));
-            $from_name = trim((string)$this->input->post('from_name'));
+            $role_id = (int)$this->session->userdata('role_id');
+            $is_admin = in_array($role_id, [1, 2], true);
+            if ($is_admin) {
+                $from_email = trim((string)$this->input->post('from_email'));
+                $from_name = trim((string)$this->input->post('from_name'));
+            } else {
+                $from_email = '';
+                $from_name = '';
+            }
             if ($to_raw === '' || $subject === ''){
                 $this->session->set_flashdata('error','Please enter at least one recipient and subject');
                 redirect('reminders/bulk'); return;
@@ -780,8 +802,15 @@ class Reminders extends CI_Controller {
     public function import(){
         if ($this->input->method() === 'post'){
             $tplCode = trim((string)$this->input->post('tpl_code'));
-            $from_email = trim((string)$this->input->post('from_email'));
-            $from_name = trim((string)$this->input->post('from_name'));
+            $role_id = (int)$this->session->userdata('role_id');
+            $is_admin = in_array($role_id, [1, 2], true);
+            if ($is_admin) {
+                $from_email = trim((string)$this->input->post('from_email'));
+                $from_name = trim((string)$this->input->post('from_name'));
+            } else {
+                $from_email = '';
+                $from_name = '';
+            }
             if ($tplCode === ''){
                 $this->session->set_flashdata('error','Please select a template');
                 redirect('reminders/import'); return;
@@ -932,8 +961,15 @@ class Reminders extends CI_Controller {
             $subject = trim($this->input->post('subject'));
             $body = (string)$this->input->post('body');
             $email = trim($this->input->post('email'));
-            $from_email = trim((string)$this->input->post('from_email'));
-            $from_name = trim((string)$this->input->post('from_name'));
+            $role_id = (int)$this->session->userdata('role_id');
+            $is_admin = in_array($role_id, [1, 2], true);
+            if ($is_admin) {
+                $from_email = trim((string)$this->input->post('from_email'));
+                $from_name = trim((string)$this->input->post('from_name'));
+            } else {
+                $from_email = '';
+                $from_name = '';
+            }
             $send_at = $this->input->post('send_at');
             // Basic required field validation
             if ($subject === '' || $email === ''){
@@ -1056,8 +1092,9 @@ class Reminders extends CI_Controller {
         $this->load->view('reminders/edit', array('reminder' => $reminder));
     }
 
-    // GET /reminders/delete/{id}
+    // POST /reminders/delete/{id}
     public function delete($id){
+        if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         if ($id <= 0){ redirect('reminders'); return; }
         $this->reminders->delete($id);

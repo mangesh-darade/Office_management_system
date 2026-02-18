@@ -5,10 +5,18 @@ class Chats extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','group_filter']);
+        $this->load->helper(['url','form','group_filter','permission']);
         $this->load->library(['session','upload']);
         $this->load->model('Chat_model');
         $this->_ensure_auth();
+        if (function_exists('has_module_access') && !has_module_access('chats')) {
+            if ($this->input->is_ajax_request()) {
+                $this->output->set_status_header(403);
+                echo json_encode(['ok' => false, 'error' => 'Access denied']);
+                exit;
+            }
+            show_error('You do not have permission to access Chats.', 403);
+        }
         $this->_ensure_schema();
     }
 
@@ -110,7 +118,7 @@ class Chats extends CI_Controller {
         $attachment_path = null;
         if (!empty($_FILES['attachment']['name'])) {
             $upload_path = FCPATH.'uploads/chats/';
-            if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+            if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
             $config = [
                 'upload_path'   => $upload_path,
                 'allowed_types' => '*',      // allow all file types (security: relies on auth + path isolation)

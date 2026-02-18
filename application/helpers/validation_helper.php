@@ -7,6 +7,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Provides common validation functions for employee and other data
  */
 
+if (!defined('ROLE_ADMIN')) { define('ROLE_ADMIN', 1); }
+if (!defined('ROLE_MANAGER')) { define('ROLE_MANAGER', 2); }
+
 /**
  * Validate email address
  * 

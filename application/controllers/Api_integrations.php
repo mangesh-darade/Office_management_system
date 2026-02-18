@@ -14,10 +14,11 @@ class Api_integrations extends CI_Controller {
             redirect('auth/login'); 
         }
         
-        // Check permission - allow admin or users with settings access
+        // Check permission - allow admin or users with api_integrations/settings access
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-        if (!$is_admin && (!function_exists('has_module_access') || !has_module_access('settings'))) {
+        $has_access = $is_admin || (function_exists('has_module_access') && (has_module_access('api_integrations') || has_module_access('settings')));
+        if (!$has_access) {
             show_error('You do not have permission to access API Integrations.', 403);
         }
     }

@@ -2,29 +2,37 @@
 
 if (!function_exists('has_module_access')) {
     function has_module_access($module) {
+        static $cache = null;
+
         $CI =& get_instance();
         if (!$CI || !$CI->session) { return false; }
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return false; }
+
+        // Admin (role_id 1) always has full access to prevent lock-out
+        if ($role_id === 1) { return true; }
+
         $controller = strtolower(trim((string)$module));
 
-        // Build mapping purely from permissions table (DB-driven)
-        $routes_roles = [];
-        if (isset($CI->db) && $CI->db && $CI->db->table_exists('permissions')) {
-            $perms = $CI->db->get('permissions')->result();
-            foreach ($perms as $p) {
-                $mod = strtolower(trim((string)$p->module));
-                if ($mod === '') { continue; }
-                if (!isset($routes_roles[$mod])) { $routes_roles[$mod] = []; }
-                if ((int)$p->can_access === 1) { $routes_roles[$mod][] = (int)$p->role_id; }
-            }
-            foreach ($routes_roles as $mod => $roles) {
-                $routes_roles[$mod] = array_values(array_unique($roles));
+        // Cache permissions lookup per request to avoid 40+ DB queries per page
+        if ($cache === null) {
+            $cache = array();
+            if (isset($CI->db) && $CI->db && $CI->db->table_exists('permissions')) {
+                $perms = $CI->db->get('permissions')->result();
+                foreach ($perms as $p) {
+                    $mod = strtolower(trim((string)$p->module));
+                    if ($mod === '') { continue; }
+                    if (!isset($cache[$mod])) { $cache[$mod] = array(); }
+                    if ((int)$p->can_access === 1) { $cache[$mod][] = (int)$p->role_id; }
+                }
+                foreach ($cache as $mod => $roles) {
+                    $cache[$mod] = array_values(array_unique($roles));
+                }
             }
         }
 
-        if (empty($routes_roles) || !isset($routes_roles[$controller])) { return false; }
-        return in_array($role_id, $routes_roles[$controller], true);
+        if (empty($cache) || !isset($cache[$controller])) { return false; }
+        return in_array($role_id, $cache[$controller], true);
     }
 }
 

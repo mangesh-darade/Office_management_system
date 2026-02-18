@@ -14,6 +14,9 @@ class Employee_model extends CI_Model
 
     private function ensure_schema()
     {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         if (!$this->db->table_exists($this->table)) {
             return;
         }

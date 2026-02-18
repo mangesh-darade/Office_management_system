@@ -5,13 +5,17 @@ class Calls extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url']);
+        $this->load->helper(['url','permission']);
         $this->load->library(['session']);
         $this->load->model('Call_model');
-        // Calls controller serves AJAX/JSON only. If not logged in, return JSON 401 instead of HTML redirect.
         if (!$this->session->userdata('user_id')) {
             $this->output->set_status_header(401);
             $this->_json(['ok'=>false, 'error'=>'unauthorized']);
+            exit;
+        }
+        if (function_exists('has_module_access') && !has_module_access('calls') && !has_module_access('chats')) {
+            $this->output->set_status_header(403);
+            $this->_json(['ok'=>false, 'error'=>'access_denied']);
             exit;
         }
         $this->Call_model->ensure_schema();

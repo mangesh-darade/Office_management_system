@@ -9,18 +9,51 @@
     </h1>
     <p class="text-muted mb-0">Drag and drop tasks to update status</p>
   </div>
-  <div class="d-flex gap-2 flex-wrap">
-    <div class="input-group" style="width: 250px;">
-      <input type="text" class="form-control" id="searchTasks" placeholder="Search tasks...">
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <form method="get" class="d-flex gap-2 flex-wrap">
+      <?php if(!empty($projects)): ?>
+      <select name="project_id" class="form-select form-select-sm" style="max-width: 150px;" onchange="this.form.submit()">
+        <option value="">All Projects</option>
+        <?php foreach ($projects as $p): ?>
+          <option value="<?php echo $p->id; ?>" <?php echo (isset($filter_project_id) && $filter_project_id == $p->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p->name); ?></option>
+        <?php endforeach; ?>
+      </select>
+      <?php endif; ?>
+      
+      <?php if(!empty($assignees)): ?>
+      <select name="assigned_to" class="form-select form-select-sm" style="max-width: 150px;" onchange="this.form.submit()">
+        <option value="">All Assignees</option>
+        <?php foreach ($assignees as $u): ?>
+          <option value="<?php echo $u->id; ?>" <?php echo (isset($filter_assigned_to) && $filter_assigned_to == $u->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($u->name ?: $u->email); ?></option>
+        <?php endforeach; ?>
+      </select>
+      <?php endif; ?>
+
+      <select name="priority" class="form-select form-select-sm" style="max-width: 120px;" onchange="this.form.submit()">
+        <option value="">All Priorities</option>
+        <?php foreach(['low','medium','high','urgent'] as $pr): ?>
+          <option value="<?php echo $pr; ?>" <?php echo (isset($filter_priority) && $filter_priority === $pr) ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option>
+        <?php endforeach; ?>
+      </select>
+      
+      <?php if((isset($filter_project_id) && $filter_project_id!=='') || (isset($filter_assigned_to) && $filter_assigned_to!=='') || (isset($filter_priority) && $filter_priority!=='')): ?>
+      <a href="<?php echo site_url('tasks/board'); ?>" class="btn btn-outline-secondary btn-sm" title="Clear Filters"><i class="bi bi-x-circle"></i></a>
+      <?php endif; ?>
+    </form>
+
+    <div class="input-group input-group-sm" style="width: 200px;">
+      <input type="text" class="form-control" id="searchTasks" placeholder="Quick search...">
       <button class="btn btn-outline-secondary" type="button" id="clearSearch">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
-    <a class="btn btn-primary" href="<?php echo site_url('tasks/create'); ?>">
+    <?php if(function_exists('has_module_access') && (has_module_access('tasks_add') || has_module_access('tasks'))): ?>
+    <a class="btn btn-primary btn-sm" href="<?php echo site_url('tasks/create'); ?>">
       <i class="bi bi-plus-lg me-1"></i> New Task
     </a>
-    <a class="btn btn-outline-secondary" href="<?php echo site_url('tasks'); ?>">
-      <i class="bi bi-list me-1"></i> List View
+    <?php endif; ?>
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks'); ?>">
+      <i class="bi bi-list me-1"></i> List
     </a>
   </div>
 </div>
@@ -117,13 +150,17 @@
                               <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id); ?>">
                                 <i class="bi bi-eye me-2"></i>View Details
                               </a></li>
+                              <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
                               <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>">
                                 <i class="bi bi-pencil me-2"></i>Edit
                               </a></li>
+                              <?php endif; ?>
+                              <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
                               <li><hr class="dropdown-divider"></li>
                               <li><a class="dropdown-item text-danger" href="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" onclick="return confirm('Delete this task?')">
                                 <i class="bi bi-trash me-2"></i>Delete
                               </a></li>
+                              <?php endif; ?>
                             </ul>
                           </div>
                         </div>
@@ -232,7 +269,7 @@
       modal.show();
       
       try {
-        const res = await fetch('<?php echo site_url('tasks/' . ''); ?>' + taskId + '/preview', {
+        const res = await fetch('<?php echo site_url('tasks/'); ?>' + taskId + '/preview', {
           method: 'GET',
           credentials: 'same-origin',
           headers: {

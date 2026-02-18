@@ -8,6 +8,10 @@ class Assets extends CI_Controller {
         $this->load->helper(['url','form']);
         $this->load->library(['session']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        $this->load->helper('permission');
+        if (function_exists('has_module_access') && !has_module_access('assets') && !has_module_access('assets_mgmt')) {
+            show_error('You do not have permission to access this module.', 403);
+        }
         $this->load->model('Asset_model', 'assets');
     }
 

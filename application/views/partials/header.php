@@ -138,6 +138,20 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       
+      <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $active==='daily_activity' ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-daily-activity-submenu" role="button" aria-expanded="<?php echo $active==='daily_activity'?'true':'false'; ?>" aria-controls="mobile-daily-activity-submenu">
+          <i class="bi bi-journal-check me-2"></i>Daily Activity <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $active==='daily_activity' ? 'show' : ''; ?>" id="mobile-daily-activity-submenu">
+          <div class="ps-4">
+             <a class="nav-link sidebar-link small <?php echo ($active==='daily_activity' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('daily_activity'); ?>"><i class="bi bi-plus-lg me-2"></i>Add Activity</a>
+             <a class="nav-link sidebar-link small <?php echo ($active==='daily_activity' && $active_sub==='list_all')?'active':''; ?>" href="<?php echo site_url('daily_activity/list_all'); ?>"><i class="bi bi-list-ul me-2"></i>List Activity</a>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
       <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
       <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
@@ -312,19 +326,20 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       $settings_group_show = function_exists('has_module_access') && (
         has_module_access('settings') ||
         has_module_access('permissions') ||
+        has_module_access('email_settings') ||
+        has_module_access('approvals') ||
         has_module_access('db') ||
         has_module_access('reminders') ||
         has_module_access('activity') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('admin') ||
-        has_module_access('statuses') ||
-        has_module_access('settings')
+        has_module_access('statuses')
       );
       ?>
       <?php if($settings_group_show): ?>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','db','reminders','activity','departments','designations','statuses','api-integrations']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
+        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
         <div class="collapse" id="mobile-settings-submenu">
@@ -334,6 +349,12 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('approvals')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='approvals'?'active':''; ?>" href="<?php echo site_url('approvals'); ?>"><i class="bi bi-diagram-2 me-2"></i>Approval Workflows</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
             <a class="nav-link sidebar-link small <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>

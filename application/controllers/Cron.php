@@ -4,18 +4,24 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Cron extends CI_Controller {
     public function __construct() {
         parent::__construct();
+        
+        // Restrict cron to CLI or authorized token
+        if (!$this->input->is_cli_request()) {
+            $cron_token = $this->input->get('token');
+            $expected_token = 'CHANGE_THIS_TO_A_SECURE_RANDOM_TOKEN';
+            if (empty($cron_token) || $cron_token !== $expected_token) {
+                show_error('Access denied. Cron endpoints require CLI access or valid token.', 403);
+            }
+        }
+        
         $this->load->database();
         $this->load->model('Announcement_model', 'ann');
         $this->load->model('Reminder_model', 'reminders');
-        // Disable session for cron jobs
-        $this->load->driver('session');
-        $this->session->sess_expiration = 0;
     }
 
     // Process scheduled announcements
-    // Can be called via: http://localhost/Office_management_system/cron/process_announcements
     public function process_announcements() {
-        $this->load->model('Announcements', 'announcements');
+        $this->load->model('Announcement_model', 'announcements');
         
         try {
             $this->announcements->process_scheduled();

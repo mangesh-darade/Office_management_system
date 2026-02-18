@@ -55,7 +55,7 @@ class Employees extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('employees_add')) {
+        if (!function_exists('has_module_access') || (!has_module_access('employees_add') && !has_module_access('employees'))) {
             show_error('You do not have permission to add employees.', 403);
         }
         
@@ -220,7 +220,7 @@ class Employees extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('employees_edit')) {
+        if (!function_exists('has_module_access') || (!has_module_access('employees_edit') && !has_module_access('employees'))) {
             show_error('You do not have permission to edit employees.', 403);
         }
         
@@ -359,7 +359,7 @@ class Employees extends CI_Controller {
     public function delete($id)
     {
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('employees_delete')) {
+        if (!function_exists('has_module_access') || (!has_module_access('employees_delete') && !has_module_access('employees'))) {
             show_error('You do not have permission to delete employees.', 403);
         }
         
@@ -414,7 +414,13 @@ class Employees extends CI_Controller {
                 
                 // Generate secure filename
                 $extension = $file_info['extension'];
-                $secure_filename = bin2hex(random_bytes(16)) . '.' . $extension;
+                if (function_exists('random_bytes')) {
+                    $secure_filename = bin2hex(random_bytes(16)) . '.' . $extension;
+                } elseif (function_exists('openssl_random_pseudo_bytes')) {
+                    $secure_filename = bin2hex(openssl_random_pseudo_bytes(16)) . '.' . $extension;
+                } else {
+                    $secure_filename = md5(uniqid(mt_rand(), true)) . '.' . $extension;
+                }
                 $target_path = $upload_path . $secure_filename;
                 
                 // Move uploaded file
@@ -483,7 +489,7 @@ class Employees extends CI_Controller {
     public function delete_document($id)
     {
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('employees_delete')) {
+        if (!function_exists('has_module_access') || (!has_module_access('employees_delete') && !has_module_access('employees'))) {
             show_error('You do not have permission to delete employee documents.', 403);
         }
         

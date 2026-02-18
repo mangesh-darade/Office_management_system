@@ -8,10 +8,7 @@ class Client_model extends CI_Model {
         parent::__construct(); 
         $this->load->database(); 
         $this->load->library('encryption');
-        // Set a default key if not set (fallback)
-        if (empty($this->config->item('encryption_key'))){
-            $this->encryption->initialize(['key' => md5(APPPATH.'Office_management_system')]);
-        }
+        $this->encryption->initialize(['key' => $this->config->item('encryption_key')]);
     }
 
     public function count_clients($filters = []){

@@ -1,7 +1,9 @@
 <?php $this->load->view('partials/header', ['title' => 'Employees']); ?>
   <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <h1 class="h4 mb-2 mb-sm-0">Employees</h1>
+    <?php if(function_exists('has_module_access') && (has_module_access('employees_add') || has_module_access('employees'))): ?>
     <a href="<?php echo site_url('employees/create'); ?>" class="btn btn-primary">Add Employee</a>
+    <?php endif; ?>
   </div>
   <form class="mb-3" method="get" action="<?php echo site_url('employees'); ?>">
     <div class="row g-2">
@@ -40,10 +42,14 @@
               <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars(isset($e->designation) ? $e->designation : ''); ?></td>
               <td class="text-end table-actions">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('employees/'.$e->id); ?>"><i class="bi bi-eye"></i></a>
+                <?php if(function_exists('has_module_access') && (has_module_access('employees_edit') || has_module_access('employees'))): ?>
                 <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('employees/'.$e->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
+                <?php endif; ?>
+                <?php if(function_exists('has_module_access') && (has_module_access('employees_delete') || has_module_access('employees'))): ?>
                 <form class="d-inline" method="post" action="<?php echo site_url('employees/'.$e->id.'/delete'); ?>" onsubmit="return confirm('Delete this employee?');">
                   <button class="btn btn-danger btn-sm" type="submit" title="Delete" aria-label="Delete"><i class="bi bi-trash"></i></button>
                 </form>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; else: ?>

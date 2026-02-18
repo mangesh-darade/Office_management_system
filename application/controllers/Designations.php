@@ -8,6 +8,10 @@ class Designations extends CI_Controller {
         $this->load->helper(['url','form']);
         $this->load->library(['session']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        $this->load->helper('permission');
+        if (function_exists('has_module_access') && !has_module_access('designations')) {
+            show_error('You do not have permission to access this module.', 403);
+        }
         $this->ensure_schema();
         $this->load->model('Designation_model','designations');
     }

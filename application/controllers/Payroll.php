@@ -9,7 +9,13 @@ class Payroll extends CI_Controller {
         $this->load->library(['session']);
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         // Gate via permissions table when available; fallback to Admin/HR
-        $allowed = function_exists('has_module_access') && has_module_access('payroll');
+        // Gate via permissions
+        $allowed = false;
+        if (function_exists('has_module_access')) {
+            if (has_module_access('payroll') || has_module_access('payroll_view') || has_module_access('payroll_manage')) {
+                $allowed = true;
+            }
+        }
         if (!$allowed){
             $role_id = (int)$this->session->userdata('role_id');
             if (!in_array($role_id, [1,2], true)) { show_error('Access Denied', 403); }
@@ -23,6 +29,15 @@ class Payroll extends CI_Controller {
 
     // Manage salary structures per user
     public function structures(){
+        if (function_exists('has_module_access')) {
+            if (!has_module_access('payroll_manage') && !has_module_access('payroll')) {
+                // Allow fallback to role-based check within method if module check fails? 
+                // Constructor already did a broad check. Here we enforce specific manage capability.
+                // But we must respect the role 1/2 fallback from constructor logic for consistency.
+                $rid = (int)$this->session->userdata('role_id');
+                if (!in_array($rid, [1,2], true)) { show_error('Access Denied', 403); }
+            }
+        }
         $rows = $this->payroll->get_structures();
         $users = $this->payroll->get_user_options();
         $this->load->view('payroll/structures', ['rows' => $rows, 'users' => $users]);
@@ -49,6 +64,8 @@ class Payroll extends CI_Controller {
                 'tds' => (float)($this->input->post('tds') ?: 0),
                 'allowances' => (float)($this->input->post('allowances') ?: 0),
                 'deductions' => (float)($this->input->post('deductions') ?: 0),
+                'pf_percent' => (float)($this->input->post('pf_percent') ?: 0),
+                'esi_percent' => (float)($this->input->post('esi_percent') ?: 0),
             ];
             // Load activity tracking helper
             $this->load->helper('change_tracker');
@@ -116,7 +133,7 @@ class Payroll extends CI_Controller {
         $settings = $this->settings->get_all_settings();
         $this->load->library('url_shortener');
         $pdfDir = FCPATH.'uploads/payslips/';
-        if (!is_dir($pdfDir)) { @mkdir($pdfDir, 0777, true); }
+        if (!is_dir($pdfDir)) { @mkdir($pdfDir, 0755, true); }
 
         $sent = 0;
         $failed = 0;
@@ -245,6 +262,12 @@ class Payroll extends CI_Controller {
                 if (isset($row->tds) && $row->tds > 0) {
                     $salary_data[] = ['TDS', number_format((float)$row->tds, 2)];
                 }
+                if (isset($row->pf_amount) && $row->pf_amount > 0) {
+                    $salary_data[] = ['Provident Fund', number_format((float)$row->pf_amount, 2)];
+                }
+                if (isset($row->esi_amount) && $row->esi_amount > 0) {
+                    $salary_data[] = ['ESI', number_format((float)$row->esi_amount, 2)];
+                }
                 if (isset($row->deductions) && $row->deductions > 0) {
                     $salary_data[] = ['Other Deductions', number_format((float)$row->deductions, 2)];
                 }
@@ -350,6 +373,12 @@ class Payroll extends CI_Controller {
 
     // Generate payslip for one employee and period
     public function generate(){
+        if (function_exists('has_module_access')) {
+            if (!has_module_access('payroll_manage') && !has_module_access('payroll')) {
+                $rid = (int)$this->session->userdata('role_id');
+                if (!in_array($rid, [1,2], true)) { show_error('Access Denied', 403); }
+            }
+        }
         if ($this->input->method() === 'post'){
             $user_id = (int)$this->input->post('user_id');
             $period = trim((string)$this->input->post('period'));
@@ -562,6 +591,14 @@ class Payroll extends CI_Controller {
         $id = (int)$id;
         $row = $this->payroll->find_payslip($id);
         if (!$row){ show_404(); }
+        
+        // Ownership check: non-admin users can only view their own payslips
+        $current_user_id = (int)$this->session->userdata('user_id');
+        $current_role_id = (int)$this->session->userdata('role_id');
+        $is_admin = in_array($current_role_id, [1, 2], true);
+        if (!$is_admin && (int)$row->user_id !== $current_user_id) {
+            show_error('You do not have permission to view this payslip.', 403);
+        }
         $this->load->model('Setting_model','settings');
         $settings = $this->settings->get_all_settings();
         // For payslip, render without global navbar/sidebar so print shows only slip

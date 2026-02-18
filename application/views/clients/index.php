@@ -2,7 +2,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Clients</h1>
   <div class="d-flex gap-2">
+    <?php if(function_exists('has_module_access') && (has_module_access('clients_add') || has_module_access('clients'))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/create'); ?>"><i class="bi bi-plus-lg"></i> Add Client</a>
+    <?php endif; ?>
     <a class="btn btn-outline-success btn-sm" href="<?php echo site_url('clients/export'); ?>"><i class="bi bi-download"></i> Export</a>
   </div>
 </div>
@@ -111,7 +113,9 @@
             <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars(isset($c->status)?$c->status:'active'); ?></span></td>
             <td class="text-end">
               <a class="btn btn-light btn-sm" href="<?php echo site_url('clients/view/'.(int)$c->id); ?>"><i class="bi bi-eye"></i></a>
+              <?php if(function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
               <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/edit/'.(int)$c->id); ?>"><i class="bi bi-pencil"></i></a>
+              <?php endif; ?>
             </td>
           </tr>
           <?php endforeach; endif; ?>

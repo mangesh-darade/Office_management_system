@@ -100,14 +100,14 @@ if (!function_exists('check_permission')) {
     }
 }
 
-if (!function_exists('get_accessible_modules')) {
+if (!function_exists('system_get_accessible_modules')) {
     /**
-     * Get list of modules accessible to a user
+     * Get list of modules accessible to a user (system_access version)
      * 
      * @param int $user_id User ID (optional)
      * @return array Array of accessible module names
      */
-    function get_accessible_modules($user_id = null) {
+    function system_get_accessible_modules($user_id = null) {
         $CI =& get_instance();
         
         if ($user_id === null) {
@@ -182,7 +182,7 @@ if (!function_exists('get_success_screen_modules')) {
         $modules_config = get_system_setting('success_screen_modules', 'dashboard,tasks,projects');
         $configured_modules = explode(',', $modules_config);
         
-        $accessible_modules = get_accessible_modules($user_id);
+        $accessible_modules = system_get_accessible_modules($user_id);
         
         // Filter to only include accessible modules
         $success_modules = [];
@@ -231,14 +231,14 @@ if (!function_exists('get_module_icon')) {
     }
 }
 
-if (!function_exists('has_module_access')) {
+if (!function_exists('system_has_module_access')) {
     /**
-     * Legacy function for backward compatibility
+     * System-level module access check (avoids collision with permission_helper)
      * 
      * @param string $module Module name
      * @return bool Whether current user has access
      */
-    function has_module_access($module) {
+    function system_has_module_access($module) {
         return check_module_access($module);
     }
 }

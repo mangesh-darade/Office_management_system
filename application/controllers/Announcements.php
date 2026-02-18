@@ -5,10 +5,13 @@ class Announcements extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
         $this->load->model('Announcement_model','ann');
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        if (function_exists('has_module_access') && !has_module_access('announcements')) {
+            show_error('You do not have permission to access Announcements.', 403);
+        }
         $this->ensure_schema();
         // Load reminders for broadcasting when publishing
         $this->load->model('Reminder_model','reminders');
@@ -143,7 +146,7 @@ class Announcements extends CI_Controller {
             
             $data = [
                 'title' => trim((string)$this->input->post('title')),
-                'content' => (string)$this->input->post('content'),
+                'content' => (string)$this->input->post('content', TRUE),
                 'posted_by' => (int)$this->session->userdata('user_id'),
                 'target_roles' => trim((string)$this->input->post('target_roles') ?: 'all'),
                 'priority' => trim((string)$this->input->post('priority') ?: 'medium'),
@@ -189,7 +192,7 @@ class Announcements extends CI_Controller {
             
             $data = [
                 'title' => trim((string)$this->input->post('title')),
-                'content' => (string)$this->input->post('content'),
+                'content' => (string)$this->input->post('content', TRUE),
                 'target_roles' => trim((string)$this->input->post('target_roles') ?: 'all'),
                 'priority' => trim((string)$this->input->post('priority') ?: 'medium'),
                 'start_date' => $this->input->post('start_date') ?: null,
@@ -318,8 +321,14 @@ class Announcements extends CI_Controller {
     }
     
     private function get_last_recurrence_date($announcement_id) {
-        $last = $this->db->where('posted_by', $announcement_id)
+        // Get the parent announcement to find its title for matching
+        $parent = $this->db->where('id', (int)$announcement_id)->get('announcements')->row();
+        if (!$parent) { return null; }
+        
+        // Find the most recent recurring instance by title match
+        $last = $this->db->like('title', $parent->title)
                          ->where('title LIKE', '%(Recurring)%')
+                         ->where('id !=', (int)$announcement_id)
                          ->order_by('created_at', 'DESC')
                          ->limit(1)
                          ->get('announcements')

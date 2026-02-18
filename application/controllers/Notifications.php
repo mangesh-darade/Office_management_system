@@ -12,12 +12,17 @@ class Notifications extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form']);
+        $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
         
         // Check if user is logged in
         if (!(int)$this->session->userdata('user_id')) {
             redirect('auth/login');
+        }
+        
+        // When permission system is in use, require notifications module access
+        if (function_exists('has_module_access') && !has_module_access('notifications')) {
+            show_error('You do not have permission to access Notifications.', 403);
         }
         
         $this->ensure_schema();
@@ -28,6 +33,9 @@ class Notifications extends CI_Controller {
      */
     private function ensure_schema()
     {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         if (!$this->db->table_exists('notifications')) {
             $sql = "CREATE TABLE `notifications` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,

@@ -366,3 +366,23 @@ $route['users/delete/(:num)'] = 'users/delete/$1';
 $route['users/check-email'] = 'users/check_email';
 $route['users/check-phone'] = 'users/check_phone';
 $route['users/save_face'] = 'users/save_face';
+
+// Approvals
+$route['approvals'] = 'approvals/index';
+$route['approvals/(:any)'] = 'approvals/$1';
+
+// Performance
+$route['performance'] = 'performance/index';
+$route['performance/(:any)'] = 'performance/$1';
+
+// Recruitment
+$route['recruitment'] = 'recruitment/index';
+$route['recruitment/(:any)'] = 'recruitment/$1';
+
+// Daily Activity
+$route['daily-activity'] = 'daily_activity/index';
+$route['daily-activity/(:any)'] = 'daily_activity/$1';
+
+// Superadmin
+$route['superadmin'] = 'superadmin/index';
+$route['superadmin/(:any)'] = 'superadmin/$1';

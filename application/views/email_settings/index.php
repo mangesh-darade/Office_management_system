@@ -70,11 +70,16 @@
                           </select>
                         </td>
                         <td>
+                          <a href="<?php echo site_url('email_settings/edit_template/'.$setting->id); ?>" 
+                             class="btn btn-sm btn-outline-primary" 
+                             title="Edit Template">
+                            <i class="bi bi-pencil-square"></i>
+                          </a>
                           <button type="button" 
                                   class="btn btn-sm btn-outline-info test-email-btn"
                                   data-module="<?php echo htmlspecialchars($module); ?>"
                                   data-event="<?php echo htmlspecialchars($setting->event_type); ?>">
-                            <i class="bi bi-send"></i> Test
+                            <i class="bi bi-send"></i>
                           </button>
                         </td>
                       </tr>

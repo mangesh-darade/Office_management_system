@@ -1,7 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'Announcements']); ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Announcements</h1>
-  <?php if (!empty($can_manage)): ?>
+  <?php if (!empty($can_manage) || (function_exists('has_module_access') && (has_module_access('announcements_add') || has_module_access('announcements')))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('announcements/create'); ?>">Create Announcement</a>
   <?php endif; ?>
 </div>
@@ -59,10 +59,13 @@
               <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($r->status); ?></span></td>
               <td><?php echo htmlspecialchars(($r->start_date ?: '—').' to '.($r->end_date ?: '—')); ?></td>
               <td>
-                <?php if (!empty($can_manage)): ?>
+                <?php if (!empty($can_manage) || (function_exists('has_module_access') && (has_module_access('announcements_edit') || has_module_access('announcements')))): ?>
                   <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements/'.(int)$r->id.'/edit'); ?>">Edit</a>
+                <?php endif; ?>
+                <?php if (!empty($can_manage) || (function_exists('has_module_access') && (has_module_access('announcements_delete') || has_module_access('announcements')))): ?>
                   <a class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this announcement?')" href="<?php echo site_url('announcements/'.(int)$r->id.'/delete'); ?>">Delete</a>
-                <?php else: ?>
+                <?php endif; ?>
+                <?php if (empty($can_manage) && !(function_exists('has_module_access') && (has_module_access('announcements_edit') || has_module_access('announcements_delete') || has_module_access('announcements')))): ?>
                   <span class="text-muted">—</span>
                 <?php endif; ?>
               </td>

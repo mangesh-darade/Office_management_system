@@ -11,6 +11,9 @@ class Attendance_model extends CI_Model {
     }
 
     private function ensure_schema(){
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         if ($this->db->table_exists($this->table)){
             $fields = $this->db->list_fields($this->table);
             if (!in_array('location_name', $fields, true)) {

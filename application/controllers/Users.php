@@ -17,6 +17,9 @@ class Users extends CI_Controller {
     }
 
     public function index() {
+        if (function_exists('has_module_access') && !has_module_access('users') && !has_module_access('users_list')) {
+            show_error('You do not have permission to view users.', 403);
+        }
         $q = trim($this->input->get('q', true) ?: '');
         $data['title'] = 'Users';
         $data['q'] = $q;
@@ -69,7 +72,7 @@ class Users extends CI_Controller {
     }
 
     public function create() {
-        if (!function_exists('has_module_access') || !has_module_access('users_add')) {
+        if (!function_exists('has_module_access') || (!has_module_access('users_add') && !has_module_access('users'))) {
             show_error('You do not have permission to add users.', 403);
         }
         $data = [
@@ -93,7 +96,7 @@ class Users extends CI_Controller {
     }
 
     public function store() {
-        if (!function_exists('has_module_access') || !has_module_access('users_add')) {
+        if (!function_exists('has_module_access') || (!has_module_access('users_add') && !has_module_access('users'))) {
             show_error('You do not have permission to add users.', 403);
         }
         $in = $this->_sanitize();
@@ -333,6 +336,20 @@ class Users extends CI_Controller {
             redirect('users/edit/'.$id);
             return;
         }
+        // Validate password strength if password is being changed
+        $password = $in['password'];
+        if (!empty($password)) {
+            $this->load->helper('password');
+            if (function_exists('validate_password_strength')) {
+                $validation = validate_password_strength($password);
+                if (!$validation['valid']) {
+                    $this->session->set_flashdata('error', implode(' ', $validation['errors']));
+                    redirect('users/edit/'.$id);
+                    return;
+                }
+            }
+        }
+
         // Prepare data for DB with column-awareness
         $data = $this->_prepare_db_payload($in, false);
         // Handle avatar upload (replace if new file uploaded)
@@ -583,7 +600,7 @@ class Users extends CI_Controller {
                     if (strpos($meta, 'jpeg') !== false || strpos($meta, 'jpg') !== false) { $ext = 'jpg'; }
                     elseif (strpos($meta, 'webp') !== false) { $ext = 'webp'; }
                     $dir = FCPATH.'uploads/faces/';
-                    if (!is_dir($dir)) { @mkdir($dir, 0777, true); }
+                    if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
                     $file = 'face_'.$user_id.'_'.time().'.'.$ext;
                     if (@file_put_contents($dir.$file, $bin) !== false) {
                         $imagePath = 'uploads/faces/'.$file;

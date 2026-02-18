@@ -129,31 +129,40 @@
                 <div class="d-flex flex-column gap-2" onclick="event.stopPropagation();">
                   <!-- Approve/Reject actions for managers - Single comment box -->
                   <?php 
-                    $is_approved = in_array($r->status, ['lead_approved', 'hr_approved'], true);
-                    $is_rejected = ($r->status === 'rejected');
-                    $approve_disabled = $is_approved ? 'disabled' : '';
-                    $reject_disabled = $is_rejected ? 'disabled' : '';
+                    // Disable actions only if request is in a final state
+                    // allowing intermediate states (lead_approved, etc.) to be acted upon
+                    $is_final = in_array($r->status, ['approved', 'rejected', 'cancelled'], true);
+                    $approve_disabled = $is_final ? 'disabled' : '';
+                    $reject_disabled = $is_final ? 'disabled' : '';
                   ?>
                   <div class="mb-2">
                     <input type="text" class="form-control form-control-sm mb-1" name="comments" id="comments_<?php echo $r->id; ?>" placeholder="Enter comments (optional)" value="<?php echo htmlspecialchars(isset($r->latest_remarks) ? $r->latest_remarks : ''); ?>" />
                     <div class="d-flex gap-1 align-items-center">
+                      <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
                       <form method="post" action="<?php echo site_url('leave/approve/'.(int)$r->id); ?>" class="d-inline">
                         <input type="hidden" name="comments" value="" id="approve_comments_<?php echo $r->id; ?>" />
                         <button type="submit" class="btn btn-success btn-sm" <?php echo $approve_disabled; ?> onclick="document.getElementById('approve_comments_<?php echo $r->id; ?>').value = document.getElementById('comments_<?php echo $r->id; ?>').value;">Approve</button>
                       </form>
+                      <?php endif; ?>
+                      <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
                       <button type="button" class="btn btn-danger btn-sm" onclick="rejectLeave(<?php echo $r->id; ?>)" <?php echo $reject_disabled; ?>>Reject</button>
+                      <?php endif; ?>
+                      <?php if(function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests'))): ?>
                       <?php if (isset($is_admin) && $is_admin): ?>
                         <!-- Admin Delete button - only visible to admin -->
                         <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteLeave(<?php echo $r->id; ?>)" title="Delete Leave Request">
                           <i class="bi bi-trash"></i>
                         </button>
                       <?php endif; ?>
+                      <?php endif; ?>
                     </div>
                   </div>
+                  <?php if(function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests'))): ?>
                   <?php if (isset($is_admin) && $is_admin): ?>
                     <!-- Hidden delete form for admin -->
                     <form method="post" action="<?php echo site_url('leave/delete/'.(int)$r->id); ?>" id="delete_form_<?php echo $r->id; ?>" style="display:none;">
                     </form>
+                  <?php endif; ?>
                   <?php endif; ?>
                   <form method="post" action="<?php echo site_url('leave/reject/'.(int)$r->id); ?>" id="reject_form_<?php echo $r->id; ?>" style="display:none;">
                     <input type="hidden" name="comments" id="reject_comments_<?php echo $r->id; ?>" />

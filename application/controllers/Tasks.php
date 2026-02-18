@@ -8,7 +8,16 @@ class Tasks extends CI_Controller {
         $this->load->helper(['url','form','permission','group_filter','email_settings']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
-        // Schema changes moved to migrations - run: php index.php migrate
+        
+        // Authentication check
+        if (!(int)$this->session->userdata('user_id')) {
+            if ($this->input->is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            redirect('auth/login');
+        }
     }
 
     /**
@@ -25,7 +34,7 @@ class Tasks extends CI_Controller {
 
     public function index() {
         // Check list permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('tasks_list')) {
+        if (!function_exists('has_module_access') || (!has_module_access('tasks_list') && !has_module_access('tasks'))) {
             show_error('You do not have permission to view tasks.', 403);
         }
         
@@ -128,7 +137,7 @@ class Tasks extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('tasks_add')) {
+        if (!function_exists('has_module_access') || (!has_module_access('tasks_add') && !has_module_access('tasks'))) {
             show_error('You do not have permission to add tasks.', 403);
         }
         
@@ -159,8 +168,7 @@ class Tasks extends CI_Controller {
                 'project_ids' => $project_ids_json,
                 'requirement_id' => $requirement_id,
                 'title' => trim($this->input->post('title')),
-                // Store HTML from editor as-is; display will sanitize allowed tags
-                'description' => $this->input->post('description'),
+                'description' => $this->input->post('description', TRUE),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'status' => $this->input->post('status') ?: 'pending',
                 'priority' => $this->input->post('priority') ?: 'medium',
@@ -178,7 +186,7 @@ class Tasks extends CI_Controller {
             // Optional attachment
             if ($this->db->field_exists('attachment_path', 'tasks') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/tasks/';
-                if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+                if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $this->load->library('upload');
                 $config = [
                     'upload_path' => $upload_path,
@@ -295,9 +303,6 @@ class Tasks extends CI_Controller {
     // GET /tasks/{id}/preview
     public function preview($id)
     {
-        // Debug: Log the request
-        error_log("Preview method called with ID: " . $id);
-        
         $this->db->from('tasks t');
         $select = ['t.*'];
         
@@ -342,10 +347,7 @@ class Tasks extends CI_Controller {
         $this->db->where('t.id', (int)$id);
         $task = $this->db->get()->row();
         
-        error_log("Task query result: " . ($task ? "Found task" : "Task not found"));
-        
         if (!$task) {
-            error_log("Task not found, returning 404");
             return $this->output->set_status_header(404)
                 ->set_content_type('application/json')
                 ->set_output(json_encode(['error' => 'Task not found']));
@@ -355,15 +357,12 @@ class Tasks extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
-        error_log("User permissions - ID: $user_id, Role: $role_id, Admin: " . ($is_admin ? 'Yes' : 'No'));
         
         if ($user_id && !$is_admin) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
-            error_log("Access check - Assigned: $assigned, Creator: $creator, User: $user_id");
             
             if ($assigned !== $user_id && $creator !== $user_id) { 
-                error_log("Access denied");
                 return $this->output->set_status_header(403)
                     ->set_content_type('application/json')
                     ->set_output(json_encode(['error' => 'Access denied']));
@@ -487,8 +486,6 @@ class Tasks extends CI_Controller {
         $html .= '</div>';
         $html .= '</div>';
         
-        error_log("Generated HTML length: " . strlen($html));
-        
         return $this->output->set_content_type('text/html')->set_output($html);
     }
 
@@ -558,7 +555,7 @@ class Tasks extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('tasks_edit')) {
+        if (!function_exists('has_module_access') || (!has_module_access('tasks_edit') && !has_module_access('tasks'))) {
             show_error('You do not have permission to edit tasks.', 403);
         }
         
@@ -593,8 +590,7 @@ class Tasks extends CI_Controller {
                 'project_ids' => $project_ids_json,
                 'requirement_id' => $this->input->post('requirement_id') !== '' ? (int)$this->input->post('requirement_id') : null,
                 'title' => trim($this->input->post('title')),
-                // Store HTML from editor
-                'description' => $this->input->post('description'),
+                'description' => $this->input->post('description', TRUE),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'status' => $this->input->post('status') ?: 'pending',
                 'priority' => $this->input->post('priority') ?: 'medium',
@@ -608,7 +604,7 @@ class Tasks extends CI_Controller {
             // Optional new attachment
             if ($this->db->field_exists('attachment_path', 'tasks') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/tasks/';
-                if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+                if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $this->load->library('upload');
                 $config = [
                     'upload_path' => $upload_path,
@@ -774,7 +770,7 @@ class Tasks extends CI_Controller {
     public function delete($id)
     {
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('tasks_delete')) {
+        if (!function_exists('has_module_access') || (!has_module_access('tasks_delete') && !has_module_access('tasks'))) {
             show_error('You do not have permission to delete tasks.', 403);
         }
         
@@ -1205,5 +1201,25 @@ class Tasks extends CI_Controller {
         $ref = $this->input->get('ref');
         if ($ref) { redirect($ref); return; }
         redirect('tasks');
+    }
+
+    // GET /tasks/get_by_project/{project_id}
+    public function get_by_project($project_id) {
+        $project_id = (int)$project_id;
+        $this->output->set_content_type('application/json');
+        
+        if (!$project_id) {
+            $this->output->set_output(json_encode([]));
+            return;
+        }
+
+        $tasks = $this->db->select('id, title')
+                          ->from('tasks')
+                          ->where('project_id', $project_id)
+                          ->order_by('id', 'DESC')
+                          ->get()
+                          ->result();
+                          
+        $this->output->set_output(json_encode($tasks));
     }
 }

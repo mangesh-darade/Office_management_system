@@ -173,6 +173,9 @@ class Expenses extends CI_Controller {
      */
     public function create()
     {
+        if (function_exists('has_module_access') && !has_module_access('expenses_add') && !has_module_access('expenses')) {
+            show_error('You do not have permission to create expense requests.', 403);
+        }
         $user_id = (int)$this->session->userdata('user_id');
         
         if ($this->input->method() === 'post') {
@@ -188,10 +191,12 @@ class Expenses extends CI_Controller {
                 redirect('expenses/create');
             }
             
-            // Check budget limit
+            // Check budget limit - block if exceeded
             $category = $this->db->get_where('expense_categories', ['id' => $category_id])->row();
             if ($category && $category->budget_limit && $amount > $category->budget_limit) {
-                $this->session->set_flashdata('warning', 'Amount exceeds category budget limit of ' . $category->budget_limit);
+                $this->session->set_flashdata('error', 'Amount exceeds category budget limit of ' . number_format($category->budget_limit, 2) . '. Please reduce the amount or contact your manager.');
+                redirect('expenses/create');
+                return;
             }
             
             // Handle receipt upload
@@ -299,7 +304,7 @@ class Expenses extends CI_Controller {
      */
     public function approve($id)
     {
-        if (!is_admin_group()) {
+        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_approve'))) {
             show_error('Access denied', 403);
         }
         
@@ -337,7 +342,7 @@ class Expenses extends CI_Controller {
      */
     public function reject($id)
     {
-        if (!is_admin_group()) {
+        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_approve'))) {
             show_error('Access denied', 403);
         }
         
@@ -377,7 +382,7 @@ class Expenses extends CI_Controller {
      */
     public function reimburse($id)
     {
-        if (!is_admin_group()) {
+        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_reimburse'))) {
             show_error('Access denied', 403);
         }
         
@@ -418,7 +423,7 @@ class Expenses extends CI_Controller {
      */
     public function categories()
     {
-        if (!is_admin_group()) {
+        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_categories'))) {
             show_error('Access denied', 403);
         }
         
@@ -434,7 +439,7 @@ class Expenses extends CI_Controller {
      */
     public function reports()
     {
-        if (!is_admin_group()) {
+        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_reports'))) {
             show_error('Access denied', 403);
         }
         

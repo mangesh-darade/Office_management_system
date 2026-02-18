@@ -242,7 +242,7 @@ $config['allow_get_array'] = TRUE;
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 0;
+$config['log_threshold'] = 1;
 
 /*
 |--------------------------------------------------------------------------
@@ -343,7 +343,7 @@ $config['cache_query_string'] = FALSE;
 | https://codeigniter.com/userguide3/libraries/encryption.html
 |
 */
-$config['encryption_key'] = '';
+$config['encryption_key'] = 'a3f8d2e1b7c4590f6a1e3d8b2c7f4a9e5d1b8c3f7a2e6d9b4c1f8a3e7d2b5c9';
 
 /*
 |--------------------------------------------------------------------------
@@ -407,24 +407,9 @@ $config['sess_expiration'] = 7200;
 $config['sess_save_path'] = APPPATH.'cache/sessions';
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
-$config['sess_regenerate_destroy'] = FALSE;
+$config['sess_regenerate_destroy'] = TRUE;
 
-// Ensure encryption key is set; generate a secure random key if not set
-if (empty($config['encryption_key'])) {
-    // Generate a secure 32-byte (256-bit) key
-    if (function_exists('random_bytes')) {
-        $config['encryption_key'] = bin2hex(random_bytes(32));
-    } elseif (function_exists('openssl_random_pseudo_bytes')) {
-        $config['encryption_key'] = bin2hex(openssl_random_pseudo_bytes(32));
-    } else {
-        // Fallback - WARNING: This is less secure, should be changed manually
-        $config['encryption_key'] = 'CHANGE_ME_TO_A_RANDOM_32_PLUS_CHAR_SECRET_KEY_' . md5(uniqid(mt_rand(), true));
-    }
-    // Log info in development
-    if (ENVIRONMENT === 'development') {
-        log_message('info', 'Encryption key was auto-generated. Change it in production!');
-    }
-}
+// NOTE: encryption_key is now set as a static value above. Change it per environment.
 
 /*
 |--------------------------------------------------------------------------
@@ -445,9 +430,9 @@ if (empty($config['encryption_key'])) {
 $config['cookie_prefix']	= '';
 $config['cookie_domain']	= '';
 $config['cookie_path']		= '/';
-$config['cookie_secure']	= FALSE;
-$config['cookie_httponly'] 	= TRUE; // Set to TRUE for security (prevents JavaScript access)
-$config['cookie_samesite'] 	= 'Lax'; // Changed from Strict to Lax for better compatibility
+$config['cookie_secure']	= $__is_https ? TRUE : FALSE;
+$config['cookie_httponly'] 	= TRUE;
+$config['cookie_samesite'] 	= 'Lax';
 
 /*
 |--------------------------------------------------------------------------
@@ -491,6 +476,33 @@ $config['global_xss_filtering'] = FALSE;
 | 'csrf_regenerate' = Regenerate token on every submission
 | 'csrf_exclude_uris' = Array of URIs which ignore CSRF checks
 */
+$config['csrf_protection'] = TRUE;
+$config['csrf_token_name'] = 'ci_csrf_token';
+$config['csrf_cookie_name'] = 'ci_csrf_token';
+$config['csrf_expire'] = 7200;
+$config['csrf_regenerate'] = FALSE;
+$config['csrf_exclude_uris'] = array(
+    'cron/.*',
+    'api/.*',
+    'tasks/update-status',
+    'tasks/bulk-update-status',
+    'tasks/get_by_project/.*',
+    'tasks/.*/comments',
+    'attendance/get_user_monthly_attendance',
+    'attendance/ajax_.*',
+    'notifications/mark_read',
+    'notifications/mark_all_read',
+    'chats/.*',
+    'calls/.*',
+    'ai_chat/.*',
+    'analytics/.*',
+    'leave/get_employee_tasks/.*',
+    'whatsapp/webhook',
+    'auth/login',
+    'auth/forgot_password',
+    'auth/reset_password',
+    'auth/verify_2fa'
+);
 
 /*
 |--------------------------------------------------------------------------

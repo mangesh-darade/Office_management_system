@@ -9,6 +9,10 @@ class Departments extends CI_Controller {
         $this->load->library(['session']);
         $this->load->model('Department_model','departments');
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        $this->load->helper('permission');
+        if (function_exists('has_module_access') && !has_module_access('departments')) {
+            show_error('You do not have permission to access this module.', 403);
+        }
         $this->ensure_schema();
     }
 

@@ -37,7 +37,7 @@
                          class="form-check-input" 
                          name="settings[show_success_screen]" 
                          value="1" 
-                         <?php echo ($ui_settings['show_success_screen'] ?? '0') == '1' ? 'checked' : ''; ?>>
+                         <?php echo (isset($ui_settings['show_success_screen']) ? $ui_settings['show_success_screen'] : '0') == '1' ? 'checked' : ''; ?>>
                   <label class="form-check-label">
                     Enable success screen after login
                   </label>
@@ -49,7 +49,7 @@
                 <input type="number" 
                        class="form-control" 
                        name="settings[success_screen_duration]" 
-                       value="<?php echo htmlspecialchars($ui_settings['success_screen_duration'] ?? '3'); ?>"
+                       value="<?php echo htmlspecialchars(isset($ui_settings['success_screen_duration']) ? $ui_settings['success_screen_duration'] : '3'); ?>"
                        min="1" 
                        max="10">
                 <div class="form-text">How long to show the success screen before redirecting</div>
@@ -118,8 +118,8 @@
           <div class="col-md-6">
             <h6>Current Configuration:</h6>
             <ul class="list-unstyled">
-              <li><strong>Status:</strong> <?php echo ($ui_settings['show_success_screen'] ?? '0') == '1' ? 'Enabled' : 'Disabled'; ?></li>
-              <li><strong>Duration:</strong> <?php echo $ui_settings['success_screen_duration'] ?? '3'; ?> seconds</li>
+              <li><strong>Status:</strong> <?php echo (isset($ui_settings['show_success_screen']) ? $ui_settings['show_success_screen'] : '0') == '1' ? 'Enabled' : 'Disabled'; ?></li>
+              <li><strong>Duration:</strong> <?php echo isset($ui_settings['success_screen_duration']) ? $ui_settings['success_screen_duration'] : '3'; ?> seconds</li>
               <li><strong>Modules:</strong> <?php echo count($enabled_modules); ?> selected</li>
             </ul>
           </div>

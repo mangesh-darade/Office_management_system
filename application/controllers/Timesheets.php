@@ -5,10 +5,13 @@ class Timesheets extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
         $this->load->model('Timesheet_model','ts');
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        if (function_exists('has_module_access') && !has_module_access('timesheets')) {
+            show_error('You do not have permission to access Timesheets.', 403);
+        }
         $this->ensure_schema();
     }
 

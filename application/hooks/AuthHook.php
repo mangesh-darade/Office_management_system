@@ -177,7 +177,7 @@ class AuthHook {
                     
                     // Stop execution after view is loaded
                     exit(0);
-                } catch (Throwable $e) {
+                } catch (Exception $e) {
                     // Log the error for debugging - include file and line
                     if (function_exists('log_message')) {
                         $error_msg = 'Maintenance view failed: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
@@ -284,40 +284,43 @@ class AuthHook {
             }
         }
 
-        // Route-level RBAC: build controller -> allowed roles map from permissions table (DB-driven)
-        $routes_roles = [];
+        // Admin (role_id 1) always has full access - skip route-level RBAC
+        if ($role_id === 1) { return; }
 
+        // Route-level RBAC: check if the user's role has access to the controller
+        // via the parent module key OR any sub-permission (e.g. daily_activity_add implies daily_activity access)
         if (!isset($CI->db)) { $CI->load->database(); }
-        if ($CI->db && $CI->db->table_exists('permissions')) {
-            $perms = $CI->db->get('permissions')->result();
-            // Expect columns: role_id (int), module (varchar), can_access (tinyint)
-            foreach ($perms as $p) {
-                $module = strtolower(trim((string)$p->module));
-                if ($module === '') { continue; }
-                if (!isset($routes_roles[$module])) { $routes_roles[$module] = []; }
-                if ((int)$p->can_access === 1) { $routes_roles[$module][] = (int)$p->role_id; }
-            }
-            // Normalize unique role ids per module
-            foreach ($routes_roles as $m => $roles) {
-                $routes_roles[$m] = array_values(array_unique($roles));
-            }
-        }
-        // If no permissions configured, do not block any route here
-        if (empty($routes_roles)) { return; }
+        if (!$CI->db || !$CI->db->table_exists('permissions')) { return; }
 
-        // Extract controller from router when available
+        $perms = $CI->db->get('permissions')->result();
+        if (empty($perms)) { return; }
+
         $controller = '';
         if (isset($CI->router) && property_exists($CI->router, 'class')) {
             $controller = strtolower($CI->router->class ?: '');
         } else if ($uri !== '') {
             $controller = strtolower(explode('/', $uri)[0]);
         }
-        if (isset($routes_roles[$controller])) {
-            if (!in_array($role_id, $routes_roles[$controller], true)) {
-                // Use show_error which will trigger our custom 403 page
-                show_error('You do not have permission to access this page.', 403);
-                exit;
+        if (empty($controller)) { return; }
+
+        // Check if ANY permission row for this controller (exact match or sub-key) grants access
+        $has_any_rule = false;
+        $has_access = false;
+        foreach ($perms as $p) {
+            $mod = strtolower(trim((string)$p->module));
+            if ($mod === $controller || strpos($mod, $controller . '_') === 0) {
+                $has_any_rule = true;
+                if ((int)$p->can_access === 1 && (int)$p->role_id === $role_id) {
+                    $has_access = true;
+                    break;
+                }
             }
+        }
+
+        // Only block if the controller has permission rules but this role has none of them
+        if ($has_any_rule && !$has_access) {
+            show_error('You do not have permission to access this page.', 403);
+            exit;
         }
     }
     

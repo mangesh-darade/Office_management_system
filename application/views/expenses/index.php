@@ -7,9 +7,11 @@
                     <h5 class="mb-0 fw-bold">Expense Claims</h5>
                     <p class="text-muted mb-0 small">Manage expense claims and reimbursements</p>
                 </div>
+                <?php if(function_exists('has_module_access') && (has_module_access('expenses_add') || has_module_access('expenses'))): ?>
                 <a href="<?php echo site_url('expenses/create'); ?>" class="btn btn-primary">
                     <i class="bi bi-plus-lg me-2"></i>New Claim
                 </a>
+                <?php endif; ?>
             </div>
         </div>
     </div>

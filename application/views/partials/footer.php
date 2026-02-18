@@ -149,6 +149,21 @@ $__can_ai_widget = function_exists('has_module_access') && (
 </button>
 
 <script>
+// Escape HTML entities to prevent XSS when inserting user input
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+// Sanitize AI response: remove script tags but allow markdown/HTML formatting
+function sanitizeAiResponse(str) {
+    if (!str || typeof str !== 'string') return '';
+    var div = document.createElement('div');
+    div.innerHTML = str;
+    var scripts = div.querySelectorAll('script');
+    scripts.forEach(function(s) { s.remove(); });
+    return div.innerHTML;
+}
 // UI State management
 let isAiOpen = false;
 let isFullScreen = false;
@@ -324,10 +339,10 @@ async function handleWidgetSubmit(e) {
    
    if(!text) return;
    
-   // Append user message
+   // Append user message (escape user input to prevent XSS)
    const userDiv = document.createElement('div');
    userDiv.className = 'd-flex flex-row justify-content-end mb-3';
-   userDiv.innerHTML = `<div class="p-3 user-msg-bubble shadow-sm" style="max-width: 85%;"><small>${text.replace(/\n/g, '<br>')}</small></div>`;
+   userDiv.innerHTML = `<div class="p-3 user-msg-bubble shadow-sm" style="max-width: 85%;"><small>${escapeHtml(text).replace(/\n/g, '<br>')}</small></div>`;
    box.appendChild(userDiv);
    box.scrollTop = box.scrollHeight;
    
@@ -368,6 +383,7 @@ async function handleWidgetSubmit(e) {
             // Convert simple markdown-like bolding if present or just plain text
             let cleanResponse = data.response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             cleanResponse = cleanResponse.replace(/\n/g, '<br>');
+            cleanResponse = sanitizeAiResponse(cleanResponse);
             
             aiDiv.innerHTML = `<div class="p-3 ai-msg-bubble shadow-sm" style="max-width: 85%;"><small>${cleanResponse}</small></div>`;
             box.appendChild(aiDiv);
@@ -379,7 +395,7 @@ async function handleWidgetSubmit(e) {
         } else {
              const errDiv = document.createElement('div');
             errDiv.className = 'd-flex flex-row justify-content-start mb-3';
-            errDiv.innerHTML = `<div class="p-2 bg-danger text-white rounded shadow-sm" style="max-width: 85%;"><small>Error: ${data.message}</small></div>`;
+            errDiv.innerHTML = `<div class="p-2 bg-danger text-white rounded shadow-sm" style="max-width: 85%;"><small>Error: ${escapeHtml(data.message || '')}</small></div>`;
             box.appendChild(errDiv);
         }
         box.scrollTop = box.scrollHeight;
@@ -461,8 +477,68 @@ document.getElementById('widgetSpeakBtn').addEventListener('click', async functi
       navigator.serviceWorker.register('<?php echo base_url('assets/pwa/sw.js'); ?>').catch(function(e){console.warn('SW reg failed', e)})
     })
   }
-  // Auto-init DataTables on tables with .datatable class
-  // Note: DataTables is initialized in assets/js/app.js to avoid double initialization.
- </script>
+</script>
+<?php if ($this->config->item('csrf_protection')): ?>
+<script>
+(function(){
+  var csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
+  var csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
+
+  function injectToken(form){
+    if (!form || form.querySelector('input[name="'+csrfName+'"]')) return;
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = csrfName;
+    input.value = csrfHash;
+    form.appendChild(input);
+  }
+
+  var forms = document.querySelectorAll('form[method="post"], form[method="POST"]');
+  for (var i = 0; i < forms.length; i++) { injectToken(forms[i]); }
+
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function(mutations){
+      for (var i = 0; i < mutations.length; i++) {
+        var nodes = mutations[i].addedNodes;
+        for (var j = 0; j < nodes.length; j++) {
+          if (nodes[j].nodeName === 'FORM') { injectToken(nodes[j]); }
+          if (nodes[j].querySelectorAll) {
+            var inner = nodes[j].querySelectorAll('form[method="post"], form[method="POST"]');
+            for (var k = 0; k < inner.length; k++) { injectToken(inner[k]); }
+          }
+        }
+      }
+    }).observe(document.body, {childList: true, subtree: true});
+  }
+
+  var origOpen = XMLHttpRequest.prototype.open;
+  var origSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function(method, url){
+    this._csrfMethod = method;
+    return origOpen.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function(data){
+    if (this._csrfMethod && this._csrfMethod.toUpperCase() === 'POST') {
+      if (typeof data === 'string' && data.indexOf(csrfName) === -1) {
+        data += (data ? '&' : '') + encodeURIComponent(csrfName) + '=' + encodeURIComponent(csrfHash);
+      } else if (data instanceof FormData && !data.has(csrfName)) {
+        data.append(csrfName, csrfHash);
+      }
+    }
+    return origSend.call(this, data);
+  };
+
+  if (typeof jQuery !== 'undefined') {
+    jQuery(document).ajaxSend(function(e, xhr, settings){
+      if (settings.type && settings.type.toUpperCase() === 'POST' && settings.data) {
+        if (typeof settings.data === 'string' && settings.data.indexOf(csrfName) === -1) {
+          settings.data += '&' + encodeURIComponent(csrfName) + '=' + encodeURIComponent(csrfHash);
+        }
+      }
+    });
+  }
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>

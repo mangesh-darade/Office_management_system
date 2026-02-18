@@ -69,7 +69,7 @@
       <div class="card-body">
         <h2 class="h6">Add Member</h2>
         <form method="get" class="d-flex gap-2 mb-3">
-          <input type="text" class="form-control" name="q" placeholder="Search users by email or name" value="<?php echo htmlspecialchars($q ?? ''); ?>" />
+          <input type="text" class="form-control" name="q" placeholder="Search users by email or name" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" />
           <button class="btn btn-outline-secondary">Search</button>
         </form>
         <?php if (!empty($users)): ?>

@@ -11,6 +11,51 @@ if (!(int)$this->session->userdata('user_id')) {
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+      <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
+      <div class="nav-item" id="daily-activity-group">
+        <div class="d-flex align-items-center justify-content-between">
+            <a id="daily-activity-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='daily_activity'?'active':''; ?>" href="#">
+                <i class="bi bi-journal-check me-2"></i>Daily Activity
+            </a>
+            <button id="daily-activity-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="daily-activity-submenu" title="Toggle">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="daily-activity-submenu">
+            <div class="submenu-list">
+                <a class="submenu-link <?php echo (strtolower($this->uri->segment(1))==='daily_activity' && (!$this->uri->segment(2) || $this->uri->segment(2)==='index'))?'active':''; ?>" href="<?php echo site_url('daily_activity'); ?>">Add Activity</a>
+                <a class="submenu-link <?php echo (strtolower($this->uri->segment(1))==='daily_activity' && $this->uri->segment(2)==='list_all')?'active':''; ?>" href="<?php echo site_url('daily_activity/list_all'); ?>">List Activity</a>
+            </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+            var key = 'sb_daily_activity_open';
+            var group = document.getElementById('daily-activity-group');
+            var btn = document.getElementById('daily-activity-toggle');
+            var parentLink = document.getElementById('daily-activity-parent');
+            var box = document.getElementById('daily-activity-submenu');
+            if(!btn || !box) return;
+            function setOpen(open){
+                box.style.display = open ? 'block' : 'none';
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                btn.classList.toggle('rot', open);
+                if (group) { group.classList.toggle('open', open); }
+                try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
+            }
+            var saved = null;
+            try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
+            var open = (saved === '1') || <?php echo $active==='daily_activity' ? 'true' : 'false'; ?>;
+            setOpen(open);
+            function toggle(){ setOpen(!(box.style.display !== 'none')); }
+            btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+        })();
+      </script>
+      <?php endif; ?>
+      <?php if((int)$this->session->userdata('role_id') === 8 || (function_exists('has_module_access') && has_module_access('superadmin'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
+      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
       <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
@@ -30,6 +75,60 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php if(function_exists('has_module_access') && has_module_access('chats')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='chats'?'active':''; ?>" href="<?php echo site_url('chats/app'); ?>"><i class="bi bi-chat-dots me-2"></i>Chats</a>
       <?php endif; ?>
+
+      <?php 
+      $recruitment_show = (isset($is_admin) && $is_admin) || (function_exists('has_module_access') && (
+          has_module_access('recruitment') || 
+          has_module_access('recruitment_jobs') || 
+          has_module_access('recruitment_candidates')
+      ));
+      ?>
+      <?php if($recruitment_show): ?>
+      <div class="nav-item" id="recruitment-group">
+        <div class="d-flex align-items-center justify-content-between">
+            <a id="recruitment-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['recruitment']) ? 'active' : ''; ?>" href="<?php echo site_url('recruitment'); ?>">
+                <i class="bi bi-person-plus me-2"></i>Recruitment
+            </a>
+            <button id="recruitment-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="recruitment-submenu" title="Toggle">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="recruitment-submenu">
+            <div class="submenu-list">
+                <a class="submenu-link <?php echo ($active==='recruitment' && (!$active_sub || $active_sub==='jobs'))?'active':''; ?>" href="<?php echo site_url('recruitment'); ?>">Jobs</a>
+                <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='candidates')?'active':''; ?>" href="<?php echo site_url('recruitment/candidates'); ?>">Candidates</a>
+            </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+            var key = 'sb_recruitment_open';
+            var group = document.getElementById('recruitment-group');
+            var btn = document.getElementById('recruitment-toggle');
+            var parentLink = document.getElementById('recruitment-parent');
+            var box = document.getElementById('recruitment-submenu');
+            if(!btn || !box) return;
+            function setOpen(open){
+                box.style.display = open ? 'block' : 'none';
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                btn.classList.toggle('rot', open);
+                if (group) { group.classList.toggle('open', open); }
+                try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
+            }
+            var saved = null;
+            try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
+            var open = (saved === '1') || <?php echo $active==='recruitment' ? 'true' : 'false'; ?>;
+            setOpen(open);
+            function toggle(){ setOpen(!(box.style.display !== 'none')); }
+            btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
+        })();
+      </script>
+      <?php endif; ?>
+
+      <?php if((isset($is_admin) && $is_admin) || (function_exists('has_module_access') && has_module_access('performance'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='performance'?'active':''; ?>" href="<?php echo site_url('performance'); ?>"><i class="bi bi-award me-2"></i>Performance</a>
+      <?php endif; ?>
       <?php
       $user_group_show = function_exists('has_module_access') && (
         has_module_access('users') ||
@@ -37,7 +136,6 @@ if (!(int)$this->session->userdata('user_id')) {
         has_module_access('attendance') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
-        has_module_access('permissions') ||
         has_module_access('permissions') ||
         has_module_access('assets_mgmt') ||
         has_module_access('shifts')
@@ -61,7 +159,7 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php if(function_exists('has_module_access') && has_module_access('users_add')): ?>
             <a class="submenu-link" href="<?php echo site_url('users/create'); ?>"><i class="bi bi-person-plus me-2"></i>Add User</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('roles') || has_module_access('permissions'))): ?>
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('assets_mgmt')): ?>
@@ -176,8 +274,10 @@ if (!(int)$this->session->userdata('user_id')) {
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($seg1==='leave' && ($seg2==='' || $seg2===null || $seg2==='apply')) ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">Apply Leave</a>
             <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='my') ? 'active' : ''; ?>" href="<?php echo site_url('leave/my'); ?>">My Leaves</a>
-            <?php if(function_exists('is_admin_group') && is_admin_group()): ?>
+            <?php if((function_exists('is_admin_group') && is_admin_group()) || (function_exists('has_module_access') && has_module_access('leave_team'))): ?>
             <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='team') ? 'active' : ''; ?>" href="<?php echo site_url('leave/team'); ?>">Team Leaves</a>
+            <?php endif; ?>
+            <?php if((function_exists('is_admin_group') && is_admin_group()) || (function_exists('has_module_access') && has_module_access('leave_calendar'))): ?>
             <a class="submenu-link <?php echo ($seg1==='leave' && $seg2==='calendar') ? 'active' : ''; ?>" href="<?php echo site_url('leave/calendar'); ?>">Leave Calendar</a>
             <?php endif; ?>
           </div>
@@ -272,6 +372,9 @@ if (!(int)$this->session->userdata('user_id')) {
         })();
       </script>
       <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>
+      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
       <?php endif; ?>
@@ -311,6 +414,9 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('reports_attendance_employee')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='attendance-employee')?'active':''; ?>" href="<?php echo site_url('reports/attendance-employee'); ?>">Employee Attendance</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('daily_activity_report')): ?>
+            <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='daily_activity')?'active':''; ?>" href="<?php echo site_url('reports/daily_activity'); ?>">Daily Activity Log</a>
             <?php endif; ?>
           </div>
         </div>
@@ -373,8 +479,10 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
             <a class="submenu-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('settings') || has_module_access('admin'))): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('holidays') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
@@ -382,6 +490,9 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
             <a class="submenu-link <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('approvals')): ?>
+            <a class="submenu-link <?php echo $active==='approvals'?'active':''; ?>" href="<?php echo site_url('approvals'); ?>"><i class="bi bi-diagram-2 me-2"></i>Approval Workflows</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
             <a class="submenu-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
@@ -423,7 +534,7 @@ if (!(int)$this->session->userdata('user_id')) {
           }
           var saved = null;
           try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts']) ? 'true' : 'false'; ?>;
+          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals']) ? 'true' : 'false'; ?>;
           setOpen(open);
           function toggle(){ setOpen(!(box.style.display !== 'none')); }
           btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });

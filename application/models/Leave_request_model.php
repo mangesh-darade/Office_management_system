@@ -41,6 +41,14 @@ class Leave_request_model extends CI_Model {
         return $this->db->get()->result();
     }
 
+    public function update_status($id, $status) {
+        $this->db->where('id', (int)$id)->update('leave_requests', [
+            'status' => $status,
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
+        return $this->db->affected_rows() > 0;
+    }
+
     public function approve_reject_leave($id, $status, $comments, $approved_by){
         // Placeholder for Phase 2 (multi-level approval)
         $id = (int)$id;
@@ -70,6 +78,7 @@ class Leave_request_model extends CI_Model {
             'decision' => ($status === 'rejected' ? 'rejected' : 'approved'),
             'remarks' => (string)$comments,
         ]);
+
 
         // Check if this is a WFH request (by checking reason prefix or leave type name)
         $is_wfh = false;
@@ -153,6 +162,18 @@ class Leave_request_model extends CI_Model {
         }
 
         return true;
+    }
+
+    public function add_approval_log($leave_id, $decision, $remarks, $approver_id) {
+        $this->db->insert('leave_approvals', [
+            'leave_id' => (int)$leave_id,
+            'approver_id' => (int)$approver_id,
+            'level' => 'system', 
+            'decision' => $decision,
+            'remarks' => $remarks,
+            'decided_at' => date('Y-m-d H:i:s')
+        ]);
+        return $this->db->insert_id();
     }
     
     /**

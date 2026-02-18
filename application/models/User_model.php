@@ -11,6 +11,9 @@ class User_model extends CI_Model {
     }
 
     private function ensure_schema(){
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         if ($this->db->table_exists($this->table)){
             if (!$this->db->field_exists('notify_attendance', $this->table)){
                 $this->db->query("ALTER TABLE `".$this->table."` ADD `notify_attendance` TINYINT(1) NOT NULL DEFAULT 1");
@@ -76,6 +79,22 @@ class User_model extends CI_Model {
      * List users with optional simple search by name/email. Limit default 250.
      * Optionally restrict to specific role IDs when $roleIds is a non-empty array.
      */
+    /**
+     * Get all users, useful for dropdowns
+     */
+    public function get_all($limit = 1000){
+        $this->db->from($this->table);
+        if ($this->db->field_exists('status', $this->table)){
+            $this->db->where('status !=', 'inactive');
+        }
+        if ($this->db->field_exists('first_name', $this->table)){
+            $this->db->order_by('first_name', 'ASC');
+        } else {
+            $this->db->order_by('name', 'ASC');
+        }
+        return $this->db->get()->result();
+    }
+
     public function list_users($q = '', $limit = 250, $roleIds = null, $userId = null){
         $this->db->from($this->table);
         // Hide soft-deleted users from the grid if status column exists

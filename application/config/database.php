@@ -79,11 +79,6 @@ $db['default'] = array(
 	'username' => 'root',
 	'password' => '',
 	'database' => 'official_internal_portel',
-	
-	// 'hostname' => '65.2.59.101',
-	// 'username' => 'sitadmin_Magicwe_ankita_11_nov',
-	// 'password' => 'sitadmin_Magicwe_ankita_11_nov',
-	// 'database' => 'sitadmin_Magicwe_ankita_11_nov',
 
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
@@ -98,5 +93,5 @@ $db['default'] = array(
 	'compress' => FALSE,
 	'stricton' => FALSE,
 	'failover' => array(),
-	'save_queries' => TRUE
+	'save_queries' => (ENVIRONMENT !== 'production')
 );

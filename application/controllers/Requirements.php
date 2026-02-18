@@ -246,7 +246,7 @@ class Requirements extends CI_Controller {
             // attachments (optional)
             if (!empty($_FILES['attachments']['name'][0])){
                 $upload_path = FCPATH.'uploads/requirements/';
-                if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+                if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $config = [
                     'upload_path' => $upload_path,
                     'allowed_types' => 'pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|zip',

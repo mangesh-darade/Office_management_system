@@ -219,11 +219,13 @@
                   </td>
                   <td class="pe-4">
                     <div class="d-flex justify-content-center gap-1">
+                      <?php if(function_exists('has_module_access') && (has_module_access('users_edit') || has_module_access('users'))): ?>
                       <a href="<?php echo site_url('users/edit/'.(int)$r->id); ?>" 
                          class="btn btn-sm btn-outline-primary btn-icon" 
                          data-bs-toggle="tooltip" title="Edit User">
                         <i class="bi bi-pencil"></i>
                       </a>
+                      <?php endif; ?>
                       <a href="<?php echo site_url('users/view/'.(int)$r->id); ?>" 
                          class="btn btn-sm btn-outline-info btn-icon" 
                          data-bs-toggle="tooltip" title="View Details">

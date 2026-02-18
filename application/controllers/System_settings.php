@@ -20,13 +20,17 @@ class System_settings extends CI_Controller {
         
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        $has_system_settings = function_exists('has_module_access') && has_module_access('system_settings');
         
-        if (!$is_admin) {
-            show_error('Admin access required', 403);
+        if (!$is_admin && !$has_system_settings) {
+            show_error('You do not have permission to access System Settings.', 403);
         }
     }
 
     private function ensure_schema() {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         // Create system_settings table
         if (!$this->db->table_exists('system_settings')) {
             $sql = "CREATE TABLE `system_settings` (
@@ -428,7 +432,7 @@ class System_settings extends CI_Controller {
             'payroll' => 'Payroll'
         ];
         
-        $enabled_modules = explode(',', $ui_settings['success_screen_modules'] ?? '');
+        $enabled_modules = explode(',', isset($ui_settings['success_screen_modules']) ? $ui_settings['success_screen_modules'] : '');
         
         $this->load->view('system_settings/success_screen', [
             'ui_settings' => $ui_settings,

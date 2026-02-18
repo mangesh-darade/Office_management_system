@@ -6,9 +6,24 @@ class Reports extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->helper(['url','permission']);
+        $this->load->library('session');
         $this->load->model('Report_model');
         if ($this->db->table_exists('settings')) {
             $this->load->model('Setting_model', 'settings');
+        }
+        
+        // Authentication check
+        if (!(int)$this->session->userdata('user_id')) {
+            if ($this->input->is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            redirect('auth/login');
+        }
+        // Permission check - allow access if user has reports OR any specific report sub-permission
+        if (function_exists('has_module_access') && !has_module_access('reports') && !has_module_access('reports_overview') && !has_module_access('reports_daily_activity')) {
+            show_error('You do not have permission to access Reports.', 403);
         }
     }
 
@@ -604,6 +619,101 @@ class Reports extends CI_Controller {
         
         fclose($output);
         exit;
+    }
+
+    // GET /reports/daily-activity
+    public function daily_activity()
+    {
+         $role_id = (int)$this->session->userdata('role_id');
+         if ($role_id !== 1 && function_exists('has_module_access') && !has_module_access('daily_activity_report') && !has_module_access('reports_daily_activity') && !has_module_access('reports')) {
+             show_error('You do not have permission to access Daily Activity Reports.', 403);
+             return;
+         }
+
+         // Filters
+        $filters = [
+            'user_id' => $this->input->get('user_id'),
+            'date_from' => $this->input->get('date_from'),
+            'date_to' => $this->input->get('date_to'),
+            'period' => $this->input->get('period'),
+        ];
+        
+        // Handle Period Shortcuts
+        if($filters['period']) {
+            switch($filters['period']) {
+                case 'daily':
+                    $filters['date_from'] = date('Y-m-d');
+                    $filters['date_to'] = date('Y-m-d');
+                    break;
+                case 'weekly':
+                    $filters['date_from'] = date('Y-m-d', strtotime('monday this week'));
+                    $filters['date_to'] = date('Y-m-d', strtotime('sunday this week'));
+                    break;
+                case 'monthly':
+                    $filters['date_from'] = date('Y-m-01');
+                    $filters['date_to'] = date('Y-m-t');
+                    break;
+            }
+        }
+        
+        $this->db->select('dl.*, t.title as task_title, u.name as user_name, u.email as user_email');
+        $this->db->from('daily_work_logs dl');
+        $this->db->join('tasks t', 't.id = dl.task_id', 'left');
+        $this->db->join('users u', 'u.id = dl.user_id', 'left');
+        
+        if (!empty($filters['user_id'])) {
+            $this->db->where('dl.user_id', $filters['user_id']);
+        }
+        if (!empty($filters['date_from'])) {
+            $this->db->where('dl.work_date >=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $this->db->where('dl.work_date <=', $filters['date_to']);
+        }
+        
+        // Scope Check
+        $currentUserId = (int)$this->session->userdata('user_id');
+        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group()) || (int)$this->session->userdata('role_id') === 1;
+        if (!$isAdminGroup) {
+             // Non-admins can only see their own report? Or maybe team's?
+             // Let's restrict to self for now unless they are a manager/lead (which is covered by is_admin_group mostly)
+             // If is_admin_group is true, they usually see all.
+             $this->db->where('dl.user_id', $currentUserId);
+        }
+
+        // Show latest entries first
+        $this->db->order_by('dl.created_at', 'DESC');
+        $rows = $this->db->get()->result();
+
+         // Users for filter
+        $users = [];
+        if ($isAdminGroup) {
+             $users = $this->db->select('id, name, email')->from('users')->order_by('name')->get()->result();
+        }
+
+        // Build summary stats
+        $total_entries = count($rows);
+        $unique_users = [];
+        $unique_dates = [];
+        $unique_tasks = [];
+        foreach ($rows as $r) {
+            $unique_users[$r->user_id] = true;
+            $unique_dates[$r->work_date] = true;
+            if (!empty($r->task_id)) { $unique_tasks[$r->task_id] = true; }
+        }
+
+        $this->load->view('reports/daily_activity', [
+            'rows' => $rows,
+            'filters' => $filters,
+            'users' => $users,
+            'is_admin' => $isAdminGroup,
+            'stats' => [
+                'total_entries' => $total_entries,
+                'unique_users' => count($unique_users),
+                'unique_dates' => count($unique_dates),
+                'unique_tasks' => count($unique_tasks),
+            ]
+        ]);
     }
 
     // GET /reports/projects-status
@@ -1483,40 +1593,7 @@ class Reports extends CI_Controller {
             error_log("Attendance count for user $user_id from $from to $to: $attendanceCount");
             error_log("Check-in column detected: " . ($checkInCol ? $checkInCol : 'None'));
             
-            if ($attendanceCount == 0) {
-                // Create sample data for user_id 9 in November 2025
-                if ($user_id == 9 && $month == '2025-11') {
-                    error_log("Creating sample data for user_id 9 in November 2025");
-                    $sampleData = [
-                        ['2025-11-01', 'present', '09:15:00'],
-                        ['2025-11-02', 'present', '09:45:00'],
-                        ['2025-11-03', 'work_from_home', '09:10:00'],
-                        ['2025-11-04', 'present', '10:30:00'],
-                        ['2025-11-05', 'half_day', '09:20:00'],
-                        ['2025-11-06', 'present', '09:05:00'],
-                        ['2025-11-07', 'absent', null],
-                        ['2025-11-08', 'present', '09:25:00'],
-                        ['2025-11-09', 'present', '09:40:00'],
-                        ['2025-11-10', 'work_from_home', '09:00:00'],
-                    ];
-                    
-                    foreach ($sampleData as $data) {
-                        $insertData = [
-                            $userCol => $user_id,
-                            $dateCol => $data[0],
-                            $statusCol => $data[1],
-                            'created_at' => date('Y-m-d H:i:s')
-                        ];
-                        
-                        if ($checkInCol && $data[2]) {
-                            $insertData[$checkInCol] = $data[0] . ' ' . $data[2];
-                        }
-                        
-                        $this->db->insert('attendance', $insertData);
-                        error_log("Inserted sample data: " . json_encode($insertData));
-                    }
-                }
-            }
+
 
             // Detect check-out column
             $checkOutCol = null;

@@ -7,10 +7,25 @@ class MY_Exceptions extends CI_Exceptions {
      * Override show_error to use custom 403 page
      */
     public function show_error($heading, $message, $template = 'error_general', $status_code = 500) {
-        // If it's a 403 error, use our custom view
         if ($status_code == 403) {
-            // Always use the fallback HTML to ensure it displays
-            // This works even if CI is not fully loaded
+            // Admin (role_id 1) should NEVER see 403 - redirect to dashboard as safety net
+            // Guard: get_instance() is only safe after CI_Controller is loaded
+            if (class_exists('CI_Controller', false) && function_exists('get_instance')) {
+                $CI =& get_instance();
+                if (is_object($CI) && isset($CI->session) && is_object($CI->session)) {
+                    $role_id = (int)$CI->session->userdata('role_id');
+                    if ($role_id === 1) {
+                        $base = '';
+                        if (isset($CI->config)) {
+                            $base = rtrim($CI->config->item('base_url'), '/');
+                        }
+                        if (!headers_sent()) {
+                            header('Location: ' . $base . '/dashboard');
+                        }
+                        exit;
+                    }
+                }
+            }
             $this->show_custom_403();
             exit;
         }

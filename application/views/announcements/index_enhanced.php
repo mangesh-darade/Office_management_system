@@ -185,8 +185,8 @@ $stats = [
                     'medium' => '🟡',
                     'high' => '🔴'
                 ];
-                $color = $priority_colors[$r->priority] ?? 'secondary';
-                $icon = $priority_icons[$r->priority] ?? '⚪';
+                $color = isset($priority_colors[$r->priority]) ? $priority_colors[$r->priority] : 'secondary';
+                $icon = isset($priority_icons[$r->priority]) ? $priority_icons[$r->priority] : '⚪';
                 ?>
                 <span class="badge bg-<?php echo $color; ?> bg-opacity-10 text-<?php echo $color; ?> border">
                   <?php echo $icon; ?> <?php echo ucfirst($r->priority); ?>
@@ -208,8 +208,8 @@ $stats = [
                     'expired' => '📦',
                     'archived' => '📁'
                 ];
-                $color = $status_colors[$r->status] ?? 'secondary';
-                $icon = $status_icons[$r->status] ?? '📄';
+                $color = isset($status_colors[$r->status]) ? $status_colors[$r->status] : 'secondary';
+                $icon = isset($status_icons[$r->status]) ? $status_icons[$r->status] : '📄';
                 ?>
                 <span class="badge bg-<?php echo $color; ?> bg-opacity-10 text-<?php echo $color; ?> border">
                   <?php echo $icon; ?> <?php echo ucfirst($r->status); ?>
@@ -242,7 +242,7 @@ $stats = [
                     '2' => '👨‍💼 Manager',
                     '1,2' => '🎯 Admin+Mgr'
                 ];
-                $label = $target_labels[$r->target_roles] ?? '👥 All';
+                $label = isset($target_labels[$r->target_roles]) ? $target_labels[$r->target_roles] : '👥 All';
                 ?>
                 <span class="badge bg-light text-dark"><?php echo $label; ?></span>
               </td>

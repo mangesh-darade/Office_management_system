@@ -6,10 +6,14 @@ class Leave_requests extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->library(['session','email']);
-        $this->load->helper(['url','form','workday','group_filter','company']);
+        $this->load->helper(['url','form','workday','group_filter','company','permission']);
         $this->load->model('Leave_request_model','leaves');
         // Require login
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        // Require leave_requests permission when permission system is in use
+        if (function_exists('has_module_access') && !has_module_access('leave_requests')) {
+            show_error('You do not have permission to access Leave Management.', 403);
+        }
     }
 
     // GET/POST /leave/apply
@@ -132,6 +136,8 @@ class Leave_requests extends CI_Controller {
                 $this->db->trans_start();
 
                 $leave_ids = [];
+                $this->load->model('Approval_model');
+
                 foreach ($perDateDays as $d => $wd) {
                     $data = [
                         'user_id' => $user_id,
@@ -140,15 +146,30 @@ class Leave_requests extends CI_Controller {
                         'end_date' => $d,
                         'days' => $wd,
                         'reason' => $reason,
-                        'status' => STATUS_PENDING,
-                        'current_approver_id' => $approver_id,
+                        'status' => 'pending',
+                        'current_approver_id' => $approver_id, // Legacy field, usage may change
                         'manager_id' => $selected_admin_id, // Store manager/admin ID
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];
                     $leave_id = $this->leaves->apply_leave($data);
+                    
                     if ($leave_id) {
                         $leave_ids[] = $leave_id;
+                        
+                        // Initiate Approval Workflow
+                        $approval = $this->Approval_model->initiate_approval('leave', $leave_id, $user_id);
+                        
+                        // If auto-approved (no flow linked) or first step defined
+                        if ($approval && isset($approval['status'])) {
+                            if ($approval['status'] === 'approved') {
+                                // Auto-approve logic
+                                $this->leaves->update_status($leave_id, 'approved'); 
+                            }
+                            // If pending, the Approval_model created a request. 
+                            // Only update 'current_approver_id' in leave table if we want to sync it. 
+                            // For now, let's keep status as 'pending'.
+                        }
                     } else {
                         // Rollback on failure
                         $this->db->trans_rollback();
@@ -291,7 +312,6 @@ class Leave_requests extends CI_Controller {
                 $this->db->query("ALTER TABLE leave_requests ADD COLUMN manager_id BIGINT UNSIGNED NULL AFTER current_approver_id");
             }
 
-            // Insert
             $data = [
                 'user_id' => $user_id,
                 'type_id' => $type_id,
@@ -300,15 +320,23 @@ class Leave_requests extends CI_Controller {
                 'days' => $days,
                 'reason' => $reason,
                 'status' => 'pending',
-                'current_approver_id' => $approver_id,
+                'current_approver_id' => $approver_id, // Legacy
                 'manager_id' => $selected_admin_id, // Store manager/admin ID
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
             $id = $this->leaves->apply_leave($data);
 
-            // Send email notifications
             if ($id) {
+                // Initiate Approval Workflow
+                $this->load->model('Approval_model');
+                $approval = $this->Approval_model->initiate_approval('leave', $id, $user_id);
+                
+                if ($approval && isset($approval['status']) && $approval['status'] === 'approved') {
+                    $this->leaves->update_status($id, 'approved');
+                }
+                
+                // Send email notifications
                 $this->_notify_leave_applied([$id], $user_id, $type_id, $selected_lead_id, $selected_admin_id);
             }
 
@@ -426,19 +454,30 @@ class Leave_requests extends CI_Controller {
     public function team(){
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
+        $has_team_perm = function_exists('has_module_access') && has_module_access('leave_team');
+        if (!in_array($role_id, [1,2,3], true) && !$has_team_perm) { show_error('Forbidden', 403); }
+
+        // 1. Get Actionable Leaves (where current user is the approver)
+        $this->load->model('Approval_model');
+        $pending_reqs = $this->Approval_model->get_pending_requests_for_user($user_id);
+        $actionable_ids = [];
+        $approval_request_map = []; // Map leave_id -> approval_request_id
+        foreach ($pending_reqs as $pr) {
+            if ($pr->module === 'leave') {
+                $actionable_ids[] = (int)$pr->module_record_id;
+                $approval_request_map[(int)$pr->module_record_id] = (int)$pr->id;
+            }
+        }
 
         // Select query with lead information
         $this->db->select('lr.*, lr.user_id, lt.name AS type_name, 
                           u.email AS user_email, u.name AS user_name, u.role_id AS user_role_id,
                           e.department AS emp_department, e.first_name AS emp_first_name, e.last_name AS emp_last_name,
-                          lead_user.email AS lead_email, lead_user.name AS lead_name,
                           (SELECT la.remarks FROM leave_approvals la WHERE la.leave_id = lr.id ORDER BY la.decided_at DESC LIMIT 1) AS latest_remarks')
                  ->from('leave_requests lr')
                  ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                  ->join('users u', 'u.id = lr.user_id', 'left') // Applied user
-                 ->join('employees e', 'e.user_id = lr.user_id', 'left') // Applied user employee info
-                 ->join('users lead_user', 'lead_user.id = lr.current_approver_id', 'left'); // Lead user
+                 ->join('employees e', 'e.user_id = lr.user_id', 'left'); // Applied user employee info
         
         // For Manager role, add department join if needed
         if ($role_id === 2 && $this->db->table_exists('departments')) {
@@ -448,31 +487,34 @@ class Leave_requests extends CI_Controller {
         // Build where conditions based on role
         if ($role_id === 1) {
             // Admin: Always show all leave requests
-            // No additional where condition needed
         } elseif ($role_id === 3) {
-            // Lead: Show leaves where they are the assigned lead (current_approver_id) OR leaves from admin users
+            // Lead: Show leaves where they are actionable OR they are the assigned legacy lead
             $this->db->group_start();
-            $this->db->where('lr.current_approver_id', $user_id); // Leaves assigned to this lead
-            $this->db->or_where('u.role_id', 1); // Always show admin users' leaves
+            if (!empty($actionable_ids)) {
+                 $this->db->where_in('lr.id', $actionable_ids);
+            }
+            $this->db->or_where('lr.current_approver_id', $user_id); // Legacy
+            $this->db->or_where('u.role_id', 1); // View admin leaves
             $this->db->group_end();
         } elseif ($role_id === 2) {
-            // Manager: Show leaves where manager_id matches OR leaves from admin users OR department employees
+            // Manager: Show actionable OR department leaves
             $conditions = [];
             
+            if (!empty($actionable_ids)) {
+                $conditions[] = 'lr.id IN (' . implode(',', $actionable_ids) . ')';
+            }
+
             // Leaves assigned to this manager (if manager_id field exists)
             if ($this->db->field_exists('manager_id', 'leave_requests')) {
                 $conditions[] = 'lr.manager_id = ' . (int)$user_id;
             }
             
-            // Always show admin users' leaves
             $conditions[] = 'u.role_id = 1';
             
-            // Department employees (if departments table exists)
             if ($this->db->table_exists('departments')) {
                 $conditions[] = '(d.manager_id = ' . (int)$user_id . ' AND e.department IS NOT NULL)';
             }
             
-            // Combine all conditions with OR
             if (!empty($conditions)) {
                 $this->db->where('(' . implode(' OR ', $conditions) . ')', null, false);
             }
@@ -485,8 +527,18 @@ class Leave_requests extends CI_Controller {
         $to = $this->input->get('to');
         if ($from) { $this->db->where('lr.start_date >=', $from); }
         if ($to) { $this->db->where('lr.end_date <=', $to); }
+        
+        // Force actionable items to top if status is blank or pending
+        $this->db->order_by('lr.status', 'ASC'); // Pending first usually
         $this->db->order_by('lr.start_date','DESC');
+        
         $rows = $this->db->get()->result();
+
+        // Inject actionable flag and approval_request_id
+        foreach ($rows as &$r) {
+            $r->is_actionable = in_array((int)$r->id, $actionable_ids);
+            $r->approval_request_id = isset($approval_request_map[$r->id]) ? $approval_request_map[$r->id] : null;
+        }
 
         $this->load->view('leave_requests/team', [
             'rows' => $rows,
@@ -498,17 +550,44 @@ class Leave_requests extends CI_Controller {
     // POST /leave/approve/{id}
     public function approve($id){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
+        $has_approve_perm = function_exists('has_module_access') && has_module_access('leave_approve');
+        if (!in_array($role_id, [1,2,3], true) && !$has_approve_perm) { show_error('Forbidden', 403); }
         if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
         $approved_by = (int)$this->session->userdata('user_id');
 
-        // Update leave and add approval row
-        $ok = $this->leaves->approve_reject_leave($id, 'lead_approved', $comments, $approved_by);
+        $this->load->model('Approval_model');
+        
+        // Check for Workflow
+        $approval_req = $this->Approval_model->get_pending_request('leave', $id);
+        
+        if ($approval_req) {
+            // Use Workflow Engine
+            // Check if user is allowed to approve this specific request
+            if (!$this->Approval_model->can_user_approve($approval_req->id, $approved_by)) {
+                $this->session->set_flashdata('error', 'You are not the designated approver for the current step.');
+                redirect('leave/team');
+                return;
+            }
 
-        // Email notify requester (best-effort)
-        $this->_notify_leave_change($id, 'approved', $comments);
+            $result = $this->Approval_model->approve_request($approval_req->id, $approved_by, $comments);
+            
+            if ($result === 'approved') {
+                // Final Approval
+                $this->leaves->update_status($id, 'approved');
+                $this->leaves->add_approval_log($id, 'approved', $comments, $approved_by); // Keep legacy log
+                $this->_notify_leave_change($id, 'approved', $comments);
+            } elseif ($result === 'pending_next_approval') {
+                // Moved to next step
+                // Ideally update 'current_approver_id' but complex to find who that is without logic
+                $this->leaves->add_approval_log($id, 'step_approved', $comments, $approved_by);
+            }
+        } else {
+            // Legacy Logic
+            $ok = $this->leaves->approve_reject_leave($id, 'lead_approved', $comments, $approved_by);
+            $this->_notify_leave_change($id, 'approved', $comments);
+        }
 
         $this->load->helper('notification');
         $success_msg = get_notification_message('leave_requests', 'approve', 'success');
@@ -519,14 +598,37 @@ class Leave_requests extends CI_Controller {
     // POST /leave/reject/{id}
     public function reject($id){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
+        $has_approve_perm = function_exists('has_module_access') && has_module_access('leave_approve');
+        if (!in_array($role_id, [1,2,3], true) && !$has_approve_perm) { show_error('Forbidden', 403); }
         if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
         $approved_by = (int)$this->session->userdata('user_id');
 
-        $ok = $this->leaves->approve_reject_leave($id, 'rejected', $comments, $approved_by);
-        $this->_notify_leave_change($id, 'rejected', $comments);
+        $this->load->model('Approval_model');
+        
+        // Check for Workflow
+        $approval_req = $this->Approval_model->get_pending_request('leave', $id);
+
+        if ($approval_req) {
+            // Use Workflow Engine
+             if (!$this->Approval_model->can_user_approve($approval_req->id, $approved_by)) {
+                $this->session->set_flashdata('error', 'You are not the designated approver.');
+                redirect('leave/team');
+                return;
+            }
+            
+            $this->Approval_model->reject_request($approval_req->id, $approved_by, $comments);
+            $this->leaves->update_status($id, 'rejected');
+            $this->leaves->add_approval_log($id, 'rejected', $comments, $approved_by);
+            $this->_notify_leave_change($id, 'rejected', $comments);
+
+        } else {
+            // Legacy Logic
+            $ok = $this->leaves->approve_reject_leave($id, 'rejected', $comments, $approved_by);
+            $this->_notify_leave_change($id, 'rejected', $comments);
+        }
+
         $this->load->helper('notification');
         $success_msg = get_notification_message('leave_requests', 'reject', 'success');
         $this->session->set_flashdata('success', $success_msg);
@@ -536,7 +638,8 @@ class Leave_requests extends CI_Controller {
     // GET /leave/calendar
     public function calendar(){
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1,2,3], true)) { show_error('Forbidden', 403); }
+        $has_calendar_perm = function_exists('has_module_access') && has_module_access('leave_calendar');
+        if (!in_array($role_id, [1,2,3], true) && !$has_calendar_perm) { show_error('Forbidden', 403); }
         $user_id = (int)$this->session->userdata('user_id');
 
         $ym = $this->input->get('month'); // format YYYY-MM
@@ -575,10 +678,11 @@ class Leave_requests extends CI_Controller {
         ]);
     }
 
-    // GET/POST /leave/edit/{id} - Edit leave request (Admin only)
+    // GET/POST /leave/edit/{id} - Edit leave request (Admin or with leaves_edit permission)
     public function edit($id){
         $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== 1) { show_error('Forbidden - Admin only', 403); }
+        $has_edit_perm = function_exists('has_module_access') && has_module_access('leaves_edit');
+        if ($role_id !== 1 && !$has_edit_perm) { show_error('Forbidden - Admin only', 403); }
         
         $id = (int)$id;
         $leave = $this->db->get_where('leave_requests', ['id' => $id])->row();
@@ -638,10 +742,11 @@ class Leave_requests extends CI_Controller {
         ]);
     }
     
-    // POST /leave/delete/{id} - Delete leave request (Admin only)
+    // POST /leave/delete/{id} - Delete leave request (Admin or with leaves_delete permission)
     public function delete($id){
         $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== 1) { show_error('Forbidden - Admin only', 403); }
+        $has_delete_perm = function_exists('has_module_access') && has_module_access('leaves_delete');
+        if ($role_id !== 1 && !$has_delete_perm) { show_error('Forbidden - Admin only', 403); }
         if ($this->input->method() !== 'post') { show_404(); }
         
         $id = (int)$id;
@@ -1002,10 +1107,22 @@ class Leave_requests extends CI_Controller {
             if (!empty($cc_list)) {
                 $this->email->cc($cc_list);
             }
-            @$this->email->send();
+            
+            // Log before sending
+            log_message('info', 'Sending leave status email. To: ' . $row->user_email . ', CC: ' . implode(',', $cc_list));
+            
+            $sent = $this->email->send();
+            if ($sent) {
+                log_message('info', 'Leave status email sent successfully to ' . $row->user_email);
+            } else {
+                log_message('error', 'Failed to send leave status email to ' . $row->user_email);
+                log_message('error', 'Email Debug: ' . $this->email->print_debugger());
+            }
         } catch (Exception $e) {
             // Silently fail - don't break the approval process
-            error_log('Leave approval email notification failed: ' . $e->getMessage());
+            log_message('error', 'Leave approval email notification failed: ' . $e->getMessage());
+        } catch (Error $e) {
+            log_message('error', 'Leave approval email notification error: ' . $e->getMessage());
         }
     }
 

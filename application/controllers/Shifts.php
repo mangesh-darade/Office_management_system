@@ -17,8 +17,7 @@ class Shifts extends CI_Controller {
     }
 
     public function index() {
-        // Permission check
-        if (!is_admin_group() && !has_module_access('shifts_view') && !has_module_access('settings')) {
+        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_view') && !has_module_access('settings')) {
             show_error('Access Denied', 403);
         }
 
@@ -27,8 +26,7 @@ class Shifts extends CI_Controller {
     }
 
     public function create() {
-        // Permission check
-        if (!is_admin_group() && !has_module_access('shifts_manage') && !has_module_access('settings')) {
+        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_manage') && !has_module_access('settings')) {
             show_error('Access Denied', 403);
         }
 
@@ -60,8 +58,7 @@ class Shifts extends CI_Controller {
     }
 
     public function edit($id) {
-        // Permission check
-        if (!is_admin_group() && !has_module_access('shifts_manage') && !has_module_access('settings')) {
+        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_manage') && !has_module_access('settings')) {
             show_error('Access Denied', 403);
         }
 
@@ -96,8 +93,9 @@ class Shifts extends CI_Controller {
     }
 
     public function delete($id) {
-        // Permission check
-        if (!is_admin_group() && !has_module_access('shifts_manage') && !has_module_access('settings')) {
+        if ($this->input->method() !== 'post') { show_404(); }
+
+        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_manage') && !has_module_access('settings')) {
             show_error('Access Denied', 403);
         }
         

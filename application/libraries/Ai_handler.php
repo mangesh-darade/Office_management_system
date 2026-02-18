@@ -101,9 +101,14 @@ class Ai_handler {
         ]);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $ssml);
 
-        // Disable SSL verification for development environments
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        // SSL verification: enable in production, disable only in development
+        if (ENVIRONMENT === 'production') {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        } else {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
 
         $audio = curl_exec($ch);
 
@@ -215,7 +220,8 @@ class Ai_handler {
         if (!empty($matches)) {
             // If the best match is very weak (< 0.5), we might be missing something. 
             // Append full schema if we are not confident.
-            $best_score = (float)array_key_first($matches);
+            reset($matches);
+            $best_score = (float)key($matches);
             if ($best_score < 0.5) {
                  return $this->get_full_schema_text();
             }
@@ -363,6 +369,38 @@ class Ai_handler {
         return ['type' => 'text', 'text' => $response];
     }
 
+    /**
+     * Validate that a SQL query is a safe SELECT-only query.
+     * Rejects INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, etc.
+     *
+     * @param string $sql
+     * @return bool
+     */
+    public function is_safe_select_query($sql) {
+        $sql = trim($sql);
+        $normalized = preg_replace('/\s+/', ' ', $sql);
+        $upper = strtoupper($normalized);
+
+        $dangerous = [
+            'INSERT ', 'UPDATE ', 'DELETE ', 'DROP ', 'ALTER ',
+            'TRUNCATE ', 'CREATE ', 'REPLACE ', 'RENAME ',
+            'GRANT ', 'REVOKE ', 'CALL ', 'EXEC ', 'EXECUTE ',
+            'LOAD ', 'INTO OUTFILE', 'INTO DUMPFILE',
+        ];
+
+        foreach ($dangerous as $keyword) {
+            if (strpos($upper, $keyword) !== false) {
+                return false;
+            }
+        }
+
+        if (strpos($upper, 'SELECT') !== 0) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function summarize_data($user_query, $data_result, $user_name = null) {
         if (empty($data_result)) {
             $greeting = $user_name ? "Hi {$user_name}, " : "";
@@ -424,7 +462,10 @@ class Ai_handler {
     }
 
     private function is_valid_response($res) {
-        return is_string($res) && !empty($res) && !isset($res['error']);
+        if (!is_string($res) || empty($res)) return false;
+        $decoded = json_decode($res, true);
+        if (is_array($decoded) && isset($decoded['error'])) return false;
+        return true;
     }
 
     // --- Provider Implementations ---
@@ -579,8 +620,14 @@ class Ai_handler {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+
+        if (ENVIRONMENT === 'production') {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        } else {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
         
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
@@ -780,9 +827,14 @@ class Ai_handler {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         
-        // Disable SSL verification for development environments
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        // SSL verification: enable in production, disable only in development
+        if (ENVIRONMENT === 'production') {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        } else {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
 
         $response = curl_exec($ch);
         

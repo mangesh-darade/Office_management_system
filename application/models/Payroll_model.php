@@ -12,6 +12,9 @@ class Payroll_model extends CI_Model {
     }
 
     private function ensure_schema(){
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         // Salary structures
         if (!$this->db->table_exists($this->table_struct)){
             $sql = "CREATE TABLE `{$this->table_struct}` (
@@ -27,6 +30,8 @@ class Payroll_model extends CI_Model {
                 `tds` decimal(10,2) NOT NULL DEFAULT 0,
                 `allowances` decimal(10,2) NOT NULL DEFAULT 0,
                 `deductions` decimal(10,2) NOT NULL DEFAULT 0,
+                `pf_percent` decimal(5,2) NOT NULL DEFAULT 0,
+                `esi_percent` decimal(5,2) NOT NULL DEFAULT 0,
                 `created_at` datetime DEFAULT NULL,
                 `updated_at` datetime DEFAULT NULL,
                 PRIMARY KEY (`id`),
@@ -47,6 +52,8 @@ class Payroll_model extends CI_Model {
             $addCol('special_allow', "`special_allow` decimal(10,2) NOT NULL DEFAULT 0 AFTER `education_allow`");
             $addCol('professional_tax', "`professional_tax` decimal(10,2) NOT NULL DEFAULT 0 AFTER `special_allow`");
             $addCol('tds', "`tds` decimal(10,2) NOT NULL DEFAULT 0 AFTER `professional_tax`");
+            $addCol('pf_percent', "`pf_percent` decimal(5,2) NOT NULL DEFAULT 0 AFTER `deductions`");
+            $addCol('esi_percent', "`esi_percent` decimal(5,2) NOT NULL DEFAULT 0 AFTER `pf_percent`");
         }
         // Payslips
         if (!$this->db->table_exists($this->table_payslips)){
@@ -62,6 +69,8 @@ class Payroll_model extends CI_Model {
                 `special_allow` decimal(10,2) NOT NULL DEFAULT 0,
                 `professional_tax` decimal(10,2) NOT NULL DEFAULT 0,
                 `tds` decimal(10,2) NOT NULL DEFAULT 0,
+                `pf_amount` decimal(10,2) NOT NULL DEFAULT 0,
+                `esi_amount` decimal(10,2) NOT NULL DEFAULT 0,
                 `allowances` decimal(10,2) NOT NULL DEFAULT 0,
                 `deductions` decimal(10,2) NOT NULL DEFAULT 0,
                 `gross` decimal(10,2) NOT NULL DEFAULT 0,
@@ -101,6 +110,8 @@ class Payroll_model extends CI_Model {
             $addCol('special_allow', "`special_allow` decimal(10,2) NOT NULL DEFAULT 0 AFTER `education_allow`");
             $addCol('professional_tax', "`professional_tax` decimal(10,2) NOT NULL DEFAULT 0 AFTER `special_allow`");
             $addCol('tds', "`tds` decimal(10,2) NOT NULL DEFAULT 0 AFTER `professional_tax`");
+            $addCol('pf_amount', "`pf_amount` decimal(10,2) NOT NULL DEFAULT 0 AFTER `tds`");
+            $addCol('esi_amount', "`esi_amount` decimal(10,2) NOT NULL DEFAULT 0 AFTER `pf_amount`");
             $addCol('payment_days', "`payment_days` decimal(6,2) DEFAULT NULL AFTER `location`");
             $addCol('present_days', "`present_days` decimal(6,2) DEFAULT NULL AFTER `payment_days`");
             $addCol('paid_leaves', "`paid_leaves` decimal(6,2) DEFAULT NULL AFTER `present_days`");
@@ -193,19 +204,30 @@ class Payroll_model extends CI_Model {
         $spec = isset($struct->special_allow) ? (float)$struct->special_allow : 0.0;
         $profTax = isset($struct->professional_tax) ? (float)$struct->professional_tax : 0.0;
         $tds = isset($struct->tds) ? (float)$struct->tds : 0.0;
+        // Specific allowances
+        $specificAllow = $conv + $med + $edu + $spec;
+        // Other allowances
+        $otherAllow = isset($struct->allowances) ? (float)$struct->allowances : 0.0;
+        
+        // Total Allowances (for Gross)
+        $totalAllow = $specificAllow + $otherAllow;
+        $gross = $basic + $hra + $totalAllow;
 
-        // If components are all zero but aggregate allowances/deductions exist, fallback
-        $allowSum = $conv + $med + $edu + $spec;
-        if ($allowSum <= 0 && isset($struct->allowances)){
-            $allowSum = (float)$struct->allowances;
-        }
-        $dedSum = $profTax + $tds;
-        if ($dedSum <= 0 && isset($struct->deductions)){
-            $dedSum = (float)$struct->deductions;
-        }
-
-        $gross = $basic + $hra + $allowSum;
-        $net = $gross - $dedSum;
+        // Calculate PF and ESI from salary structure
+        $pfPercent = isset($struct->pf_percent) ? (float)$struct->pf_percent : 0.0;
+        $esiPercent = isset($struct->esi_percent) ? (float)$struct->esi_percent : 0.0;
+        $pfAmount = ($pfPercent > 0) ? ($basic * $pfPercent / 100) : 0.0;
+        $esiAmount = ($esiPercent > 0) ? ($gross * $esiPercent / 100) : 0.0;
+        
+        // Specific deductions
+        $specificDed = $profTax + $tds + $pfAmount + $esiAmount;
+        // Other deductions
+        $otherDed = isset($struct->deductions) ? (float)$struct->deductions : 0.0;
+        
+        // Total Deductions (for Net)
+        $totalDed = $specificDed + $otherDed;
+        
+        $net = $gross - $totalDed;
         if ($net < 0) { $net = 0; }
 
         $data = [
@@ -217,8 +239,10 @@ class Payroll_model extends CI_Model {
             'special_allow' => $spec,
             'professional_tax' => $profTax,
             'tds' => $tds,
-            'allowances' => $allowSum,
-            'deductions' => $dedSum,
+            'pf_amount' => $pfAmount,
+            'esi_amount' => $esiAmount,
+            'allowances' => $otherAllow, // Other Allowances
+            'deductions' => $otherDed,   // Other Deductions
             'gross' => $gross,
             'net' => $net,
             'remarks' => $remarks,

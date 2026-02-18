@@ -60,6 +60,14 @@
           <label class="form-label">Other Deductions (Total)</label>
           <input type="number" step="0.01" name="deductions" class="form-control" value="<?php echo isset($row->deductions)?htmlspecialchars($row->deductions):''; ?>" />
         </div>
+        <div class="col-md-3">
+          <label class="form-label">PF Percentage (%)</label>
+          <input type="number" step="0.01" name="pf_percent" class="form-control" value="<?php echo isset($row->pf_percent)?htmlspecialchars($row->pf_percent):''; ?>" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">ESI Percentage (%)</label>
+          <input type="number" step="0.01" name="esi_percent" class="form-control" value="<?php echo isset($row->esi_percent)?htmlspecialchars($row->esi_percent):''; ?>" />
+        </div>
       </div>
       <div class="mt-3">
         <button type="submit" class="btn btn-primary">Save</button>

@@ -13,6 +13,16 @@ class Attendance extends CI_Controller {
         $this->load->model('Face_model', 'faces');
         $this->load->model('Setting_model', 'settings');
         $this->load->model('Holiday_model', 'holidays');
+        
+        // Authentication check
+        if (!(int)$this->session->userdata('user_id')) {
+            if ($this->input->is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            redirect('auth/login');
+        }
     }
 
     public function index() {
@@ -270,7 +280,7 @@ class Attendance extends CI_Controller {
     // Bulk operations for attendance
     public function bulk_operations() {
         // Check bulk operations permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('attendance_bulk')) {
+        if (!function_exists('has_module_access') || (!has_module_access('attendance_bulk') && !has_module_access('attendance'))) {
             show_error('You do not have permission to perform bulk operations on attendance.', 403);
         }
         
@@ -371,7 +381,7 @@ class Attendance extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('attendance_add')) {
+        if (!function_exists('has_module_access') || (!has_module_access('attendance_add') && !has_module_access('attendance'))) {
             show_error('You do not have permission to add attendance.', 403);
         }
         
@@ -1413,7 +1423,7 @@ class Attendance extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('attendance_edit')) {
+        if (!function_exists('has_module_access') || (!has_module_access('attendance_edit') && !has_module_access('attendance'))) {
             show_error('You do not have permission to edit attendance.', 403);
         }
         
@@ -1484,7 +1494,7 @@ class Attendance extends CI_Controller {
             // Optional new attachment
             if ($this->db->field_exists('attachment_path','attendance') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/attendance/';
-                if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+                if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $config = [
                     'upload_path' => $upload_path,
                     'allowed_types' => 'jpg|jpeg|png|pdf|doc|docx',
@@ -1517,7 +1527,7 @@ class Attendance extends CI_Controller {
     public function delete($id)
     {
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('attendance_delete')) {
+        if (!function_exists('has_module_access') || (!has_module_access('attendance_delete') && !has_module_access('attendance'))) {
             show_error('You do not have permission to delete attendance.', 403);
         }
         

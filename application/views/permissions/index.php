@@ -13,7 +13,7 @@
 
 <div class="card shadow-soft">
   <div class="card-body">
-    <form method="post" action="<?php echo site_url('permissions/save'); ?>">
+    <?php echo form_open('permissions/save'); ?>
       <div class="table-responsive">
         <?php
           $admin_roles = [];
@@ -115,7 +115,7 @@
       <div class="mt-3">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Permissions</button>
       </div>
-    </form>
+    <?php echo form_close(); ?>
   </div>
 </div>
 

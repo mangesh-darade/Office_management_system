@@ -12,8 +12,18 @@ class Install extends CI_Controller {
     // GET /install/schema
     public function schema()
     {
-        // Protect in production - you may want to restrict by IP or require login
-        // if (!ENVIRONMENT || ENVIRONMENT === 'production') show_error('Disabled in production', 403);
+        // Protect in production - only allow in development or for admin users
+        if (ENVIRONMENT === 'production') {
+            show_error('Schema installer is disabled in production.', 403);
+        }
+        // Require admin login when not in CLI
+        if (!$this->input->is_cli_request()) {
+            $this->load->library('session');
+            $role_id = (int)$this->session->userdata('role_id');
+            if ($role_id !== 1) {
+                show_error('Access denied. Only administrators can run the schema installer.', 403);
+            }
+        }
 
         $sql = $this->get_schema_sql();
         $errors = [];

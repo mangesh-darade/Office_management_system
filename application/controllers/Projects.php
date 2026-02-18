@@ -5,12 +5,25 @@ class Projects extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','group_filter']);
+        $this->load->helper(['url','form','group_filter','permission']);
         $this->load->library(['session']);
         $this->load->model('Project_model');
+        
+        // Authentication check
+        if (!(int)$this->session->userdata('user_id')) {
+            if ($this->input->is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Authentication required']);
+                exit;
+            }
+            redirect('auth/login');
+        }
     }
 
     public function index() {
+        if (function_exists('has_module_access') && !has_module_access('projects') && !has_module_access('projects_list')) {
+            show_error('You do not have permission to view projects.', 403);
+        }
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
         
@@ -31,7 +44,7 @@ class Projects extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('projects_add')) {
+        if (!function_exists('has_module_access') || (!has_module_access('projects_add') && !has_module_access('projects'))) {
             $this->session->set_flashdata('info', 'You do not have permission to add projects.');
             redirect('projects');
             return;
@@ -188,7 +201,52 @@ class Projects extends CI_Controller {
                 }
             }
             
-            $this->load->view('projects/view', ['project' => $project]);
+            // Fetch Tasks
+            $this->db->select('t.*, u.email as assignee_email, u.name as assignee_name');
+            $this->db->from('tasks t');
+            $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+            $this->db->where('t.project_id', (int)$id);
+            $this->db->order_by('t.id', 'DESC');
+            $tasks = $this->db->get()->result();
+
+            // Calculate Progress & Stats
+            $total_tasks = count($tasks);
+            $completed_tasks = 0;
+            $stats = ['pending' => 0, 'in_progress' => 0, 'completed' => 0, 'blocked' => 0];
+            
+            foreach ($tasks as $t) {
+                $status = $t->status ?: 'pending';
+                if (isset($stats[$status])) {
+                    $stats[$status]++;
+                } else {
+                    $stats['pending']++;
+                }
+                if ($status === 'completed') {
+                    $completed_tasks++;
+                }
+            }
+            $progress = ($total_tasks > 0) ? round(($completed_tasks / $total_tasks) * 100) : 0;
+
+            // Fetch Members
+            $this->load->model('Project_model');
+            $members = $this->Project_model->get_project_members($id);
+
+            // Fetch Requirements
+            $requirements = [];
+            if ($this->db->table_exists('requirements')) {
+                $requirements = $this->db->where('project_id', (int)$id)->get('requirements')->result();
+            }
+            
+            $data = [
+                'project' => $project,
+                'tasks' => $tasks,
+                'members' => $members,
+                'requirements' => $requirements,
+                'progress' => $progress,
+                'stats' => $stats
+            ];
+            
+            $this->load->view('projects/view', $data);
         } catch (Exception $e) {
             log_message('error', 'Project view error: ' . $e->getMessage());
             show_error('An error occurred while loading project details.', 500);
@@ -199,7 +257,7 @@ class Projects extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('projects_edit')) {
+        if (!function_exists('has_module_access') || (!has_module_access('projects_edit') && !has_module_access('projects'))) {
             show_error('You do not have permission to edit projects.', 403);
         }
         
@@ -299,7 +357,7 @@ class Projects extends CI_Controller {
     public function delete($id)
     {
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || !has_module_access('projects_delete')) {
+        if (!function_exists('has_module_access') || (!has_module_access('projects_delete') && !has_module_access('projects'))) {
             show_error('You do not have permission to delete projects.', 403);
         }
         

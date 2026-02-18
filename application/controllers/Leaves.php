@@ -5,12 +5,16 @@ class Leaves extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','download']);
+        $this->load->helper(['url','download','permission']);
         $this->load->library(['session','email']);
+        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         $this->load->model('Leave_model');
     }
 
     public function index() {
+        if (function_exists('has_module_access') && !has_module_access('leaves') && !has_module_access('leave_requests') && !has_module_access('leaves_list')) {
+            show_error('You do not have permission to access Leave.', 403);
+        }
         $this->load->view('leaves/index');
     }
 

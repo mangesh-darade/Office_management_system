@@ -93,6 +93,7 @@ if (!function_exists('send_task_notification')) {
      */
     function send_task_notification($to, $subject, $task, $action = 'created') {
         $CI =& get_instance();
+        $CI->email->clear(TRUE);
         configure_email_from_settings();
 
         // Configure email
@@ -123,6 +124,7 @@ if (!function_exists('send_multiple_tasks_notification')) {
      */
     function send_multiple_tasks_notification($to, $subject, $tasks, $action = 'created') {
         $CI =& get_instance();
+        $CI->email->clear(TRUE);
         configure_email_from_settings();
 
         // Configure email
@@ -546,5 +548,48 @@ if (!function_exists('get_user_tasks_by_priority')) {
         $CI->db->order_by('t.due_date', 'ASC');
         
         return $CI->db->get()->result();
+    }
+}
+if (!function_exists('send_dynamic_email')) {
+    function send_dynamic_email($to, $subject, $module, $event_type, $placeholders = []) {
+        $CI =& get_instance();
+        configure_email_from_settings();
+
+        // Fetch settings
+        $CI->db->where('module', $module);
+        $CI->db->where('event_type', $event_type);
+        $setting = $CI->db->get('email_settings')->row();
+
+        if (!$setting || !$setting->is_enabled) {
+            return false;
+        }
+
+        $body = $setting->email_template;
+        if (!$body) {
+            // Fallback content if no template is set
+            $body = "Notification for $module - $event_type\n\n";
+            foreach ($placeholders as $k => $v) {
+                $body .= ucfirst(str_replace('_', ' ', $k)) . ": $v\n";
+            }
+        } else {
+            foreach ($placeholders as $key => $val) {
+                // Ensure we handle strings well
+                if (is_array($val) || is_object($val)) continue; 
+                $body = str_replace("{" . $key . "}", $val, $body);
+            }
+        }
+
+        // Add auto footer
+        $body .= "\n\n(This is an automated message. Please do not reply directly.)";
+
+        $from = get_system_from_email();
+        $from_name = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
+        
+        $CI->email->from($from ?: 'no-reply@company.com', $from_name);
+        $CI->email->to($to);
+        $CI->email->subject($subject);
+        $CI->email->message(nl2br($body));
+        
+        return $CI->email->send();
     }
 }

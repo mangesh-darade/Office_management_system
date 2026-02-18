@@ -250,14 +250,26 @@
         <tr>
           <td>Special Allowance [Rs.]</td>
           <td class="text-end"><?php echo number_format((float)$row->special_allow,2); ?></td>
+          <td>Provident Fund [Rs.]</td>
+          <td class="text-end"><?php echo number_format((float)$row->pf_amount,2); ?></td>
+        </tr>
+        <tr>
+          <td>Other Allowances [Rs.]</td>
+          <td class="text-end"><?php echo number_format((float)$row->allowances,2); ?></td>
+          <td>ESI [Rs.]</td>
+          <td class="text-end"><?php echo number_format((float)$row->esi_amount,2); ?></td>
+        </tr>
+        <tr>
           <td></td>
           <td></td>
+          <td>Other Deductions [Rs.]</td>
+          <td class="text-end"><?php echo number_format((float)$row->deductions,2); ?></td>
         </tr>
         <tr class="payslip-totals-row">
           <td class="payslip-total-earnings"><strong>Total Earnings [Rs.]</strong></td>
           <td class="text-end payslip-total-earnings"><strong><?php echo number_format((float)$row->gross,2); ?></strong></td>
           <td class="payslip-total-deductions"><strong>Total Deductions [Rs.]</strong></td>
-          <td class="text-end payslip-total-deductions"><strong><?php echo number_format((float)$row->deductions,2); ?></strong></td>
+          <td class="text-end payslip-total-deductions"><strong><?php echo number_format((float)$row->gross - (float)$row->net, 2); ?></strong></td>
         </tr>
       </table>
     </div>

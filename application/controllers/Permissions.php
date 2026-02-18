@@ -14,25 +14,23 @@ class Permissions extends CI_Controller {
         $this->load->helper('permission');
         $role_id = (int)$this->session->userdata('role_id');
         $allowed = false;
-        if (function_exists('has_module_access')) {
-            $allowed = has_module_access('permissions');
+
+        // Admin (role 1) always has access to Permission Manager to prevent lock-out
+        if ($role_id === 1) {
+            $allowed = true;
         }
-        // Fallback: if no permissions row exists yet for 'permissions', allow Admin (role 1)
-        if (!$allowed) {
-            $hasPermRow = false;
-            if ($this->db->table_exists('permissions')) {
-                $this->db->where('module', 'permissions');
-                $hasPermRow = ($this->db->count_all_results('permissions') > 0);
-            }
-            if (!$hasPermRow && $role_id === 1) {
-                $allowed = true;
-            }
+
+        if (!$allowed && function_exists('has_module_access')) {
+            $allowed = has_module_access('permissions');
         }
         if (!$allowed) { show_error('You do not have permission to access this page.', 403); }
     }
 
     private function ensure_schema()
     {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
         if (!$this->db->table_exists('permissions')) {
             $sql = "CREATE TABLE `permissions` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -40,9 +38,36 @@ class Permissions extends CI_Controller {
                 `module` varchar(100) NOT NULL,
                 `can_access` tinyint(1) NOT NULL DEFAULT '0',
                 PRIMARY KEY (`id`),
-                KEY `idx_role_module` (`role_id`,`module`)
+                UNIQUE KEY `uq_role_module` (`role_id`,`module`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
+        } else {
+            // Upgrade: convert regular index to UNIQUE if needed (prevents duplicate rows)
+            $idx = $this->db->query("SHOW INDEX FROM `permissions` WHERE Key_name = 'idx_role_module'")->result();
+            if (!empty($idx)) {
+                $this->db->query("ALTER TABLE `permissions` DROP INDEX `idx_role_module`, ADD UNIQUE KEY `uq_role_module` (`role_id`,`module`)");
+            } else {
+                $uq = $this->db->query("SHOW INDEX FROM `permissions` WHERE Key_name = 'uq_role_module'")->result();
+                if (empty($uq)) {
+                    $this->db->query("ALTER TABLE `permissions` ADD UNIQUE KEY `uq_role_module` (`role_id`,`module`)");
+                }
+            }
+
+            // Migrate renamed keys: assets_mgmt -> assets (preserve existing permission settings)
+            $old_assets = $this->db->where('module', 'assets_mgmt')->get('permissions')->result();
+            if (!empty($old_assets)) {
+                foreach ($old_assets as $row) {
+                    $exists = $this->db->where('role_id', (int)$row->role_id)->where('module', 'assets')->get('permissions')->row();
+                    if (!$exists) {
+                        $this->db->insert('permissions', [
+                            'role_id' => (int)$row->role_id,
+                            'module' => 'assets',
+                            'can_access' => (int)$row->can_access
+                        ]);
+                    }
+                }
+                $this->db->where('module', 'assets_mgmt')->delete('permissions');
+            }
         }
 
         // Ensure a simple roles table exists so role labels and groups can be managed from DB.
@@ -148,6 +173,16 @@ class Permissions extends CI_Controller {
                     'dashboard' => 'Dashboard Overview'
                 ]
             ],
+            'Daily Activity' => [
+                'icon' => 'bi-journal-check',
+                'modules' => [
+                    'daily_activity' => 'Daily Activity Access',
+                    'daily_activity_add' => 'Log Activity',
+                    'daily_activity_list' => 'View Activity List',
+                    'daily_activity_report' => 'View Reports',
+                    'daily_activity_delete' => 'Delete Activity'
+                ]
+            ],
             'User Management' => [
                 'icon' => 'bi-people',
                 'modules' => [
@@ -163,7 +198,8 @@ class Permissions extends CI_Controller {
                     'employees_delete' => 'Delete Employee',
                     'departments' => 'Departments',
                     'designations' => 'Designations',
-                    'permissions' => 'Permission Manager'
+                    'permissions' => 'Permission Manager',
+                    'profile' => 'View Profile'
                 ]
             ],
             'Project Management' => [
@@ -204,10 +240,22 @@ class Permissions extends CI_Controller {
                     'attendance_delete' => 'Delete Attendance',
                     'attendance_bulk' => 'Bulk Operations',
                     'leave_requests' => 'Leave Management',
+                    'leaves' => 'Personal Leave Screen',
                     'leaves_list' => 'Leave List',
                     'leaves_add' => 'Apply Leave',
                     'leaves_edit' => 'Edit Leave',
-                    'leaves_delete' => 'Delete Leave'
+                    'leaves_delete' => 'Delete Leave',
+                    'leave_team' => 'View Team Leaves',
+                    'leave_calendar' => 'Leave Calendar',
+                    'leave_approve' => 'Approve / Reject Leaves',
+                    'holidays' => 'Holiday Management',
+                    'holidays_add' => 'Add Holiday',
+                    'holidays_edit' => 'Edit Holiday',
+                    'holidays_delete' => 'Delete Holiday',
+                    'leave_types' => 'Leave Type Management',
+                    'leave_types_add' => 'Add Leave Type',
+                    'leave_types_edit' => 'Edit Leave Type',
+                    'leave_types_delete' => 'Delete Leave Type'
                 ]
             ],
             'Communication' => [
@@ -216,12 +264,32 @@ class Permissions extends CI_Controller {
                     'chats' => 'Chat System',
                     'chats_list' => 'Chat List',
                     'chats_add' => 'Start Chat',
+                    'chatsgrouping' => 'Create Chat Groups',
                     'announcements' => 'Announcements',
                     'announcements_list' => 'Announcement List',
                     'announcements_add' => 'Add Announcement',
                     'announcements_edit' => 'Edit Announcement',
                     'announcements_delete' => 'Delete Announcement',
                     'calls' => 'Call System'
+                ]
+            ],
+            'Recruitment' => [
+                'icon' => 'bi-person-plus',
+                'modules' => [
+                    'recruitment' => 'Recruitment Dashboard',
+                    'recruitment_jobs' => 'Manage Jobs',
+                    'recruitment_candidates' => 'Manage Candidates',
+                    'recruitment_interviews' => 'Interviews'
+                ]
+            ],
+            'Performance' => [
+                'icon' => 'bi-award',
+                'modules' => [
+                    'performance' => 'Performance Appraisals',
+                    'performance_create' => 'Create Appraisal',
+                    'performance_view' => 'View Appraisal Details',
+                    'performance_edit' => 'Edit Appraisal',
+                    'performance_delete' => 'Delete Appraisal'
                 ]
             ],
             'Business Management' => [
@@ -232,13 +300,18 @@ class Permissions extends CI_Controller {
                     'clients_add' => 'Add Client',
                     'clients_edit' => 'Edit Client',
                     'clients_delete' => 'Delete Client',
-                    'payroll' => 'Payroll',
+                    'payroll' => 'Payroll Management',
+                    'payroll_view' => 'View Payslips',
+                    'payroll_manage' => 'Manage Structures & Generate',
                     'expenses' => 'Expense Management',
+                    'expenses_add' => 'Create Expense Request',
+                    'expenses_edit' => 'Edit Expense',
+                    'expenses_delete' => 'Delete Expense',
                     'expenses_approve' => 'Approve Expenses',
                     'expenses_reimburse' => 'Reimburse Expenses',
                     'expenses_reports' => 'Expense Reports',
                     'expenses_categories' => 'Expense Categories',
-                    'assets_mgmt' => 'Asset Management',
+                    'assets' => 'Asset Management',
                     'assets_list' => 'Asset List',
                     'assets_add' => 'Add Asset',
                     'assets_edit' => 'Edit Asset',
@@ -259,7 +332,8 @@ class Permissions extends CI_Controller {
                     'reports_projects_status' => 'Project Status Reports',
                     'reports_leaves' => 'Leave Reports',
                     'reports_attendance' => 'Attendance Reports',
-                    'reports_attendance_employee' => 'Employee Attendance Reports'
+                    'reports_attendance_employee' => 'Employee Attendance Reports',
+                    'reports_daily_activity' => 'Daily Activity Report (Reports)'
                 ]
             ],
             'System Administration' => [
@@ -267,6 +341,7 @@ class Permissions extends CI_Controller {
                 'modules' => [
                     'settings' => 'System Settings',
                     'db' => 'Database Manager',
+                    'approvals' => 'Approval Workflows',
                     'reminders' => 'Reminders',
                     'reminders_list' => 'Reminder List',
                     'reminders_add' => 'Add Reminder',
@@ -281,7 +356,10 @@ class Permissions extends CI_Controller {
                     'statuses' => 'Status Management',
                     'api_integrations' => 'API Integrations',
                     'admin' => 'Admin Access',
-                    'notifications' => 'Notifications'
+                    'notifications' => 'Notifications',
+                    'superadmin' => 'Super Admin Panel',
+                    'system_settings' => 'System Settings Panel',
+                    'migrate' => 'Database Migrations'
                 ]
             ]
         ];

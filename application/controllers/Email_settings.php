@@ -13,16 +13,17 @@ class Email_settings extends CI_Controller {
         $this->load->library(['session']);
         $this->ensure_schema();
         
-        // Require login and admin access
+        // Require login and permission
         if (!(int)$this->session->userdata('user_id')) { 
             redirect('auth/login'); 
         }
         
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        $has_email_settings = function_exists('has_module_access') && has_module_access('email_settings');
         
-        if (!$is_admin) {
-            show_error('Admin access required', 403);
+        if (!$is_admin && !$has_email_settings) {
+            show_error('You do not have permission to access Email Settings.', 403);
         }
     }
 
@@ -113,6 +114,9 @@ class Email_settings extends CI_Controller {
             ['module' => 'payroll', 'event_type' => 'generated', 'recipient_type' => 'employee'],
             ['module' => 'payroll', 'event_type' => 'updated', 'recipient_type' => 'employee'],
             ['module' => 'payroll', 'event_type' => 'disbursed', 'recipient_type' => 'employee'],
+
+            // Recruitment module
+            ['module' => 'recruitment', 'event_type' => 'interview_scheduled', 'recipient_type' => 'candidate'],
         ];
 
         foreach ($default_settings as $setting) {
@@ -121,12 +125,19 @@ class Email_settings extends CI_Controller {
             $exists = $this->db->get('email_settings')->row();
             
             if (!$exists) {
+                // Initialize default template if missing
+                if ($setting['module'] === 'recruitment' && $setting['event_type'] === 'interview_scheduled') {
+                    $setting['email_template'] = "Dear {candidate_name},\n\nYour interview for the position of {job_title} has been scheduled.\nDate: {date}\nType: {type}\n\nPlease be available.\n\nBest Regards,\nHR Team";
+                }
                 $this->db->insert('email_settings', $setting);
             }
         }
     }
 
     public function index() {
+        // Ensure new settings are loaded
+        $this->insert_default_settings();
+
         $settings = $this->db->order_by('module', 'ASC')->order_by('event_type', 'ASC')->get('email_settings')->result();
         
         // Group settings by module
@@ -139,6 +150,23 @@ class Email_settings extends CI_Controller {
             'grouped_settings' => $grouped_settings,
             'modules' => $this->get_module_info()
         ]);
+    }
+
+    public function edit_template($id) {
+        $setting = $this->db->where('id', (int)$id)->get('email_settings')->row();
+        if (!$setting) show_404();
+
+        if ($this->input->method() === 'post') {
+            $data = [
+                'email_template' => $this->input->post('email_template'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+            $this->db->where('id', (int)$id)->update('email_settings', $data);
+            $this->session->set_flashdata('success', 'Email template updated successfully');
+            redirect('email-settings');
+        }
+
+        $this->load->view('email_settings/edit_template', ['setting' => $setting]);
     }
 
     public function update() {
@@ -294,6 +322,13 @@ class Email_settings extends CI_Controller {
                     'generated' => 'Payroll generated',
                     'updated' => 'Payroll details updated',
                     'disbursed' => 'Salary disbursed'
+                ]
+            ],
+            'recruitment' => [
+                'name' => 'Recruitment',
+                'description' => 'Job applications and interviews',
+                'events' => [
+                    'interview_scheduled' => 'Interview Scheduled'
                 ]
             ]
         ];

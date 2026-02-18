@@ -14,6 +14,10 @@ class Mail extends CI_Controller {
 
         // Require login
         if (!$this->session->userdata('user_id')) { redirect('auth/login'); exit; }
+        $this->load->helper('permission');
+        if (function_exists('has_module_access') && !has_module_access('mail')) {
+            show_error('You do not have permission to access this module.', 403);
+        }
     }
 
     // Simple UI to send a test email

@@ -14,16 +14,18 @@ class Activity extends CI_Controller {
             return;
         }
         
-        // Access control: Only admins and managers can view activity logs
+        // Access control: Check permission OR role-based access (fallback)
+        $this->load->helper('permission');
+        $has_permission = function_exists('has_module_access') && has_module_access('activity');
+        
         // Use defined() to check if constants are loaded, fallback to numeric values
         $role_admin = defined('ROLE_ADMIN') ? ROLE_ADMIN : 1;
         $role_manager = defined('ROLE_MANAGER') ? ROLE_MANAGER : 2;
-        
         $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [$role_admin, $role_manager], true)) {
-            $this->session->set_flashdata('error', 'Access denied. Only administrators and managers can view activity logs.');
-            redirect('dashboard');
-            return;
+        $has_role_access = in_array($role_id, [$role_admin, $role_manager], true);
+        
+        if (!$has_permission && !$has_role_access) {
+            show_error('You do not have permission to access this module.', 403);
         }
     }
 

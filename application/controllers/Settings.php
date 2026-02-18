@@ -11,6 +11,7 @@ class Settings extends CI_Controller {
         $this->load->model('Leave_type_model','leave_types');
         $this->load->model('Holiday_model','holidays');
         if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        $this->load->helper('permission');
         $this->ensure_leave_types_schema();
         $this->ensure_holidays_schema();
     }
@@ -62,6 +63,9 @@ class Settings extends CI_Controller {
 
     // GET /settings
     public function index(){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to access System Settings.', 403);
+        }
         $all = $this->settings->get_all_settings();
         
         // Get all active users for HR dropdown
@@ -81,6 +85,9 @@ class Settings extends CI_Controller {
 
     // POST /settings/update
     public function update(){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to access System Settings.', 403);
+        }
         if ($this->input->method() !== 'post') { show_404(); }
         $data = $this->input->post();
         $form_section = isset($data['form_section']) ? (string)$data['form_section'] : '';
@@ -267,6 +274,9 @@ class Settings extends CI_Controller {
 
     // POST /settings/remove-logo
     public function remove_logo(){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to access System Settings.', 403);
+        }
         if ($this->input->method() !== 'post') { show_404(); }
         
         // Get current logo path to delete file
@@ -283,12 +293,15 @@ class Settings extends CI_Controller {
 
     // POST /settings/upload-logo
     public function upload_logo(){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to access System Settings.', 403);
+        }
         if (!isset($_FILES['logo']) || $_FILES['logo']['error'] !== UPLOAD_ERR_OK){
             $this->session->set_flashdata('error', 'Upload a valid logo file.');
             redirect('settings'); return;
         }
         $upload_path = FCPATH.'uploads/settings/';
-        if (!is_dir($upload_path)) { @mkdir($upload_path, 0777, true); }
+        if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
         $config = [
             'upload_path' => $upload_path,
             'allowed_types' => 'jpg|jpeg|png|gif',
@@ -316,6 +329,9 @@ class Settings extends CI_Controller {
 
     // POST /settings/test-email
     public function test_email(){
+        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+            show_error('You do not have permission to access System Settings.', 403);
+        }
         $to = trim((string)$this->input->post('to')) ?: (string)$this->session->userdata('email');
         if (!filter_var($to, FILTER_VALIDATE_EMAIL)){
             $this->session->set_flashdata('error', 'Provide a valid email address');
@@ -343,8 +359,8 @@ class Settings extends CI_Controller {
 
     // GET /settings/holidays
     public function holidays(){
-        // Restrict to users with settings access (admin area)
-        if (!function_exists('has_module_access') || !has_module_access('settings')) {
+        // Restrict to users with holidays or settings access
+        if (!function_exists('has_module_access') || (!has_module_access('holidays') && !has_module_access('settings'))) {
             show_error('You do not have permission to manage holidays.', 403);
         }
         $rows = $this->holidays->all();
@@ -355,8 +371,8 @@ class Settings extends CI_Controller {
 
     // GET/POST /settings/holidays/create
     public function holidays_create(){
-        if (!function_exists('has_module_access') || !has_module_access('settings')) {
-            show_error('You do not have permission to manage holidays.', 403);
+        if (!function_exists('has_module_access') || (!has_module_access('holidays_add') && !has_module_access('holidays') && !has_module_access('settings'))) {
+            show_error('You do not have permission to add holidays.', 403);
         }
         if ($this->input->method() === 'post'){
             $date = trim((string)$this->input->post('holiday_date'));
@@ -406,8 +422,8 @@ class Settings extends CI_Controller {
 
     // GET/POST /settings/holidays/{id}/edit
     public function holidays_edit($id){
-        if (!function_exists('has_module_access') || !has_module_access('settings')) {
-            show_error('You do not have permission to manage holidays.', 403);
+        if (!function_exists('has_module_access') || (!has_module_access('holidays_edit') && !has_module_access('holidays') && !has_module_access('settings'))) {
+            show_error('You do not have permission to edit holidays.', 403);
         }
         $row = $this->holidays->find((int)$id);
         if (!$row) { show_404(); }
@@ -458,8 +474,8 @@ class Settings extends CI_Controller {
 
     // POST /settings/holidays/{id}/delete
     public function holidays_delete($id){
-        if (!function_exists('has_module_access') || !has_module_access('settings')) {
-            show_error('You do not have permission to manage holidays.', 403);
+        if (!function_exists('has_module_access') || (!has_module_access('holidays_delete') && !has_module_access('holidays') && !has_module_access('settings'))) {
+            show_error('You do not have permission to delete holidays.', 403);
         }
         $row = $this->holidays->find((int)$id);
         if (!$row) {
@@ -485,6 +501,9 @@ class Settings extends CI_Controller {
 
     // GET /settings/leave-types
     public function leave_types(){
+        if (!function_exists('has_module_access') || (!has_module_access('leave_types') && !has_module_access('settings'))) {
+            show_error('You do not have permission to manage leave types.', 403);
+        }
         $show_deleted = $this->input->get('show_deleted');
         $rows = $show_deleted ? $this->leave_types->deleted_only() : $this->leave_types->all();
         $this->load->view('settings/leave_types/index', [
@@ -495,6 +514,9 @@ class Settings extends CI_Controller {
 
     // GET/POST /settings/leave-types/create
     public function leave_types_create(){
+        if (!function_exists('has_module_access') || (!has_module_access('leave_types_add') && !has_module_access('leave_types') && !has_module_access('settings'))) {
+            show_error('You do not have permission to add leave types.', 403);
+        }
         if ($this->input->method() === 'post'){
             $name = trim((string)$this->input->post('name'));
             $description = trim((string)$this->input->post('description'));
@@ -540,6 +562,9 @@ class Settings extends CI_Controller {
 
     // GET/POST /settings/leave-types/{id}/edit
     public function leave_types_edit($id){
+        if (!function_exists('has_module_access') || (!has_module_access('leave_types_edit') && !has_module_access('leave_types') && !has_module_access('settings'))) {
+            show_error('You do not have permission to edit leave types.', 403);
+        }
         $row = $this->leave_types->find((int)$id);
         if (!$row) { show_404(); }
         
@@ -586,6 +611,9 @@ class Settings extends CI_Controller {
 
     // POST /settings/leave-types/{id}/delete
     public function leave_types_delete($id){
+        if (!function_exists('has_module_access') || (!has_module_access('leave_types_delete') && !has_module_access('leave_types') && !has_module_access('settings'))) {
+            show_error('You do not have permission to delete leave types.', 403);
+        }
         $row = $this->leave_types->find((int)$id);
         if (!$row) { 
             $this->session->set_flashdata('error', 'Leave type not found');
@@ -612,6 +640,9 @@ class Settings extends CI_Controller {
     
     // POST /settings/leave-types/{id}/restore
     public function leave_types_restore($id){
+        if (!function_exists('has_module_access') || (!has_module_access('leave_types_edit') && !has_module_access('leave_types') && !has_module_access('settings'))) {
+            show_error('You do not have permission to restore leave types.', 403);
+        }
         $id = (int)$id;
         
         // Check if leave type exists

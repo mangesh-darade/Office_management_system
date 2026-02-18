@@ -29,6 +29,10 @@ class Sendgrid extends CI_Controller {
             redirect('auth/login'); 
             exit; 
         }
+        $this->load->helper('permission');
+        if (function_exists('has_module_access') && !has_module_access('sendgrid')) {
+            show_error('You do not have permission to access this module.', 403);
+        }
         
         // Load database and helper
         $this->load->database();

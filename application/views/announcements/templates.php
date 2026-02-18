@@ -31,12 +31,12 @@
         <form method="post" action="<?php echo site_url('announcements/save_template'); ?>">
           <div class="mb-3">
             <label class="form-label">Email Subject</label>
-            <input type="text" class="form-control" name="subject" value="<?php echo htmlspecialchars($templates->subject ?? '📢 New Announcement: {title}'); ?>" required />
+            <input type="text" class="form-control" name="subject" value="<?php echo htmlspecialchars(isset($templates->subject) ? $templates->subject : '📢 New Announcement: {title}'); ?>" required />
           </div>
           
           <div class="mb-3">
             <label class="form-label">Email Body</label>
-            <textarea class="form-control" name="body" rows="12" required><?php echo htmlspecialchars($templates->body ?? 'Hello {name},
+            <textarea class="form-control" name="body" rows="12" required><?php echo htmlspecialchars(isset($templates->body) ? $templates->body : 'Hello {name},
 
 A new announcement has been published:
 
