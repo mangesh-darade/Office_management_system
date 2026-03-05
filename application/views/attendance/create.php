@@ -105,6 +105,28 @@
         </script>
         <?php endif; ?>
 
+        <?php if (isset($face_verification_enabled) && $face_verification_enabled && isset($has_registered_face) && !$has_registered_face): ?>
+        <div class="row mb-3">
+          <div class="col-12">
+            <div class="alert alert-danger d-flex shadow-sm mb-0">
+              <div class="me-3 mt-1">
+                <i class="bi bi-person-bounding-box text-danger fs-2"></i>
+              </div>
+              <div>
+                <h5 class="alert-heading fw-bold mb-1">Face Not Registered</h5>
+                <p class="mb-2">Your face is not registered in the system. Face verification is mandatory for marking attendance.</p>
+                <hr class="my-2 border-danger opacity-25">
+                <p class="mb-0">
+                  <a href="<?php echo site_url('profile/edit'); ?>" class="btn btn-danger btn-sm shadow-sm">
+                    <i class="bi bi-camera me-1"></i> Register Face Now
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <?php else: ?>
+
         <!-- Action Selection -->
         <div class="row mb-3">
           <div class="col-12">
@@ -211,6 +233,7 @@
             </div>
           </div>
         </div>
+        <?php endif; ?>
       </form>
     </div>
   </div>

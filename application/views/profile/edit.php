@@ -230,6 +230,22 @@
   </div>
   <?php endif; ?>
 
+  <!-- Face Verification Information -->
+  <div class="card mb-4 border-info">
+    <div class="card-header bg-info text-white">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-person-bounding-box me-2"></i>Face Registration
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-warning mb-3">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>To register or update your face for attendance:</strong> Please contact your Administrator or HR department. They can capture and register your face securely through the administrative portal.
+      </div>
+      <p class="mb-0 text-muted small">Face verification helps ensure secure and accurate attendance tracking. It requires controlled capture for best verification results.</p>
+    </div>
+  </div>
+
   <!-- Actions -->
   <div class="card">
     <div class="card-body">

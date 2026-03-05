@@ -939,6 +939,16 @@ class Attendance extends CI_Controller {
         $face_verification_setting = $this->settings->get_setting('attendance_face_verification_required', 'yes');
         $face_verification_enabled = ($face_verification_setting === 'yes' || $face_verification_setting === '1' || $face_verification_setting === 1 || $face_verification_setting === true);
         
+        $has_registered_face = false;
+        if ($face_verification_enabled) {
+            $stored_face = $this->faces->get_by_user($user_id);
+            if ($stored_face && !empty($stored_face->descriptor)) {
+                $has_registered_face = true;
+            }
+        } else {
+            $has_registered_face = true;
+        }
+        
         $auto_submit_setting = $this->settings->get_setting('attendance_auto_submit', 'no');
         $auto_submit_enabled = ($auto_submit_setting === 'yes' || $auto_submit_setting === '1' || $auto_submit_setting === 1 || $auto_submit_setting === true);
         
@@ -1020,6 +1030,7 @@ class Attendance extends CI_Controller {
             'attendance_status' => $attendance_status,
             'auto_capture_enabled' => $auto_capture_enabled,
             'face_verification_enabled' => $face_verification_enabled,
+            'has_registered_face' => $has_registered_face,
             'auto_submit_enabled' => $auto_submit_enabled,
             'office_start_time' => $office_start_time,
             'office_end_time' => $office_end_time,
