@@ -333,7 +333,7 @@ class Ai_chat extends CI_Controller {
             'chats' => 'chats',
             'announcements' => 'announcements',
             'reminders' => 'reminders',
-            'assets' => 'assets_mgmt'
+            'assets' => 'assets'
         ];
         
         // Extract table names

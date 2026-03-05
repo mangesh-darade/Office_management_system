@@ -427,6 +427,20 @@
   <?php endif; ?>
   
   <?php 
+    $onTimeCount = 0;
+    foreach ($days as $d) { if (isset($d->late_status) && $d->late_status === 'on_time') $onTimeCount++; }
+    if ($onTimeCount > 0):
+  ?>
+  <div class="stat-card success">
+    <div class="stat-icon success" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+      <i class="bi bi-check2-circle"></i>
+    </div>
+    <div class="stat-value"><?php echo $onTimeCount; ?></div>
+    <div class="stat-label">On Time</div>
+  </div>
+  <?php endif; ?>
+  
+  <?php 
     $absentCount = 0;
     foreach ($days as $d) { if (strtolower($d->status) === 'absent') $absentCount++; }
     if ($absentCount > 0):
@@ -729,14 +743,12 @@
               </td>
               <td>
                 <?php 
-                  $workedHours = isset($d->worked_hours) ? (float)$d->worked_hours : 0;
-                  if ($workedHours > 0) {
-                    $hours = floor($workedHours);
-                    $minutes = round(($workedHours - $hours) * 60);
-                    $display = $hours . 'h';
-                    if ($minutes > 0) {
-                      $display .= ' ' . $minutes . 'm';
-                    }
+                  $workedSeconds = isset($d->worked_seconds) ? (int)$d->worked_seconds : 0;
+                  if ($workedSeconds > 0) {
+                    $hours = floor($workedSeconds / 3600);
+                    $minutes = floor(($workedSeconds % 3600) / 60);
+                    $seconds = $workedSeconds % 60;
+                    $display = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
                     echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock-history"></i>' . htmlspecialchars($display) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
@@ -745,14 +757,12 @@
               </td>
               <td>
                 <?php 
-                  $extraHours = isset($d->extra_hours) ? (float)$d->extra_hours : 0;
-                  if ($extraHours > 0) {
-                    $hours = floor($extraHours);
-                    $minutes = round(($extraHours - $hours) * 60);
-                    $display = $hours . 'h';
-                    if ($minutes > 0) {
-                      $display .= ' ' . $minutes . 'm';
-                    }
+                  $extraSeconds = isset($d->extra_seconds) ? (int)$d->extra_seconds : 0;
+                  if ($extraSeconds > 0) {
+                    $hours = floor($extraSeconds / 3600);
+                    $minutes = floor(($extraSeconds % 3600) / 60);
+                    $seconds = $extraSeconds % 60;
+                    $display = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
                     echo '<span class="att-det-status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . htmlspecialchars($display) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';

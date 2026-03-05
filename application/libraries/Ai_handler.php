@@ -939,7 +939,7 @@ class Ai_handler {
             'chats' => 'chats',
             'announcements' => 'announcements',
             'reminders' => 'reminders',
-            'assets' => 'assets_mgmt'
+            'assets' => 'assets'
         ];
         
         // Whitelist important tables to keep context focused

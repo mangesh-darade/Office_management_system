@@ -15,14 +15,15 @@ class Recruitment extends CI_Controller {
 
         if (!$this->session->userdata('user_id')) { redirect('auth/login'); }
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+        // Super Admin (role_id 1) can always access; other roles must have explicit module permission
+        $is_superadmin = ($role_id === 1);
         $has_recruitment = function_exists('has_module_access') && (
             has_module_access('recruitment') ||
             has_module_access('recruitment_jobs') ||
             has_module_access('recruitment_candidates') ||
             has_module_access('recruitment_interviews')
         );
-        if (!$is_admin && !$has_recruitment) {
+        if (!$is_superadmin && !$has_recruitment) {
             show_error('You do not have permission to access Recruitment.', 403);
         }
     }

@@ -17,7 +17,14 @@ class Shifts extends CI_Controller {
     }
 
     public function index() {
-        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_view') && !has_module_access('settings')) {
+        $role_id = (int)$this->session->userdata('role_id');
+        // Super Admin (role_id 1) can always view; other roles must have explicit view permission
+        $is_superadmin = ($role_id === 1);
+        if (
+            !$is_superadmin &&
+            (!function_exists('has_module_access') ||
+             (!has_module_access('shifts') && !has_module_access('shifts_view')))
+        ) {
             show_error('Access Denied', 403);
         }
 
@@ -26,7 +33,14 @@ class Shifts extends CI_Controller {
     }
 
     public function create() {
-        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_manage') && !has_module_access('settings')) {
+        $role_id = (int)$this->session->userdata('role_id');
+        // Super Admin (role_id 1) can always manage; other roles must have explicit manage permission
+        $is_superadmin = ($role_id === 1);
+        if (
+            !$is_superadmin &&
+            (!function_exists('has_module_access') ||
+             (!has_module_access('shifts') && !has_module_access('shifts_manage')))
+        ) {
             show_error('Access Denied', 403);
         }
 
@@ -58,7 +72,13 @@ class Shifts extends CI_Controller {
     }
 
     public function edit($id) {
-        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_manage') && !has_module_access('settings')) {
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_superadmin = ($role_id === 1);
+        if (
+            !$is_superadmin &&
+            (!function_exists('has_module_access') ||
+             (!has_module_access('shifts') && !has_module_access('shifts_manage')))
+        ) {
             show_error('Access Denied', 403);
         }
 
@@ -95,7 +115,13 @@ class Shifts extends CI_Controller {
     public function delete($id) {
         if ($this->input->method() !== 'post') { show_404(); }
 
-        if (!is_admin_group() && !has_module_access('shifts') && !has_module_access('shifts_manage') && !has_module_access('settings')) {
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_superadmin = ($role_id === 1);
+        if (
+            !$is_superadmin &&
+            (!function_exists('has_module_access') ||
+             (!has_module_access('shifts') && !has_module_access('shifts_manage')))
+        ) {
             show_error('Access Denied', 403);
         }
         

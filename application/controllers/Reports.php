@@ -1798,14 +1798,14 @@ class Reports extends CI_Controller {
                     if (strpos($cinRaw, ' ') !== false) {
                         $parts = explode(' ', $cinRaw);
                         $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
-                        $checkInTime = substr($cinTime, 0, 5); // HH:MM format
+                        $checkInTime = (strlen($cinTime) >= 8) ? substr($cinTime, 0, 8) : (substr($cinTime, 0, 5) . ':00');
                     } else {
-                        $checkInTime = substr($cinTime, 0, 5);
+                        $checkInTime = (strlen($cinTime) >= 8) ? substr($cinTime, 0, 8) : (substr($cinTime, 0, 5) . ':00');
                     }
                     
                     if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
-                        // Display only HH:MM part for user friendliness
-                        $cinDisp = substr($cinTime, 0, 5);
+                        // Display full time for user friendliness
+                        $cinDisp = $checkInTime;
                         $officeTs = strtotime($d.' '.$officeStart.':00');
                         $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
                         $cinTs    = strtotime($d.' '.$cinTime);
@@ -1837,6 +1837,8 @@ class Reports extends CI_Controller {
                 // Get check-out time
                 $workedHours = 0;
                 $extraHours = 0;
+                $workedSeconds = 0;
+                $extraSeconds = 0;
                 if ($checkOutCol !== null && isset($coutMap[$d])) {
                     $coutRaw = (string)$coutMap[$d];
                     $coutTime = $coutRaw;
@@ -1845,19 +1847,21 @@ class Reports extends CI_Controller {
                         $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
                     }
                     if (preg_match('/^\d{2}:\d{2}/', $coutTime)) {
-                        $checkOutTime = substr($coutTime, 0, 5); // HH:MM format
+                        $checkOutTime = (strlen($coutTime) >= 8) ? substr($coutTime, 0, 8) : (substr($coutTime, 0, 5) . ':00');
                         
                         // Calculate worked hours from check-in to check-out
                         if ($checkInTime !== '—' && preg_match('/^\d{2}:\d{2}/', $checkInTime)) {
-                            $cinTs = strtotime($d.' '.$checkInTime.':00');
-                            $coutTs = strtotime($d.' '.$coutTime.':00');
+                            $cinTs = strtotime($d.' '.$checkInTime);
+                            $coutTs = strtotime($d.' '.$checkOutTime);
                             if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
-                                $workedHours = ($coutTs - $cinTs) / 3600; // Convert seconds to hours
+                                $workedSeconds = $coutTs - $cinTs;
+                                $workedHours = $workedSeconds / 3600; // Convert seconds to hours
                                 
                                 // Calculate extra hours (worked hours - standard hours)
                                 // Only show extra if worked more than standard
                                 if ($workedHours > $standardHours) {
                                     $extraHours = $workedHours - $standardHours;
+                                    $extraSeconds = $workedSeconds - ($standardHours * 3600);
                                 }
                             }
                         }
@@ -1894,6 +1898,8 @@ class Reports extends CI_Controller {
                 $obj->check_out_location = $checkOutLocation;
                 $obj->worked_hours = round($workedHours, 2); // Total hours worked
                 $obj->extra_hours = round($extraHours, 2); // Extra hours beyond standard
+                $obj->worked_seconds = $workedSeconds;
+                $obj->extra_seconds = $extraSeconds;
                 $obj->notes = $notes;
                 $days[] = $obj;
                 $startTs = strtotime('+1 day', $startTs);
@@ -3417,24 +3423,24 @@ class Reports extends CI_Controller {
                 if (strpos($cinRaw, ' ') !== false) {
                     $parts = explode(' ', $cinRaw);
                     $cinTime = isset($parts[1]) ? trim($parts[1]) : trim($cinRaw);
-                    $checkInTime = substr($cinTime, 0, 5);
+                    $checkInTime = (strlen($cinTime) >= 8) ? substr($cinTime, 0, 8) : (substr($cinTime, 0, 5) . ':00');
                 } else {
-                    $checkInTime = substr($cinTime, 0, 5);
+                    $checkInTime = (strlen($cinTime) >= 8) ? substr($cinTime, 0, 8) : (substr($cinTime, 0, 5) . ':00');
                 }
                 
                 if (preg_match('/^\d{2}:\d{2}/', $cinTime)) {
                     $officeTs = strtotime($d.' '.$officeStart.':00');
                     $graceTs  = $officeTs !== false ? $officeTs + ($graceMinutes * 60) : false;
-                    $cinTs    = strtotime($d.' '.$cinTime);
+                    $cinTs    = strtotime($d.' '.$checkInTime);
                     
                     if ($graceTs !== false && $cinTs !== false) {
                         if ($cinTs > $graceTs) {
                             $lateMinutes = (int)round(($cinTs - $graceTs) / 60);
                             $lateStatus = 'late';
-                            $lateLabel = 'Late: '.substr($cinTime, 0, 5).' ('.$lateMinutes.' min)';
+                            $lateLabel = 'Late: '.$checkInTime.' ('.$lateMinutes.' min)';
                         } else {
                             $lateStatus = 'on_time';
-                            $lateLabel = 'On Time: '.substr($cinTime, 0, 5);
+                            $lateLabel = 'On Time: '.$checkInTime;
                         }
                     }
                 }
@@ -3442,6 +3448,8 @@ class Reports extends CI_Controller {
             
             $workedHours = 0;
             $extraHours = 0;
+            $workedSeconds = 0;
+            $extraSeconds = 0;
             if ($checkOutCol !== null && isset($coutMap[$d])) {
                 $coutRaw = (string)$coutMap[$d];
                 $coutTime = $coutRaw;
@@ -3450,15 +3458,17 @@ class Reports extends CI_Controller {
                     $coutTime = isset($parts[1]) ? trim($parts[1]) : trim($coutRaw);
                 }
                 if (preg_match('/^\d{2}:\d{2}/', $coutTime)) {
-                    $checkOutTime = substr($coutTime, 0, 5);
+                    $checkOutTime = (strlen($coutTime) >= 8) ? substr($coutTime, 0, 8) : (substr($coutTime, 0, 5) . ':00');
                     
                     if ($checkInTime !== '—' && preg_match('/^\d{2}:\d{2}/', $checkInTime)) {
-                        $cinTs = strtotime($d.' '.$checkInTime.':00');
-                        $coutTs = strtotime($d.' '.$coutTime.':00');
+                        $cinTs = strtotime($d.' '.$checkInTime);
+                        $coutTs = strtotime($d.' '.$checkOutTime);
                         if ($cinTs !== false && $coutTs !== false && $coutTs > $cinTs) {
-                            $workedHours = ($coutTs - $cinTs) / 3600;
+                            $workedSeconds = $coutTs - $cinTs;
+                            $workedHours = $workedSeconds / 3600;
                             if ($workedHours > $standardHours) {
                                 $extraHours = $workedHours - $standardHours;
+                                $extraSeconds = $workedSeconds - ($standardHours * 3600);
                             }
                         }
                     }
@@ -3481,6 +3491,8 @@ class Reports extends CI_Controller {
             $obj->check_out_location = $checkOutLocation;
             $obj->worked_hours = round($workedHours, 2);
             $obj->extra_hours = round($extraHours, 2);
+            $obj->worked_seconds = $workedSeconds;
+            $obj->extra_seconds = $extraSeconds;
             $obj->notes = $notes;
             $days[] = $obj;
             $startTs = strtotime('+1 day', $startTs);
@@ -3510,49 +3522,81 @@ class Reports extends CI_Controller {
             // Generate daily details
             $days = $this->generate_daily_details_data($user_id, $from, $to);
             
-            // Prepare CSV data
-            $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.csv';
-            header('Content-Type: text/csv; charset=utf-8');
+            // Prepare Excel data (using HTML format to support colors)
+            $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.xls';
+            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Pragma: no-cache');
             header('Expires: 0');
             
-            $output = fopen('php://output', 'w');
-            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM for UTF-8
+            // Calculate stats
+            $stats = ['present'=>0, 'late'=>0, 'on_time'=>0, 'absent'=>0, 'wfh'=>0, 'leave'=>0, 'total_worked_secs'=>0, 'total_extra_secs'=>0];
+            foreach ($days as $day) {
+                if (strtolower($day->status) === 'present') $stats['present']++;
+                if (isset($day->late) && strpos(strtolower($day->late), 'late') === 0) $stats['late']++;
+                if (isset($day->late_status) && $day->late_status === 'on_time') $stats['on_time']++;
+                if (strtolower($day->status) === 'absent') $stats['absent']++;
+                if (strtolower($day->status) === 'work from home') $stats['wfh']++;
+                if ($day->leave !== '—' && $day->leave !== '') $stats['leave']++;
+                $stats['total_worked_secs'] += isset($day->worked_seconds) ? (int)$day->worked_seconds : 0;
+                $stats['total_extra_secs'] += isset($day->extra_seconds) ? (int)$day->extra_seconds : 0;
+            }
+
+            $html = '<html><head><meta charset="UTF-8"><style>
+                table { border-collapse: collapse; width: 100%; border: 1px solid #ddd; }
+                th, td { padding: 5px; border: 1px solid #ddd; text-align: left; }
+                th { background-color: #f1f5f9; }
+            </style></head><body>';
             
-            // Headers
-            fputcsv($output, [
-                'Date',
-                'Status',
-                'Check-In Time',
-                'Check-Out Time',
-                'Check-In Location',
-                'Check-Out Location',
-                'Late/On Time',
-                'Worked Hours',
-                'Extra Hours',
-                'Leave',
-                'Notes'
-            ]);
+            $html .= '<h3>Employee Attendance Detail Report</h3>';
+            $html .= '<p><strong>User:</strong> ' . htmlspecialchars($userName) . '<br>';
+            $html .= '<strong>Period:</strong> ' . htmlspecialchars($period) . '<br>';
+            $html .= '<strong>Present:</strong> ' . $stats['present'] . ' | <strong>Late:</strong> ' . $stats['late'] . ' | <strong>On Time:</strong> ' . $stats['on_time'] . ' | <strong>Absent:</strong> ' . $stats['absent'] . ' | <strong>WFH:</strong> ' . $stats['wfh'] . ' | <strong>Leave:</strong> ' . $stats['leave'] . '<br>';
+            $html .= '<strong>Total Worked:</strong> ' . sprintf('%02d:%02d:%02d', floor($stats['total_worked_secs']/3600), floor(($stats['total_worked_secs']%3600)/60), $stats['total_worked_secs']%60) . ' | <strong>Total Extra:</strong> ' . sprintf('%02d:%02d:%02d', floor($stats['total_extra_secs']/3600), floor(($stats['total_extra_secs']%3600)/60), $stats['total_extra_secs']%60) . '</p>';
+
+            $html .= '<table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Check-In</th>
+                        <th>Check-Out</th>
+                        <th>Check-In Location</th>
+                        <th>Check-Out Location</th>
+                        <th>Late/On Time</th>
+                        <th>Worked Hours</th>
+                        <th>Extra Hours</th>
+                        <th>Leave</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>';
             
             // Data rows
             foreach ($days as $day) {
-                fputcsv($output, [
-                    $day->date,
-                    $day->status,
-                    $day->check_in_time !== '—' ? $day->check_in_time : '',
-                    $day->check_out_time !== '—' ? $day->check_out_time : '',
-                    $day->check_in_location !== '—' ? $day->check_in_location : '',
-                    $day->check_out_location !== '—' ? $day->check_out_location : '',
-                    $day->late !== '—' ? $day->late : '',
-                    $day->worked_hours > 0 ? number_format($day->worked_hours, 2) : '',
-                    $day->extra_hours > 0 ? number_format($day->extra_hours, 2) : '',
-                    $day->leave !== '—' ? $day->leave : '',
-                    $day->notes !== '—' ? $day->notes : ''
-                ]);
+                $ws = isset($day->worked_seconds) ? (int)$day->worked_seconds : 0;
+                $es = isset($day->extra_seconds) ? (int)$day->extra_seconds : 0;
+                
+                $isLate = (isset($day->late_status) && $day->late_status === 'late');
+                $lateStyle = $isLate ? ' style="color: red; font-weight: bold;"' : '';
+                
+                $html .= '<tr>
+                    <td' . $lateStyle . '>' . htmlspecialchars($day->date) . '</td>
+                    <td>' . htmlspecialchars($day->status) . '</td>
+                    <td>' . htmlspecialchars($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
+                    <td>' . htmlspecialchars($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
+                    <td>' . htmlspecialchars($day->check_in_location !== '—' ? $day->check_in_location : '') . '</td>
+                    <td>' . htmlspecialchars($day->check_out_location !== '—' ? $day->check_out_location : '') . '</td>
+                    <td' . $lateStyle . '>' . htmlspecialchars($day->late !== '—' ? $day->late : '') . '</td>
+                    <td>' . ($ws > 0 ? sprintf('%02d:%02d:%02d', floor($ws/3600), floor(($ws%3600)/60), $ws%60) : '') . '</td>
+                    <td>' . ($es > 0 ? sprintf('%02d:%02d:%02d', floor($es/3600), floor(($es%3600)/60), $es%60) : '') . '</td>
+                    <td>' . htmlspecialchars($day->leave !== '—' ? $day->leave : '') . '</td>
+                    <td>' . htmlspecialchars($day->notes !== '—' ? $day->notes : '') . '</td>
+                </tr>';
             }
+            $html .= '</tbody></table></body></html>';
             
-            fclose($output);
+            echo chr(0xEF).chr(0xBB).chr(0xBF) . $html;
             exit;
         } catch (Exception $e) {
             log_message('error', 'Export Detail Excel error: ' . $e->getMessage());
@@ -3607,8 +3651,40 @@ class Reports extends CI_Controller {
         <p><strong>Period:</strong> ' . ucfirst($period) . ' - ' . htmlspecialchars($periodLabel) . '</p>
         <p><strong>Date Range:</strong> ' . htmlspecialchars($from) . ' to ' . htmlspecialchars($to) . '</p>
         <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
-    </div>
-    <table>
+    </div>';
+            // Calculate stats
+            $stats = ['present'=>0, 'late'=>0, 'on_time'=>0, 'absent'=>0, 'wfh'=>0, 'leave'=>0, 'total_worked_secs'=>0, 'total_extra_secs'=>0];
+            foreach ($days as $day) {
+                if (strtolower($day->status) === 'present') $stats['present']++;
+                if (isset($day->late) && strpos(strtolower($day->late), 'late') === 0) $stats['late']++;
+                if (isset($day->late_status) && $day->late_status === 'on_time') $stats['on_time']++;
+                if (strtolower($day->status) === 'absent') $stats['absent']++;
+                if (strtolower($day->status) === 'work from home') $stats['wfh']++;
+                if ($day->leave !== '—' && $day->leave !== '') $stats['leave']++;
+                $stats['total_worked_secs'] += isset($day->worked_seconds) ? (int)$day->worked_seconds : 0;
+                $stats['total_extra_secs'] += isset($day->extra_seconds) ? (int)$day->extra_seconds : 0;
+            }
+
+            $html .= '
+            <div style="margin-bottom:15px; background: #fff; padding: 10px; border: 1px solid #ddd;">
+                <h4 style="margin-top:0;">Summary</h4>
+                <table style="width: 100%; border: none;">
+                    <tr>
+                        <td style="border: none;"><strong>Present:</strong> ' . $stats['present'] . '</td>
+                        <td style="border: none;"><strong>On Time:</strong> ' . $stats['on_time'] . '</td>
+                        <td style="border: none;"><strong>Late:</strong> ' . $stats['late'] . '</td>
+                        <td style="border: none;"><strong>Absent:</strong> ' . $stats['absent'] . '</td>
+                        <td style="border: none;"><strong>WFH:</strong> ' . $stats['wfh'] . '</td>
+                        <td style="border: none;"><strong>Leave:</strong> ' . $stats['leave'] . '</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="border: none;"><strong>Total Worked:</strong> ' . sprintf('%02d:%02d:%02d', floor($stats['total_worked_secs']/3600), floor(($stats['total_worked_secs']%3600)/60), $stats['total_worked_secs']%60) . '</td>
+                        <td colspan="3" style="border: none;"><strong>Total Extra:</strong> ' . sprintf('%02d:%02d:%02d', floor($stats['total_extra_secs']/3600), floor(($stats['total_extra_secs']%3600)/60), $stats['total_extra_secs']%60) . '</td>
+                    </tr>
+                </table>
+            </div>';
+
+            $html .= '<table>
         <thead>
             <tr>
                 <th>Date</th>
@@ -3627,16 +3703,22 @@ class Reports extends CI_Controller {
         <tbody>';
             
             foreach ($days as $day) {
+                $ws = isset($day->worked_seconds) ? (int)$day->worked_seconds : 0;
+                $es = isset($day->extra_seconds) ? (int)$day->extra_seconds : 0;
+                
+                $isLate = (isset($day->late_status) && $day->late_status === 'late');
+                $lateStyle = $isLate ? ' style="color: red; font-weight: bold;"' : '';
+                
                 $html .= '<tr>
-                    <td>' . htmlspecialchars($day->date) . '</td>
+                    <td' . $lateStyle . '>' . htmlspecialchars($day->date) . '</td>
                     <td>' . htmlspecialchars($day->status) . '</td>
                     <td>' . htmlspecialchars($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
                     <td>' . htmlspecialchars($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
                     <td>' . htmlspecialchars($day->check_in_location !== '—' ? (strlen($day->check_in_location) > 30 ? substr($day->check_in_location, 0, 30) . '...' : $day->check_in_location) : '') . '</td>
                     <td>' . htmlspecialchars($day->check_out_location !== '—' ? (strlen($day->check_out_location) > 30 ? substr($day->check_out_location, 0, 30) . '...' : $day->check_out_location) : '') . '</td>
-                    <td>' . htmlspecialchars($day->late !== '—' ? $day->late : '') . '</td>
-                    <td>' . ($day->worked_hours > 0 ? number_format($day->worked_hours, 2) : '') . '</td>
-                    <td>' . ($day->extra_hours > 0 ? number_format($day->extra_hours, 2) : '') . '</td>
+                    <td' . $lateStyle . '>' . htmlspecialchars($day->late !== '—' ? $day->late : '') . '</td>
+                    <td>' . ($ws > 0 ? sprintf('%02d:%02d:%02d', floor($ws/3600), floor(($ws%3600)/60), $ws%60) : '') . '</td>
+                    <td>' . ($es > 0 ? sprintf('%02d:%02d:%02d', floor($es/3600), floor(($es%3600)/60), $es%60) : '') . '</td>
                     <td>' . htmlspecialchars($day->leave !== '—' ? $day->leave : '') . '</td>
                     <td>' . htmlspecialchars($day->notes !== '—' ? (strlen($day->notes) > 50 ? substr($day->notes, 0, 50) . '...' : $day->notes) : '') . '</td>
                 </tr>';

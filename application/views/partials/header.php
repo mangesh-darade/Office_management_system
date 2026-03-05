@@ -158,8 +158,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php endif; ?>
       <?php 
       $role_id = (int)$this->session->userdata('role_id');
-      $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-      if ($is_admin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+      // Super Admin (role_id 1) always sees WhatsApp; other roles rely on explicit permission
+      $is_superadmin = ($role_id === 1);
+      if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
       <?php endif; ?>
       
@@ -186,6 +187,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('permissions') ||
+        has_module_access('assets') ||
         has_module_access('assets_mgmt')
       );
       ?>
@@ -205,7 +207,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('assets_mgmt')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('assets') || has_module_access('assets_mgmt'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='assets'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
@@ -226,7 +228,20 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-cash-stack me-2"></i>Payroll</a>
       <?php endif; ?>
 
-      <?php if(function_exists('has_module_access') && has_module_access('leave_requests')): ?>
+      <?php
+      $leave_group_show = function_exists('has_module_access') && (
+        has_module_access('leave_requests') ||
+        has_module_access('leaves') ||
+        has_module_access('leaves_list') ||
+        has_module_access('leaves_add') ||
+        has_module_access('leaves_edit') ||
+        has_module_access('leaves_delete') ||
+        has_module_access('leave_team') ||
+        has_module_access('leave_calendar') ||
+        has_module_access('leave_approve')
+      );
+      ?>
+      <?php if($leave_group_show): ?>
       <div class="nav-item">
         <a class="nav-link sidebar-link <?php echo $active==='leave' ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-leave-submenu" role="button">
           <i class="bi bi-airplane-engines me-2"></i>Leave <i class="bi bi-chevron-down float-end"></i>
@@ -284,7 +299,19 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
       <?php endif; ?>
       
-      <?php if(function_exists('has_module_access') && has_module_access('reports')): ?>
+      <?php
+      $reports_group_show = function_exists('has_module_access') && (
+        has_module_access('reports') ||
+        has_module_access('reports_overview') ||
+        has_module_access('reports_requirements') ||
+        has_module_access('reports_tasks_assignment') ||
+        has_module_access('reports_projects_status') ||
+        has_module_access('reports_leaves') ||
+        has_module_access('reports_attendance') ||
+        has_module_access('reports_attendance_employee')
+      );
+      ?>
+      <?php if($reports_group_show): ?>
       <div class="nav-item">
         <a class="nav-link sidebar-link <?php echo $active==='reports'?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-reports-submenu" role="button">
           <i class="bi bi-graph-up me-2"></i>Reports <i class="bi bi-chevron-down float-end"></i>

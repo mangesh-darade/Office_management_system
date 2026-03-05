@@ -53,10 +53,10 @@ class Whatsapp extends CI_Controller {
      * Display WhatsApp sending interface
      */
     public function index() {
-        // Check permission - allow admin or users with whatsapp permission
+        // Check permission - Super Admin (role_id 1) or users with whatsapp permission
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-        if (!$is_admin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
+        $is_superadmin = ($role_id === 1);
+        if (!$is_superadmin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
             show_error('You do not have permission to access WhatsApp.', 403);
         }
         
@@ -84,10 +84,10 @@ class Whatsapp extends CI_Controller {
      * Send WhatsApp message
      */
     public function send() {
-        // Check permission - allow admin or users with whatsapp permission
+        // Check permission - Super Admin (role_id 1) or users with whatsapp permission
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-        if (!$is_admin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
+        $is_superadmin = ($role_id === 1);
+        if (!$is_superadmin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
             $this->output->set_status_header(403);
             echo json_encode(['success' => false, 'message' => 'Permission denied']);
             return;
@@ -145,10 +145,10 @@ class Whatsapp extends CI_Controller {
      * Send task assignment/update via WhatsApp
      */
     public function send_task() {
-        // Check permission - allow admin or users with whatsapp permission
+        // Check permission - Super Admin (role_id 1) or users with whatsapp permission
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-        if (!$is_admin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
+        $is_superadmin = ($role_id === 1);
+        if (!$is_superadmin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
             $this->output->set_status_header(403);
             echo json_encode(['success' => false, 'message' => 'Permission denied']);
             return;
