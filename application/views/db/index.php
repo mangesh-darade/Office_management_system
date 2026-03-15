@@ -1,4 +1,12 @@
-<?php $this->load->view('partials/header', ['title' => 'DB Manager']); ?>
+<?php
+if (!function_exists('has_module_access') || !has_module_access('db')) {
+    $this->load->view('partials/header', ['title' => 'DB Manager']);
+    echo '<div class="container mt-4"><div class="alert alert-danger">Forbidden</div></div>';
+    $this->load->view('partials/footer');
+    return;
+}
+$this->load->view('partials/header', ['title' => 'DB Manager']);
+?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">DB Manager</h1>
   <div class="d-flex gap-2">

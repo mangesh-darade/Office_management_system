@@ -132,10 +132,14 @@
             </div>
 
             <?php if($this->session->flashdata('success')): ?>
-                <div class="alert alert-success shadow-sm border-0 d-flex align-items-center"><i class="bi bi-check-circle-fill me-2 fs-5"></i><?php echo $this->session->flashdata('success'); ?></div>
+                <div class="alert alert-success shadow-sm border-0 d-flex align-items-center">
+                    <i class="bi bi-check-circle-fill me-2 fs-5"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+                </div>
             <?php endif; ?>
-             <?php if($this->session->flashdata('error')): ?>
-                <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center"><i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i><?php echo $this->session->flashdata('error'); ?></div>
+            <?php if($this->session->flashdata('error')): ?>
+                <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+                </div>
             <?php endif; ?>
 
             <div class="card shadow-sm border-0">

@@ -136,7 +136,7 @@
 
         <!-- Actions Column -->
         <div class="col-lg-4">
-            <?php if(is_admin_group()): ?>
+            <?php if(function_exists('is_admin_group') && is_admin_group()): ?>
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-bottom py-3">
                     <h6 class="mb-0 fw-bold">Actions</h6>

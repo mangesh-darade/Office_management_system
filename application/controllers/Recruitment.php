@@ -56,6 +56,7 @@ class Recruitment extends CI_Controller {
             $this->Recruitment_model->save_job($data);
             $this->session->set_flashdata('success', 'Job posting created successfully.');
             redirect('recruitment');
+            return;
         }
         $this->load->view('recruitment/create_job');
     }
@@ -77,6 +78,7 @@ class Recruitment extends CI_Controller {
             $this->Recruitment_model->save_job($data, $id);
             $this->session->set_flashdata('success', 'Job posting updated.');
             redirect('recruitment');
+            return;
         }
         $this->load->view('recruitment/create_job', ['job' => $job, 'editing' => true]);
     }
@@ -207,9 +209,10 @@ class Recruitment extends CI_Controller {
                     $setting = $this->db->get_where('settings', ['key' => 'company_name'])->row();
                     if ($setting) { $company_name = $setting->value; }
                 }
+                $job_title = isset($candidate->job_title) ? $candidate->job_title : 'Position';
                 $placeholders = [
                     'candidate_name' => $candidate->first_name . ' ' . $candidate->last_name,
-                    'job_title'      => $candidate->job_title,
+                    'job_title'      => $job_title,
                     'date'           => date('d M Y h:i A', strtotime($data['interview_date'])),
                     'type'           => $data['type'],
                     'company_name'   => $company_name,
@@ -217,7 +220,7 @@ class Recruitment extends CI_Controller {
                 if (function_exists('send_dynamic_email')) {
                     send_dynamic_email(
                         $candidate->email,
-                        'Interview Scheduled - ' . $candidate->job_title,
+                        'Interview Scheduled - ' . $job_title,
                         'recruitment',
                         'interview_scheduled',
                         $placeholders

@@ -143,11 +143,11 @@
                       <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
                       <form method="post" action="<?php echo site_url('leave/approve/'.(int)$r->id); ?>" class="d-inline">
                         <input type="hidden" name="comments" value="" id="approve_comments_<?php echo $r->id; ?>" />
-                        <button type="submit" class="btn btn-success btn-sm" <?php echo $approve_disabled; ?> onclick="document.getElementById('approve_comments_<?php echo $r->id; ?>').value = document.getElementById('comments_<?php echo $r->id; ?>').value;">Approve</button>
+                        <button type="submit" class="btn btn-success btn-sm" <?php echo isset($approve_disabled) ? $approve_disabled : ''; ?> onclick="document.getElementById('approve_comments_<?php echo $r->id; ?>').value = document.getElementById('comments_<?php echo $r->id; ?>').value;">Approve</button>
                       </form>
                       <?php endif; ?>
                       <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
-                      <button type="button" class="btn btn-danger btn-sm" onclick="rejectLeave(<?php echo $r->id; ?>)" <?php echo $reject_disabled; ?>>Reject</button>
+                      <button type="button" class="btn btn-danger btn-sm" onclick="rejectLeave(<?php echo $r->id; ?>)" <?php echo isset($reject_disabled) ? $reject_disabled : ''; ?>>Reject</button>
                       <?php endif; ?>
                       <?php if(function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests'))): ?>
                       <?php if (isset($is_admin) && $is_admin): ?>

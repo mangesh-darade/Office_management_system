@@ -152,6 +152,7 @@ class Attendance_model extends CI_Model {
         $this->db->select([
             'COUNT(*) AS total',
             "SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS present",
+            "SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS absent",
             "SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) AS late",
             "SUM(CASE WHEN status = 'early_leave' THEN 1 ELSE 0 END) AS early_leave",
         ]);

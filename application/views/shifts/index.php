@@ -10,10 +10,10 @@
     </div>
 
     <?php if($this->session->flashdata('success')): ?>
-        <div class="alert alert-success"><?php echo $this->session->flashdata('success'); ?></div>
+        <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
     <?php endif; ?>
     <?php if($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger"><?php echo $this->session->flashdata('error'); ?></div>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
     <?php endif; ?>
 
     <div class="card shadow-sm">
@@ -36,8 +36,8 @@
                         <?php if(!empty($shifts)): ?>
                             <?php foreach($shifts as $shift): ?>
                                 <tr>
-                                    <td><?php echo $shift->id; ?></td>
-                                    <td><?php echo $shift->name; ?></td>
+                                    <td><?php echo (int)$shift->id; ?></td>
+                                    <td><?php echo htmlspecialchars($shift->name); ?></td>
                                     <td><?php echo date('h:i A', strtotime($shift->start_time)); ?></td>
                                     <td><?php echo date('h:i A', strtotime($shift->end_time)); ?></td>
                                     <td><?php echo $shift->late_grace_period; ?></td>
@@ -50,11 +50,11 @@
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a class="btn btn-info btn-sm text-white" href="<?php echo base_url('shifts/edit/'.$shift->id); ?>">
+                                        <a class="btn btn-info btn-sm text-white" href="<?php echo site_url('shifts/edit/'.$shift->id); ?>">
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
                                         <?php if($shift->id != 1): ?>
-                                            <form action="<?php echo base_url('shifts/delete/'.$shift->id); ?>" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this shift?');">
+                                            <form action="<?php echo site_url('shifts/delete/'.$shift->id); ?>" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this shift?');">
                                                 <button type="submit" class="btn btn-danger btn-sm">
                                                     <i class="bi bi-trash"></i> Delete
                                                 </button>

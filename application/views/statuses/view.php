@@ -3,7 +3,7 @@
   <h1 class="h4 mb-0">Status Details</h1>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('statuses'); ?>">Back</a>
-    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || is_admin_group())): ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || (function_exists('is_admin_group') && is_admin_group()))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('statuses/edit/'.$status->id); ?>">Edit</a>
     <form method="post" action="<?php echo site_url('statuses/delete/'.$status->id); ?>" class="d-inline" onsubmit="return confirm('Delete this status?');">
       <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">

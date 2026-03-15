@@ -17,10 +17,10 @@
     </div>
 
     <?php if ($this->session->flashdata('success')): ?>
-        <div class="alert alert-success"><?php echo $this->session->flashdata('success'); ?></div>
+        <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
     <?php endif; ?>
     <?php if ($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger"><?php echo $this->session->flashdata('error'); ?></div>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
     <?php endif; ?>
 
     <!-- Filter Card -->

@@ -2,7 +2,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Status Management</h1>
   <div>
-    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || is_admin_group())): ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || (function_exists('is_admin_group') && is_admin_group()))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('statuses/create'); ?>">
       <i class="bi bi-plus-lg"></i> Add Status
     </a>
@@ -93,7 +93,7 @@
                     <a class="btn btn-outline-primary" href="<?php echo site_url('statuses/view/'.$status->id); ?>" title="View">
                       <i class="bi bi-eye"></i>
                     </a>
-                    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || is_admin_group())): ?>
+                    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || (function_exists('is_admin_group') && is_admin_group()))): ?>
                     <a class="btn btn-outline-secondary" href="<?php echo site_url('statuses/edit/'.$status->id); ?>" title="Edit">
                       <i class="bi bi-pencil"></i>
                     </a>

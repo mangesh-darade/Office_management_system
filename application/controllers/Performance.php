@@ -46,6 +46,7 @@ class Performance extends CI_Controller {
             $this->Performance_model->save($data);
             $this->session->set_flashdata('success', 'Appraisal submitted.');
             redirect('performance');
+            return;
         }
         $this->load->model('Employee_model');
         $data['employees'] = $this->Employee_model->all(100, 0, '', []);
@@ -83,6 +84,7 @@ class Performance extends CI_Controller {
             $this->Performance_model->update((int)$id, $data);
             $this->session->set_flashdata('success', 'Appraisal updated.');
             redirect('performance');
+            return;
         }
         $this->load->model('Employee_model');
         $data['employees'] = $this->Employee_model->all(100, 0, '', []);

@@ -6,6 +6,27 @@ class Leave_request_model extends CI_Model {
         parent::__construct(); 
         $this->load->database();
         $this->load->model('Setting_model', 'settings');
+        $this->ensure_schema();
+    }
+
+    private function ensure_schema(){
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
+        if (!$this->db->table_exists('leave_approvals')) {
+            $this->db->query("CREATE TABLE `leave_approvals` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `leave_id` int(11) NOT NULL,
+                `approver_id` int(11) NOT NULL,
+                `level` varchar(32) NOT NULL DEFAULT 'lead',
+                `decision` enum('approved','rejected') NOT NULL,
+                `remarks` text,
+                `decided_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `leave_id` (`leave_id`),
+                KEY `approver_id` (`approver_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        }
     }
 
     public function get_user_leaves($user_id, $filters = []){
@@ -32,12 +53,14 @@ class Leave_request_model extends CI_Model {
     }
 
     public function get_pending_approvals($manager_id){
-        // Placeholder for Phase 2
         $this->db->select('lr.*')
                  ->from('leave_requests lr')
-                 ->where('lr.current_approver_id', (int)$manager_id)
                  ->where('lr.status', 'pending')
                  ->order_by('lr.created_at', 'DESC');
+        // Only filter by current_approver_id if the column exists
+        if ($this->db->field_exists('current_approver_id', 'leave_requests')) {
+            $this->db->where('lr.current_approver_id', (int)$manager_id);
+        }
         return $this->db->get()->result();
     }
 
@@ -70,14 +93,8 @@ class Leave_request_model extends CI_Model {
             'updated_at' => date('Y-m-d H:i:s')
         ]);
 
-        // Log approval / rejection
-        $this->db->insert('leave_approvals', [
-            'leave_id' => $id,
-            'approver_id' => (int)$approved_by,
-            'level' => 'lead',
-            'decision' => ($status === 'rejected' ? 'rejected' : 'approved'),
-            'remarks' => (string)$comments,
-        ]);
+        // Log approval / rejection via dedicated method (avoids duplicate entries)
+        $this->add_approval_log($id, (int)$approved_by, ($status === 'rejected' ? 'rejected' : 'approved'), (string)$comments);
 
 
         // Check if this is a WFH request (by checking reason prefix or leave type name)
@@ -252,10 +269,10 @@ class Leave_request_model extends CI_Model {
             if ($existing) {
                 // Update existing record to WFH status
                 $this->db->where('id', (int)$existing->id)
-                         ->update('attendance', [
-                             $statusCol => 'work_from_home',
-                             'updated_at' => date('Y-m-d H:i:s')
-                         ]);
+                         ->update('attendance', array_merge(
+                             [$statusCol => 'work_from_home'],
+                             $this->db->field_exists('updated_at', 'attendance') ? ['updated_at' => date('Y-m-d H:i:s')] : []
+                         ));
             } else {
                 // Create new attendance record with WFH status
                 $data = [
@@ -263,8 +280,10 @@ class Leave_request_model extends CI_Model {
                     $dateCol => $date,
                     $statusCol => 'work_from_home',
                     'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
                 ];
+                if ($this->db->field_exists('updated_at', 'attendance')) {
+                    $data['updated_at'] = date('Y-m-d H:i:s');
+                }
                 
                 // Add source field if it exists
                 if ($this->db->field_exists('source', 'attendance')) {

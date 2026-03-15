@@ -50,7 +50,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |		my-controller/my-method	-> my_controller/my_method
 */
 $route['default_controller'] = 'auth';
-$route['404_override'] = '';
+$route['404_override'] = 'errors/page_missing';
 $route['translate_uri_dashes'] = FALSE;
 // Installer route to execute DB schema and seeds
 $route['install/schema'] = 'install/schema';
@@ -173,7 +173,8 @@ $route['roles/delete/(:num)'] = 'roles/delete/$1';
 // Attendance
 $route['attendance'] = 'attendance/index';
 $route['attendance/create'] = 'attendance/create';
-$route['attendance/get_data'] = 'attendance/get_data';
+// Legacy alias, see also attendance/get-data below
+// $route['attendance/get_data'] = 'attendance/get_data';
 $route['attendance/(:num)/edit'] = 'attendance/edit/$1';
 $route['attendance/(:num)/delete'] = 'attendance/delete/$1';
 
@@ -237,6 +238,12 @@ $route['activity/export'] = 'activity/export';
 $route['settings'] = 'settings/index';
 $route['settings/update'] = 'settings/update';
 $route['settings/upload-logo'] = 'settings/upload_logo';
+
+// Shifts
+$route['shifts'] = 'shifts/index';
+$route['shifts/create'] = 'shifts/create';
+$route['shifts/edit/(:num)'] = 'shifts/edit/$1';
+$route['shifts/delete/(:num)'] = 'shifts/delete/$1';
 $route['settings/test-email'] = 'settings/test_email';
 // Leave Types Management
 $route['settings/leave-types'] = 'settings/leave_types';
@@ -460,26 +467,18 @@ $route['analytics/save-integrations'] = 'analytics/save_integrations';
 $route['analytics/start-quick-call'] = 'analytics/start_quick_call';
 $route['analytics/analyze-feedback'] = 'analytics/analyze_feedback';
 $route['analytics/parse-resume'] = 'analytics/parse_resume';
-$route['analytics/calendar-feed'] = 'analytics/calendar_feed';
+$route['analytics/calendar-feed/(:any)'] = 'analytics/calendar_feed/$1';
 
 // Superadmin
 $route['superadmin'] = 'superadmin/index';
 $route['superadmin/(:any)'] = 'superadmin/$1';
 
-// Expenses export
-$route['expenses/export'] = 'expenses/export';
-
-// Payroll export (no id = all payslips)
-$route['payroll/export'] = 'payroll/export';
-
-// Clients contacts
-$route['clients/(:num)/contacts'] = 'clients/contacts/$1';
-
-// Approvals delete
-$route['approvals/delete/(:num)'] = 'approvals/delete/$1';
+// Expenses export (duplicate removed above)
+// Payroll export (no id = all payslips) — defined above
+// Clients contacts — defined above
+// Approvals delete — defined above
 
 // Profile sub-pages
-$route['profile'] = 'profile/index';
 $route['profile/edit'] = 'profile/edit';
 $route['profile/remove-avatar'] = 'profile/remove_avatar';
 $route['profile/delete'] = 'profile/delete_profile';

@@ -248,6 +248,7 @@ class Designations extends CI_Controller {
             if (!$found) {
                 $this->session->set_flashdata('error', 'Designation not found');
                 redirect('designations');
+                return;
             }
         }
         

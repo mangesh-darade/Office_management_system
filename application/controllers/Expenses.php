@@ -189,6 +189,7 @@ class Expenses extends CI_Controller {
             if (!$category_id || !$amount || !$description || !$expense_date) {
                 $this->session->set_flashdata('error', 'All fields are required.');
                 redirect('expenses/create');
+                return;
             }
             
             // Check budget limit - block if exceeded
@@ -220,6 +221,7 @@ class Expenses extends CI_Controller {
                 } else {
                     $this->session->set_flashdata('error', $this->upload->display_errors());
                     redirect('expenses/create');
+                    return;
                 }
             }
             
@@ -227,6 +229,7 @@ class Expenses extends CI_Controller {
             if ($category && $category->requires_receipt && !$receipt_path) {
                 $this->session->set_flashdata('error', 'Receipt is required for this category.');
                 redirect('expenses/create');
+                return;
             }
             
             // Insert expense
@@ -317,20 +320,20 @@ class Expenses extends CI_Controller {
             'approved_at' => date('Y-m-d H:i:s')
         ]);
         
-        // Get expense details
+        // Get expense details and notify employee
         $expense = $this->db->get_where('expenses', ['id' => (int)$id])->row();
-        
-        // Notify employee
-        $this->load->helper('notification');
-        create_notification(
-            $expense->user_id,
-            'Expense Approved',
-            'Your expense claim for ' . number_format($expense->amount, 2) . ' has been approved.',
-            'success',
-            'expenses',
-            $id,
-            site_url('expenses/view/' . $id)
-        );
+        if ($expense) {
+            $this->load->helper('notification');
+            create_notification(
+                $expense->user_id,
+                'Expense Approved',
+                'Your expense claim for ' . number_format($expense->amount, 2) . ' has been approved.',
+                'success',
+                'expenses',
+                $id,
+                site_url('expenses/view/' . $id)
+            );
+        }
         
         $this->session->set_flashdata('success', 'Expense approved successfully.');
         redirect('expenses');
@@ -357,20 +360,20 @@ class Expenses extends CI_Controller {
             'rejection_reason' => $reason
         ]);
         
-        // Get expense details
+        // Get expense details and notify employee
         $expense = $this->db->get_where('expenses', ['id' => (int)$id])->row();
-        
-        // Notify employee
-        $this->load->helper('notification');
-        create_notification(
-            $expense->user_id,
-            'Expense Rejected',
-            'Your expense claim for ' . number_format($expense->amount, 2) . ' has been rejected. Reason: ' . $reason,
-            'error',
-            'expenses',
-            $id,
-            site_url('expenses/view/' . $id)
-        );
+        if ($expense) {
+            $this->load->helper('notification');
+            create_notification(
+                $expense->user_id,
+                'Expense Rejected',
+                'Your expense claim for ' . number_format($expense->amount, 2) . ' has been rejected. Reason: ' . $reason,
+                'error',
+                'expenses',
+                $id,
+                site_url('expenses/view/' . $id)
+            );
+        }
         
         $this->session->set_flashdata('success', 'Expense rejected.');
         redirect('expenses');
@@ -398,20 +401,20 @@ class Expenses extends CI_Controller {
             'reimbursement_reference' => $reference
         ]);
         
-        // Get expense details
+        // Get expense details and notify employee
         $expense = $this->db->get_where('expenses', ['id' => (int)$id])->row();
-        
-        // Notify employee
-        $this->load->helper('notification');
-        create_notification(
-            $expense->user_id,
-            'Expense Reimbursed',
-            'Your expense claim for ' . number_format($expense->amount, 2) . ' has been reimbursed. Reference: ' . $reference,
-            'success',
-            'expenses',
-            $id,
-            site_url('expenses/view/' . $id)
-        );
+        if ($expense) {
+            $this->load->helper('notification');
+            create_notification(
+                $expense->user_id,
+                'Expense Reimbursed',
+                'Your expense claim for ' . number_format($expense->amount, 2) . ' has been reimbursed. Reference: ' . $reference,
+                'success',
+                'expenses',
+                $id,
+                site_url('expenses/view/' . $id)
+            );
+        }
         
         $this->session->set_flashdata('success', 'Expense marked as reimbursed.');
         redirect('expenses');

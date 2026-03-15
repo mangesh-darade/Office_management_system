@@ -482,10 +482,11 @@ class Payroll extends CI_Controller {
 
         // 1) Try to use latest payslip for bank / PAN / location defaults
         if ($this->db->table_exists('payslips')){
+            $order_col = $this->db->field_exists('pay_period', 'payslips') ? 'pay_period' : 'period';
             $row = $this->db
                 ->from('payslips')
                 ->where('user_id', $user_id)
-                ->order_by('period', 'DESC')
+                ->order_by($order_col, 'DESC')
                 ->limit(1)
                 ->get()
                 ->row();
@@ -653,11 +654,14 @@ class Payroll extends CI_Controller {
             if ($row) { $rows[] = $row; }
         } else {
             $month = $this->input->get('month') ? $this->input->get('month') : date('Y-m');
+            $period_col = $this->db->field_exists('pay_period', 'payslips') ? 'pay_period' : 'period';
+            $user_col   = $this->db->field_exists('employee_id', 'payslips') ? 'employee_id' : 'user_id';
             $this->db->select('ps.*, u.name as employee_name, u.email as employee_email');
+            if ($period_col !== 'pay_period') { $this->db->select("ps.{$period_col} as pay_period"); }
             $this->db->from('payslips ps');
-            $this->db->join('users u', 'u.id = ps.employee_id', 'left');
-            if ($month) { $this->db->where('ps.pay_period', $month); }
-            $this->db->order_by('ps.pay_period', 'DESC');
+            $this->db->join('users u', "u.id = ps.{$user_col}", 'left');
+            if ($month) { $this->db->where("ps.{$period_col}", $month); }
+            $this->db->order_by("ps.{$period_col}", 'DESC');
             $rows = $this->db->get()->result();
         }
 

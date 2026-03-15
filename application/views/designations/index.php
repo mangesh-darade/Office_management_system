@@ -2,7 +2,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Designations</h1>
   <div class="d-flex gap-2">
-    <?php if(function_exists('has_module_access') && (has_module_access('designations') || is_admin_group())): ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('designations') || (function_exists('is_admin_group') && is_admin_group()))): ?>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('designations?show_deleted=1'); ?>">Show Deleted</a>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('designations/create'); ?>">Create Designation</a>
     <?php endif; ?>
@@ -56,7 +56,7 @@
               <td><?php echo isset($r->deleted_at) ? '<span class="text-muted small">'.date('M j, Y H:i', strtotime($r->deleted_at)).'</span>' : '<span class="text-muted">—</span>'; ?></td>
               <td>
                 <div class="d-flex justify-content-center gap-1">
-                <?php if(function_exists('has_module_access') && (has_module_access('designations') || is_admin_group())): ?>
+                <?php if(function_exists('has_module_access') && (has_module_access('designations') || (function_exists('is_admin_group') && is_admin_group()))): ?>
                 <?php if (isset($r->status) && $r->status === 'inactive'): ?>
                     <a class="btn btn-sm btn-outline-success btn-icon" 
                        onclick="return confirm('Restore this designation?')" 

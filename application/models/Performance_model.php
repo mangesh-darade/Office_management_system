@@ -60,7 +60,7 @@ class Performance_model extends CI_Model {
     public function get_appraisals($employee_id = null){
         $this->db->select('p.*, e.first_name, e.last_name, u.name as manager_name');
         $this->db->from($this->table.' p');
-        $this->db->join('employees e', 'e.id = p.employee_id');
+        $this->db->join('employees e', 'e.id = p.employee_id', 'left');
         $this->db->join('users u', 'u.id = p.manager_id', 'left');
         if ($employee_id) { $this->db->where('p.employee_id', (int)$employee_id); }
         return $this->db->order_by('p.created_at', 'DESC')->get()->result();

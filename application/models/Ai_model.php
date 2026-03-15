@@ -53,7 +53,7 @@ class Ai_model extends CI_Model {
 
         // 3. Late Arrival Trend (Using Forecast)
         $forecast = $this->forecast_attendance($user_id);
-        if ($forecast['trend'] === 'Getting Later' && $forecast['slope'] > 3) {
+        if ($forecast['trend'] === 'Getting Later' && isset($forecast['slope']) && $forecast['slope'] > 3) {
             $score += 15;
             $risk_factors[] = "Consistently arriving later (Slope: {$forecast['slope']})";
         }
@@ -157,6 +157,12 @@ class Ai_model extends CI_Model {
 
         // Calculate Slope (m) and Intercept (b) for y = mx + b
         $n = count($x_values);
+
+        // Need at least 2 data points to compute a meaningful slope
+        if ($n < 2) {
+            return ['trend' => 'No Data', 'predicted_late' => false];
+        }
+
         $x_sum = array_sum($x_values);
         $y_sum = array_sum($y_values);
         
@@ -168,7 +174,12 @@ class Ai_model extends CI_Model {
             $xy_sum += ($x_values[$j] * $y_values[$j]);
         }
 
-        $slope = (($n * $xy_sum) - ($x_sum * $y_sum)) / (($n * $xx_sum) - ($x_sum * $x_sum));
+        $denominator = ($n * $xx_sum) - ($x_sum * $x_sum);
+        if ($denominator == 0) {
+            return ['trend' => 'Stable', 'slope' => 0.0, 'avg_time' => round($y_sum / $n)];
+        }
+
+        $slope = (($n * $xy_sum) - ($x_sum * $y_sum)) / $denominator;
         
         // Interpretation
         $trend = "Stable";

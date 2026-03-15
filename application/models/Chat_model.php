@@ -2,6 +2,12 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Chat_model extends CI_Model {
+    public function __construct() {
+        parent::__construct();
+        $this->load->database();
+        $this->ensure_schema();
+    }
+
     public function ensure_schema() {
         // conversations
         $this->db->query("CREATE TABLE IF NOT EXISTS conversations (
@@ -295,18 +301,15 @@ class Chat_model extends CI_Model {
 
     public function delete_message($message_id) {
         // Soft-delete: mark as deleted rather than removing from DB
-        if ($this->db->field_exists('is_deleted', 'messages')) {
-            $this->db->where('id', (int)$message_id)->update('messages', ['is_deleted' => 1, 'body' => '']);
-        } else {
-            // Add is_deleted column if missing, then soft-delete
-            $this->db->query("ALTER TABLE `messages` ADD COLUMN IF NOT EXISTS `is_deleted` tinyint(1) DEFAULT 0");
-            $this->db->where('id', (int)$message_id)->update('messages', ['is_deleted' => 1, 'body' => '']);
+        if (!$this->db->field_exists('is_deleted', 'messages')) {
+            $this->db->query("ALTER TABLE `messages` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0");
         }
+        $this->db->where('id', (int)$message_id)->update('messages', ['is_deleted' => 1, 'body' => '']);
     }
 
     public function edit_message($message_id, $new_body) {
         if (!$this->db->field_exists('edited_at', 'messages')) {
-            $this->db->query("ALTER TABLE `messages` ADD COLUMN IF NOT EXISTS `edited_at` datetime DEFAULT NULL");
+            $this->db->query("ALTER TABLE `messages` ADD COLUMN `edited_at` datetime DEFAULT NULL");
         }
         $this->db->where('id', (int)$message_id)->update('messages', [
             'body'      => $new_body,

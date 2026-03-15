@@ -12,7 +12,7 @@ class Shifts extends CI_Controller {
 
         // Check login
         if (!$this->session->userdata('user_id')) {
-            redirect('login');
+            redirect('auth/login');
         }
     }
 

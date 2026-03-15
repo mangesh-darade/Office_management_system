@@ -1601,11 +1601,6 @@ class Reports extends CI_Controller {
             if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
             elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
             
-            // Debug: Create sample data for testing if no data exists
-            $attendanceCount = $this->db->where($userCol, $user_id)->where("`$dateCol` >=", $from)->where("`$dateCol` <=", $to)->count_all_results('attendance');
-            error_log("Attendance count for user $user_id from $from to $to: $attendanceCount");
-            error_log("Check-in column detected: " . ($checkInCol ? $checkInCol : 'None'));
-            
 
 
             // Detect check-out column
@@ -1911,6 +1906,7 @@ class Reports extends CI_Controller {
                 $obj->check_out_location = $checkOutLocation;
                 $obj->worked_hours = round($workedHours, 2); // Total hours worked
                 $obj->extra_hours = round($extraHours, 2); // Extra hours beyond standard
+                $obj->late_hours = ($lateMinutes > 0) ? round($lateMinutes / 60, 2) : 0.0; // Late time in hours
                 $obj->worked_seconds = $workedSeconds;
                 $obj->extra_seconds = $extraSeconds;
                 $obj->notes = $notes;
@@ -1919,7 +1915,6 @@ class Reports extends CI_Controller {
             }
 
             $name = $getName($user_id);
-            error_log("Loading view for user: $user_id, name: $name, days count: " . count($days));
             $this->load->view('reports/attendance_employee_detail', [
                 'name'=>$name,
                 'period'=>$period,
@@ -2668,22 +2663,41 @@ class Reports extends CI_Controller {
             // Get user names
             $users = [];
             if ($this->db->table_exists('users')) {
-                $this->db->select('u.id');
-                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
-                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
-                else { $this->db->select('u.email AS name'); }
+                $hasEmpTable = $this->db->table_exists('employees') && $this->db->field_exists('user_id','employees');
+                $hasEmpName  = $hasEmpTable && $this->db->field_exists('name','employees');
+                $hasFullName = $this->db->field_exists('full_name','users');
+                $hasName     = $this->db->field_exists('name','users');
+
+                if ($hasEmpName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(e.name),""), NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasFullName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.name),""), u.email)';
+                } else {
+                    $nameExpr = 'u.email';
+                }
+
+                $this->db->select("u.id, ($nameExpr) AS name", false);
                 $this->db->where_in('u.id', $userIds);
-                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
-                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
                 }
                 $users = $this->db->from('users u')->get()->result();
             }
             
-            // Get attendance data
-            $dateCol = $this->db->field_exists('date', 'attendance') ? 'date' : ($this->db->field_exists('attendance_date', 'attendance') ? 'attendance_date' : 'created_at');
-            $userCol = $this->db->field_exists('user_id', 'attendance') ? 'user_id' : ($this->db->field_exists('employee_id', 'attendance') ? 'employee_id' : 'id');
-            $statusCol = $this->db->field_exists('status', 'attendance') ? 'status' : 'attendance_status';
+            // Get attendance data (use same column detection as grid)
+            $fields = $this->db->list_fields('attendance');
+            $userCandidates = ['user_id','employee_id','emp_id','staff_id','uid'];
+            $dateCandidates = ['att_date','date','attendance_date','created_at','checked_at'];
+            $statusCandidates = ['status','attendance_status','state'];
+            $userCol = $dateCol = $statusCol = null;
+            foreach ($userCandidates as $c) { if (in_array($c, $fields, true)) { $userCol = $c; break; } }
+            foreach ($dateCandidates as $c) { if (in_array($c, $fields, true)) { $dateCol = $c; break; } }
+            foreach ($statusCandidates as $c) { if (in_array($c, $fields, true)) { $statusCol = $c; break; } }
+            if ($userCol === null) { $userCol = isset($fields[0]) ? $fields[0] : 'user_id'; }
+            if ($dateCol === null) { $dateCol = isset($fields[1]) ? $fields[1] : 'att_date'; }
+            if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
             
             $summary = [];
             $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
@@ -2722,34 +2736,38 @@ class Reports extends CI_Controller {
             }
             
             // Calculate late days, late hours, and extra hours (same logic as UI grid)
-            // Get settings
+            // Get attendance settings dynamically from settings table
             $officeStart = '09:30';
             $graceMinutes = 15;
             $standardHours = 8.0;
-            if (isset($this->settings)) {
-                try {
-                    $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
-                    if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
-                        $officeStart = $stVal;
+            if ($this->db->table_exists('settings')) {
+                if (!isset($this->settings)) {
+                    $this->load->model('Setting_model', 'settings');
+                }
+                if (isset($this->settings)) {
+                    try {
+                        $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                        if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
+                            $officeStart = $stVal;
+                        }
+                        $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                        if (is_numeric($gmVal)) {
+                            $graceMinutes = (int)$gmVal;
+                        }
+                        $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                        if ($shVal === null || $shVal === '') {
+                            $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                        }
+                        if (is_numeric($shVal)) {
+                            $standardHours = (float)$shVal;
+                        }
+                    } catch (Exception $e) {
+                        // use defaults
                     }
-                    $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
-                    if (is_numeric($gmVal)) {
-                        $graceMinutes = (int)$gmVal;
-                    }
-                    $shVal = $this->settings->get_setting('attendance_standard_working_hours');
-                    if ($shVal === null || $shVal === '') {
-                        $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
-                    }
-                    if (is_numeric($shVal)) {
-                        $standardHours = (float)$shVal;
-                    }
-                } catch (Exception $e) {
-                    // use defaults
                 }
             }
             
             // Get check-in and check-out columns
-            $fields = $this->db->list_fields('attendance');
             $checkInCol = null;
             $checkOutCol = null;
             if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
@@ -2965,22 +2983,41 @@ class Reports extends CI_Controller {
             // Get user names
             $users = [];
             if ($this->db->table_exists('users')) {
-                $this->db->select('u.id');
-                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
-                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
-                else { $this->db->select('u.email AS name'); }
+                $hasEmpTable = $this->db->table_exists('employees') && $this->db->field_exists('user_id','employees');
+                $hasEmpName  = $hasEmpTable && $this->db->field_exists('name','employees');
+                $hasFullName = $this->db->field_exists('full_name','users');
+                $hasName     = $this->db->field_exists('name','users');
+
+                if ($hasEmpName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(e.name),""), NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasFullName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.name),""), u.email)';
+                } else {
+                    $nameExpr = 'u.email';
+                }
+
+                $this->db->select("u.id, ($nameExpr) AS name", false);
                 $this->db->where_in('u.id', $userIds);
-                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
-                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
                 }
                 $users = $this->db->from('users u')->get()->result();
             }
             
-            // Get attendance data (same as Excel)
-            $dateCol = $this->db->field_exists('date', 'attendance') ? 'date' : ($this->db->field_exists('attendance_date', 'attendance') ? 'attendance_date' : 'created_at');
-            $userCol = $this->db->field_exists('user_id', 'attendance') ? 'user_id' : ($this->db->field_exists('employee_id', 'attendance') ? 'employee_id' : 'id');
-            $statusCol = $this->db->field_exists('status', 'attendance') ? 'status' : 'attendance_status';
+            // Get attendance data (use same column detection as grid)
+            $fields = $this->db->list_fields('attendance');
+            $userCandidates = ['user_id','employee_id','emp_id','staff_id','uid'];
+            $dateCandidates = ['att_date','date','attendance_date','created_at','checked_at'];
+            $statusCandidates = ['status','attendance_status','state'];
+            $userCol = $dateCol = $statusCol = null;
+            foreach ($userCandidates as $c) { if (in_array($c, $fields, true)) { $userCol = $c; break; } }
+            foreach ($dateCandidates as $c) { if (in_array($c, $fields, true)) { $dateCol = $c; break; } }
+            foreach ($statusCandidates as $c) { if (in_array($c, $fields, true)) { $statusCol = $c; break; } }
+            if ($userCol === null) { $userCol = isset($fields[0]) ? $fields[0] : 'user_id'; }
+            if ($dateCol === null) { $dateCol = isset($fields[1]) ? $fields[1] : 'att_date'; }
+            if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
             
             $summary = [];
             $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
@@ -3019,34 +3056,38 @@ class Reports extends CI_Controller {
             }
             
             // Calculate late days, late hours, and extra hours (same logic as UI grid)
-            // Get settings
+            // Get attendance settings dynamically from settings table
             $officeStart = '09:30';
             $graceMinutes = 15;
             $standardHours = 8.0;
-            if (isset($this->settings)) {
-                try {
-                    $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
-                    if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
-                        $officeStart = $stVal;
+            if ($this->db->table_exists('settings')) {
+                if (!isset($this->settings)) {
+                    $this->load->model('Setting_model', 'settings');
+                }
+                if (isset($this->settings)) {
+                    try {
+                        $stVal = $this->settings->get_setting('attendance_start_time', $officeStart);
+                        if (is_string($stVal) && preg_match('/^\d{1,2}:\d{2}$/', $stVal)) {
+                            $officeStart = $stVal;
+                        }
+                        $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
+                        if (is_numeric($gmVal)) {
+                            $graceMinutes = (int)$gmVal;
+                        }
+                        $shVal = $this->settings->get_setting('attendance_standard_working_hours');
+                        if ($shVal === null || $shVal === '') {
+                            $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
+                        }
+                        if (is_numeric($shVal)) {
+                            $standardHours = (float)$shVal;
+                        }
+                    } catch (Exception $e) {
+                        // use defaults
                     }
-                    $gmVal = $this->settings->get_setting('attendance_grace_minutes', $graceMinutes);
-                    if (is_numeric($gmVal)) {
-                        $graceMinutes = (int)$gmVal;
-                    }
-                    $shVal = $this->settings->get_setting('attendance_standard_working_hours');
-                    if ($shVal === null || $shVal === '') {
-                        $shVal = $this->settings->get_setting('standard_working_hours', $standardHours);
-                    }
-                    if (is_numeric($shVal)) {
-                        $standardHours = (float)$shVal;
-                    }
-                } catch (Exception $e) {
-                    // use defaults
                 }
             }
             
             // Get check-in and check-out columns
-            $fields = $this->db->list_fields('attendance');
             $checkInCol = null;
             $checkOutCol = null;
             if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
@@ -3272,6 +3313,9 @@ class Reports extends CI_Controller {
             $uid = (int)$user->id;
             $name = isset($user->name) ? htmlspecialchars($user->name) : 'Unknown';
             $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+
+            $lateDays  = isset($data['late']) ? (float)$data['late'] : 0.0;
+            $lateStyle = $lateDays > 0 ? ' style="color:#dc2626;font-weight:bold;"' : '';
             
             $html .= '<tr>
                 <td>' . $name . '</td>
@@ -3281,7 +3325,7 @@ class Reports extends CI_Controller {
                 <td>' . number_format($data['wfh'], 1) . '</td>
                 <td>' . number_format($data['absent'], 1) . '</td>
                 <td>' . number_format($data['leave'], 1) . '</td>
-                <td>' . number_format(isset($data['late']) ? (float)$data['late'] : 0.0, 1) . '</td>
+                <td' . $lateStyle . '>' . number_format($lateDays, 1) . '</td>
                 <td>' . number_format(isset($data['on_time']) ? (float)$data['on_time'] : 0.0, 1) . '</td>
                 <td>' . number_format(isset($data['late_hours']) ? (float)$data['late_hours'] : 0.0, 2) . '</td>
                 <td>' . number_format(isset($data['extra_hours']) ? (float)$data['extra_hours'] : 0.0, 2) . '</td>
@@ -3520,13 +3564,24 @@ class Reports extends CI_Controller {
             // Get user name
             $userName = 'Unknown';
             if ($this->db->table_exists('users')) {
-                $this->db->select('u.id');
-                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
-                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
-                else { $this->db->select('u.email AS name'); }
-                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                $hasEmpTable = $this->db->table_exists('employees') && $this->db->field_exists('user_id','employees');
+                $hasEmpName  = $hasEmpTable && $this->db->field_exists('name','employees');
+                $hasFullName = $this->db->field_exists('full_name','users');
+                $hasName     = $this->db->field_exists('name','users');
+
+                if ($hasEmpName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(e.name),""), NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasFullName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.name),""), u.email)';
+                } else {
+                    $nameExpr = 'u.email';
+                }
+
+                $this->db->select("u.id, ($nameExpr) AS name", false);
+                if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
-                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
                 }
                 $user = $this->db->from('users u')->where('u.id', $user_id)->get()->row();
                 if ($user) { $userName = isset($user->name) ? $user->name : 'Unknown'; }
@@ -3623,13 +3678,24 @@ class Reports extends CI_Controller {
             // Get user name
             $userName = 'Unknown';
             if ($this->db->table_exists('users')) {
-                $this->db->select('u.id');
-                if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name AS name'); }
-                elseif ($this->db->field_exists('name','users')) { $this->db->select('u.name'); }
-                else { $this->db->select('u.email AS name'); }
-                if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+                $hasEmpTable = $this->db->table_exists('employees') && $this->db->field_exists('user_id','employees');
+                $hasEmpName  = $hasEmpTable && $this->db->field_exists('name','employees');
+                $hasFullName = $this->db->field_exists('full_name','users');
+                $hasName     = $this->db->field_exists('name','users');
+
+                if ($hasEmpName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(e.name),""), NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasFullName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.full_name),""), NULLIF(TRIM(u.name),""), u.email)';
+                } elseif ($hasName) {
+                    $nameExpr = 'COALESCE(NULLIF(TRIM(u.name),""), u.email)';
+                } else {
+                    $nameExpr = 'u.email';
+                }
+
+                $this->db->select("u.id, ($nameExpr) AS name", false);
+                if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
-                    if ($this->db->field_exists('name','employees')) { $this->db->select('COALESCE(e.name, u.full_name, u.name, u.email) AS name'); }
                 }
                 $user = $this->db->from('users u')->where('u.id', $user_id)->get()->row();
                 if ($user) { $userName = isset($user->name) ? $user->name : 'Unknown'; }
@@ -3781,11 +3847,18 @@ class Reports extends CI_Controller {
         $summary  = ['total_gross' => 0, 'total_deductions' => 0, 'total_net' => 0, 'count' => 0];
 
         if ($this->db->table_exists('payslips')) {
-            $this->db->select('ps.*, u.name as employee_name, u.email as employee_email, e.department');
+            $period_col = $this->db->field_exists('pay_period', 'payslips') ? 'pay_period' : 'period';
+            $user_col   = $this->db->field_exists('employee_id', 'payslips') ? 'employee_id' : 'user_id';
+            $sel = 'ps.*, u.name as employee_name, u.email as employee_email, e.department';
+            if ($period_col !== 'pay_period') { $sel .= ', ps.' . $period_col . ' as pay_period'; }
+            if (!$this->db->field_exists('gross_salary', 'payslips')) {
+                $sel .= ', ps.gross as gross_salary, ps.net as net_salary, ps.deductions as total_deductions';
+            }
+            $this->db->select($sel);
             $this->db->from('payslips ps');
-            $this->db->join('users u', 'u.id = ps.employee_id', 'left');
-            $this->db->join('employees e', 'e.user_id = ps.employee_id', 'left');
-            $this->db->like('ps.pay_period', $month);
+            $this->db->join('users u', "u.id = ps.{$user_col}", 'left');
+            $this->db->join('employees e', "e.user_id = ps.{$user_col}", 'left');
+            $this->db->like("ps.{$period_col}", $month);
             if ($department) { $this->db->where('e.department', $department); }
             $this->db->order_by('u.name', 'ASC');
             $payslips = $this->db->get()->result();
@@ -3800,7 +3873,13 @@ class Reports extends CI_Controller {
 
         $departments = [];
         if ($this->db->table_exists('employees')) {
-            $rows = $this->db->select('DISTINCT department')->where('department IS NOT NULL')->where('department !=', '')->get('employees')->result();
+            $rows = $this->db
+                ->distinct()
+                ->select('department')
+                ->where('department IS NOT NULL')
+                ->where('department !=', '')
+                ->get('employees')
+                ->result();
             foreach ($rows as $r) { $departments[] = $r->department; }
         }
 
@@ -3850,7 +3929,7 @@ class Reports extends CI_Controller {
         if ($this->db->table_exists('expenses')) {
             $this->db->select('ex.*, u.name as employee_name, u.email as employee_email, ec.name as category_name');
             $this->db->from('expenses ex');
-            $this->db->join('users u', 'u.id = ex.employee_id', 'left');
+            $this->db->join('users u', 'u.id = ex.user_id', 'left');
             $this->db->join('expense_categories ec', 'ec.id = ex.category_id', 'left');
             $this->db->where('ex.expense_date >=', $date_from);
             $this->db->where('ex.expense_date <=', $date_to);

@@ -142,36 +142,32 @@ class Daily_activity extends CI_Controller {
         }
         
         // --- Build Query ---
-        $this->db->start_cache(); // Cache query parts for count and result
-        
-        $this->db->from('daily_work_logs dl');
-        $this->db->join('tasks t', 't.id = dl.task_id', 'left');
-        $this->db->join('users u', 'u.id = dl.user_id', 'left');
-        
         // Role check
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-        
-        if (!$is_admin) {
-             $this->db->where('dl.user_id', (int)$this->session->userdata('user_id'));
-        } elseif (!empty($filters['user_id'])) {
-             // Admin filtering by user
-             $this->db->where('dl.user_id', $filters['user_id']);
-        }
 
-        // Date Filters
-        if (!empty($filters['date_from'])) {
-            $this->db->where('dl.work_date >=', $filters['date_from']);
-        }
-        if (!empty($filters['date_to'])) {
-            $this->db->where('dl.work_date <=', $filters['date_to']);
-        }
-        
-        $this->db->stop_cache();
-        
-        // Get Count
+        // Helper closure to apply shared WHERE conditions
+        $apply_filters = function() use ($filters, $is_admin) {
+            if (!$is_admin) {
+                $this->db->where('dl.user_id', (int)$this->session->userdata('user_id'));
+            } elseif (!empty($filters['user_id'])) {
+                $this->db->where('dl.user_id', $filters['user_id']);
+            }
+            if (!empty($filters['date_from'])) {
+                $this->db->where('dl.work_date >=', $filters['date_from']);
+            }
+            if (!empty($filters['date_to'])) {
+                $this->db->where('dl.work_date <=', $filters['date_to']);
+            }
+        };
+
+        // Get Count (separate query to avoid state leakage)
+        $this->db->from('daily_work_logs dl');
+        $this->db->join('tasks t', 't.id = dl.task_id', 'left');
+        $this->db->join('users u', 'u.id = dl.user_id', 'left');
+        $apply_filters();
         $total_rows = $this->db->count_all_results();
-        
+
         // --- Pagination ---
         $config['base_url'] = site_url('daily-activity/list');
         $config['total_rows'] = $total_rows;
@@ -198,15 +194,15 @@ class Daily_activity extends CI_Controller {
 
         $this->pagination->initialize($config);
 
-        // --- Fetch Data ---
+        // --- Fetch Data (fresh query to avoid state leakage from count) ---
         $this->db->select('dl.*, t.title as task_title, u.name as user_name, u.email as user_email');
-        // Show latest entries first
+        $this->db->from('daily_work_logs dl');
+        $this->db->join('tasks t', 't.id = dl.task_id', 'left');
+        $this->db->join('users u', 'u.id = dl.user_id', 'left');
+        $apply_filters();
         $this->db->order_by('dl.created_at', 'DESC');
         $this->db->limit($config['per_page'], $offset);
-        
         $logs = $this->db->get()->result();
-        
-        $this->db->flush_cache(); // Clear cache
 
         // Users for filter (Admin only)
         $users = [];

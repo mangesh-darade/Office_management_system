@@ -110,7 +110,7 @@
                             <?php endif; ?>
                         </div>
                     </div>
-                    <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || is_admin_group())): ?>
+                    <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || (function_exists('is_admin_group') && is_admin_group()))): ?>
                     <a href="<?php echo site_url('projects/'.$project->id.'/members'); ?>" class="btn btn-sm btn-outline-primary w-100 mt-2">Manage Members</a>
                     <?php endif; ?>
                 </div>

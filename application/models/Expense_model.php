@@ -16,8 +16,8 @@ class Expense_model extends CI_Model {
     {
         $this->db->select('expenses.*, users.name as username, expense_categories.name as category_name');
         $this->db->from('expenses');
-        $this->db->join('users', 'users.id = expenses.user_id');
-        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
+        $this->db->join('users', 'users.id = expenses.user_id', 'left');
+        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.id', (int)$id);
         return $this->db->get()->row();
     }
@@ -29,7 +29,7 @@ class Expense_model extends CI_Model {
     {
         $this->db->select('expenses.*, expense_categories.name as category_name');
         $this->db->from('expenses');
-        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
+        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.user_id', (int)$user_id);
         
         if (isset($filters['status'])) {
@@ -55,8 +55,8 @@ class Expense_model extends CI_Model {
     {
         $this->db->select('expenses.*, users.name as username, expense_categories.name as category_name');
         $this->db->from('expenses');
-        $this->db->join('users', 'users.id = expenses.user_id');
-        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
+        $this->db->join('users', 'users.id = expenses.user_id', 'left');
+        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.status', 'pending');
         $this->db->order_by('expenses.created_at', 'ASC');
         return $this->db->get()->result();
@@ -69,8 +69,8 @@ class Expense_model extends CI_Model {
     {
         $this->db->select('expenses.*, users.name as username, expense_categories.name as category_name');
         $this->db->from('expenses');
-        $this->db->join('users', 'users.id = expenses.user_id');
-        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
+        $this->db->join('users', 'users.id = expenses.user_id', 'left');
+        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.status', 'approved');
         $this->db->order_by('expenses.approved_at', 'ASC');
         return $this->db->get()->result();
@@ -108,10 +108,16 @@ class Expense_model extends CI_Model {
         if (!$month) $month = date('m');
         if (!$year) $year = date('Y');
         
+        $hasBudget   = $this->db->table_exists('expense_categories') && $this->db->field_exists('budget_limit', 'expense_categories');
+        $hasIsActive = $this->db->table_exists('expense_categories') && $this->db->field_exists('is_active', 'expense_categories');
+
+        $budgetCol  = $hasBudget ? 'ec.budget_limit' : 'NULL AS budget_limit';
+        $activeWhere = $hasIsActive ? 'WHERE ec.is_active = 1' : '';
+
         $sql = "SELECT 
                     ec.id,
                     ec.name,
-                    ec.budget_limit,
+                    {$budgetCol},
                     COALESCE(SUM(e.amount), 0) as used_amount,
                     COUNT(e.id) as expense_count
                 FROM expense_categories ec
@@ -119,7 +125,7 @@ class Expense_model extends CI_Model {
                     AND MONTH(e.expense_date) = ? 
                     AND YEAR(e.expense_date) = ?
                     AND e.status != 'rejected'
-                WHERE ec.is_active = 1
+                {$activeWhere}
                 GROUP BY ec.id";
         
         return $this->db->query($sql, [$month, $year])->result();

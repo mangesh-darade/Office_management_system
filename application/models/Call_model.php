@@ -2,6 +2,12 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Call_model extends CI_Model {
+    public function __construct() {
+        parent::__construct();
+        $this->load->database();
+        $this->ensure_schema();
+    }
+
     public function ensure_schema() {
         $this->db->query("CREATE TABLE IF NOT EXISTS calls (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

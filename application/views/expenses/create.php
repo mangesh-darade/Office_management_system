@@ -17,10 +17,10 @@
 
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
+                    <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
                     <?php if($this->session->flashdata('error')): ?>
-                        <div class="alert alert-danger mb-4"><?php echo $this->session->flashdata('error'); ?></div>
+                        <div class="alert alert-danger mb-4"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
                     <?php endif; ?>
                     
                     <?php echo form_open_multipart('expenses/create', ['class' => 'needs-validation', 'novalidate' => '']); ?>

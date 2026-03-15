@@ -14,7 +14,7 @@ $smtp_from = get_system_from_email();
       <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
     <?php endif; ?>
     <?php if($this->session->flashdata('error')): ?>
-      <div class="alert alert-danger"><?php echo $this->session->flashdata('error'); ?></div>
+      <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
     <?php endif; ?>
 
     <div class="card shadow-sm">

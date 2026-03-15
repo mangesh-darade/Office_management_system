@@ -442,7 +442,8 @@ class Reminders extends CI_Controller {
             return;
         }
         $users = $this->reminders->all_users();
-        $this->load->view('reminders/schedule_form_fixed', ['users'=>$users]);
+        // Use the shared schedule form view; the older 'schedule_form_fixed' name no longer exists
+        $this->load->view('reminders/schedule_form', ['users' => $users]);
     }
 
     // GET/POST /reminders/schedules/{id}/edit
@@ -515,10 +516,11 @@ class Reminders extends CI_Controller {
             return;
         }
         $users = $this->reminders->all_users();
-        $this->load->view('reminders/schedule_form_fixed', array(
-            'users' => $users,
-            'schedule' => $schedule,
-            'form_action' => site_url('reminders/schedules/'.$id.'/edit'),
+        // Reuse the same schedule form for editing
+        $this->load->view('reminders/schedule_form', array(
+            'users'      => $users,
+            'schedule'   => $schedule,
+            'form_action'=> site_url('reminders/schedules/'.$id.'/edit'),
         ));
     }
 

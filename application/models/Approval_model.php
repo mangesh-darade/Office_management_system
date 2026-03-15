@@ -279,10 +279,12 @@ class Approval_model extends CI_Model {
                 return $user && (int)$user->role_id == (int)$request_obj->approver_value;
 
             case 'manager':
-                // Get requester's manager
-                // 'employees' table links user_id to reporting_to
+                // Get requester's manager via reporting_to column (if it exists)
+                if (!$this->db->table_exists('employees') || !$this->db->field_exists('reporting_to', 'employees')) {
+                    return false;
+                }
                 $employee = $this->db->get_where('employees', ['user_id' => $request_obj->requester_id])->row();
-                return $employee && (int)$employee->reporting_to == (int)$user_id;
+                return $employee && isset($employee->reporting_to) && (int)$employee->reporting_to == (int)$user_id;
 
             case 'department_head':
                 // Get requester's department head

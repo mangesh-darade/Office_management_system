@@ -115,11 +115,11 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted">From Date</label>
-                    <input type="date" name="from_date" class="form-control form-control-sm" value="<?php echo $filters['from_date']; ?>">
+                    <input type="date" name="from_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filters['from_date']); ?>">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted">To Date</label>
-                    <input type="date" name="to_date" class="form-control form-control-sm" value="<?php echo $filters['to_date']; ?>">
+                    <input type="date" name="to_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filters['to_date']); ?>">
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
