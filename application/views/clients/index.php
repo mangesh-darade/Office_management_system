@@ -1,5 +1,21 @@
 <?php $this->load->view('partials/header', ['title' => 'Clients']); ?>
 <div class="container-fluid py-3">
+
+<?php if ($this->session->flashdata('success')): ?>
+<div class="alert alert-success alert-dismissible fade show d-flex align-items-center py-2 mb-3">
+  <i class="bi bi-check-circle-fill me-2"></i>
+  <span><?php echo htmlspecialchars($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></span>
+  <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+<?php if ($this->session->flashdata('error')): ?>
+<div class="alert alert-danger alert-dismissible fade show d-flex align-items-center py-2 mb-3">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <span><?php echo htmlspecialchars($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></span>
+  <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-briefcase text-primary me-2"></i>Clients</h1>
@@ -9,7 +25,9 @@
     <?php if(function_exists('has_module_access') && (has_module_access('clients_add') || has_module_access('clients'))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/create'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Client</a>
     <?php endif; ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('clients') || is_admin_group())): ?>
     <a class="btn btn-outline-success btn-sm" href="<?php echo site_url('clients/export'); ?>"><i class="bi bi-download me-1"></i>Export</a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -51,23 +69,22 @@
 <div class="card shadow-soft">
   <div class="card-body">
     <div class="table-responsive">
-      <table class="table table-striped align-middle">
-        <thead>
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
           <tr>
-            <th>Logo</th>
-            <th>Code</th>
+            <th style="width:56px;">Logo</th>
             <th>Company</th>
-            <th>Name</th>
-            <th>Phone</th>
-            <th style="width:150px;">Demo URL</th>
-            <th style="width:150px;">POS URL</th>
+            <th class="d-none d-md-table-cell">Code</th>
+            <th class="d-none d-sm-table-cell">Contact</th>
+            <th class="d-none d-sm-table-cell">Phone</th>
+            <th class="d-none d-lg-table-cell">Demo / POS</th>
             <th>Status</th>
-            <th class="text-end">Actions</th>
+            <th class="text-end" style="min-width:120px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-          <tr><td colspan="9" class="text-center text-muted">No clients found.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-4">No clients found.</td></tr>
           <?php else: foreach ($rows as $c): ?>
           <tr>
             <td>
@@ -78,48 +95,63 @@
                         data-bs-target="#clientLogoModal"
                         data-logo-url="<?php echo htmlspecialchars(base_url($c->logo)); ?>"
                         data-client-name="<?php echo htmlspecialchars($c->company_name); ?>">
-                  <div style="width:64px;height:64px;border:1px solid #dee2e6;border-radius:4px;display:flex;align-items:center;justify-content:center;background:#fff;">
-                    <img src="<?php echo htmlspecialchars(base_url($c->logo)); ?>" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;">
-                  </div>
+                  <img src="<?php echo htmlspecialchars(base_url($c->logo)); ?>" alt="Logo"
+                       style="width:40px;height:40px;object-fit:contain;border:1px solid #dee2e6;border-radius:4px;">
                 </button>
+              <?php else: ?>
+                <div style="width:40px;height:40px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;display:flex;align-items:center;justify-content:center;">
+                  <i class="bi bi-building text-muted"></i>
+                </div>
               <?php endif; ?>
             </td>
-            <td><?php echo htmlspecialchars($c->client_code); ?></td>
-            <td><?php echo htmlspecialchars($c->company_name); ?></td>
-            <td><?php echo htmlspecialchars(isset($c->contact_person)?$c->contact_person:''); ?></td>
-            <td><?php echo htmlspecialchars(isset($c->phone)?$c->phone:''); ?></td>
             <td>
+              <div class="fw-semibold"><?php echo htmlspecialchars($c->company_name); ?></div>
+              <div class="small text-muted d-md-none"><?php echo htmlspecialchars($c->client_code); ?></div>
+            </td>
+            <td class="d-none d-md-table-cell small text-muted"><?php echo htmlspecialchars($c->client_code); ?></td>
+            <td class="d-none d-sm-table-cell"><?php echo htmlspecialchars(isset($c->contact_person)?$c->contact_person:''); ?></td>
+            <td class="d-none d-sm-table-cell"><?php echo htmlspecialchars(isset($c->phone)?$c->phone:''); ?></td>
+            <td class="d-none d-lg-table-cell small">
               <?php if (!empty($c->demo_url)): ?>
-                <div style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                  <a href="<?php echo htmlspecialchars($c->demo_url); ?>"
-                     target="_blank" rel="noopener"
-                     title="<?php echo htmlspecialchars($c->demo_url); ?>">
-                    <?php echo htmlspecialchars($c->demo_url); ?>
-                  </a>
-                </div>
-              <?php else: ?>
-                <span class="text-muted">-</span>
+                <a href="<?php echo htmlspecialchars($c->demo_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo htmlspecialchars($c->demo_url); ?>">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>Demo
+                </a>
+              <?php endif; ?>
+              <?php if (!empty($c->pos_url)): ?>
+                <a href="<?php echo htmlspecialchars($c->pos_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo htmlspecialchars($c->pos_url); ?>">
+                  <i class="bi bi-box-arrow-up-right me-1"></i>POS
+                </a>
+              <?php endif; ?>
+              <?php if (empty($c->demo_url) && empty($c->pos_url)): ?>
+                <span class="text-muted">—</span>
               <?php endif; ?>
             </td>
             <td>
-              <?php if (!empty($c->pos_url)): ?>
-                <div style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                  <a href="<?php echo htmlspecialchars($c->pos_url); ?>"
-                     target="_blank" rel="noopener"
-                     title="<?php echo htmlspecialchars($c->pos_url); ?>">
-                    <?php echo htmlspecialchars($c->pos_url); ?>
-                  </a>
-                </div>
-              <?php else: ?>
-                <span class="text-muted">-</span>
-              <?php endif; ?>
+              <?php
+                $st = isset($c->status) ? $c->status : 'active';
+                $badge = $st === 'active' ? 'success' : ($st === 'inactive' ? 'secondary' : 'danger');
+              ?>
+              <span class="badge bg-<?php echo $badge; ?>-subtle text-<?php echo $badge; ?>-emphasis border border-<?php echo $badge; ?>-subtle">
+                <?php echo htmlspecialchars(ucfirst($st)); ?>
+              </span>
             </td>
-            <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars(isset($c->status)?$c->status:'active'); ?></span></td>
             <td class="text-end">
-              <a class="btn btn-light btn-sm" href="<?php echo site_url('clients/view/'.(int)$c->id); ?>"><i class="bi bi-eye"></i></a>
-              <?php if(function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
-              <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/edit/'.(int)$c->id); ?>"><i class="bi bi-pencil"></i></a>
-              <?php endif; ?>
+              <div class="d-flex gap-1 justify-content-end">
+                <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('clients/view/'.(int)$c->id); ?>" title="View">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <?php if(function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
+                <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('clients/edit/'.(int)$c->id); ?>" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <?php endif; ?>
+                <?php if(function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'))): ?>
+                <button type="button" class="btn btn-outline-danger btn-sm" title="Delete"
+                        onclick="confirmDeleteClient(<?php echo (int)$c->id; ?>, '<?php echo htmlspecialchars(addslashes($c->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
+                  <i class="bi bi-trash"></i>
+                </button>
+                <?php endif; ?>
+              </div>
             </td>
           </tr>
           <?php endforeach; endif; ?>
@@ -147,7 +179,38 @@
   </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Client</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">Are you sure you want to permanently delete:</p>
+        <p class="fw-bold fs-6" id="deleteClientName"></p>
+        <p class="text-muted small mb-0">This action cannot be undone. All associated data will be removed.</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteClientForm" method="post" action="" class="d-inline">
+          <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Yes, Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+  function confirmDeleteClient(id, name) {
+    document.getElementById('deleteClientName').textContent = name;
+    document.getElementById('deleteClientForm').action = '<?php echo site_url('clients/delete/'); ?>' + id;
+    var modal = new bootstrap.Modal(document.getElementById('deleteClientModal'));
+    modal.show();
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
     var imgEl = document.getElementById('clientLogoModalImg');
     var downloadEl = document.getElementById('clientLogoDownload');
@@ -160,9 +223,7 @@
         imgEl.src = url;
         imgEl.alt = name || 'Client logo';
         if (titleEl){ titleEl.textContent = name ? (name + ' Logo') : 'Client Logo'; }
-        if (downloadEl){
-          downloadEl.href = url;
-        }
+        if (downloadEl){ downloadEl.href = url; }
       });
     });
   });

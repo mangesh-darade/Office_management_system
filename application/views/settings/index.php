@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Settings']); ?>
+<?php $can_save_settings = function_exists('has_module_access') && (has_module_access('settings') || has_module_access('system_settings') || is_admin_group()); ?>
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">
     <i class="bi bi-gear-fill me-2"></i>System Settings
@@ -1331,9 +1332,12 @@ function togglePassword(inputId) {
 
 function removeLogo() {
   if (confirm('Are you sure you want to remove the company logo?')) {
+    var csrfMatch = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+    var csrfBody = csrfMatch ? '<?php echo $this->security->get_csrf_token_name(); ?>=' + encodeURIComponent(decodeURIComponent(csrfMatch[1])) : '';
     fetch('<?php echo site_url("settings/remove-logo"); ?>', {
       method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: csrfBody
     }).then(() => {
       location.reload();
     });
@@ -1587,4 +1591,25 @@ function removeCustomProviderRow(id) {
 }
 </style>
 
+<?php if(!$can_save_settings): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Hide all submit buttons in settings forms for users without settings permission
+  var forms = document.querySelectorAll('form');
+  forms.forEach(function(form) {
+    var btns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+    btns.forEach(function(btn) { btn.style.display = 'none'; });
+    // Also disable all inputs to make it read-only
+    var inputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
+    inputs.forEach(function(inp) { inp.setAttribute('disabled', 'disabled'); });
+  });
+  // Show a notice
+  var notice = document.createElement('div');
+  notice.className = 'alert alert-warning alert-dismissible fade show mb-3';
+  notice.innerHTML = '<i class="bi bi-lock me-2"></i><strong>Read-only:</strong> You do not have permission to modify system settings. <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  var container = document.querySelector('.container-fluid') || document.body;
+  container.insertBefore(notice, container.firstChild);
+});
+</script>
+<?php endif; ?>
 <?php $this->load->view('partials/footer'); ?>

@@ -12,17 +12,12 @@ class Notifications extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
+        $this->load->model('Notification_model');
         $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
         
-        // Check if user is logged in
         if (!(int)$this->session->userdata('user_id')) {
             redirect('auth/login');
-        }
-        
-        // When permission system is in use, require notifications module access
-        if (function_exists('has_module_access') && !has_module_access('notifications')) {
-            show_error('You do not have permission to access Notifications.', 403);
         }
         
         $this->ensure_schema();
@@ -82,40 +77,24 @@ class Notifications extends CI_Controller {
     public function index()
     {
         $user_id = (int)$this->session->userdata('user_id');
-        
-        // Get filter
-        $filter = $this->input->get('filter') ?: 'all'; // all, unread, read
-        
-        // Build query
-        $this->db->select('*');
-        $this->db->from('notifications');
-        $this->db->where('user_id', $user_id);
-        $this->db->where('is_deleted', 0);
-        
+        $filter  = $this->input->get('filter') ? $this->input->get('filter') : 'all';
+
+        $notifications = $this->Notification_model->get_for_user($user_id, 100);
+
+        // Apply filter client-side by pre-filtering here
         if ($filter === 'unread') {
-            $this->db->where('is_read', 0);
+            $notifications = array_values(array_filter($notifications, function($n) { return !$n->is_read; }));
         } elseif ($filter === 'read') {
-            $this->db->where('is_read', 1);
+            $notifications = array_values(array_filter($notifications, function($n) { return $n->is_read; }));
         }
-        
-        $this->db->order_by('created_at', 'DESC');
-        $this->db->limit(100); // Limit to last 100 notifications
-        
-        $notifications = $this->db->get()->result();
-        
-        // Get unread count
-        $this->db->where('user_id', $user_id);
-        $this->db->where('is_read', 0);
-        $this->db->where('is_deleted', 0);
-        $unread_count = $this->db->count_all_results('notifications');
-        
-        $data = [
+
+        $unread_count = $this->Notification_model->count_unread($user_id);
+
+        $this->load->view('notifications/index', [
             'notifications' => $notifications,
-            'unread_count' => $unread_count,
-            'filter' => $filter
-        ];
-        
-        $this->load->view('notifications/index', $data);
+            'unread_count'  => $unread_count,
+            'filter'        => $filter,
+        ]);
     }
     
     /**
@@ -125,14 +104,8 @@ class Notifications extends CI_Controller {
     public function count()
     {
         $user_id = (int)$this->session->userdata('user_id');
-        
-        $this->db->where('user_id', $user_id);
-        $this->db->where('is_read', 0);
-        $this->db->where('is_deleted', 0);
-        $count = $this->db->count_all_results('notifications');
-        
-        header('Content-Type: application/json');
-        echo json_encode(['count' => $count]);
+        $count   = $this->Notification_model->count_unread($user_id);
+        $this->output->set_content_type('application/json')->set_output(json_encode(['count' => $count]));
     }
     
     /**
@@ -141,19 +114,13 @@ class Notifications extends CI_Controller {
      */
     public function recent()
     {
-        $user_id = (int)$this->session->userdata('user_id');
-        
-        $this->db->select('*');
-        $this->db->from('notifications');
-        $this->db->where('user_id', $user_id);
-        $this->db->where('is_deleted', 0);
-        $this->db->order_by('created_at', 'DESC');
-        $this->db->limit(10);
-        
-        $notifications = $this->db->get()->result();
-        
-        header('Content-Type: application/json');
-        echo json_encode(['notifications' => $notifications]);
+        $user_id       = (int)$this->session->userdata('user_id');
+        $notifications = $this->Notification_model->get_for_user($user_id, 10);
+        $count         = $this->Notification_model->count_unread($user_id);
+        $this->output->set_content_type('application/json')->set_output(json_encode([
+            'notifications' => $notifications,
+            'unread_count'  => $count,
+        ]));
     }
     
     /**
@@ -163,17 +130,9 @@ class Notifications extends CI_Controller {
     public function mark_read($id)
     {
         $user_id = (int)$this->session->userdata('user_id');
-        
-        $this->db->where('id', (int)$id);
-        $this->db->where('user_id', $user_id);
-        $this->db->update('notifications', [
-            'is_read' => 1,
-            'read_at' => date('Y-m-d H:i:s')
-        ]);
-        
+        $this->Notification_model->mark_read((int)$id, $user_id);
         if ($this->input->is_ajax_request()) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
+            $this->output->set_content_type('application/json')->set_output(json_encode(['success' => true]));
         } else {
             redirect('notifications');
         }
@@ -186,17 +145,9 @@ class Notifications extends CI_Controller {
     public function mark_all_read()
     {
         $user_id = (int)$this->session->userdata('user_id');
-        
-        $this->db->where('user_id', $user_id);
-        $this->db->where('is_read', 0);
-        $this->db->update('notifications', [
-            'is_read' => 1,
-            'read_at' => date('Y-m-d H:i:s')
-        ]);
-        
+        $this->Notification_model->mark_all_read($user_id);
         if ($this->input->is_ajax_request()) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
+            $this->output->set_content_type('application/json')->set_output(json_encode(['success' => true]));
         } else {
             $this->session->set_flashdata('success', 'All notifications marked as read.');
             redirect('notifications');
@@ -210,14 +161,9 @@ class Notifications extends CI_Controller {
     public function delete($id)
     {
         $user_id = (int)$this->session->userdata('user_id');
-        
-        $this->db->where('id', (int)$id);
-        $this->db->where('user_id', $user_id);
-        $this->db->update('notifications', ['is_deleted' => 1]);
-        
+        $this->Notification_model->delete((int)$id, $user_id);
         if ($this->input->is_ajax_request()) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
+            $this->output->set_content_type('application/json')->set_output(json_encode(['success' => true]));
         } else {
             $this->session->set_flashdata('success', 'Notification deleted.');
             redirect('notifications');
@@ -296,18 +242,9 @@ class Notifications extends CI_Controller {
     public static function create($user_id, $title, $message, $type = 'info', $module = null, $related_id = null, $action_url = null)
     {
         $CI =& get_instance();
-        
-        $data = [
-            'user_id' => (int)$user_id,
-            'title' => $title,
-            'message' => $message,
-            'type' => $type,
-            'module' => $module,
-            'related_id' => $related_id,
-            'action_url' => $action_url
-        ];
-        
-        $CI->db->insert('notifications', $data);
-        return $CI->db->insert_id();
+        if (!isset($CI->Notification_model)) {
+            $CI->load->model('Notification_model');
+        }
+        return $CI->Notification_model->create($user_id, $title, $message, $type, $module, $related_id, $action_url);
     }
 }

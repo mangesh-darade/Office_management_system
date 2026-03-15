@@ -67,7 +67,10 @@
                   <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements/'.(int)$r->id.'/edit'); ?>">Edit</a>
                 <?php endif; ?>
                 <?php if (!empty($can_manage) || (function_exists('has_module_access') && (has_module_access('announcements_delete') || has_module_access('announcements')))): ?>
-                  <a class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this announcement?')" href="<?php echo site_url('announcements/'.(int)$r->id.'/delete'); ?>">Delete</a>
+                  <form method="post" action="<?php echo site_url('announcements/'.(int)$r->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this announcement?');">
+                    <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                  </form>
                 <?php endif; ?>
                 <?php if (empty($can_manage) && !(function_exists('has_module_access') && (has_module_access('announcements_edit') || has_module_access('announcements_delete') || has_module_access('announcements')))): ?>
                   <span class="text-muted">—</span>

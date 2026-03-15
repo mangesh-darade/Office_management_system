@@ -9,7 +9,7 @@
     </div>
 
     <?php if ($this->session->flashdata('error')): ?>
-      <div class="alert alert-danger"><?php echo $this->session->flashdata('error'); ?></div>
+      <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
 
     <div class="card shadow-soft border-0">
@@ -24,25 +24,34 @@
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label">Name <span class="text-danger">*</span></label>
-              <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?>" required>
+              <input type="text" name="name" class="form-control <?php echo form_error('name') ? 'is-invalid' : ''; ?>"
+                     value="<?php echo htmlspecialchars(set_value('name', isset($row->name) ? $row->name : '')); ?>" required>
+              <?php if (form_error('name')): ?><div class="invalid-feedback"><?php echo form_error('name'); ?></div><?php endif; ?>
             </div>
             <?php if (!$is_edit): ?>
             <div class="col-md-4">
               <label class="form-label">Email <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <input type="email" name="email" id="userEmail" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" placeholder="you@gmail.com" required>
+              <div class="input-group <?php echo form_error('email') ? 'is-invalid' : ''; ?>">
+                <input type="email" name="email" id="userEmail"
+                       class="form-control <?php echo form_error('email') ? 'is-invalid' : ''; ?>"
+                       value="<?php echo htmlspecialchars(set_value('email', isset($row->email) ? $row->email : '')); ?>"
+                       placeholder="you@example.com" required>
                 <button class="btn btn-outline-secondary" type="button" id="btnSendCode">Send code</button>
               </div>
+              <?php if (form_error('email')): ?><div class="invalid-feedback d-block"><?php echo form_error('email'); ?></div><?php endif; ?>
               <div class="form-text" id="emailHelp"></div>
             </div>
             <div class="col-md-4">
               <label class="form-label">Verification Code</label>
-              <input type="text" name="verify_code" class="form-control" placeholder="Enter code sent to this Gmail">
+              <input type="text" name="verify_code" class="form-control" placeholder="Enter code sent to your email">
             </div>
             <?php else: ?>
             <div class="col-md-4">
               <label class="form-label">Email <span class="text-danger">*</span></label>
-              <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?>" required>
+              <input type="email" name="email"
+                     class="form-control <?php echo form_error('email') ? 'is-invalid' : ''; ?>"
+                     value="<?php echo htmlspecialchars(set_value('email', isset($row->email) ? $row->email : '')); ?>" required>
+              <?php if (form_error('email')): ?><div class="invalid-feedback"><?php echo form_error('email'); ?></div><?php endif; ?>
             </div>
             <?php endif; ?>
 
@@ -65,11 +74,12 @@
                   $rid = $firstKey !== null ? (int)$firstKey : 1;
                 }
               ?>
-              <select name="role_id" class="form-select" required>
+              <select name="role_id" class="form-select <?php echo form_error('role_id') ? 'is-invalid' : ''; ?>" required>
                 <?php foreach ($roleOptions as $id => $name): ?>
                   <option value="<?php echo (int)$id; ?>" <?php echo $rid===(int)$id?'selected':''; ?>><?php echo htmlspecialchars($name); ?></option>
                 <?php endforeach; ?>
               </select>
+              <?php if (form_error('role_id')): ?><div class="invalid-feedback"><?php echo form_error('role_id'); ?></div><?php endif; ?>
             </div>
 
             <div class="col-md-4">
@@ -98,7 +108,7 @@
                 }
                 $st = $isActive ? 1 : 0;
               ?>
-              <select name="status" class="form-select" required>
+              <select name="status" class="form-select <?php echo form_error('status') ? 'is-invalid' : ''; ?>" required>
                 <option value="1" <?php echo $st===1?'selected':''; ?>>Active</option>
                 <option value="0" <?php echo $st===0?'selected':''; ?>>Inactive</option>
               </select>
@@ -255,11 +265,19 @@
       }
     });
     
+    // Helper: build URLSearchParams with CSRF token included
+    function buildParams(obj) {
+      var p = new URLSearchParams(obj);
+      var m = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+      if (m) p.append('<?php echo $this->security->get_csrf_token_name(); ?>', decodeURIComponent(m[1]));
+      return p;
+    }
+
     function checkExistingEmail(email) {
       fetch(site + 'users/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-        body: new URLSearchParams({ email: email })
+        body: buildParams({ email: email })
       }).then(function(res){ return res.json(); }).then(function(data){
         if (data && data.exists) {
           alert('Email "' + email + '" already exists in the system!');
@@ -275,7 +293,7 @@
       fetch(site + 'users/check-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-        body: new URLSearchParams({ phone: phone })
+        body: buildParams({ phone: phone })
       }).then(function(res){ return res.json(); }).then(function(data){
         if (data && data.exists) {
           alert('Phone number "' + phone + '" already exists in the system!');
@@ -300,7 +318,7 @@
       fetch(site + 'auth/send-verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-        body: new URLSearchParams({ email: email })
+        body: buildParams({ email: email })
       }).then(function(res){ return res.json(); }).then(function(data){
         if (data && data.ok) {
           help.textContent = 'Verification code sent. Please check inbox or spam.';
@@ -418,17 +436,35 @@
       };
 
       setStatus('Saving face data...', false);
+
+      // Read CSRF token from cookie (set by CodeIgniter)
+      var csrfToken = '';
+      try {
+        var match = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+        if (match) csrfToken = decodeURIComponent(match[1]);
+      } catch(e) {}
+
       fetch('<?php echo site_url('users/save_face'); ?>', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
         body: JSON.stringify(payload)
-      }).then(function(r){ return r.json(); }).then(function(j){
-        if (j && j.ok){
-          setStatus('Face data saved successfully.', false);
-        } else {
-          setStatus(j && j.error ? j.error : 'Failed to save face data.', true);
+      }).then(function(r){
+        if (!r.ok && r.status === 403) {
+          setStatus('Access denied. You do not have permission to save face data.', true);
+          return null;
         }
-      }).catch(function(){ setStatus('Failed to save face data.', true); });
+        return r.json();
+      }).then(function(j){
+        if (!j) return;
+        if (j.ok){
+          setStatus('Face data saved successfully! ✓', false);
+        } else {
+          setStatus(j.error ? j.error : 'Failed to save face data.', true);
+        }
+      }).catch(function(err){ setStatus('Network error: ' + (err.message || 'Failed to save face data.'), true); });
     } catch (e){
       setStatus('Error capturing face: ' + e.message, true);
     }

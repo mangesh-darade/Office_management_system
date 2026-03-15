@@ -482,26 +482,58 @@ $config['csrf_cookie_name'] = 'ci_csrf_token';
 $config['csrf_expire'] = 7200;
 $config['csrf_regenerate'] = FALSE;
 $config['csrf_exclude_uris'] = array(
+    // Background / cron / API
     'cron/.*',
     'api/.*',
+
+    // Auth (public forms — CSRF not yet available before login)
+    'auth/login',
+    'auth/forgot_password',
+    'auth/reset_password',
+    'auth/verify_2fa',
+    'auth/send-verify-code',
+    'auth/verify-code',
+    'auth/verify',
+
+    // Tasks — AJAX status updates (session-authenticated, low CSRF risk)
     'tasks/update-status',
     'tasks/bulk-update-status',
     'tasks/get_by_project/.*',
     'tasks/.*/comments',
+
+    // Attendance — AJAX data fetch (read-only query)
     'attendance/get_user_monthly_attendance',
     'attendance/ajax_.*',
+
+    // Notifications — mark read / delete (session-authenticated, low value target)
     'notifications/mark_read',
     'notifications/mark_all_read',
+    'notifications/mark-all-read',
+    'notifications/mark-read',
+    'notifications/.*/mark-read',
+    'notifications/.*/delete',
+
+    // Chats & Calls — real-time messaging (session-authenticated)
     'chats/.*',
     'calls/.*',
+
+    // AI chat & Analytics — AJAX queries
     'ai_chat/.*',
     'analytics/.*',
-    'leave/get_employee_tasks/.*',
+
+    // WhatsApp — webhook from external provider + send-task trigger
     'whatsapp/webhook',
-    'auth/login',
-    'auth/forgot_password',
-    'auth/reset_password',
-    'auth/verify_2fa'
+    'whatsapp/send-task',
+
+    // Leave
+    'leave/get_employee_tasks/.*',
+
+    // Users — AJAX duplicate checks (read-only lookups)
+    'users/save_face',
+    'users/check_email',
+    'users/check-email',
+    'users/check-phone',
+    'users/check_phone',
 );
 
 /*

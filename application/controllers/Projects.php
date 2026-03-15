@@ -356,6 +356,7 @@ class Projects extends CI_Controller {
     // POST /projects/{id}/delete
     public function delete($id)
     {
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Check delete permission specifically
         if (!function_exists('has_module_access') || (!has_module_access('projects_delete') && !has_module_access('projects'))) {
             show_error('You do not have permission to delete projects.', 403);
@@ -557,6 +558,7 @@ class Projects extends CI_Controller {
     // POST /projects/{id}/remove-member/{user_id}
     public function remove_member($project_id, $user_id)
     {
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         $project_id = (int)$project_id; $user_id = (int)$user_id;
         // Allow only admin or project creator (if column exists)
         $role_id = (int)$this->session->userdata('role_id');

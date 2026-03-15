@@ -322,9 +322,10 @@ $stats['scheduled'] = $scheduled_count;
                   <a class="btn btn-outline-primary" href="<?php echo site_url('reminders/edit/'.(int)$r->id); ?>" title="Edit">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a class="btn btn-outline-danger" href="<?php echo site_url('reminders/delete/'.(int)$r->id); ?>" title="Delete" onclick="return confirm('Delete this reminder?');">
-                    <i class="bi bi-trash"></i>
-                  </a>
+                  <form method="post" action="<?php echo site_url('reminders/delete/'.(int)$r->id); ?>" class="d-inline" onsubmit="return confirm('Delete this reminder?');">
+                    <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                    <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                  </form>
                 </div>
               </td>
             </tr>

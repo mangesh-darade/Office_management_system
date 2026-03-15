@@ -154,6 +154,7 @@ class Api_integrations extends CI_Controller {
      * Delete integration
      */
     public function delete($id) {
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         $integration = $this->api->get_by_id($id);
         if (!$integration) {
             show_404();

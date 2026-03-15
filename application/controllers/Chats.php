@@ -22,7 +22,7 @@ class Chats extends CI_Controller {
 
     private function _ensure_auth() {
         if (!$this->session->userdata('user_id')) {
-            redirect('login');
+            redirect('auth/login');
             exit;
         }
     }
@@ -141,7 +141,8 @@ class Chats extends CI_Controller {
             }
         }
         $msg_id = $this->Chat_model->add_message($conversation_id, $user_id, $body, $attachment_path);
-        $this->_json(['ok'=>true,'message_id'=>$msg_id]);
+        $message = $this->Chat_model->get_message_by_id($msg_id);
+        $this->_json(['ok'=>true,'message_id'=>$msg_id,'message'=>$message]);
     }
 
     // GET /chats/fetch?conversation_id=1&since_id=10 (AJAX)
@@ -174,6 +175,24 @@ class Chats extends CI_Controller {
         if (!$this->Chat_model->is_participant($conversation_id, $actor)) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         $this->Chat_model->remove_participant($conversation_id, (int)$user_id);
         $this->_json(['ok'=>true]);
+    }
+
+    // GET or POST /chats/typing — unified dispatcher used by JS
+    public function typing() {
+        if ($this->input->method() === 'post') {
+            $this->set_typing();
+        } else {
+            $this->get_typing();
+        }
+    }
+
+    // GET or POST /chats/online-status — unified dispatcher used by JS
+    public function online_status() {
+        if ($this->input->method() === 'post') {
+            $this->set_online_status();
+        } else {
+            $this->get_online_status();
+        }
     }
 
     // POST /chats/typing (AJAX)
@@ -304,6 +323,48 @@ class Chats extends CI_Controller {
         $reactions = $this->Chat_model->get_message_reactions($message_id);
         $user_reaction = $this->Chat_model->get_user_reaction($message_id, $user_id);
         $this->_json(['ok'=>true,'reactions'=>$reactions,'user_reaction'=>$user_reaction]);
+    }
+
+    // POST /chats/delete-message (AJAX)
+    public function delete_message() {
+        if ($this->input->method() !== 'post') { $this->_json(['ok'=>false,'error'=>'POST required']); return; }
+        $message_id = (int)$this->input->post('message_id');
+        $user_id    = (int)$this->session->userdata('user_id');
+        $is_admin   = ((int)$this->session->userdata('role_id') === 1) || (function_exists('is_admin_group') && is_admin_group());
+
+        $msg = $this->Chat_model->get_message_by_id($message_id);
+        if (!$msg) { $this->_json(['ok'=>false,'error'=>'Message not found']); return; }
+
+        // Only sender or admin can delete
+        if ((int)$msg->sender_id !== $user_id && !$is_admin) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']); return;
+        }
+
+        $this->Chat_model->delete_message($message_id);
+        $this->_json(['ok'=>true]);
+    }
+
+    // POST /chats/edit-message (AJAX)
+    public function edit_message() {
+        if ($this->input->method() !== 'post') { $this->_json(['ok'=>false,'error'=>'POST required']); return; }
+        $message_id = (int)$this->input->post('message_id');
+        $user_id    = (int)$this->session->userdata('user_id');
+        $new_body   = trim((string)$this->input->post('body'));
+
+        if (empty($new_body)) { $this->_json(['ok'=>false,'error'=>'Body cannot be empty']); return; }
+
+        $msg = $this->Chat_model->get_message_by_id($message_id);
+        if (!$msg) { $this->_json(['ok'=>false,'error'=>'Message not found']); return; }
+
+        // Only sender can edit their own messages
+        if ((int)$msg->sender_id !== $user_id) {
+            $this->_json(['ok'=>false,'error'=>'forbidden']); return;
+        }
+
+        $new_body = htmlspecialchars($new_body, ENT_QUOTES, 'UTF-8');
+        $this->Chat_model->edit_message($message_id, $new_body);
+        $updated = $this->Chat_model->get_message_by_id($message_id);
+        $this->_json(['ok'=>true,'message'=>$updated]);
     }
 
     private function _json($arr) {

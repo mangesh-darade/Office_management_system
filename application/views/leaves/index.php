@@ -3,7 +3,9 @@
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
       <h1 class="h4 mb-2 mb-sm-0">Leave Management</h1>
       <div class="d-flex gap-2">
+        <?php if(function_exists('has_module_access') && (has_module_access('leave_requests') || has_module_access('leaves') || is_admin_group())): ?>
         <a class="btn btn-outline-secondary" href="<?php echo site_url('leaves/export'); ?>">Export Leaves CSV</a>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -21,9 +23,11 @@
             <h5 class="card-title">Quick Actions</h5>
             <p class="text-muted">Jump directly to the main leave workflows.</p>
             <div class="d-grid gap-2">
+              <?php if(function_exists('has_module_access') && (has_module_access('leaves_add') || has_module_access('leaves') || has_module_access('leave_requests'))): ?>
               <a href="<?php echo site_url('leave/apply'); ?>" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-pencil-square me-1"></i> Apply Leave
               </a>
+              <?php endif; ?>
               <a href="<?php echo site_url('leave/my'); ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-person-check me-1"></i> My Leaves
               </a>

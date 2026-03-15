@@ -18,7 +18,7 @@ class Payroll extends CI_Controller {
         }
         if (!$allowed){
             $role_id = (int)$this->session->userdata('role_id');
-            if (!in_array($role_id, [1,2], true)) { show_error('Access Denied', 403); }
+            if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Access Denied', 403); }
         }
         $this->load->model('Payroll_model', 'payroll');
     }
@@ -35,7 +35,7 @@ class Payroll extends CI_Controller {
                 // Constructor already did a broad check. Here we enforce specific manage capability.
                 // But we must respect the role 1/2 fallback from constructor logic for consistency.
                 $rid = (int)$this->session->userdata('role_id');
-                if (!in_array($rid, [1,2], true)) { show_error('Access Denied', 403); }
+                if (!in_array($rid, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Access Denied', 403); }
             }
         }
         $rows = $this->payroll->get_structures();
@@ -98,17 +98,40 @@ class Payroll extends CI_Controller {
 
     // List payslips
     public function payslips(){
+        $current_user_id = (int)$this->session->userdata('user_id');
+        $role_id         = (int)$this->session->userdata('role_id');
+        $isAdminGroup    = (function_exists('is_admin_group') && is_admin_group())
+                           || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
+
         $filters = [
-            'period' => $this->input->get('period'),
+            'period'  => $this->input->get('period'),
             'user_id' => $this->input->get('user_id'),
         ];
-        $rows = $this->payroll->list_payslips($filters);
-        $users = $this->payroll->get_user_options();
-        $this->load->view('payroll/payslips', ['rows' => $rows, 'filters' => $filters, 'users' => $users]);
+
+        // Non-admin users may only see their own payslips
+        if (!$isAdminGroup) {
+            $filters['user_id'] = $current_user_id;
+        }
+
+        $rows  = $this->payroll->list_payslips($filters);
+        $users = $isAdminGroup ? $this->payroll->get_user_options() : [];
+        $this->load->view('payroll/payslips', [
+            'rows'          => $rows,
+            'filters'       => $filters,
+            'users'         => $users,
+            'is_admin_group' => $isAdminGroup,
+        ]);
     }
 
     // POST /payroll/send_payslips
     public function send_payslips(){
+        // Only payroll managers may bulk-email payslips
+        $allowed = (function_exists('has_module_access') && has_module_access('payroll_manage'))
+                   || in_array((int)$this->session->userdata('role_id'), [ROLE_ADMIN, ROLE_MANAGER], true);
+        if (!$allowed) {
+            show_error('You do not have permission to send payslips.', 403);
+        }
+
         if ($this->input->method() !== 'post'){
             redirect('payroll/payslips');
             return;
@@ -168,7 +191,7 @@ class Payroll extends CI_Controller {
             $subject = 'Salary Slip for '.$label;
             
             // Get company name from settings
-            $company_name = isset($settings->company_name) && $settings->company_name ? $settings->company_name : $settings->company_name;
+            $company_name = isset($settings->company_name) ? $settings->company_name : '';
             
             // Create shortened URL for payslip link
             $original_url = site_url('payroll/view/' . $id);
@@ -376,7 +399,7 @@ class Payroll extends CI_Controller {
         if (function_exists('has_module_access')) {
             if (!has_module_access('payroll_manage') && !has_module_access('payroll')) {
                 $rid = (int)$this->session->userdata('role_id');
-                if (!in_array($rid, [1,2], true)) { show_error('Access Denied', 403); }
+                if (!in_array($rid, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Access Denied', 403); }
             }
         }
         if ($this->input->method() === 'post'){
@@ -610,5 +633,54 @@ class Payroll extends CI_Controller {
             'full_width' => true,
         ];
         $this->load->view('payroll/payslip_view', $data);
+    }
+
+    /**
+     * GET /payroll/export/{id}
+     * Export a single payslip as CSV, or all payslips if no id given
+     */
+    public function export($id = null){
+        $role_id = (int)$this->session->userdata('role_id');
+        $is_admin = in_array($role_id, [1, 2], true);
+
+        if (!$is_admin && !(function_exists('has_module_access') && has_module_access('payroll_manage'))) {
+            show_error('Access denied.', 403);
+        }
+
+        if ($id) {
+            $rows = array();
+            $row = $this->payroll->find_payslip((int)$id);
+            if ($row) { $rows[] = $row; }
+        } else {
+            $month = $this->input->get('month') ? $this->input->get('month') : date('Y-m');
+            $this->db->select('ps.*, u.name as employee_name, u.email as employee_email');
+            $this->db->from('payslips ps');
+            $this->db->join('users u', 'u.id = ps.employee_id', 'left');
+            if ($month) { $this->db->where('ps.pay_period', $month); }
+            $this->db->order_by('ps.pay_period', 'DESC');
+            $rows = $this->db->get()->result();
+        }
+
+        $filename = $id ? 'payslip_' . $id . '.csv' : 'payroll_' . date('Y-m-d') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, ['ID', 'Employee', 'Email', 'Pay Period', 'Basic Salary', 'Allowances', 'Deductions', 'Net Pay', 'Status', 'Generated At']);
+        foreach ($rows as $r) {
+            fputcsv($out, [
+                $r->id,
+                isset($r->employee_name) ? $r->employee_name : $r->employee_id,
+                isset($r->employee_email) ? $r->employee_email : '',
+                $r->pay_period,
+                isset($r->basic_salary)  ? $r->basic_salary  : '',
+                isset($r->allowances)    ? $r->allowances    : '',
+                isset($r->deductions)    ? $r->deductions    : '',
+                isset($r->net_pay)       ? $r->net_pay       : '',
+                $r->status,
+                $r->created_at,
+            ]);
+        }
+        fclose($out);
+        exit;
     }
 }

@@ -132,6 +132,15 @@ class Approval_model extends CI_Model {
         return $this->db->trans_status();
     }
 
+    public function delete_flow($id) {
+        $id = (int)$id;
+        $this->db->trans_start();
+        $this->db->where('flow_id', $id)->delete('approval_steps');
+        $this->db->where('id', $id)->delete('approval_flows');
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
     // --- Runtime Logic ---
 
     /**

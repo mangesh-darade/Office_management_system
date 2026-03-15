@@ -2,47 +2,147 @@
   'title' => 'Chat',
   'extra_css' => ['assets/css/chats.css'],
 ]); ?>
+
+<!-- New Conversation Modal -->
+<div class="modal fade" id="newConvoModal" tabindex="-1" aria-labelledby="newConvoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newConvoModalLabel"><i class="bi bi-chat-plus me-2"></i>New Conversation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Tab nav -->
+        <ul class="nav nav-pills nav-fill mb-3" id="newConvoTabs">
+          <li class="nav-item">
+            <button class="nav-link active" data-tab="dm"><i class="bi bi-person me-1"></i>Direct Message</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-tab="group"><i class="bi bi-people me-1"></i>Group Chat</button>
+          </li>
+        </ul>
+        <!-- DM panel -->
+        <div id="tabDm">
+          <form method="post" action="<?php echo site_url('chats/start-dm'); ?>">
+            <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Search user by email or name</label>
+              <input type="text" id="dmUserSearch" class="form-control mb-2" placeholder="Type to search...">
+              <select name="email" class="form-select" id="dmUserSelect" size="5" required>
+                <?php foreach ($users as $u): ?>
+                  <option value="<?php echo htmlspecialchars($u->email); ?>">
+                    <?php
+                      $display = isset($u->full_name) && $u->full_name ? $u->full_name : (isset($u->name) && $u->name ? $u->name : $u->email);
+                      echo htmlspecialchars($display . ' <' . $u->email . '>');
+                    ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-send me-1"></i>Start Chat</button>
+          </form>
+        </div>
+        <!-- Group panel -->
+        <div id="tabGroup" class="d-none">
+          <form method="post" action="<?php echo site_url('chats/create-group'); ?>">
+            <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Group Name</label>
+              <input type="text" name="title" class="form-control" placeholder="e.g. Project Alpha Team" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Add Participants</label>
+              <input type="text" id="groupUserSearch" class="form-control mb-2" placeholder="Search users...">
+              <select name="participants[]" class="form-select" id="groupUserSelect" multiple size="6" required>
+                <?php foreach ($users as $u): ?>
+                  <option value="<?php echo (int)$u->id; ?>">
+                    <?php
+                      $display = isset($u->full_name) && $u->full_name ? $u->full_name : (isset($u->name) && $u->name ? $u->name : $u->email);
+                      echo htmlspecialchars($display . ' <' . $u->email . '>');
+                    ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+              <div class="form-text">Hold Ctrl / Cmd to select multiple</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-people me-1"></i>Create Group</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-chat-dots text-primary me-2"></i>Chat</h4>
-      <p class="text-muted mb-0 small">Real-time messaging and video calls</p>
+      <p class="text-muted mb-0 small">Real-time messaging &amp; video calls</p>
     </div>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('chats'); ?>"><i class="bi bi-plus-lg me-1"></i> <span class="d-none d-sm-inline">New Conversation</span></a>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newConvoModal">
+      <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">New Conversation</span>
+    </button>
   </div>
 </div>
+
 <div class="chat-app row g-3">
+  <!-- Sidebar: conversation list -->
   <div class="col-12 col-md-4 col-lg-3">
     <div class="card shadow-sm border-0 h-100">
       <div class="card-header gradient d-flex align-items-center justify-content-between">
         <div class="fw-semibold"><i class="bi bi-chat-left-text me-1"></i> Conversations</div>
-        <a class="btn btn-sm btn-light" href="<?php echo site_url('chats'); ?>" title="New"><i class="bi bi-plus-lg"></i></a>
+        <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#newConvoModal" title="New conversation">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <!-- Search box -->
+      <div class="p-2 border-bottom">
+        <input type="search" id="convoSearch" class="form-control form-control-sm" placeholder="Search conversations...">
       </div>
       <div class="card-body p-0">
-        <div class="list-group list-group-flush" id="convoList" data-initial-id="<?php echo (int) ((isset($open_id) && $open_id) ? $open_id : (!empty($conversations) ? (int)$conversations[0]->id : 0)); ?>">
-          <?php if (!empty($conversations)) foreach ($conversations as $c): ?>
+        <div class="list-group list-group-flush" id="convoList"
+             data-initial-id="<?php echo (int)((isset($open_id) && $open_id) ? $open_id : (!empty($conversations) ? (int)$conversations[0]->id : 0)); ?>">
+          <?php if (!empty($conversations)): ?>
             <?php
               $my_email = $this->session->userdata('email');
-              if ($c->type === 'group') {
-                  $label = $c->title ?: 'Untitled Group';
-              } else {
-                  $peer_emails = array_filter(array_map('trim', explode(',', $c->members)), function($e) use ($my_email) { return $e !== $my_email; });
-                  $label = !empty($peer_emails) ? implode(', ', $peer_emails) : 'Direct Message';
-              }
-              $initial = strtoupper(substr(preg_replace('/[^A-Za-z]/','', $label), 0, 1));
-              if ($initial === '') { $initial = '#'; }
-              $preview = '';
-              if (!empty($c->last_message)) {
-                  $preview = mb_strimwidth(strip_tags($c->last_message), 0, 50, '...');
-              }
+              foreach ($conversations as $c):
+                if ($c->type === 'group') {
+                    $label = $c->title ? $c->title : 'Untitled Group';
+                } else {
+                    // Prefer display names over raw emails for DM labels
+                    $peer_emails = array_filter(array_map('trim', explode(',', $c->members)), function($e) use ($my_email) { return $e !== $my_email; });
+                    if (!empty($c->member_names)) {
+                        $name_parts = array_map('trim', explode(',', $c->member_names));
+                        $email_parts = array_map('trim', explode(',', $c->members));
+                        $peer_names = array();
+                        foreach ($email_parts as $idx => $em) {
+                            if ($em !== $my_email && isset($name_parts[$idx])) { $peer_names[] = $name_parts[$idx]; }
+                        }
+                        $label = !empty($peer_names) ? implode(', ', $peer_names) : (!empty($peer_emails) ? implode(', ', $peer_emails) : 'Direct Message');
+                    } else {
+                        $label = !empty($peer_emails) ? implode(', ', $peer_emails) : 'Direct Message';
+                    }
+                }
+                $initial = strtoupper(substr(preg_replace('/[^A-Za-z]/','', $label), 0, 1));
+                if ($initial === '') { $initial = '#'; }
+                $preview = '';
+                if (!empty($c->last_message)) {
+                    $preview = mb_strimwidth(strip_tags($c->last_message), 0, 50, '...');
+                }
             ?>
-            <button type="button" class="list-group-item list-group-item-action d-flex align-items-center convo-item" data-id="<?php echo (int)$c->id; ?>" data-type="<?php echo htmlspecialchars($c->type); ?>" data-title="<?php echo htmlspecialchars($c->title ?: ''); ?>" data-members="<?php echo htmlspecialchars($c->members ?: ''); ?>">
+            <button type="button"
+                    class="list-group-item list-group-item-action d-flex align-items-center convo-item"
+                    data-id="<?php echo (int)$c->id; ?>"
+                    data-type="<?php echo htmlspecialchars($c->type); ?>"
+                    data-title="<?php echo htmlspecialchars($c->title ? $c->title : ''); ?>"
+                    data-members="<?php echo htmlspecialchars($c->members ? $c->members : ''); ?>"
+                    data-label="<?php echo htmlspecialchars(strtolower($label)); ?>">
               <span class="avatar flex-shrink-0"><?php echo htmlspecialchars($initial); ?></span>
               <div class="flex-grow-1 overflow-hidden">
                 <div class="d-flex align-items-center justify-content-between">
-                  <div class="fw-semibold text-truncate" style="max-width: 160px;"><?php echo htmlspecialchars($label); ?></div>
+                  <div class="fw-semibold text-truncate" style="max-width:140px;"><?php echo htmlspecialchars($label); ?></div>
                   <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                    <span class="badge type-badge" data-type="<?php echo htmlspecialchars($c->type==='group'?'group':'dm'); ?>"><?php echo htmlspecialchars(strtoupper($c->type)); ?></span>
+                    <span class="badge type-badge" data-type="<?php echo htmlspecialchars($c->type === 'group' ? 'group' : 'dm'); ?>"><?php echo htmlspecialchars(strtoupper($c->type)); ?></span>
                     <span class="badge rounded-pill bg-danger unread-badge d-none" data-cid="<?php echo (int)$c->id; ?>">0</span>
                   </div>
                 </div>
@@ -50,11 +150,15 @@
               </div>
             </button>
           <?php endforeach; ?>
+          <?php endif; ?>
           <?php if (empty($conversations)): ?>
-            <div class="empty-state py-4">
-              <div class="empty-icon mx-auto"><i class="bi bi-chat-dots"></i></div>
+            <div class="empty-state py-4 text-center">
+              <div class="empty-icon mx-auto mb-2" style="font-size:2.5rem;opacity:.3;"><i class="bi bi-chat-dots"></i></div>
               <h6 class="fw-semibold">No conversations yet</h6>
-              <p class="text-muted small mb-0">Start a new conversation to begin chatting</p>
+              <p class="text-muted small mb-2">Start a new conversation to begin chatting</p>
+              <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newConvoModal">
+                <i class="bi bi-plus-lg me-1"></i>New Conversation
+              </button>
             </div>
           <?php endif; ?>
         </div>
@@ -62,79 +166,85 @@
     </div>
   </div>
 
+  <!-- Main chat area -->
   <div class="col-12 col-md-8 col-lg-9">
     <div class="card shadow-sm border-0 h-100">
-      <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
+      <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
-          <div class="fw-semibold">Conversation <span id="hdrConvId" class="text-muted"></span></div>
-          <div id="hdrConvMeta" class="header-sub"></div>
+          <div class="fw-semibold" id="hdrConvTitle">Select a conversation</div>
+          <div id="hdrConvMeta" class="header-sub text-muted small"></div>
         </div>
-        <div class="d-flex gap-2">
-          <button id="btnToggleMic" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Microphone">
-            <i class="bi bi-mic"></i>
-          </button>
-          <button id="btnToggleSpeaker" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Speaker">
-            <i class="bi bi-volume-up"></i>
-          </button>
-          <button id="btnCallToggle" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-camera-video"></i> Start Call</button>
-          <button id="btnAcceptCall" class="btn btn-success btn-sm d-none" title="Accept incoming call"><i class="bi bi-telephone-inbound"></i></button>
-          <button id="btnRejectCall" class="btn btn-outline-danger btn-sm d-none" title="Reject incoming call"><i class="bi bi-telephone-x"></i></button>
-          <button id="btnReminder" class="btn btn-outline-warning btn-sm" title="Send reminder" disabled><i class="bi bi-bell"></i></button>
+        <div class="d-flex flex-wrap gap-1">
+          <button id="btnToggleMic" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Microphone"><i class="bi bi-mic"></i></button>
+          <button id="btnToggleSpeaker" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Speaker"><i class="bi bi-volume-up"></i></button>
+          <button id="btnCallToggle" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-camera-video"></i> <span class="d-none d-sm-inline">Start Call</span></button>
+          <button id="btnAcceptCall" class="btn btn-success btn-sm d-none" title="Accept call"><i class="bi bi-telephone-inbound"></i></button>
+          <button id="btnRejectCall" class="btn btn-outline-danger btn-sm d-none" title="Reject call"><i class="bi bi-telephone-x"></i></button>
           <button id="btnShareScreen" class="btn btn-outline-secondary btn-sm" disabled title="Share Screen"><i class="bi bi-display"></i></button>
-          <button id="btnRecord" class="btn btn-outline-secondary btn-sm" disabled title="Record (screen/camera)"><i class="bi bi-record-circle"></i></button>
+          <button id="btnRecord" class="btn btn-outline-secondary btn-sm" disabled title="Record"><i class="bi bi-record-circle"></i></button>
+          <button id="btnReminder" class="btn btn-outline-warning btn-sm" title="Send reminder" disabled><i class="bi bi-bell"></i></button>
           <button id="btnEndCall" class="btn btn-outline-danger btn-sm d-none"><i class="bi bi-telephone-x"></i></button>
           <button id="btnFullscreen" class="btn btn-outline-secondary btn-sm" disabled title="Full View"><i class="bi bi-arrows-fullscreen"></i></button>
         </div>
       </div>
-      <div class="card-body">
+      <div class="card-body p-2 p-md-3">
         <div class="row g-3">
-          <div class="col-12 col-xl-7">
-            <div id="messages" class="border rounded p-3"></div>
-            <form id="sendForm" class="composer d-flex gap-2 mt-2" enctype="multipart/form-data">
+          <!-- Messages + composer -->
+          <div class="col-12 col-xl-7 d-flex flex-column">
+            <div id="messages" class="border rounded flex-grow-1 mb-2"></div>
+            <!-- Typing indicator bar -->
+            <div id="typingBar" class="small text-muted fst-italic mb-1" style="min-height:1.2em;"></div>
+            <form id="sendForm" class="composer d-flex gap-2" enctype="multipart/form-data">
               <input type="hidden" name="conversation_id" id="conversation_id">
-              <textarea name="body" class="form-control" rows="2" placeholder="Type a message... (Enter to send, Shift+Enter for newline)" disabled></textarea>
-              <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                <button type="button" id="btnAttach" class="btn btn-outline-secondary" title="Attach file" disabled>
+              <div class="flex-grow-1 position-relative">
+                <textarea name="body" id="msgTextarea" class="form-control" rows="2"
+                          placeholder="Type a message… (Enter to send, Shift+Enter for newline)" disabled></textarea>
+              </div>
+              <div class="d-flex flex-column gap-1 flex-shrink-0">
+                <button type="button" id="btnEmoji" class="btn btn-outline-secondary btn-sm" title="Emoji" disabled>
+                  <i class="bi bi-emoji-smile"></i>
+                </button>
+                <button type="button" id="btnAttach" class="btn btn-outline-secondary btn-sm" title="Attach file" disabled>
                   <i class="bi bi-paperclip"></i>
                 </button>
-                <span id="attachmentLabel" class="attachment-label text-muted small d-none"></span>
               </div>
-              <input type="file" name="attachment" id="attachment" accept="image/*,.pdf,.doc,.docx" class="visually-hidden" disabled>
-              <button class="btn btn-primary" type="submit" disabled><i class="bi bi-send"></i></button>
+              <input type="file" name="attachment" id="attachment" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt" class="visually-hidden" disabled>
+              <button class="btn btn-primary align-self-end" type="submit" id="btnSend" disabled>
+                <i class="bi bi-send"></i>
+              </button>
             </form>
+            <div id="attachmentLabel" class="attachment-label text-muted small mt-1 d-none"></div>
+            <!-- Quick emoji picker -->
+            <div id="quickEmojiPicker" class="d-none position-absolute bg-white border rounded shadow p-2" style="bottom:120px;left:0;z-index:200;max-width:260px;">
+              <?php
+                $quick_emojis = ['👍','❤️','😂','😮','😢','😡','🎉','👏','🔥','✅','❌','🙏'];
+                foreach ($quick_emojis as $em): ?>
+                <button type="button" class="btn btn-sm p-1 quick-emoji-btn" data-emoji="<?php echo htmlspecialchars($em); ?>"
+                        style="font-size:1.3rem;line-height:1;"><?php echo $em; ?></button>
+              <?php endforeach; ?>
+            </div>
           </div>
+          <!-- Video area -->
           <div class="col-12 col-xl-5">
             <div class="ratio ratio-16x9 bg-dark mb-2 rounded video-placeholder" id="remoteVideoContainer">
               <video id="remoteVideo" autoplay playsinline></video>
               <div class="video-status disconnected" id="remoteVideoStatus">
-                <span class="status-dot"></span>
-                <span>Not Connected</span>
+                <span class="status-dot"></span><span>Not Connected</span>
               </div>
               <div class="video-controls">
-                <button class="btn" id="btnRemoteVideoToggle" title="Toggle Video">
-                  <i class="bi bi-camera-video"></i>
-                </button>
-                <button class="btn" id="btnRemoteAudioToggle" title="Toggle Audio">
-                  <i class="bi bi-mic"></i>
-                </button>
-                <button class="btn" id="btnRemoteFullscreen" title="Fullscreen">
-                  <i class="bi bi-arrows-fullscreen"></i>
-                </button>
+                <button class="btn" id="btnRemoteVideoToggle" title="Toggle Video"><i class="bi bi-camera-video"></i></button>
+                <button class="btn" id="btnRemoteAudioToggle" title="Toggle Audio"><i class="bi bi-mic"></i></button>
+                <button class="btn" id="btnRemoteFullscreen" title="Fullscreen"><i class="bi bi-arrows-fullscreen"></i></button>
               </div>
             </div>
             <div class="ratio ratio-16x9 bg-secondary mb-2 rounded video-placeholder" id="localVideoContainer">
               <video id="localVideo" autoplay playsinline muted></video>
               <div class="video-status disconnected" id="localVideoStatus">
-                <span class="status-dot"></span>
-                <span>Camera Off</span>
+                <span class="status-dot"></span><span>Camera Off</span>
               </div>
               <div class="video-controls">
-                <button class="btn" id="btnLocalVideoToggle" title="Toggle Camera">
-                  <i class="bi bi-camera-video"></i>
-                </button>
-                <button class="btn" id="btnLocalAudioToggle" title="Toggle Microphone">
-                  <i class="bi bi-mic"></i>
-                </button>
+                <button class="btn" id="btnLocalVideoToggle" title="Toggle Camera"><i class="bi bi-camera-video"></i></button>
+                <button class="btn" id="btnLocalAudioToggle" title="Toggle Microphone"><i class="bi bi-mic"></i></button>
               </div>
             </div>
             <div id="callStatus" class="small text-muted">Idle</div>
@@ -144,11 +254,13 @@
     </div>
   </div>
 </div>
+
+<!-- Full-screen call overlay -->
 <div id="callOverlay" class="call-overlay" aria-hidden="true">
   <div class="overlay-toolbar">
     <button id="btnOverlayMinimize" class="btn btn-outline-light btn-sm" title="Back to chat"><i class="bi bi-chat-dots"></i></button>
     <button id="btnOverlayScreen" class="btn btn-outline-light btn-sm" title="Toggle screen share"><i class="bi bi-display"></i></button>
-    <button id="btnOverlayMic" class="btn btn-outline-light btn-sm" title="Mute / unmute microphone"><i class="bi bi-mic"></i></button>
+    <button id="btnOverlayMic" class="btn btn-outline-light btn-sm" title="Mute/unmute"><i class="bi bi-mic"></i></button>
     <button id="btnOverlayCamera" class="btn btn-outline-light btn-sm" title="Toggle camera"><i class="bi bi-camera-video"></i></button>
     <button id="btnOverlayLeave" class="btn btn-danger btn-sm" title="End call"><i class="bi bi-telephone-x"></i></button>
     <button id="btnOverlayClose" class="btn btn-outline-light btn-sm" title="Close full view"><i class="bi bi-fullscreen-exit"></i></button>
@@ -167,14 +279,14 @@
       </div>
       <div class="overlay-tile">
         <video id="overlayRemoteThumb" autoplay playsinline></video>
-        <div class="tile-label">Remote Preview</div>
+        <div class="tile-label">Remote</div>
       </div>
     </div>
   </div>
   <div id="overlayStatus" class="overlay-status">Idle</div>
 </div>
 
-<!-- Recording footer (shown only while recording) -->
+<!-- Recording footer -->
 <div id="recordFooter" class="position-fixed bottom-0 start-0 end-0 py-2 px-3">
   <div class="d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center gap-2">
@@ -182,168 +294,227 @@
       <span id="recordLabel" class="small text-uppercase text-muted">Recording</span>
       <strong id="recordTimer" class="ms-2">00:00</strong>
     </div>
-    <div class="d-flex align-items-center gap-2">
-      <button id="btnSaveRecording" class="btn btn-sm btn-light" title="Save a copy (so far)"><i class="bi bi-save"></i></button>
-    </div>
+    <button id="btnSaveRecording" class="btn btn-sm btn-light" title="Save partial copy"><i class="bi bi-save"></i></button>
   </div>
 </div>
-<!-- Toast container for in-app notifications -->
-<div id="chatToastContainer" class="position-fixed bottom-0 end-0 p-3">
-  <div id="chatToast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body">
-        <div class="fw-semibold" id="toastTitle">New message</div>
-        <div class="small" id="toastBody">You have a new message</div>
-      </div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+
+<!-- Toast container -->
+<div id="chatToastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index:1090;">
+  <div id="chatToast" class="toast border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="min-width:280px;cursor:pointer;">
+    <div class="toast-header bg-primary text-white border-0 py-2">
+      <i class="bi bi-chat-dots-fill me-2"></i>
+      <strong class="me-auto" id="toastTitle">New message</strong>
+      <small id="toastConvoLabel" class="text-white-50 me-2"></small>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
     </div>
+    <div class="toast-body py-2 px-3" id="toastBody">You have a new message</div>
   </div>
-  <audio id="chatSound">
-    <source src="data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA..." type="audio/mp3">
-  </audio>
-  <!-- Note: embedded tiny silent/placeholder sound can be replaced with a real sound file in assets -->
 </div>
+
+<!-- Notification permission banner (shown only if permission not yet granted) -->
+<div id="notifPermBanner" class="d-none">
+  <div class="alert alert-info alert-dismissible d-flex align-items-center gap-2 shadow py-2 px-3 mb-0" role="alert">
+    <i class="bi bi-bell-fill text-primary fs-5 flex-shrink-0"></i>
+    <div class="flex-grow-1 small">
+      <strong>Enable notifications</strong> to get alerts for new messages even when this tab is in the background.
+    </div>
+    <button id="btnEnableNotif" class="btn btn-sm btn-primary flex-shrink-0">Enable</button>
+    <button type="button" class="btn-close ms-1" data-bs-dismiss="alert"></button>
+  </div>
+</div>
+
+<!-- Notification sound (short beep via Web Audio — no file needed) -->
+<script>
+window._chatPlaySound = function(){
+  try {
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    var ctx = new AudioCtx();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.18);
+    setTimeout(function(){ try { ctx.close(); } catch(e){} }, 300);
+  } catch(e){}
+};
+</script>
 
 <script>
 (function(){
-  const site = '<?php echo rtrim(site_url(), "/"); ?>/';
-  const userId = <?php echo (int)$user_id; ?>;
-  const initialAutoCallId = <?php echo isset($auto_call_id) ? (int)$auto_call_id : 0; ?>;
-  const initialAutoAccept = <?php echo !empty($auto_accept) ? 'true' : 'false'; ?>;
-  let autoAcceptCallId = (initialAutoAccept && initialAutoCallId) ? initialAutoCallId : 0;
-  let convoId = 0; let lastId = 0; let pollTimer = null; let signalTimer = null;
-  // Incoming call polling state
-  let incomingSinceId = 0; let incomingTimer = null;
-  const lastNotified = {}; // per-conversation last notified message id
+  'use strict';
+  var site    = '<?php echo rtrim(site_url(), "/"); ?>/';
+  var userId  = <?php echo (int)$user_id; ?>;
+  var initialAutoCallId  = <?php echo isset($auto_call_id) ? (int)$auto_call_id : 0; ?>;
+  var initialAutoAccept  = <?php echo !empty($auto_accept) ? 'true' : 'false'; ?>;
+  var autoAcceptCallId   = (initialAutoAccept && initialAutoCallId) ? initialAutoCallId : 0;
 
-  const convoList = document.getElementById('convoList');
-  const messagesEl = document.getElementById('messages');
-  const form = document.getElementById('sendForm');
-  const inputConvo = document.getElementById('conversation_id');
-  const hdrConvId = document.getElementById('hdrConvId');
-  const hdrConvMeta = document.getElementById('hdrConvMeta');
-  // Recording footer elements (must be declared before use)
-  const recordFooter = document.getElementById('recordFooter');
-  const recordTimerEl = document.getElementById('recordTimer');
-  const btnSaveRecording = document.getElementById('btnSaveRecording');
-  const btnCallToggle = document.getElementById('btnCallToggle');
-  const btnAcceptCall = document.getElementById('btnAcceptCall');
-  const btnRejectCall = document.getElementById('btnRejectCall');
-  const btnEndCall = document.getElementById('btnEndCall');
-  const btnToggleMic = document.getElementById('btnToggleMic');
-  const btnToggleSpeaker = document.getElementById('btnToggleSpeaker');
-  const callStatus = document.getElementById('callStatus');
-  const btnShareScreen = document.getElementById('btnShareScreen');
-  const btnRecord = document.getElementById('btnRecord');
-  const btnReminder = document.getElementById('btnReminder');
-  const btnAttach = document.getElementById('btnAttach');
-  const btnFullscreen = document.getElementById('btnFullscreen');
-  const callOverlay = document.getElementById('callOverlay');
-  const overlayRemoteVideo = document.getElementById('overlayRemoteVideo');
-  const overlayRemoteThumb = document.getElementById('overlayRemoteThumb');
-  const overlayLocalVideo = document.getElementById('overlayLocalVideo');
-  const overlayScreenWrap = document.getElementById('overlayScreenWrap');
-  const overlayScreenVideo = document.getElementById('overlayScreenVideo');
-  const overlayStatus = document.getElementById('overlayStatus');
-  const btnOverlayMinimize = document.getElementById('btnOverlayMinimize');
-  const btnOverlayScreen = document.getElementById('btnOverlayScreen');
-  const btnOverlayMic = document.getElementById('btnOverlayMic');
-  const btnOverlayCamera = document.getElementById('btnOverlayCamera');
-  const btnOverlayLeave = document.getElementById('btnOverlayLeave');
-  const btnOverlayClose = document.getElementById('btnOverlayClose');
-  // New video control buttons
-  const btnLocalVideoToggle = document.getElementById('btnLocalVideoToggle');
-  const btnLocalAudioToggle = document.getElementById('btnLocalAudioToggle');
-  const btnRemoteVideoToggle = document.getElementById('btnRemoteVideoToggle');
-  const btnRemoteAudioToggle = document.getElementById('btnRemoteAudioToggle');
-  const btnRemoteFullscreen = document.getElementById('btnRemoteFullscreen');
-  // Helpers for remote server robustness
-  function isUnauthorizedResponse(r){ try { return r && r.status===401; } catch(e){ return false; } }
-  async function parseJsonSafe(r){ try { return await r.json(); } catch(e){ return null; } }
-  function handleUnauthorized(r){ if (isUnauthorizedResponse(r)) { try { window.location = site + 'login'; } catch(e){} return true; } return false; }
+  // ── State ────────────────────────────────────────────────────────────────
+  var convoId = 0, lastId = 0, pollTimer = null, signalTimer = null;
+  var incomingSinceId = 0, incomingTimer = null;
+  var lastNotified = {};
+  var unreadCounts = {};
+  var overlayOpen  = false;
+  var cameraEnabled = true;
+  var typingTimer  = null;
 
-  // Ringing (WebAudio) helpers
-  let ringCtx = null, ringOsc = null, ringGain = null;
-  function startRinging(type){ // type: 'in' | 'out'
+  // ── DOM refs ─────────────────────────────────────────────────────────────
+  var convoList        = document.getElementById('convoList');
+  var messagesEl       = document.getElementById('messages');
+  var form             = document.getElementById('sendForm');
+  var inputConvo       = document.getElementById('conversation_id');
+  var hdrConvTitle     = document.getElementById('hdrConvTitle');
+  var hdrConvMeta      = document.getElementById('hdrConvMeta');
+  var typingBar        = document.getElementById('typingBar');
+  var recordFooter     = document.getElementById('recordFooter');
+  var recordTimerEl    = document.getElementById('recordTimer');
+  var btnSaveRecording = document.getElementById('btnSaveRecording');
+  var btnCallToggle    = document.getElementById('btnCallToggle');
+  var btnAcceptCall    = document.getElementById('btnAcceptCall');
+  var btnRejectCall    = document.getElementById('btnRejectCall');
+  var btnEndCall       = document.getElementById('btnEndCall');
+  var btnToggleMic     = document.getElementById('btnToggleMic');
+  var btnToggleSpeaker = document.getElementById('btnToggleSpeaker');
+  var callStatus       = document.getElementById('callStatus');
+  var btnShareScreen   = document.getElementById('btnShareScreen');
+  var btnRecord        = document.getElementById('btnRecord');
+  var btnReminder      = document.getElementById('btnReminder');
+  var btnAttach        = document.getElementById('btnAttach');
+  var btnEmoji         = document.getElementById('btnEmoji');
+  var btnSend          = document.getElementById('btnSend');
+  var btnFullscreen    = document.getElementById('btnFullscreen');
+  var callOverlay      = document.getElementById('callOverlay');
+  var overlayRemoteVideo  = document.getElementById('overlayRemoteVideo');
+  var overlayRemoteThumb  = document.getElementById('overlayRemoteThumb');
+  var overlayLocalVideo   = document.getElementById('overlayLocalVideo');
+  var overlayScreenWrap   = document.getElementById('overlayScreenWrap');
+  var overlayScreenVideo  = document.getElementById('overlayScreenVideo');
+  var overlayStatus       = document.getElementById('overlayStatus');
+  var btnOverlayMinimize  = document.getElementById('btnOverlayMinimize');
+  var btnOverlayScreen    = document.getElementById('btnOverlayScreen');
+  var btnOverlayMic       = document.getElementById('btnOverlayMic');
+  var btnOverlayCamera    = document.getElementById('btnOverlayCamera');
+  var btnOverlayLeave     = document.getElementById('btnOverlayLeave');
+  var btnOverlayClose     = document.getElementById('btnOverlayClose');
+  var btnLocalVideoToggle  = document.getElementById('btnLocalVideoToggle');
+  var btnLocalAudioToggle  = document.getElementById('btnLocalAudioToggle');
+  var btnRemoteVideoToggle = document.getElementById('btnRemoteVideoToggle');
+  var btnRemoteAudioToggle = document.getElementById('btnRemoteAudioToggle');
+  var btnRemoteFullscreen  = document.getElementById('btnRemoteFullscreen');
+  var attachmentInput  = document.getElementById('attachment');
+  var attachmentLabel  = document.getElementById('attachmentLabel');
+  var chatToastEl      = document.getElementById('chatToast');
+  var toastTitleEl     = document.getElementById('toastTitle');
+  var toastBodyEl      = document.getElementById('toastBody');
+  var msgTextarea      = document.getElementById('msgTextarea');
+  var quickEmojiPicker = document.getElementById('quickEmojiPicker');
+  var convoSearch      = document.getElementById('convoSearch');
+
+  var toastInstance = null;
+  if (window.bootstrap && window.bootstrap.Toast) {
+    toastInstance = new bootstrap.Toast(chatToastEl, { delay: 3500 });
+  }
+
+  // ── New conversation modal tab switching ──────────────────────────────────
+  document.querySelectorAll('#newConvoTabs .nav-link').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#newConvoTabs .nav-link').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var tab = btn.getAttribute('data-tab');
+      document.getElementById('tabDm').classList.toggle('d-none', tab !== 'dm');
+      document.getElementById('tabGroup').classList.toggle('d-none', tab !== 'group');
+    });
+  });
+
+  // ── User search in modal ──────────────────────────────────────────────────
+  function filterSelect(inputId, selectId) {
+    var input = document.getElementById(inputId);
+    var select = document.getElementById(selectId);
+    if (!input || !select) return;
+    input.addEventListener('input', function(){
+      var q = input.value.toLowerCase();
+      var opts = select.querySelectorAll('option');
+      opts.forEach(function(o){
+        o.style.display = o.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+      });
+    });
+  }
+  filterSelect('dmUserSearch', 'dmUserSelect');
+  filterSelect('groupUserSearch', 'groupUserSelect');
+
+  // ── Conversation search ───────────────────────────────────────────────────
+  if (convoSearch) {
+    convoSearch.addEventListener('input', function(){
+      var q = convoSearch.value.toLowerCase().trim();
+      var items = convoList.querySelectorAll('.convo-item');
+      items.forEach(function(item){
+        var label = (item.getAttribute('data-label') || '').toLowerCase();
+        var sub   = (item.querySelector('.subtitle') ? item.querySelector('.subtitle').textContent : '').toLowerCase();
+        item.style.display = (!q || label.indexOf(q) !== -1 || sub.indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function isUnauthorized(r){ return r && r.status === 401; }
+  function handleUnauthorized(r){ if (isUnauthorized(r)) { window.location = site + 'login'; return true; } return false; }
+  function parseJsonSafe(r){ try { return r.json(); } catch(e){ return Promise.resolve(null); } }
+
+  function setStatus(s){ if (callStatus) callStatus.textContent = s; setOverlayStatus(s); }
+  function setOverlayStatus(t){ try { if (overlayStatus) overlayStatus.textContent = t || ''; } catch(e){} }
+
+  // ── Ringing ───────────────────────────────────────────────────────────────
+  var ringCtx = null, ringOsc = null, ringGain = null, ringLoopTimer = null;
+  function startRinging(type){
     try {
       stopRinging();
-      const AudioCtx = window.AudioContext || window.webkitAudioContext; if (!AudioCtx) return;
+      var AudioCtx = window.AudioContext || window.webkitAudioContext; if (!AudioCtx) return;
       ringCtx = new AudioCtx();
       ringOsc = ringCtx.createOscillator();
       ringGain = ringCtx.createGain();
       ringOsc.type = 'sine';
-      let f1 = type==='in' ? 800 : 1000; let f2 = type==='in' ? 600 : 750;
-      // Simple repeating chirp pattern
-      let t0 = ringCtx.currentTime;
+      var f1 = type === 'in' ? 800 : 1000, f2 = type === 'in' ? 600 : 750;
+      var t0 = ringCtx.currentTime;
       ringOsc.frequency.setValueAtTime(f1, t0);
-      ringOsc.frequency.linearRampToValueAtTime(f2, t0+0.25);
-      ringOsc.frequency.linearRampToValueAtTime(f1, t0+0.5);
-      ringGain.gain.setValueAtTime(0.0, t0);
-      ringGain.gain.linearRampToValueAtTime(0.06, t0+0.02);
-      ringGain.gain.linearRampToValueAtTime(0.0, t0+0.5);
-      // Loop the envelope
-      const loop = () => {
-        if (!ringCtx || ringCtx.state==='closed') return;
-        const now = ringCtx.currentTime;
+      ringOsc.frequency.linearRampToValueAtTime(f2, t0 + 0.25);
+      ringOsc.frequency.linearRampToValueAtTime(f1, t0 + 0.5);
+      ringGain.gain.setValueAtTime(0, t0);
+      ringGain.gain.linearRampToValueAtTime(0.06, t0 + 0.02);
+      ringGain.gain.linearRampToValueAtTime(0, t0 + 0.5);
+      var loop = function(){
+        if (!ringCtx || ringCtx.state === 'closed') return;
+        var now = ringCtx.currentTime;
         ringOsc.frequency.setValueAtTime(f1, now);
-        ringOsc.frequency.linearRampToValueAtTime(f2, now+0.25);
-        ringOsc.frequency.linearRampToValueAtTime(f1, now+0.5);
+        ringOsc.frequency.linearRampToValueAtTime(f2, now + 0.25);
+        ringOsc.frequency.linearRampToValueAtTime(f1, now + 0.5);
         ringGain.gain.cancelScheduledValues(now);
-        ringGain.gain.setValueAtTime(0.0, now);
-        ringGain.gain.linearRampToValueAtTime(0.06, now+0.02);
-        ringGain.gain.linearRampToValueAtTime(0.0, now+0.5);
+        ringGain.gain.setValueAtTime(0, now);
+        ringGain.gain.linearRampToValueAtTime(0.06, now + 0.02);
+        ringGain.gain.linearRampToValueAtTime(0, now + 0.5);
         ringLoopTimer = setTimeout(loop, 700);
       };
       ringOsc.connect(ringGain); ringGain.connect(ringCtx.destination);
       ringOsc.start();
-      var ringLoopTimer = setTimeout(loop, 700);
+      ringLoopTimer = setTimeout(loop, 700);
     } catch(e){}
   }
   function stopRinging(){
+    try { clearTimeout(ringLoopTimer); } catch(e){}
     try { if (ringOsc) { try { ringOsc.stop(); } catch(e){} ringOsc.disconnect(); } } catch(e){}
     try { if (ringGain) ringGain.disconnect(); } catch(e){}
-    try { if (ringCtx && ringCtx.state!=='closed') ringCtx.close(); } catch(e){}
+    try { if (ringCtx && ringCtx.state !== 'closed') ringCtx.close(); } catch(e){}
     ringCtx = null; ringOsc = null; ringGain = null;
   }
-  const attachmentInput = document.getElementById('attachment');
-  const attachmentLabel = document.getElementById('attachmentLabel');
-  const chatToastEl = document.getElementById('chatToast');
-  const toastTitleEl = document.getElementById('toastTitle');
-  const toastBodyEl = document.getElementById('toastBody');
-  const chatSoundEl = document.getElementById('chatSound');
-  const unreadCounts = {}; // cid -> count
-  let overlayOpen = false;
-  let cameraEnabled = true;
-  let toastInstance = null;
-  
-  // Typing indicator and online status variables
-  let typingTimer = null;
-  let onlineStatusTimer = null;
-  let typingUsers = new Map(); // conversation_id -> Set of user_ids
-  let onlineUsers = new Map(); // user_id -> {is_online, last_seen}
-  let currentTypingUsers = new Set(); // users currently typing in active conversation
-  if (window.bootstrap && window.bootstrap.Toast) {
-    toastInstance = new bootstrap.Toast(chatToastEl, { delay: 3500 });
-  }
-  // Helper: are we actively viewing the current conversation and scrolled to bottom?
-  function isActivelyViewingCurrent(){
-    if (document.visibilityState !== 'visible') return false;
-    if (!convoId) return false;
-    const nearBottom = (messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight) < 8;
-    return nearBottom;
-  }
-  // Helper: find and select conversation by id
-  function findConvoButtonById(id){
-    return document.querySelector('.convo-item[data-id="'+id+'"]');
-  }
 
-  function getUnreadBadge(cid){
-    return document.querySelector('.unread-badge[data-cid="'+cid+'"]');
-  }
+  // ── Unread badges ─────────────────────────────────────────────────────────
+  function getUnreadBadge(cid){ return document.querySelector('.unread-badge[data-cid="'+cid+'"]'); }
   function setUnread(cid, count){
-    unreadCounts[cid] = Math.max(0, parseInt(count||0,10));
-    const badge = getUnreadBadge(cid);
-    if (!badge) return;
+    unreadCounts[cid] = Math.max(0, parseInt(count || 0, 10));
+    var badge = getUnreadBadge(cid); if (!badge) return;
     if (unreadCounts[cid] > 0){
       badge.textContent = String(unreadCounts[cid]);
       badge.classList.remove('d-none');
@@ -352,410 +523,643 @@
       badge.classList.add('d-none');
     }
   }
-  function incrementUnread(cid){ setUnread(cid, (unreadCounts[cid]||0)+1); }
-
-  // Typing indicator functions
-  function setTyping(isTyping) {
-    if (!convoId) return;
-    
-    // Clear existing timer
-    if (typingTimer) {
-      clearTimeout(typingTimer);
-      typingTimer = null;
-    }
-    
-    if (isTyping) {
-      // Send typing indicator
-      fetch(site + 'chats/typing', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'conversation_id=' + convoId + '&is_typing=1'
-      }).catch(e => console.warn('Typing indicator error:', e));
-      
-      // Auto-stop typing after 3 seconds of inactivity
-      typingTimer = setTimeout(() => {
-        stopTyping();
-      }, 3000);
-    } else {
-      stopTyping();
-    }
+  function incrementUnread(cid){
+    setUnread(cid, (unreadCounts[cid] || 0) + 1);
   }
-  
-  function stopTyping() {
+
+  // ── Typing indicator ──────────────────────────────────────────────────────
+  function sendTyping(isTyping){
     if (!convoId) return;
-    
     fetch(site + 'chats/typing', {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'conversation_id=' + convoId + '&is_typing=0'
-    }).catch(e => console.warn('Stop typing error:', e));
+      body: 'conversation_id=' + convoId + '&is_typing=' + (isTyping ? '1' : '0')
+    }).catch(function(){});
   }
-  
-  function fetchTypingUsers() {
-    if (!convoId) return;
-    
-    fetch(site + 'chats/typing?conversation_id=' + convoId)
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok && data.typing_users) {
-          updateTypingIndicator(data.typing_users);
-        }
-      })
-      .catch(e => console.warn('Fetch typing users error:', e));
-  }
-  
-  function updateTypingIndicator(typingUsers) {
-    const typingUserIds = new Set(typingUsers.map(u => u.user_id));
-    
-    // Show/hide typing indicator in messages area
-    const existingIndicator = document.querySelector('.typing-indicator');
-    
-    if (typingUserIds.size > 0) {
-      const typingText = typingUserIds.size === 1 
-        ? 'Someone is typing...' 
-        : `${typingUserIds.size} people are typing...`;
-      
-      if (!existingIndicator) {
-        const indicator = document.createElement('div');
-        indicator.className = 'typing-indicator';
-        indicator.innerHTML = `
-          <div class="bubble">
-            <div class="typing-dots">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            ${typingText}
-          </div>
-        `;
-        messagesEl.appendChild(indicator);
-        scrollToBottom();
-      } else {
-        existingIndicator.querySelector('.bubble').innerHTML = `
-          <div class="typing-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          ${typingText}
-        `;
-      }
-    } else if (existingIndicator) {
-      existingIndicator.remove();
+  function setTyping(isTyping){
+    if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+    if (isTyping) {
+      sendTyping(true);
+      typingTimer = setTimeout(function(){ sendTyping(false); }, 3000);
+    } else {
+      sendTyping(false);
     }
   }
-  
-  // Online status functions
-  function setOnlineStatus(isOnline) {
+  function fetchTypingUsers(){
+    if (!convoId) return;
+    fetch(site + 'chats/typing?conversation_id=' + convoId)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data || !data.ok) { if (typingBar) typingBar.textContent = ''; return; }
+        var users = data.typing_users || [];
+        if (typingBar) {
+          typingBar.textContent = users.length === 1 ? 'Someone is typing…' :
+                                  users.length > 1  ? users.length + ' people are typing…' : '';
+        }
+      }).catch(function(){});
+  }
+
+  // ── Online status ─────────────────────────────────────────────────────────
+  function setOnlineStatus(isOnline){
     fetch(site + 'chats/online-status', {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: 'is_online=' + (isOnline ? '1' : '0')
-    }).catch(e => console.warn('Set online status error:', e));
+    }).catch(function(){});
   }
-  
-  function fetchOnlineStatus(userIds) {
-    if (!userIds || userIds.length === 0) return;
-    
-    fetch(site + 'chats/online-status?user_ids=' + userIds.join(','))
-      .then(r => r.json())
-      .then(data => {
-        if (data.ok && data.status) {
-          updateOnlineStatus(data.status);
-        }
-      })
-      .catch(e => console.warn('Fetch online status error:', e));
-  }
-  
-  function updateOnlineStatus(statusData) {
-    statusData.forEach(status => {
-      onlineUsers.set(status.user_id, {
-        is_online: status.is_online,
-        last_seen: status.last_seen
-      });
-    });
-    
-    // Update conversation list avatars
-    updateConversationAvatars();
-  }
-  
-  function updateConversationAvatars() {
-    // This would update avatar online indicators in the conversation list
-    // Implementation depends on how user data is stored in conversation items
-    const convoItems = document.querySelectorAll('.convo-item');
-    convoItems.forEach(item => {
-      const userId = item.getAttribute('data-user-id');
-      if (userId && onlineUsers.has(parseInt(userId))) {
-        const status = onlineUsers.get(parseInt(userId));
-        const avatar = item.querySelector('.avatar');
-        if (avatar) {
-          if (status.is_online) {
-            avatar.classList.add('online');
-            avatar.classList.remove('offline');
-          } else {
-            avatar.classList.add('offline');
-            avatar.classList.remove('online');
-          }
-        }
-      }
-    });
-  }
+  setOnlineStatus(true);
+  window.addEventListener('beforeunload', function(){ setOnlineStatus(false); sendTyping(false); });
 
-  function focusConversationById(id){
-    const btn = findConvoButtonById(id);
-    if (btn) selectConvo(btn);
-  }
+  // ── Notification permission banner ───────────────────────────────────────
+  var notifPermBanner = document.getElementById('notifPermBanner');
+  var btnEnableNotif  = document.getElementById('btnEnableNotif');
 
-  // Update the conversation header area based on metadata
-  function updateHeader(opts){
-    try {
-      const id = (opts && opts.id) ? parseInt(opts.id,10) : 0;
-      const type = (opts && opts.type) ? String(opts.type) : '';
-      const title = (opts && opts.title) ? String(opts.title) : '';
-      const members = (opts && opts.members) ? String(opts.members) : '';
-      if (hdrConvId) { hdrConvId.textContent = id ? ('#'+id) : ''; }
-      let meta = '';
-      if (type) { meta += '['+type.toUpperCase()+'] '; }
-      meta += title ? title : (members || '');
-      if (hdrConvMeta) { hdrConvMeta.textContent = meta; }
-      // Enable call actions when a conversation is active
-      if (btnCallToggle) btnCallToggle.disabled = (id?false:true);
-      if (btnReminder) btnReminder.disabled = (id?false:true);
-      if (btnEndCall) btnEndCall.disabled = true;
-      if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
-      if (btnRejectCall) btnRejectCall.classList.add('d-none');
-      if (callStatus) callStatus.textContent = 'Idle';
-      setOverlayStatus('Idle');
-      if (btnFullscreen) btnFullscreen.disabled = !id;
-    } catch(e) { /* noop */ }
-  }
-
-  // Centralized conversation selection routine
-  function selectConvo(btn){
-    try {
-      const id = parseInt(btn.getAttribute('data-id') || (btn.dataset && btn.dataset.id) || '0', 10);
-      const type = btn.getAttribute('data-type') || (btn.dataset && btn.dataset.type) || '';
-      const title = btn.getAttribute('data-title') || (btn.dataset && btn.dataset.title) || '';
-      const members = btn.getAttribute('data-members') || (btn.dataset && btn.dataset.members) || '';
-      if (!id) return;
-      // Visual active state
-      document.querySelectorAll('#convoList .convo-item.active').forEach(x=>x.classList.remove('active'));
-      btn.classList.add('active');
-      // Reset state
-      convoId = id; lastId = 0; clearMessages();
-      if (typeof inputConvo !== 'undefined' && inputConvo) { inputConvo.value = id; }
-      // Update header and unread
-      updateHeader({ id, type, title, members });
-      setUnread(id, 0);
-      if (typeof setFormEnabled === 'function') { setFormEnabled(true); }
-      // Reset incoming offer polling state for this convo
-      incomingSinceId = 0;
-      // Fetch & poll
-      fetchMessages();
-      if (typeof ensurePolling === 'function') { ensurePolling(); }
-      if (typeof ensureIncomingPolling === 'function') { ensureIncomingPolling(); }
-    } catch(e) {
-      console.warn('selectConvo error', e);
+  function checkNotifPermission(){
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      // Show the friendly banner after 2s so it doesn't pop immediately on load
+      setTimeout(function(){
+        if (notifPermBanner) notifPermBanner.classList.remove('d-none');
+      }, 2000);
     }
   }
+  checkNotifPermission();
 
-  // Clicking toast focuses relevant conversation and hides the toast
-  chatToastEl && chatToastEl.addEventListener('click', ()=>{
-    try { toastInstance && toastInstance.hide && toastInstance.hide(); } catch(e) {}
-    const cid = chatToastEl && chatToastEl.dataset && chatToastEl.dataset.convoId ? parseInt(chatToastEl.dataset.convoId,10) : 0;
-    if (cid && (!convoId || convoId !== cid)) { focusConversationById(cid); }
-    if (cid) { setUnread(cid, 0); }
-    try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e) {}
-  });
-
-  // Overlay helpers
-  function setOverlayStatus(text){
-    try { if (overlayStatus) overlayStatus.textContent = text || ''; } catch(e){}
+  if (btnEnableNotif) {
+    btnEnableNotif.addEventListener('click', function(){
+      if (!('Notification' in window)) return;
+      try {
+        var p = Notification.requestPermission();
+        if (p && typeof p.then === 'function') {
+          p.then(function(perm){
+            if (notifPermBanner) notifPermBanner.classList.add('d-none');
+            if (perm === 'granted') {
+              // Show a test notification so user knows it works
+              try {
+                var n = new Notification('Notifications enabled!', {
+                  body: 'You will now receive alerts for new chat messages.',
+                  icon: '<?php echo base_url('assets/favicon.png'); ?>'
+                });
+                setTimeout(function(){ try { n.close(); } catch(e){} }, 3000);
+              } catch(e){}
+            }
+          });
+        } else {
+          if (notifPermBanner) notifPermBanner.classList.add('d-none');
+        }
+      } catch(e){}
+    });
   }
 
-  function syncOverlayStreams(){
+  // ── Tab title badge ───────────────────────────────────────────────────────
+  var _origTitle = document.title;
+  var _unreadTotal = 0;
+  function updateTabTitle(){
     try {
-      if (overlayRemoteVideo) { overlayRemoteVideo.srcObject = remoteVideo ? remoteVideo.srcObject : null; }
-      if (overlayRemoteThumb) { overlayRemoteThumb.srcObject = remoteVideo ? remoteVideo.srcObject : null; }
-      if (overlayLocalVideo) { overlayLocalVideo.srcObject = localStream || null; }
-      if (overlayScreenVideo) { overlayScreenVideo.srcObject = screenStream || null; }
-      if (screenStream) {
-        overlayScreenWrap && overlayScreenWrap.classList.remove('d-none');
+      if (_unreadTotal > 0) {
+        document.title = '(' + _unreadTotal + ') ' + _origTitle;
       } else {
-        overlayScreenWrap && overlayScreenWrap.classList.add('d-none');
+        document.title = _origTitle;
       }
     } catch(e){}
   }
-
-  function setOverlayVisible(open){
-    overlayOpen = !!open;
-    if (!callOverlay) return;
-    if (overlayOpen){
-      callOverlay.classList.add('show');
-      callOverlay.setAttribute('aria-hidden','false');
-      syncOverlayStreams();
-      if (btnFullscreen) { btnFullscreen.innerHTML = '<i class="bi bi-fullscreen-exit"></i>'; }
-    } else {
-      callOverlay.classList.remove('show');
-      callOverlay.setAttribute('aria-hidden','true');
-      if (btnFullscreen) { btnFullscreen.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>'; }
+  // Clear badge when tab becomes visible
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible') {
+      _unreadTotal = 0;
+      updateTabTitle();
     }
-  }
-
-  // Screen share helpers
-  async function startScreenShare(){
-    if (!pc) return;
-    try {
-      screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
-      const screenTrack = screenStream.getVideoTracks()[0];
-
-      if (!originalVideoTrack && localStream) { originalVideoTrack = localStream.getVideoTracks()[0] || null; }
-      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender && screenTrack) {
-        await sender.replaceTrack(screenTrack);
-      }
-      // Show screen in local preview
-      localVideo.srcObject = screenStream;
-      btnShareScreen.innerHTML = '<i class="bi bi-display-fill"></i>';
-      if (btnOverlayScreen) btnOverlayScreen.innerHTML = '<i class="bi bi-display-fill"></i>';
-      setStatus('Screen sharing');
-      syncOverlayStreams();
-      // If user stops from browser UI, auto-restore
-      screenTrack.onended = () => { stopScreenShare().catch(()=>{}); };
-    } catch(e) {
-      // silently ignore if user cancels
-    }
-  }
-
-  async function stopScreenShare(){
-    if (!pc) return;
-
-    try {
-      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-      if (sender && originalVideoTrack) {
-        await sender.replaceTrack(originalVideoTrack);
-      }
-      // Restore camera preview
-      if (localStream) { localVideo.srcObject = localStream; }
-      if (screenStream) {
-        try { screenStream.getTracks().forEach(t=>{ try { t.stop(); } catch(e){} }); } catch(e) {}
-      }
-      screenStream = null;
-      btnShareScreen.innerHTML = '<i class="bi bi-display"></i>';
-      if (btnOverlayScreen) btnOverlayScreen.innerHTML = '<i class="bi bi-display"></i>';
-      setStatus('Connected');
-      syncOverlayStreams();
-    } catch(e) {}
-  }
-
-  btnShareScreen.addEventListener('click', async ()=>{
-    if (!pc) return;
-    if (screenStream) { await stopScreenShare(); }
-    else { await startScreenShare(); }
   });
 
-  // Recording helpers
-  function getStreamToRecord(){ return screenStream || localStream; }
-  function getSupportedMime(){
-    const candidates = [ 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', '' ];
-    for (const t of candidates){ if (t && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t; }
-    return '';
-  }
-  async function startRecording(){
-    const src = getStreamToRecord(); if (!src) return;
-    recordedChunks = [];
-    const mime = getSupportedMime();
-    mediaRecorder = new MediaRecorder(src, mime ? { mimeType: mime } : {});
-    mediaRecorder.ondataavailable = (e)=>{ if (e.data && e.data.size>0) recordedChunks.push(e.data); };
-    mediaRecorder.onstop = ()=>{
+  // ── Toast click: jump to conversation ────────────────────────────────────
+  chatToastEl && chatToastEl.addEventListener('click', function(){
+    try { toastInstance && toastInstance.hide && toastInstance.hide(); } catch(e){}
+    var cid = chatToastEl.dataset && chatToastEl.dataset.convoId ? parseInt(chatToastEl.dataset.convoId, 10) : 0;
+    if (cid && convoId !== cid) { focusConversationById(cid); }
+    if (cid) { setUnread(cid, 0); }
+    try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e){}
+  });
+
+  // ── Core notification function ────────────────────────────────────────────
+  function notifyNewMessage(m){
+    var senderName = m.full_name || m.name || m.email || 'New message';
+    var bodyText   = m.body
+      ? m.body.replace(/<[^>]+>/g, '').trim().slice(0, 120)
+      : (m.attachment_path ? '📎 Sent an attachment' : '');
+    if (!bodyText) bodyText = 'New message';
+
+    // 1. Play notification sound
+    try { if (typeof window._chatPlaySound === 'function') window._chatPlaySound(); } catch(e){}
+
+    // 2. In-app Bootstrap toast
+    try {
+      if (toastTitleEl) toastTitleEl.textContent = senderName;
+      if (toastBodyEl)  toastBodyEl.textContent  = bodyText;
+      // Show conversation label in toast header
+      var toastConvoLabel = document.getElementById('toastConvoLabel');
+      if (toastConvoLabel) {
+        var cid = m.conversation_id ? parseInt(m.conversation_id, 10) : 0;
+        var btn = cid ? findConvoButtonById(cid) : null;
+        var convoLabel = btn ? (btn.getAttribute('data-title') || btn.getAttribute('data-members') || ('#' + cid)) : '';
+        toastConvoLabel.textContent = convoLabel ? convoLabel.slice(0, 20) : '';
+      }
+      if (chatToastEl) {
+        chatToastEl.dataset.convoId = String(m.conversation_id ? m.conversation_id : (convoId || ''));
+      }
+      // Re-init toast each time so it always shows even if already visible
+      if (window.bootstrap && window.bootstrap.Toast) {
+        var t = new bootstrap.Toast(chatToastEl, { delay: 4500, autohide: true });
+        t.show();
+      } else if (toastInstance) {
+        toastInstance.show();
+      }
+    } catch(e){}
+
+    // 3. Tab title badge (always, even when tab is visible)
+    _unreadTotal++;
+    updateTabTitle();
+
+    // 4. Desktop (OS) notification — only when tab is hidden
+    if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        const blob = new Blob(recordedChunks, { type: recordedChunks[0] ? recordedChunks[0].type : 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date().toISOString().replace(/[:.]/g,'-');
-        a.href = url; a.download = 'recording-'+ts+'.webm';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(()=>URL.revokeObjectURL(url), 5000);
-      } catch(e) {}
-    };
-    mediaRecorder.start(); isRecording = true; setStatus('Recording...');
-    // Show footer & start timer
-    recordFooter.style.display = '';
-    startTimer();
-    btnRecord.innerHTML = '<i class="bi bi-stop-circle"></i>';
+        var n = new Notification(senderName, {
+          body: bodyText,
+          icon: '<?php echo base_url('assets/favicon.png'); ?>',
+          tag: 'chat-msg-' + (m.conversation_id || convoId || 0),
+          renotify: true
+        });
+        n.onclick = function(){
+          try { window.focus(); } catch(e){}
+          var cid2 = m.conversation_id ? parseInt(m.conversation_id, 10) : (convoId || 0);
+          if (cid2) { focusConversationById(cid2); }
+          try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e){}
+          n.close();
+        };
+        setTimeout(function(){ try { n.close(); } catch(e){} }, 5000);
+      } catch(e){}
+    }
   }
-  async function stopRecording(){
-    if (!mediaRecorder) return;
-    try { mediaRecorder.stop(); } catch(e) {}
-    isRecording = false; mediaRecorder = null;
-    btnRecord.innerHTML = '<i class=\"bi bi-record-circle\"></i>';
-    if (pc) setStatus('Connected');
-    // Hide footer & stop timer
-    recordFooter.style.display = 'none';
-    stopTimer();
+
+  // ── Message rendering ─────────────────────────────────────────────────────
+  function scrollToBottom(){ try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e){} }
+  function clearMessages(){ messagesEl.innerHTML = ''; lastId = 0; ensureEmptyPlaceholder(); }
+  function ensureEmptyPlaceholder(){
+    if (!messagesEl || messagesEl.children.length > 0) return;
+    var ph = document.createElement('div');
+    ph.className = 'messages-empty-placeholder text-center text-muted mt-5 py-4';
+    ph.innerHTML = '<i class="bi bi-chat-dots" style="font-size:2.5rem;opacity:.2;"></i><p class="mt-2">No messages yet. Say hello!</p>';
+    messagesEl.appendChild(ph);
   }
-  // Save a copy without stopping recording
-  function downloadFromChunks(chunks, postfix){
-    try{
-      if (!chunks || chunks.length===0) return;
-      const type = chunks[0].type || 'video/webm';
-      const blob = new Blob(chunks, { type });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const ts = new Date().toISOString().replace(/[:.]/g,'-');
-      a.href = url; a.download = 'recording-'+ts+(postfix||'')+'.webm';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 5000);
-    }catch(e){}
+  function clearEmptyPlaceholder(){
+    var ph = messagesEl.querySelector('.messages-empty-placeholder');
+    if (ph) { ph.remove(); }
   }
-  btnSaveRecording.addEventListener('click', ()=>{
-    if (!isRecording || !mediaRecorder) return;
-    // Request current data, then download a copy shortly after
-    const beforeLen = recordedChunks.length;
-    try { mediaRecorder.requestData(); } catch(e){}
-    setTimeout(()=>{
-      // Create a copy to avoid mutation while recording continues
-      const copy = recordedChunks.slice(0);
-      downloadFromChunks(copy, '-partial');
-    }, 400);
+
+  function appendMessage(m){
+    // Deduplication guard: skip if this message id is already in the DOM
+    if (m.id && messagesEl.querySelector('[data-msg-id="'+m.id+'"]')) { return; }
+    clearEmptyPlaceholder();
+
+    var isMe = parseInt(m.sender_id, 10) === userId;
+    var senderName = m.full_name || m.name || m.email || 'User';
+
+    // Outer row — flex column, aligned left (others) or right (own)
+    var wrap = document.createElement('div');
+    wrap.className = 'message' + (isMe ? ' own' : '');
+    wrap.setAttribute('data-msg-id', m.id);
+
+    // Meta line: sender name + timestamp
+    var meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = (isMe ? 'You' : senderName) + ' · ' + (m.created_at || '');
+    wrap.appendChild(meta);
+
+    // Bubble content
+    if (m.body) {
+      var body = document.createElement('div');
+      body.className = 'bubble ' + (isMe ? 'me' : 'them');
+      body.textContent = m.body;
+      wrap.appendChild(body);
+    }
+
+    // Attachment
+    if (m.attachment_path) {
+      var ext = m.attachment_path.split('.').pop().toLowerCase();
+      var isImg = ['jpg','jpeg','png','gif','webp'].indexOf(ext) !== -1;
+      if (isImg) {
+        var img = document.createElement('img');
+        img.src = site + m.attachment_path;
+        img.className = 'mt-1 rounded img-fluid';
+        img.style.maxWidth = '220px';
+        img.style.cursor = 'pointer';
+        (function(path){ img.addEventListener('click', function(){ window.open(site + path, '_blank'); }); })(m.attachment_path);
+        wrap.appendChild(img);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'file-attachment mt-1 d-inline-flex';
+        a.target = '_blank';
+        a.href = site + m.attachment_path;
+        a.innerHTML = '<i class="bi bi-paperclip file-icon me-1"></i>' +
+                      '<span class="file-name">' + htmlEsc(m.attachment_path.split('/').pop()) + '</span>';
+        wrap.appendChild(a);
+      }
+    }
+
+    // Reaction bar (empty until reactions are loaded/added)
+    var reactBar = document.createElement('div');
+    reactBar.className = 'message-reactions';
+    reactBar.setAttribute('data-msg-id', m.id);
+    wrap.appendChild(reactBar);
+
+    // Message actions (react, edit, delete) — shown on hover via CSS .message-actions
+    var actionsDiv = document.createElement('div');
+    actionsDiv.className = 'message-actions';
+
+    var reactBtn = document.createElement('button');
+    reactBtn.type = 'button';
+    reactBtn.className = 'btn reaction-btn';
+    reactBtn.title = 'React';
+    reactBtn.innerHTML = '<i class="bi bi-emoji-smile"></i>';
+    reactBtn.setAttribute('data-msg-id', m.id);
+    (function(mid, btn){ reactBtn.addEventListener('click', function(e){ e.stopPropagation(); showReactPicker(mid, btn); }); })(m.id, reactBtn);
+    actionsDiv.appendChild(reactBtn);
+
+    // Edit button — only for own messages
+    if (isMe) {
+      var editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn reaction-btn';
+      editBtn.title = 'Edit message';
+      editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+      (function(mid, wEl){ editBtn.addEventListener('click', function(e){ e.stopPropagation(); startEditMessage(mid, wEl); }); })(m.id, wrap);
+      actionsDiv.appendChild(editBtn);
+    }
+
+    // Delete button — for own messages
+    if (isMe) {
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn reaction-btn text-danger';
+      delBtn.title = 'Delete message';
+      delBtn.innerHTML = '<i class="bi bi-trash"></i>';
+      (function(mid, wrapEl){ delBtn.addEventListener('click', function(e){ e.stopPropagation(); deleteMessage(mid, wrapEl); }); })(m.id, wrap);
+      actionsDiv.appendChild(delBtn);
+    }
+
+    wrap.appendChild(actionsDiv);
+
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  function htmlEsc(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // ── Emoji reaction picker ─────────────────────────────────────────────────
+  var activeReactMsgId = 0;
+  var reactPickerEl = null;
+  var QUICK_EMOJIS = ['👍','❤️','😂','😮','😢','😡','🎉','👏','🔥','✅','❌','🙏'];
+
+  function showReactPicker(msgId, anchor){
+    if (reactPickerEl) { reactPickerEl.remove(); reactPickerEl = null; }
+    if (activeReactMsgId === msgId) { activeReactMsgId = 0; return; }
+    activeReactMsgId = msgId;
+    var picker = document.createElement('div');
+    picker.className = 'bg-white border rounded shadow p-2 d-flex flex-wrap gap-1';
+    picker.style.cssText = 'position:absolute;z-index:300;bottom:calc(100% + 4px);left:0;min-width:200px;';
+    QUICK_EMOJIS.forEach(function(em){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-sm p-1';
+      b.style.cssText = 'font-size:1.3rem;line-height:1;';
+      b.textContent = em;
+      b.addEventListener('click', function(e){ e.stopPropagation(); sendReaction(msgId, em); picker.remove(); reactPickerEl = null; activeReactMsgId = 0; });
+      picker.appendChild(b);
+    });
+    anchor.parentElement.style.position = 'relative';
+    anchor.parentElement.appendChild(picker);
+    reactPickerEl = picker;
+  }
+  document.addEventListener('click', function(){ if (reactPickerEl) { reactPickerEl.remove(); reactPickerEl = null; activeReactMsgId = 0; } });
+
+  // ── Delete message ────────────────────────────────────────────────────────
+  function deleteMessage(msgId, wrapEl){
+    if (!confirm('Delete this message?')) { return; }
+    fetch(site + 'chats/delete-message', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'message_id=' + msgId
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data && data.ok) {
+          // Replace bubble content with deleted indicator
+          var bubble = wrapEl.querySelector('.bubble');
+          if (bubble) {
+            bubble.textContent = '🗑 Message deleted';
+            bubble.style.opacity = '0.5';
+            bubble.style.fontStyle = 'italic';
+          }
+          // Remove action buttons
+          var actions = wrapEl.querySelector('.message-actions');
+          if (actions) { actions.remove(); }
+        }
+      }).catch(function(){});
+  }
+
+  // ── Edit message ──────────────────────────────────────────────────────────
+  function startEditMessage(msgId, wrapEl){
+    var bubble = wrapEl.querySelector('.bubble');
+    if (!bubble) { return; }
+    var oldText = bubble.textContent;
+    if (oldText === '🗑 Message deleted') { return; }
+
+    // Replace bubble with inline editor
+    var editWrap = document.createElement('div');
+    editWrap.className = 'edit-message-wrap d-flex gap-1 align-items-end';
+    var ta = document.createElement('textarea');
+    ta.className = 'form-control form-control-sm';
+    ta.rows = 2;
+    ta.style.cssText = 'min-width:180px;resize:vertical;';
+    ta.value = oldText;
+    var saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-sm btn-primary';
+    saveBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-sm btn-outline-secondary';
+    cancelBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+
+    editWrap.appendChild(ta);
+    editWrap.appendChild(saveBtn);
+    editWrap.appendChild(cancelBtn);
+    bubble.replaceWith(editWrap);
+    ta.focus();
+
+    cancelBtn.addEventListener('click', function(){
+      editWrap.replaceWith(bubble);
+    });
+    saveBtn.addEventListener('click', function(){
+      var newBody = ta.value.trim();
+      if (!newBody) { return; }
+      fetch(site + 'chats/edit-message', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'message_id=' + msgId + '&body=' + encodeURIComponent(newBody)
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data && data.ok) {
+            bubble.textContent = newBody;
+            // Add edited indicator
+            var meta = wrapEl.querySelector('.msg-meta');
+            if (meta && meta.textContent.indexOf('(edited)') === -1) {
+              meta.textContent += ' (edited)';
+            }
+            editWrap.replaceWith(bubble);
+          } else {
+            alert(data && data.error ? data.error : 'Could not save edit.');
+            editWrap.replaceWith(bubble);
+          }
+        }).catch(function(){ editWrap.replaceWith(bubble); });
+    });
+  }
+
+  function sendReaction(msgId, emoji){
+    if (!convoId) return;
+    fetch(site + 'chats/reaction', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'message_id=' + msgId + '&reaction=' + encodeURIComponent(emoji)
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data && data.ok) { renderReactions(msgId, data.reactions); }
+      }).catch(function(){});
+  }
+
+  function renderReactions(msgId, reactions){
+    var bar = messagesEl.querySelector('.message-reactions[data-msg-id="'+msgId+'"]');
+    if (!bar) return;
+    bar.innerHTML = '';
+    if (!reactions || reactions.length === 0) return;
+    reactions.forEach(function(r){
+      var item = document.createElement('span');
+      item.className = 'reaction-item';
+      item.title = r.reaction;
+      item.innerHTML = '<span class="reaction-emoji">' + htmlEsc(r.reaction) + '</span>' +
+                       '<span class="reaction-count">' + htmlEsc(String(r.count)) + '</span>';
+      item.addEventListener('click', function(){ sendReaction(msgId, r.reaction); });
+      bar.appendChild(item);
+    });
+  }
+
+  // ── Inline emoji picker for composer ─────────────────────────────────────
+  if (btnEmoji) {
+    btnEmoji.addEventListener('click', function(e){
+      e.stopPropagation();
+      quickEmojiPicker.classList.toggle('d-none');
+    });
+  }
+  document.querySelectorAll('.quick-emoji-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (msgTextarea) {
+        var pos = msgTextarea.selectionStart || msgTextarea.value.length;
+        var val = msgTextarea.value;
+        msgTextarea.value = val.slice(0, pos) + btn.getAttribute('data-emoji') + val.slice(pos);
+        msgTextarea.focus();
+      }
+      quickEmojiPicker.classList.add('d-none');
+    });
   });
-  btnRecord.addEventListener('click', async ()=>{
-    if (!pc) return;
-    if (!isRecording) { await startRecording(); }
-    else { await stopRecording(); }
+  document.addEventListener('click', function(e){
+    if (!quickEmojiPicker.contains(e.target) && e.target !== btnEmoji) {
+      quickEmojiPicker.classList.add('d-none');
+    }
   });
 
-  // Attachment icon opens hidden file input
-  btnAttach.addEventListener('click', ()=>{ if (!btnAttach.disabled) attachmentInput.click(); });
+  // ── Form enable/disable ───────────────────────────────────────────────────
+  function setFormEnabled(en){
+    form.querySelectorAll('textarea, input, button').forEach(function(el){ el.disabled = !en; });
+    if (btnEmoji) btnEmoji.disabled = !en;
+  }
+
+  // ── Header update ─────────────────────────────────────────────────────────
+  function updateHeader(opts){
+    var id      = opts && opts.id ? parseInt(opts.id, 10) : 0;
+    var type    = opts && opts.type ? String(opts.type) : '';
+    var title   = opts && opts.title ? String(opts.title) : '';
+    var members = opts && opts.members ? String(opts.members) : '';
+    if (hdrConvTitle) {
+      hdrConvTitle.textContent = title || members || (id ? 'Conversation #' + id : 'Select a conversation');
+    }
+    if (hdrConvMeta) {
+      hdrConvMeta.textContent = type ? '[' + type.toUpperCase() + ']' + (id ? ' #' + id : '') : '';
+    }
+    if (btnCallToggle) btnCallToggle.disabled = !id;
+    if (btnReminder)   btnReminder.disabled   = !id;
+    if (btnEndCall)    btnEndCall.disabled     = true;
+    if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
+    if (btnRejectCall) btnRejectCall.classList.add('d-none');
+    if (callStatus)    callStatus.textContent  = 'Idle';
+    setOverlayStatus('Idle');
+    if (btnFullscreen) btnFullscreen.disabled  = !id;
+  }
+
+  // ── Select conversation ───────────────────────────────────────────────────
+  function findConvoButtonById(id){ return document.querySelector('.convo-item[data-id="'+id+'"]'); }
+  function focusConversationById(id){ var btn = findConvoButtonById(id); if (btn) selectConvo(btn); }
+
+  function selectConvo(btn){
+    try {
+      var id      = parseInt(btn.getAttribute('data-id') || '0', 10);
+      var type    = btn.getAttribute('data-type') || '';
+      var title   = btn.getAttribute('data-title') || '';
+      var members = btn.getAttribute('data-members') || '';
+      if (!id) return;
+      document.querySelectorAll('#convoList .convo-item.active').forEach(function(x){ x.classList.remove('active'); });
+      btn.classList.add('active');
+      convoId = id; lastId = 0; clearMessages();
+      if (inputConvo) inputConvo.value = id;
+      updateHeader({ id: id, type: type, title: title, members: members });
+      setUnread(id, 0);
+      // Clear tab title badge when opening a conversation
+      _unreadTotal = 0; updateTabTitle();
+      setFormEnabled(true);
+      incomingSinceId = 0;
+      fetchMessages();
+      ensurePolling();
+      ensureIncomingPolling();
+    } catch(e){ console.warn('selectConvo error', e); }
+  }
+
+  // ── Fetch & poll messages ─────────────────────────────────────────────────
+  function fetchMessages(){
+    if (!convoId) return;
+    var url = site + 'chats/fetch_messages?conversation_id=' + convoId + '&since_id=' + lastId;
+    fetch(url)
+      .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+      .then(function(data){
+        if (!data || !data.ok) { ensureEmptyPlaceholder(); return; }
+        var msgs = data.messages || [];
+        msgs.forEach(function(m){
+          var mid  = parseInt(m.id, 10);
+          // Ensure conversation_id is always an int (model returns it in m.*)
+          var cid  = parseInt(m.conversation_id || convoId || 0, 10);
+          var sid  = parseInt(m.sender_id, 10);
+
+          // Always advance lastId cursor
+          if (mid > lastId) { lastId = mid; }
+
+          // Render message if it belongs to the active conversation
+          if (cid === convoId) {
+            appendMessage(m); // has built-in dedup guard
+          }
+
+          // Update sidebar preview for any conversation
+          try { updateConvoPreview(m); } catch(e){}
+
+          // Notify only for messages from other users that haven't been notified yet
+          var fromOther = (sid !== userId);
+          var inActiveConvo = (cid === convoId);
+          var userSeeingIt  = inActiveConvo && isActivelyViewingCurrent();
+
+          if (fromOther && !userSeeingIt && mid > (lastNotified[cid] || 0)) {
+            notifyNewMessage(m);
+            lastNotified[cid] = mid;
+            // Increment unread badge only for conversations NOT currently open
+            if (!inActiveConvo) { incrementUnread(cid); }
+          }
+        });
+        ensureEmptyPlaceholder();
+      }).catch(function(e){ if (String(e) !== 'Error: unauth') console.warn('fetchMessages error', e); });
+  }
+
+  function ensurePolling(){
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(function(){ fetchMessages(); fetchTypingUsers(); }, 2500);
+  }
+
+  function isActivelyViewingCurrent(){
+    // User is "actively viewing" if: tab is visible AND they are near the bottom (within 80px)
+    if (document.visibilityState !== 'visible' || !convoId) return false;
+    var distFromBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+    return distFromBottom < 80;
+  }
+
+  // ── Update conversation preview ───────────────────────────────────────────
+  function updateConvoPreview(m){
+    try {
+      var cid = parseInt(m.conversation_id || convoId || 0, 10); if (!cid) return;
+      var btn = findConvoButtonById(cid); if (!btn) return;
+      var sub = btn.querySelector('.subtitle');
+      var snippet = m.body ? m.body.replace(/<[^>]+>/g,'').slice(0, 50) : (m.attachment_path ? 'Attachment' : '');
+      if (sub) { sub.textContent = snippet || ''; }
+      var list = document.getElementById('convoList');
+      if (list && btn.parentElement === list) { list.insertBefore(btn, list.firstElementChild); }
+    } catch(e){}
+  }
+
+  // ── Send message ──────────────────────────────────────────────────────────
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!convoId) return;
+    var fd = new FormData(form);
+    var hasAttachment = attachmentInput && attachmentInput.files && attachmentInput.files.length;
+    if (hasAttachment) setUploadProgress(0);
+    fetch(site + 'chats/send_message', { method: 'POST', body: fd })
+      .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+      .then(function(data){
+        if (data && data.ok) {
+          try { form.reset(); } catch(ex){}
+          updateAttachmentUI();
+          if (data.message) {
+            // Advance lastId BEFORE appending so the next poll skips this message
+            var mid = parseInt(data.message.id, 10);
+            if (mid > lastId) { lastId = mid; }
+            appendMessage(data.message);
+            updateConvoPreview(data.message);
+          } else {
+            fetchMessages();
+          }
+          ensurePolling();
+          setUploadProgress(101);
+        } else {
+          alert(data && data.error ? data.error : 'Failed to send message.');
+          setUploadProgress(101);
+        }
+      }).catch(function(e){ if (String(e) !== 'Error: unauth') alert('Failed to send message. Check your connection.'); setUploadProgress(101); });
+  });
+
+  // ── Textarea: Enter to send, Shift+Enter for newline, typing indicator ────
+  if (msgTextarea) {
+    msgTextarea.addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); if (btnSend) btnSend.click(); }
+    });
+    msgTextarea.addEventListener('input', function(){ setTyping(true); });
+  }
+
+  // ── Attachment UI ─────────────────────────────────────────────────────────
+  if (btnAttach) { btnAttach.addEventListener('click', function(){ if (!btnAttach.disabled) attachmentInput.click(); }); }
   function updateAttachmentUI(){
     try {
-      if (!attachmentInput) return;
-      const files = attachmentInput.files;
+      var files = attachmentInput && attachmentInput.files;
       if (files && files.length) {
-        const name = files[0].name || 'Attachment selected';
-        if (attachmentLabel) {
-          attachmentLabel.textContent = name;
-          attachmentLabel.classList.remove('d-none');
-        }
-        if (btnAttach) { btnAttach.classList.add('btn-secondary'); }
+        attachmentLabel.textContent = files[0].name || 'Attachment selected';
+        attachmentLabel.classList.remove('d-none');
+        btnAttach.classList.add('btn-secondary');
       } else {
-        if (attachmentLabel) {
-          attachmentLabel.textContent = '';
-          attachmentLabel.classList.add('d-none');
-        }
-        if (btnAttach) { btnAttach.classList.remove('btn-secondary'); }
+        attachmentLabel.textContent = '';
+        attachmentLabel.classList.add('d-none');
+        btnAttach.classList.remove('btn-secondary');
       }
-    } catch(e) {}
+    } catch(e){}
   }
-  attachmentInput.addEventListener('change', updateAttachmentUI);
-
-  let uploadInProgress = false;
+  if (attachmentInput) { attachmentInput.addEventListener('change', updateAttachmentUI); }
+  var uploadInProgress = false;
   function setUploadProgress(pct){
     try {
       if (!attachmentLabel) return;
       if (pct >= 0 && pct < 100) {
         uploadInProgress = true;
-        const base = (attachmentInput && attachmentInput.files && attachmentInput.files[0] && attachmentInput.files[0].name) ? attachmentInput.files[0].name : 'Uploading';
+        var base = (attachmentInput && attachmentInput.files && attachmentInput.files[0]) ? attachmentInput.files[0].name : 'Uploading';
         attachmentLabel.textContent = base + ' · ' + pct + '%';
         attachmentLabel.classList.remove('d-none');
         attachmentLabel.classList.add('uploading');
@@ -764,773 +1168,498 @@
         attachmentLabel.classList.remove('uploading');
         updateAttachmentUI();
       }
-    } catch(e) {}
+    } catch(e){}
   }
 
-  // Ask permission for desktop notifications
-  if ('Notification' in window && Notification.permission === 'default') {
-    try { Notification.requestPermission(); } catch(e) {}
-  }
-
-  function notifyNewMessage(m) {
-    // In-app toast
+  // ── Overlay helpers ───────────────────────────────────────────────────────
+  function syncOverlayStreams(){
     try {
-      toastTitleEl.textContent = (m.full_name || m.name || m.email || 'New message');
-      const bodyText = (m.body ? (m.body.replace(/<[^>]+>/g,'').slice(0,120)) : (m.attachment_path ? 'Sent an attachment' : '')) || 'New message';
-      toastBodyEl.textContent = bodyText;
-      // attach conversation id for click behavior (fallback to current convoId)
-      if (chatToastEl) { chatToastEl.dataset.convoId = String(m.conversation_id ? m.conversation_id : (convoId || '')); }
-      if (toastInstance) { toastInstance.show(); }
-    } catch(e) {}
-    // Sound
-    try { chatSoundEl && chatSoundEl.play && chatSoundEl.play().catch(()=>{}); } catch(e) {}
-    // Desktop notification (only when tab not visible)
-    if (document.visibilityState !== 'visible' && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        const n = new Notification((m.full_name || m.name || m.email || 'New message'), {
-          body: (m.body ? m.body.replace(/<[^>]+>/g,'').slice(0,120) : 'New message'),
-          icon: '<?php echo base_url('assets/favicon.png'); ?>'
-        });
-        // On click, focus window, switch to conversation and scroll to bottom
-        n.onclick = () => {
-          try { window.focus(); } catch(e) {}
-          try {
-            const cid = m.conversation_id ? parseInt(m.conversation_id,10) : (convoId || 0);
-            if (cid) { focusConversationById(cid); }
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-          } catch(e) {}
-        };
-        setTimeout(()=>{ n && n.close && n.close(); }, 4000);
-      } catch(e) {}
+      if (overlayRemoteVideo) overlayRemoteVideo.srcObject = remoteVideo ? remoteVideo.srcObject : null;
+      if (overlayRemoteThumb) overlayRemoteThumb.srcObject = remoteVideo ? remoteVideo.srcObject : null;
+      if (overlayLocalVideo)  overlayLocalVideo.srcObject  = localStream || null;
+      if (overlayScreenVideo) overlayScreenVideo.srcObject = screenStream || null;
+      if (screenStream) { overlayScreenWrap && overlayScreenWrap.classList.remove('d-none'); }
+      else              { overlayScreenWrap && overlayScreenWrap.classList.add('d-none'); }
+    } catch(e){}
+  }
+  function setOverlayVisible(open){
+    overlayOpen = !!open;
+    if (!callOverlay) return;
+    if (overlayOpen){
+      callOverlay.classList.add('show'); callOverlay.setAttribute('aria-hidden','false');
+      syncOverlayStreams();
+      if (btnFullscreen) btnFullscreen.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+    } else {
+      callOverlay.classList.remove('show'); callOverlay.setAttribute('aria-hidden','true');
+      if (btnFullscreen) btnFullscreen.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
     }
   }
 
-  function setFormEnabled(en) {
-    form.querySelectorAll('textarea, input, button').forEach(el => { el.disabled = !en; });
+  // ── Video status helpers ──────────────────────────────────────────────────
+  function updateVideoStatus(el, status, text){
+    if (!el) return;
+    el.className = 'video-status ' + status;
+    var span = el.querySelector('span:last-child'); if (span) span.textContent = text;
   }
+  function updateVideoContainer(container, hasStream){
+    if (!container) return;
+    container.classList.toggle('video-placeholder', !hasStream);
+    container.classList.toggle('video-active', !!hasStream);
+  }
+
+  // ── WebRTC ────────────────────────────────────────────────────────────────
+  var pc = null, localStream = null, callId = null, signalSince = 0;
+  var screenStream = null, originalVideoTrack = null;
+  var mediaRecorder = null, recordedChunks = [], isRecording = false;
+  var localVideo  = document.getElementById('localVideo');
+  var remoteVideo = document.getElementById('remoteVideo');
+  var remoteVideoContainer = document.getElementById('remoteVideoContainer');
+  var localVideoContainer  = document.getElementById('localVideoContainer');
+  var remoteVideoStatus    = document.getElementById('remoteVideoStatus');
+  var localVideoStatus     = document.getElementById('localVideoStatus');
+  var pendingRemoteOffer   = null;
 
   function setCallToggleUI(active){
-    try {
-      if (!btnCallToggle) return;
-      if (active) {
-        btnCallToggle.classList.remove('btn-outline-primary');
-        btnCallToggle.classList.add('btn-danger');
-        btnCallToggle.innerHTML = '<i class="bi bi-telephone-x"></i> End Call';
-      } else {
-        btnCallToggle.classList.remove('btn-danger');
-        btnCallToggle.classList.add('btn-outline-primary');
-        btnCallToggle.innerHTML = '<i class="bi bi-camera-video"></i> Start Call';
-      }
-    } catch(e){}
-  }
-
-  function scrollToBottom(){
-    try { messagesEl.scrollTop = messagesEl.scrollHeight; } catch(e){}
-  }
-
-  function clearEmptyPlaceholder(){
-    try {
-      if (!messagesEl) return;
-      var ph = messagesEl.querySelector('.messages-empty-placeholder');
-      if (ph) { ph.remove(); }
-    } catch(e){}
-  }
-
-  function ensureEmptyPlaceholder(){
-    try {
-      if (!messagesEl) return;
-      if (messagesEl.children.length > 0) return;
-      var ph = document.createElement('div');
-      ph.className = 'messages-empty-placeholder text-center text-muted mt-5';
-      ph.textContent = 'No messages yet. Say hello 👋';
-      messagesEl.appendChild(ph);
-    } catch(e){}
-  }
-
-  function clearMessages(){
-    messagesEl.innerHTML='';
-    lastId = 0;
-    ensureEmptyPlaceholder();
-  }
-
-  function appendMessage(m) {
-    clearEmptyPlaceholder();
-    const wrap = document.createElement('div');
-    const isMe = parseInt(m.sender_id,10) === userId;
-    wrap.className = 'message' + (isMe ? ' text-end' : '');
-    const meta = document.createElement('div');
-    meta.className = 'small text-muted mb-1';
-    meta.textContent = (m.full_name || m.name || m.email || 'User') + ' · ' + (m.created_at || '');
-    wrap.appendChild(meta);
-    if (m.body) {
-      const body = document.createElement('div');
-      body.className = 'bubble ' + (isMe ? 'me' : 'them');
-      body.textContent = m.body;
-      wrap.appendChild(body);
-    }
-    if (m.attachment_path) {
-      const a = document.createElement('a');
-      a.className = 'btn btn-sm btn-outline-secondary mt-1';
-      a.target = '_blank';
-      a.href = site + m.attachment_path;
-      a.innerHTML = '<i class="bi bi-paperclip"></i> Attachment';
-      wrap.appendChild(a);
-    }
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
-  // Click to select conversation - jQuery delegated
-  // Single delegated click handler (no duplicates)
-  // Removed: jQuery handler + native fallback that duplicated selectConvo() calls
-
-  async function fetchMessages(){
-    if (!convoId) return;
-    try {
-      // Debug
-      if (!convoId) { console.warn('fetchMessages called with no convoId'); return; }
-      if (window.$ && $.ajax) {
-        $.ajax({
-          url: site + 'chats/fetch_messages',
-          method: 'GET',
-          data: { conversation_id: convoId, since_id: lastId },
-          dataType: 'json'
-        }).done(function(data){
-          console.log('fetch_messages OK', { convoId, lastId_before: lastId, payload: data });
-          if (data && data.ok && data.messages) {
-            data.messages.forEach(function(m){
-              const mid = parseInt(m.id,10);
-              const cid = parseInt(m.conversation_id || convoId || 0, 10);
-              lastId = Math.max(lastId, mid);
-              const sameThread = (cid === convoId);
-              const fromOther = parseInt(m.sender_id,10) !== userId;
-              const lastNoti = (lastNotified[cid] || 0);
-              if (sameThread) { appendMessage(m); }
-              // Update list preview and order for any message in this conversation
-              try { updateConvoPreview(m); } catch(e){}
-              const seen = sameThread && isActivelyViewingCurrent();
-              if (fromOther && !seen && mid > lastNoti) {
-                notifyNewMessage(m);
-                lastNotified[cid] = mid;
-                if (!sameThread) { incrementUnread(cid); }
-              }
-            });
-            ensureEmptyPlaceholder();
-          } else {
-            console.warn('Chats fetch_messages: not ok', data);
-            ensureEmptyPlaceholder();
-          }
-        }).fail(function(xhr){
-          console.error('Chats fetch_messages AJAX fail', { status: xhr.status, text: xhr.statusText, resp: xhr && xhr.responseText });
-          setStatus('Failed to load messages');
-        });
-      } else {
-        // Fallback to fetch if jQuery not available
-        const url = new URL(site + 'chats/fetch_messages');
-        url.searchParams.set('conversation_id', convoId);
-        url.searchParams.set('since_id', lastId);
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data && data.ok && data.messages) {
-          data.messages.forEach((m)=>{ try { updateConvoPreview(m); } catch(e){} appendMessage(m); lastId = Math.max(lastId, parseInt(m.id,10)); });
-        }
-        ensureEmptyPlaceholder();
-      }
-    } catch(e) {
-      console.error('Chats fetch_messages error', e);
-    }
-  }
-
-  // Start/refresh polling loop for messages + typing indicators
-  function ensurePolling(){
-    try {
-      if (pollTimer) { clearInterval(pollTimer); }
-      pollTimer = setInterval(function(){
-        fetchMessages();
-        fetchTypingUsers();
-      }, 2500);
-    } catch(e) { console.warn('ensurePolling error', e); }
-  }
-
-  // Poll for incoming call offers when no active call is established
-  async function pollIncomingOffers(){
-    if (!convoId || callId) return; // only when idle
-    try {
-      const url = new URL(site + 'calls/incoming/' + convoId);
-      url.searchParams.set('since_id', incomingSinceId);
-      const r = await fetch(url);
-      if (handleUnauthorized(r)) return;
-      const j = await parseJsonSafe(r);
-      if (j && j.ok && j.signals && j.signals.length) {
-        j.signals.forEach(function(s){
-          const sid = parseInt(s.id,10);
-          incomingSinceId = Math.max(incomingSinceId, sid);
-          callId = parseInt(s.call_id,10) || null;
-          signalSince = 0;
-          pendingRemoteOffer = s.payload; // JSON string
-          if (s.from_email) { setStatus('Incoming call from ' + s.from_email + '...'); }
-          else { setStatus('Incoming call...'); }
-          if (btnAcceptCall) btnAcceptCall.classList.remove('d-none');
-          if (btnRejectCall) btnRejectCall.classList.remove('d-none');
-          if (btnCallToggle) btnCallToggle.classList.add('d-none');
-          startRinging('in');
-          if (signalTimer) clearInterval(signalTimer);
-          signalTimer = setInterval(pollSignals, 2000);
-          if (autoAcceptCallId && callId && autoAcceptCallId === callId && btnAcceptCall) {
-            btnAcceptCall.click();
-            autoAcceptCallId = 0;
-          }
-        });
-      }
-    } catch(e) { /* ignore transient errors */ }
-  }
-  function ensureIncomingPolling(){
-    try {
-      if (incomingTimer) clearInterval(incomingTimer);
-      incomingTimer = setInterval(pollIncomingOffers, 2500);
-    } catch(e) { console.warn('ensureIncomingPolling error', e); }
-  }
-
-  // Update conversation list preview and reorder to top on new activity
-  function updateConvoPreview(m){
-    try {
-      const cid = parseInt(m.conversation_id || convoId || 0, 10);
-      if (!cid) return;
-      const btn = findConvoButtonById(cid);
-      if (!btn) return;
-      const sub = btn.querySelector('.subtitle');
-      const snippet = (m.body ? m.body.replace(/<[^>]+>/g,'').slice(0, 50) : (m.attachment_path ? 'Attachment' : '') ) || '';
-      if (sub) { sub.textContent = 'ID #' + cid + (snippet ? ' • ' + snippet : ''); }
-      // Move to top of the list for recency
-      const list = document.getElementById('convoList');
-      if (list && btn.parentElement === list) {
-        list.insertBefore(btn, list.firstElementChild);
-      }
-    } catch(e) { /* no-op */ }
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!convoId) return;
-    const fd = new FormData(form);
-    const hasAttachment = attachmentInput && attachmentInput.files && attachmentInput.files.length;
-    if (hasAttachment) { setUploadProgress(0); }
-    if (window.$ && $.ajax) {
-      $.ajax({
-        url: site + 'chats/send_message',
-        method: 'POST',
-        data: fd,
-        processData: false,
-        contentType: false,
-        dataType: 'json',
-        xhr: function(){
-          var xhr = $.ajaxSettings.xhr();
-          if (xhr && xhr.upload && hasAttachment) {
-            xhr.upload.addEventListener('progress', function(ev){
-              try {
-                if (ev.lengthComputable && ev.total > 0) {
-                  var pct = Math.round((ev.loaded / ev.total) * 100);
-                  if (pct < 100) { setUploadProgress(pct); }
-                  else { setUploadProgress(100); }
-                }
-              } catch(e) {}
-            }, false);
-          }
-          return xhr;
-        }
-      }).done(function(data){
-        if (data && data.ok) {
-          try { form.reset(); } catch(e){}
-          updateAttachmentUI();
-          // If API returns the created message, append immediately; else fetch
-          if (data.message) {
-            try { appendMessage(data.message); updateConvoPreview(data.message); } catch(e){}
-          } else {
-            fetchMessages();
-          }
-          ensurePolling();
-        }
-        else {
-          console.warn('Chats send_message: not ok', data);
-          if (data && data.error) {
-            alert(data.error);
-          } else {
-            alert('Failed to send message.');
-          }
-          // Reset progress UI on error
-          setUploadProgress(101);
-        }
-      }).fail(function(xhr){
-        console.error('Chats send_message AJAX fail', xhr && xhr.responseText);
-        alert('Failed to send message. Please check your connection.');
-        setUploadProgress(101);
-      });
+    if (!btnCallToggle) return;
+    if (active){
+      btnCallToggle.classList.replace('btn-outline-primary','btn-danger');
+      btnCallToggle.innerHTML = '<i class="bi bi-telephone-x"></i> <span class="d-none d-sm-inline">End Call</span>';
     } else {
-      try {
-        const res = await fetch(site + 'chats/send_message', { method:'POST', body: fd });
-        const data = await res.json();
-        if (data && data.ok) {
-          try { form.reset(); } catch(e){}
-          updateAttachmentUI();
-          if (data.message) { try { appendMessage(data.message); updateConvoPreview(data.message); } catch(e){} }
-          else { fetchMessages(); }
-          ensurePolling();
-        } else {
-          console.warn('Chats send_message (fetch): not ok', data);
-          if (data && data.error) {
-            alert(data.error);
-          } else {
-            alert('Failed to send message.');
-          }
-          setUploadProgress(101);
-        }
-      } catch(e){ console.error('Chats send_message error', e); }
-    }
-  });
-
-  // Enter to send, Shift+Enter for newline
-  const textarea = form.querySelector('textarea[name="body"]');
-  textarea.addEventListener('keydown', (ev)=>{
-    if (ev.key === 'Enter' && !ev.shiftKey) {
-      ev.preventDefault();
-      var submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) submitBtn.click();
-    }
-  });
-
-  // Typing indicator: fire on input
-  textarea.addEventListener('input', function(){
-    setTyping(true);
-  });
-
-  // Online status: mark online on load, offline on leave
-  setOnlineStatus(true);
-  window.addEventListener('beforeunload', function(){
-    setOnlineStatus(false);
-    stopTyping();
-  });
-
-  // WebRTC
-  let pc=null, localStream=null, callId=null, signalSince=0;
-  let screenStream=null; // active screen share stream
-  let originalVideoTrack=null; // cached camera track for restore
-  let mediaRecorder=null; let recordedChunks=[]; let isRecording=false;
-  const localVideo = document.getElementById('localVideo');
-  const remoteVideo = document.getElementById('remoteVideo');
-  const remoteVideoContainer = document.getElementById('remoteVideoContainer');
-  const localVideoContainer = document.getElementById('localVideoContainer');
-  const remoteVideoStatus = document.getElementById('remoteVideoStatus');
-  const localVideoStatus = document.getElementById('localVideoStatus');
-  
-  function setStatus(s){
-    callStatus && (callStatus.textContent = s);
-    setOverlayStatus(s);
-  }
-  
-  // Update video status indicators
-  function updateVideoStatus(element, status, text) {
-    if (!element) return;
-    element.className = 'video-status ' + status;
-    const statusText = element.querySelector('span:last-child');
-    if (statusText) statusText.textContent = text;
-  }
-  
-  // Update video container classes
-  function updateVideoContainer(container, hasStream) {
-    if (!container) return;
-    if (hasStream) {
-      container.classList.remove('video-placeholder');
-      container.classList.add('video-active');
-    } else {
-      container.classList.add('video-placeholder');
-      container.classList.remove('video-active');
+      btnCallToggle.classList.replace('btn-danger','btn-outline-primary');
+      btnCallToggle.innerHTML = '<i class="bi bi-camera-video"></i> <span class="d-none d-sm-inline">Start Call</span>';
     }
   }
 
-  let recordTimerId = null; let recordStartAt = 0;
-  function fmt(t){ return (t<10?'0':'')+t; }
-  function startTimer(){
-    recordStartAt = Date.now();
-    clearInterval(recordTimerId);
-    recordTimerId = setInterval(()=>{
-      const sec = Math.floor((Date.now()-recordStartAt)/1000);
-      const mm = Math.floor(sec/60), ss = sec%60;
-      recordTimerEl.textContent = fmt(mm)+":"+fmt(ss);
-    }, 500);
-  }
-  function stopTimer(){ clearInterval(recordTimerId); recordTimerId=null; recordTimerEl.textContent = '00:00'; }
-
-  async function initPeer(){
-    pc = new RTCPeerConnection({ iceServers:[{urls:'stun:stun.l.google.com:19302'}] });
-    pc.onicecandidate = async (ev)=>{
+  function initPeer(){
+    pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    pc.onicecandidate = function(ev){
       if (ev.candidate && callId) {
-        await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'ice', payload: JSON.stringify(ev.candidate) }) });
+        fetch(site + 'calls/signal/' + callId, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: new URLSearchParams({ type: 'ice', payload: JSON.stringify(ev.candidate) })
+        });
       }
     };
-    pc.ontrack = (ev)=>{
-      console.log('Received remote stream:', ev.streams[0]);
+    pc.ontrack = function(ev){
       remoteVideo.srcObject = ev.streams[0];
       updateVideoContainer(remoteVideoContainer, true);
       updateVideoStatus(remoteVideoStatus, 'connected', 'Connected');
-      try { 
-        remoteVideo.play().then(() => {
-          console.log('Remote video playing successfully');
-        }).catch(e => {
-          console.warn('Remote video play failed:', e);
-        }); 
-      } catch(e) { 
-        console.warn('Remote video play error:', e); 
-      }
+      try { remoteVideo.play().catch(function(){}); } catch(e){}
       syncOverlayStreams();
     };
-    
+    var mediaPromise;
     if (!localStream) {
-      try {
-        setStatus('Getting camera and microphone...');
-        localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-        localVideo.srcObject = localStream;
-        updateVideoContainer(localVideoContainer, true);
-        updateVideoStatus(localVideoStatus, 'connected', 'Camera On');
-        try { originalVideoTrack = localStream.getVideoTracks()[0] || null; } catch(e) { originalVideoTrack = null; }
-        console.log('Local stream established:', localStream);
-      } catch(e) {
-        console.error('Failed to get local stream:', e);
-        setStatus('Camera/Mic access denied');
-        updateVideoContainer(localVideoContainer, false);
-        updateVideoStatus(localVideoStatus, 'disconnected', 'Camera Off');
-        // Continue without video - audio only
-        try {
-          localStream = await navigator.mediaDevices.getUserMedia({ video:false, audio:true });
-          localVideo.srcObject = localStream;
-          updateVideoContainer(localVideoContainer, false);
-          updateVideoStatus(localVideoStatus, 'connected', 'Audio Only');
-        } catch(audioError) {
-          console.error('Failed to get audio only:', audioError);
-          setStatus('Media access denied');
-        }
-      }
+      setStatus('Getting camera and microphone…');
+      mediaPromise = navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(function(stream){
+          localStream = stream;
+          localVideo.srcObject = stream;
+          updateVideoContainer(localVideoContainer, true);
+          updateVideoStatus(localVideoStatus, 'connected', 'Camera On');
+          try { originalVideoTrack = stream.getVideoTracks()[0] || null; } catch(e){}
+        }).catch(function(){
+          setStatus('Camera/Mic access denied — trying audio only');
+          updateVideoStatus(localVideoStatus, 'disconnected', 'Camera Off');
+          return navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+            .then(function(stream){
+              localStream = stream;
+              localVideo.srcObject = stream;
+              updateVideoStatus(localVideoStatus, 'connected', 'Audio Only');
+            }).catch(function(){ setStatus('Media access denied'); });
+        });
+    } else {
+      mediaPromise = Promise.resolve();
     }
-    
-    if (localStream) {
-      localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
-    }
-
-    // Enable mic control once media is ready
-    btnToggleMic.disabled = false;
-    // Enable speaker control
-    btnToggleSpeaker.disabled = false;
-    remoteVideo.muted = false;
-    btnShareScreen.disabled = false;
-    btnRecord.disabled = false;
-    btnFullscreen && (btnFullscreen.disabled = false);
-    cameraEnabled = true;
-    syncOverlayStreams();
-  }
-
-  async function startCall(){
-    if (!convoId) return;
-    try {
-      setStatus('Starting call...');
-      updateVideoStatus(remoteVideoStatus, 'connecting', 'Connecting...');
-      const r = await fetch(site + 'calls/start/' + convoId, { method:'POST' });
-      if (handleUnauthorized(r)) return;
-      const j = await parseJsonSafe(r); if (!j || !j.ok) throw new Error('start failed');
-      callId = j.call_id; signalSince = 0; btnEndCall.disabled = false;
-      await initPeer();
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      const rs = await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'offer', payload: JSON.stringify(offer) }) });
-      if (handleUnauthorized(rs)) return;
-      setStatus('Waiting for answer...');
-      updateVideoStatus(remoteVideoStatus, 'connecting', 'Waiting for answer...');
-      if (signalTimer) clearInterval(signalTimer);
-      signalTimer = setInterval(pollSignals, 2000);
-      setCallToggleUI(true);
-      if (btnEndCall) btnEndCall.classList.add('d-none');
-      startRinging('out');
+    return mediaPromise.then(function(){
+      if (localStream) { localStream.getTracks().forEach(function(t){ pc.addTrack(t, localStream); }); }
+      btnToggleMic.disabled = false;
+      btnToggleSpeaker.disabled = false;
+      remoteVideo.muted = false;
+      btnShareScreen.disabled = false;
+      btnRecord.disabled = false;
+      if (btnFullscreen) btnFullscreen.disabled = false;
+      cameraEnabled = true;
       syncOverlayStreams();
-    } catch(e){ setStatus('Call failed: '+e.message); updateVideoStatus(remoteVideoStatus, 'disconnected', 'Call Failed'); }
+    });
   }
 
-  let pendingRemoteOffer = null;
-  async function handleSignal(sig){
-    if (sig.type==='offer') {
-      // Offers (incoming calls) are handled via pollIncomingOffers() and the global header modal.
-      // Ignoring them here avoids duplicate "Incoming call" UI and ringing after a call is already accepted.
-      return;
-    } else if (sig.type==='answer') {
-      try { if (parseInt(sig.from_user_id||0,10) === userId) { return; } } catch(e){}
-      try { await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload))); } catch(e){ return; }
-      setStatus('Connected');
-      stopRinging();
-    } else if (sig.type==='ice') {
-      try { await pc.addIceCandidate(new RTCIceCandidate(JSON.parse(sig.payload))); } catch(e){}
-    } else if (sig.type==='end') {
-      // Remote participant (or group) has ended the call; close locally without re-notifying server
-      try { if (parseInt(sig.from_user_id||0,10) === userId) { return; } } catch(e){}
-      callId = null;
-      try { await endCall(); } catch(e){}
+  function startCall(){
+    if (!convoId) return;
+    setStatus('Starting call…');
+    updateVideoStatus(remoteVideoStatus, 'connecting', 'Connecting…');
+    fetch(site + 'calls/start/' + convoId, { method: 'POST' })
+      .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+      .then(function(j){
+        if (!j || !j.ok) throw new Error('start failed');
+        callId = j.call_id; signalSince = 0; btnEndCall.disabled = false;
+        return initPeer();
+      }).then(function(){
+        return pc.createOffer();
+      }).then(function(offer){
+        return pc.setLocalDescription(offer).then(function(){ return offer; });
+      }).then(function(offer){
+        return fetch(site + 'calls/signal/' + callId, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: new URLSearchParams({ type: 'offer', payload: JSON.stringify(offer) })
+        });
+      }).then(function(){
+        setStatus('Waiting for answer…');
+        updateVideoStatus(remoteVideoStatus, 'connecting', 'Waiting for answer…');
+        if (signalTimer) clearInterval(signalTimer);
+        signalTimer = setInterval(pollSignals, 2000);
+        setCallToggleUI(true);
+        if (btnEndCall) btnEndCall.classList.add('d-none');
+        startRinging('out');
+        syncOverlayStreams();
+      }).catch(function(e){ if (String(e) !== 'Error: unauth') setStatus('Call failed: ' + e.message); updateVideoStatus(remoteVideoStatus, 'disconnected', 'Call Failed'); });
+  }
+
+  function handleSignal(sig){
+    if (sig.type === 'offer') { return; }
+    if (sig.type === 'answer') {
+      try { if (parseInt(sig.from_user_id || 0, 10) === userId) return; } catch(e){}
+      try { pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload))); } catch(e){ return; }
+      setStatus('Connected'); stopRinging();
+    } else if (sig.type === 'ice') {
+      try { pc.addIceCandidate(new RTCIceCandidate(JSON.parse(sig.payload))); } catch(e){}
+    } else if (sig.type === 'end') {
+      try { if (parseInt(sig.from_user_id || 0, 10) === userId) return; } catch(e){}
+      callId = null; endCall();
     }
   }
 
-  async function pollSignals(){
+  function pollSignals(){
     if (!callId) return;
-    try {
-      const url = new URL(site + 'calls/poll/' + callId);
-      url.searchParams.set('since_id', signalSince);
-      const r = await fetch(url);
-      if (handleUnauthorized(r)) return;
-      const j = await parseJsonSafe(r);
-      if (j.ok && j.signals) { j.signals.forEach(s=>{ signalSince = Math.max(signalSince, parseInt(s.id,10)); handleSignal(s); }); }
-    } catch(e){}
+    var url = site + 'calls/poll/' + callId + '?since_id=' + signalSince;
+    fetch(url)
+      .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+      .then(function(j){
+        if (j && j.ok && j.signals) {
+          j.signals.forEach(function(s){ signalSince = Math.max(signalSince, parseInt(s.id, 10)); handleSignal(s); });
+        }
+      }).catch(function(){});
   }
 
-  async function endCall(){
-    if (callId) { try { const re = await fetch(site + 'calls/end/' + callId, { method:'POST' }); if (handleUnauthorized(re)) return; } catch(e){} }
-    if (pc) { pc.getSenders().forEach(s=>{ try { s.track && s.track.stop(); } catch(e){} }); pc.close(); pc=null; }
-    callId = null; btnEndCall.disabled = true; setStatus('Idle');
+  function pollIncomingOffers(){
+    if (!convoId || callId) return;
+    var url = site + 'calls/incoming/' + convoId + '?since_id=' + incomingSinceId;
+    fetch(url)
+      .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+      .then(function(j){
+        if (j && j.ok && j.signals && j.signals.length) {
+          j.signals.forEach(function(s){
+            incomingSinceId = Math.max(incomingSinceId, parseInt(s.id, 10));
+            callId = parseInt(s.call_id, 10) || null;
+            signalSince = 0;
+            pendingRemoteOffer = s.payload;
+            setStatus('Incoming call from ' + (s.from_email || 'someone') + '…');
+            if (btnAcceptCall) btnAcceptCall.classList.remove('d-none');
+            if (btnRejectCall) btnRejectCall.classList.remove('d-none');
+            if (btnCallToggle) btnCallToggle.classList.add('d-none');
+            startRinging('in');
+            if (signalTimer) clearInterval(signalTimer);
+            signalTimer = setInterval(pollSignals, 2000);
+            if (autoAcceptCallId && callId && autoAcceptCallId === callId && btnAcceptCall) {
+              btnAcceptCall.click(); autoAcceptCallId = 0;
+            }
+          });
+        }
+      }).catch(function(){});
+  }
+  function ensureIncomingPolling(){
+    if (incomingTimer) clearInterval(incomingTimer);
+    incomingTimer = setInterval(pollIncomingOffers, 2500);
+  }
+
+  function endCall(){
+    if (callId) {
+      fetch(site + 'calls/end/' + callId, { method: 'POST' }).catch(function(){});
+    }
+    if (pc) { pc.getSenders().forEach(function(s){ try { s.track && s.track.stop(); } catch(e){} }); pc.close(); pc = null; }
+    callId = null;
+    if (btnEndCall) btnEndCall.disabled = true;
+    setStatus('Idle');
     if (signalTimer) clearInterval(signalTimer);
     if (incomingTimer) clearInterval(incomingTimer);
     stopRinging();
-    
-    // Reset video displays and status
-    localVideo.srcObject = null;
-    remoteVideo.srcObject = null;
+    localVideo.srcObject = null; remoteVideo.srcObject = null;
     updateVideoContainer(localVideoContainer, false);
     updateVideoContainer(remoteVideoContainer, false);
     updateVideoStatus(localVideoStatus, 'disconnected', 'Camera Off');
     updateVideoStatus(remoteVideoStatus, 'disconnected', 'Not Connected');
-    
-    // Reset mic state
-    btnToggleMic.disabled = true;
+    btnToggleMic.disabled = true; btnToggleSpeaker.disabled = true;
+    btnShareScreen.disabled = true; btnRecord.disabled = true;
+    if (btnFullscreen) btnFullscreen.disabled = true;
     if (overlayRemoteVideo) overlayRemoteVideo.srcObject = null;
     if (overlayRemoteThumb) overlayRemoteThumb.srcObject = null;
-    if (overlayLocalVideo) overlayLocalVideo.srcObject = null;
+    if (overlayLocalVideo)  overlayLocalVideo.srcObject  = null;
     if (overlayScreenVideo) overlayScreenVideo.srcObject = null;
-    if (overlayScreenWrap) overlayScreenWrap.classList.add('d-none');
-    
-    if (btnEndCall) btnEndCall.classList.add('d-none');
+    if (overlayScreenWrap)  overlayScreenWrap.classList.add('d-none');
+    if (btnEndCall)    btnEndCall.classList.add('d-none');
     if (btnCallToggle) btnCallToggle.classList.remove('d-none');
-    
-    setCallToggleUI(false);
-    setStatus('Idle');
-    stopRinging();
-    stopRecording();
-    setOverlayVisible(false);
-    
-    // Disable controls
-    btnToggleMic.disabled = true;
-    btnToggleSpeaker.disabled = true;
-    btnShareScreen.disabled = true;
-    btnRecord.disabled = true;
-    btnFullscreen && (btnFullscreen.disabled = true);
+    setCallToggleUI(false); setOverlayVisible(false); stopRecording();
     cameraEnabled = false;
   }
 
-  if (btnCallToggle) btnCallToggle.addEventListener('click', ()=>{ if (callId) endCall(); else startCall(); });
-  
-  // Video control event listeners
-  if (btnLocalVideoToggle) {
-    btnLocalVideoToggle.addEventListener('click', () => {
-      if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-          videoTrack.enabled = !videoTrack.enabled;
-          const icon = btnLocalVideoToggle.querySelector('i');
-          if (videoTrack.enabled) {
-            icon.className = 'bi bi-camera-video';
-            updateVideoStatus(localVideoStatus, 'connected', 'Camera On');
-          } else {
-            icon.className = 'bi bi-camera-video-off';
-            updateVideoStatus(localVideoStatus, 'connected', 'Camera Off');
-          }
-        }
-      }
+  // ── Screen share ──────────────────────────────────────────────────────────
+  function startScreenShare(){
+    if (!pc) return Promise.resolve();
+    return navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false })
+      .then(function(stream){
+        screenStream = stream;
+        var screenTrack = stream.getVideoTracks()[0];
+        if (!originalVideoTrack && localStream) { originalVideoTrack = localStream.getVideoTracks()[0] || null; }
+        var sender = pc.getSenders().find(function(s){ return s.track && s.track.kind === 'video'; });
+        var replacePromise = (sender && screenTrack) ? sender.replaceTrack(screenTrack) : Promise.resolve();
+        return replacePromise.then(function(){
+          localVideo.srcObject = screenStream;
+          btnShareScreen.innerHTML = '<i class="bi bi-display-fill"></i>';
+          if (btnOverlayScreen) btnOverlayScreen.innerHTML = '<i class="bi bi-display-fill"></i>';
+          setStatus('Screen sharing');
+          syncOverlayStreams();
+          screenTrack.onended = function(){ stopScreenShare(); };
+        });
+      }).catch(function(){});
+  }
+  function stopScreenShare(){
+    if (!pc) return Promise.resolve();
+    var sender = pc.getSenders().find(function(s){ return s.track && s.track.kind === 'video'; });
+    var replacePromise = (sender && originalVideoTrack) ? sender.replaceTrack(originalVideoTrack) : Promise.resolve();
+    return replacePromise.then(function(){
+      if (localStream) localVideo.srcObject = localStream;
+      if (screenStream) { try { screenStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){} }
+      screenStream = null;
+      btnShareScreen.innerHTML = '<i class="bi bi-display"></i>';
+      if (btnOverlayScreen) btnOverlayScreen.innerHTML = '<i class="bi bi-display"></i>';
+      setStatus('Connected'); syncOverlayStreams();
+    }).catch(function(){});
+  }
+  if (btnShareScreen) {
+    btnShareScreen.addEventListener('click', function(){
+      if (!pc) return;
+      if (screenStream) { stopScreenShare(); } else { startScreenShare(); }
     });
   }
-  
-  if (btnLocalAudioToggle) {
-    btnLocalAudioToggle.addEventListener('click', () => {
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-          audioTrack.enabled = !audioTrack.enabled;
-          const icon = btnLocalAudioToggle.querySelector('i');
-          if (audioTrack.enabled) {
-            icon.className = 'bi bi-mic';
-          } else {
-            icon.className = 'bi bi-mic-mute';
-          }
-        }
-      }
-    });
-  }
-  
-  if (btnRemoteFullscreen) {
-    btnRemoteFullscreen.addEventListener('click', () => {
-      if (remoteVideo) {
-        if (remoteVideo.requestFullscreen) {
-          remoteVideo.requestFullscreen();
-        } else if (remoteVideo.webkitRequestFullscreen) {
-          remoteVideo.webkitRequestFullscreen();
-        } else if (remoteVideo.mozRequestFullScreen) {
-          remoteVideo.mozRequestFullScreen();
-        }
-      }
-    });
-  }
-  if (btnAcceptCall) btnAcceptCall.addEventListener('click', async ()=>{
-    try {
-      if (!pendingRemoteOffer) return;
-      if (!pc) await initPeer();
-      await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(pendingRemoteOffer)));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      const ra = await fetch(site + 'calls/signal/' + callId, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ type:'answer', payload: JSON.stringify(answer) }) });
-      if (handleUnauthorized(ra)) return;
-      setStatus('Connected');
-      stopRinging();
-      if (signalTimer) { clearInterval(signalTimer); }
-      signalTimer = setInterval(pollSignals, 2000);
-      syncOverlayStreams();
-      setCallToggleUI(true);
-      if (btnEndCall) btnEndCall.classList.add('d-none');
-      if (!overlayOpen) { setOverlayVisible(true); }
-    } catch(e) { setStatus('Accept failed'); }
-    finally {
-      pendingRemoteOffer = null;
-      if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
-      if (btnRejectCall) btnRejectCall.classList.add('d-none');
-      if (btnCallToggle) btnCallToggle.classList.remove('d-none');
-    }
-  });
-  if (btnRejectCall) btnRejectCall.addEventListener('click', async ()=>{
-    try {
-      stopRinging();
-      setStatus('Call rejected');
-      await endCall();
-    } finally {
-      pendingRemoteOffer = null;
-      if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
-      if (btnRejectCall) btnRejectCall.classList.add('d-none');
-      if (btnCallToggle) btnCallToggle.classList.remove('d-none');
-    }
-  });
-  if (btnEndCall) btnEndCall.addEventListener('click', endCall);
-  // Speaker toggle controls remote audio playback
-  btnToggleSpeaker.addEventListener('click', ()=>{
-    const muted = !!remoteVideo.muted;
-    remoteVideo.muted = !muted;
-    btnToggleSpeaker.innerHTML = muted ? '<i class="bi bi-volume-up"></i>' : '<i class="bi bi-volume-mute"></i>';
-    if (btnOverlayMinimize) {
-      const newIcon = muted ? '<i class="bi bi-volume-up"></i>' : '<i class="bi bi-volume-mute"></i>';
-      try { btnOverlayMinimize.dataset.volumeIcon = newIcon; } catch(e){}
-    }
-  });
 
+  // ── Recording ─────────────────────────────────────────────────────────────
+  var recordTimerId = null, recordStartAt = 0;
+  function fmt(t){ return (t < 10 ? '0' : '') + t; }
+  function startTimer(){
+    recordStartAt = Date.now(); clearInterval(recordTimerId);
+    recordTimerId = setInterval(function(){
+      var sec = Math.floor((Date.now() - recordStartAt) / 1000);
+      recordTimerEl.textContent = fmt(Math.floor(sec / 60)) + ':' + fmt(sec % 60);
+    }, 500);
+  }
+  function stopTimer(){ clearInterval(recordTimerId); recordTimerId = null; recordTimerEl.textContent = '00:00'; }
+  function getSupportedMime(){
+    var candidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm',''];
+    for (var i = 0; i < candidates.length; i++) {
+      if (candidates[i] && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+    }
+    return '';
+  }
+  function startRecording(){
+    var src = screenStream || localStream; if (!src) return;
+    recordedChunks = [];
+    var mime = getSupportedMime();
+    mediaRecorder = new MediaRecorder(src, mime ? { mimeType: mime } : {});
+    mediaRecorder.ondataavailable = function(e){ if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = function(){
+      try {
+        var blob = new Blob(recordedChunks, { type: recordedChunks[0] ? recordedChunks[0].type : 'video/webm' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'recording-' + new Date().toISOString().replace(/[:.]/g,'-') + '.webm';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+      } catch(e){}
+    };
+    mediaRecorder.start(); isRecording = true; setStatus('Recording…');
+    recordFooter.style.display = ''; startTimer();
+    btnRecord.innerHTML = '<i class="bi bi-stop-circle"></i>';
+  }
+  function stopRecording(){
+    if (!mediaRecorder) return;
+    try { mediaRecorder.stop(); } catch(e){}
+    isRecording = false; mediaRecorder = null;
+    btnRecord.innerHTML = '<i class="bi bi-record-circle"></i>';
+    if (pc) setStatus('Connected');
+    recordFooter.style.display = 'none'; stopTimer();
+  }
+  function downloadFromChunks(chunks, postfix){
+    try {
+      if (!chunks || !chunks.length) return;
+      var blob = new Blob(chunks, { type: chunks[0].type || 'video/webm' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'recording-' + new Date().toISOString().replace(/[:.]/g,'-') + (postfix||'') + '.webm';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    } catch(e){}
+  }
+  if (btnSaveRecording) {
+    btnSaveRecording.addEventListener('click', function(){
+      if (!isRecording || !mediaRecorder) return;
+      try { mediaRecorder.requestData(); } catch(e){}
+      setTimeout(function(){ downloadFromChunks(recordedChunks.slice(0), '-partial'); }, 400);
+    });
+  }
+  if (btnRecord) {
+    btnRecord.addEventListener('click', function(){
+      if (!pc) return;
+      if (!isRecording) { startRecording(); } else { stopRecording(); }
+    });
+  }
+
+  // ── Call button wiring ────────────────────────────────────────────────────
+  if (btnCallToggle) btnCallToggle.addEventListener('click', function(){ if (callId) endCall(); else startCall(); });
+  if (btnEndCall)    btnEndCall.addEventListener('click', endCall);
+
+  if (btnAcceptCall) {
+    btnAcceptCall.addEventListener('click', function(){
+      if (!pendingRemoteOffer) return;
+      var p = pc ? Promise.resolve() : initPeer();
+      p.then(function(){
+        return pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(pendingRemoteOffer)));
+      }).then(function(){ return pc.createAnswer(); })
+        .then(function(answer){ return pc.setLocalDescription(answer).then(function(){ return answer; }); })
+        .then(function(answer){
+          return fetch(site + 'calls/signal/' + callId, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({ type: 'answer', payload: JSON.stringify(answer) })
+          });
+        }).then(function(){
+          setStatus('Connected'); stopRinging();
+          if (signalTimer) clearInterval(signalTimer);
+          signalTimer = setInterval(pollSignals, 2000);
+          syncOverlayStreams(); setCallToggleUI(true);
+          if (btnEndCall) btnEndCall.classList.add('d-none');
+          if (!overlayOpen) setOverlayVisible(true);
+        }).catch(function(){ setStatus('Accept failed'); })
+        .then(function(){
+          pendingRemoteOffer = null;
+          if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
+          if (btnRejectCall) btnRejectCall.classList.add('d-none');
+          if (btnCallToggle) btnCallToggle.classList.remove('d-none');
+        });
+    });
+  }
+  if (btnRejectCall) {
+    btnRejectCall.addEventListener('click', function(){
+      stopRinging(); setStatus('Call rejected'); endCall();
+      pendingRemoteOffer = null;
+      if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
+      if (btnRejectCall) btnRejectCall.classList.add('d-none');
+      if (btnCallToggle) btnCallToggle.classList.remove('d-none');
+    });
+  }
+
+  // ── Mic / Speaker / Camera controls ──────────────────────────────────────
   function toggleMic(){
     if (!localStream) return;
-    const audioTracks = localStream.getAudioTracks();
-    if (!audioTracks || audioTracks.length === 0) return;
-    const enabled = audioTracks[0].enabled;
-    audioTracks.forEach(t => t.enabled = !enabled);
-    const micOn = !enabled;
-    btnToggleMic.innerHTML = micOn ? '<i class="bi bi-mic"></i>' : '<i class="bi bi-mic-mute"></i>';
-    if (btnOverlayMic) btnOverlayMic.innerHTML = micOn ? '<i class="bi bi-mic"></i>' : '<i class="bi bi-mic-mute"></i>';
+    var tracks = localStream.getAudioTracks(); if (!tracks.length) return;
+    var enabled = tracks[0].enabled;
+    tracks.forEach(function(t){ t.enabled = !enabled; });
+    var on = !enabled;
+    btnToggleMic.innerHTML = on ? '<i class="bi bi-mic"></i>' : '<i class="bi bi-mic-mute"></i>';
+    if (btnOverlayMic) btnOverlayMic.innerHTML = on ? '<i class="bi bi-mic"></i>' : '<i class="bi bi-mic-mute"></i>';
   }
-  btnToggleMic.addEventListener('click', toggleMic);
-
   function toggleCamera(){
     if (!localStream) return;
-    const videoTracks = localStream.getVideoTracks();
-    if (!videoTracks || videoTracks.length === 0) return;
+    var tracks = localStream.getVideoTracks(); if (!tracks.length) return;
     cameraEnabled = !cameraEnabled;
-    videoTracks.forEach(t => t.enabled = cameraEnabled);
-    if (!cameraEnabled && !screenStream) {
-      localVideo.srcObject = null;
-    } else if (cameraEnabled && !screenStream) {
-      localVideo.srcObject = localStream;
-    }
-    const icon = cameraEnabled ? '<i class="bi bi-camera-video"></i>' : '<i class="bi bi-camera-video-off"></i>';
+    tracks.forEach(function(t){ t.enabled = cameraEnabled; });
+    if (!cameraEnabled && !screenStream) { localVideo.srcObject = null; }
+    else if (cameraEnabled && !screenStream) { localVideo.srcObject = localStream; }
+    var icon = cameraEnabled ? '<i class="bi bi-camera-video"></i>' : '<i class="bi bi-camera-video-off"></i>';
     if (btnOverlayCamera) btnOverlayCamera.innerHTML = icon;
     syncOverlayStreams();
   }
-
-  if (btnFullscreen) {
-    btnFullscreen.addEventListener('click', ()=>{
-      if (!callId) return;
-      setOverlayVisible(!overlayOpen);
+  if (btnToggleMic)    btnToggleMic.addEventListener('click', toggleMic);
+  if (btnToggleSpeaker) {
+    btnToggleSpeaker.addEventListener('click', function(){
+      var muted = !!remoteVideo.muted;
+      remoteVideo.muted = !muted;
+      btnToggleSpeaker.innerHTML = muted ? '<i class="bi bi-volume-up"></i>' : '<i class="bi bi-volume-mute"></i>';
     });
   }
-  if (btnOverlayMinimize) btnOverlayMinimize.addEventListener('click', ()=> setOverlayVisible(false));
-  if (btnOverlayClose) btnOverlayClose.addEventListener('click', ()=> setOverlayVisible(false));
-  if (btnOverlayScreen) btnOverlayScreen.addEventListener('click', async ()=>{
-    if (!pc) return;
-    if (screenStream) { await stopScreenShare(); }
-    else { await startScreenShare(); }
-  });
-  if (btnOverlayMic) btnOverlayMic.addEventListener('click', toggleMic);
-  if (btnOverlayCamera) btnOverlayCamera.addEventListener('click', toggleCamera);
-  if (btnOverlayLeave) btnOverlayLeave.addEventListener('click', endCall);
+  if (btnLocalVideoToggle) {
+    btnLocalVideoToggle.addEventListener('click', function(){
+      if (!localStream) return;
+      var track = localStream.getVideoTracks()[0]; if (!track) return;
+      track.enabled = !track.enabled;
+      btnLocalVideoToggle.querySelector('i').className = track.enabled ? 'bi bi-camera-video' : 'bi bi-camera-video-off';
+      updateVideoStatus(localVideoStatus, 'connected', track.enabled ? 'Camera On' : 'Camera Off');
+    });
+  }
+  if (btnLocalAudioToggle) {
+    btnLocalAudioToggle.addEventListener('click', function(){
+      if (!localStream) return;
+      var track = localStream.getAudioTracks()[0]; if (!track) return;
+      track.enabled = !track.enabled;
+      btnLocalAudioToggle.querySelector('i').className = track.enabled ? 'bi bi-mic' : 'bi bi-mic-mute';
+    });
+  }
+  if (btnRemoteFullscreen) {
+    btnRemoteFullscreen.addEventListener('click', function(){
+      if (!remoteVideo) return;
+      var fn = remoteVideo.requestFullscreen || remoteVideo.webkitRequestFullscreen || remoteVideo.mozRequestFullScreen;
+      if (fn) fn.call(remoteVideo);
+    });
+  }
 
-  // Bind convo selection (guard for pages without convoList)
+  // ── Fullscreen overlay ────────────────────────────────────────────────────
+  if (btnFullscreen)      btnFullscreen.addEventListener('click', function(){ if (!callId) return; setOverlayVisible(!overlayOpen); });
+  if (btnOverlayMinimize) btnOverlayMinimize.addEventListener('click', function(){ setOverlayVisible(false); });
+  if (btnOverlayClose)    btnOverlayClose.addEventListener('click', function(){ setOverlayVisible(false); });
+  if (btnOverlayScreen)   btnOverlayScreen.addEventListener('click', function(){ if (!pc) return; if (screenStream) stopScreenShare(); else startScreenShare(); });
+  if (btnOverlayMic)      btnOverlayMic.addEventListener('click', toggleMic);
+  if (btnOverlayCamera)   btnOverlayCamera.addEventListener('click', toggleCamera);
+  if (btnOverlayLeave)    btnOverlayLeave.addEventListener('click', endCall);
+
+  // ── Reminder ──────────────────────────────────────────────────────────────
+  if (btnReminder) {
+    btnReminder.addEventListener('click', function(){
+      if (!convoId) return;
+      var to = prompt('Enter recipient email for reminder:');
+      if (!to) return;
+      var fd = new FormData();
+      fd.append('to', to);
+      fd.append('subject', 'Reminder for conversation #' + convoId);
+      fd.append('message', 'Reminder for conversation #' + convoId + '.\nSent at ' + new Date().toLocaleString());
+      fetch(site + 'mail/send', { method: 'POST', body: fd })
+        .then(function(r){ if (r.ok || r.redirected) { toastTitleEl.textContent = 'Reminder sent'; toastBodyEl.textContent = 'Email sent to ' + to; if (toastInstance) toastInstance.show(); } })
+        .catch(function(){ console.warn('Reminder failed'); });
+    });
+  }
+
+  // ── Conversation list click ───────────────────────────────────────────────
   if (convoList) {
-    convoList.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.convo-item');
+    convoList.addEventListener('click', function(e){
+      var btn = e.target.closest('.convo-item');
       if (btn) selectConvo(btn);
     });
-    // Auto-select preferred conversation: try data-initial-id, else the first item
-    const autoSelectFirst = ()=>{
+    // Auto-select on load
+    function autoSelectFirst(){
       try {
-        const initialId = parseInt(convoList.dataset.initialId||'0',10);
-        if (initialId) {
-          focusConversationById(initialId);
-        }
-        // If still none active, pick the first visible item
-        const active = convoList.querySelector('.convo-item.active');
-        if (!active) {
-          const first = convoList.querySelector('.convo-item');
+        var initialId = parseInt(convoList.getAttribute('data-initial-id') || '0', 10);
+        if (initialId) { focusConversationById(initialId); }
+        if (!convoId) {
+          var first = convoList.querySelector('.convo-item');
           if (first) selectConvo(first);
         }
       } catch(e){}
-    };
-    // Run now, and retry a few times to cover timing
+    }
     autoSelectFirst();
     setTimeout(autoSelectFirst, 200);
-    setTimeout(autoSelectFirst, 600);
-    setTimeout(()=>{
-      // Final safeguard: if still no selection, click the first item
-      try {
-        if (!convoId) {
-          const first = convoList.querySelector('.convo-item');
-          if (first) first.click();
-        }
-      } catch(e){}
-    }, 1000);
-    // Also try on DOMContentLoaded as a fallback
+    setTimeout(function(){ if (!convoId) { var f = convoList.querySelector('.convo-item'); if (f) f.click(); } }, 800);
     document.addEventListener('DOMContentLoaded', autoSelectFirst);
   }
 
-  // Reminder: send an email reminder via Mail controller
-  if (btnReminder) {
-    btnReminder.addEventListener('click', async ()=>{
-      try {
-        if (!convoId) return;
-        const to = prompt('Enter recipient email address for reminder:');
-        if (!to) return;
-        const subject = 'Reminder for conversation #' + convoId;
-        const message = 'This is a reminder related to conversation #' + convoId + '.\n\nSent at ' + new Date().toLocaleString();
-        const fd = new FormData();
-        fd.append('to', to);
-        fd.append('subject', subject);
-        fd.append('message', message);
-        const res = await fetch(site + 'mail/send', { method:'POST', body: fd });
-        if (res.redirected || res.ok) {
-          try { toastTitleEl.textContent = 'Reminder sent'; toastBodyEl.textContent = 'Email sent to ' + to; toastInstance && toastInstance.show(); } catch(e){}
-        }
-      } catch(e){ console.warn('Reminder failed', e); }
-    });
-  }
 })();
 </script>
 <?php $this->load->view('partials/footer'); ?>

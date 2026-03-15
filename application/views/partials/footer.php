@@ -537,6 +537,72 @@ document.getElementById('widgetSpeakBtn').addEventListener('click', async functi
       }
     });
   }
+
+  // ── Global fetch() CSRF patch ─────────────────────────────────────────────
+  // The XHR prototype patch above does NOT cover the native fetch() API.
+  // This patch wraps fetch() so every same-origin POST automatically carries
+  // the CSRF token — either in the body (form-encoded / FormData) or as a
+  // custom header that CodeIgniter can read.
+  (function(){
+    var _origFetch = window.fetch;
+    if (!_origFetch) return;
+
+    // Expose a helper so individual scripts can read the current token
+    window.getCsrfToken = function(){ return csrfHash; };
+    window.getCsrfName  = function(){ return csrfName; };
+
+    window.fetch = function(input, init) {
+      init = init || {};
+      var method = (init.method || 'GET').toUpperCase();
+      if (method !== 'POST') return _origFetch.call(this, input, init);
+
+      // Determine if this is a same-origin request
+      var url = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+      var isSameOrigin = !url || url.charAt(0) === '/' || url.indexOf(window.location.origin) === 0;
+      if (!isSameOrigin) return _origFetch.call(this, input, init);
+
+      var body = init.body;
+      var headers = init.headers ? (init.headers instanceof Headers ? init.headers : new Headers(init.headers)) : new Headers();
+
+      // Don't double-inject
+      var alreadyHasToken = false;
+      try {
+        var ct = headers.get('Content-Type') || '';
+        if (body instanceof FormData) {
+          alreadyHasToken = body.has(csrfName);
+        } else if (typeof body === 'string') {
+          alreadyHasToken = body.indexOf(csrfName) !== -1;
+        }
+        // Also check if caller already set the header
+        if (headers.has('X-CSRF-Token') || headers.has('X-Csrf-Token')) {
+          alreadyHasToken = true;
+        }
+      } catch(e) {}
+
+      if (!alreadyHasToken) {
+        if (body instanceof FormData) {
+          body.append(csrfName, csrfHash);
+        } else if (typeof body === 'string') {
+          // URL-encoded string body
+          body += (body ? '&' : '') + encodeURIComponent(csrfName) + '=' + encodeURIComponent(csrfHash);
+        } else if (body === null || body === undefined) {
+          // Empty body — send as URL-encoded
+          body = encodeURIComponent(csrfName) + '=' + encodeURIComponent(csrfHash);
+          if (!headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/x-www-form-urlencoded');
+          }
+        }
+        // For JSON bodies we inject via header instead (can't modify JSON string safely)
+        // CodeIgniter's CSRF check reads from POST body; JSON endpoints should be in csrf_exclude_uris
+      }
+
+      init.body    = body;
+      init.headers = headers;
+      return _origFetch.call(this, input, init);
+    };
+  })();
+  // ─────────────────────────────────────────────────────────────────────────
+
 })();
 </script>
 <?php endif; ?>

@@ -124,9 +124,12 @@
           
           <?php if (!empty($user->avatar)): ?>
             <div class="mt-3">
-              <a href="<?php echo site_url('profile/remove_avatar'); ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Remove current avatar?')">
-                <i class="bi bi-trash me-1"></i>Remove Avatar
-              </a>
+              <form method="post" action="<?php echo site_url('profile/remove_avatar'); ?>" class="d-inline" onsubmit="return confirm('Remove current avatar?');">
+                <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                  <i class="bi bi-trash me-1"></i>Remove Avatar
+                </button>
+              </form>
             </div>
           <?php endif; ?>
         </div>

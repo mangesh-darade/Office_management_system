@@ -16,77 +16,9 @@
   $this->load->view('partials/header', ['title' => 'Attendance']); 
 ?>
 
-<!-- Toast Container for Flash Messages -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;">
-  <?php if($this->session->flashdata('success')): ?>
-    <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
-      <div class="d-flex">
-        <div class="toast-body">
-          <i class="bi bi-check-circle-fill me-2"></i>
-          <strong>Success!</strong> <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-      </div>
-    </div>
-  <?php endif; ?>
-  <?php if($this->session->flashdata('error')): ?>
-    <div class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-      <div class="d-flex">
-        <div class="toast-body">
-          <i class="bi bi-exclamation-triangle-fill me-2"></i>
-          <strong>Error:</strong> <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-      </div>
-    </div>
-  <?php endif; ?>
-</div>
-
+<!-- Flash messages are handled by the global toast container in partials/header.php -->
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  // Wait for Bootstrap to be fully loaded
-  function showToastNotifications() {
-    if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
-      // Wait a bit more if Bootstrap isn't loaded yet
-      setTimeout(showToastNotifications, 100);
-      return;
-    }
-    
-    // Find toast container - use the specific one for this page
-    var toastContainer = document.querySelector('.toast-container.position-fixed');
-    if (!toastContainer) {
-      toastContainer = document.querySelector('.toast-container');
-    }
-    
-    if (toastContainer) {
-      // Auto-show toast notifications on page load
-      var toastElements = toastContainer.querySelectorAll('.toast');
-      toastElements.forEach(function(toastEl) {
-        try {
-          var delay = toastEl.getAttribute('data-bs-delay') ? parseInt(toastEl.getAttribute('data-bs-delay')) : 3000;
-          var toast = new bootstrap.Toast(toastEl, {
-            autohide: true,
-            delay: delay
-          });
-          toast.show();
-          
-          // Remove toast element after it's hidden
-          toastEl.addEventListener('hidden.bs.toast', function() {
-            toastEl.remove();
-          });
-        } catch(e) {
-          console.error('Error showing toast:', e);
-        }
-      });
-    }
-  }
-  
-  // Try to show toasts immediately, then retry if Bootstrap isn't ready
-  showToastNotifications();
-  
-  // Also try after a short delay to ensure Bootstrap is loaded
-  setTimeout(showToastNotifications, 200);
-});
 </script>
 
 <?php if (!$canViewAll): ?>
@@ -518,6 +450,7 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
 
   <!-- Export Actions Bar -->
+  <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('reports_attendance') || is_admin_group())): ?>
   <div class="export-actions-bar mb-3" id="exportActionsBar" style="display: none;">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
       <span class="text-muted small" id="selectedCount">0 selected</span>
@@ -543,6 +476,7 @@ document.addEventListener('DOMContentLoaded', function(){
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- Attendance Table -->
   <div class="attendance-table-container">
@@ -1009,10 +943,21 @@ function deleteAttendance(id) {
     if (confirm('Are you sure you want to delete this attendance record?')) {
         // Close the modal first
         const modal = bootstrap.Modal.getInstance(document.getElementById('attendanceModal'));
-        modal.hide();
-        
-        // Redirect to delete
-        window.location.href = '<?php echo site_url('attendance/'); ?>' + id + '/delete';
+        if (modal) modal.hide();
+
+        // Submit via POST to satisfy the method check
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = '<?php echo site_url('attendance/'); ?>' + id + '/delete';
+
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = '<?php echo $this->security->get_csrf_token_name(); ?>';
+        csrf.value = '<?php echo $this->security->get_csrf_hash(); ?>';
+        form.appendChild(csrf);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 

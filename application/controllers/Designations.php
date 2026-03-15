@@ -208,6 +208,7 @@ class Designations extends CI_Controller {
 
     // POST /designations/{id}/delete
     public function delete($id){
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Load activity tracking helper
         $this->load->helper('change_tracker');
         

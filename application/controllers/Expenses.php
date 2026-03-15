@@ -503,4 +503,48 @@ class Expenses extends CI_Controller {
     {
         $this->reports();
     }
+
+    /**
+     * GET /expenses/export
+     * Export all expenses to CSV
+     */
+    public function export()
+    {
+        if (!is_admin_group() && !(function_exists('has_module_access') && (has_module_access('expenses_export') || has_module_access('expenses_reports') || has_module_access('expenses')))) {
+            show_error('Access denied', 403);
+        }
+
+        $date_from = $this->input->get('date_from') ? $this->input->get('date_from') : date('Y-m-01');
+        $date_to   = $this->input->get('date_to')   ? $this->input->get('date_to')   : date('Y-m-d');
+        $status    = $this->input->get('status')    ? $this->input->get('status')    : '';
+
+        $this->db->select('e.id, u.name as employee_name, ec.name as category, e.amount, e.expense_date, e.description, e.status, e.created_at');
+        $this->db->from('expenses e');
+        $this->db->join('users u', 'u.id = e.user_id', 'left');
+        $this->db->join('expense_categories ec', 'ec.id = e.category_id', 'left');
+        $this->db->where('e.expense_date >=', $date_from);
+        $this->db->where('e.expense_date <=', $date_to);
+        if ($status !== '') { $this->db->where('e.status', $status); }
+        $this->db->order_by('e.expense_date', 'DESC');
+        $rows = $this->db->get()->result();
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="expenses_' . $date_from . '_to_' . $date_to . '.csv"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, ['ID', 'Employee', 'Category', 'Amount', 'Date', 'Description', 'Status', 'Created At']);
+        foreach ($rows as $r) {
+            fputcsv($out, [
+                $r->id,
+                $r->employee_name,
+                $r->category,
+                $r->amount,
+                $r->expense_date,
+                strip_tags($r->description),
+                $r->status,
+                $r->created_at,
+            ]);
+        }
+        fclose($out);
+        exit;
+    }
 }

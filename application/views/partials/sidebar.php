@@ -7,6 +7,33 @@ if (!(int)$this->session->userdata('user_id')) {
   return; // do not output sidebar when not logged in
 }
 ?>
+<script>
+/**
+ * Shared sidebar submenu initialiser — single definition used by all submenu groups.
+ */
+function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, forceOpen) {
+    var group      = document.getElementById(groupId);
+    var btn        = document.getElementById(toggleId);
+    var parentLink = document.getElementById(parentId);
+    var box        = document.getElementById(submenuId);
+    if (!btn || !box) { return; }
+    function setOpen(open) {
+        box.style.display = open ? 'block' : 'none';
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.classList.toggle('rot', open);
+        if (group) { group.classList.toggle('open', open); }
+        try { localStorage.setItem(storageKey, open ? '1' : '0'); } catch(e) {}
+    }
+    var saved = null;
+    try { saved = localStorage.getItem(storageKey); } catch(e) {}
+    setOpen(forceOpen || saved === '1');
+    function toggle() { setOpen(box.style.display === 'none'); }
+    btn.addEventListener('click', function(ev) { ev.preventDefault(); toggle(); });
+    if (parentLink) {
+        parentLink.addEventListener('click', function(ev) { ev.preventDefault(); toggle(); });
+    }
+}
+</script>
 <aside class="d-none d-md-block col-md-3 col-lg-2 sidebar-left">
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
@@ -14,7 +41,7 @@ if (!(int)$this->session->userdata('user_id')) {
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item" id="daily-activity-group">
         <div class="d-flex align-items-center justify-content-between">
-            <a id="daily-activity-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='daily_activity'?'active':''; ?>" href="#">
+            <a id="daily-activity-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='daily-activity'||$active==='daily_activity')?'active':''; ?>" href="<?php echo site_url('daily-activity'); ?>">
                 <i class="bi bi-journal-check me-2"></i>Daily Activity
             </a>
             <button id="daily-activity-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="daily-activity-submenu" title="Toggle">
@@ -23,35 +50,13 @@ if (!(int)$this->session->userdata('user_id')) {
         </div>
         <div class="ps-3 sidebar-submenu" id="daily-activity-submenu">
             <div class="submenu-list">
-                <a class="submenu-link <?php echo (strtolower($this->uri->segment(1))==='daily_activity' && (!$this->uri->segment(2) || $this->uri->segment(2)==='index'))?'active':''; ?>" href="<?php echo site_url('daily_activity'); ?>">Add Activity</a>
-                <a class="submenu-link <?php echo (strtolower($this->uri->segment(1))==='daily_activity' && $this->uri->segment(2)==='list_all')?'active':''; ?>" href="<?php echo site_url('daily_activity/list_all'); ?>">List Activity</a>
+                <a class="submenu-link <?php echo ($active==='daily-activity' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('daily-activity'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Activity</a>
+                <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='list')?'active':''; ?>" href="<?php echo site_url('daily-activity/list'); ?>"><i class="bi bi-list-ul me-1"></i>All Activities</a>
+                <a class="submenu-link" href="<?php echo site_url('daily-activity/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
             </div>
         </div>
       </div>
-      <script>
-        (function(){
-            var key = 'sb_daily_activity_open';
-            var group = document.getElementById('daily-activity-group');
-            var btn = document.getElementById('daily-activity-toggle');
-            var parentLink = document.getElementById('daily-activity-parent');
-            var box = document.getElementById('daily-activity-submenu');
-            if(!btn || !box) return;
-            function setOpen(open){
-                box.style.display = open ? 'block' : 'none';
-                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                btn.classList.toggle('rot', open);
-                if (group) { group.classList.toggle('open', open); }
-                try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-            }
-            var saved = null;
-            try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-            var open = (saved === '1') || <?php echo $active==='daily_activity' ? 'true' : 'false'; ?>;
-            setOpen(open);
-            function toggle(){ setOpen(!(box.style.display !== 'none')); }
-            btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('daily-activity-group','daily-activity-toggle','daily-activity-parent','daily-activity-submenu','sb_daily_activity_open',<?php echo ($active==='daily-activity'||$active==='daily_activity')?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
@@ -96,39 +101,38 @@ if (!(int)$this->session->userdata('user_id')) {
         </div>
         <div class="ps-3 sidebar-submenu" id="recruitment-submenu">
             <div class="submenu-list">
-                <a class="submenu-link <?php echo ($active==='recruitment' && (!$active_sub || $active_sub==='jobs'))?'active':''; ?>" href="<?php echo site_url('recruitment'); ?>">Jobs</a>
-                <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='candidates')?'active':''; ?>" href="<?php echo site_url('recruitment/candidates'); ?>">Candidates</a>
+                <a class="submenu-link <?php echo ($active==='recruitment' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('recruitment'); ?>"><i class="bi bi-briefcase me-1"></i>Job Openings</a>
+                <a class="submenu-link" href="<?php echo site_url('recruitment/create-job'); ?>"><i class="bi bi-plus-lg me-1"></i>Post New Job</a>
+                <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='candidates')?'active':''; ?>" href="<?php echo site_url('recruitment/candidates'); ?>"><i class="bi bi-people me-1"></i>Candidates</a>
+                <a class="submenu-link" href="<?php echo site_url('recruitment/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
             </div>
         </div>
       </div>
-      <script>
-        (function(){
-            var key = 'sb_recruitment_open';
-            var group = document.getElementById('recruitment-group');
-            var btn = document.getElementById('recruitment-toggle');
-            var parentLink = document.getElementById('recruitment-parent');
-            var box = document.getElementById('recruitment-submenu');
-            if(!btn || !box) return;
-            function setOpen(open){
-                box.style.display = open ? 'block' : 'none';
-                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                btn.classList.toggle('rot', open);
-                if (group) { group.classList.toggle('open', open); }
-                try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-            }
-            var saved = null;
-            try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-            var open = (saved === '1') || <?php echo $active==='recruitment' ? 'true' : 'false'; ?>;
-            setOpen(open);
-            function toggle(){ setOpen(!(box.style.display !== 'none')); }
-            btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('recruitment-group','recruitment-toggle','recruitment-parent','recruitment-submenu','sb_recruitment_open',<?php echo $active==='recruitment'?'true':'false'; ?>);</script>
       <?php endif; ?>
 
       <?php if((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && has_module_access('performance'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='performance'?'active':''; ?>" href="<?php echo site_url('performance'); ?>"><i class="bi bi-award me-2"></i>Performance</a>
+      <div class="nav-item" id="performance-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="performance-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='performance'?'active':''; ?>" href="<?php echo site_url('performance'); ?>">
+            <i class="bi bi-award me-2"></i>Performance
+          </a>
+          <button id="performance-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="performance-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="performance-submenu">
+          <div class="submenu-list">
+            <a class="submenu-link <?php echo ($active==='performance' && (!$active_sub||$active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('performance'); ?>"><i class="bi bi-list-ul me-1"></i>All Appraisals</a>
+            <?php if((isset($is_superadmin)&&$is_superadmin)||(function_exists('has_module_access')&&has_module_access('performance_create'))): ?>
+            <a class="submenu-link <?php echo ($active==='performance'&&$active_sub==='create')?'active':''; ?>" href="<?php echo site_url('performance/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New Appraisal</a>
+            <?php endif; ?>
+            <a class="submenu-link <?php echo ($active==='performance'&&$active_sub==='self-assess')?'active':''; ?>" href="<?php echo site_url('performance/self-assess'); ?>"><i class="bi bi-person-check me-1"></i>Self-Assessment</a>
+            <a class="submenu-link" href="<?php echo site_url('performance/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
+          </div>
+        </div>
+      </div>
+      <script>initSidebarGroup('performance-group','performance-toggle','performance-parent','performance-submenu','sb_performance_open',<?php echo $active==='performance'?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php
       $user_group_show = function_exists('has_module_access') && (
@@ -184,34 +188,29 @@ if (!(int)$this->session->userdata('user_id')) {
           </div>
         </div>
       </div>
-      <script>
-        (function(){
-          var key = 'sb_user_open';
-          var group = document.getElementById('user-group');
-          var btn = document.getElementById('user-toggle');
-          var parentLink = document.getElementById('user-parent');
-          var box = document.getElementById('user-submenu');
-          if(!btn || !box) return;
-          function setOpen(open){
-            box.style.display = open ? 'block' : 'none';
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn.classList.toggle('rot', open);
-            if (group) { group.classList.toggle('open', open); }
-            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-          }
-          var saved = null;
-          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','shifts']) ? 'true' : 'false'; ?>;
-          setOpen(open);
-          function toggle(){ setOpen(!(box.style.display !== 'none')); }
-          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-          parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('user-group','user-toggle','user-parent','user-submenu','sb_user_open',<?php echo in_array($active,['users','roles','attendance','departments','designations','leave','shifts'])?'true':'false'; ?>);</script>
       <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-cash-stack me-2"></i>Payroll</a>
+      <div class="nav-item" id="payroll-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="payroll-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>">
+            <i class="bi bi-cash-stack me-2"></i>Payroll
+          </a>
+          <button id="payroll-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="payroll-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="payroll-submenu">
+          <div class="submenu-list">
+            <a class="submenu-link <?php echo ($active==='payroll'&&($active_sub===''||$active_sub==='payslips'))?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-file-earmark-text me-1"></i>Payslips</a>
+            <a class="submenu-link <?php echo ($active==='payroll'&&$active_sub==='structures')?'active':''; ?>" href="<?php echo site_url('payroll/structures'); ?>"><i class="bi bi-diagram-3 me-1"></i>Pay Structures</a>
+            <a class="submenu-link <?php echo ($active==='payroll'&&$active_sub==='generate')?'active':''; ?>" href="<?php echo site_url('payroll/generate'); ?>"><i class="bi bi-gear me-1"></i>Generate Payroll</a>
+            <a class="submenu-link <?php echo ($active==='reports'&&$active_sub==='payroll')?'active':''; ?>" href="<?php echo site_url('reports/payroll'); ?>"><i class="bi bi-graph-up me-1"></i>Payroll Report</a>
+          </div>
+        </div>
+      </div>
+      <script>initSidebarGroup('payroll-group','payroll-toggle','payroll-parent','payroll-submenu','sb_payroll_open',<?php echo $active==='payroll'?'true':'false'; ?>);</script>
       <?php endif; ?>
       
       <?php
@@ -249,30 +248,7 @@ if (!(int)$this->session->userdata('user_id')) {
             </div>
         </div>
       </div>
-      <script>
-        (function(){
-            var key = 'sb_expense_open';
-            var group = document.getElementById('expense-group');
-            var btn = document.getElementById('expense-toggle');
-            var parentLink = document.getElementById('expense-parent');
-            var box = document.getElementById('expense-submenu');
-            if(!btn || !box) return;
-            function setOpen(open){
-            box.style.display = open ? 'block' : 'none';
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn.classList.toggle('rot', open);
-            if (group) { group.classList.toggle('open', open); }
-            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-            }
-            var saved = null;
-            try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-            var open = (saved === '1') || <?php echo $active==='expenses' ? 'true' : 'false'; ?>;
-            setOpen(open);
-            function toggle(){ setOpen(!(box.style.display !== 'none')); }
-            btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('expense-group','expense-toggle','expense-parent','expense-submenu','sb_expense_open',<?php echo $active==='expenses'?'true':'false'; ?>);</script>
       <?php endif; ?>
 
       <?php
@@ -312,30 +288,7 @@ if (!(int)$this->session->userdata('user_id')) {
           </div>
         </div>
       </div>
-      <script>
-        (function(){
-          var key = 'sb_leave_open';
-          var group = document.getElementById('leave-group');
-          var btn = document.getElementById('leave-toggle');
-          var parentLink = document.getElementById('leave-parent');
-          var box = document.getElementById('leave-submenu');
-          if(!btn || !box) return;
-          function setOpen(open){
-            box.style.display = open ? 'block' : 'none';
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn.classList.toggle('rot', open);
-            if (group) { group.classList.toggle('open', open); }
-            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-          }
-          var saved = null;
-          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo $active==='leave' ? 'true' : 'false'; ?>;
-          setOpen(open);
-          function toggle(){ setOpen(!(box.style.display !== 'none')); }
-          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-          parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('leave-group','leave-toggle','leave-parent','leave-submenu','sb_leave_open',<?php echo $active==='leave'?'true':'false'; ?>);</script>
       <?php endif; ?>
 
       <?php
@@ -376,36 +329,16 @@ if (!(int)$this->session->userdata('user_id')) {
           </div>
         </div>
       </div>
-      <script>
-        (function(){
-          var key = 'sb_project_open';
-          var group = document.getElementById('project-group');
-          var btn = document.getElementById('project-toggle');
-          var parentLink = document.getElementById('project-parent');
-          var box = document.getElementById('project-submenu');
-          if(!btn || !box) return;
-          function setOpen(open){
-            box.style.display = open ? 'block' : 'none';
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn.classList.toggle('rot', open);
-            if (group) { group.classList.toggle('open', open); }
-            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-          }
-          var saved = null;
-          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['requirements','tasks','timesheets']) ? 'true' : 'false'; ?>;
-          setOpen(open);
-          function toggle(){ setOpen(!(box.style.display !== 'none')); }
-          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-          parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('project-group','project-toggle','project-parent','project-submenu','sb_project_open',<?php echo in_array($active,['projects','requirements','tasks','timesheets'])?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
       <?php endif; ?>
       <?php
       $reports_group_show = function_exists('has_module_access') && (
@@ -459,36 +392,19 @@ if (!(int)$this->session->userdata('user_id')) {
             <?php if(function_exists('has_module_access') && has_module_access('reports_attendance_employee')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='attendance-employee')?'active':''; ?>" href="<?php echo site_url('reports/attendance-employee'); ?>">Employee Attendance</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('daily_activity_report')): ?>
-            <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='daily_activity')?'active':''; ?>" href="<?php echo site_url('reports/daily_activity'); ?>">Daily Activity Log</a>
+            <?php if(function_exists('has_module_access') && (has_module_access('daily_activity_report')||has_module_access('reports'))): ?>
+            <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='daily-activity')?'active':''; ?>" href="<?php echo site_url('reports/daily-activity'); ?>">Daily Activity Log</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('reports_payroll')||has_module_access('reports')||has_module_access('payroll'))): ?>
+            <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='payroll')?'active':''; ?>" href="<?php echo site_url('reports/payroll'); ?>"><i class="bi bi-cash-coin me-1"></i>Payroll Report</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('reports_expenses')||has_module_access('reports')||has_module_access('expenses'))): ?>
+            <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='expenses')?'active':''; ?>" href="<?php echo site_url('reports/expenses'); ?>"><i class="bi bi-receipt me-1"></i>Expenses Report</a>
             <?php endif; ?>
           </div>
         </div>
       </div>
-      <script>
-        (function(){
-          var key = 'sb_reports_open';
-          var group = document.getElementById('reports-group');
-          var btn = document.getElementById('reports-toggle');
-          var parentLink = document.getElementById('reports-parent');
-          var box = document.getElementById('reports-submenu');
-          if(!btn || !box) return;
-          function setOpen(open){
-            box.style.display = open ? 'block' : 'none';
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn.classList.toggle('rot', open);
-            if (group) { group.classList.toggle('open', open); }
-            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-          }
-          var saved = null;
-          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo (($active==='reports') || ($this->uri && $this->uri->segment(1)==='reports')) ? 'true' : 'false'; ?>;
-          setOpen(open);
-          function toggle(){ setOpen(!(box.style.display !== 'none')); }
-          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-          parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-        })();
-      </script>
+      <script>initSidebarGroup('reports-group','reports-toggle','reports-parent','reports-submenu','sb_reports_open',<?php echo ($active==='reports'||($this->uri&&$this->uri->segment(1)==='reports'))?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php // Admin section: show only to Admin group (Admin, HR, Lead) with permissions module access
       if(function_exists('is_admin_group') && is_admin_group() && function_exists('has_module_access') && has_module_access('permissions')): ?>
@@ -561,32 +477,7 @@ if (!(int)$this->session->userdata('user_id')) {
           </div>
         </div>
       </div>
-      <script>
-        (function(){
-          var key = 'sb_settings_open';
-          var group = document.getElementById('settings-group');
-          var btn = document.getElementById('settings-toggle');
-          var parentLink = document.getElementById('settings-parent');
-          var box = document.getElementById('settings-submenu');
-          if(!btn || !box) return;
-          function setOpen(open){
-            box.style.display = open ? 'block' : 'none';
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            btn.classList.toggle('rot', open);
-            if (group) { group.classList.toggle('open', open); }
-            try { localStorage.setItem(key, open ? '1' : '0'); } catch(e){}
-          }
-          var saved = null;
-          try { saved = localStorage.getItem(key); } catch(e){ saved = null; }
-          var open = (saved === '1') || <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals']) ? 'true' : 'false'; ?>;
-          setOpen(open);
-          function toggle(){ setOpen(!(box.style.display !== 'none')); }
-          btn.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-          if (parentLink) {
-            parentLink.addEventListener('click', function(ev){ ev.preventDefault(); toggle(); });
-          }
-        })();
-      </script>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo in_array($active,['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals'])?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php endif; ?>
       <hr class="my-2 border-secondary">

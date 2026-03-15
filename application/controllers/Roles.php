@@ -18,21 +18,10 @@ class Roles extends CI_Controller {
     }
 
     public function index() {
-        $rows = [];
-        if ($this->db->table_exists('roles')) {
-            $this->db->from('roles');
-            if ($this->db->field_exists('is_active', 'roles')) {
-                $this->db->order_by('is_active', 'DESC');
-            }
-            if ($this->db->field_exists('sort_order', 'roles')) {
-                $this->db->order_by('sort_order', 'ASC');
-            }
-            $this->db->order_by('id', 'ASC');
-            $rows = $this->db->get()->result();
-        }
+        $this->load->model('Role_model');
         $data = [
             'title' => 'Roles',
-            'rows'  => $rows,
+            'rows'  => $this->Role_model->get_all(),
         ];
         $this->load->view('roles/index', $data);
     }
@@ -40,6 +29,10 @@ class Roles extends CI_Controller {
     public function store() {
         if ($this->input->method() !== 'post') {
             show_404();
+        }
+        // Require explicit add permission
+        if (function_exists('has_module_access') && !has_module_access('roles') && !has_module_access('permissions')) {
+            show_error('You do not have permission to add roles.', 403);
         }
         $name = trim($this->input->post('name', true) ?: '');
         $groupType = strtolower(trim((string)$this->input->post('group_type', true)));
@@ -164,6 +157,10 @@ class Roles extends CI_Controller {
      * Delete a role (with basic safety check)
      */
     public function delete($id = null) {
+        // Destructive actions must be POST only
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+        }
         $id = (int)$id;
         if ($id <= 0) {
             show_404();

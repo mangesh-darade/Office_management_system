@@ -92,6 +92,7 @@ class User_model extends CI_Model {
         } else {
             $this->db->order_by('name', 'ASC');
         }
+        $this->db->limit((int)$limit);
         return $this->db->get()->result();
     }
 

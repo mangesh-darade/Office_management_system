@@ -166,6 +166,7 @@ class Profile extends CI_Controller {
     
     public function remove_avatar()
     {
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         $uid = (int)$this->session->userdata('user_id');
         if (!$uid) { redirect('login'); return; }
         

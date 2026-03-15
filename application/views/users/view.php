@@ -44,7 +44,7 @@
                        alt="<?php echo htmlspecialchars($user->name); ?>">
                 <?php else: ?>
                   <div class="avatar-lg rounded-circle bg-primary bg-gradient d-flex align-items-center justify-content-center text-white fw-bold">
-                    <?php echo strtoupper(substr($user->name, 0, 2)); ?>
+                    <?php echo htmlspecialchars(strtoupper(substr(isset($user->name) ? $user->name : '', 0, 2)), ENT_QUOTES, 'UTF-8'); ?>
                   </div>
                 <?php endif; ?>
               </div>
@@ -249,8 +249,8 @@
                            class="rounded border border-2 border-light-subtle mb-3" 
                            alt="Face Recognition" style="max-width: 150px;">';
             } else {
-                // Regular file path
-                $img_tag = '<img src="' . base_url($image_src) . '" 
+                // Regular file path — escape to prevent XSS
+                $img_tag = '<img src="' . htmlspecialchars(base_url($image_src), ENT_QUOTES, 'UTF-8') . '" 
                            class="rounded border border-2 border-light-subtle mb-3" 
                            alt="Face Recognition" style="max-width: 150px;">';
             }

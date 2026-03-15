@@ -22,8 +22,21 @@ class Reports extends CI_Controller {
             redirect('auth/login');
         }
         // Permission check - allow access if user has reports OR any specific report sub-permission
-        if (function_exists('has_module_access') && !has_module_access('reports') && !has_module_access('reports_overview') && !has_module_access('reports_daily_activity')) {
-            show_error('You do not have permission to access Reports.', 403);
+        if (function_exists('has_module_access')) {
+            $has_any_report = has_module_access('reports')
+                || has_module_access('reports_overview')
+                || has_module_access('reports_requirements')
+                || has_module_access('reports_tasks_assignment')
+                || has_module_access('reports_projects_status')
+                || has_module_access('reports_leaves')
+                || has_module_access('reports_attendance')
+                || has_module_access('reports_attendance_employee')
+                || has_module_access('reports_daily_activity')
+                || has_module_access('daily_activity_report')
+                || has_module_access('analytics');
+            if (!$has_any_report) {
+                show_error('You do not have permission to access Reports.', 403);
+            }
         }
     }
 
@@ -3753,5 +3766,146 @@ class Reports extends CI_Controller {
             log_message('error', 'Export Detail PDF error: ' . $e->getMessage());
             show_error('Error generating PDF export: ' . $e->getMessage(), 500);
         }
+    }
+
+    // ── Payroll Report ────────────────────────────────────────────────────────
+    public function payroll() {
+        if (function_exists('has_module_access') && !has_module_access('reports') && !has_module_access('reports_payroll')) {
+            show_error('Access denied.', 403);
+        }
+
+        $month      = $this->input->get('month') ? $this->input->get('month') : date('Y-m');
+        $department = $this->input->get('department') ? $this->input->get('department') : '';
+
+        $payslips = [];
+        $summary  = ['total_gross' => 0, 'total_deductions' => 0, 'total_net' => 0, 'count' => 0];
+
+        if ($this->db->table_exists('payslips')) {
+            $this->db->select('ps.*, u.name as employee_name, u.email as employee_email, e.department');
+            $this->db->from('payslips ps');
+            $this->db->join('users u', 'u.id = ps.employee_id', 'left');
+            $this->db->join('employees e', 'e.user_id = ps.employee_id', 'left');
+            $this->db->like('ps.pay_period', $month);
+            if ($department) { $this->db->where('e.department', $department); }
+            $this->db->order_by('u.name', 'ASC');
+            $payslips = $this->db->get()->result();
+
+            foreach ($payslips as $p) {
+                $summary['total_gross']      += isset($p->gross_salary) ? (float)$p->gross_salary : 0;
+                $summary['total_deductions'] += isset($p->total_deductions) ? (float)$p->total_deductions : 0;
+                $summary['total_net']        += isset($p->net_salary) ? (float)$p->net_salary : 0;
+                $summary['count']++;
+            }
+        }
+
+        $departments = [];
+        if ($this->db->table_exists('employees')) {
+            $rows = $this->db->select('DISTINCT department')->where('department IS NOT NULL')->where('department !=', '')->get('employees')->result();
+            foreach ($rows as $r) { $departments[] = $r->department; }
+        }
+
+        if ($this->input->get('export') === 'csv') {
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="payroll_report_' . $month . '.csv"');
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Employee', 'Email', 'Department', 'Pay Period', 'Gross Salary', 'Deductions', 'Net Salary', 'Status']);
+            foreach ($payslips as $p) {
+                fputcsv($out, [
+                    $p->employee_name, $p->employee_email, $p->department,
+                    isset($p->pay_period) ? $p->pay_period : $month,
+                    isset($p->gross_salary) ? $p->gross_salary : 0,
+                    isset($p->total_deductions) ? $p->total_deductions : 0,
+                    isset($p->net_salary) ? $p->net_salary : 0,
+                    isset($p->status) ? $p->status : '',
+                ]);
+            }
+            fclose($out);
+            exit;
+        }
+
+        $this->load->view('reports/payroll', [
+            'payslips'    => $payslips,
+            'summary'     => $summary,
+            'month'       => $month,
+            'department'  => $department,
+            'departments' => $departments,
+        ]);
+    }
+
+    // ── Expenses Report ───────────────────────────────────────────────────────
+    public function expenses() {
+        if (function_exists('has_module_access') && !has_module_access('reports') && !has_module_access('reports_expenses')) {
+            show_error('Access denied.', 403);
+        }
+
+        $date_from  = $this->input->get('date_from') ? $this->input->get('date_from') : date('Y-m-01');
+        $date_to    = $this->input->get('date_to')   ? $this->input->get('date_to')   : date('Y-m-d');
+        $status     = $this->input->get('status')    ? $this->input->get('status')    : '';
+        $category   = $this->input->get('category')  ? $this->input->get('category')  : '';
+
+        $expenses = [];
+        $summary  = ['total' => 0, 'approved' => 0, 'pending' => 0, 'rejected' => 0, 'count' => 0];
+        $by_category = [];
+
+        if ($this->db->table_exists('expenses')) {
+            $this->db->select('ex.*, u.name as employee_name, u.email as employee_email, ec.name as category_name');
+            $this->db->from('expenses ex');
+            $this->db->join('users u', 'u.id = ex.employee_id', 'left');
+            $this->db->join('expense_categories ec', 'ec.id = ex.category_id', 'left');
+            $this->db->where('ex.expense_date >=', $date_from);
+            $this->db->where('ex.expense_date <=', $date_to);
+            if ($status)   { $this->db->where('ex.status', $status); }
+            if ($category) { $this->db->where('ex.category_id', (int)$category); }
+            $this->db->order_by('ex.expense_date', 'DESC');
+            $expenses = $this->db->get()->result();
+
+            foreach ($expenses as $e) {
+                $amt = isset($e->amount) ? (float)$e->amount : 0;
+                $summary['total'] += $amt;
+                $summary['count']++;
+                $st = isset($e->status) ? $e->status : '';
+                if ($st === 'approved')  { $summary['approved']  += $amt; }
+                if ($st === 'pending')   { $summary['pending']   += $amt; }
+                if ($st === 'rejected')  { $summary['rejected']  += $amt; }
+                $cat = isset($e->category_name) ? $e->category_name : 'Uncategorised';
+                if (!isset($by_category[$cat])) { $by_category[$cat] = 0; }
+                $by_category[$cat] += $amt;
+            }
+        }
+
+        $categories = [];
+        if ($this->db->table_exists('expense_categories')) {
+            $categories = $this->db->order_by('name')->get('expense_categories')->result();
+        }
+
+        if ($this->input->get('export') === 'csv') {
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="expenses_report_' . $date_from . '_to_' . $date_to . '.csv"');
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Date', 'Employee', 'Category', 'Description', 'Amount', 'Status', 'Submitted']);
+            foreach ($expenses as $e) {
+                fputcsv($out, [
+                    isset($e->expense_date) ? $e->expense_date : '',
+                    $e->employee_name, $e->category_name,
+                    isset($e->description) ? $e->description : '',
+                    isset($e->amount) ? $e->amount : 0,
+                    isset($e->status) ? $e->status : '',
+                    isset($e->created_at) ? $e->created_at : '',
+                ]);
+            }
+            fclose($out);
+            exit;
+        }
+
+        $this->load->view('reports/expenses', [
+            'expenses'    => $expenses,
+            'summary'     => $summary,
+            'by_category' => $by_category,
+            'date_from'   => $date_from,
+            'date_to'     => $date_to,
+            'status'      => $status,
+            'category'    => $category,
+            'categories'  => $categories,
+        ]);
     }
 }

@@ -39,7 +39,10 @@
                 <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('projects/'.$p->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
                 <?php endif; ?>
                 <?php if(function_exists('has_module_access') && has_module_access('projects_delete')): ?>
-                <a class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Delete this project?')" href="<?php echo site_url('projects/'.$p->id.'/delete'); ?>"><i class="bi bi-trash"></i></a>
+                <form method="post" action="<?php echo site_url('projects/'.$p->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this project?');">
+                  <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                </form>
                 <?php endif; ?>
               </td>
             </tr>

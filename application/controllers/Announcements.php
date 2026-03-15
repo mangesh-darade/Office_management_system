@@ -338,6 +338,7 @@ class Announcements extends CI_Controller {
     
     // POST /announcements/{id}/delete
     public function delete($id){
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         if (!$this->can_manage()) { show_error('Forbidden', 403); }
         $this->ann->delete((int)$id);
         $this->session->set_flashdata('success', 'Announcement deleted');

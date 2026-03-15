@@ -232,12 +232,12 @@
                         <i class="bi bi-eye"></i>
                       </a>
                       <?php if (function_exists('has_module_access') && has_module_access('users_delete')): ?>
-                      <a href="<?php echo site_url('users/delete/'.(int)$r->id); ?>" 
-                         class="btn btn-sm btn-outline-danger btn-icon" 
-                         data-bs-toggle="tooltip" title="Delete User"
-                         onclick="return confirm('Are you sure you want to delete this user?');">
-                        <i class="bi bi-trash"></i>
-                      </a>
+                      <form method="post" action="<?php echo site_url('users/destroy/'.(int)$r->id); ?>" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                        <button type="submit" class="btn btn-sm btn-outline-danger btn-icon" data-bs-toggle="tooltip" title="Delete User">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
                       <?php endif; ?>
                     </div>
                   </td>

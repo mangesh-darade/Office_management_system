@@ -769,6 +769,7 @@ class Tasks extends CI_Controller {
     // POST /tasks/{id}/delete
     public function delete($id)
     {
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Check delete permission specifically
         if (!function_exists('has_module_access') || (!has_module_access('tasks_delete') && !has_module_access('tasks'))) {
             show_error('You do not have permission to delete tasks.', 403);
@@ -1148,15 +1149,17 @@ class Tasks extends CI_Controller {
         log_activity('tasks', 'commented', (int)$task_id, mb_substr($comment, 0, 120));
 
         // Notify assignee if exists and not self
-        if (isset($task->assigned_to) && (int)$task->assigned_to > 0 && (int)$task->assigned_to !== $user_id && $this->db->table_exists('notifications')) {
-            $this->db->insert('notifications', [
-                'user_id' => (int)$task->assigned_to,
-                'type' => 'task_assigned',
-                'title' => 'New comment on task #'.$task_id,
-                'body' => mb_substr($comment, 0, 200),
-                'channel' => 'in_app',
-                'created_at' => date('Y-m-d H:i:s')
-            ]);
+        if (isset($task->assigned_to) && (int)$task->assigned_to > 0 && (int)$task->assigned_to !== $user_id) {
+            $this->load->model('Notification_model');
+            $this->Notification_model->create(
+                (int)$task->assigned_to,
+                'New comment on task #' . $task_id,
+                mb_substr($comment, 0, 200),
+                'info',
+                'tasks',
+                (int)$task_id,
+                site_url('tasks/' . $task_id)
+            );
         }
 
         $this->session->set_flashdata('success', 'Comment added.');

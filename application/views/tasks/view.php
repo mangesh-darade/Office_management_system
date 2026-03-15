@@ -69,9 +69,11 @@ $creatorName = $getDisplayName((object)[
         <i class="bi bi-gear me-1"></i> Actions
       </button>
       <ul class="dropdown-menu">
+        <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
         <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$task->id.'/edit'); ?>">
           <i class="bi bi-pencil me-2"></i>Edit Task
         </a></li>
+        <?php endif; ?>
         <li><a class="dropdown-item" href="<?php echo site_url('tasks/board'); ?>">
           <i class="bi bi-kanban me-2"></i>View Board
         </a></li>
@@ -84,10 +86,17 @@ $creatorName = $getDisplayName((object)[
           <i class="bi bi-whatsapp me-2"></i>Send via WhatsApp
         </a></li>
         <?php endif; ?>
+        <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
         <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item text-danger" href="<?php echo site_url('tasks/'.$task->id.'/delete'); ?>" onclick="return confirm('Are you sure you want to delete this task?')">
-          <i class="bi bi-trash me-2"></i>Delete Task
-        </a></li>
+        <li>
+          <form method="post" action="<?php echo site_url('tasks/'.$task->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this task?');">
+            <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+            <button type="submit" class="dropdown-item text-danger border-0 bg-transparent w-100 text-start">
+              <i class="bi bi-trash me-2"></i>Delete Task
+            </button>
+          </form>
+        </li>
+        <?php endif; ?>
       </ul>
     </div>
   </div>
@@ -122,6 +131,7 @@ $creatorName = $getDisplayName((object)[
         </div>
       </div>
       <div class="col-md-4 text-end">
+        <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateTaskStatus('pending')">
             <i class="bi bi-clock me-1"></i>Pending
@@ -136,6 +146,7 @@ $creatorName = $getDisplayName((object)[
             <i class="bi bi-exclamation-triangle me-1"></i>Block
           </button>
         </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -455,6 +466,12 @@ $creatorName = $getDisplayName((object)[
   load();
 })();
 
+// Helper: read CSRF token from cookie
+function _csrfParam() {
+  var m = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+  return m ? '&<?php echo $this->security->get_csrf_token_name(); ?>=' + encodeURIComponent(decodeURIComponent(m[1])) : '';
+}
+
 // Task status update function
 function updateTaskStatus(status) {
   const taskId = <?php echo (int)$task->id; ?>;
@@ -464,7 +481,7 @@ function updateTaskStatus(status) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: 'id=' + taskId + '&status=' + status,
+    body: 'id=' + taskId + '&status=' + status + _csrfParam(),
     credentials: 'same-origin'
   })
   .then(response => response.json())
@@ -509,7 +526,7 @@ function sendTaskViaWhatsApp(taskId) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: 'task_id=' + taskId,
+    body: 'task_id=' + taskId + _csrfParam(),
     credentials: 'same-origin'
   })
   .then(response => response.json())

@@ -13,7 +13,10 @@
           <li><strong>Email:</strong> <?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?></li>
         </ul>
         <div class="d-flex gap-2 mt-3">
-          <a href="<?php echo site_url('users/destroy/'.(int)$row->id); ?>" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</a>
+          <form method="post" action="<?php echo site_url('users/destroy/'.(int)$row->id); ?>" class="d-inline">
+            <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+            <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
+          </form>
           <a href="<?php echo site_url('users'); ?>" class="btn btn-outline-secondary">Cancel</a>
         </div>
       </div>

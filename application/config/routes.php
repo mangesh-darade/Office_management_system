@@ -164,14 +164,11 @@ $route['statuses/(:num)'] = 'statuses/show/$1';
 $route['permissions'] = 'permissions/index';
 $route['permissions/save'] = 'permissions/save';
 
-// Permission Setup Scripts
-$route['setup_permissions'] = 'setup_permissions/index';
-$route['enhance_permissions'] = 'enhance_permissions/index';
-$route['install_permissions'] = 'install_permissions/index';
-
 // Roles
 $route['roles'] = 'roles/index';
 $route['roles/store'] = 'roles/store';
+$route['roles/update/(:num)'] = 'roles/update/$1';
+$route['roles/delete/(:num)'] = 'roles/delete/$1';
 
 // Attendance
 $route['attendance'] = 'attendance/index';
@@ -206,6 +203,13 @@ $route['leave/get-employee-tasks/(:num)'] = 'leave_requests/get_employee_tasks/$
 
 // Notifications
 $route['notifications'] = 'notifications/index';
+$route['notifications/count'] = 'notifications/count';
+$route['notifications/recent'] = 'notifications/recent';
+$route['notifications/mark-read/(:num)'] = 'notifications/mark_read/$1';
+$route['notifications/mark-all-read'] = 'notifications/mark_all_read';
+$route['notifications/delete/(:num)'] = 'notifications/delete/$1';
+$route['notifications/subscribe-push'] = 'notifications/subscribe_push';
+$route['notifications/unsubscribe-push'] = 'notifications/unsubscribe_push';
 
 // Reports
 $route['reports'] = 'reports/index';
@@ -218,6 +222,9 @@ $route['reports/attendance'] = 'reports/attendance';
 $route['reports/attendance-employee'] = 'reports/attendance_employee';
 $route['reports/attendance-employee/(:num)'] = 'reports/attendance_employee/$1';
 $route['reports/export-attendance-employee'] = 'reports/export_attendance_employee';
+$route['reports/daily-activity'] = 'reports/daily_activity';
+$route['reports/payroll'] = 'reports/payroll';
+$route['reports/expenses'] = 'reports/expenses';
 
 // Profile
 $route['profile'] = 'profile/index';
@@ -303,9 +310,22 @@ $route['chats/start-dm'] = 'chats/start_dm';
 $route['chats/create-group'] = 'chats/create_group';
 $route['chats/conversation/(:num)'] = 'chats/conversation/$1';
 $route['chats/send'] = 'chats/send_message';
+$route['chats/send_message'] = 'chats/send_message';
 $route['chats/fetch'] = 'chats/fetch_messages';
+$route['chats/fetch_messages'] = 'chats/fetch_messages';
 $route['chats/add-participants'] = 'chats/add_participants';
 $route['chats/remove-participant'] = 'chats/remove_participant';
+$route['chats/typing'] = 'chats/typing';
+$route['chats/set-typing'] = 'chats/set_typing';
+$route['chats/get-typing'] = 'chats/get_typing';
+$route['chats/online-status'] = 'chats/online_status';
+$route['chats/set-online-status'] = 'chats/set_online_status';
+$route['chats/get-online-status'] = 'chats/get_online_status';
+$route['chats/reaction'] = 'chats/add_reaction';
+$route['chats/reaction/remove'] = 'chats/remove_reaction';
+$route['chats/reactions'] = 'chats/get_reactions';
+$route['chats/delete-message'] = 'chats/delete_message';
+$route['chats/edit-message'] = 'chats/edit_message';
 
 // Calls (WebRTC signaling over AJAX)
 $route['calls/start/(:num)'] = 'calls/start/$1';
@@ -369,20 +389,131 @@ $route['users/save_face'] = 'users/save_face';
 
 // Approvals
 $route['approvals'] = 'approvals/index';
-$route['approvals/(:any)'] = 'approvals/$1';
+$route['approvals/create'] = 'approvals/create';
+$route['approvals/edit/(:num)'] = 'approvals/edit/$1';
+$route['approvals/save'] = 'approvals/save';
+$route['approvals/delete/(:num)'] = 'approvals/delete/$1';
 
-// Performance
+// Performance Appraisals
 $route['performance'] = 'performance/index';
-$route['performance/(:any)'] = 'performance/$1';
+$route['performance/create'] = 'performance/create';
+$route['performance/view/(:num)'] = 'performance/view/$1';
+$route['performance/edit/(:num)'] = 'performance/edit/$1';
+$route['performance/delete/(:num)'] = 'performance/delete/$1';
+$route['performance/export'] = 'performance/export';
+$route['performance/self-assess'] = 'performance/self_assess';
+$route['performance/self-assess/(:num)'] = 'performance/self_assess/$1';
 
 // Recruitment
 $route['recruitment'] = 'recruitment/index';
-$route['recruitment/(:any)'] = 'recruitment/$1';
+$route['recruitment/create-job'] = 'recruitment/create_job';
+$route['recruitment/edit-job/(:num)'] = 'recruitment/edit_job/$1';
+$route['recruitment/delete-job/(:num)'] = 'recruitment/delete_job/$1';
+$route['recruitment/close-job/(:num)'] = 'recruitment/close_job/$1';
+$route['recruitment/candidates'] = 'recruitment/candidates';
+$route['recruitment/candidate/(:num)'] = 'recruitment/candidate_view/$1';
+$route['recruitment/candidate/(:num)/status'] = 'recruitment/candidate_status/$1';
+$route['recruitment/apply/(:num)'] = 'recruitment/apply/$1';
+$route['recruitment/schedule-interview/(:num)'] = 'recruitment/schedule_interview/$1';
+$route['recruitment/export'] = 'recruitment/export';
 
 // Daily Activity
 $route['daily-activity'] = 'daily_activity/index';
-$route['daily-activity/(:any)'] = 'daily_activity/$1';
+$route['daily-activity/save'] = 'daily_activity/save';
+$route['daily-activity/edit/(:num)'] = 'daily_activity/edit/$1';
+$route['daily-activity/delete/(:num)'] = 'daily_activity/delete/$1';
+$route['daily-activity/list'] = 'daily_activity/list_all';
+$route['daily-activity/export'] = 'daily_activity/export';
+
+// Expenses
+$route['expenses'] = 'expenses/index';
+$route['expenses/create'] = 'expenses/create';
+$route['expenses/view/(:num)'] = 'expenses/view/$1';
+$route['expenses/approve/(:num)'] = 'expenses/approve/$1';
+$route['expenses/reject/(:num)'] = 'expenses/reject/$1';
+$route['expenses/reimburse/(:num)'] = 'expenses/reimburse/$1';
+$route['expenses/categories'] = 'expenses/categories';
+$route['expenses/reports'] = 'expenses/reports';
+$route['expenses/pending'] = 'expenses/pending';
+$route['expenses/export'] = 'expenses/export';
+
+// Payroll (sub-pages)
+$route['payroll'] = 'payroll/index';
+$route['payroll/payslips'] = 'payroll/payslips';
+$route['payroll/structures'] = 'payroll/structures';
+$route['payroll/structure/create'] = 'payroll/structure';
+$route['payroll/structure/(:num)'] = 'payroll/structure/$1';
+$route['payroll/generate'] = 'payroll/generate';
+$route['payroll/view/(:num)'] = 'payroll/view/$1';
+$route['payroll/export/(:num)'] = 'payroll/export/$1';
+$route['payroll/send-payslips'] = 'payroll/send_payslips';
+
+// AI Chat
+$route['ai-chat'] = 'ai_chat/index';
+$route['ai-chat/send'] = 'ai_chat/send_message';
+$route['ai_chat'] = 'ai_chat/index';
+$route['ai_chat/send_message'] = 'ai_chat/send_message';
+
+// Analytics
+$route['analytics'] = 'analytics/index';
+$route['analytics/save-integrations'] = 'analytics/save_integrations';
+$route['analytics/start-quick-call'] = 'analytics/start_quick_call';
+$route['analytics/analyze-feedback'] = 'analytics/analyze_feedback';
+$route['analytics/parse-resume'] = 'analytics/parse_resume';
+$route['analytics/calendar-feed'] = 'analytics/calendar_feed';
 
 // Superadmin
 $route['superadmin'] = 'superadmin/index';
 $route['superadmin/(:any)'] = 'superadmin/$1';
+
+// Expenses export
+$route['expenses/export'] = 'expenses/export';
+
+// Payroll export (no id = all payslips)
+$route['payroll/export'] = 'payroll/export';
+
+// Clients contacts
+$route['clients/(:num)/contacts'] = 'clients/contacts/$1';
+
+// Approvals delete
+$route['approvals/delete/(:num)'] = 'approvals/delete/$1';
+
+// Profile sub-pages
+$route['profile'] = 'profile/index';
+$route['profile/edit'] = 'profile/edit';
+$route['profile/remove-avatar'] = 'profile/remove_avatar';
+$route['profile/delete'] = 'profile/delete_profile';
+
+// Timesheets sub-actions
+$route['timesheets/delete-entry/(:num)'] = 'timesheets/delete_entry/$1';
+$route['timesheets/analytics'] = 'timesheets/analytics';
+$route['timesheets/task-tracking'] = 'timesheets/task_tracking';
+
+// Requirements comments (AJAX)
+$route['requirements/(:num)/comments'] = 'requirements/get_comments/$1';
+$route['requirements/(:num)/add-comment'] = 'requirements/add_comment/$1';
+$route['requirements/(:num)/delete-comment/(:num)'] = 'requirements/delete_comment/$1/$2';
+
+// AI Chat extras
+$route['ai-chat/export'] = 'ai_chat/export';
+$route['ai-chat/clear-history'] = 'ai_chat/clear_history';
+$route['ai-chat/tts'] = 'ai_chat/tts';
+
+// Tasks bulk update
+$route['tasks/bulk-update-status'] = 'tasks/bulk_update_status';
+
+// Attendance get_data (AJAX)
+$route['attendance/get-data'] = 'attendance/get_user_monthly_attendance';
+
+// Settings remove logo
+$route['settings/remove-logo'] = 'settings/remove_logo';
+
+// Announcements templates
+$route['announcements/templates'] = 'announcements/templates';
+$route['announcements/save-template'] = 'announcements/save_template';
+
+// Email settings edit template
+$route['email-settings/edit-template/(:num)'] = 'email_settings/edit_template/$1';
+
+// Users destroy (actual delete POST action)
+$route['users/destroy/(:num)'] = 'users/destroy/$1';

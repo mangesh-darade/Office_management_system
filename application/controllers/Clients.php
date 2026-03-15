@@ -591,4 +591,49 @@ class Clients extends CI_Controller {
         fclose($output);
         exit;
     }
+
+    /**
+     * POST /clients/delete/{id}
+     */
+    public function delete($id = null){
+        $id = (int)$id;
+        if (!$id) { show_404(); }
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
+
+        if (!function_exists('has_module_access') || (!has_module_access('clients_delete') && !has_module_access('clients'))) {
+            show_error('Access Denied', 403);
+        }
+
+        $client = $this->clients->get_client($id);
+        if (!$client) { show_404(); }
+
+        $this->clients->delete_client($id);
+        $this->session->set_flashdata('success', 'Client "' . htmlspecialchars($client->company_name) . '" deleted successfully.');
+        redirect('clients');
+    }
+
+    /**
+     * GET /clients/{id}/contacts
+     * View contacts for a specific client (JSON or view)
+     */
+    public function contacts($id = null){
+        $id = (int)$id;
+        if (!$id) { show_404(); }
+
+        $client = $this->clients->get_client($id);
+        if (!$client) { show_404(); }
+
+        // Return JSON if AJAX, otherwise redirect to client view
+        if ($this->input->is_ajax_request()) {
+            $contacts = array();
+            if ($this->db->table_exists('client_contacts')) {
+                $contacts = $this->db->where('client_id', $id)->order_by('id', 'ASC')->get('client_contacts')->result();
+            }
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => true, 'contacts' => $contacts]);
+            exit;
+        }
+
+        redirect('clients/view/' . $id);
+    }
 }

@@ -124,8 +124,11 @@ class Chat_model extends CI_Model {
     }
 
     public function list_conversations($user_id, $filters = []) {
+        $name_col = $this->db->field_exists('full_name','users') ? "COALESCE(u.full_name, u.email)" :
+                    ($this->db->field_exists('name','users') ? "COALESCE(u.name, u.email)" : "u.email");
         $sql = "SELECT c.*, 
                        GROUP_CONCAT(u.email ORDER BY u.email SEPARATOR ', ') AS members,
+                       GROUP_CONCAT({$name_col} ORDER BY u.email SEPARATOR ', ') AS member_names,
                        (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.id DESC LIMIT 1) AS last_message,
                        (SELECT m3.created_at FROM messages m3 WHERE m3.conversation_id = c.id ORDER BY m3.id DESC LIMIT 1) AS last_message_at
                 FROM conversations c
@@ -269,15 +272,46 @@ class Chat_model extends CI_Model {
     }
 
     public function fetch_messages($conversation_id, $since_id=0) {
-        $sel = ['m.*', 'u.email'];
-        if ($this->db->field_exists('name','users')) { $sel[] = 'u.name'; }
-        $this->db->select(implode(', ', $sel))
-                 ->from('messages m')
-                 ->join('users u', 'u.id=m.sender_id', 'left')
-                 ->where('m.conversation_id', $conversation_id);
-        if ($since_id > 0) { $this->db->where('m.id >', (int)$since_id); }
-        $this->db->order_by('m.id','ASC');
-        return $this->db->get()->result();
+        $name_col = $this->db->field_exists('full_name','users') ? "u.full_name" :
+                    ($this->db->field_exists('name','users') ? "u.name" : "u.email");
+        $sql = "SELECT m.*, u.email, {$name_col} AS full_name
+                FROM messages m
+                LEFT JOIN users u ON u.id = m.sender_id
+                WHERE m.conversation_id = ?";
+        if ($since_id > 0) { $sql .= " AND m.id > " . (int)$since_id; }
+        $sql .= " ORDER BY m.id ASC";
+        return $this->db->query($sql, [$conversation_id])->result();
+    }
+
+    public function get_message_by_id($msg_id) {
+        $name_col = $this->db->field_exists('full_name','users') ? "u.full_name" :
+                    ($this->db->field_exists('name','users') ? "u.name" : "u.email");
+        $sql = "SELECT m.*, u.email, {$name_col} AS full_name
+                FROM messages m
+                LEFT JOIN users u ON u.id = m.sender_id
+                WHERE m.id = ? LIMIT 1";
+        return $this->db->query($sql, [$msg_id])->row();
+    }
+
+    public function delete_message($message_id) {
+        // Soft-delete: mark as deleted rather than removing from DB
+        if ($this->db->field_exists('is_deleted', 'messages')) {
+            $this->db->where('id', (int)$message_id)->update('messages', ['is_deleted' => 1, 'body' => '']);
+        } else {
+            // Add is_deleted column if missing, then soft-delete
+            $this->db->query("ALTER TABLE `messages` ADD COLUMN IF NOT EXISTS `is_deleted` tinyint(1) DEFAULT 0");
+            $this->db->where('id', (int)$message_id)->update('messages', ['is_deleted' => 1, 'body' => '']);
+        }
+    }
+
+    public function edit_message($message_id, $new_body) {
+        if (!$this->db->field_exists('edited_at', 'messages')) {
+            $this->db->query("ALTER TABLE `messages` ADD COLUMN IF NOT EXISTS `edited_at` datetime DEFAULT NULL");
+        }
+        $this->db->where('id', (int)$message_id)->update('messages', [
+            'body'      => $new_body,
+            'edited_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 
     public function add_participants($conversation_id, $user_ids) {

@@ -7,9 +7,11 @@
           <h5 class="mb-1 fw-bold"><i class="bi bi-person-gear text-primary me-2"></i>Roles</h5>
           <p class="text-muted small mb-0">Define user roles and their group types</p>
         </div>
+        <?php if(function_exists('has_module_access') && (has_module_access('roles') || is_admin_group())): ?>
         <button type="button" class="btn btn-primary btn-sm mt-2 mt-sm-0" data-bs-toggle="modal" data-bs-target="#roleModal">
           <i class="bi bi-plus-lg me-1"></i>Add Role
         </button>
+        <?php endif; ?>
       </div>
       <div class="card shadow-sm border-0">
         <div class="card-body p-0">
@@ -67,6 +69,7 @@
                     <td><?php echo isset($r->sort_order) ? (int)$r->sort_order : ''; ?></td>
                     <?php endif; ?>
                     <td class="text-center">
+                      <?php if(function_exists('has_module_access') && (has_module_access('roles') || is_admin_group())): ?>
                       <div class="btn-group btn-group-sm" role="group">
                         <button type="button"
                                 class="btn btn-outline-primary"
@@ -77,12 +80,12 @@
                                 data-group="<?php echo $groupType; ?>">
                           <i class="bi bi-pencil"></i>
                         </button>
-                        <a href="<?php echo site_url('roles/delete/' . (int)$r->id); ?>"
-                           class="btn btn-outline-danger"
-                           onclick="return confirm('Are you sure you want to delete this role?');">
-                          <i class="bi bi-trash"></i>
-                        </a>
+                        <form method="post" action="<?php echo site_url('roles/delete/' . (int)$r->id); ?>" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this role?');">
+                          <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                          <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
                       </div>
+                      <?php endif; ?>
                     </td>
                   </tr>
                 <?php endforeach; ?>
@@ -99,6 +102,7 @@
 <div class="modal fade" id="roleModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" action="<?php echo site_url('roles/store'); ?>" class="modal-content">
+      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
       <div class="modal-header">
         <h5 class="modal-title">Add Role</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -127,6 +131,7 @@
 <div class="modal fade" id="roleEditModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" action="<?php echo site_url('roles/update'); ?>" class="modal-content">
+      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
       <div class="modal-header">
         <h5 class="modal-title">Edit Role</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

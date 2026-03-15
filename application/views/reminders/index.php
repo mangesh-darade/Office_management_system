@@ -6,6 +6,8 @@
     <p class="text-muted small mb-0">Manage notification reminders</p>
   </div>
   <div class="d-flex gap-1 flex-wrap mt-2 mt-sm-0">
+    <?php $can_manage_reminders = function_exists('has_module_access') && (has_module_access('reminders') || is_admin_group()); ?>
+    <?php if($can_manage_reminders): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('reminders/schedules'); ?>"><i class="bi bi-calendar-event me-1"></i><span class="d-none d-md-inline">Schedules</span></a>
     <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('reminders/send'); ?>"><i class="bi bi-send me-1"></i><span class="d-none d-md-inline">Send</span></a>
     <a class="btn btn-outline-info btn-sm" href="<?php echo site_url('reminders/templates'); ?>"><i class="bi bi-file-text me-1"></i><span class="d-none d-md-inline">Templates</span></a>
@@ -13,6 +15,7 @@
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reminders/import'); ?>"><i class="bi bi-upload me-1"></i><span class="d-none d-md-inline">Import</span></a>
     <button type="button" class="btn btn-success btn-sm" onclick="submitSelected()"><i class="bi bi-send-check me-1"></i><span class="d-none d-lg-inline">Send Selected</span></button>
     <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()"><i class="bi bi-trash me-1"></i><span class="d-none d-lg-inline">Delete</span></button>
+    <?php endif; ?>
   </div>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
@@ -132,7 +135,12 @@
             <td><?php echo htmlspecialchars(isset($r->send_at)?$r->send_at:''); ?></td>
             <td><?php echo htmlspecialchars(isset($r->sent_at)?$r->sent_at:''); ?></td>
             <td>
-              <a class="btn btn-sm btn-outline-danger" href="<?php echo site_url('reminders/delete/'.(int)$r->id); ?>" onclick="return confirm('Delete this reminder?');">🗑️ Delete</a>
+              <?php if($can_manage_reminders): ?>
+              <form method="post" action="<?php echo site_url('reminders/delete/'.(int)$r->id); ?>" class="d-inline" onsubmit="return confirm('Delete this reminder?');">
+                <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+              </form>
+              <?php endif; ?>
             </td>
           </tr>
           <?php endforeach; endif; ?>

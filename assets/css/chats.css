@@ -140,29 +140,35 @@
 }
 
 .chat-app .message {
-  margin-bottom: 1rem;
-  animation: messageSlideIn 0.3s ease;
+  margin-bottom: 0.65rem;
+  animation: messageSlideIn 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 @keyframes messageSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Own messages: align everything to the right */
 .chat-app .message.own {
-  text-align: right;
+  align-items: flex-end;
 }
 
 .chat-app .message.own .bubble {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: white;
-  margin-left: auto;
+  border-color: transparent;
+}
+
+/* Message meta (sender + time) */
+.chat-app .message .msg-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+  padding: 0 0.25rem;
 }
 
 .chat-app .message.typing-indicator .bubble {
@@ -172,10 +178,11 @@
 }
 
 .chat-app .bubble {
-  display: inline-block;
-  max-width: 85%;
-  padding: 0.75rem 1rem;
-  border-radius: 1rem;
+  display: block;
+  max-width: 72%;
+  min-width: 2.5rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 1.1rem;
   text-align: left;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -183,6 +190,9 @@
   transition: var(--transition-fast);
   position: relative;
   word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .chat-app .bubble:hover {
@@ -447,15 +457,13 @@
   50% { opacity: 0.7; transform: scale(1.1); }
 }
 
-/* Enhanced message actions */
+/* Message actions (react button) — shown on hover */
 .chat-app .message-actions {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
   opacity: 0;
-  transition: var(--transition-fast);
+  transition: opacity 0.15s ease;
   display: flex;
   gap: 0.25rem;
+  margin-top: 0.15rem;
 }
 
 .chat-app .message:hover .message-actions {
@@ -687,10 +695,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  margin-top: 0.5rem;
-  padding: 0.25rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
+  margin-top: 0.3rem;
+  max-width: 72%;
 }
 
 .chat-app .reaction-item {
@@ -900,22 +906,27 @@
 }
 
 .chat-app .bubble.me {
-  background-color: #0d6efd;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: #fff;
-  border-top-right-radius: .2rem;
+  border-color: transparent;
+  border-top-right-radius: 0.25rem;
 }
 
 .chat-app .bubble.them {
-  background-color: #f8f9fa;
+  background-color: #f0f2f5;
   color: #212529;
-  border: 1px solid #e9ecef;
-  border-top-left-radius: .2rem;
+  border: 1px solid #e4e6ea;
+  border-top-left-radius: 0.25rem;
 }
 
 .chat-app #messages {
   background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 40%);
-  height: 55vh;
+  height: 52vh;
+  min-height: 280px;
   overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: 0.75rem !important;
 }
 
 .chat-app .composer .btn-primary {
@@ -1110,5 +1121,44 @@
 
 /* Toast container for chats */
 #chatToastContainer {
-  z-index: 1080;
+  z-index: 1090;
+}
+
+#chatToast {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#chatToast:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.75rem 1.5rem rgba(0,0,0,0.2) !important;
+}
+
+#chatToast .toast-header {
+  border-radius: 0;
+}
+
+#chatToast .toast-body {
+  font-size: 0.875rem;
+  color: #212529;
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Notification permission banner */
+#notifPermBanner {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1095;
+  min-width: 320px;
+  max-width: 480px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

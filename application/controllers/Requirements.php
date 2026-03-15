@@ -205,16 +205,8 @@ class Requirements extends CI_Controller {
                     }
                     
                     // In-app notification
-                    if ($this->db->table_exists('notifications')) {
-                        $this->db->insert('notifications', [
-                            'user_id' => $uid,
-                            'type' => 'system',
-                            'title' => 'New requirement assigned: '.$req_number,
-                            'body' => 'You have been assigned to requirement: '.$req_title,
-                            'channel' => 'in_app',
-                            'created_at' => date('Y-m-d H:i:s')
-                        ]);
-                    }
+                    $this->load->model('Notification_model');
+                    $this->Notification_model->create($uid, 'New requirement assigned: '.$req_number, 'You have been assigned to requirement: '.$req_title, 'info', 'requirements');
                     
                     // Email notification (queue via Reminder system)
                     if ($user_email !== '') {
@@ -393,16 +385,8 @@ class Requirements extends CI_Controller {
                     }
                     
                     // In-app notification
-                    if ($this->db->table_exists('notifications')) {
-                        $this->db->insert('notifications', [
-                            'user_id' => $uid,
-                            'type' => 'system',
-                            'title' => 'Requirement status changed: '.$req_number,
-                            'body' => 'Status changed from "'.$status_from.'" to "'.$status_to.'" for: '.$req_title,
-                            'channel' => 'in_app',
-                            'created_at' => date('Y-m-d H:i:s')
-                        ]);
-                    }
+                    $this->load->model('Notification_model');
+                    $this->Notification_model->create($uid, 'Requirement status changed: '.$req_number, 'Status changed from "'.$status_from.'" to "'.$status_to.'" for: '.$req_title, 'info', 'requirements');
                     
                     // Email notification (queue via Reminder system)
                     if ($user_email !== '') {
@@ -559,17 +543,18 @@ class Requirements extends CI_Controller {
             $notify_users[] = (int)$req->assigned_to;
         }
         
-        if (!empty($notify_users) && $this->db->table_exists('notifications')) {
-            foreach ($notify_users as $uid) {
-                $this->db->insert('notifications', [
-                    'user_id' => $uid,
-                    'type' => 'task_assigned', // Reuse type
-                    'title' => 'New comment on requirement '.($req->req_number ?: '#'.$requirement_id),
-                    'body' => mb_substr($comment, 0, 200),
-                    'channel' => 'in_app',
-                    'created_at' => date('Y-m-d H:i:s')
-                ]);
-            }
+        if (!empty($notify_users)) {
+            $this->load->model('Notification_model');
+            $req_ref = ($req->req_number ? $req->req_number : '#'.$requirement_id);
+            $this->Notification_model->create_bulk(
+                $notify_users,
+                'New comment on requirement ' . $req_ref,
+                mb_substr($comment, 0, 200),
+                'info',
+                'requirements',
+                (int)$requirement_id,
+                site_url('requirements/view/' . $requirement_id)
+            );
         }
 
         $this->session->set_flashdata('success', 'Comment added.');

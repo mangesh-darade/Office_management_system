@@ -141,8 +141,8 @@ class Employee_model extends CI_Model
 
     public function update($id, $data)
     {
-        $this->db->where('id', $id)->update($this->table, $data);
-        return $this->db->affected_rows() >= 0;
+        $this->db->where('id', (int)$id)->update($this->table, $data);
+        return $this->db->affected_rows() > 0;
     }
 
     public function delete($id)
@@ -195,18 +195,17 @@ class Employee_model extends CI_Model
             }
         }
         
-        // Generate next code
+        // Generate next code — loop until a unique code is found (handles concurrent inserts)
         $next_num = $max_num + 1;
-        $code = 'E' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
-        
-        // Double-check uniqueness (in case of race condition)
-        $exists = $this->db->where('emp_code', $code)->get($this->table)->row();
-        if ($exists) {
-            // If exists, try next number
-            $next_num++;
+        $max_attempts = 100;
+        $attempts = 0;
+        do {
             $code = 'E' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
-        }
-        
+            $exists = $this->db->where('emp_code', $code)->count_all_results($this->table);
+            if ($exists) { $next_num++; }
+            $attempts++;
+        } while ($exists && $attempts < $max_attempts);
+
         return $code;
     }
 

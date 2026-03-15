@@ -88,4 +88,22 @@ class Approvals extends CI_Controller {
 
         redirect('approvals');
     }
+
+    /**
+     * POST /approvals/delete/{id}
+     */
+    public function delete($id = null){
+        $id = (int)$id;
+        if (!$id) { show_404(); }
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
+
+        // Only admin can delete approval flows
+        if ((int)$this->session->userdata('role_id') !== 1 && !(function_exists('is_admin_group') && is_admin_group())) {
+            show_error('Access Denied', 403);
+        }
+
+        $this->Approval_model->delete_flow($id);
+        $this->session->set_flashdata('success', 'Approval flow deleted.');
+        redirect('approvals');
+    }
 }

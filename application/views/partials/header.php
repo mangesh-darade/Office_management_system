@@ -27,7 +27,7 @@
   <?php
     if (isset($extra_css) && is_array($extra_css)) {
         foreach ($extra_css as $cssFile) {
-            echo '<link href="'.base_url($cssFile).'" rel="stylesheet">' . PHP_EOL;
+            echo '<link href="'.htmlspecialchars(base_url($cssFile), ENT_QUOTES, 'UTF-8').'" rel="stylesheet">' . PHP_EOL;
         }
     }
   ?>
@@ -140,18 +140,22 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo $active==='daily_activity' ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-daily-activity-submenu" role="button" aria-expanded="<?php echo $active==='daily_activity'?'true':'false'; ?>" aria-controls="mobile-daily-activity-submenu">
+        <a class="nav-link sidebar-link <?php echo ($active==='daily-activity'||$active==='daily_activity') ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-daily-activity-submenu" role="button" aria-expanded="<?php echo ($active==='daily-activity'||$active==='daily_activity')?'true':'false'; ?>" aria-controls="mobile-daily-activity-submenu">
           <i class="bi bi-journal-check me-2"></i>Daily Activity <i class="bi bi-chevron-down float-end"></i>
         </a>
-        <div class="collapse <?php echo $active==='daily_activity' ? 'show' : ''; ?>" id="mobile-daily-activity-submenu">
+        <div class="collapse <?php echo ($active==='daily-activity'||$active==='daily_activity') ? 'show' : ''; ?>" id="mobile-daily-activity-submenu">
           <div class="ps-4">
-             <a class="nav-link sidebar-link small <?php echo ($active==='daily_activity' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('daily_activity'); ?>"><i class="bi bi-plus-lg me-2"></i>Add Activity</a>
-             <a class="nav-link sidebar-link small <?php echo ($active==='daily_activity' && $active_sub==='list_all')?'active':''; ?>" href="<?php echo site_url('daily_activity/list_all'); ?>"><i class="bi bi-list-ul me-2"></i>List Activity</a>
+             <a class="nav-link sidebar-link small" href="<?php echo site_url('daily-activity'); ?>"><i class="bi bi-plus-lg me-2"></i>Add Activity</a>
+             <a class="nav-link sidebar-link small" href="<?php echo site_url('daily-activity/list'); ?>"><i class="bi bi-list-ul me-2"></i>All Activities</a>
+             <a class="nav-link sidebar-link small" href="<?php echo site_url('daily-activity/export'); ?>"><i class="bi bi-download me-2"></i>Export CSV</a>
           </div>
         </div>
       </div>
       <?php endif; ?>
 
+      <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
+      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
       <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
@@ -225,7 +229,90 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-cash-stack me-2"></i>Payroll</a>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-payroll-submenu" role="button" aria-expanded="<?php echo $active==='payroll'?'true':'false'; ?>">
+          <i class="bi bi-cash-stack me-2"></i>Payroll <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $active==='payroll'?'show':''; ?>" id="mobile-payroll-submenu">
+          <div class="ps-4">
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-file-earmark-text me-2"></i>Payslips</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('payroll/structures'); ?>"><i class="bi bi-diagram-3 me-2"></i>Pay Structures</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('payroll/generate'); ?>"><i class="bi bi-gear me-2"></i>Generate Payroll</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('reports/payroll'); ?>"><i class="bi bi-graph-up me-2"></i>Payroll Report</a>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php if(function_exists('has_module_access') && has_module_access('performance')): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $active==='performance'?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-performance-submenu" role="button" aria-expanded="<?php echo $active==='performance'?'true':'false'; ?>">
+          <i class="bi bi-award me-2"></i>Performance <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $active==='performance'?'show':''; ?>" id="mobile-performance-submenu">
+          <div class="ps-4">
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('performance'); ?>"><i class="bi bi-list-ul me-2"></i>All Appraisals</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('performance/create'); ?>"><i class="bi bi-plus-lg me-2"></i>New Appraisal</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('performance/self-assess'); ?>"><i class="bi bi-person-check me-2"></i>Self-Assessment</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('performance/export'); ?>"><i class="bi bi-download me-2"></i>Export CSV</a>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php
+      $expenses_group_show = function_exists('has_module_access') && (
+        has_module_access('expenses') ||
+        has_module_access('expenses_add') ||
+        has_module_access('expenses_approve') ||
+        has_module_access('expenses_reports')
+      );
+      ?>
+      <?php if($expenses_group_show): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $active==='expenses'?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-expenses-submenu" role="button">
+          <i class="bi bi-receipt me-2"></i>Expenses <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $active==='expenses'?'show':''; ?>" id="mobile-expenses-submenu">
+          <div class="ps-4">
+            <?php if(function_exists('has_module_access') && has_module_access('expenses')): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('expenses'); ?>"><i class="bi bi-list-ul me-2"></i>All Expenses</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('expenses_add')): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('expenses/create'); ?>"><i class="bi bi-plus-lg me-2"></i>Add Expense</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('expenses_approve')): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('expenses/pending'); ?>"><i class="bi bi-check-circle me-2"></i>Pending Approval</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('expenses_reports')): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('expenses/reports'); ?>"><i class="bi bi-graph-up me-2"></i>Expense Reports</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php
+      $recruitment_group_show = function_exists('has_module_access') && (
+        has_module_access('recruitment') ||
+        has_module_access('recruitment_jobs') ||
+        has_module_access('recruitment_candidates')
+      );
+      ?>
+      <?php if($recruitment_group_show): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $active==='recruitment'?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-recruitment-submenu" role="button">
+          <i class="bi bi-person-plus me-2"></i>Recruitment <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $active==='recruitment'?'show':''; ?>" id="mobile-recruitment-submenu">
+          <div class="ps-4">
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('recruitment'); ?>"><i class="bi bi-briefcase me-2"></i>Job Openings</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('recruitment/create-job'); ?>"><i class="bi bi-plus-lg me-2"></i>Post New Job</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('recruitment/candidates'); ?>"><i class="bi bi-people me-2"></i>Candidates</a>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('recruitment/export'); ?>"><i class="bi bi-download me-2"></i>Export CSV</a>
+          </div>
+        </div>
+      </div>
       <?php endif; ?>
 
       <?php
@@ -298,6 +385,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
       <?php endif; ?>
+      <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
+      <?php endif; ?>
       
       <?php
       $reports_group_show = function_exists('has_module_access') && (
@@ -340,6 +430,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && has_module_access('reports_attendance_employee')): ?>
             <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='attendance-employee')?'active':''; ?>" href="<?php echo site_url('reports/attendance-employee'); ?>">Employee Attendance</a>
             <?php endif; ?>
+            <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='daily-activity')?'active':''; ?>" href="<?php echo site_url('reports/daily-activity'); ?>"><i class="bi bi-journal-text me-1"></i>Daily Activity</a>
+            <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='payroll')?'active':''; ?>" href="<?php echo site_url('reports/payroll'); ?>"><i class="bi bi-cash-coin me-1"></i>Payroll Report</a>
+            <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='expenses')?'active':''; ?>" href="<?php echo site_url('reports/expenses'); ?>"><i class="bi bi-receipt me-1"></i>Expenses Report</a>
           </div>
         </div>
       </div>
@@ -505,9 +598,17 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         try { if (globalTimer) clearInterval(globalTimer); globalTimer = setInterval(poll, 3000); } catch(e){}
       }
       ensurePolling(); poll();
-      btnReject && btnReject.addEventListener('click', async function(){
+        btnReject && btnReject.addEventListener('click', async function(){
         try{
-          if (lastSignal && lastSignal.call_id){ await fetch(site + 'calls/end/' + lastSignal.call_id, { method:'POST' }); }
+          if (lastSignal && lastSignal.call_id){
+            var _cm = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+            var _cb = _cm ? '<?php echo $this->security->get_csrf_token_name(); ?>=' + encodeURIComponent(decodeURIComponent(_cm[1])) : '';
+            await fetch(site + 'calls/end/' + lastSignal.call_id, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: _cb
+            });
+          }
         }catch(e){}
         // Mark this call as seen so it won't pop again
         try { if (lastSignal && lastSignal.call_id){ seenCallIds.add(parseInt(lastSignal.call_id,10)); saveSeen(seenCallIds); } } catch(e){}

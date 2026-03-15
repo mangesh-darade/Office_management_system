@@ -274,15 +274,20 @@ class Payroll_model extends CI_Model {
             }
         }
 
-        // Upsert payslip for user+period
+        // Upsert payslip for user+period — wrapped in a transaction for data integrity
+        $this->db->trans_start();
         $existing = $this->db->get_where($this->table_payslips, ['user_id' => $user_id, 'period' => $period])->row();
         if ($existing){
             $this->db->where('id', (int)$existing->id)->update($this->table_payslips, $data);
-            return (int)$existing->id;
+            $result_id = (int)$existing->id;
+        } else {
+            $data['user_id'] = $user_id;
+            $data['period']  = $period;
+            $this->db->insert($this->table_payslips, $data);
+            $result_id = (int)$this->db->insert_id();
         }
-        $data['user_id'] = $user_id;
-        $data['period'] = $period;
-        $this->db->insert($this->table_payslips, $data);
-        return (int)$this->db->insert_id();
+        $this->db->trans_complete();
+        if (!$this->db->trans_status()) { return false; }
+        return $result_id;
     }
 }

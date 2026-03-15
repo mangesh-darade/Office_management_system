@@ -112,10 +112,10 @@
                     <a class="btn btn-outline-secondary" href="<?php echo site_url('api-integrations/edit/' . $int->id); ?>" title="Edit">
                       <i class="bi bi-pencil"></i>
                     </a>
-                    <a class="btn btn-outline-danger" href="<?php echo site_url('api-integrations/delete/' . $int->id); ?>" 
-                       onclick="return confirm('Delete this API integration? This action cannot be undone.');" title="Delete">
-                      <i class="bi bi-trash"></i>
-                    </a>
+                    <form method="post" action="<?php echo site_url('api-integrations/delete/' . $int->id); ?>" class="d-inline" onsubmit="return confirm('Delete this API integration? This action cannot be undone.');">
+                      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                      <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                    </form>
                   </div>
                 </td>
               </tr>

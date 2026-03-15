@@ -2,10 +2,14 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Requirements</h1>
   <div class="d-flex gap-2">
+    <?php if(function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('requirements/create'); ?>"><i class="bi bi-plus-lg"></i> New</a>
+    <?php endif; ?>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('requirements/board'); ?>"><i class="bi bi-columns"></i> Board</a>
     <a class="btn btn-outline-dark btn-sm" href="<?php echo site_url('requirements/calendar'); ?>"><i class="bi bi-calendar3"></i> Calendar</a>
+    <?php if(function_exists('has_module_access') && (has_module_access('requirements') || is_admin_group())): ?>
     <a class="btn btn-success btn-sm" href="<?php echo site_url('requirements/export'); ?>"><i class="bi bi-download"></i> Export</a>
+    <?php endif; ?>
   </div>
 </div>
 

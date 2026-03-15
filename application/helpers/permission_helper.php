@@ -3,18 +3,19 @@
 if (!function_exists('has_module_access')) {
     function has_module_access($module) {
         static $cache = null;
+        static $admin_group_cache = null;
 
         $CI =& get_instance();
         if (!$CI || !$CI->session) { return false; }
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return false; }
 
-        // Admin (role_id 1) always has full access to prevent lock-out
+        // Role 1 (Super Admin) always has full access to prevent lock-out
         if ($role_id === 1) { return true; }
 
-        $controller = strtolower(trim((string)$module));
+        $key = strtolower(trim((string)$module));
 
-        // Cache permissions lookup per request to avoid 40+ DB queries per page
+        // Build permission cache once per request
         if ($cache === null) {
             $cache = array();
             if (isset($CI->db) && $CI->db && $CI->db->table_exists('permissions')) {
@@ -31,8 +32,8 @@ if (!function_exists('has_module_access')) {
             }
         }
 
-        if (empty($cache) || !isset($cache[$controller])) { return false; }
-        return in_array($role_id, $cache[$controller], true);
+        if (empty($cache) || !isset($cache[$key])) { return false; }
+        return in_array($role_id, $cache[$key], true);
     }
 }
 

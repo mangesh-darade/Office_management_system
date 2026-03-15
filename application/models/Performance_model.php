@@ -22,7 +22,9 @@ class Performance_model extends CI_Model {
                 `period` varchar(50) NOT NULL COMMENT 'e.g. Q1 2024',
                 `kpi_score` decimal(5,2) DEFAULT 0,
                 `rating` int(11) DEFAULT NULL COMMENT '1-5 Stars',
+                `self_rating` int(11) DEFAULT NULL,
                 `comments` text,
+                `self_comments` text,
                 `status` enum('draft','submitted','approved') DEFAULT 'draft',
                 `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -31,7 +33,28 @@ class Performance_model extends CI_Model {
                 KEY `idx_mgr` (`manager_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
+        } else {
+            // Add self-assessment columns if missing
+            if (!$this->db->field_exists('self_rating', $this->table)) {
+                $this->db->query("ALTER TABLE `{$this->table}` ADD COLUMN `self_rating` int(11) DEFAULT NULL AFTER `rating`");
+            }
+            if (!$this->db->field_exists('self_comments', $this->table)) {
+                $this->db->query("ALTER TABLE `{$this->table}` ADD COLUMN `self_comments` text AFTER `self_rating`");
+            }
         }
+    }
+
+    public function get_appraisals_for_employee($user_id){
+        // Find employee record linked to this user
+        $this->db->select('p.*, e.first_name, e.last_name, u.name as manager_name');
+        $this->db->from($this->table.' p');
+        $this->db->join('employees e', 'e.id = p.employee_id', 'left');
+        $this->db->join('users u', 'u.id = p.manager_id', 'left');
+        // Match by employee user_id or direct employee_id match
+        $this->db->group_start();
+        $this->db->where('p.employee_id IN (SELECT id FROM employees WHERE user_id = ' . (int)$user_id . ')');
+        $this->db->group_end();
+        return $this->db->order_by('p.created_at', 'DESC')->get()->result();
     }
 
     public function get_appraisals($employee_id = null){

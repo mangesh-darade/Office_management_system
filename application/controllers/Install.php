@@ -12,9 +12,9 @@ class Install extends CI_Controller {
     // GET /install/schema
     public function schema()
     {
-        // Protect in production - only allow in development or for admin users
-        if (ENVIRONMENT === 'production') {
-            show_error('Schema installer is disabled in production.', 403);
+        // Protect in non-development environments
+        if (!in_array(ENVIRONMENT, ['development', 'testing'], true)) {
+            show_error('Schema installer is disabled outside of development.', 403);
         }
         // Require admin login when not in CLI
         if (!$this->input->is_cli_request()) {

@@ -59,6 +59,7 @@
                 <?php endif; ?>
                 <?php if(function_exists('has_module_access') && (has_module_access('employees_delete') || has_module_access('employees'))): ?>
                 <form class="d-inline" method="post" action="<?php echo site_url('employees/'.$e->id.'/delete'); ?>" onsubmit="return confirm('Delete this employee?');">
+                  <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                   <button class="btn btn-danger btn-sm" type="submit" title="Delete" aria-label="Delete"><i class="bi bi-trash"></i></button>
                 </form>
                 <?php endif; ?>

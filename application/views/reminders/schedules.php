@@ -2,8 +2,11 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Reminder Schedules</h1>
   <div class="d-flex gap-2">
+    <?php $can_manage_reminders = function_exists('has_module_access') && (has_module_access('reminders') || is_admin_group()); ?>
+    <?php if($can_manage_reminders): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('reminders/schedules/create'); ?>">New Schedule</a>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reminders/cron/generate-today'); ?>">Generate Today</a>
+    <?php endif; ?>
   </div>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
@@ -65,6 +68,7 @@
             <td class="small"><?php echo htmlspecialchars($s->subject); ?></td>
             <td><?php echo ((int)$s->active) ? 'Yes' : 'No'; ?></td>
             <td>
+              <?php if($can_manage_reminders): ?>
               <a href="<?php echo site_url('reminders/schedules/'.(int)$s->id.'/edit'); ?>" class="btn btn-sm btn-outline-primary me-1">
                 <i class="bi bi-pencil-square me-1"></i> Edit
               </a>
@@ -77,9 +81,11 @@
                   <i class="bi bi-play-circle me-1"></i> Activate
                 </a>
               <?php endif; ?>
-              <a href="<?php echo site_url('reminders/schedules/'.(int)$s->id.'/delete'); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this schedule?');">
-                <i class="bi bi-trash me-1"></i> Delete
-              </a>
+              <form method="post" action="<?php echo site_url('reminders/schedules/'.(int)$s->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this schedule?');">
+                <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i> Delete</button>
+              </form>
+              <?php endif; ?>
             </td>
           </tr>
           <?php endforeach; endif; ?>

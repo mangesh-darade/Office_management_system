@@ -158,9 +158,14 @@
                               <?php endif; ?>
                               <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
                               <li><hr class="dropdown-divider"></li>
-                              <li><a class="dropdown-item text-danger" href="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" onclick="return confirm('Delete this task?')">
-                                <i class="bi bi-trash me-2"></i>Delete
-                              </a></li>
+                              <li>
+                                <form method="post" action="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
+                                  <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                                  <button type="submit" class="dropdown-item text-danger border-0 bg-transparent w-100 text-start">
+                                    <i class="bi bi-trash me-2"></i>Delete
+                                  </button>
+                                </form>
+                              </li>
                               <?php endif; ?>
                             </ul>
                           </div>
@@ -339,7 +344,10 @@
         const form = new FormData();
         form.append('id', draggedId);
         form.append('status', status);
-        
+        // Inject CSRF token
+        const csrfMatch = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+        if (csrfMatch) form.append('<?php echo $this->security->get_csrf_token_name(); ?>', decodeURIComponent(csrfMatch[1]));
+
         const res = await fetch('<?php echo site_url('tasks/update-status'); ?>', { 
           method: 'POST', 
           body: form, 

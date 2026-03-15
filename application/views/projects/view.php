@@ -17,7 +17,10 @@
       <a class="btn btn-primary btn-sm" href="<?php echo site_url('projects/'.$project->id.'/edit'); ?>">Edit Project</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('projects_delete')): ?>
-      <a class="btn btn-danger btn-sm" onclick="return confirm('Delete this project?')" href="<?php echo site_url('projects/'.$project->id.'/delete'); ?>">Delete</a>
+      <form method="post" action="<?php echo site_url('projects/'.$project->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this project?');">
+        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+      </form>
       <?php endif; ?>
     </div>
   </div>
@@ -107,7 +110,9 @@
                             <?php endif; ?>
                         </div>
                     </div>
+                    <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || is_admin_group())): ?>
                     <a href="<?php echo site_url('projects/'.$project->id.'/members'); ?>" class="btn btn-sm btn-outline-primary w-100 mt-2">Manage Members</a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

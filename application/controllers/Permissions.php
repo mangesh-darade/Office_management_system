@@ -53,6 +53,12 @@ class Permissions extends CI_Controller {
                 }
             }
 
+            // Ensure module column is wide enough (varchar(64) -> varchar(100))
+            $col = $this->db->query("SHOW COLUMNS FROM `permissions` LIKE 'module'")->row();
+            if ($col && strpos(strtolower($col->Type), 'varchar(64)') !== false) {
+                $this->db->query("ALTER TABLE `permissions` MODIFY COLUMN `module` varchar(100) NOT NULL");
+            }
+
             // Migrate renamed keys: assets_mgmt -> assets (preserve existing permission settings)
             $old_assets = $this->db->where('module', 'assets_mgmt')->get('permissions')->result();
             if (!empty($old_assets)) {
@@ -87,6 +93,18 @@ class Permissions extends CI_Controller {
         // Add group_type column if missing on existing roles table
         if ($this->db->table_exists('roles') && !$this->db->field_exists('group_type', 'roles')) {
             $this->db->query("ALTER TABLE `roles` ADD `group_type` varchar(50) DEFAULT NULL AFTER `name`");
+        }
+
+        // Add is_active column if missing
+        if ($this->db->table_exists('roles') && !$this->db->field_exists('is_active', 'roles')) {
+            $this->db->query("ALTER TABLE `roles` ADD `is_active` tinyint(1) NOT NULL DEFAULT 1 AFTER `group_type`");
+            $this->db->query("UPDATE `roles` SET `is_active` = 1");
+        }
+
+        // Add sort_order column if missing
+        if ($this->db->table_exists('roles') && !$this->db->field_exists('sort_order', 'roles')) {
+            $this->db->query("ALTER TABLE `roles` ADD `sort_order` int(11) NOT NULL DEFAULT 0 AFTER `is_active`");
+            $this->db->query("UPDATE `roles` SET `sort_order` = `id`");
         }
 
         // Seed default roles only if table is empty (and respect existing schema)
@@ -129,237 +147,221 @@ class Permissions extends CI_Controller {
 
     private function roles()
     {
-        // Prefer DB-defined roles when available
-        $out = [];
-        if ($this->db->table_exists('roles')) {
-            $this->db->from('roles');
-            // Apply is_active filter only if column exists
-            if ($this->db->field_exists('is_active', 'roles')) {
-                $this->db->where('is_active', 1);
-            }
-            // Apply sort_order only if column exists
-            if ($this->db->field_exists('sort_order', 'roles')) {
-                $this->db->order_by('sort_order', 'ASC');
-            }
-            $this->db->order_by('id', 'ASC');
-            $rows = $this->db->get()->result();
-            foreach ($rows as $row) {
-                $rid = (int)$row->id;
-                if ($rid <= 0) { continue; }
-                $out[$rid] = $row->name;
-            }
-        }
-        if (!empty($out)) {
-            return $out;
-        }
-
-        // Fallback mapping if roles table is missing or empty
-        return [
-            1 => 'Admin',
-            2 => 'Manager',
-            3 => 'Lead',
-            4 => 'Staff',
-        ];
+        // Delegate to Role_model to avoid duplicate query logic
+        $this->load->model('Role_model');
+        return $this->Role_model->get_all_as_map();
     }
 
 
     private function modules()
     {
         // Define hierarchical menu structure with sub-modules
+        // Keys must match every has_module_access() call used in controllers and views.
         $menu_structure = [
             'Dashboard' => [
                 'icon' => 'bi-speedometer2',
                 'modules' => [
-                    'dashboard' => 'Dashboard Overview'
+                    'dashboard' => 'Dashboard Overview',
                 ]
             ],
             'Daily Activity' => [
                 'icon' => 'bi-journal-check',
                 'modules' => [
-                    'daily_activity' => 'Daily Activity Access',
-                    'daily_activity_add' => 'Log Activity',
-                    'daily_activity_list' => 'View Activity List',
-                    'daily_activity_report' => 'View Reports',
-                    'daily_activity_delete' => 'Delete Activity'
+                    'daily_activity'        => 'Daily Activity (Full Access)',
+                    'daily_activity_add'    => 'Log / Add Activity',
+                    'daily_activity_list'   => 'View Activity List',
+                    'daily_activity_edit'   => 'Edit Activity Log',
+                    'daily_activity_delete' => 'Delete Activity',
+                    'daily_activity_export' => 'Export Activity CSV',
+                    'daily_activity_report' => 'View Daily Activity Reports',
                 ]
             ],
             'User Management' => [
                 'icon' => 'bi-people',
                 'modules' => [
-                    'users' => 'User Accounts',
-                    'users_list' => 'User List',
-                    'users_add' => 'Add User',
-                    'users_edit' => 'Edit User',
-                    'users_delete' => 'Delete User',
-                    'employees' => 'Employee Management',
-                    'employees_list' => 'Employee List',
-                    'employees_add' => 'Add Employee',
-                    'employees_edit' => 'Edit Employee',
+                    'users'            => 'User Accounts (Full Access)',
+                    'users_list'       => 'View User List',
+                    'users_add'        => 'Add User',
+                    'users_edit'       => 'Edit User',
+                    'users_delete'     => 'Delete User',
+                    'employees'        => 'Employee Management (Full Access)',
+                    'employees_list'   => 'View Employee List',
+                    'employees_add'    => 'Add Employee',
+                    'employees_edit'   => 'Edit Employee',
                     'employees_delete' => 'Delete Employee',
-                    'departments' => 'Departments',
-                    'designations' => 'Designations',
-                    'permissions' => 'Permission Manager',
-                    'profile' => 'View Profile'
+                    'departments'      => 'Department Management',
+                    'designations'     => 'Designation Management',
+                    'roles'            => 'Role Management',
+                    'profile'          => 'View Own Profile',
                 ]
             ],
             'Project Management' => [
                 'icon' => 'bi-kanban',
                 'modules' => [
-                    'projects' => 'Projects',
-                    'projects_list' => 'Project List',
-                    'projects_add' => 'Add Project',
-                    'projects_edit' => 'Edit Project',
-                    'projects_delete' => 'Delete Project',
-                    'tasks' => 'Task Management',
-                    'tasks_list' => 'Task List',
-                    'tasks_add' => 'Add Task',
-                    'tasks_edit' => 'Edit Task',
-                    'tasks_delete' => 'Delete Task',
-                    'requirements' => 'Requirements',
-                    'requirements_list' => 'Requirements List',
-                    'requirements_add' => 'Add Requirement',
-                    'requirements_edit' => 'Edit Requirement',
-                    'requirements_delete' => 'Delete Requirement',
-                    'timesheets' => 'Timesheets',
-                    'timesheets_list' => 'Timesheet List',
-                    'timesheets_add' => 'Add Timesheet',
-                    'timesheets_edit' => 'Edit Timesheet',
-                    'timesheets_delete' => 'Delete Timesheet'
+                    'projects'             => 'Projects (Full Access)',
+                    'projects_list'        => 'View Project List',
+                    'projects_add'         => 'Add Project',
+                    'projects_edit'        => 'Edit Project',
+                    'projects_delete'      => 'Delete Project',
+                    'tasks'                => 'Task Management (Full Access)',
+                    'tasks_list'           => 'View Task List',
+                    'tasks_add'            => 'Add Task',
+                    'tasks_edit'           => 'Edit Task',
+                    'tasks_delete'         => 'Delete Task',
+                    'requirements'         => 'Requirements (Full Access)',
+                    'requirements_list'    => 'View Requirements List',
+                    'requirements_add'     => 'Add Requirement',
+                    'requirements_edit'    => 'Edit Requirement',
+                    'requirements_delete'  => 'Delete Requirement',
+                    'timesheets'           => 'Timesheets (Full Access)',
+                    'timesheets_list'      => 'View Timesheet List',
+                    'timesheets_add'       => 'Add Timesheet Entry',
+                    'timesheets_edit'      => 'Edit Timesheet Entry',
+                    'timesheets_delete'    => 'Delete Timesheet Entry',
                 ]
             ],
             'Attendance & Leave' => [
                 'icon' => 'bi-calendar-check',
                 'modules' => [
-                    'shifts' => 'Shift Management',
-                    'shifts_view' => 'View Shifts',
-                    'shifts_manage' => 'Manage Shifts',
-                    'attendance' => 'Attendance',
-                    'attendance_list' => 'Attendance List',
-                    'attendance_add' => 'Mark Attendance',
-                    'attendance_edit' => 'Edit Attendance',
-                    'attendance_delete' => 'Delete Attendance',
-                    'attendance_bulk' => 'Bulk Operations',
-                    'leave_requests' => 'Leave Management',
-                    'leaves' => 'Personal Leave Screen',
-                    'leaves_list' => 'Leave List',
-                    'leaves_add' => 'Apply Leave',
-                    'leaves_edit' => 'Edit Leave',
-                    'leaves_delete' => 'Delete Leave',
-                    'leave_team' => 'View Team Leaves',
-                    'leave_calendar' => 'Leave Calendar',
-                    'leave_approve' => 'Approve / Reject Leaves',
-                    'holidays' => 'Holiday Management',
-                    'holidays_add' => 'Add Holiday',
-                    'holidays_edit' => 'Edit Holiday',
-                    'holidays_delete' => 'Delete Holiday',
-                    'leave_types' => 'Leave Type Management',
-                    'leave_types_add' => 'Add Leave Type',
-                    'leave_types_edit' => 'Edit Leave Type',
-                    'leave_types_delete' => 'Delete Leave Type'
+                    'shifts'              => 'Shift Management (Full Access)',
+                    'shifts_view'         => 'View Shifts',
+                    'shifts_manage'       => 'Manage / Edit Shifts',
+                    'attendance'          => 'Attendance (Full Access)',
+                    'attendance_list'     => 'View Attendance List',
+                    'attendance_add'      => 'Mark / Add Attendance',
+                    'attendance_edit'     => 'Edit Attendance Record',
+                    'attendance_delete'   => 'Delete Attendance Record',
+                    'attendance_bulk'     => 'Bulk Attendance Operations',
+                    'leave_requests'      => 'Leave Management — Admin View (Full Access)',
+                    'leave_team'          => 'View Team Leaves',
+                    'leave_calendar'      => 'Leave Calendar',
+                    'leave_approve'       => 'Approve / Reject Leaves',
+                    'leaves'              => 'My Leaves — Personal Leave Screen',
+                    'leaves_list'         => 'View Own Leave List',
+                    'leaves_add'          => 'Apply for Leave',
+                    'leaves_edit'         => 'Edit Own Leave Request',
+                    'leaves_delete'       => 'Delete Own Leave Request',
+                    'holidays'            => 'Holiday Management (Full Access)',
+                    'holidays_add'        => 'Add Holiday',
+                    'holidays_edit'       => 'Edit Holiday',
+                    'holidays_delete'     => 'Delete Holiday',
+                    'leave_types'         => 'Leave Type Management (Full Access)',
+                    'leave_types_add'     => 'Add Leave Type',
+                    'leave_types_edit'    => 'Edit Leave Type',
+                    'leave_types_delete'  => 'Delete Leave Type',
                 ]
             ],
             'Communication' => [
                 'icon' => 'bi-chat-dots',
                 'modules' => [
-                    'chats' => 'Chat System',
-                    'chats_list' => 'Chat List',
-                    'chats_add' => 'Start Chat',
-                    'chatsgrouping' => 'Create Chat Groups',
-                    'announcements' => 'Announcements',
-                    'announcements_list' => 'Announcement List',
-                    'announcements_add' => 'Add Announcement',
-                    'announcements_edit' => 'Edit Announcement',
-                    'announcements_delete' => 'Delete Announcement',
-                    'calls' => 'Call System'
+                    'chats'                  => 'Chat System (Full Access)',
+                    'chats_list'             => 'View Chat List',
+                    'chats_add'              => 'Start New Chat / DM',
+                    'chatsgrouping'          => 'Create / Manage Chat Groups',
+                    'calls'                  => 'Video / Audio Calls',
+                    'notifications'          => 'Notifications Center',
+                    'announcements'          => 'Announcements (Full Access)',
+                    'announcements_list'     => 'View Announcements',
+                    'announcements_add'      => 'Create Announcement',
+                    'announcements_edit'     => 'Edit Announcement',
+                    'announcements_delete'   => 'Delete Announcement',
                 ]
             ],
             'Recruitment' => [
                 'icon' => 'bi-person-plus',
                 'modules' => [
-                    'recruitment' => 'Recruitment Dashboard',
-                    'recruitment_jobs' => 'Manage Jobs',
-                    'recruitment_candidates' => 'Manage Candidates',
-                    'recruitment_interviews' => 'Interviews'
+                    'recruitment'              => 'Recruitment (Full Access)',
+                    'recruitment_jobs'         => 'Manage Job Postings (Create / Edit / Delete)',
+                    'recruitment_candidates'   => 'View & Manage Candidates',
+                    'recruitment_interviews'   => 'Schedule Interviews',
+                    'recruitment_export'       => 'Export Candidates CSV',
                 ]
             ],
             'Performance' => [
                 'icon' => 'bi-award',
                 'modules' => [
-                    'performance' => 'Performance Appraisals',
-                    'performance_create' => 'Create Appraisal',
-                    'performance_view' => 'View Appraisal Details',
-                    'performance_edit' => 'Edit Appraisal',
-                    'performance_delete' => 'Delete Appraisal'
+                    'performance'             => 'Performance Appraisals (Full Access)',
+                    'performance_create'      => 'Create Appraisal',
+                    'performance_view'        => 'View Appraisal Details',
+                    'performance_edit'        => 'Edit Appraisal',
+                    'performance_delete'      => 'Delete Appraisal',
+                    'performance_self_assess' => 'Submit Self-Assessment',
+                    'performance_export'      => 'Export Appraisals CSV',
                 ]
             ],
             'Business Management' => [
                 'icon' => 'bi-briefcase',
                 'modules' => [
-                    'clients' => 'Client Management',
-                    'clients_list' => 'Client List',
-                    'clients_add' => 'Add Client',
-                    'clients_edit' => 'Edit Client',
-                    'clients_delete' => 'Delete Client',
-                    'payroll' => 'Payroll Management',
-                    'payroll_view' => 'View Payslips',
-                    'payroll_manage' => 'Manage Structures & Generate',
-                    'expenses' => 'Expense Management',
-                    'expenses_add' => 'Create Expense Request',
-                    'expenses_edit' => 'Edit Expense',
-                    'expenses_delete' => 'Delete Expense',
-                    'expenses_approve' => 'Approve Expenses',
-                    'expenses_reimburse' => 'Reimburse Expenses',
-                    'expenses_reports' => 'Expense Reports',
-                    'expenses_categories' => 'Expense Categories',
-                    'assets' => 'Asset Management',
-                    'assets_list' => 'Asset List',
-                    'assets_add' => 'Add Asset',
-                    'assets_edit' => 'Edit Asset',
-                    'assets_delete' => 'Delete Asset'
+                    'clients'              => 'Client Management (Full Access)',
+                    'clients_list'         => 'View Client List',
+                    'clients_add'          => 'Add Client',
+                    'clients_edit'         => 'Edit Client',
+                    'clients_delete'       => 'Delete Client',
+                    'payroll'              => 'Payroll (Full Access)',
+                    'payroll_view'         => 'View Own Payslips',
+                    'payroll_manage'       => 'Manage Salary Structures & Generate Payslips',
+                    'expenses'             => 'Expense Management (Full Access)',
+                    'expenses_add'         => 'Create Expense Request',
+                    'expenses_edit'        => 'Edit Own Expense',
+                    'expenses_delete'      => 'Delete Own Expense',
+                    'expenses_approve'     => 'Approve / Reject Expenses',
+                    'expenses_reimburse'   => 'Mark Expense as Reimbursed',
+                    'expenses_reports'     => 'View Expense Reports',
+                    'expenses_categories'  => 'Manage Expense Categories',
+                    'expenses_export'      => 'Export Expenses CSV',
+                    'assets'               => 'Asset Management (Full Access)',
+                    'assets_mgmt'          => 'Asset Management (Legacy Key)',
+                    'assets_list'          => 'View Asset List',
+                    'assets_add'           => 'Add Asset',
+                    'assets_edit'          => 'Edit Asset',
+                    'assets_delete'        => 'Delete Asset',
+                    'assets_assign'        => 'Assign / Return Assets',
                 ]
             ],
             'Reports & Analytics' => [
                 'icon' => 'bi-graph-up',
                 'modules' => [
-                    'analytics' => 'AI Analytics',
-                    'ai' => 'AI Assistant',
-                    'ai_chat' => 'AI Chat',
-                    'ai_widget' => 'AI Floating Button',
-                    'reports' => 'Reports',
-                    'reports_overview' => 'Overview Reports',
-                    'reports_requirements' => 'Requirements Reports',
-                    'reports_tasks_assignment' => 'Task Assignment Reports',
-                    'reports_projects_status' => 'Project Status Reports',
-                    'reports_leaves' => 'Leave Reports',
-                    'reports_attendance' => 'Attendance Reports',
-                    'reports_attendance_employee' => 'Employee Attendance Reports',
-                    'reports_daily_activity' => 'Daily Activity Report (Reports)'
+                    'analytics'                    => 'AI Analytics Dashboard',
+                    'ai'                           => 'AI Assistant',
+                    'ai_chat'                      => 'AI Chat',
+                    'ai_widget'                    => 'AI Floating Widget',
+                    'reports'                      => 'Reports (Full Access)',
+                    'reports_overview'             => 'Overview / Dashboard Reports',
+                    'reports_requirements'         => 'Requirements Reports',
+                    'reports_tasks_assignment'     => 'Task Assignment Reports',
+                    'reports_projects_status'      => 'Project Status Reports',
+                    'reports_leaves'               => 'Leave Reports',
+                    'reports_attendance'           => 'Attendance Reports',
+                    'reports_attendance_employee'  => 'Employee Attendance Detail Reports',
+                    'reports_daily_activity'       => 'Daily Activity Reports',
+                    'reports_payroll'              => 'Payroll Reports',
+                    'reports_expenses'             => 'Expenses Reports',
+                    'reports_performance'          => 'Performance Reports',
                 ]
             ],
             'System Administration' => [
                 'icon' => 'bi-gear',
                 'modules' => [
-                    'settings' => 'System Settings',
-                    'db' => 'Database Manager',
-                    'approvals' => 'Approval Workflows',
-                    'reminders' => 'Reminders',
-                    'reminders_list' => 'Reminder List',
-                    'reminders_add' => 'Add Reminder',
-                    'reminders_edit' => 'Edit Reminder',
+                    'settings'         => 'System Settings (General)',
+                    'admin'            => 'Admin Access (General Override)',
+                    'system_settings'  => 'System Settings Panel (Advanced)',
+                    'db'               => 'Database Manager',
+                    'migrate'          => 'Database Migrations',
+                    'approvals'        => 'Approval Workflows',
+                    'reminders'        => 'Reminders (Full Access)',
+                    'reminders_list'   => 'View Reminders',
+                    'reminders_add'    => 'Add Reminder',
+                    'reminders_edit'   => 'Edit Reminder',
                     'reminders_delete' => 'Delete Reminder',
-                    'activity' => 'Activity Log',
-                    'mail' => 'Mail Configuration',
-                    'sendgrid' => 'SendGrid Email API',
-                    'email_settings' => 'Email Settings',
-                    'whatsapp' => 'WhatsApp Integration',
-                    'roles' => 'Role Management',
-                    'statuses' => 'Status Management',
+                    'activity'         => 'Activity Log Viewer',
+                    'mail'             => 'Mail (SMTP) Configuration',
+                    'sendgrid'         => 'SendGrid Email API',
+                    'email_settings'   => 'Email Settings & Templates',
+                    'whatsapp'         => 'WhatsApp Integration',
+                    'permissions'      => 'Permission Manager',
+                    'statuses'         => 'Status Management',
                     'api_integrations' => 'API Integrations',
-                    'admin' => 'Admin Access',
-                    'notifications' => 'Notifications',
-                    'superadmin' => 'Super Admin Panel',
-                    'system_settings' => 'System Settings Panel',
-                    'migrate' => 'Database Migrations'
+                    'superadmin'       => 'Super Admin Panel',
                 ]
             ]
         ];
@@ -413,7 +415,16 @@ class Permissions extends CI_Controller {
 
     public function save()
     {
-        // Admin-only enforced in __construct
+        // Restrict permission writes to admin role only — prevents privilege escalation
+        $role_id = (int)$this->session->userdata('role_id');
+        if ($role_id !== ROLE_ADMIN) {
+            show_error('Only administrators can modify permissions.', 403);
+        }
+
+        if ($this->input->method() !== 'post') {
+            redirect('permissions');
+            return;
+        }
 
         $roles = $this->roles();
         $modules = $this->modules();

@@ -109,16 +109,30 @@ class Attendance extends CI_Controller {
 
     // Get user's monthly attendance data for popup
     public function get_user_monthly_attendance() {
-        $user_id = $this->input->post('user_id');
+        $requested_user_id = (int)$this->input->post('user_id');
+        $current_user_id   = (int)$this->session->userdata('user_id');
+        $current_role_id   = (int)$this->session->userdata('role_id');
+
+        if (!$requested_user_id) {
+            echo json_encode(['success' => false, 'message' => 'User ID required']);
+            return;
+        }
+
+        // IDOR protection: non-admin/manager users may only query their own attendance
+        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group())
+                        || in_array($current_role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
+        if ($requested_user_id !== $current_user_id && !$isAdminGroup) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Access denied.']);
+            return;
+        }
+
+        $user_id     = $requested_user_id;
         $filter_type = $this->input->post('filter_type'); // 'date', 'month', 'year'
         $filter_value = $this->input->post('filter_value');
         $page = (int)$this->input->post('page') ?: 1;
         $per_page = 10; // Records per page in popup
-        
-        if (!$user_id) {
-            echo json_encode(['success' => false, 'message' => 'User ID required']);
-            return;
-        }
         
         // Schema-aware column names
         $col_date = 'att_date';
@@ -1534,9 +1548,14 @@ class Attendance extends CI_Controller {
         $this->load->view('attendance/edit', ['att' => $att]);
     }
 
-    // POST/GET /attendance/{id}/delete
+    // POST /attendance/{id}/delete
     public function delete($id)
     {
+        // Destructive actions must be POST only
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+        }
+
         // Check delete permission specifically
         if (!function_exists('has_module_access') || (!has_module_access('attendance_delete') && !has_module_access('attendance'))) {
             show_error('You do not have permission to delete attendance.', 403);

@@ -358,6 +358,7 @@ class Employees extends CI_Controller {
     // POST /employees/{id}/delete
     public function delete($id)
     {
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Check delete permission specifically
         if (!function_exists('has_module_access') || (!has_module_access('employees_delete') && !has_module_access('employees'))) {
             show_error('You do not have permission to delete employees.', 403);
@@ -513,6 +514,12 @@ class Employees extends CI_Controller {
     // GET/POST /employees/import
     public function import()
     {
+        // Only admin/manager roles may import employees
+        $role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+            show_error('You do not have permission to import employees.', 403);
+        }
+
         if ($this->input->method() === 'post') {
             if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
                 $this->session->set_flashdata('error', 'Please upload a valid CSV file');
@@ -564,6 +571,14 @@ class Employees extends CI_Controller {
 
     public function user_meta($user_id = null)
     {
+        // Only admin/manager roles may fetch user metadata
+        $current_role_id = (int)$this->session->userdata('role_id');
+        if (!in_array($current_role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+            $this->output->set_status_header(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied.']);
+            return;
+        }
+
         $user_id = (int)$user_id;
         $this->output->set_content_type('application/json');
         if ($user_id <= 0) {

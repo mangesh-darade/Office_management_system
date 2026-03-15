@@ -122,6 +122,7 @@ class Statuses extends CI_Controller {
     
     // POST /statuses/{id}/delete
     public function delete($id){
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         $status = $this->statuses->get_by_id((int)$id);
         if (!$status) show_404();
         

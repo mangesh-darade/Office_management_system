@@ -10,6 +10,7 @@
       <p class="text-muted mb-0">Manage employee payslips and salary structures</p>
     </div>
     <div class="d-flex gap-2">
+      <?php if(function_exists('has_module_access') && (has_module_access('payroll_manage') || has_module_access('payroll') || is_admin_group())): ?>
       <div class="btn-group" role="group">
         <a href="<?php echo site_url('payroll/structures'); ?>" class="btn btn-outline-primary">
           <i class="bi bi-diagram-3 me-1"></i>Salary Structures
@@ -18,6 +19,7 @@
           <i class="bi bi-plus-circle me-1"></i>Generate Payslip
         </a>
       </div>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -201,12 +203,14 @@
         <div class="col-md-4">
           <label class="form-label small text-muted">Actions</label>
           <div class="btn-group w-100" role="group">
+            <?php if(function_exists('has_module_access') && (has_module_access('payroll_manage') || has_module_access('payroll') || is_admin_group())): ?>
             <button type="button" class="btn btn-sm btn-outline-primary" onclick="exportPayslips('csv')">
               <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
             </button>
             <button type="button" class="btn btn-sm btn-outline-success" onclick="exportPayslips('pdf')">
               <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
             </button>
+            <?php endif; ?>
             <button type="button" class="btn btn-sm btn-outline-info" onclick="applyFilters()">
               <i class="bi bi-check-circle me-1"></i>Apply Filters
             </button>
@@ -222,6 +226,7 @@
       <div class="d-flex align-items-center justify-content-between">
         <h5 class="mb-0"><i class="bi bi-table me-2"></i>Payslips Register</h5>
         <div class="d-flex align-items-center gap-2">
+          <?php if(function_exists('has_module_access') && (has_module_access('payroll_manage') || has_module_access('payroll') || is_admin_group())): ?>
           <div class="form-check form-check-inline">
             <input class="form-check-input" type="checkbox" id="selectAllPayslips">
             <label class="form-check-label" for="selectAllPayslips">Select All</label>
@@ -229,6 +234,7 @@
           <button type="button" class="btn btn-sm btn-primary" onclick="sendSelectedEmails()" id="sendEmailBtn" disabled>
             <i class="bi bi-envelope me-1"></i>Send Email (<span id="selectedCount">0</span>)
           </button>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -258,9 +264,11 @@
                     <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
                     <h5>No payslips found</h5>
                     <p>Generate your first payslip to get started</p>
+                    <?php if(function_exists('has_module_access') && (has_module_access('payroll_manage') || has_module_access('payroll') || is_admin_group())): ?>
                     <a href="<?php echo site_url('payroll/generate'); ?>" class="btn btn-primary">
                       <i class="bi bi-plus-circle me-1"></i>Generate Payslip
                     </a>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>
@@ -325,6 +333,7 @@
                     <a href="<?php echo site_url('payroll/view/'.(int)$r->id); ?>" class="btn btn-outline-primary" title="View Payslip">
                       <i class="bi bi-eye"></i>
                     </a>
+                    <?php if(function_exists('has_module_access') && (has_module_access('payroll_manage') || has_module_access('payroll') || is_admin_group())): ?>
                     <button type="button" class="btn btn-outline-success" onclick="sendSingleEmail(<?php echo (int)$r->id; ?>)" title="Email Payslip">
                       <i class="bi bi-envelope"></i>
                     </button>
@@ -334,6 +343,7 @@
                     <button type="button" class="btn btn-outline-warning" onclick="duplicatePayslip(<?php echo (int)$r->id; ?>)" title="Duplicate">
                       <i class="bi bi-files"></i>
                     </button>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>
@@ -675,7 +685,10 @@ function sendSelectedEmails() {
     ids.forEach(id => {
         formData.append('ids[]', id);
     });
-    
+    // Inject CSRF token
+    const _csrfM = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+    if (_csrfM) formData.append('<?php echo $this->security->get_csrf_token_name(); ?>', decodeURIComponent(_csrfM[1]));
+
     // Send via AJAX for better UX
     fetch('<?php echo site_url('payroll/send_payslips'); ?>', {
         method: 'POST',
@@ -731,7 +744,10 @@ function sendSingleEmail(id) {
     // Create form data
     const formData = new FormData();
     formData.append('ids[]', id);
-    
+    // Inject CSRF token
+    const _csrfMs = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+    if (_csrfMs) formData.append('<?php echo $this->security->get_csrf_token_name(); ?>', decodeURIComponent(_csrfMs[1]));
+
     // Send via AJAX for better UX
     fetch('<?php echo site_url('payroll/send_payslips'); ?>', {
         method: 'POST',

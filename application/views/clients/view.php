@@ -2,8 +2,16 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Client: <?php echo htmlspecialchars($client->company_name); ?></h1>
   <div class="d-flex gap-2">
-    <a class="btn btn-light btn-sm" href="<?php echo site_url('clients'); ?>">Back</a>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/edit/'.(int)$client->id); ?>">Edit</a>
+    <a class="btn btn-light btn-sm" href="<?php echo site_url('clients'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <?php if(function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
+    <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/edit/'.(int)$client->id); ?>"><i class="bi bi-pencil me-1"></i>Edit</a>
+    <?php endif; ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'))): ?>
+    <button type="button" class="btn btn-danger btn-sm"
+            onclick="confirmDeleteClient(<?php echo (int)$client->id; ?>, '<?php echo htmlspecialchars(addslashes($client->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
+      <i class="bi bi-trash me-1"></i>Delete
+    </button>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -216,6 +224,37 @@
       });
     });
   });
+</script>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteClientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Client</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">Are you sure you want to permanently delete:</p>
+        <p class="fw-bold fs-6" id="deleteClientName"></p>
+        <p class="text-muted small mb-0">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteClientForm" method="post" action="" class="d-inline">
+          <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Yes, Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function confirmDeleteClient(id, name) {
+  document.getElementById('deleteClientName').textContent = name;
+  document.getElementById('deleteClientForm').action = '<?php echo site_url('clients/delete/'); ?>' + id;
+  new bootstrap.Modal(document.getElementById('deleteClientModal')).show();
+}
 </script>
 
 <?php $this->load->view('partials/footer'); ?>

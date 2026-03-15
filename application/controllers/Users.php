@@ -110,51 +110,6 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
-        // Enforce Gmail-only and verification code similar to auth/register
-        $verify_code = trim((string)$this->input->post('verify_code'));
-        $domain = '';
-        if (strpos($in['email'], '@') !== false) {
-            $parts = explode('@', $in['email']);
-            $domain = isset($parts[1]) ? strtolower(trim($parts[1])) : '';
-        }
-        if ($domain !== 'gmail.com' && $domain !== 'googlemail.com') {
-            $this->session->set_flashdata('error', 'Please use a Gmail address (example@gmail.com).');
-            redirect('users/create');
-            return;
-        }
-        if ($domain !== '' && function_exists('checkdnsrr')) {
-            $hasMx = @checkdnsrr($domain, 'MX');
-            $hasA  = @checkdnsrr($domain, 'A');
-            if (!$hasMx && !$hasA) {
-                $this->session->set_flashdata('error', 'Email domain does not appear to be valid.');
-                redirect('users/create');
-                return;
-            }
-        }
-        $this->load->library('session');
-        $sessionEmail = (string)$this->session->userdata('reg_email');
-        $sessionHash  = (string)$this->session->userdata('reg_code_hash');
-        $sessionExp   = (int)$this->session->userdata('reg_code_expires');
-        if ($sessionEmail === '' || strcasecmp($sessionEmail, $in['email']) !== 0) {
-            $this->session->set_flashdata('error', 'Please request a verification code for this email first.');
-            redirect('users/create');
-            return;
-        }
-        if ($verify_code === '') {
-            $this->session->set_flashdata('error', 'Please enter the verification code sent to this Gmail.');
-            redirect('users/create');
-            return;
-        }
-        if (!$sessionHash || !$sessionExp || time() > $sessionExp) {
-            $this->session->set_flashdata('error', 'Verification code has expired. Please request a new code.');
-            redirect('users/create');
-            return;
-        }
-        if (!password_verify($verify_code, $sessionHash)) {
-            $this->session->set_flashdata('error', 'Invalid verification code.');
-            redirect('users/create');
-            return;
-        }
         // Validate role and status
         $roles = $this->roles();
         $roleIdPost = $this->input->post('role_id', true);
@@ -252,12 +207,12 @@ class Users extends CI_Controller {
     }
 
     public function edit($id = null) {
+        if (!function_exists('has_module_access') || (!has_module_access('users_edit') && !has_module_access('users'))) {
+            show_error('You do not have permission to edit users.', 403);
+        }
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
-        
-        // CSRF cookie is automatically set by CodeIgniter on GET requests
-        // No need to manually set it
         
         // Check if face is already registered
         $this->faces->ensure_schema();
@@ -279,6 +234,9 @@ class Users extends CI_Controller {
     }
 
     public function update($id = null) {
+        if (!function_exists('has_module_access') || (!has_module_access('users_edit') && !has_module_access('users'))) {
+            show_error('You do not have permission to edit users.', 403);
+        }
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
@@ -410,6 +368,9 @@ class Users extends CI_Controller {
     }
 
     public function delete($id = null) {
+        if (!function_exists('has_module_access') || !has_module_access('users_delete')) {
+            show_error('You do not have permission to delete users.', 403);
+        }
         $this->load->helper('change_tracker');
         $id = (int)$id;
         $row = $this->users->find($id);
@@ -419,6 +380,10 @@ class Users extends CI_Controller {
     }
 
     public function destroy($id = null) {
+        // Destructive actions must be POST only
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+        }
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
@@ -577,9 +542,15 @@ class Users extends CI_Controller {
         if ($user_id <= 0) {
             return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Missing user id']));
         }
-        // Only admin/HR or the user themself can update face
-        if (!in_array($role_id, [1,2], true) && $currentUserId !== $user_id) {
-            return $this->output->set_status_header(403)->set_output(json_encode(['ok' => false, 'error' => 'Forbidden']));
+
+        // Allow: the user editing their own face, OR anyone with users_edit / users permission
+        $is_self        = ($currentUserId === $user_id);
+        $is_admin_group = function_exists('is_admin_group') && is_admin_group();
+        $has_edit_perm  = function_exists('has_module_access')
+                          && (has_module_access('users_edit') || has_module_access('users'));
+
+        if (!$is_self && !$is_admin_group && !$has_edit_perm) {
+            return $this->output->set_status_header(403)->set_output(json_encode(['ok' => false, 'error' => 'You do not have permission to save face data for this user.']));
         }
 
         $descriptor = isset($payload['descriptor']) ? (string)$payload['descriptor'] : '';

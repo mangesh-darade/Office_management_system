@@ -2,9 +2,11 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h4 mb-0">Status Management</h1>
   <div>
+    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || is_admin_group())): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('statuses/create'); ?>">
       <i class="bi bi-plus-lg"></i> Add Status
     </a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -91,13 +93,15 @@
                     <a class="btn btn-outline-primary" href="<?php echo site_url('statuses/view/'.$status->id); ?>" title="View">
                       <i class="bi bi-eye"></i>
                     </a>
+                    <?php if(function_exists('has_module_access') && (has_module_access('statuses') || is_admin_group())): ?>
                     <a class="btn btn-outline-secondary" href="<?php echo site_url('statuses/edit/'.$status->id); ?>" title="Edit">
                       <i class="bi bi-pencil"></i>
                     </a>
-                    <a class="btn btn-outline-danger" href="<?php echo site_url('statuses/delete/'.$status->id); ?>" 
-                       onclick="return confirm('Delete this status? This action cannot be undone.');" title="Delete">
-                      <i class="bi bi-trash"></i>
-                    </a>
+                    <form method="post" action="<?php echo site_url('statuses/delete/'.$status->id); ?>" class="d-inline" onsubmit="return confirm('Delete this status? This action cannot be undone.');">
+                      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                      <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                    </form>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>

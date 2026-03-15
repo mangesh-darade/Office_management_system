@@ -95,6 +95,10 @@ class Recruitment_model extends CI_Model {
         return $this->db->insert_id();
     }
 
+    public function delete_job($id){
+        $this->db->where('id', (int)$id)->delete($this->table_jobs);
+    }
+
     // Candidate Methods
     public function get_candidates($job_id = null, $status = null){
         $this->db->select('c.*, j.title as job_title');

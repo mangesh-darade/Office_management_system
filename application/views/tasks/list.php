@@ -6,8 +6,10 @@
     <p class="text-muted small mb-0">Track and manage all tasks</p>
   </div>
   <div class="d-flex gap-2 mt-2 mt-sm-0">
+    <?php if(function_exists('has_module_access') && (has_module_access('tasks_add') || has_module_access('tasks'))): ?>
     <a class="btn btn-primary btn-sm" title="Create" href="<?php echo site_url('tasks/create'); ?>"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">New Task</span></a>
     <a class="btn btn-outline-secondary btn-sm" title="Import CSV" href="<?php echo site_url('tasks/import'); ?>"><i class="bi bi-upload me-1"></i><span class="d-none d-sm-inline">Import</span></a>
+    <?php endif; ?>
     <a class="btn btn-outline-dark btn-sm" title="Board View" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Board</span></a>
   </div>
 </div>
@@ -116,8 +118,15 @@
               <td><span class="badge bg-secondary"><?php echo htmlspecialchars(isset($t->priority) ? $t->priority : ''); ?></span></td>
               <td class="text-end">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('tasks/'.$t->id); ?>"><i class="bi bi-eye"></i></a>
+                <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
                 <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
-                <a class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Delete this task?')" href="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>"><i class="bi bi-trash"></i></a>
+                <?php endif; ?>
+                <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
+                <form method="post" action="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
+                  <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                </form>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>

@@ -45,6 +45,7 @@
                   </td>
                   <td>
                     <div class="d-flex gap-2">
+                      <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || is_admin_group())): ?>
                       <form method="post" action="<?php echo site_url('projects/'.$project->id.'/member/'.(int)$m->user_id.'/role'); ?>" class="d-flex gap-2">
                         <select name="role" class="form-select form-select-sm" required>
                           <?php $roles=['manager','lead','developer','tester','viewer','member']; foreach ($roles as $r): ?>
@@ -53,7 +54,11 @@
                         </select>
                         <button class="btn btn-outline-primary btn-sm">Update</button>
                       </form>
-                      <a class="btn btn-outline-danger btn-sm" href="<?php echo site_url('projects/'.$project->id.'/remove-member/'.(int)$m->user_id); ?>" onclick="return confirm('Remove this member?')">Remove</a>
+                      <form method="post" action="<?php echo site_url('projects/'.$project->id.'/remove-member/'.(int)$m->user_id); ?>" class="d-inline" onsubmit="return confirm('Remove this member?');">
+                        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                      </form>
+                      <?php endif; ?>
                     </div>
                   </td>
                 </tr>
@@ -68,6 +73,7 @@
     <div class="card shadow-soft h-100">
       <div class="card-body">
         <h2 class="h6">Add Member</h2>
+        <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || is_admin_group())): ?>
         <form method="get" class="d-flex gap-2 mb-3">
           <input type="text" class="form-control" name="q" placeholder="Search users by email or name" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" />
           <button class="btn btn-outline-secondary">Search</button>
@@ -113,6 +119,9 @@
           <div class="text-muted">No users found for your search.</div>
         <?php else: ?>
           <div class="text-muted">Search to find users to add as members.</div>
+        <?php endif; ?>
+        <?php else: ?>
+          <div class="text-muted small"><i class="bi bi-lock me-1"></i>You do not have permission to manage project members.</div>
         <?php endif; ?>
       </div>
     </div>

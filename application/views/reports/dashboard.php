@@ -100,24 +100,46 @@
         </div>
         <h1 class="h3 fw-bold mb-3">Reports Dashboard</h1>
         <div class="d-flex gap-2 flex-wrap">
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_requirements') || has_module_access('reports'))): ?>
           <a class="btn btn-light btn-sm" href="<?php echo site_url('reports/requirements'); ?>">
             <i class="bi bi-clipboard-data me-2"></i>Requirements
           </a>
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_projects_status') || has_module_access('reports'))): ?>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/projects-status'); ?>">
             <i class="bi bi-diagram-3 me-2"></i>Projects
           </a>
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_leaves') || has_module_access('reports'))): ?>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/leaves'); ?>">
             <i class="bi bi-calendar-check me-2"></i>Leaves
           </a>
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_tasks_assignment') || has_module_access('reports'))): ?>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/tasks-assignment'); ?>">
             <i class="bi bi-people me-2"></i>Team
           </a>
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_attendance') || has_module_access('reports'))): ?>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/attendance'); ?>">
             <i class="bi bi-calendar-check me-2"></i>Attendance
           </a>
-          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/daily_activity'); ?>">
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_daily_activity') || has_module_access('reports'))): ?>
+          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/daily-activity'); ?>">
             <i class="bi bi-journal-text me-2"></i>Daily Activity
           </a>
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_payroll') || has_module_access('reports'))): ?>
+          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/payroll'); ?>">
+            <i class="bi bi-cash-coin me-2"></i>Payroll
+          </a>
+          <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_expenses') || has_module_access('reports'))): ?>
+          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/expenses'); ?>">
+            <i class="bi bi-receipt me-2"></i>Expenses
+          </a>
+          <?php endif; ?>
         </div>
       </div>
     </div>

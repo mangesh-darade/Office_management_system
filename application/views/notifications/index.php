@@ -103,7 +103,7 @@
                 <!-- Actions -->
                 <div class="mt-2">
                   <?php if ($notification->action_url): ?>
-                    <a href="<?php echo $notification->action_url; ?>" class="btn btn-sm btn-outline-primary">
+                    <a href="<?php echo htmlspecialchars($notification->action_url, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-primary">
                       <i class="bi bi-arrow-right me-1"></i>View
                     </a>
                   <?php endif; ?>
@@ -144,63 +144,54 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Helper: get CSRF token from cookie
+    function csrfToken() {
+        var m = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    function csrfBody(extra) {
+        var base = '<?php echo $this->security->get_csrf_token_name(); ?>=' + encodeURIComponent(csrfToken());
+        return extra ? base + '&' + extra : base;
+    }
+
     // Mark all as read
     document.getElementById('markAllRead')?.addEventListener('click', function() {
         if (!confirm('Mark all notifications as read?')) return;
-        
         fetch('<?php echo site_url('notifications/mark-all-read'); ?>', {
             method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: csrfBody()
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            }
-        });
+        .then(r => r.json())
+        .then(data => { if (data.success) location.reload(); });
     });
-    
+
     // Mark single as read
     document.querySelectorAll('.mark-read').forEach(btn => {
         btn.addEventListener('click', function() {
             const id = this.dataset.id;
-            
             fetch(`<?php echo site_url('notifications'); ?>/${id}/mark-read`, {
                 method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: csrfBody()
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            });
+            .then(r => r.json())
+            .then(data => { if (data.success) location.reload(); });
         });
     });
-    
+
     // Delete notification
     document.querySelectorAll('.delete-notification').forEach(btn => {
         btn.addEventListener('click', function() {
             if (!confirm('Delete this notification?')) return;
-            
             const id = this.dataset.id;
-            
             fetch(`<?php echo site_url('notifications'); ?>/${id}/delete`, {
                 method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: csrfBody()
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                }
-            });
+            .then(r => r.json())
+            .then(data => { if (data.success) location.reload(); });
         });
     });
 });

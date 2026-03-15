@@ -5,9 +5,14 @@
         <h4 class="mb-0 text-truncate">Activities</h4>
         <div class="d-flex flex-nowrap gap-2">
             <?php if($is_admin): ?>
-            <a href="<?php echo site_url('reports/daily_activity'); ?>" class="btn btn-outline-secondary" title="View Report"><i class="bi bi-file-earmark-text"></i><span class="d-none d-sm-inline ms-2">Report</span></a>
+            <a href="<?php echo site_url('reports/daily_activity'); ?>" class="btn btn-outline-secondary btn-sm" title="View Report"><i class="bi bi-file-earmark-text"></i><span class="d-none d-sm-inline ms-2">Report</span></a>
             <?php endif; ?>
-            <a href="<?php echo site_url('daily_activity'); ?>" class="btn btn-primary" title="Log New Activity"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline ms-2">Add Activity</span></a>
+            <?php if(function_exists('has_module_access') && (has_module_access('daily_activity_export') || has_module_access('daily_activity') || $is_admin)): ?>
+            <a href="<?php echo site_url('daily-activity/export'); ?>" class="btn btn-outline-success btn-sm" title="Export CSV"><i class="bi bi-download"></i><span class="d-none d-sm-inline ms-2">Export</span></a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('daily_activity') || $is_admin)): ?>
+            <a href="<?php echo site_url('daily-activity'); ?>" class="btn btn-primary btn-sm" title="Log New Activity"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline ms-2">Add Activity</span></a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -21,7 +26,7 @@
     <!-- Filter Card -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form method="get" action="<?php echo site_url('daily_activity/list_all'); ?>" class="row g-2 align-items-end">
+            <form method="get" action="<?php echo site_url('daily-activity/list'); ?>" class="row g-2 align-items-end">
                 <?php if($is_admin && !empty($users)): ?>
                 <div class="col-12 col-md-3">
                     <label class="form-label small fw-bold text-uppercase text-muted mb-1">Employee</label>
@@ -57,7 +62,7 @@
                 
                 <div class="col-6 <?php echo ($is_admin) ? 'col-md-3' : 'col-md-3'; ?> d-flex gap-1 align-items-end">
                     <button type="submit" class="btn btn-primary btn-sm" title="Apply Filter" style="min-width:38px;"><i class="bi bi-funnel"></i></button>
-                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-outline-secondary btn-sm" title="Reset" style="min-width:38px;"><i class="bi bi-x-lg"></i></a>
+                    <a href="<?php echo site_url('daily-activity/list'); ?>" class="btn btn-outline-secondary btn-sm" title="Reset" style="min-width:38px;"><i class="bi bi-x-lg"></i></a>
                 </div>
             </form>
         </div>
@@ -106,11 +111,17 @@
                                         <div class="d-none full-description"><?php echo $log->description; ?></div>
                                     </td>
                                     <td class="text-end" onclick="event.stopPropagation()">
-                                        <?php if (function_exists('has_module_access') && (has_module_access('daily_activity_delete') || has_module_access('daily_activity')) && ($is_admin || $log->user_id == $this->session->userdata('user_id'))): ?>
-                                            <?php echo form_open('daily_activity/delete/' . $log->id, ['onsubmit' => "return confirm('Delete this log?');", 'class' => 'd-inline']); ?>
+                                        <div class="d-flex gap-1 justify-content-end">
+                                        <?php $can_own = ($is_admin || $log->user_id == $this->session->userdata('user_id')); ?>
+                                        <?php if ($can_own && function_exists('has_module_access') && (has_module_access('daily_activity_edit') || has_module_access('daily_activity') || $is_admin)): ?>
+                                            <a href="<?php echo site_url('daily-activity/edit/' . $log->id); ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                        <?php endif; ?>
+                                        <?php if (function_exists('has_module_access') && (has_module_access('daily_activity_delete') || has_module_access('daily_activity')) && $can_own): ?>
+                                            <?php echo form_open('daily-activity/delete/' . $log->id, ['onsubmit' => "return confirm('Delete this log?');", 'class' => 'd-inline']); ?>
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
                                             <?php echo form_close(); ?>
                                         <?php endif; ?>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

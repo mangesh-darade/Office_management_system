@@ -4,9 +4,11 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3>Approval Workflows</h3>
+            <?php if(function_exists('has_module_access') && (has_module_access('approvals') || is_admin_group())): ?>
             <a href="<?php echo site_url('approvals/create'); ?>" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i>Create New Flow
             </a>
+            <?php endif; ?>
         </div>
         
         <div class="card">
@@ -38,10 +40,11 @@
                                     </td>
                                     <td><?php echo date('d M Y', strtotime($flow->created_at)); ?></td>
                                     <td>
+                                        <?php if(function_exists('has_module_access') && (has_module_access('approvals') || is_admin_group())): ?>
                                         <a href="<?php echo site_url('approvals/edit/'.$flow->id); ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <!-- Add delete if needed -->
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

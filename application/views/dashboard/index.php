@@ -13,7 +13,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
         <i class="bi bi-exclamation-triangle me-2"></i>
         <div>
-          <?php echo $this->session->flashdata('access_denied'); ?>
+          <?php echo htmlspecialchars($this->session->flashdata('access_denied'), ENT_QUOTES, 'UTF-8'); ?>
         </div>
       </div>
       <?php endif; ?>

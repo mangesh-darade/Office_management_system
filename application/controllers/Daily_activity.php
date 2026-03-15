@@ -173,7 +173,7 @@ class Daily_activity extends CI_Controller {
         $total_rows = $this->db->count_all_results();
         
         // --- Pagination ---
-        $config['base_url'] = site_url('daily_activity/list_all');
+        $config['base_url'] = site_url('daily-activity/list');
         $config['total_rows'] = $total_rows;
         $config['per_page'] = 20;
         $config['uri_segment'] = 3;
@@ -256,7 +256,107 @@ class Daily_activity extends CI_Controller {
              $this->session->set_flashdata('error', 'Database Error: Could not save activity.');
         }
         
-        redirect('daily_activity?date=' . $work_date);
+        redirect('daily-activity?date=' . $work_date);
+    }
+
+    public function edit($id) {
+        $user_id  = (int)$this->session->userdata('user_id');
+        $role_id  = (int)$this->session->userdata('role_id');
+        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+
+        $log = $this->db->get_where('daily_work_logs', ['id' => (int)$id])->row();
+        if (!$log) { show_404(); return; }
+
+        // Only owner or admin can edit
+        if ($log->user_id != $user_id && !$is_admin) {
+            $this->session->set_flashdata('error', 'You can only edit your own activities.');
+            redirect('daily-activity/list');
+            return;
+        }
+
+        if ($this->input->method() === 'post') {
+            if (!$is_admin && function_exists('has_module_access') && !has_module_access('daily_activity_edit') && !has_module_access('daily_activity_add') && !has_module_access('daily_activity')) {
+                $this->session->set_flashdata('error', 'Permission denied.');
+                redirect('daily-activity/list');
+                return;
+            }
+            $description    = trim($this->input->post('description', TRUE));
+            $activity_title = trim($this->input->post('activity_title'));
+            $task_id        = (int)$this->input->post('task_id');
+            $work_date      = $this->input->post('work_date');
+
+            if (empty($description)) {
+                $this->session->set_flashdata('error', 'Description is required.');
+                redirect('daily-activity/edit/' . $id);
+                return;
+            }
+
+            $this->db->where('id', (int)$id)->update('daily_work_logs', [
+                'activity_title' => !empty($activity_title) ? $activity_title : null,
+                'task_id'        => $task_id > 0 ? $task_id : null,
+                'work_date'      => $work_date,
+                'description'    => $description,
+            ]);
+            $this->session->set_flashdata('success', 'Activity updated successfully.');
+            redirect('daily-activity?date=' . $work_date);
+            return;
+        }
+
+        // Fetch tasks for dropdown
+        $this->db->select('id, title')->from('tasks');
+        if (!$is_admin) {
+            $this->db->group_start();
+            $this->db->where('assigned_to', $user_id);
+            $this->db->or_where('created_by', $user_id);
+            $this->db->group_end();
+        }
+        $tasks = $this->db->order_by('id', 'DESC')->get()->result();
+
+        $this->load->view('daily_activity/edit', [
+            'log'   => $log,
+            'tasks' => $tasks,
+        ]);
+    }
+
+    public function export() {
+        $role_id  = (int)$this->session->userdata('role_id');
+        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+
+        if (!$is_admin && function_exists('has_module_access') && !has_module_access('daily_activity_export') && !has_module_access('daily_activity_report') && !has_module_access('daily_activity')) {
+            show_error('Access denied.', 403);
+        }
+
+        $date_from = $this->input->get('date_from') ? $this->input->get('date_from') : date('Y-m-01');
+        $date_to   = $this->input->get('date_to')   ? $this->input->get('date_to')   : date('Y-m-d');
+        $user_id   = (int)$this->session->userdata('user_id');
+
+        $this->db->select('dl.work_date, dl.activity_title, dl.description, t.title as task_title, u.name as user_name, u.email as user_email, dl.created_at');
+        $this->db->from('daily_work_logs dl');
+        $this->db->join('tasks t', 't.id = dl.task_id', 'left');
+        $this->db->join('users u', 'u.id = dl.user_id', 'left');
+        if (!$is_admin) { $this->db->where('dl.user_id', $user_id); }
+        $this->db->where('dl.work_date >=', $date_from);
+        $this->db->where('dl.work_date <=', $date_to);
+        $this->db->order_by('dl.work_date', 'DESC');
+        $logs = $this->db->get()->result();
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="daily_activity_' . $date_from . '_to_' . $date_to . '.csv"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, ['Date', 'User', 'Email', 'Activity Title', 'Linked Task', 'Description', 'Logged At']);
+        foreach ($logs as $row) {
+            fputcsv($out, [
+                $row->work_date,
+                $row->user_name,
+                $row->user_email,
+                $row->activity_title,
+                $row->task_title,
+                strip_tags($row->description),
+                $row->created_at,
+            ]);
+        }
+        fclose($out);
+        exit;
     }
 
     public function delete($id) {
@@ -264,9 +364,9 @@ class Daily_activity extends CI_Controller {
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
 
-        if (!$is_admin && !has_module_access('daily_activity_delete') && !has_module_access('daily_activity')) {
+        if (!$is_admin && function_exists('has_module_access') && !has_module_access('daily_activity_delete') && !has_module_access('daily_activity')) {
             $this->session->set_flashdata('error', 'You do not have permission to delete activities.');
-            redirect('daily_activity/list_all');
+            redirect('daily-activity/list');
             return;
         }
 

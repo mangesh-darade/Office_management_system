@@ -288,7 +288,6 @@ class AuthHook {
         if ($role_id === 1) { return; }
 
         // Route-level RBAC: check if the user's role has access to the controller
-        // via the parent module key OR any sub-permission (e.g. daily_activity_add implies daily_activity access)
         if (!isset($CI->db)) { $CI->load->database(); }
         if (!$CI->db || !$CI->db->table_exists('permissions')) { return; }
 
@@ -303,14 +302,83 @@ class AuthHook {
         }
         if (empty($controller)) { return; }
 
-        // Check if ANY permission row for this controller (exact match or sub-key) grants access
-        $has_any_rule = false;
-        $has_access = false;
+        // Controllers that should NEVER be blocked by route-level RBAC
+        // (they do their own fine-grained checks, or are always accessible to logged-in users)
+        $always_allowed_controllers = [
+            'dashboard', 'profile', 'auth', 'errors', 'welcome',
+            'cron', 'install', 'migrate', 'short_url', 'test_company',
+        ];
+        if (in_array($controller, $always_allowed_controllers, true)) { return; }
+
+        // Map controller names to their permission module keys.
+        // A controller may map to multiple keys — access is granted if ANY key is enabled for this role.
+        $controller_module_map = [
+            // controller_name  => [module_keys_to_check]
+            'users'             => ['users', 'users_list', 'users_add', 'users_edit', 'users_delete'],
+            'employees'         => ['employees', 'employees_list', 'employees_add', 'employees_edit', 'employees_delete'],
+            'roles'             => ['roles', 'permissions'],
+            'permissions'       => ['permissions'],
+            'departments'       => ['departments'],
+            'designations'      => ['designations'],
+            'attendance'        => ['attendance', 'attendance_list', 'attendance_add', 'attendance_edit', 'attendance_delete', 'attendance_bulk'],
+            'leave_requests'    => ['leave_requests', 'leave_team', 'leave_approve', 'leave_calendar'],
+            'leaves'            => ['leaves', 'leaves_list', 'leaves_add', 'leaves_edit', 'leaves_delete', 'leave_requests'],
+            'shifts'            => ['shifts', 'shifts_view', 'shifts_manage'],
+            'projects'          => ['projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete'],
+            'tasks'             => ['tasks', 'tasks_list', 'tasks_add', 'tasks_edit', 'tasks_delete'],
+            'requirements'      => ['requirements', 'requirements_list', 'requirements_add', 'requirements_edit', 'requirements_delete'],
+            'timesheets'        => ['timesheets', 'timesheets_list', 'timesheets_add', 'timesheets_edit', 'timesheets_delete'],
+            'chats'             => ['chats', 'chats_list', 'chats_add', 'chatsgrouping'],
+            'calls'             => ['calls', 'chats'],
+            'announcements'     => ['announcements', 'announcements_list', 'announcements_add', 'announcements_edit', 'announcements_delete'],
+            'recruitment'       => ['recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews'],
+            'performance'       => ['performance', 'performance_create', 'performance_view', 'performance_edit', 'performance_delete'],
+            'clients'           => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete'],
+            'payroll'           => ['payroll', 'payroll_view', 'payroll_manage'],
+            'expenses'          => ['expenses', 'expenses_add', 'expenses_edit', 'expenses_delete', 'expenses_approve', 'expenses_reimburse', 'expenses_reports', 'expenses_categories'],
+            'assets'            => ['assets', 'assets_mgmt', 'assets_list', 'assets_add', 'assets_edit', 'assets_delete'],
+            'reports'           => ['reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity'],
+            'analytics'         => ['analytics'],
+            'ai_chat'           => ['ai', 'ai_chat', 'ai_widget'],
+            'daily_activity'    => ['daily_activity', 'daily_activity_add', 'daily_activity_list', 'daily_activity_report', 'daily_activity_delete'],
+            'settings'          => ['settings', 'holidays', 'leave_types', 'admin'],
+            'email_settings'    => ['email_settings', 'settings', 'admin'],
+            'system_settings'   => ['system_settings', 'settings', 'admin'],
+            'mail'              => ['mail', 'settings', 'admin'],
+            'sendgrid'          => ['sendgrid', 'email_settings', 'settings', 'admin'],
+            'whatsapp'          => ['whatsapp'],
+            'reminders'         => ['reminders', 'reminders_list', 'reminders_add', 'reminders_edit', 'reminders_delete'],
+            'notifications'     => ['notifications'],
+            'approvals'         => ['approvals'],
+            'activity'          => ['activity'],
+            'statuses'          => ['statuses'],
+            'db'                => ['db'],
+            'api_integrations'  => ['api_integrations', 'settings', 'admin'],
+            'superadmin'        => ['superadmin'],
+            'roles'             => ['roles', 'permissions'],
+        ];
+
+        // Get the list of module keys to check for this controller
+        $keys_to_check = isset($controller_module_map[$controller])
+            ? $controller_module_map[$controller]
+            : [$controller]; // fallback: use controller name as key
+
+        // Build a lookup: module => [role_ids_with_access]
+        $perm_map = [];
         foreach ($perms as $p) {
             $mod = strtolower(trim((string)$p->module));
-            if ($mod === $controller || strpos($mod, $controller . '_') === 0) {
+            if ((int)$p->can_access === 1) {
+                $perm_map[$mod][] = (int)$p->role_id;
+            }
+        }
+
+        // Check if ANY of the mapped keys has a rule defined in the DB
+        $has_any_rule = false;
+        $has_access   = false;
+        foreach ($keys_to_check as $key) {
+            if (array_key_exists($key, $perm_map)) {
                 $has_any_rule = true;
-                if ((int)$p->can_access === 1 && (int)$p->role_id === $role_id) {
+                if (in_array($role_id, $perm_map[$key], true)) {
                     $has_access = true;
                     break;
                 }
@@ -319,7 +387,8 @@ class AuthHook {
 
         // Only block if the controller has permission rules but this role has none of them
         if ($has_any_rule && !$has_access) {
-            show_error('You do not have permission to access this page.', 403);
+            $CI->session->set_flashdata('access_denied', 'You do not have permission to access this page.');
+            redirect('dashboard');
             exit;
         }
     }
