@@ -7,18 +7,9 @@ class Performance extends CI_Controller {
         $this->load->model('Performance_model');
         $this->load->library(['session']);
         $this->load->helper(['url', 'permission']);
-        if (!$this->session->userdata('user_id')) { redirect('auth/login'); }
-        $role_id = (int)$this->session->userdata('role_id');
-        // Super Admin (role_id 1) can always access; other roles must have explicit module permission
-        $is_superadmin = ($role_id === 1);
-        $has_perf = function_exists('has_module_access') && (
-            has_module_access('performance') || has_module_access('performance_create') ||
-            has_module_access('performance_view') || has_module_access('performance_edit') ||
-            has_module_access('performance_delete')
-        );
-        if (!$is_superadmin && !$has_perf) {
-            show_error('You do not have permission to access Performance Appraisals.', 403);
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access(['performance', 'performance_create', 'performance_view', 'performance_edit', 'performance_delete', 'performance_self_assess', 'performance_export'], true);
     }
 
     public function index(){

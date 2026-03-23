@@ -8,15 +8,10 @@ class Chats extends CI_Controller {
         $this->load->helper(['url','form','group_filter','permission']);
         $this->load->library(['session','upload']);
         $this->load->model('Chat_model');
-        $this->_ensure_auth();
-        if (function_exists('has_module_access') && !has_module_access('chats')) {
-            if ($this->input->is_ajax_request()) {
-                $this->output->set_status_header(403);
-                echo json_encode(['ok' => false, 'error' => 'Access denied']);
-                exit;
-            }
-            show_error('You do not have permission to access Chats.', 403);
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('chats', true);
+        
         $this->_ensure_schema();
     }
 

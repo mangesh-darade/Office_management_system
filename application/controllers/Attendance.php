@@ -14,28 +14,19 @@ class Attendance extends CI_Controller {
         $this->load->model('Setting_model', 'settings');
         $this->load->model('Holiday_model', 'holidays');
         
-        // Authentication check
-        if (!(int)$this->session->userdata('user_id')) {
-            if ($this->input->is_ajax_request()) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                exit;
-            }
-            redirect('auth/login');
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('attendance', true);
     }
 
     public function index() {
         // Pagination configuration
-        $per_page = 10;
         $page = ($this->uri->segment(3)) ? $this->uri->segment(3) : 0;
         $total_records = 0;
         
-        // Get current user info for role-based access
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
-        $canViewAll = $isAdminGroup || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
+        
+        $canViewAll = has_module_access('attendance_view_all') || is_admin_group();
         $canAddAttendance = true; // All logged-in users can add their own attendance
         
         // Get group-based filters
@@ -102,7 +93,7 @@ class Attendance extends CI_Controller {
             'can_edit_attendance' => $canEditAttendance,
             'can_delete_attendance' => $canDeleteAttendance,
             'current_user_id' => $user_id,
-            'is_admin_group' => $isAdminGroup,
+            'is_admin_group' => is_admin_group(),
             'current_role_id' => $role_id
         ]);
     }
@@ -119,13 +110,8 @@ class Attendance extends CI_Controller {
         }
 
         // IDOR protection: non-admin/manager users may only query their own attendance
-        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group())
-                        || in_array($current_role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-        if ($requested_user_id !== $current_user_id && !$isAdminGroup) {
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode(['success' => false, 'message' => 'Access denied.']);
-            return;
+        if ($requested_user_id !== $current_user_id) {
+            require_module_access(['attendance_view_all'], true);
         }
 
         $user_id     = $requested_user_id;
@@ -252,9 +238,9 @@ class Attendance extends CI_Controller {
             // Get current user info for permission checks
             $current_user_id = (int)$this->session->userdata('user_id');
             $current_role_id = (int)$this->session->userdata('role_id');
-            $is_admin = (function_exists('is_admin_group') && is_admin_group()) || in_array($current_role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-            $can_edit = function_exists('has_module_access') && has_module_access('attendance_edit');
-            $can_delete = function_exists('has_module_access') && has_module_access('attendance_delete');
+            $is_admin = is_admin_group() || has_module_access('attendance_view_all');
+            $can_edit = has_module_access('attendance_edit');
+            $can_delete = has_module_access('attendance_delete');
             
             // Check ownership - users can only edit/delete their own records unless admin
             $record_user_id = isset($r->user_id) ? (int)$r->user_id : 0;
@@ -294,20 +280,10 @@ class Attendance extends CI_Controller {
     // Bulk operations for attendance
     public function bulk_operations() {
         // Check bulk operations permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('attendance_bulk') && !has_module_access('attendance'))) {
-            show_error('You do not have permission to perform bulk operations on attendance.', 403);
-        }
+        require_module_access(['attendance_bulk', 'attendance'], true);
         
-        $user_id = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        
-        // Check permissions - only admins can perform bulk operations
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-        if (!$canManageAll) {
-            $this->session->set_flashdata('error', 'You do not have permission to perform bulk operations');
-            redirect('attendance');
-            return;
-        }
+        // Check permissions - only admins/managers with bulk access can perform bulk operations
+        // require_module_access already checked for attendance_bulk or attendance
 
         if ($this->input->method() === 'post') {
             $operation = $this->input->post('bulk_action');
@@ -395,9 +371,7 @@ class Attendance extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('attendance_add') && !has_module_access('attendance'))) {
-            show_error('You do not have permission to add attendance.', 403);
-        }
+        require_module_access(['attendance_add', 'attendance'], true);
         
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
@@ -1447,18 +1421,13 @@ class Attendance extends CI_Controller {
     // GET/POST /attendance/{id}/edit
     public function edit($id)
     {
-        // Check edit permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('attendance_edit') && !has_module_access('attendance'))) {
-            show_error('You do not have permission to edit attendance.', 403);
-        }
-        
-        $att = $this->db->where('id', (int)$id)->get('attendance')->row();
-        if (!$att) { show_404(); }
         // Ownership: only Admin/HR or owner can edit
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-        if (!$canManageAll && (int)$att->user_id !== $user_id) { show_error('Forbidden', 403); }
+        
+        if ((int)$att->user_id !== $user_id) {
+             require_module_access(['attendance_edit', 'attendance'], true);
+        }
         if ($this->input->method() === 'post') {
             // Optional face verification: mirror create() behavior when descriptor is provided
             $face_required = (string)$this->input->post('face_required');
@@ -1556,18 +1525,15 @@ class Attendance extends CI_Controller {
             show_error('Method Not Allowed', 405);
         }
 
-        // Check delete permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('attendance_delete') && !has_module_access('attendance'))) {
-            show_error('You do not have permission to delete attendance.', 403);
-        }
-        
         // Ownership: only Admin/HR or owner can delete
         $row = $this->db->where('id', (int)$id)->get('attendance')->row();
         if (!$row) { show_404(); }
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-        if (!$canManageAll && (int)$row->user_id !== $user_id) { show_error('Forbidden', 403); }
+        
+        if ((int)$row->user_id !== $user_id) {
+            require_module_access(['attendance_delete', 'attendance'], true);
+        }
         $this->db->where('id', (int)$id)->delete('attendance');
         $this->load->helper('notification');
         $success_msg = get_notification_message('attendance', 'delete', 'success');

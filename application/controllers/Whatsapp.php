@@ -13,18 +13,12 @@ class Whatsapp extends CI_Controller {
     
     public function __construct() {
         parent::__construct();
-        $this->load->helper(['url', 'form', 'permission']);
+        $this->load->helper(['url', 'form', 'permission', 'api_integration']);
         $this->load->library('session');
         $this->load->database();
         
-        // Require login
-        if (!$this->session->userdata('user_id')) { 
-            redirect('auth/login'); 
-            exit; 
-        }
-        
-        // Load helper
-        $this->load->helper('api_integration');
+        // RBAC Audit: Centralized module access check
+        require_module_access('whatsapp', true);
         
         // Try to get credentials from database first, then fallback to config
         $creds = get_whatsapp_credentials();
@@ -53,13 +47,6 @@ class Whatsapp extends CI_Controller {
      * Display WhatsApp sending interface
      */
     public function index() {
-        // Check permission - Super Admin (role_id 1) or users with whatsapp permission
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_superadmin = ($role_id === 1);
-        if (!$is_superadmin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
-            show_error('You do not have permission to access WhatsApp.', 403);
-        }
-        
         // Get employees with phone numbers
         $employees = $this->db->select('e.id, e.first_name, e.last_name, e.phone, e.emp_code, e.department, u.email')
             ->from('employees e')

@@ -16,9 +16,8 @@ class Notifications extends CI_Controller {
         $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
         
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('notifications', true);
         
         $this->ensure_schema();
     }

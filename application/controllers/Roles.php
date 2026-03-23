@@ -5,15 +5,12 @@ class Roles extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url']);
+        $this->load->helper(['url', 'permission']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
-        $this->load->helper('permission');
-        if (function_exists('has_module_access') && !has_module_access('roles') && !has_module_access('permissions')) {
-            show_error('You do not have permission to access this module.', 403);
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('roles', true);
+        
         $this->ensure_schema();
     }
 

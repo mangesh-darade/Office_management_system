@@ -9,22 +9,13 @@ class Recruitment extends CI_Controller {
         $this->load->helper(['url', 'permission']);
 
         // Allow external candidates to access the apply page without auth
-        if ($this->router->fetch_method() === 'apply') {
+        $method = (string)$this->router->fetch_method();
+        if ($method === 'apply') {
             return;
         }
 
-        if (!$this->session->userdata('user_id')) { redirect('auth/login'); }
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_superadmin = ($role_id === 1);
-        $has_recruitment = function_exists('has_module_access') && (
-            has_module_access('recruitment') ||
-            has_module_access('recruitment_jobs') ||
-            has_module_access('recruitment_candidates') ||
-            has_module_access('recruitment_interviews')
-        );
-        if (!$is_superadmin && !$has_recruitment) {
-            show_error('You do not have permission to access Recruitment.', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews', 'recruitment_export'], true);
     }
 
     private function _is_admin() {

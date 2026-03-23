@@ -9,27 +9,8 @@ class Daily_activity extends CI_Controller {
         $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
         
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
-
-        $role_id = (int)$this->session->userdata('role_id');
-
-        // Admin (role_id 1) always has full access - skip all permission checks
-        if ($role_id !== 1) {
-            if (!function_exists('has_module_access') || !has_module_access('daily_activity')) {
-                $this->db->like('module', 'daily_activity')->from('permissions');
-                if ($this->db->count_all_results() === 0) {
-                    $roles = $this->db->get('roles')->result();
-                    foreach($roles as $r) {
-                        $this->db->insert('permissions', ['role_id' => $r->id, 'module' => 'daily_activity', 'can_access' => 1]);
-                    }
-                    redirect(current_url());
-                } else {
-                    show_error('You do not have permission to access Daily Activities.', 403);
-                }
-            }
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['activity', 'daily_activity'], true);
         
         $this->ensure_table();
     }
@@ -70,10 +51,7 @@ class Daily_activity extends CI_Controller {
     }
 
     public function index() {
-        $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== 1 && (!function_exists('has_module_access') || (!has_module_access('daily_activity_add') && !has_module_access('daily_activity')))) {
-             show_error('You do not have permission to log daily activities.', 403);
-        }
+        require_module_access(['daily_activity_add', 'daily_activity'], true);
         $user_id = (int)$this->session->userdata('user_id');
         $date = $this->input->get('date') ? $this->input->get('date') : date('Y-m-d');
         
@@ -88,7 +66,7 @@ class Daily_activity extends CI_Controller {
 
         // Fetch user's tasks for dropdown
         $current_user_id = $this->session->userdata('user_id');
-        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $this->session->userdata('role_id') == 1;
+        $is_admin = is_admin_group() || has_module_access('daily_activity_view_all');
         
         $this->db->select('id, title');
         $this->db->from('tasks');
@@ -111,10 +89,7 @@ class Daily_activity extends CI_Controller {
     }
     
     public function list_all($offset = 0) {
-        $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== 1 && (!function_exists('has_module_access') || (!has_module_access('daily_activity_list') && !has_module_access('daily_activity')))) {
-             show_error('You do not have permission to view daily activity list.', 403);
-        }
+        require_module_access(['daily_activity_list', 'daily_activity'], true);
         $this->load->library('pagination');
         
         // --- Filter Logic ---
@@ -143,8 +118,7 @@ class Daily_activity extends CI_Controller {
         
         // --- Build Query ---
         // Role check
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+        $is_admin = is_admin_group() || has_module_access('daily_activity_view_all');
 
         // Helper closure to apply shared WHERE conditions
         $apply_filters = function() use ($filters, $is_admin) {
@@ -219,10 +193,7 @@ class Daily_activity extends CI_Controller {
     }
 
     public function save() {
-        $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== 1 && (!function_exists('has_module_access') || (!has_module_access('daily_activity_add') && !has_module_access('daily_activity')))) {
-             show_error('You do not have permission to log daily activities.', 403);
-        }
+        require_module_access(['daily_activity_add', 'daily_activity'], true);
         if ($this->input->method() !== 'post') { show_404(); }
 
         $user_id = (int)$this->session->userdata('user_id');
@@ -256,9 +227,9 @@ class Daily_activity extends CI_Controller {
     }
 
     public function edit($id) {
+        require_module_access(['daily_activity_edit', 'daily_activity'], true);
         $user_id  = (int)$this->session->userdata('user_id');
-        $role_id  = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+        $is_admin = is_admin_group() || has_module_access('daily_activity_edit_all');
 
         $log = $this->db->get_where('daily_work_logs', ['id' => (int)$id])->row();
         if (!$log) { show_404(); return; }
@@ -271,10 +242,8 @@ class Daily_activity extends CI_Controller {
         }
 
         if ($this->input->method() === 'post') {
-            if (!$is_admin && function_exists('has_module_access') && !has_module_access('daily_activity_edit') && !has_module_access('daily_activity_add') && !has_module_access('daily_activity')) {
-                $this->session->set_flashdata('error', 'Permission denied.');
-                redirect('daily-activity/list');
-                return;
+            if ((int)$log->user_id !== $user_id) {
+                require_module_access(['daily_activity_edit', 'daily_activity'], true);
             }
             $description    = trim($this->input->post('description', TRUE));
             $activity_title = trim($this->input->post('activity_title'));
@@ -315,12 +284,9 @@ class Daily_activity extends CI_Controller {
     }
 
     public function export() {
-        $role_id  = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-
-        if (!$is_admin && function_exists('has_module_access') && !has_module_access('daily_activity_export') && !has_module_access('daily_activity_report') && !has_module_access('daily_activity')) {
-            show_error('Access denied.', 403);
-        }
+        require_module_access(['daily_activity_export', 'daily_activity_report', 'daily_activity'], true);
+        $user_id   = (int)$this->session->userdata('user_id');
+        $is_admin = is_admin_group() || has_module_access('daily_activity_view_all');
 
         $date_from = $this->input->get('date_from') ? $this->input->get('date_from') : date('Y-m-01');
         $date_to   = $this->input->get('date_to')   ? $this->input->get('date_to')   : date('Y-m-d');
@@ -357,16 +323,18 @@ class Daily_activity extends CI_Controller {
 
     public function delete($id) {
         $user_id = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
+        $is_admin = is_admin_group() || has_module_access('daily_activity_delete_all');
 
-        if (!$is_admin && function_exists('has_module_access') && !has_module_access('daily_activity_delete') && !has_module_access('daily_activity')) {
-            $this->session->set_flashdata('error', 'You do not have permission to delete activities.');
-            redirect('daily-activity/list');
+        $log = $this->db->get_where('daily_work_logs', ['id' => $id])->row();
+        if (!$log) {
+            $this->session->set_flashdata('error', 'Activity not found');
+            redirect('daily-activity');
             return;
         }
 
-        $log = $this->db->get_where('daily_work_logs', ['id' => $id])->row();
+        if ((int)$log->user_id !== $user_id && !$is_admin) {
+            require_module_access(['daily_activity_delete', 'daily_activity'], true);
+        }
         
         if ($log) {
             if ($log->user_id == $user_id || $is_admin) {

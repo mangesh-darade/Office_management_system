@@ -8,22 +8,10 @@ class Statuses extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        // Check if user has status management permission
-        if (!function_exists('has_module_access') || !has_module_access('statuses')) { 
-            // Fallback: allow admin group if permission not set yet
-            $role_id = (int)$this->session->userdata('role_id');
-            $hasPermRow = false;
-            if ($this->db->table_exists('permissions')) {
-                $this->db->where('module', 'statuses');
-                $hasPermRow = ($this->db->count_all_results('permissions') > 0);
-            }
-            if (!$hasPermRow && in_array($role_id, [1, 2], true)) {
-                // Allow admin/manager if permission not configured yet
-            } else {
-                show_error('You do not have permission to access Status Management.', 403);
-            }
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('statuses', true);
+        
         $this->load->model('Status_model', 'statuses');
     }
     

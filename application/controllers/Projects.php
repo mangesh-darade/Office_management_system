@@ -5,33 +5,23 @@ class Projects extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','group_filter','permission']);
+        $this->load->helper(['url', 'form', 'group_filter', 'permission']);
         $this->load->library(['session']);
         $this->load->model('Project_model');
         
-        // Authentication check
-        if (!(int)$this->session->userdata('user_id')) {
-            if ($this->input->is_ajax_request()) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                exit;
-            }
-            redirect('auth/login');
-        }
+        // RBAC Audit: Centralized module access check
+        // Allow users with either 'projects' or 'projects_list' access
+        require_module_access(['projects', 'projects_list'], true);
     }
 
     public function index() {
-        if (function_exists('has_module_access') && !has_module_access('projects') && !has_module_access('projects_list')) {
-            show_error('You do not have permission to view projects.', 403);
-        }
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        
-        // Get group-based filters
         $filters = get_user_group_filter($user_id, $role_id);
         
         // Admin sees all projects, others see only projects they're members of
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        $can_view_all = is_admin_group() || has_module_access('projects_view_all');
+        if (!$can_view_all) {
             $projects = $this->Project_model->all($filters);
         } else {
             $projects = $this->Project_model->all([]);
@@ -44,11 +34,7 @@ class Projects extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('projects_add') && !has_module_access('projects'))) {
-            $this->session->set_flashdata('info', 'You do not have permission to add projects.');
-            redirect('projects');
-            return;
-        }
+        require_module_access(['projects_add', 'projects'], true);
         
         $embed = (bool)$this->input->get('embed');
         if ($this->input->method() === 'post') {
@@ -186,10 +172,10 @@ class Projects extends CI_Controller {
             
             // Check if user has access to this project
             $user_id = (int)$this->session->userdata('user_id');
-            $role_id = (int)$this->session->userdata('role_id');
             
             // Admin and Manager can see all projects
-            if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+            $can_view_all = is_admin_group() || has_module_access('projects_view_all');
+            if (!$can_view_all) {
                 // Check if user is a member of this project
                 $is_member = $this->db->where('project_id', (int)$id)
                                      ->where('user_id', $user_id)
@@ -200,6 +186,7 @@ class Projects extends CI_Controller {
                     return;
                 }
             }
+        
             
             // Fetch Tasks
             $this->db->select('t.*, u.email as assignee_email, u.name as assignee_name');
@@ -257,9 +244,7 @@ class Projects extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('projects_edit') && !has_module_access('projects'))) {
-            show_error('You do not have permission to edit projects.', 403);
-        }
+        require_module_access(['projects_edit', 'projects'], true);
         
         $project = $this->db->where('id', (int)$id)->get('projects')->row();
         if (!$project) show_404();
@@ -358,9 +343,7 @@ class Projects extends CI_Controller {
     {
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('projects_delete') && !has_module_access('projects'))) {
-            show_error('You do not have permission to delete projects.', 403);
-        }
+        require_module_access(['projects_delete', 'projects'], true);
         
         try {
             $project = $this->db->where('id', (int)$id)->get('projects')->row();
@@ -403,6 +386,7 @@ class Projects extends CI_Controller {
     // GET/POST /projects/import
     public function import()
     {
+        require_module_access(['projects_import', 'projects'], true);
         if ($this->input->method() === 'post') {
             if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
                 $this->session->set_flashdata('error', 'Please upload a valid CSV file');
@@ -457,6 +441,7 @@ class Projects extends CI_Controller {
     // GET /projects/{id}/members
     public function manage_members($project_id)
     {
+        require_module_access(['projects_edit', 'projects'], true);
         $project_id = (int)$project_id;
         $project = $this->db->where('id', $project_id)->get('projects')->row();
         if (!$project) { show_404(); }
@@ -491,6 +476,7 @@ class Projects extends CI_Controller {
     // POST /projects/{id}/add-member
     public function add_member($project_id)
     {
+        require_module_access(['projects_edit', 'projects'], true);
         try {
             $project_id = (int)$project_id;
             $user_id = (int)$this->input->post('user_id');
@@ -558,18 +544,9 @@ class Projects extends CI_Controller {
     // POST /projects/{id}/remove-member/{user_id}
     public function remove_member($project_id, $user_id)
     {
+        require_module_access(['projects_edit', 'projects'], true);
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         $project_id = (int)$project_id; $user_id = (int)$user_id;
-        // Allow only admin or project creator (if column exists)
-        $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== ROLE_ADMIN) {
-            $project = $this->db->where('id', $project_id)->get('projects')->row();
-            if (!$project) { show_404(); }
-            if ($this->db->field_exists('created_by','projects')){
-                $me = (int)$this->session->userdata('user_id');
-                if ((int)$project->created_by !== $me) { show_error('Forbidden', 403); }
-            }
-        }
         $this->load->model('Project_model');
         $ok = $this->Project_model->remove_member($project_id, $user_id);
         if ($ok) { $this->load->helper('activity'); log_activity('projects', 'updated', $project_id, 'Removed member user#'.$user_id); }
@@ -585,6 +562,7 @@ class Projects extends CI_Controller {
     // POST /projects/{id}/member/{user_id}/role
     public function update_member_role($project_id, $user_id)
     {
+        require_module_access(['projects_edit', 'projects'], true);
         $project_id = (int)$project_id; $user_id = (int)$user_id;
         $role = trim((string)$this->input->post('role')) ?: 'member';
         $this->load->model('Project_model');

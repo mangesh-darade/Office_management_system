@@ -32,12 +32,11 @@ class Short_url extends CI_Controller {
     
     // Optional: Show URL statistics (for admin)
     public function stats() {
+        // RBAC Audit: Centralized module access check
+        require_module_access('settings', true);
+        
         // This could be expanded to show click statistics
         // For now, just redirect to admin dashboard
-        if ($this->session->userdata('user_id')) {
-            redirect('dashboard');
-        } else {
-            redirect('auth/login');
-        }
+        redirect('dashboard');
     }
 }

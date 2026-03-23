@@ -9,20 +9,8 @@ class Approvals extends CI_Controller {
         $this->load->library(['session', 'form_validation']);
         $this->load->helper(['url', 'form', 'permission']);
         
-        // Ensure user is logged in
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
-
-        // Check Permissions: Admin or 'approvals' module access
-        $permission_ok = false;
-        if ((int)$this->session->userdata('role_id') === 1) { $permission_ok = true; }
-        elseif (function_exists('is_admin_group') && is_admin_group()) { $permission_ok = true; }
-        elseif (function_exists('has_module_access') && has_module_access('approvals')) { $permission_ok = true; }
-
-        if (!$permission_ok) {
-            show_error('Access Denied', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('approvals', true);
     }
 
     public function index() {

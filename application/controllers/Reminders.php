@@ -7,8 +7,17 @@ class Reminders extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','form','permission']);
         $this->load->library(['session','email','pagination']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        if (!function_exists('has_module_access') || !has_module_access('reminders')) { show_error('Access Denied', 403); }
+        
+        // Skip RBAC for cron methods if needed, but usually cron is called via CLI or secret URL
+        // For now, require_module_access handles the session check.
+        $method = (string)$this->router->fetch_method();
+        $cron_methods = ['cron_morning', 'cron_night', 'send_queue', 'cron_generate_today'];
+        
+        if (!in_array($method, $cron_methods)) {
+            // RBAC Audit: Centralized module access check
+            require_module_access('reminders', true);
+        }
+        
         $this->load->model('Reminder_model','reminders');
         $this->reminders->ensure_schema();
     }

@@ -9,17 +9,13 @@ class Analytics extends CI_Controller {
         $this->load->model('Ai_model');
         $this->load->model('Integration_model');
         $this->load->library(['session']);
-        $this->load->helper(['url', 'form']);
+        $this->load->helper(['url', 'form', 'permission']);
 
-        // Check login
-        if (!$this->session->userdata('user_id')) {
-            redirect('login');
-        }
-        
-        // Ensure RBAC for this module
-        $this->load->helper('permission');
-        if (function_exists('has_module_access') && !has_module_access('analytics')) {
-            show_error('You do not have permission to access AI Analytics.', 403);
+        // Skip RBAC for public calendar feed method
+        $method = (string)$this->router->fetch_method();
+        if ($method !== 'calendar_feed') {
+            // RBAC Audit: Centralized module access check
+            require_module_access('analytics', true);
         }
     }
 

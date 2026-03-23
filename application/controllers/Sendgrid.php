@@ -21,18 +21,11 @@ class Sendgrid extends CI_Controller {
     
     public function __construct() {
         parent::__construct();
-        $this->load->helper(['url', 'form']);
+        $this->load->helper(['url', 'form', 'permission']);
         $this->load->library('session');
         
-        // Require login
-        if (!$this->session->userdata('user_id')) { 
-            redirect('auth/login'); 
-            exit; 
-        }
-        $this->load->helper('permission');
-        if (function_exists('has_module_access') && !has_module_access('sendgrid')) {
-            show_error('You do not have permission to access this module.', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['sendgrid', 'settings'], true);
         
         // Load database and helper
         $this->load->database();

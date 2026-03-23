@@ -8,16 +8,9 @@ class Calls extends CI_Controller {
         $this->load->helper(['url','permission']);
         $this->load->library(['session']);
         $this->load->model('Call_model');
-        if (!$this->session->userdata('user_id')) {
-            $this->output->set_status_header(401);
-            $this->_json(['ok'=>false, 'error'=>'unauthorized']);
-            exit;
-        }
-        if (function_exists('has_module_access') && !has_module_access('calls') && !has_module_access('chats')) {
-            $this->output->set_status_header(403);
-            $this->_json(['ok'=>false, 'error'=>'access_denied']);
-            exit;
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access(['calls', 'chats'], true);
         if (!$this->session->userdata('call_schema_ok')) {
             $this->Call_model->ensure_schema();
             $this->session->set_userdata('call_schema_ok', true);

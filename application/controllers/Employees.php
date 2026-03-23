@@ -18,6 +18,7 @@ class Employees extends CI_Controller {
     // GET /employees
     public function index()
     {
+        require_module_access(['employees_list', 'employees'], true);
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
         
@@ -25,7 +26,7 @@ class Employees extends CI_Controller {
         $filters = get_user_group_filter($user_id, $role_id);
         
         // Admin sees all, others see department-based
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (!is_admin_group() && !has_module_access('employees_view_all')) {
             // For non-admin users, show department employees or redirect to own profile
             if (can_view_group_data($role_id)) {
                 // Managers can see department employees
@@ -55,15 +56,8 @@ class Employees extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('employees_add') && !has_module_access('employees'))) {
-            show_error('You do not have permission to add employees.', 403);
-        }
+        require_module_access(['employees_add', 'employees'], true);
         
-        // Only Admin/HR can create employee records
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) { 
-            show_error('Forbidden', 403); 
-        }
         if ($this->input->method() === 'post') {
             $dept_id = $this->input->post('department_id');
             $desg_id = $this->input->post('designation_id');
@@ -186,6 +180,7 @@ class Employees extends CI_Controller {
     // GET /employees/{id}
     public function show($id)
     {
+        require_module_access(['employees_view', 'employees'], true);
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
         
@@ -199,8 +194,7 @@ class Employees extends CI_Controller {
             }
         }
         // Ownership check: non Admin/HR can view only their own record
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (!is_admin_group() && !has_module_access('employees_view_all')) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
@@ -220,15 +214,12 @@ class Employees extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('employees_edit') && !has_module_access('employees'))) {
-            show_error('You do not have permission to edit employees.', 403);
-        }
+        require_module_access(['employees_edit', 'employees'], true);
         
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
         // Ownership check: non Admin/HR can edit only their own record
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (!is_admin_group() && !has_module_access('employees_edit_all')) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
@@ -360,9 +351,7 @@ class Employees extends CI_Controller {
     {
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('employees_delete') && !has_module_access('employees'))) {
-            show_error('You do not have permission to delete employees.', 403);
-        }
+        require_module_access(['employees_delete', 'employees'], true);
         
         $this->Employee_model->delete((int)$id);
         $this->load->helper(['activity', 'notification']);
@@ -374,10 +363,10 @@ class Employees extends CI_Controller {
 
     public function documents($id)
     {
+        require_module_access(['employees_documents', 'employees'], true);
         $employee = $this->Employee_model->find((int)$id);
         if (!$employee) show_404();
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (!is_admin_group() && !has_module_access('employees_view_all')) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
@@ -470,12 +459,12 @@ class Employees extends CI_Controller {
 
     public function download_document($id)
     {
+        require_module_access(['employees_documents', 'employees'], true);
         $doc = $this->Employee_model->get_document((int)$id);
         if (!$doc) { show_404(); }
         $employee = $this->Employee_model->find((int)$doc->employee_id);
         if (!$employee) { show_404(); }
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (!is_admin_group() && !has_module_access('employees_view_all')) {
             $user_id = (int)$this->session->userdata('user_id');
             if ((int)$employee->user_id !== $user_id) { show_error('Forbidden', 403); }
         }
@@ -490,16 +479,13 @@ class Employees extends CI_Controller {
     public function delete_document($id)
     {
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('employees_delete') && !has_module_access('employees'))) {
-            show_error('You do not have permission to delete employee documents.', 403);
-        }
+        require_module_access(['employees_delete_document', 'employees_delete', 'employees'], true);
         
         $doc = $this->Employee_model->get_document((int)$id);
         if (!$doc) { show_404(); }
         $employee = $this->Employee_model->find((int)$doc->employee_id);
         if (!$employee) { show_404(); }
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Forbidden', 403); }
+        if (!is_admin_group() && !has_module_access('employees_delete_all')) { show_error('Forbidden', 403); }
         $path = FCPATH.$doc->file_path;
         $ok = $this->Employee_model->delete_document((int)$id);
         if ($ok && $doc->file_path && is_file($path)) {
@@ -515,10 +501,7 @@ class Employees extends CI_Controller {
     public function import()
     {
         // Only admin/manager roles may import employees
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
-            show_error('You do not have permission to import employees.', 403);
-        }
+        require_module_access(['employees_import', 'employees'], true);
 
         if ($this->input->method() === 'post') {
             if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
@@ -572,12 +555,7 @@ class Employees extends CI_Controller {
     public function user_meta($user_id = null)
     {
         // Only admin/manager roles may fetch user metadata
-        $current_role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($current_role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
-            $this->output->set_status_header(403);
-            echo json_encode(['success' => false, 'error' => 'Access denied.']);
-            return;
-        }
+        require_module_access(['employees_add', 'employees_edit', 'employees'], true);
 
         $user_id = (int)$user_id;
         $this->output->set_content_type('application/json');

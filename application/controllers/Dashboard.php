@@ -2,14 +2,20 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Dashboard extends CI_Controller {
+    public function __construct() {
+        parent::__construct();
+        $this->load->database();
+        $this->load->helper(['url', 'group_filter', 'permission', 'dashboard']);
+        $this->load->library(['session']);
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('dashboard', true);
+    }
+
     public function index(){
         try {
             $user_id = $this->session->userdata('user_id');
             $role_id = $this->session->userdata('role_id');
-            if (!$user_id) { redirect('auth/login'); return; }
-            
-            $this->load->database();
-            $this->load->helper(['group_filter', 'permission', 'dashboard']);
             
             // Get accessible modules for this user
             $accessible_modules = get_accessible_modules();

@@ -16,13 +16,8 @@ class Expenses extends CI_Controller {
         $this->load->library(['session', 'upload']);
         $this->load->model('Expense_model');
         
-        // Check if user is logged in
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
-        
-        // Check module access
-        require_module_access('expenses');
+        // RBAC Audit: Centralized module access check
+        require_module_access('expenses', true);
         
         $this->ensure_schema();
     }
@@ -109,7 +104,7 @@ class Expenses extends CI_Controller {
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
         
         // Role-based filtering
-        if (!is_admin_group()) {
+        if (!is_admin_group() && !has_module_access('expenses_view_all')) {
             // Staff can only see their own expenses
             $this->db->where('expenses.user_id', $user_id);
         }
@@ -173,9 +168,7 @@ class Expenses extends CI_Controller {
      */
     public function create()
     {
-        if (function_exists('has_module_access') && !has_module_access('expenses_add') && !has_module_access('expenses')) {
-            show_error('You do not have permission to create expense requests.', 403);
-        }
+        require_module_access(['expenses_add', 'expenses'], true);
         $user_id = (int)$this->session->userdata('user_id');
         
         if ($this->input->method() === 'post') {
@@ -287,8 +280,8 @@ class Expenses extends CI_Controller {
         $this->db->where('expenses.id', (int)$id);
         
         // Non-admin can only view their own
-        if (!is_admin_group()) {
-            $this->db->where('expenses.user_id', $user_id);
+        if ((int)$expense->user_id !== $user_id) {
+            require_module_access(['expenses_view_all'], true);
         }
         
         $expense = $this->db->get()->row();
@@ -307,9 +300,7 @@ class Expenses extends CI_Controller {
      */
     public function approve($id)
     {
-        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_approve'))) {
-            show_error('Access denied', 403);
-        }
+        require_module_access(['expenses_approve', 'expenses'], true);
         
         $user_id = (int)$this->session->userdata('user_id');
         
@@ -345,9 +336,7 @@ class Expenses extends CI_Controller {
      */
     public function reject($id)
     {
-        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_approve'))) {
-            show_error('Access denied', 403);
-        }
+        require_module_access(['expenses_approve', 'expenses'], true);
         
         $user_id = (int)$this->session->userdata('user_id');
         $reason = trim($this->input->post('reason'));
@@ -385,9 +374,7 @@ class Expenses extends CI_Controller {
      */
     public function reimburse($id)
     {
-        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_reimburse'))) {
-            show_error('Access denied', 403);
-        }
+        require_module_access(['expenses_reimburse', 'expenses'], true);
         
         $user_id = (int)$this->session->userdata('user_id');
         $reference = trim($this->input->post('reference'));
@@ -426,9 +413,7 @@ class Expenses extends CI_Controller {
      */
     public function categories()
     {
-        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_categories'))) {
-            show_error('Access denied', 403);
-        }
+        require_module_access(['expenses_categories', 'expenses'], true);
         
         $categories = $this->db->get('expense_categories')->result();
         
@@ -442,9 +427,7 @@ class Expenses extends CI_Controller {
      */
     public function reports()
     {
-        if (!is_admin_group() && !(function_exists('has_module_access') && has_module_access('expenses_reports'))) {
-            show_error('Access denied', 403);
-        }
+        require_module_access(['expenses_reports', 'expenses'], true);
         
         // Monthly expenses
         $sql = "SELECT DATE_FORMAT(expense_date, '%Y-%m') as month, 
@@ -513,9 +496,7 @@ class Expenses extends CI_Controller {
      */
     public function export()
     {
-        if (!is_admin_group() && !(function_exists('has_module_access') && (has_module_access('expenses_export') || has_module_access('expenses_reports') || has_module_access('expenses')))) {
-            show_error('Access denied', 403);
-        }
+        require_module_access(['expenses_export', 'expenses_reports', 'expenses'], true);
 
         $date_from = $this->input->get('date_from') ? $this->input->get('date_from') : date('Y-m-01');
         $date_to   = $this->input->get('date_to')   ? $this->input->get('date_to')   : date('Y-m-d');

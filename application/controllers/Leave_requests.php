@@ -8,25 +8,14 @@ class Leave_requests extends CI_Controller {
         $this->load->library(['session','email']);
         $this->load->helper(['url','form','workday','group_filter','company','permission']);
         $this->load->model('Leave_request_model','leaves');
-        // Require login
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        // Require any leave-related permission when permission system is in use
-        if (function_exists('has_module_access')) {
-            $has_any_leave = has_module_access('leave_requests')
-                || has_module_access('leave_team')
-                || has_module_access('leave_approve')
-                || has_module_access('leave_calendar')
-                || has_module_access('leaves')
-                || has_module_access('leaves_list')
-                || has_module_access('leaves_add');
-            if (!$has_any_leave) {
-                show_error('You do not have permission to access Leave Management.', 403);
-            }
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access(['leave_requests', 'leave_team', 'leave_approve', 'leave_calendar', 'leaves', 'leaves_list', 'leaves_add'], true);
     }
 
     // GET/POST /leave/apply
     public function apply(){
+        require_module_access(['leaves_add', 'leave_requests', 'leaves'], true);
         $user_id = (int)$this->session->userdata('user_id');
         // Read leave types (only active ones)
         $this->db->order_by('name','ASC');
@@ -425,6 +414,7 @@ class Leave_requests extends CI_Controller {
 
     // GET /leave/my
     public function my(){
+        require_module_access(['leaves_list', 'leave_requests', 'leaves'], true);
         $user_id = (int)$this->session->userdata('user_id');
         $filters = [
             'status' => trim((string)$this->input->get('status')),
@@ -461,11 +451,10 @@ class Leave_requests extends CI_Controller {
 
     // GET/POST /leave/team - List team leaves for managers/leads with approve/reject actions
     public function team(){
+        require_module_access(['leave_team', 'leave_requests', 'leaves'], true);
+
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $has_team_perm = function_exists('has_module_access') && has_module_access('leave_team');
-        $is_admin_grp = function_exists('is_admin_group') && is_admin_group();
-        if (!$is_admin_grp && !$has_team_perm) { show_error('Forbidden', 403); }
 
         // 1. Get Actionable Leaves (where current user is the approver)
         $this->load->model('Approval_model');
@@ -490,14 +479,14 @@ class Leave_requests extends CI_Controller {
                  ->join('employees e', 'e.user_id = lr.user_id', 'left'); // Applied user employee info
         
         // For Manager role, add department join if needed
-        if ($role_id === 2 && $this->db->table_exists('departments')) {
+        if (has_role('manager') && $this->db->table_exists('departments')) {
             $this->db->join('departments d', 'd.dept_name = e.department AND d.status = "active"', 'left');
         }
         
         // Build where conditions based on role
-        if ($role_id === 1) {
+        if (is_admin_group()) {
             // Admin: Always show all leave requests
-        } elseif ($role_id === 3) {
+        } elseif (has_role('lead')) {
             // Lead: Show leaves where they are actionable OR they are the assigned legacy lead
             $this->db->group_start();
             if (!empty($actionable_ids)) {
@@ -506,7 +495,7 @@ class Leave_requests extends CI_Controller {
             $this->db->or_where('lr.current_approver_id', $user_id); // Legacy
             $this->db->or_where('u.role_id', 1); // View admin leaves
             $this->db->group_end();
-        } elseif ($role_id === 2) {
+        } elseif (has_role('manager')) {
             // Manager: Show actionable OR department leaves
             $conditions = [];
             
@@ -553,16 +542,13 @@ class Leave_requests extends CI_Controller {
         $this->load->view('leave_requests/team', [
             'rows' => $rows,
             'filters' => ['status'=>$status,'from'=>$from,'to'=>$to],
-            'is_admin' => ($role_id === 1),
+            'is_admin' => is_admin_group(),
         ]);
     }
 
     // POST /leave/approve/{id}
     public function approve($id){
-        $role_id = (int)$this->session->userdata('role_id');
-        $has_approve_perm = function_exists('has_module_access') && has_module_access('leave_approve');
-        $is_admin_grp = function_exists('is_admin_group') && is_admin_group();
-        if (!$is_admin_grp && !$has_approve_perm) { show_error('Forbidden', 403); }
+        require_module_access(['leave_approve', 'leave_requests', 'leaves'], true);
         if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
@@ -608,10 +594,7 @@ class Leave_requests extends CI_Controller {
 
     // POST /leave/reject/{id}
     public function reject($id){
-        $role_id = (int)$this->session->userdata('role_id');
-        $has_approve_perm = function_exists('has_module_access') && has_module_access('leave_approve');
-        $is_admin_grp = function_exists('is_admin_group') && is_admin_group();
-        if (!$is_admin_grp && !$has_approve_perm) { show_error('Forbidden', 403); }
+        require_module_access(['leave_approve', 'leave_requests', 'leaves'], true);
         if ($this->input->method() !== 'post') { show_404(); }
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
@@ -649,19 +632,17 @@ class Leave_requests extends CI_Controller {
 
     // GET /leave/calendar
     public function calendar(){
-        $role_id = (int)$this->session->userdata('role_id');
-        $has_calendar_perm = function_exists('has_module_access') && has_module_access('leave_calendar');
-        $is_admin_grp = function_exists('is_admin_group') && is_admin_group();
-        if (!$is_admin_grp && !$has_calendar_perm) { show_error('Forbidden', 403); }
+        require_module_access(['leave_calendar', 'leave_requests', 'leaves'], true);
         $user_id = (int)$this->session->userdata('user_id');
+        $role_id = (int)$this->session->userdata('role_id');
 
         $ym = $this->input->get('month'); // format YYYY-MM
         if (!$ym) { $ym = date('Y-m'); }
         $from = $ym.'-01';
         $to = date('Y-m-t', strtotime($from));
 
-        // Admins (role_id = 1) see all leave requests; department managers see only their department employees
-        $restrict_to_team = ($role_id !== 1);
+        // Admins see all leave requests; department managers see only their department employees
+        $restrict_to_team = !is_admin_group() && !has_module_access('leave_view_all');
 
         $this->db->select('lr.*, u.email AS user_email, lt.name AS type_name, e.department AS emp_department')
                  ->from('leave_requests lr')
@@ -693,10 +674,7 @@ class Leave_requests extends CI_Controller {
 
     // GET/POST /leave/edit/{id} - Edit leave request (Admin or with leaves_edit permission)
     public function edit($id){
-        $role_id = (int)$this->session->userdata('role_id');
-        $has_edit_perm = function_exists('has_module_access') && has_module_access('leaves_edit');
-        $is_admin_grp = function_exists('is_admin_group') && is_admin_group();
-        if (!$is_admin_grp && !$has_edit_perm) { show_error('Forbidden', 403); }
+        require_module_access(['leaves_edit', 'leave_requests', 'leaves'], true);
         
         $id = (int)$id;
         $leave = $this->db->get_where('leave_requests', ['id' => $id])->row();
@@ -758,10 +736,7 @@ class Leave_requests extends CI_Controller {
     
     // POST /leave/delete/{id} - Delete leave request (Admin or with leaves_delete permission)
     public function delete($id){
-        $role_id = (int)$this->session->userdata('role_id');
-        $has_delete_perm = function_exists('has_module_access') && has_module_access('leaves_delete');
-        $is_admin_grp = function_exists('is_admin_group') && is_admin_group();
-        if (!$is_admin_grp && !$has_delete_perm) { show_error('Forbidden', 403); }
+        require_module_access(['leaves_delete', 'leave_requests', 'leaves'], true);
         if ($this->input->method() !== 'post') { show_404(); }
         
         $id = (int)$id;

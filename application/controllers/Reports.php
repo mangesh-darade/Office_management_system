@@ -12,35 +12,12 @@ class Reports extends CI_Controller {
             $this->load->model('Setting_model', 'settings');
         }
         
-        // Authentication check
-        if (!(int)$this->session->userdata('user_id')) {
-            if ($this->input->is_ajax_request()) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                exit;
-            }
-            redirect('auth/login');
-        }
-        // Permission check - allow access if user has reports OR any specific report sub-permission
-        if (function_exists('has_module_access')) {
-            $has_any_report = has_module_access('reports')
-                || has_module_access('reports_overview')
-                || has_module_access('reports_requirements')
-                || has_module_access('reports_tasks_assignment')
-                || has_module_access('reports_projects_status')
-                || has_module_access('reports_leaves')
-                || has_module_access('reports_attendance')
-                || has_module_access('reports_attendance_employee')
-                || has_module_access('reports_daily_activity')
-                || has_module_access('daily_activity_report')
-                || has_module_access('analytics');
-            if (!$has_any_report) {
-                show_error('You do not have permission to access Reports.', 403);
-            }
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity', 'daily_activity_report', 'analytics', 'reports_payroll', 'reports_expenses'], true);
     }
 
     public function index() {
+        require_module_access(['reports', 'reports_overview', 'analytics'], true);
         // Basic aggregates for charts with safe guards if tables are missing
         $task_status = [];
         $projects_progress = [];
@@ -229,6 +206,7 @@ class Reports extends CI_Controller {
     // GET /reports/requirements
     public function requirements()
     {
+        require_module_access(['reports', 'reports_requirements'], true);
         if (!$this->db->table_exists('requirements')) {
             show_error('Requirements table not found', 500);
             return;
@@ -420,6 +398,7 @@ class Reports extends CI_Controller {
     // GET /reports/export
     public function export_csv()
     {
+        require_module_access(['reports', 'reports_tasks_assignment'], true);
         $this->load->dbutil();
         // Example combined report: tasks with project and assignee
         $sql = "SELECT t.id, t.title, t.status, p.name AS project, u.email AS assigned_user, t.created_at
@@ -437,6 +416,7 @@ class Reports extends CI_Controller {
     // GET /reports/tasks-assignment
     public function tasks_assignment()
     {
+        require_module_access(['reports', 'reports_tasks_assignment'], true);
         // Get filters from GET parameters
         $filters = [
             'project_id' => $this->input->get('project_id'),
@@ -637,11 +617,7 @@ class Reports extends CI_Controller {
     // GET /reports/daily-activity
     public function daily_activity()
     {
-         $role_id = (int)$this->session->userdata('role_id');
-         if ($role_id !== 1 && function_exists('has_module_access') && !has_module_access('daily_activity_report') && !has_module_access('reports_daily_activity') && !has_module_access('reports')) {
-             show_error('You do not have permission to access Daily Activity Reports.', 403);
-             return;
-         }
+         require_module_access(['reports', 'reports_daily_activity', 'daily_activity_report'], true);
 
          // Filters
         $filters = [
@@ -732,6 +708,7 @@ class Reports extends CI_Controller {
     // GET /reports/projects-status
     public function projects_status()
     {
+        require_module_access(['reports', 'reports_projects_status'], true);
         // Get filters from GET parameters
         $filters = [
             'status' => $this->input->get('status'),
@@ -1087,6 +1064,7 @@ class Reports extends CI_Controller {
     // GET /reports/leaves
     public function leaves()
     {
+        require_module_access(['reports', 'reports_leaves'], true);
         // Get filters from GET parameters
         $filters = [
             'status' => $this->input->get('status'),
@@ -1417,38 +1395,7 @@ class Reports extends CI_Controller {
     // GET /reports/attendance-employee
     public function attendance_employee($user_id = null)
     {
-        // Check permission-based access
-        $has_access = false;
-        if (function_exists('has_module_access')) {
-            // Check specific permission for attendance-employee report
-            $has_access = has_module_access('reports_attendance_employee');
-            // Fallback: check general reports permission if specific one doesn't exist
-            if (!$has_access) {
-                $has_access = has_module_access('reports');
-            }
-        }
-        
-        // If no permission system or no access, check if user is logged in
-        if (!$has_access) {
-            $user_id_check = (int)$this->session->userdata('user_id');
-            if (!$user_id_check) {
-                redirect('auth/login');
-                return;
-            }
-            // If permission system exists but user doesn't have access, show error
-            if (function_exists('has_module_access')) {
-                $this->session->set_flashdata('error', 'You do not have permission to access Employee Attendance Reports.');
-                redirect('reports');
-                return;
-            }
-            // Fallback: if no permission system configured, allow Admin/HR (role 1,2) for backward compatibility
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!in_array($role_id, [1, 2], true)) {
-                $this->session->set_flashdata('error', 'You do not have permission to access Employee Attendance Reports.');
-                redirect('reports');
-            return;
-            }
-        }
+        require_module_access(['reports', 'reports_attendance_employee'], true);
 
         // Get period filter (daily, weekly, monthly)
         $period = (string)$this->input->get('period');
@@ -2257,6 +2204,7 @@ class Reports extends CI_Controller {
     // GET /reports/attendance?period=daily|weekly|monthly&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&department_id=X&export=csv|pdf
     public function attendance()
     {
+        require_module_access(['reports', 'reports_attendance'], true);
         $period = $this->input->get('period') ?: 'daily';
         $startDate = $this->input->get('start_date');
         $endDate = $this->input->get('end_date');
@@ -2537,45 +2485,7 @@ class Reports extends CI_Controller {
     
     // Export attendance employee report
     public function export_attendance_employee() {
-        // Check permission-based access
-        $has_access = false;
-        if (function_exists('has_module_access')) {
-            // Check specific permission for attendance-employee report
-            $has_access = has_module_access('reports_attendance_employee');
-            // Fallback: check general reports permission if specific one doesn't exist
-            if (!$has_access) {
-                $has_access = has_module_access('reports');
-            }
-        }
-        
-        // If no permission system or no access, check if user is logged in
-        if (!$has_access) {
-            $user_id_check = (int)$this->session->userdata('user_id');
-            if (!$user_id_check) {
-                $this->output
-                    ->set_status_header(401)
-                    ->set_content_type('application/json')
-                    ->set_output(json_encode(['error' => 'Please login to access this resource.']));
-                return;
-            }
-            // If permission system exists but user doesn't have access, show error
-            if (function_exists('has_module_access')) {
-                $this->output
-                    ->set_status_header(403)
-                    ->set_content_type('application/json')
-                    ->set_output(json_encode(['error' => 'You do not have permission to export Employee Attendance Reports.']));
-                return;
-            }
-            // Fallback: if no permission system configured, allow Admin/HR (role 1,2) for backward compatibility
-            $role_id = (int)$this->session->userdata('role_id');
-            if (!in_array($role_id, [1, 2], true)) {
-                $this->output
-                    ->set_status_header(403)
-                    ->set_content_type('application/json')
-                    ->set_output(json_encode(['error' => 'You do not have permission to export Employee Attendance Reports.']));
-                return;
-            }
-        }
+        require_module_access(['reports', 'reports_attendance_employee'], true);
         
         try {
             $format = $this->input->get('export'); // 'excel' or 'pdf'
@@ -3836,9 +3746,7 @@ class Reports extends CI_Controller {
 
     // ── Payroll Report ────────────────────────────────────────────────────────
     public function payroll() {
-        if (function_exists('has_module_access') && !has_module_access('reports') && !has_module_access('reports_payroll')) {
-            show_error('Access denied.', 403);
-        }
+        require_module_access(['reports', 'reports_payroll'], true);
 
         $month      = $this->input->get('month') ? $this->input->get('month') : date('Y-m');
         $department = $this->input->get('department') ? $this->input->get('department') : '';
@@ -3913,9 +3821,7 @@ class Reports extends CI_Controller {
 
     // ── Expenses Report ───────────────────────────────────────────────────────
     public function expenses() {
-        if (function_exists('has_module_access') && !has_module_access('reports') && !has_module_access('reports_expenses')) {
-            show_error('Access denied.', 403);
-        }
+        require_module_access(['reports', 'reports_expenses'], true);
 
         $date_from  = $this->input->get('date_from') ? $this->input->get('date_from') : date('Y-m-01');
         $date_to    = $this->input->get('date_to')   ? $this->input->get('date_to')   : date('Y-m-d');

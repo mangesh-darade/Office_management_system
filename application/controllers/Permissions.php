@@ -6,24 +6,13 @@ class Permissions extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','activity']);
+        $this->load->helper(['url','form','activity','permission']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('permissions', true);
+        
         $this->ensure_schema();
-        // DB-driven access: rely on permissions table for module 'permissions'
-        $this->load->helper('permission');
-        $role_id = (int)$this->session->userdata('role_id');
-        $allowed = false;
-
-        // Admin (role 1) always has access to Permission Manager to prevent lock-out
-        if ($role_id === 1) {
-            $allowed = true;
-        }
-
-        if (!$allowed && function_exists('has_module_access')) {
-            $allowed = has_module_access('permissions');
-        }
-        if (!$allowed) { show_error('You do not have permission to access this page.', 403); }
     }
 
     private function ensure_schema()
@@ -415,11 +404,8 @@ class Permissions extends CI_Controller {
 
     public function save()
     {
-        // Restrict permission writes to admin role only — prevents privilege escalation
-        $role_id = (int)$this->session->userdata('role_id');
-        if ($role_id !== ROLE_ADMIN) {
-            show_error('Only administrators can modify permissions.', 403);
-        }
+        // Restrict permission writes — prevents privilege escalation
+        require_module_access(['permissions_edit', 'permissions'], true);
 
         if ($this->input->method() !== 'post') {
             redirect('permissions');

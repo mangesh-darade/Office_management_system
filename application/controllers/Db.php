@@ -11,10 +11,8 @@ class Db extends CI_Controller {
         $this->load->library(['session']);
         $this->load->model('Client_model', 'client_model');
         
-        // Basic module access check
-        if (!has_module_access('db')) {
-            show_error('Access Denied', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('db', true);
 
         $this->ensure_dm_manager_table();
         $this->ensure_client_migrations_table();
@@ -58,9 +56,9 @@ class Db extends CI_Controller {
             );
         }
         
-        // Fallback or Manual (Admin Only)
+        // Fallback or Manual
         if (!empty($manual_config['db'])) {
-            if (!is_admin_group()) { throw new Exception("Manual DB connection Restricted to Admins."); }
+            require_module_access(['db_admin', 'db'], true);
             return $this->connect_custom(
                 $manual_config['host'],
                 $manual_config['user'],
@@ -202,9 +200,7 @@ class Db extends CI_Controller {
 
     public function compare_drop_db_only(){
         // PERMISSION CHECK for Destructive Action
-        if (!is_admin_group()){
-             header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Access Denied. Admin only.']); return;
-        }
+        require_module_access(['db_admin', 'db'], true);
 
         if (!$this->verify_csrf()) {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
@@ -719,9 +715,7 @@ class Db extends CI_Controller {
 
     public function compare_merge(){
         // PERMISSION CHECK for Destructive Action
-        if (!is_admin_group()){
-             header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Access Denied. Admin only.']); return;
-        }
+        require_module_access(['db_admin', 'db'], true);
 
         if (!$this->verify_csrf()) {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;

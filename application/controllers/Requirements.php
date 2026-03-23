@@ -7,8 +7,10 @@ class Requirements extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','form','permission']);
         $this->load->library(['session','upload']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        if (!function_exists('has_module_access') || !has_module_access('requirements')) { show_error('Access Denied', 403); }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('requirements', true);
+        
         $this->ensure_schema();
         $this->load->model(['Requirement_model'=>'requirements','Client_model'=>'clients']);
     }
@@ -107,6 +109,7 @@ class Requirements extends CI_Controller {
 
     // GET /requirements
     public function index(){
+        require_module_access(['requirements_list', 'requirements'], true);
         $filters = [
             'status' => $this->input->get('status'),
             'priority' => $this->input->get('priority'),
@@ -127,6 +130,7 @@ class Requirements extends CI_Controller {
 
     // GET/POST /requirements/create
     public function create(){
+        require_module_access(['requirements_add', 'requirements'], true);
         if ($this->input->method() === 'post'){
             $owner_raw = $this->input->post('owner_id');
             if ($owner_raw === '' || $owner_raw === null) {
@@ -291,6 +295,7 @@ class Requirements extends CI_Controller {
 
     // GET/POST /requirements/edit/{id}
     public function edit($id){
+        require_module_access(['requirements_edit', 'requirements'], true);
         $row = $this->requirements->get_requirement((int)$id);
         if (!$row) { show_404(); }
         if ($this->input->method() === 'post'){
@@ -435,6 +440,7 @@ class Requirements extends CI_Controller {
 
     // GET /requirements/view/{id}
     public function view($id){
+        require_module_access(['requirements_view', 'requirements'], true);
         $req = $this->requirements->get_requirement((int)$id);
         if (!$req) { show_404(); }
         $attachments = $this->requirements->get_attachments((int)$id);
@@ -452,6 +458,7 @@ class Requirements extends CI_Controller {
 
     // GET /requirements/version/{versionId}
     public function version($versionId){
+        require_module_access(['requirements_view', 'requirements'], true);
         $ver = $this->requirements->get_version_by_id((int)$versionId);
         if (!$ver) { show_404(); }
         $req = $this->requirements->get_requirement((int)$ver->requirement_id);
@@ -478,6 +485,7 @@ class Requirements extends CI_Controller {
 
     // GET /requirements/board
     public function board(){
+        require_module_access(['requirements_board', 'requirements'], true);
         $columns = array('received','under_review','approved','in_progress','completed','on_hold','rejected','cancelled');
         $data = array();
         foreach ($columns as $st){
@@ -488,12 +496,14 @@ class Requirements extends CI_Controller {
 
     // GET /requirements/calendar
     public function calendar(){
+        require_module_access(['requirements_calendar', 'requirements'], true);
         $rows = $this->requirements->get_requirements(array(), null, 0);
         $this->load->view('requirements/calendar', array('rows'=>$rows));
     }
 
     // GET /requirements/export
     public function export(){
+        require_module_access(['requirements_export', 'requirements'], true);
         $filters = array(
             'status' => $this->input->get('status'),
             'priority' => $this->input->get('priority'),
@@ -578,11 +588,11 @@ class Requirements extends CI_Controller {
     {
         $comment_id = (int)$comment_id;
         $user_id = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
         if (!$user_id) { redirect('auth/login'); return; }
 
-        // If admin, allow delete unconditionally
-        if ($role_id === 1) {
+        // If user has 'requirements_edit' or 'requirements' access, allow delete unconditionally
+        $can_delete_all = is_admin_group() || has_module_access('requirements_delete_all');
+        if ($can_delete_all) {
             $this->db->where('id', $comment_id)->delete('requirement_comments');
             $this->session->set_flashdata('success', 'Comment deleted.');
             $ref = $this->input->get('ref');

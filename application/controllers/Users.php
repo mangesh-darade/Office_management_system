@@ -10,16 +10,13 @@ class Users extends CI_Controller {
         $this->load->model('Shift_model');
         $this->load->helper(['url', 'form', 'permission']);
         $this->load->library(['session']);
-        // Basic auth gate: redirect to login if not logged in
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('users', true);
     }
 
     public function index() {
-        if (function_exists('has_module_access') && !has_module_access('users') && !has_module_access('users_list')) {
-            show_error('You do not have permission to view users.', 403);
-        }
+        require_module_access(['users_list', 'users'], true);
         $q = trim($this->input->get('q', true) ?: '');
         $data['title'] = 'Users';
         $data['q'] = $q;
@@ -27,7 +24,7 @@ class Users extends CI_Controller {
         $userIdFilter = null;
         $currentUserId = (int)$this->session->userdata('user_id');
         // For user-group (staff), only show their own record in the list
-        if (function_exists('is_user_group') && is_user_group() && $currentUserId > 0) {
+        if (!is_admin_group() && !has_module_access('users_view_all') && $currentUserId > 0) {
             $userIdFilter = $currentUserId;
         }
         $rows = $this->users->list_users($q, 250, $roleFilter, $userIdFilter);
@@ -72,9 +69,7 @@ class Users extends CI_Controller {
     }
 
     public function create() {
-        if (!function_exists('has_module_access') || (!has_module_access('users_add') && !has_module_access('users'))) {
-            show_error('You do not have permission to add users.', 403);
-        }
+        require_module_access(['users_add', 'users'], true);
         $data = [
             'title' => 'Add User',
             'row' => (object)[
@@ -96,9 +91,7 @@ class Users extends CI_Controller {
     }
 
     public function store() {
-        if (!function_exists('has_module_access') || (!has_module_access('users_add') && !has_module_access('users'))) {
-            show_error('You do not have permission to add users.', 403);
-        }
+        require_module_access(['users_add', 'users'], true);
         $in = $this->_sanitize();
         if (empty($in['name']) || empty($in['email'])) {
             $this->session->set_flashdata('error', 'Name and Email are required.');
@@ -207,9 +200,7 @@ class Users extends CI_Controller {
     }
 
     public function edit($id = null) {
-        if (!function_exists('has_module_access') || (!has_module_access('users_edit') && !has_module_access('users'))) {
-            show_error('You do not have permission to edit users.', 403);
-        }
+        require_module_access(['users_edit', 'users'], true);
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
@@ -234,9 +225,7 @@ class Users extends CI_Controller {
     }
 
     public function update($id = null) {
-        if (!function_exists('has_module_access') || (!has_module_access('users_edit') && !has_module_access('users'))) {
-            show_error('You do not have permission to edit users.', 403);
-        }
+        require_module_access(['users_edit', 'users'], true);
         $id = (int)$id;
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
@@ -368,9 +357,7 @@ class Users extends CI_Controller {
     }
 
     public function delete($id = null) {
-        if (!function_exists('has_module_access') || !has_module_access('users_delete')) {
-            show_error('You do not have permission to delete users.', 403);
-        }
+        require_module_access(['users_delete', 'users'], true);
         $this->load->helper('change_tracker');
         $id = (int)$id;
         $row = $this->users->find($id);
@@ -532,25 +519,12 @@ class Users extends CI_Controller {
             return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Invalid payload']));
         }
 
-        $currentUserId = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        if (!$currentUserId) {
-            return $this->output->set_status_header(401)->set_output(json_encode(['ok' => false, 'error' => 'Unauthorized']));
-        }
-
-        $user_id = isset($payload['user_id']) ? (int)$payload['user_id'] : 0;
-        if ($user_id <= 0) {
-            return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Missing user id']));
-        }
-
         // Allow: the user editing their own face, OR anyone with users_edit / users permission
-        $is_self        = ($currentUserId === $user_id);
-        $is_admin_group = function_exists('is_admin_group') && is_admin_group();
-        $has_edit_perm  = function_exists('has_module_access')
-                          && (has_module_access('users_edit') || has_module_access('users'));
-
-        if (!$is_self && !$is_admin_group && !$has_edit_perm) {
-            return $this->output->set_status_header(403)->set_output(json_encode(['ok' => false, 'error' => 'You do not have permission to save face data for this user.']));
+        $user_id = isset($payload['user_id']) ? (int)$payload['user_id'] : 0;
+        $currentUserId = (int)$this->session->userdata('user_id');
+        $is_self = ($currentUserId === $user_id);
+        if (!$is_self) {
+            require_module_access(['users_edit', 'users'], true);
         }
 
         $descriptor = isset($payload['descriptor']) ? (string)$payload['descriptor'] : '';
@@ -600,12 +574,10 @@ class Users extends CI_Controller {
             show_404();
         }
         
-        // Check permissions - users can view their own profile, admins can view all
+        // Check permissions - users can view their own profile, others need users permission
         $currentUserId = (int)$this->session->userdata('user_id');
-        $currentRoleId = (int)$this->session->userdata('role_id');
-        
-        if ($currentUserId !== $id && $currentRoleId !== 1) {
-            show_error('You do not have permission to view this user.', 403);
+        if ($currentUserId !== $id && !is_admin_group() && !has_module_access('users_view_all')) {
+            require_module_access(['users_list', 'users'], true);
         }
         
         // Get additional user information

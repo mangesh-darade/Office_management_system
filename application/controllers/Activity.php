@@ -5,28 +5,11 @@ class Activity extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session', 'pagination']);
         
-        // Check authentication
-        if (!(int)$this->session->userdata('user_id')) { 
-            redirect('auth/login'); 
-            return;
-        }
-        
-        // Access control: Check permission OR role-based access (fallback)
-        $this->load->helper('permission');
-        $has_permission = function_exists('has_module_access') && has_module_access('activity');
-        
-        // Use defined() to check if constants are loaded, fallback to numeric values
-        $role_admin = defined('ROLE_ADMIN') ? ROLE_ADMIN : 1;
-        $role_manager = defined('ROLE_MANAGER') ? ROLE_MANAGER : 2;
-        $role_id = (int)$this->session->userdata('role_id');
-        $has_role_access = in_array($role_id, [$role_admin, $role_manager], true);
-        
-        if (!$has_permission && !$has_role_access) {
-            show_error('You do not have permission to access this module.', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('activity', true);
     }
 
     // GET /activity

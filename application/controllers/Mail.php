@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Mail extends CI_Controller {
     public function __construct() {
         parent::__construct();
-        $this->load->helper(['url','form','email']);
+        $this->load->helper(['url','form','email', 'permission']);
         // Load email config BEFORE initializing email library (base defaults)
         $this->config->load('email');
         $this->load->library(['session','email']);
@@ -12,12 +12,8 @@ class Mail extends CI_Controller {
         // Configure SMTP from Settings > Email
         configure_email_from_settings();
 
-        // Require login
-        if (!$this->session->userdata('user_id')) { redirect('auth/login'); exit; }
-        $this->load->helper('permission');
-        if (function_exists('has_module_access') && !has_module_access('mail')) {
-            show_error('You do not have permission to access this module.', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('mail', true);
     }
 
     // Simple UI to send a test email

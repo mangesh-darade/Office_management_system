@@ -8,15 +8,8 @@ class Superadmin extends CI_Controller {
         $this->load->helper(['url', 'permission', 'html']);
         $this->load->library('session');
         
-        // Authentication check first
-        if (!(int)$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
-        
-        $has_superadmin_perm = function_exists('has_module_access') && has_module_access('superadmin');
-        if (!$has_superadmin_perm) {
-            show_error('Access Denied. You do not have permission to access Super Admin.', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access('superadmin', true);
     }
 
     public function index() {

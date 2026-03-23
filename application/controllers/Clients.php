@@ -7,8 +7,10 @@ class Clients extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','form','permission','error_handler']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        if (!function_exists('has_module_access') || !has_module_access('clients')) { show_error('Access Denied', 403); }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('clients', true);
+        
         $this->ensure_schema();
         $this->load->model('Client_model','clients');
     }
@@ -117,6 +119,7 @@ class Clients extends CI_Controller {
 
     // GET /clients
     public function index(){
+        require_module_access(['clients_list', 'clients'], true);
         try {
             $filters = [
                 'status' => $this->input->get('status'),
@@ -150,6 +153,7 @@ class Clients extends CI_Controller {
 
     // GET/POST /clients/create
     public function create(){
+        require_module_access(['clients_add', 'clients'], true);
         if ($this->input->method() === 'post'){
             try {
                 // Validation rules - Mandatory fields
@@ -160,9 +164,6 @@ class Clients extends CI_Controller {
                 $this->form_validation->set_rules('contact_person', 'Contact Person', 'required|trim|min_length[2]|max_length[200]');
                 $this->form_validation->set_rules('phone', 'Phone', 'required|trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
                 
-               
-              
-              
                 if ($this->form_validation->run() == FALSE) {
                     $errors = validation_errors();
                     $this->session->set_flashdata('error', handle_validation_error($errors));
@@ -195,12 +196,6 @@ class Clients extends CI_Controller {
                 
                 // Check if email already exists
                 if (!empty($email)) {
-                    if (!method_exists($this->clients, 'email_exists')) {
-                        log_message('error', 'Client_model::email_exists() method not found');
-                        $this->session->set_flashdata('error', 'System error: Unable to validate email. Please contact administrator.');
-                        redirect('clients/create');
-                        return;
-                    }
                     if ($this->clients->email_exists($email)) {
                         $this->session->set_flashdata('error', 'This email address is already registered. Please use a different email.');
                         redirect('clients/create');
@@ -210,12 +205,6 @@ class Clients extends CI_Controller {
                 
                 // Check if phone already exists
                 if (!empty($phone)) {
-                    if (!method_exists($this->clients, 'phone_exists')) {
-                        log_message('error', 'Client_model::phone_exists() method not found');
-                        $this->session->set_flashdata('error', 'System error: Unable to validate phone. Please contact administrator.');
-                        redirect('clients/create');
-                        return;
-                    }
                     if ($this->clients->phone_exists($phone)) {
                         $this->session->set_flashdata('error', 'This phone number is already registered. Please use a different phone number.');
                         redirect('clients/create');
@@ -319,6 +308,7 @@ class Clients extends CI_Controller {
 
     // GET /clients/view/{id}
     public function view($id){
+        require_module_access(['clients_view', 'clients'], true);
         $id = (int)$id;
         if ($id <= 0) {
             show_404();
@@ -368,6 +358,7 @@ class Clients extends CI_Controller {
     }
 
     public function edit($id){
+        require_module_access(['clients_edit', 'clients'], true);
         $id = (int)$id;
         if ($id <= 0) {
             show_404();
@@ -515,6 +506,7 @@ class Clients extends CI_Controller {
     
     // GET /clients/export
     public function export(){
+        require_module_access(['clients_export', 'clients'], true);
         $filters = [
             'status' => $this->input->get('status'),
             'client_type' => $this->input->get('client_type'),
@@ -600,9 +592,7 @@ class Clients extends CI_Controller {
         if (!$id) { show_404(); }
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
 
-        if (!function_exists('has_module_access') || (!has_module_access('clients_delete') && !has_module_access('clients'))) {
-            show_error('Access Denied', 403);
-        }
+        require_module_access(['clients_delete', 'clients'], true);
 
         $client = $this->clients->get_client($id);
         if (!$client) { show_404(); }

@@ -13,17 +13,16 @@ class Email_settings extends CI_Controller {
         $this->load->library(['session']);
         $this->ensure_schema();
         
-        // Require login and permission
-        if (!(int)$this->session->userdata('user_id')) { 
-            redirect('auth/login'); 
-        }
-        
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
-        $has_email_settings = function_exists('has_module_access') && has_module_access('email_settings');
-        
-        if (!$is_admin && !$has_email_settings) {
-            show_error('You do not have permission to access Email Settings.', 403);
+        // RBAC Audit: Centralized module access check
+        // Check for specific methods that users should access for their own prefs
+        $method = (string)$this->router->fetch_method();
+        if ($method !== 'user_preferences') {
+            require_module_access(['email_settings', 'settings'], true);
+        } else {
+            // Still require login for user preferences
+            if (!(int)$this->session->userdata('user_id')) { 
+                redirect('auth/login'); 
+            }
         }
     }
 

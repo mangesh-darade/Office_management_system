@@ -8,10 +8,10 @@ class Announcements extends CI_Controller {
         $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
         $this->load->model('Announcement_model','ann');
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        if (function_exists('has_module_access') && !has_module_access('announcements')) {
-            show_error('You do not have permission to access Announcements.', 403);
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('announcements', true);
+        
         $this->ensure_schema();
         // Load reminders for broadcasting when publishing
         $this->load->model('Reminder_model','reminders');
@@ -75,8 +75,7 @@ class Announcements extends CI_Controller {
     }
 
     private function can_manage(){
-        $role_id = (int)$this->session->userdata('role_id');
-        return in_array($role_id, [1,2], true); // Admin/Manager
+        return is_admin_group() || has_module_access('announcements_manage');
     }
 
     private function broadcast_if_published($data){
@@ -134,7 +133,7 @@ class Announcements extends CI_Controller {
 
     // GET|POST /announcements/create
     public function create(){
-        if (!$this->can_manage()) { show_error('Forbidden', 403); }
+        require_module_access(['announcements_add', 'announcements'], true);
         if ($this->input->method() === 'post'){
             $publish_at = $this->input->post('publish_at');
             $status = trim((string)$this->input->post('status') ?: 'draft');
@@ -178,7 +177,7 @@ class Announcements extends CI_Controller {
 
     // GET|POST /announcements/{id}/edit
     public function edit($id){
-        if (!$this->can_manage()) { show_error('Forbidden', 403); }
+        require_module_access(['announcements_edit', 'announcements'], true);
         $row = $this->db->get_where('announcements', ['id'=>(int)$id])->row();
         if (!$row) { show_404(); }
         if ($this->input->method() === 'post'){
@@ -338,8 +337,8 @@ class Announcements extends CI_Controller {
     
     // POST /announcements/{id}/delete
     public function delete($id){
+        require_module_access(['announcements_delete', 'announcements'], true);
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
-        if (!$this->can_manage()) { show_error('Forbidden', 403); }
         $this->ann->delete((int)$id);
         $this->session->set_flashdata('success', 'Announcement deleted');
         redirect('announcements');
@@ -347,7 +346,7 @@ class Announcements extends CI_Controller {
     
     // GET /announcements/templates - Email template management
     public function templates() {
-        if (!$this->can_manage()) { show_error('Forbidden', 403); }
+        require_module_access(['announcements_edit', 'announcements'], true);
         
         $templates = $this->reminders->get_template('announcement');
         $this->load->view('announcements/templates', ['templates' => $templates]);
@@ -355,7 +354,7 @@ class Announcements extends CI_Controller {
     
     // POST /announcements/templates - Save email template
     public function save_template() {
-        if (!$this->can_manage()) { show_error('Forbidden', 403); }
+        require_module_access(['announcements_edit', 'announcements'], true);
         
         $subject = $this->input->post('subject');
         $body = $this->input->post('body');

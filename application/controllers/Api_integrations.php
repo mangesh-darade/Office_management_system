@@ -10,17 +10,8 @@ class Api_integrations extends CI_Controller {
         $this->load->library(['session']);
         $this->load->model('Api_integration_model', 'api');
         
-        if (!(int)$this->session->userdata('user_id')) { 
-            redirect('auth/login'); 
-        }
-        
-        // Check permission - allow admin or users with api_integrations/settings access
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
-        $has_access = $is_admin || (function_exists('has_module_access') && (has_module_access('api_integrations') || has_module_access('settings')));
-        if (!$has_access) {
-            show_error('You do not have permission to access API Integrations.', 403);
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['api_integrations', 'settings'], true);
     }
     
     /**

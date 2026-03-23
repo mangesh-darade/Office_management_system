@@ -5,13 +5,12 @@ class Designations extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        $this->load->helper('permission');
-        if (function_exists('has_module_access') && !has_module_access('designations')) {
-            show_error('You do not have permission to access this module.', 403);
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access('designations', true);
+        
         $this->ensure_schema();
         $this->load->model('Designation_model','designations');
     }

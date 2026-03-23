@@ -5,24 +5,22 @@ class Assets extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form']);
+        $this->load->helper(['url','form','permission']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        $this->load->helper('permission');
-        if (function_exists('has_module_access') && !has_module_access('assets') && !has_module_access('assets_mgmt')) {
-            show_error('You do not have permission to access this module.', 403);
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access(['assets_mgmt', 'assets_list', 'assets'], true);
+        
         $this->load->model('Asset_model', 'assets');
     }
 
-    private function is_admin_hr(){
-        $role_id = (int)$this->session->userdata('role_id');
-        return in_array($role_id, [1,2], true);
+    private function can_manage_assets(){
+        return is_admin_group() || has_module_access('assets_manage');
     }
 
     // GET /assets
     public function index(){
-        if (!$this->is_admin_hr()) {
+        if (!$this->can_manage_assets()) {
             redirect('assets-mgmt/my');
             return;
         }
@@ -32,7 +30,7 @@ class Assets extends CI_Controller {
 
     // GET/POST /assets/create
     public function create(){
-        if (!$this->is_admin_hr()) { show_error('Forbidden', 403); }
+        require_module_access(['assets_add', 'assets_mgmt', 'assets'], true);
         if ($this->input->method() === 'post') {
             $data = [
                 'name' => trim($this->input->post('name')),
@@ -57,7 +55,7 @@ class Assets extends CI_Controller {
 
     // GET/POST /assets/edit/{id}
     public function edit($id){
-        if (!$this->is_admin_hr()) { show_error('Forbidden', 403); }
+        require_module_access(['assets_edit', 'assets_mgmt', 'assets'], true);
         $id = (int)$id;
         $row = $this->assets->find($id);
         if (!$row) { show_404(); }
@@ -83,7 +81,7 @@ class Assets extends CI_Controller {
 
     // GET/POST /assets/assign/{id}
     public function assign($id){
-        if (!$this->is_admin_hr()) { show_error('Forbidden', 403); }
+        require_module_access(['assets_assign', 'assets_mgmt', 'assets'], true);
         $id = (int)$id;
         $row = $this->assets->find($id);
         if (!$row) { show_404(); }
@@ -107,7 +105,7 @@ class Assets extends CI_Controller {
 
     // POST /assets/return/{id}
     public function return_asset($id){
-        if (!$this->is_admin_hr()) { show_error('Forbidden', 403); }
+        require_module_access(['assets_assign', 'assets_mgmt', 'assets'], true);
         $id = (int)$id;
         $this->assets->mark_returned($id, date('Y-m-d'));
         $this->session->set_flashdata('success', 'Asset marked as returned');

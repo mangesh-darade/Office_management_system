@@ -10,39 +10,17 @@ class Shifts extends CI_Controller {
         $this->load->library(['session', 'form_validation']);
         $this->load->model('Shift_model');
 
-        // Check login
-        if (!$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['shifts', 'shifts_view', 'shifts_manage'], true);
     }
 
     public function index() {
-        $role_id = (int)$this->session->userdata('role_id');
-        // Super Admin (role_id 1) can always view; other roles must have explicit view permission
-        $is_superadmin = ($role_id === 1);
-        if (
-            !$is_superadmin &&
-            (!function_exists('has_module_access') ||
-             (!has_module_access('shifts') && !has_module_access('shifts_view')))
-        ) {
-            show_error('Access Denied', 403);
-        }
-
         $data['shifts'] = $this->Shift_model->get_all();
         $this->load->view('shifts/index', $data);
     }
 
     public function create() {
-        $role_id = (int)$this->session->userdata('role_id');
-        // Super Admin (role_id 1) can always manage; other roles must have explicit manage permission
-        $is_superadmin = ($role_id === 1);
-        if (
-            !$is_superadmin &&
-            (!function_exists('has_module_access') ||
-             (!has_module_access('shifts') && !has_module_access('shifts_manage')))
-        ) {
-            show_error('Access Denied', 403);
-        }
+        require_module_access(['shifts_manage', 'shifts'], true);
 
         if ($this->input->method() === 'post') {
             $this->form_validation->set_rules('name', 'Shift Name', 'required|trim|max_length[100]');
@@ -72,15 +50,7 @@ class Shifts extends CI_Controller {
     }
 
     public function edit($id) {
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_superadmin = ($role_id === 1);
-        if (
-            !$is_superadmin &&
-            (!function_exists('has_module_access') ||
-             (!has_module_access('shifts') && !has_module_access('shifts_manage')))
-        ) {
-            show_error('Access Denied', 403);
-        }
+        require_module_access(['shifts_manage', 'shifts'], true);
 
         $shift = $this->Shift_model->get($id);
         if (!$shift) show_404();
@@ -113,17 +83,8 @@ class Shifts extends CI_Controller {
     }
 
     public function delete($id) {
+        require_module_access(['shifts_manage', 'shifts'], true);
         if ($this->input->method() !== 'post') { show_404(); }
-
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_superadmin = ($role_id === 1);
-        if (
-            !$is_superadmin &&
-            (!function_exists('has_module_access') ||
-             (!has_module_access('shifts') && !has_module_access('shifts_manage')))
-        ) {
-            show_error('Access Denied', 403);
-        }
         
         // Prevent deletion of ID 1 (General Shift)
         if ($id == 1) {

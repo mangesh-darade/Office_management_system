@@ -9,15 +9,9 @@ class Tasks extends CI_Controller {
         $this->load->library(['session']);
         $this->load->model('Task_model');
         
-        // Authentication check
-        if (!(int)$this->session->userdata('user_id')) {
-            if ($this->input->is_ajax_request()) {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Authentication required']);
-                exit;
-            }
-            redirect('auth/login');
-        }
+        // RBAC Audit: Centralized module access check
+        // Allow users with either 'tasks' or 'tasks_list' access
+        require_module_access(['tasks', 'tasks_list'], true);
     }
 
     /**
@@ -33,14 +27,10 @@ class Tasks extends CI_Controller {
     }
 
     public function index() {
-        // Check list permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('tasks_list') && !has_module_access('tasks'))) {
-            show_error('You do not have permission to view tasks.', 403);
-        }
-        
+        require_module_access(['tasks_list', 'tasks'], true);
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        $is_admin = is_admin_group() || has_module_access('tasks_manage');
         
         // Get group-based filters
         $filters = get_user_group_filter($user_id, $role_id);
@@ -71,7 +61,8 @@ class Tasks extends CI_Controller {
         $this->db->select(implode(',', $select));
         
         // Apply group-based filtering
-        if (!$is_admin && $user_id) {
+        $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
+        if (!$can_view_all && $user_id) {
             if (can_view_group_data($role_id)) {
                 // Managers can see team tasks
                 if (!empty($filters['tasks'])) {
@@ -137,9 +128,7 @@ class Tasks extends CI_Controller {
     public function create()
     {
         // Check create permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('tasks_add') && !has_module_access('tasks'))) {
-            show_error('You do not have permission to add tasks.', 403);
-        }
+        require_module_access(['tasks_add', 'tasks'], true);
         
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
@@ -355,10 +344,9 @@ class Tasks extends CI_Controller {
         
         // Visibility: non-admin group can only preview tasks assigned to them (or created_by them when available)
         $user_id = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
+        $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
         
-        if ($user_id && !$is_admin) {
+        if ($user_id && !$can_view_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             
@@ -368,6 +356,7 @@ class Tasks extends CI_Controller {
                     ->set_output(json_encode(['error' => 'Access denied']));
             }
         }
+    }
         
         // Helper functions for names
         $assigneeName = function($task) {
@@ -540,9 +529,8 @@ class Tasks extends CI_Controller {
         
         // Visibility: non-admin group can only view tasks assigned to them (or created_by them when available)
         $user_id = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
-        if ($user_id && !$is_admin) {
+        $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
+        if ($user_id && !$can_view_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             if ($assigned !== $user_id && $creator !== $user_id) { show_error('Forbidden', 403); }
@@ -555,9 +543,7 @@ class Tasks extends CI_Controller {
     public function edit($id)
     {
         // Check edit permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('tasks_edit') && !has_module_access('tasks'))) {
-            show_error('You do not have permission to edit tasks.', 403);
-        }
+        require_module_access(['tasks_edit', 'tasks'], true);
         
         // Initialize variables
         $requirements = [];
@@ -771,17 +757,14 @@ class Tasks extends CI_Controller {
     {
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
         // Check delete permission specifically
-        if (!function_exists('has_module_access') || (!has_module_access('tasks_delete') && !has_module_access('tasks'))) {
-            show_error('You do not have permission to delete tasks.', 403);
-        }
+        require_module_access(['tasks_delete', 'tasks'], true);
         
         // Ownership: non-admin group can only delete tasks assigned to them (or created_by them when available)
         $task = $this->db->where('id', (int)$id)->get('tasks')->row();
         if (!$task) { show_404(); }
         $currentUser = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = (function_exists('is_admin_group') && is_admin_group()) || $role_id === 1;
-        if ($currentUser && !$is_admin) {
+        $can_manage_all = is_admin_group() || has_module_access('tasks_delete_all');
+        if ($currentUser && !$can_manage_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             if ($assigned !== $currentUser && $creator !== $currentUser) { show_error('Forbidden', 403); }

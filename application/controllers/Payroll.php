@@ -7,19 +7,10 @@ class Payroll extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','form','permission','workday']);
         $this->load->library(['session']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
-        // Gate via permissions table when available; fallback to Admin/HR
-        // Gate via permissions
-        $allowed = false;
-        if (function_exists('has_module_access')) {
-            if (has_module_access('payroll') || has_module_access('payroll_view') || has_module_access('payroll_manage')) {
-                $allowed = true;
-            }
-        }
-        if (!$allowed){
-            $role_id = (int)$this->session->userdata('role_id');
-            if (!in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Access Denied', 403); }
-        }
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access(['payroll', 'payroll_view', 'payroll_manage'], true);
+        
         $this->load->model('Payroll_model', 'payroll');
     }
 
@@ -29,15 +20,7 @@ class Payroll extends CI_Controller {
 
     // Manage salary structures per user
     public function structures(){
-        if (function_exists('has_module_access')) {
-            if (!has_module_access('payroll_manage') && !has_module_access('payroll')) {
-                // Allow fallback to role-based check within method if module check fails? 
-                // Constructor already did a broad check. Here we enforce specific manage capability.
-                // But we must respect the role 1/2 fallback from constructor logic for consistency.
-                $rid = (int)$this->session->userdata('role_id');
-                if (!in_array($rid, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Access Denied', 403); }
-            }
-        }
+        require_module_access(['payroll_manage', 'payroll'], true);
         $rows = $this->payroll->get_structures();
         $users = $this->payroll->get_user_options();
         $this->load->view('payroll/structures', ['rows' => $rows, 'users' => $users]);
@@ -45,6 +28,7 @@ class Payroll extends CI_Controller {
 
     // GET/POST /payroll/structure/{user_id}
     public function structure($user_id = null){
+        require_module_access(['payroll_manage', 'payroll'], true);
         $user_id = (int)$user_id;
         if ($this->input->method() === 'post'){
             $user_id = (int)$this->input->post('user_id');
@@ -98,10 +82,9 @@ class Payroll extends CI_Controller {
 
     // List payslips
     public function payslips(){
+        require_module_access(['payroll_view', 'payroll'], true);
         $current_user_id = (int)$this->session->userdata('user_id');
-        $role_id         = (int)$this->session->userdata('role_id');
-        $isAdminGroup    = (function_exists('is_admin_group') && is_admin_group())
-                           || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
+        $isAdminGroup    = is_admin_group() || has_module_access('payroll_manage');
 
         $filters = [
             'period'  => $this->input->get('period'),
@@ -126,11 +109,7 @@ class Payroll extends CI_Controller {
     // POST /payroll/send_payslips
     public function send_payslips(){
         // Only payroll managers may bulk-email payslips
-        $allowed = (function_exists('has_module_access') && has_module_access('payroll_manage'))
-                   || in_array((int)$this->session->userdata('role_id'), [ROLE_ADMIN, ROLE_MANAGER], true);
-        if (!$allowed) {
-            show_error('You do not have permission to send payslips.', 403);
-        }
+        require_module_access(['payroll_manage', 'payroll'], true);
 
         if ($this->input->method() !== 'post'){
             redirect('payroll/payslips');
@@ -396,12 +375,7 @@ class Payroll extends CI_Controller {
 
     // Generate payslip for one employee and period
     public function generate(){
-        if (function_exists('has_module_access')) {
-            if (!has_module_access('payroll_manage') && !has_module_access('payroll')) {
-                $rid = (int)$this->session->userdata('role_id');
-                if (!in_array($rid, [ROLE_ADMIN, ROLE_MANAGER], true)) { show_error('Access Denied', 403); }
-            }
-        }
+        require_module_access(['payroll_manage', 'payroll'], true);
         if ($this->input->method() === 'post'){
             $user_id = (int)$this->input->post('user_id');
             $period = trim((string)$this->input->post('period'));
@@ -444,6 +418,7 @@ class Payroll extends CI_Controller {
 
     // AJAX: Get default payslip meta for selected employee
     public function employee_meta($user_id = null){
+        require_module_access(['payroll_manage', 'payroll'], true);
         $user_id = (int)$user_id;
         $this->output->set_content_type('application/json');
         if ($user_id <= 0){
@@ -612,15 +587,14 @@ class Payroll extends CI_Controller {
 
     // View payslip
     public function view($id = null){
+        require_module_access(['payroll_view', 'payroll'], true);
         $id = (int)$id;
         $row = $this->payroll->find_payslip($id);
         if (!$row){ show_404(); }
         
         // Ownership check: non-admin users can only view their own payslips
         $current_user_id = (int)$this->session->userdata('user_id');
-        $current_role_id = (int)$this->session->userdata('role_id');
-        $is_admin = in_array($current_role_id, [1, 2], true);
-        if (!$is_admin && (int)$row->user_id !== $current_user_id) {
+        if (!is_admin_group() && !has_module_access('payroll_manage') && (int)$row->user_id !== $current_user_id) {
             show_error('You do not have permission to view this payslip.', 403);
         }
         $this->load->model('Setting_model','settings');
@@ -641,12 +615,7 @@ class Payroll extends CI_Controller {
      * Export a single payslip as CSV, or all payslips if no id given
      */
     public function export($id = null){
-        $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = in_array($role_id, [1, 2], true);
-
-        if (!$is_admin && !(function_exists('has_module_access') && has_module_access('payroll_manage'))) {
-            show_error('Access denied.', 403);
-        }
+        require_module_access(['payroll_manage', 'payroll'], true);
 
         if ($id) {
             $rows = array();

@@ -7,20 +7,21 @@ class Leaves extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url','download','permission']);
         $this->load->library(['session','email']);
-        if (!(int)$this->session->userdata('user_id')) { redirect('auth/login'); }
         $this->load->model('Leave_model');
+        
+        // RBAC Audit: Centralized module access check
+        require_module_access(['leaves', 'leave_requests', 'leaves_list'], true);
     }
 
     public function index() {
-        if (function_exists('has_module_access') && !has_module_access('leaves') && !has_module_access('leave_requests') && !has_module_access('leaves_list')) {
-            show_error('You do not have permission to access Leave.', 403);
-        }
+        require_module_access(['leaves_list', 'leaves'], true);
         $this->load->view('leaves/index');
     }
 
     // GET /leaves/export
     public function export_csv()
     {
+        require_module_access(['leaves_list', 'leaves'], true);
         $this->load->dbutil();
         if (!$this->db->table_exists('leaves')) {
             $this->session->set_flashdata('error', 'Leaves table does not exist.');
@@ -35,6 +36,7 @@ class Leaves extends CI_Controller {
     // POST /leaves/test-email
     public function test_email()
     {
+        require_module_access(['leaves_list', 'leaves'], true);
         $to = $this->input->post('to');
         if (!$to) {
             // fallback to logged-in user's email if available

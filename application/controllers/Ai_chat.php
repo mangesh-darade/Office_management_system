@@ -11,35 +11,8 @@ class Ai_chat extends CI_Controller {
         $this->load->library('session');
         $this->load->helper(['url', 'permission']);
         
-        // Ensure user is logged in
-        if (!$this->session->userdata('user_id')) {
-            redirect('auth/login');
-        }
-        
-        // Check AI module access permission
-        $role_id = (int)$this->session->userdata('role_id');
-        $allowed = false;
-        
-        if (function_exists('has_module_access')) {
-            $allowed = has_module_access('ai') || has_module_access('ai_chat');
-        }
-        
-        // Fallback: if no permissions row exists yet for 'ai', allow Admin (role 1) and Manager (role 2)
-        if (!$allowed) {
-            $hasPermRow = false;
-            if ($this->db->table_exists('permissions')) {
-                $this->db->where_in('module', ['ai', 'ai_chat']);
-                $hasPermRow = ($this->db->count_all_results('permissions') > 0);
-            }
-            if (!$hasPermRow && in_array($role_id, [1, 2], true)) {
-                $allowed = true;
-            }
-        }
-        
-        if (!$allowed) {
-            $this->session->set_flashdata('access_denied', 'You do not have permission to access the AI Assistant module.');
-            redirect('dashboard');
-        }
+        // RBAC Audit: Centralized module access check
+        require_module_access(['ai', 'ai_chat'], true);
     }
 
     public function index() {

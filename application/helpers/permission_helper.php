@@ -52,11 +52,24 @@ if (!function_exists('require_module_access')) {
             return false;
         }
         
-        // Check module access
-        if (!has_module_access($module)) {
+        // Check module access (supports array of modules)
+        $has_access = false;
+        if (is_array($module)) {
+            foreach ($module as $m) {
+                if (has_module_access($m)) {
+                    $has_access = true;
+                    break;
+                }
+            }
+        } else {
+            $has_access = has_module_access($module);
+        }
+
+        if (!$has_access) {
             if ($redirect_to_dashboard) {
                 // Set flash message to inform user
-                $CI->session->set_flashdata('access_denied', 'You do not have permission to access the ' . ucfirst($module) . ' module.');
+                $module_name = is_array($module) ? implode(' or ', $module) : $module;
+                $CI->session->set_flashdata('access_denied', 'You do not have permission to access the ' . ucfirst($module_name) . ' module.');
                 redirect('dashboard');
             } else {
                 // Use show_error which will trigger our custom 403 page
