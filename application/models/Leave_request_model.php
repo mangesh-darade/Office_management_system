@@ -5,6 +5,7 @@ class Leave_request_model extends CI_Model {
     public function __construct(){
         parent::__construct(); 
         $this->load->database();
+        $this->load->helper('hierarchy_filter');
         $this->load->model('Setting_model', 'settings');
         $this->ensure_schema();
     }
@@ -43,6 +44,7 @@ class Leave_request_model extends CI_Model {
         if (!empty($filters['end_date'])) {
             $this->db->where('lr.end_date <=', $filters['end_date']);
         }
+        apply_role_hierarchy_filter($this->db, 'lr.user_id');
         $this->db->order_by('lr.start_date', 'DESC');
         return $this->db->get()->result();
     }
@@ -61,6 +63,7 @@ class Leave_request_model extends CI_Model {
         if ($this->db->field_exists('current_approver_id', 'leave_requests')) {
             $this->db->where('lr.current_approver_id', (int)$manager_id);
         }
+        apply_role_hierarchy_filter($this->db, 'lr.user_id');
         return $this->db->get()->result();
     }
 

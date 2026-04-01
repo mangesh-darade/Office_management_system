@@ -2,9 +2,13 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Timesheet_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
 
     public function get_user_timesheet($user_id, $week_start){
+        $visible = get_accessible_hierarchy_user_ids();
+        if (!empty($visible) && !in_array((int)$user_id, $visible, true)) {
+            return [null, []];
+        }
         $week_end = date('Y-m-d', strtotime($week_start.' +6 days'));
         $row = $this->db->get_where('timesheets', ['user_id'=>(int)$user_id, 'week_start_date'=>$week_start])->row();
         if (!$row){
@@ -84,14 +88,15 @@ class Timesheet_model extends CI_Model {
     public function report_monthly_hours($year, $month){
         $start = sprintf('%04d-%02d-01', $year, $month);
         $end = date('Y-m-t', strtotime($start));
-        $sql = "SELECT u.email, SUM(te.hours) AS hours
-                FROM timesheet_entries te
-                JOIN timesheets ts ON ts.id = te.timesheet_id
-                JOIN users u ON u.id = ts.user_id
-                WHERE te.work_date BETWEEN ? AND ?
-                GROUP BY u.id, u.email
-                ORDER BY hours DESC";
-        return $this->db->query($sql, [$start, $end])->result();
+        $this->db->select('u.email, SUM(te.hours) AS hours', false)
+            ->from('timesheet_entries te')
+            ->join('timesheets ts', 'ts.id = te.timesheet_id')
+            ->join('users u', 'u.id = ts.user_id')
+            ->where('te.work_date >=', $start)
+            ->where('te.work_date <=', $end);
+        apply_role_hierarchy_filter($this->db, 'ts.user_id');
+        $this->db->group_by('u.id, u.email')->order_by('hours', 'DESC');
+        return $this->db->get()->result();
     }
     
     /**
@@ -140,6 +145,7 @@ class Timesheet_model extends CI_Model {
         if ($end_date) {
             $this->db->where('te.work_date <=', $end_date);
         }
+        apply_role_hierarchy_filter($this->db, 'ts.user_id');
         
         $this->db->group_by('te.task_id, te.project_id, ts.user_id')
                  ->order_by('total_hours', 'DESC');
@@ -172,6 +178,7 @@ class Timesheet_model extends CI_Model {
         if ($end_date) {
             $this->db->where('te.work_date <=', $end_date);
         }
+        apply_role_hierarchy_filter($this->db, 'ts.user_id');
         
         $this->db->group_by('te.project_id')
                  ->order_by('total_hours', 'DESC');
@@ -204,6 +211,7 @@ class Timesheet_model extends CI_Model {
         if ($end_date) {
             $this->db->where('te.work_date <=', $end_date);
         }
+        apply_role_hierarchy_filter($this->db, 'ts.user_id');
         
         $this->db->group_by('ts.user_id')
                  ->order_by('total_hours', 'DESC');

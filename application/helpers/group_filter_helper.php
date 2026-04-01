@@ -220,6 +220,9 @@ if (!function_exists('get_accessible_user_ids')) {
      * @return array Array of accessible user IDs
      */
     function get_accessible_user_ids($user_id = null, $role_id = null) {
+        if (function_exists('get_accessible_hierarchy_user_ids')) {
+            return get_accessible_hierarchy_user_ids($user_id, $role_id);
+        }
         $CI =& get_instance();
         
         if ($user_id === null) {

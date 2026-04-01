@@ -5,7 +5,7 @@ class Reports extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','permission']);
+        $this->load->helper(['url','permission','hierarchy_filter']);
         $this->load->library('session');
         $this->load->model('Report_model');
         if ($this->db->table_exists('settings')) {
@@ -28,14 +28,30 @@ class Reports extends CI_Controller {
         $attendance_late_top = [];
 
         if ($this->db->table_exists('tasks')) {
-            $task_status = $this->db->select('status, COUNT(*) as cnt')->group_by('status')->get('tasks')->result();
+            $this->db->select('status, COUNT(*) as cnt')->from('tasks');
+            apply_role_hierarchy_filter($this->db, 'created_by');
+            $task_status = $this->db->group_by('status')->get()->result();
         }
         if ($this->db->table_exists('projects')) {
-            $projects_progress = $this->db->select('status, COUNT(*) as cnt')->group_by('status')->get('projects')->result();
+            $this->db->select('status, COUNT(*) as cnt')->from('projects');
+            if ($this->db->field_exists('created_by', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'created_by');
+            } else if ($this->db->field_exists('manager_id', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'manager_id');
+            }
+            $projects_progress = $this->db->group_by('status')->get()->result();
         }
         if ($this->db->table_exists('leave_requests')) {
-            $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, SUM(days) AS total_days FROM leave_requests WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
-            $leaves_by_status = $this->db->select('status, COUNT(*) AS cnt, SUM(days) AS total_days')->from('leave_requests')->group_by('status')->get()->result();
+            $this->db->select("DATE_FORMAT(start_date, '%Y-%m') as ym, SUM(days) AS total_days", false)
+                ->from('leave_requests')
+                ->where('start_date >=', date('Y-m-d', strtotime('-6 months')));
+            apply_role_hierarchy_filter($this->db, 'user_id');
+            $leaves_monthly = $this->db->group_by('ym')->order_by('ym')->get()->result();
+
+            $this->db->select('status, COUNT(*) AS cnt, SUM(days) AS total_days')
+                ->from('leave_requests');
+            apply_role_hierarchy_filter($this->db, 'user_id');
+            $leaves_by_status = $this->db->group_by('status')->get()->result();
         } elseif ($this->db->table_exists('leaves')) {
             $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, COUNT(*) AS total_days FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
             $leaves_by_status = $this->db->select('status, COUNT(*) AS cnt')->from('leaves')->group_by('status')->get()->result();
@@ -43,6 +59,7 @@ class Reports extends CI_Controller {
         if ($this->db->table_exists('tasks')) {
             // Top 10 assignees by number of tasks
             $this->db->select('t.assigned_to, COUNT(*) AS cnt')->from('tasks t')->group_by('t.assigned_to')->order_by('cnt','DESC')->limit(10);
+            apply_role_hierarchy_filter($this->db, 't.created_by');
             if ($this->db->table_exists('users')) {
                 $this->db->select('u.email');
                 if ($this->db->field_exists('full_name','users')) { $this->db->select('u.full_name'); }
@@ -156,7 +173,9 @@ class Reports extends CI_Controller {
                                 if ($this->db->field_exists('first_name','employees')) { $this->db->select('e.first_name AS emp_first_name'); }
                                 if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
                             }
-                            $users = $this->db->from('users u')->get()->result();
+                            $this->db->from('users u');
+                            apply_role_hierarchy_filter($this->db, 'u.id');
+                            $users = $this->db->get()->result();
                             foreach ($users as $u) { $labels[(int)$u->id] = $u; }
                         }
 
@@ -241,6 +260,7 @@ class Reports extends CI_Controller {
             $this->db->join('users u','u.id = r.owner_id','left');
         }
         $this->db->from('requirements r');
+        apply_role_hierarchy_filter($this->db, 'r.created_by');
 
         // Apply filters
         if (!empty($filters['status'])) {
@@ -430,6 +450,7 @@ class Reports extends CI_Controller {
         if ($this->db->table_exists('tasks')) {
             // Build base query with filters
             $this->db->select('assigned_to, status, COUNT(*) as cnt')->from('tasks');
+            apply_role_hierarchy_filter($this->db, 'created_by');
             
             // Apply filters
             if (!empty($filters['project_id'])) {
@@ -467,6 +488,7 @@ class Reports extends CI_Controller {
             $task_details_map = [];
             
             $this->db->select('assigned_to, title, status, project_id, created_at, due_date')->from('tasks');
+            apply_role_hierarchy_filter($this->db, 'created_by');
             
             // Re-apply same filters for task details
             if (!empty($filters['project_id'])) {
@@ -521,7 +543,9 @@ class Reports extends CI_Controller {
                     if ($this->db->field_exists('middle_name','employees')) { $this->db->select('e.middle_name AS emp_middle_name'); }
                 }
 
-                $users = $this->db->from('users u')->get()->result();
+                $this->db->from('users u');
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $users = $this->db->get()->result();
                 foreach ($users as $u){ $labels[(int)$u->id] = $u; }
             }
             foreach ($map as $uid=>$counts){
@@ -649,6 +673,7 @@ class Reports extends CI_Controller {
         $this->db->from('daily_work_logs dl');
         $this->db->join('tasks t', 't.id = dl.task_id', 'left');
         $this->db->join('users u', 'u.id = dl.user_id', 'left');
+        apply_role_hierarchy_filter($this->db, 'dl.user_id');
         
         if (!empty($filters['user_id'])) {
             $this->db->where('dl.user_id', $filters['user_id']);
@@ -663,12 +688,7 @@ class Reports extends CI_Controller {
         // Scope Check
         $currentUserId = (int)$this->session->userdata('user_id');
         $isAdminGroup = (function_exists('is_admin_group') && is_admin_group()) || (int)$this->session->userdata('role_id') === 1;
-        if (!$isAdminGroup) {
-             // Non-admins can only see their own report? Or maybe team's?
-             // Let's restrict to self for now unless they are a manager/lead (which is covered by is_admin_group mostly)
-             // If is_admin_group is true, they usually see all.
-             $this->db->where('dl.user_id', $currentUserId);
-        }
+        apply_role_hierarchy_filter($this->db, 'dl.user_id', $currentUserId, (int)$this->session->userdata('role_id'));
 
         // Show latest entries first
         $this->db->order_by('dl.created_at', 'DESC');
@@ -677,7 +697,9 @@ class Reports extends CI_Controller {
          // Users for filter
         $users = [];
         if ($isAdminGroup) {
-             $users = $this->db->select('id, name, email')->from('users')->order_by('name')->get()->result();
+             $this->db->select('id, name, email')->from('users');
+             apply_role_hierarchy_filter($this->db, 'id');
+             $users = $this->db->order_by('name')->get()->result();
         }
 
         // Build summary stats
@@ -758,6 +780,11 @@ class Reports extends CI_Controller {
             $this->db->select(implode(', ', $select_fields))
                      ->from('projects p')
                      ->join('tasks t','t.project_id = p.id','left');
+            if ($this->db->field_exists('created_by', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'p.created_by');
+            } else if ($this->db->field_exists('manager_id', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'p.manager_id');
+            }
             
             // Apply filters
             if (!empty($filters['status'])) {
@@ -909,6 +936,11 @@ class Reports extends CI_Controller {
             
             $this->db->select(implode(', ', $select_fields))
                      ->from('projects p');
+            if ($this->db->field_exists('created_by', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'p.created_by');
+            } else if ($this->db->field_exists('manager_id', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'p.manager_id');
+            }
             
             // Apply filters
             if (!empty($filters['status'])) {
@@ -1131,6 +1163,7 @@ class Reports extends CI_Controller {
             }
             
             $this->db->select(implode(', ', $select_fields))->from('leave_requests');
+            apply_role_hierarchy_filter($this->db, 'user_id');
             if (!empty($filters['user_id'])) {
                 $this->db->where('user_id', (int)$filters['user_id']);
             }
@@ -1155,6 +1188,7 @@ class Reports extends CI_Controller {
             }
             
             $this->db->select(implode(', ', $select_fields))->from('leave_requests');
+            apply_role_hierarchy_filter($this->db, 'user_id');
             if (!empty($filters['status'])) {
                 $this->db->where('status', $filters['status']);
             }
@@ -1195,6 +1229,7 @@ class Reports extends CI_Controller {
             }
             
             $this->db->select(implode(', ', $select_fields))->from('leave_requests');
+            apply_role_hierarchy_filter($this->db, 'user_id');
             if (!empty($filters['status'])) {
                 $this->db->where('status', $filters['status']);
             }
@@ -1237,7 +1272,9 @@ class Reports extends CI_Controller {
             
             // Get distinct leave types only if the column exists
             if (in_array('leave_type', $fields)) {
-                $leave_types = $this->db->select('DISTINCT(leave_type)')->from('leave_requests')->get()->result();
+                $this->db->select('DISTINCT(leave_type)')->from('leave_requests');
+                apply_role_hierarchy_filter($this->db, 'user_id');
+                $leave_types = $this->db->get()->result();
             } else {
                 $leave_types = [];
             }
@@ -1320,7 +1357,9 @@ class Reports extends CI_Controller {
             if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
         }
         
-        $user = $this->db->from('users u')->where('u.id', (int)$user_id)->get()->row();
+        $this->db->from('users u')->where('u.id', (int)$user_id);
+        apply_role_hierarchy_filter($this->db, 'u.id');
+        $user = $this->db->get()->row();
         
         if (!$user) {
             return 'User #' . $user_id;
@@ -1518,7 +1557,9 @@ class Reports extends CI_Controller {
                 if ($this->db->field_exists('middle_name','employees')) { $this->db->select('e.middle_name AS emp_middle_name'); }
                 if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
             }
-            $users = $this->db->from('users u')->get()->result();
+            $this->db->from('users u');
+            apply_role_hierarchy_filter($this->db, 'u.id');
+            $users = $this->db->get()->result();
             foreach ($users as $u) { $labels[(int)$u->id] = $u; }
         }
 
@@ -1895,19 +1936,22 @@ class Reports extends CI_Controller {
                 if ($this->db->field_exists('middle_name','employees')) { $this->db->select('e.middle_name AS emp_middle_name'); }
                 if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
             }
-            $users = $this->db->from('users u')->get()->result();
+            $this->db->from('users u');
+            apply_role_hierarchy_filter($this->db, 'u.id');
+            $users = $this->db->get()->result();
             foreach ($users as $u) { 
                 $allUsers[(int)$u->id] = $u; 
             }
         }
 
         $summary = [];
-        $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
+        $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
             ->from('attendance')
             ->where("`$dateCol` >=", $from)
             ->where("`$dateCol` <=", $to)
-            ->group_by(["`$userCol`","`$statusCol`"])
-            ->get()->result();
+            ->group_by(["`$userCol`","`$statusCol`"]);
+        apply_role_hierarchy_filter($this->db, $userCol);
+        $rows = $this->db->get()->result();
         foreach ($rows as $r) {
             $uid = (int)$r->uid;
             $st = strtolower(trim((string)$r->st));
@@ -1977,12 +2021,13 @@ class Reports extends CI_Controller {
                 $selectCols[] = "`total_hours` AS th";
             }
             
-            $attendanceRows = $this->db->select(implode(', ', $selectCols))
+            $this->db->select(implode(', ', $selectCols))
                 ->from('attendance')
                 ->where("`$dateCol` >=", $from)
                 ->where("`$dateCol` <=", $to)
-                ->where("`$statusCol` !=", 'absent')
-                ->get()->result();
+                ->where("`$statusCol` !=", 'absent');
+            apply_role_hierarchy_filter($this->db, $userCol);
+            $attendanceRows = $this->db->get()->result();
 
             foreach ($attendanceRows as $row) {
                 $uid = (int)$row->uid;
@@ -2152,8 +2197,9 @@ class Reports extends CI_Controller {
                 ->where("`notes` !=", '')
                 ->where("TRIM(`notes`) !=", '')
                 ->order_by($dateCol, 'ASC')
-                ->order_by($userCol, 'ASC')
-                ->get();
+                ->order_by($userCol, 'ASC');
+            apply_role_hierarchy_filter($this->db, $userCol);
+            $notesQuery = $this->db->get();
             
             if ($notesQuery && $notesQuery->num_rows() > 0) {
                 foreach ($notesQuery->result() as $noteRow) {
@@ -2263,7 +2309,9 @@ class Reports extends CI_Controller {
                     if ($this->db->field_exists('last_name','employees')) { $this->db->select('e.last_name AS emp_last_name'); }
                     if ($this->db->field_exists('department','employees')) { $this->db->select('e.department'); }
                 }
-                $users = $this->db->from('users u')->get()->result();
+                $this->db->from('users u');
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $users = $this->db->get()->result();
                 foreach ($users as $u){ $labels[(int)$u->id] = $u; }
             }
 
@@ -2593,7 +2641,9 @@ class Reports extends CI_Controller {
                 if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
                 }
-                $users = $this->db->from('users u')->get()->result();
+                $this->db->from('users u');
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $users = $this->db->get()->result();
             }
             
             // Get attendance data (use same column detection as grid)
@@ -2610,13 +2660,14 @@ class Reports extends CI_Controller {
             if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
             
             $summary = [];
-            $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
+            $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
                 ->from('attendance')
                 ->where("`$dateCol` >=", $from)
                 ->where("`$dateCol` <=", $to)
                 ->where_in("`$userCol`", $userIds)
-                ->group_by(["`$userCol`","`$statusCol`"])
-                ->get()->result();
+                ->group_by(["`$userCol`","`$statusCol`"]);
+            apply_role_hierarchy_filter($this->db, $userCol);
+            $rows = $this->db->get()->result();
                 
             foreach ($rows as $r) {
                 $uid = (int)$r->uid;
@@ -2694,13 +2745,14 @@ class Reports extends CI_Controller {
                     $selectCols[] = "`total_hours` AS th";
                 }
                 
-                $attendanceRows = $this->db->select(implode(', ', $selectCols))
+                $this->db->select(implode(', ', $selectCols))
                     ->from('attendance')
                     ->where("`$dateCol` >=", $from)
                     ->where("`$dateCol` <=", $to)
                     ->where_in("`$userCol`", $userIds)
-                    ->where("`$statusCol` !=", 'absent')
-                    ->get()->result();
+                    ->where("`$statusCol` !=", 'absent');
+                apply_role_hierarchy_filter($this->db, $userCol);
+                $attendanceRows = $this->db->get()->result();
                 
                 foreach ($attendanceRows as $row) {
                     $uid = (int)$row->uid;
@@ -2913,7 +2965,9 @@ class Reports extends CI_Controller {
                 if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
                 }
-                $users = $this->db->from('users u')->get()->result();
+                $this->db->from('users u');
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $users = $this->db->get()->result();
             }
             
             // Get attendance data (use same column detection as grid)
@@ -2930,13 +2984,14 @@ class Reports extends CI_Controller {
             if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
             
             $summary = [];
-            $rows = $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
+            $this->db->select("`$userCol` AS uid, `$statusCol` AS st, COUNT(*) AS cnt")
                 ->from('attendance')
                 ->where("`$dateCol` >=", $from)
                 ->where("`$dateCol` <=", $to)
                 ->where_in("`$userCol`", $userIds)
-                ->group_by(["`$userCol`","`$statusCol`"])
-                ->get()->result();
+                ->group_by(["`$userCol`","`$statusCol`"]);
+            apply_role_hierarchy_filter($this->db, $userCol);
+            $rows = $this->db->get()->result();
                 
             foreach ($rows as $r) {
                 $uid = (int)$r->uid;
@@ -3014,13 +3069,14 @@ class Reports extends CI_Controller {
                     $selectCols[] = "`total_hours` AS th";
                 }
                 
-                $attendanceRows = $this->db->select(implode(', ', $selectCols))
+                $this->db->select(implode(', ', $selectCols))
                     ->from('attendance')
                     ->where("`$dateCol` >=", $from)
                     ->where("`$dateCol` <=", $to)
                     ->where_in("`$userCol`", $userIds)
-                    ->where("`$statusCol` !=", 'absent')
-                    ->get()->result();
+                    ->where("`$statusCol` !=", 'absent');
+                apply_role_hierarchy_filter($this->db, $userCol);
+                $attendanceRows = $this->db->get()->result();
                 
                 foreach ($attendanceRows as $row) {
                     $uid = (int)$row->uid;
@@ -3493,7 +3549,9 @@ class Reports extends CI_Controller {
                 if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
                 }
-                $user = $this->db->from('users u')->where('u.id', $user_id)->get()->row();
+                $this->db->from('users u')->where('u.id', $user_id);
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $user = $this->db->get()->row();
                 if ($user) { $userName = isset($user->name) ? $user->name : 'Unknown'; }
             }
             
@@ -3607,7 +3665,9 @@ class Reports extends CI_Controller {
                 if ($hasEmpTable) {
                     $this->db->join('employees e','e.user_id = u.id','left');
                 }
-                $user = $this->db->from('users u')->where('u.id', $user_id)->get()->row();
+                $this->db->from('users u')->where('u.id', $user_id);
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $user = $this->db->get()->row();
                 if ($user) { $userName = isset($user->name) ? $user->name : 'Unknown'; }
             }
             

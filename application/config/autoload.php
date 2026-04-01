@@ -100,6 +100,7 @@ $autoload['helper'][] = 'api_integration';
 $autoload['helper'][] = 'error_handler';
 // Load notification helper for customizable notification messages
 $autoload['helper'][] = 'notification';
+$autoload['helper'][] = 'hierarchy_filter';
 
 /*
 | -------------------------------------------------------------------

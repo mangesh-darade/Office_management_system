@@ -6,7 +6,7 @@ class Daily_activity extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'permission']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -60,6 +60,7 @@ class Daily_activity extends CI_Controller {
         $this->db->from('daily_work_logs dl');
         $this->db->join('tasks t', 't.id = dl.task_id', 'left');
         $this->db->where('dl.user_id', $user_id);
+        apply_role_hierarchy_filter($this->db, 'dl.user_id');
         $this->db->where('dl.work_date', $date);
         $this->db->order_by('dl.created_at', 'DESC');
         $logs = $this->db->get()->result();
@@ -70,13 +71,7 @@ class Daily_activity extends CI_Controller {
         
         $this->db->select('id, title');
         $this->db->from('tasks');
-        if (!$is_admin) {
-             // Show tasks assigned to user or created by user
-            $this->db->group_start();
-            $this->db->where('assigned_to', $current_user_id);
-            $this->db->or_where('created_by', $current_user_id);
-            $this->db->group_end();
-        }
+        apply_role_hierarchy_filter($this->db, 'created_by');
         $this->db->where_in('status', ['pending', 'in_progress']); // Only active tasks
         $this->db->order_by('id', 'DESC');
         $tasks = $this->db->get()->result();
@@ -122,11 +117,10 @@ class Daily_activity extends CI_Controller {
 
         // Helper closure to apply shared WHERE conditions
         $apply_filters = function() use ($filters, $is_admin) {
-            if (!$is_admin) {
-                $this->db->where('dl.user_id', (int)$this->session->userdata('user_id'));
-            } elseif (!empty($filters['user_id'])) {
+            if (!empty($filters['user_id'])) {
                 $this->db->where('dl.user_id', $filters['user_id']);
             }
+            apply_role_hierarchy_filter($this->db, 'dl.user_id');
             if (!empty($filters['date_from'])) {
                 $this->db->where('dl.work_date >=', $filters['date_from']);
             }
@@ -181,7 +175,9 @@ class Daily_activity extends CI_Controller {
         // Users for filter (Admin only)
         $users = [];
         if ($is_admin) {
-            $users = $this->db->select('id, name, email')->from('users')->order_by('name')->get()->result();
+            $this->db->select('id, name, email')->from('users');
+            apply_role_hierarchy_filter($this->db, 'id');
+            $users = $this->db->order_by('name')->get()->result();
         }
 
         $this->load->view('daily_activity/list', [
@@ -269,12 +265,7 @@ class Daily_activity extends CI_Controller {
 
         // Fetch tasks for dropdown
         $this->db->select('id, title')->from('tasks');
-        if (!$is_admin) {
-            $this->db->group_start();
-            $this->db->where('assigned_to', $user_id);
-            $this->db->or_where('created_by', $user_id);
-            $this->db->group_end();
-        }
+        apply_role_hierarchy_filter($this->db, 'created_by');
         $tasks = $this->db->order_by('id', 'DESC')->get()->result();
 
         $this->load->view('daily_activity/edit', [
@@ -296,7 +287,7 @@ class Daily_activity extends CI_Controller {
         $this->db->from('daily_work_logs dl');
         $this->db->join('tasks t', 't.id = dl.task_id', 'left');
         $this->db->join('users u', 'u.id = dl.user_id', 'left');
-        if (!$is_admin) { $this->db->where('dl.user_id', $user_id); }
+        apply_role_hierarchy_filter($this->db, 'dl.user_id');
         $this->db->where('dl.work_date >=', $date_from);
         $this->db->where('dl.work_date <=', $date_to);
         $this->db->order_by('dl.work_date', 'DESC');

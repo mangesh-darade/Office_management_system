@@ -6,7 +6,7 @@ class Leave_requests extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->library(['session','email']);
-        $this->load->helper(['url','form','workday','group_filter','company','permission']);
+        $this->load->helper(['url','form','workday','group_filter','hierarchy_filter','company','permission']);
         $this->load->model('Leave_request_model','leaves');
         
         // RBAC Audit: Centralized module access check
@@ -430,6 +430,7 @@ class Leave_requests extends CI_Controller {
                  ->from('leave_requests lr')
                  ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                  ->where('lr.user_id', $user_id);
+        apply_role_hierarchy_filter($this->db, 'lr.user_id');
         
         if (!empty($filters['status'])) {
             $this->db->where('lr.status', $filters['status']);
@@ -477,6 +478,7 @@ class Leave_requests extends CI_Controller {
                  ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                  ->join('users u', 'u.id = lr.user_id', 'left') // Applied user
                  ->join('employees e', 'e.user_id = lr.user_id', 'left'); // Applied user employee info
+        apply_role_hierarchy_filter($this->db, 'lr.user_id');
         
         // For Manager role, add department join if needed
         if (has_role('manager') && $this->db->table_exists('departments')) {
@@ -651,6 +653,7 @@ class Leave_requests extends CI_Controller {
                  ->join('employees e', 'e.user_id = lr.user_id', 'left')
                  ->where('lr.start_date <=', $to)
                  ->where('lr.end_date >=', $from);
+        apply_role_hierarchy_filter($this->db, 'lr.user_id');
 
         if ($restrict_to_team) {
             // Department managers see leaves of employees in their department

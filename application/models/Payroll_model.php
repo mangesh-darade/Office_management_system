@@ -8,6 +8,7 @@ class Payroll_model extends CI_Model {
     public function __construct(){
         parent::__construct();
         $this->load->database();
+        $this->load->helper('hierarchy_filter');
         $this->ensure_schema();
     }
 
@@ -124,7 +125,9 @@ class Payroll_model extends CI_Model {
         $opts = [];
         if (!$this->db->table_exists('users')) { return $opts; }
         $this->db->select('id, email, name');
-        $rows = $this->db->from('users')->order_by('email','ASC')->limit(500)->get()->result();
+        $this->db->from('users');
+        apply_role_hierarchy_filter($this->db, 'id');
+        $rows = $this->db->order_by('email','ASC')->limit(500)->get()->result();
         foreach ($rows as $r){
             $label = $r->email;
             if (!empty($r->name)) { $label = $r->name.' <'.$r->email.'>'; }
@@ -137,12 +140,16 @@ class Payroll_model extends CI_Model {
         $this->db->select('s.*, u.email, u.name');
         $this->db->from($this->table_struct.' s');
         $this->db->join('users u', 'u.id = s.user_id', 'left');
+        apply_role_hierarchy_filter($this->db, 's.user_id');
         $this->db->order_by('u.email','ASC');
         return $this->db->get()->result();
     }
 
     public function get_structure($user_id){
-        return $this->db->get_where($this->table_struct, ['user_id' => (int)$user_id])->row();
+        $this->db->from($this->table_struct);
+        $this->db->where('user_id', (int)$user_id);
+        apply_role_hierarchy_filter($this->db, 'user_id');
+        return $this->db->get()->row();
     }
 
     public function save_structure($user_id, $data){
@@ -170,6 +177,7 @@ class Payroll_model extends CI_Model {
         if (!empty($filters['user_id'])){
             $this->db->where('p.user_id', (int)$filters['user_id']);
         }
+        apply_role_hierarchy_filter($this->db, 'p.user_id');
         $this->db->order_by('p.period','DESC');
         $this->db->order_by('u.email','ASC');
         return $this->db->get()->result();
@@ -185,6 +193,7 @@ class Payroll_model extends CI_Model {
             $this->db->join('employees e','e.user_id = u.id','left');
         }
         $this->db->where('p.id', (int)$id);
+        apply_role_hierarchy_filter($this->db, 'p.user_id');
         return $this->db->get()->row();
     }
 

@@ -8,7 +8,7 @@ class Users extends CI_Controller {
         $this->load->model('Face_model', 'faces');
         $this->load->model('Employee_model');
         $this->load->model('Shift_model');
-        $this->load->helper(['url', 'form', 'permission']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -202,6 +202,8 @@ class Users extends CI_Controller {
     public function edit($id = null) {
         require_module_access(['users_edit', 'users'], true);
         $id = (int)$id;
+        $allowed_ids = get_accessible_hierarchy_user_ids();
+        if (!empty($allowed_ids) && !in_array($id, $allowed_ids, true)) { show_error('Forbidden', 403); }
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
         
@@ -227,6 +229,8 @@ class Users extends CI_Controller {
     public function update($id = null) {
         require_module_access(['users_edit', 'users'], true);
         $id = (int)$id;
+        $allowed_ids = get_accessible_hierarchy_user_ids();
+        if (!empty($allowed_ids) && !in_array($id, $allowed_ids, true)) { show_error('Forbidden', 403); }
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
         $in = $this->_sanitize();
@@ -360,6 +364,8 @@ class Users extends CI_Controller {
         require_module_access(['users_delete', 'users'], true);
         $this->load->helper('change_tracker');
         $id = (int)$id;
+        $allowed_ids = get_accessible_hierarchy_user_ids();
+        if (!empty($allowed_ids) && !in_array($id, $allowed_ids, true)) { show_error('Forbidden', 403); }
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
         $data = ['title' => 'Delete User', 'row' => $row];
@@ -372,6 +378,8 @@ class Users extends CI_Controller {
             show_error('Method Not Allowed', 405);
         }
         $id = (int)$id;
+        $allowed_ids = get_accessible_hierarchy_user_ids();
+        if (!empty($allowed_ids) && !in_array($id, $allowed_ids, true)) { show_error('Forbidden', 403); }
         $row = $this->users->find($id);
         if (!$row) { show_404(); }
         
@@ -568,6 +576,8 @@ class Users extends CI_Controller {
         }
         
         $id = (int)$id;
+        $allowed_ids = get_accessible_hierarchy_user_ids();
+        if (!empty($allowed_ids) && !in_array($id, $allowed_ids, true)) { show_error('Forbidden', 403); }
         $user = $this->users->get($id);
         
         if (!$user) {

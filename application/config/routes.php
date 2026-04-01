@@ -393,6 +393,8 @@ $route['users/delete/(:num)'] = 'users/delete/$1';
 $route['users/check-email'] = 'users/check_email';
 $route['users/check-phone'] = 'users/check_phone';
 $route['users/save_face'] = 'users/save_face';
+$route['lead-mapping'] = 'lead_mapping/index';
+$route['lead-mapping/save'] = 'lead_mapping/save';
 
 // Approvals
 $route['approvals'] = 'approvals/index';

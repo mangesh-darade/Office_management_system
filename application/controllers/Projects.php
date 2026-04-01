@@ -5,7 +5,7 @@ class Projects extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'group_filter', 'permission']);
+        $this->load->helper(['url', 'form', 'group_filter', 'hierarchy_filter', 'permission']);
         $this->load->library(['session']);
         $this->load->model('Project_model');
         
@@ -193,6 +193,7 @@ class Projects extends CI_Controller {
             $this->db->from('tasks t');
             $this->db->join('users u', 'u.id = t.assigned_to', 'left');
             $this->db->where('t.project_id', (int)$id);
+            apply_role_hierarchy_filter($this->db, 't.created_by');
             $this->db->order_by('t.id', 'DESC');
             $tasks = $this->db->get()->result();
 
@@ -221,7 +222,9 @@ class Projects extends CI_Controller {
             // Fetch Requirements
             $requirements = [];
             if ($this->db->table_exists('requirements')) {
-                $requirements = $this->db->where('project_id', (int)$id)->get('requirements')->result();
+                $this->db->where('project_id', (int)$id);
+                apply_role_hierarchy_filter($this->db, 'created_by');
+                $requirements = $this->db->get('requirements')->result();
             }
             
             $data = [

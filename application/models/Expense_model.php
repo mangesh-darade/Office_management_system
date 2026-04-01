@@ -7,6 +7,7 @@ class Expense_model extends CI_Model {
     {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('hierarchy_filter');
     }
     
     /**
@@ -19,6 +20,7 @@ class Expense_model extends CI_Model {
         $this->db->join('users', 'users.id = expenses.user_id', 'left');
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.id', (int)$id);
+        apply_role_hierarchy_filter($this->db, 'expenses.user_id');
         return $this->db->get()->row();
     }
     
@@ -31,6 +33,7 @@ class Expense_model extends CI_Model {
         $this->db->from('expenses');
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.user_id', (int)$user_id);
+        apply_role_hierarchy_filter($this->db, 'expenses.user_id');
         
         if (isset($filters['status'])) {
             $this->db->where('expenses.status', $filters['status']);
@@ -58,6 +61,7 @@ class Expense_model extends CI_Model {
         $this->db->join('users', 'users.id = expenses.user_id', 'left');
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.status', 'pending');
+        apply_role_hierarchy_filter($this->db, 'expenses.user_id');
         $this->db->order_by('expenses.created_at', 'ASC');
         return $this->db->get()->result();
     }
@@ -72,6 +76,7 @@ class Expense_model extends CI_Model {
         $this->db->join('users', 'users.id = expenses.user_id', 'left');
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id', 'left');
         $this->db->where('expenses.status', 'approved');
+        apply_role_hierarchy_filter($this->db, 'expenses.user_id');
         $this->db->order_by('expenses.approved_at', 'ASC');
         return $this->db->get()->result();
     }
@@ -96,6 +101,7 @@ class Expense_model extends CI_Model {
         if ($user_id) {
             $this->db->where('user_id', (int)$user_id);
         }
+        apply_role_hierarchy_filter($this->db, 'user_id');
         
         return $this->db->get('expenses')->row();
     }

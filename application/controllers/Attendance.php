@@ -7,7 +7,7 @@ class Attendance extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','company']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','company']);
         $this->load->library(['session','upload','email','pagination']);
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
@@ -37,18 +37,7 @@ class Attendance extends CI_Controller {
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         
-        // Apply group-based filtering
-        if (!$canViewAll) {
-            if (can_view_group_data($role_id)) {
-                // Managers can see department attendance
-                if (!empty($filters['attendance'])) {
-                    apply_group_filter_to_query($this->db, 'attendance', $filters);
-                }
-            } else {
-                // Regular users see only their own attendance
-                $this->db->where('a.user_id', $user_id);
-            }
-        }
+        apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
         
         $total_query = $this->db->get()->row();
         $total_records = $total_query->total;
@@ -59,18 +48,7 @@ class Attendance extends CI_Controller {
         $this->db->from('attendance a');
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         
-        // Apply group-based filtering
-        if (!$canViewAll) {
-            if (can_view_group_data($role_id)) {
-                // Managers can see department attendance
-                if (!empty($filters['attendance'])) {
-                    apply_group_filter_to_query($this->db, 'attendance', $filters);
-                }
-            } else {
-                // Regular users see only their own attendance
-                $this->db->where('a.user_id', $user_id);
-            }
-        }
+        apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
         
         $this->db->group_by('a.user_id, u.email, u.name');
         
@@ -109,9 +87,10 @@ class Attendance extends CI_Controller {
             return;
         }
 
-        // IDOR protection: non-admin/manager users may only query their own attendance
-        if ($requested_user_id !== $current_user_id) {
-            require_module_access(['attendance_view_all'], true);
+        // IDOR protection using hierarchy access list
+        $allowed_ids = get_accessible_hierarchy_user_ids($current_user_id, $current_role_id);
+        if (!empty($allowed_ids) && !in_array($requested_user_id, $allowed_ids, true)) {
+            show_error('Forbidden', 403);
         }
 
         $user_id     = $requested_user_id;
@@ -1553,9 +1532,7 @@ class Attendance extends CI_Controller {
         $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
         
         // Apply permissions
-        if (!$canManageAll) {
-            $this->db->where('a.user_id', $user_id);
-        }
+        apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
         
         // Get all records for statistics
         $all_records = $this->db->get()->result();
@@ -1675,17 +1652,7 @@ class Attendance extends CI_Controller {
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         $this->db->where_in('a.user_id', $userIds);
         
-        // Apply group-based filtering
-        if (!$canViewAll) {
-            if (can_view_group_data($role_id)) {
-                if (!empty($filters['attendance'])) {
-                    apply_group_filter_to_query($this->db, 'attendance', $filters);
-                }
-            } else {
-                // Regular users can only export their own data
-                $this->db->where('a.user_id', $user_id);
-            }
-        }
+        apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
         
         $this->db->group_by('a.user_id, u.name, u.email');
         $this->db->order_by('u.name', 'ASC');

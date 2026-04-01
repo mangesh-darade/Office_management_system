@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Report_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
 
     /**
      * Attendance summary report.
@@ -30,6 +30,7 @@ class Report_model extends CI_Model {
         if ($user_id !== null) {
             $this->db->where('user_id', (int)$user_id);
         }
+        apply_role_hierarchy_filter($this->db, 'user_id');
         $this->db->group_by("DATE(`{$date_col}`)");
         $this->db->order_by("report_date", 'ASC');
         return $this->db->get()->result();
@@ -65,6 +66,7 @@ class Report_model extends CI_Model {
         if (!empty($filters['to'])) {
             $this->db->where('t.created_at <=', $filters['to'] . ' 23:59:59');
         }
+        apply_role_hierarchy_filter($this->db, 't.created_by');
         $this->db->order_by('t.created_at', 'DESC');
         return $this->db->get()->result();
     }
@@ -100,6 +102,7 @@ class Report_model extends CI_Model {
         if (!empty($filters['to'])) {
             $this->db->where('lr.end_date <=', $filters['to']);
         }
+        apply_role_hierarchy_filter($this->db, 'lr.user_id');
         $this->db->order_by('lr.created_at', 'DESC');
         return $this->db->get()->result();
     }
@@ -126,6 +129,11 @@ class Report_model extends CI_Model {
         if (!empty($filters['client_id'])) {
             $this->db->where('p.client_id', (int)$filters['client_id']);
         }
+        if ($this->db->field_exists('created_by', 'projects')) {
+            apply_role_hierarchy_filter($this->db, 'p.created_by');
+        } else if ($this->db->field_exists('manager_id', 'projects')) {
+            apply_role_hierarchy_filter($this->db, 'p.manager_id');
+        }
         $this->db->group_by('p.id');
         $this->db->order_by('p.created_at', 'DESC');
         return $this->db->get()->result();
@@ -151,6 +159,7 @@ class Report_model extends CI_Model {
         if (!empty($filters['to'])) {
             $this->db->where('d.log_date <=', $filters['to']);
         }
+        apply_role_hierarchy_filter($this->db, 'd.user_id');
         $this->db->order_by('d.log_date', 'DESC');
         return $this->db->get()->result();
     }

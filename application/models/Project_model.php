@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Project_model extends CI_Model {
     private $table = 'projects';
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
     
     public function all($filters = []){
         $this->db->select('p.*');
@@ -16,6 +16,11 @@ class Project_model extends CI_Model {
                 $this->db->join('project_members pm', 'pm.project_id = p.id');
                 $this->db->where('pm.user_id', $filters['user_id']);
             }
+        }
+        if ($this->db->field_exists('created_by', $this->table)) {
+            apply_role_hierarchy_filter($this->db, 'p.created_by');
+        } else if ($this->db->field_exists('manager_id', $this->table)) {
+            apply_role_hierarchy_filter($this->db, 'p.manager_id');
         }
         
         return $this->db->order_by('p.id','DESC')->group_by('p.id')->get()->result();

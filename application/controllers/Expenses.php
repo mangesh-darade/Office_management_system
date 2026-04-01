@@ -12,7 +12,7 @@ class Expenses extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'permission']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter']);
         $this->load->library(['session', 'upload']);
         $this->load->model('Expense_model');
         
@@ -104,10 +104,7 @@ class Expenses extends CI_Controller {
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
         
         // Role-based filtering
-        if (!is_admin_group() && !has_module_access('expenses_view_all')) {
-            // Staff can only see their own expenses
-            $this->db->where('expenses.user_id', $user_id);
-        }
+        apply_role_hierarchy_filter($this->db, 'expenses.user_id');
         
         // Status filter
         if ($status !== 'all') {
@@ -278,11 +275,7 @@ class Expenses extends CI_Controller {
         $this->db->join('users', 'users.id = expenses.user_id');
         $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
         $this->db->where('expenses.id', (int)$id);
-        
-        // Non-admin can only view their own
-        if ((int)$expense->user_id !== $user_id) {
-            require_module_access(['expenses_view_all'], true);
-        }
+        apply_role_hierarchy_filter($this->db, 'expenses.user_id');
         
         $expense = $this->db->get()->row();
         
@@ -438,30 +431,35 @@ class Expenses extends CI_Controller {
                 GROUP BY month 
                 ORDER BY month DESC 
                 LIMIT 12";
-        $monthly = $this->db->query($sql)->result();
+        $this->db->select("DATE_FORMAT(expense_date, '%Y-%m') as month, SUM(amount) as total, COUNT(*) as count", false);
+        $this->db->from('expenses');
+        $this->db->where('status !=', 'rejected');
+        apply_role_hierarchy_filter($this->db, 'user_id');
+        $this->db->group_by("DATE_FORMAT(expense_date, '%Y-%m')", false);
+        $this->db->order_by('month', 'DESC');
+        $this->db->limit(12);
+        $monthly = $this->db->get()->result();
         
         // By category
-        $sql = "SELECT ec.name, 
-                       SUM(e.amount) as total,
-                       COUNT(*) as count
-                FROM expenses e
-                JOIN expense_categories ec ON ec.id = e.category_id
-                WHERE e.status != 'rejected'
-                GROUP BY ec.id
-                ORDER BY total DESC";
-        $by_category = $this->db->query($sql)->result();
+        $this->db->select('ec.name, SUM(e.amount) as total, COUNT(*) as count', false);
+        $this->db->from('expenses e');
+        $this->db->join('expense_categories ec', 'ec.id = e.category_id');
+        $this->db->where('e.status !=', 'rejected');
+        apply_role_hierarchy_filter($this->db, 'e.user_id');
+        $this->db->group_by('ec.id');
+        $this->db->order_by('total', 'DESC');
+        $by_category = $this->db->get()->result();
         
         // By user (top 10)
-        $sql = "SELECT u.name as username, 
-                       SUM(e.amount) as total,
-                       COUNT(*) as count
-                FROM expenses e
-                JOIN users u ON u.id = e.user_id
-                WHERE e.status != 'rejected'
-                GROUP BY u.id
-                ORDER BY total DESC
-                LIMIT 10";
-        $by_user = $this->db->query($sql)->result();
+        $this->db->select('u.name as username, SUM(e.amount) as total, COUNT(*) as count', false);
+        $this->db->from('expenses e');
+        $this->db->join('users u', 'u.id = e.user_id');
+        $this->db->where('e.status !=', 'rejected');
+        apply_role_hierarchy_filter($this->db, 'e.user_id');
+        $this->db->group_by('u.id');
+        $this->db->order_by('total', 'DESC');
+        $this->db->limit(10);
+        $by_user = $this->db->get()->result();
         
         $data = [
             'monthly' => $monthly,
@@ -509,6 +507,7 @@ class Expenses extends CI_Controller {
         $this->db->where('e.expense_date >=', $date_from);
         $this->db->where('e.expense_date <=', $date_to);
         if ($status !== '') { $this->db->where('e.status', $status); }
+        apply_role_hierarchy_filter($this->db, 'e.user_id');
         $this->db->order_by('e.expense_date', 'DESC');
         $rows = $this->db->get()->result();
 

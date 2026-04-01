@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Requirement_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
 
     public function count_requirements($filters = []){
         $this->apply_filters($filters);
@@ -47,6 +47,11 @@ class Requirement_model extends CI_Model {
                 ->or_like($t.'req_number', $q)
             ->group_end();
         }
+        if ($alias) {
+            apply_role_hierarchy_filter($this->db, $t.'created_by');
+        } else {
+            apply_role_hierarchy_filter($this->db, 'created_by');
+        }
     }
 
     public function get_requirement($id){
@@ -65,6 +70,7 @@ class Requirement_model extends CI_Model {
             else if ($this->db->field_exists('name','users')) { $this->db->select("ow.name AS owner_name", false); }
             else { $this->db->select("ow.email AS owner_name", false); }
         }
+        apply_role_hierarchy_filter($this->db, 'r.created_by');
         return $this->db->get()->row();
     }
 
@@ -99,7 +105,9 @@ class Requirement_model extends CI_Model {
         if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
         if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
         if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
-        return $this->db->select(implode(',', $sel), false)->from('users')->order_by('email','ASC')->get()->result();
+        $this->db->select(implode(',', $sel), false)->from('users');
+        apply_role_hierarchy_filter($this->db, 'id');
+        return $this->db->order_by('email','ASC')->get()->result();
     }
 
     // Versioning

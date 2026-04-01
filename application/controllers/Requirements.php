@@ -5,7 +5,7 @@ class Requirements extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission']);
+        $this->load->helper(['url','form','permission','hierarchy_filter']);
         $this->load->library(['session','upload']);
         
         // RBAC Audit: Centralized module access check
@@ -279,7 +279,15 @@ class Requirements extends CI_Controller {
         $clients = $this->clients->get_clients([], null, 0);
         $members = $this->requirements->get_team_members();
         $projects = [];
-        if ($this->db->table_exists('projects')) { $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result(); }
+        if ($this->db->table_exists('projects')) {
+            $this->db->select('id,name')->from('projects');
+            if ($this->db->field_exists('created_by', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'created_by');
+            } else if ($this->db->field_exists('manager_id', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'manager_id');
+            }
+            $projects = $this->db->order_by('name','ASC')->get()->result();
+        }
         
         // Load statuses from database
         $this->load->model('Status_model', 'statuses');
@@ -423,7 +431,15 @@ class Requirements extends CI_Controller {
         $clients = $this->clients->get_clients([], null, 0);
         $members = $this->requirements->get_team_members();
         $projects = [];
-        if ($this->db->table_exists('projects')) { $projects = $this->db->select('id,name')->from('projects')->order_by('name','ASC')->get()->result(); }
+        if ($this->db->table_exists('projects')) {
+            $this->db->select('id,name')->from('projects');
+            if ($this->db->field_exists('created_by', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'created_by');
+            } else if ($this->db->field_exists('manager_id', 'projects')) {
+                apply_role_hierarchy_filter($this->db, 'manager_id');
+            }
+            $projects = $this->db->order_by('name','ASC')->get()->result();
+        }
         
         // Load statuses from database
         $this->load->model('Status_model', 'statuses');

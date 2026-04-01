@@ -5,7 +5,7 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','email_settings']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
         
@@ -63,15 +63,7 @@ class Tasks extends CI_Controller {
         // Apply group-based filtering
         $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
         if (!$can_view_all && $user_id) {
-            if (can_view_group_data($role_id)) {
-                // Managers can see team tasks
-                if (!empty($filters['tasks'])) {
-                    apply_group_filter_to_query($this->db, 'tasks', $filters);
-                }
-            } else {
-                // Regular users see only their own tasks
-                $this->db->where('t.assigned_to', $user_id);
-            }
+            apply_role_hierarchy_filter($this->db, 't.created_by', $user_id, $role_id);
         }
         
         // Apply filters
@@ -349,8 +341,9 @@ class Tasks extends CI_Controller {
         if ($user_id && !$can_view_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
-            
-            if ($assigned !== $user_id && $creator !== $user_id) { 
+            $visible_ids = get_accessible_hierarchy_user_ids($user_id, (int)$this->session->userdata('role_id'));
+            $can_see_hierarchy = empty($visible_ids) ? true : in_array($creator, $visible_ids, true);
+            if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id) {
                 return $this->output->set_status_header(403)
                     ->set_content_type('application/json')
                     ->set_output(json_encode(['error' => 'Access denied']));
@@ -533,7 +526,9 @@ class Tasks extends CI_Controller {
         if ($user_id && !$can_view_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
-            if ($assigned !== $user_id && $creator !== $user_id) { show_error('Forbidden', 403); }
+            $visible_ids = get_accessible_hierarchy_user_ids($user_id, (int)$this->session->userdata('role_id'));
+            $can_see_hierarchy = empty($visible_ids) ? true : in_array($creator, $visible_ids, true);
+            if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id) { show_error('Forbidden', 403); }
         }
         
         $this->load->view('tasks/view', ['task' => $task]);
@@ -823,7 +818,7 @@ class Tasks extends CI_Controller {
             
             // Apply base filters
             if (!$is_admin && $user_id) {
-                $this->db->where('t.assigned_to', $user_id);
+                apply_role_hierarchy_filter($this->db, 't.created_by', $user_id, $role_id);
             }
             $this->db->where('t.status', $st);
             
@@ -1202,9 +1197,9 @@ class Tasks extends CI_Controller {
         $tasks = $this->db->select('id, title')
                           ->from('tasks')
                           ->where('project_id', $project_id)
-                          ->order_by('id', 'DESC')
-                          ->get()
-                          ->result();
+                          ->order_by('id', 'DESC');
+        apply_role_hierarchy_filter($this->db, 'created_by');
+        $tasks = $this->db->get()->result();
                           
         $this->output->set_output(json_encode($tasks));
     }

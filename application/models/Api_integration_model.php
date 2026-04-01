@@ -7,6 +7,7 @@ class Api_integration_model extends CI_Model {
     public function __construct() {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('hierarchy_filter');
         $this->ensure_schema();
     }
     
@@ -34,11 +35,18 @@ class Api_integration_model extends CI_Model {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
         }
+        if ($this->db->table_exists($this->table) && !$this->db->field_exists('created_by', $this->table)) {
+            $this->db->query("ALTER TABLE `{$this->table}` ADD `created_by` int(11) DEFAULT NULL");
+            $this->db->query("ALTER TABLE `{$this->table}` ADD KEY `idx_created_by` (`created_by`)");
+        }
     }
     
     public function get_all($service_type = null) {
         if ($service_type) {
             $this->db->where('service_type', $service_type);
+        }
+        if ($this->db->field_exists('created_by', $this->table)) {
+            apply_role_hierarchy_filter($this->db, 'created_by');
         }
         $this->db->order_by('service_type', 'ASC');
         $this->db->order_by('is_default', 'DESC');
@@ -47,7 +55,11 @@ class Api_integration_model extends CI_Model {
     }
     
     public function get_by_id($id) {
-        return $this->db->where('id', (int)$id)->get($this->table)->row();
+        $this->db->where('id', (int)$id);
+        if ($this->db->field_exists('created_by', $this->table)) {
+            apply_role_hierarchy_filter($this->db, 'created_by');
+        }
+        return $this->db->get($this->table)->row();
     }
     
     public function get_default($service_type) {
@@ -72,6 +84,10 @@ class Api_integration_model extends CI_Model {
     public function create($data) {
         $data['created_at'] = date('Y-m-d H:i:s');
         $data['updated_at'] = date('Y-m-d H:i:s');
+        if ($this->db->field_exists('created_by', $this->table) && !isset($data['created_by'])) {
+            $uid = (int)$this->session->userdata('user_id');
+            $data['created_by'] = $uid > 0 ? $uid : null;
+        }
         
         // If this is set as default, unset other defaults for this service type
         if (isset($data['is_default']) && $data['is_default'] == 1) {

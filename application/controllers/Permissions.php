@@ -350,6 +350,7 @@ class Permissions extends CI_Controller {
                     'permissions'      => 'Permission Manager',
                     'statuses'         => 'Status Management',
                     'api_integrations' => 'API Integrations',
+                    'lead_mapping'     => 'Lead Mapping',
                     'superadmin'       => 'Super Admin Panel',
                 ]
             ]

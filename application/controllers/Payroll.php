@@ -5,7 +5,7 @@ class Payroll extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','workday']);
+        $this->load->helper(['url','form','permission','hierarchy_filter','workday']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -630,6 +630,7 @@ class Payroll extends CI_Controller {
             $this->db->from('payslips ps');
             $this->db->join('users u', "u.id = ps.{$user_col}", 'left');
             if ($month) { $this->db->where("ps.{$period_col}", $month); }
+            apply_role_hierarchy_filter($this->db, "ps.{$user_col}");
             $this->db->order_by("ps.{$period_col}", 'DESC');
             $rows = $this->db->get()->result();
         }

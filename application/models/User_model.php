@@ -7,6 +7,7 @@ class User_model extends CI_Model {
     public function __construct(){
         parent::__construct();
         $this->load->database();
+        $this->load->helper('hierarchy_filter');
         $this->ensure_schema();
     }
 
@@ -92,6 +93,7 @@ class User_model extends CI_Model {
         } else {
             $this->db->order_by('name', 'ASC');
         }
+        apply_role_hierarchy_filter($this->db, 'id');
         $this->db->limit((int)$limit);
         return $this->db->get()->result();
     }
@@ -104,6 +106,9 @@ class User_model extends CI_Model {
         }
         if ($userId !== null){
             $this->db->where('id', (int)$userId);
+        }
+        if ($userId === null) {
+            apply_role_hierarchy_filter($this->db, 'id');
         }
         // Optional role-based filter (used to scope list by group type)
         if (is_array($roleIds) && !empty($roleIds) && $this->db->field_exists('role_id', $this->table)){
