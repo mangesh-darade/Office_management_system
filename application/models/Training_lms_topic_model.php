@@ -21,36 +21,67 @@ class Training_lms_topic_model extends CI_Model
     }
 
     /**
-     * Topics with linked assignment name and assessment title (for module overview).
-     *
-     * @param int $module_id
-     * @return array
+     * Admin list: join assignments and assessments to show titles.
+     */
+    public function list_by_module_admin($module_id)
+    {
+        $this->load->helper('training');
+        $atbl = training_physical_assessments_table();
+        $has_assign = $this->db->table_exists('assignments');
+
+        $this->db->select('t.*');
+        if ($has_assign) {
+            $this->db->select('asn.name AS assignment_name');
+            $this->db->join('assignments asn', 'asn.topic_id = t.id', 'left');
+        } else {
+            $this->db->select("'' AS assignment_name", false);
+        }
+
+        if ($atbl !== '') {
+            $this->db->select('ast.title AS assessment_title');
+            $this->db->join($atbl . ' ast', 'ast.id = t.assessment_id', 'left');
+        } else {
+            $this->db->select("'' AS assessment_title", false);
+        }
+
+        $this->db->where('t.module_id', (int) $module_id);
+        $this->db->order_by('t.sort_order', 'ASC');
+        $this->db->order_by('t.id', 'ASC');
+        return $this->db->get('training_topics t')->result();
+    }
+
+    /**
+     * Learner list: join details for card view.
      */
     public function list_by_module_with_details($module_id)
     {
         $this->load->helper('training');
         $atbl = training_physical_assessments_table();
         $has_assign = $this->db->table_exists('assignments');
+
         $sel = 't.*';
         if ($has_assign) {
             $sel .= ', asn.name AS assignment_display_name';
         } else {
             $sel .= ", '' AS assignment_display_name";
         }
+
         if ($atbl !== '') {
-            $sel .= ', ass.title AS assessment_display_title';
+            $sel .= ', ast.title AS assessment_display_title';
         } else {
             $sel .= ", '' AS assessment_display_title";
         }
+
         $this->db->select($sel, false);
         $this->db->from('training_topics t');
-        $this->db->where('t.module_id', (int) $module_id);
         if ($has_assign) {
             $this->db->join('assignments asn', 'asn.topic_id = t.id', 'left');
         }
         if ($atbl !== '') {
-            $this->db->join($atbl . ' ass', 'ass.id = t.assessment_id', 'left');
+            $this->db->join($atbl . ' ast', 'ast.id = t.assessment_id', 'left');
         }
+
+        $this->db->where('t.module_id', (int) $module_id);
         $this->db->order_by('t.sort_order', 'ASC');
         $this->db->order_by('t.id', 'ASC');
         return $this->db->get()->result();
@@ -95,26 +126,22 @@ class Training_lms_topic_model extends CI_Model
 
     public function user_completed_topic($user_id, $topic_id)
     {
-        if (!$this->completions_schema_ready() || (int) $user_id < 1 || (int) $topic_id < 1) {
-            return false;
-        }
-        return $this->db->where('user_id', (int) $user_id)->where('topic_id', (int) $topic_id)->count_all_results('training_topic_completions') > 0;
+        $n = $this->db->where('user_id', (int) $user_id)
+            ->where('topic_id', (int) $topic_id)
+            ->count_all_results('training_topic_completions');
+        return $n > 0;
     }
 
     public function mark_topic_completed($user_id, $topic_id)
     {
-        if (!$this->completions_schema_ready() || (int) $user_id < 1 || (int) $topic_id < 1) {
-            return false;
-        }
         if ($this->user_completed_topic($user_id, $topic_id)) {
             return true;
         }
-        $now = date('Y-m-d H:i:s');
         $this->db->insert('training_topic_completions', array(
             'user_id' => (int) $user_id,
             'topic_id' => (int) $topic_id,
-            'completed_at' => $now,
+            'completed_at' => date('Y-m-d H:i:s')
         ));
-        return true;
+        return $this->db->affected_rows() > 0;
     }
 }

@@ -173,6 +173,33 @@ class Training_lms extends CI_Controller
         $this->load->view('training_lms/topic', $data);
     }
 
+    /**
+     * Redirect to Training & Assessment 'take' screen, ensuring the user has a token.
+     */
+    public function start_assessment($topic_id)
+    {
+        $t = $this->lms_topic->get((int) $topic_id);
+        if (!$t || (int) $t->has_assessment !== 1 || (int) $t->assessment_id < 1) {
+            show_error('No assessment linked to this topic.', 404);
+        }
+        if (!$this->_learner_can_access_module((int) $t->module_id)) {
+            show_error('Access denied.', 403);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            show_error('Login required.', 401);
+        }
+        $this->load->model('Training_assessment_model', 'ta');
+        if (!$this->ta->schema_ready()) {
+            show_error('Assessment module not ready.', 500);
+        }
+        $au = $this->ta->ensure_user_assignment((int) $t->assessment_id, $uid);
+        if (!$au) {
+            show_error('Could not create assessment assignment.', 500);
+        }
+        redirect('training-assessment/take/' . rawurlencode($au->access_token));
+    }
+
     public function complete_topic()
     {
         if (!$this->lms_mod->schema_ready()) {

@@ -439,6 +439,29 @@ class Training_assessment_model extends CI_Model
         return $this->db->insert_id();
     }
 
+    /**
+     * Get existing or create new assignment (token) for an employee.
+     */
+    public function ensure_user_assignment($assessment_id, $user_id, $assigned_by = null)
+    {
+        $existing = $this->get_user_assignment_for_assessment($assessment_id, $user_id);
+        if ($existing) {
+            return $existing;
+        }
+        $token = bin2hex(openssl_random_pseudo_bytes(8)) . '-' . uniqid();
+        $now = date('Y-m-d H:i:s');
+        $id = $this->insert_assessment_user(array(
+            'assessment_id' => (int) $assessment_id,
+            'user_id' => (int) $user_id,
+            'access_token' => $token,
+            'assigned_by' => $assigned_by ? (int)$assigned_by : null,
+            'assigned_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ));
+        return $this->get_assessment_user($id);
+    }
+
     public function update_assessment_user($id, $data)
     {
         $this->db->where('id', (int)$id)->update($this->t['assessment_users'], $data);

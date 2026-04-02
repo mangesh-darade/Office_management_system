@@ -25,22 +25,18 @@
   <div class="mb-4">
     <h2 class="h6 text-uppercase text-muted mb-2">Assessment</h2>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-      <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-mortarboard me-1"></i>All assessments</a>
       <?php if ($assessment_row): ?>
-        <span class="small text-muted"><strong><?php echo htmlspecialchars($assessment_row->title); ?></strong></span>
-        <?php if (!empty($my_assessment_assignment)): ?>
+        <span class="small text-muted me-2"><strong><?php echo htmlspecialchars($assessment_row->title); ?></strong></span>
+        <?php if (!empty($my_assessment_assignment) && !empty($my_assessment_assignment->completed_at)): ?>
           <?php $mau = $my_assessment_assignment; ?>
-          <?php if (!empty($mau->completed_at)): ?>
-            <a class="btn btn-success btn-sm" href="<?php echo htmlspecialchars(!empty($mau->result_url) ? $mau->result_url : site_url('training-assessment/result-token/' . rawurlencode($mau->access_token))); ?>"><i class="bi bi-check-circle me-1"></i>Assessment result</a>
-          <?php else: ?>
-            <a class="btn btn-primary btn-sm" href="<?php echo site_url('training-assessment/take/' . rawurlencode($mau->access_token)); ?>"><i class="bi bi-play-fill me-1"></i>Start assessment</a>
-          <?php endif; ?>
+          <a class="btn btn-success btn-sm" href="<?php echo htmlspecialchars(!empty($mau->result_url) ? $mau->result_url : site_url('training-assessment/result-token/' . rawurlencode($mau->access_token))); ?>"><i class="bi bi-check-circle me-1"></i>Assessment result</a>
         <?php else: ?>
-          <span class="alert alert-warning py-1 px-2 small mb-0">Assessment: you are not assigned yet. Ask your manager (Training → Assign) or use their link.</span>
+          <a class="btn btn-primary btn-sm" href="<?php echo site_url('training/start-assessment/' . (int) $topic->id); ?>"><i class="bi bi-play-fill me-1"></i><?php echo !empty($my_assessment_assignment) ? 'Resume assessment' : 'Start assessment'; ?></a>
         <?php endif; ?>
       <?php else: ?>
         <span class="small text-muted">Assessment is enabled but the linked test was not found.</span>
       <?php endif; ?>
+      <a class="btn btn-outline-secondary btn-sm ms-auto" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-mortarboard me-1"></i>All my assessments</a>
     </div>
   </div>
   <?php endif; ?>

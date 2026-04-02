@@ -104,4 +104,33 @@ $hasAssessments = !empty($assessments);
   <a href="<?php echo site_url('training-lms-admin/topics/' . (int) $module->id); ?>" class="btn btn-outline-secondary">Cancel</a>
   <?php echo form_close(); ?>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ha = document.getElementById('ha');
+    const hs = document.getElementById('hs'); // has_assessment
+    const assignCard = document.querySelector('.card:has(input[name="assignment_name"])'); // Find by child name if id not on card
+    const ap = document.getElementsByName('assessment_id')[0];
+    
+    // Fallback if cards don't have IDs
+    const cards = document.querySelectorAll('.card');
+    const assignSec = cards[1]; // card with Assignment title
+    const assessSec = ap.closest('.col-md-6');
+
+    function toggle() {
+        // Find the "Assignment (if enabled)" card
+        document.querySelectorAll('.card').forEach(c => {
+            if (c.textContent.includes('Assignment (if enabled)')) {
+                c.style.display = ha.checked ? 'block' : 'none';
+            }
+        });
+        // Enable/disable the assessment dropdown
+        ap.disabled = !hs.checked;
+    }
+    
+    ha.addEventListener('change', toggle);
+    hs.addEventListener('change', toggle);
+    toggle();
+});
+</script>
 <?php $this->load->view('partials/footer'); ?>

@@ -141,7 +141,7 @@ class Training_lms_admin extends CI_Controller
             show_404();
         }
         $data['module'] = $m;
-        $data['topics'] = $this->lms_topic->list_by_module((int) $module_id);
+        $data['topics'] = $this->lms_topic->list_by_module_admin((int) $module_id);
         $data['enrollment_count'] = 0;
         if ($this->lms_enroll->schema_ready()) {
             $data['enrollment_count'] = (int) $this->db->where('module_id', (int) $module_id)->count_all_results('training_enrollments');

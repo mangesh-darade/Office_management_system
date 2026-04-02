@@ -443,6 +443,224 @@ INSERT IGNORE INTO settings (`key`, `value`) VALUES
 ('work_hours_per_day','8'),
 ('deadline_reminder_hours','24');
 
+CREATE TABLE IF NOT EXISTS `ta_assessments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `time_limit_minutes` int(11) NOT NULL DEFAULT 30,
+  `passing_marks` decimal(5,2) NOT NULL DEFAULT 60.00 COMMENT 'Percentage 0–100',
+  `randomize_questions` tinyint(1) NOT NULL DEFAULT 0,
+  `shuffle_options` tinyint(1) NOT NULL DEFAULT 0,
+  `max_attempts` int(11) NOT NULL DEFAULT 1 COMMENT '0 = unlimited',
+  `allow_retake` tinyint(1) NOT NULL DEFAULT 0,
+  `show_correct_after_submit` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Learner sees correct answers on result',
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ta_assessments_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ta_questions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `assessment_id` int(11) NOT NULL,
+  `question_type` enum('mcq','text','coding') NOT NULL DEFAULT 'mcq',
+  `question_text` text NOT NULL,
+  `points` decimal(6,2) NOT NULL DEFAULT 1.00,
+  `coding_language` varchar(20) DEFAULT NULL COMMENT 'php or js',
+  `model_answer` text COMMENT 'Text rubric / expected keywords, optional auto-compare',
+  `coding_expected_output` text COMMENT 'Compared to trimmed execution output for coding',
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ta_q_assessment` (`assessment_id`),
+  CONSTRAINT `fk_ta_questions_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `ta_assessments` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ta_question_options` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `question_id` int(11) NOT NULL,
+  `option_text` varchar(500) NOT NULL,
+  `is_correct` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ta_qo_question` (`question_id`),
+  CONSTRAINT `fk_ta_qo_question` FOREIGN KEY (`question_id`) REFERENCES `ta_questions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ta_assessment_users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `assessment_id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL COMMENT 'users.id when assignee is an employee',
+  `candidate_name` varchar(190) DEFAULT NULL,
+  `candidate_email` varchar(190) DEFAULT NULL,
+  `access_token` varchar(64) NOT NULL,
+  `assigned_by` int(11) DEFAULT NULL,
+  `assigned_at` datetime NOT NULL,
+  `started_at` datetime DEFAULT NULL,
+  `server_ends_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `attempts_used` int(11) NOT NULL DEFAULT 0,
+  `question_order` text COMMENT 'CSV of question ids for this attempt',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_ta_access_token` (`access_token`),
+  KEY `idx_ta_au_assessment` (`assessment_id`),
+  KEY `idx_ta_au_user` (`user_id`),
+  CONSTRAINT `fk_ta_au_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `ta_assessments` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ta_user_answers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `assessment_user_id` int(11) NOT NULL,
+  `question_id` int(11) NOT NULL,
+  `selected_option_id` int(11) DEFAULT NULL,
+  `answer_text` text,
+  `code_submitted` text,
+  `execution_output` text,
+  `is_graded_correct` tinyint(1) DEFAULT NULL,
+  `points_earned` decimal(6,2) NOT NULL DEFAULT 0.00,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_ta_au_question` (`assessment_user_id`,`question_id`),
+  KEY `idx_ta_ua_question` (`question_id`),
+  CONSTRAINT `fk_ta_ua_au` FOREIGN KEY (`assessment_user_id`) REFERENCES `ta_assessment_users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ta_ua_question` FOREIGN KEY (`question_id`) REFERENCES `ta_questions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `ta_results` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `assessment_user_id` int(11) NOT NULL,
+  `score_percent` decimal(6,2) NOT NULL DEFAULT 0.00,
+  `total_points` decimal(8,2) NOT NULL DEFAULT 0.00,
+  `earned_points` decimal(8,2) NOT NULL DEFAULT 0.00,
+  `passed` tinyint(1) NOT NULL DEFAULT 0,
+  `duration_seconds` int(11) DEFAULT NULL,
+  `submitted_at` datetime NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_ta_result_au` (`assessment_user_id`),
+  CONSTRAINT `fk_ta_res_au` FOREIGN KEY (`assessment_user_id`) REFERENCES `ta_assessment_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO `permissions` (`role_id`, `module`, `can_access`) VALUES
+(1, 'training_assessment', 1),
+(1, 'training_assessment_manage', 1),
+(1, 'training_assessment_take', 1),
+(2, 'training_assessment', 1),
+(2, 'training_assessment_manage', 1),
+(2, 'training_assessment_take', 1),
+(3, 'training_assessment_take', 1),
+(4, 'training_assessment_take', 1);
+
+CREATE TABLE IF NOT EXISTS `training_modules` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tm_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `training_topics` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `module_id` int(11) NOT NULL,
+  `prerequisite_topic_id` int(11) DEFAULT NULL COMMENT 'Must complete this topic first (same module recommended)',
+  `name` varchar(255) NOT NULL,
+  `description` text,
+  `prerequisites` text,
+  `duration_hours` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `has_assignment` tinyint(1) NOT NULL DEFAULT 0,
+  `has_assessment` tinyint(1) NOT NULL DEFAULT 0,
+  `assessment_id` int(11) DEFAULT NULL COMMENT 'Links to ta_assessments.id or assessments.id',
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tt_module` (`module_id`),
+  KEY `idx_tt_prereq` (`prerequisite_topic_id`),
+  KEY `idx_tt_assessment` (`assessment_id`),
+  CONSTRAINT `fk_tt_module` FOREIGN KEY (`module_id`) REFERENCES `training_modules` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `assignments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `topic_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `details` text COMMENT 'Instructions for learner',
+  `max_submissions` int(11) NOT NULL DEFAULT 0 COMMENT '0 = unlimited file uploads per user',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_assign_topic` (`topic_id`),
+  CONSTRAINT `fk_assign_topic` FOREIGN KEY (`topic_id`) REFERENCES `training_topics` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `assignment_submissions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `assignment_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `stored_filename` varchar(255) NOT NULL,
+  `original_filename` varchar(255) NOT NULL,
+  `file_ext` varchar(20) NOT NULL DEFAULT '',
+  `file_size` int(11) NOT NULL DEFAULT 0,
+  `mime_type` varchar(120) DEFAULT NULL,
+  `status` enum('pending','submitted','assessed') NOT NULL DEFAULT 'submitted',
+  `score` decimal(6,2) DEFAULT NULL,
+  `feedback` text,
+  `submitted_at` datetime NOT NULL,
+  `assessed_at` datetime DEFAULT NULL,
+  `assessed_by` int(11) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_sub_assign` (`assignment_id`),
+  KEY `idx_sub_user` (`user_id`),
+  CONSTRAINT `fk_sub_assign` FOREIGN KEY (`assignment_id`) REFERENCES `assignments` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `training_enrollments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `module_id` int(11) NOT NULL,
+  `assigned_by` int(11) DEFAULT NULL,
+  `due_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_te_user_module` (`user_id`,`module_id`),
+  KEY `idx_te_module` (`module_id`),
+  CONSTRAINT `fk_te_module` FOREIGN KEY (`module_id`) REFERENCES `training_modules` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `training_topic_completions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `topic_id` int(11) NOT NULL,
+  `completed_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_ttc_user_topic` (`user_id`,`topic_id`),
+  KEY `idx_ttc_topic` (`topic_id`),
+  CONSTRAINT `fk_ttc_topic` FOREIGN KEY (`topic_id`) REFERENCES `training_topics` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO `permissions` (`role_id`, `module`, `can_access`) VALUES
+(1, 'training_lms', 1),
+(1, 'training_lms_manage', 1),
+(2, 'training_lms', 1),
+(2, 'training_lms_manage', 1),
+(3, 'training_lms', 1),
+(4, 'training_lms', 1);
+
 SET FOREIGN_KEY_CHECKS = 1;
 SQL;
     }

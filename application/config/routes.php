@@ -445,6 +445,7 @@ $route['training-assessment/import/sample'] = 'training_assessment/import_sample
 $route['training'] = 'training_lms/index';
 $route['training/module/(:num)'] = 'training_lms/module/$1';
 $route['training/topic/(:num)'] = 'training_lms/topic/$1';
+$route['training/start-assessment/(:num)'] = 'training_lms/start_assessment/$1';
 $route['training/submit-assignment'] = 'training_lms/submit_assignment';
 $route['training/download/(:num)'] = 'training_lms/download/$1';
 $route['training/my-submissions'] = 'training_lms/my_submissions';

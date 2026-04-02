@@ -37,8 +37,20 @@
             <tr>
               <td><strong><?php echo htmlspecialchars($t->name); ?></strong></td>
               <td><?php echo htmlspecialchars(number_format((float) $t->duration_hours, 1)); ?></td>
-              <td><?php echo (int) $t->has_assignment ? 'Yes' : '—'; ?></td>
-              <td><?php echo (int) $t->has_assessment ? 'Yes' : '—'; ?></td>
+              <td>
+                <?php if ((int) $t->has_assignment): ?>
+                  <span class="text-primary small fw-semibold"><?php echo htmlspecialchars(!empty($t->assignment_name) ? $t->assignment_name : 'Yes'); ?></span>
+                <?php else: ?>
+                  <span class="text-muted small">—</span>
+                <?php endif; ?>
+              </td>
+              <td>
+                <?php if ((int) $t->has_assessment && (int) $t->assessment_id > 0): ?>
+                  <span class="text-info small fw-semibold"><?php echo htmlspecialchars(!empty($t->assessment_title) ? $t->assessment_title : 'Linked'); ?></span>
+                <?php else: ?>
+                  <span class="text-muted small">—</span>
+                <?php endif; ?>
+              </td>
               <td class="text-end text-nowrap">
                 <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('training/topic/' . (int) $t->id); ?>" target="_blank" rel="noopener">View</a>
                 <?php if ((int) $t->has_assignment): ?>
