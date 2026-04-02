@@ -261,6 +261,74 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php endif; ?>
 
       <?php
+      $__ta_gran_m = function_exists('has_module_access') && (
+          has_module_access('training_screen_ta_dashboard') ||
+          has_module_access('training_screen_ta_create') ||
+          has_module_access('training_screen_ta_import') ||
+          has_module_access('training_screen_ta_report') ||
+          has_module_access('training_screen_ta_team_progress')
+      );
+      $__ta_m = (int)$this->session->userdata('role_id') === 1 || (function_exists('has_module_access') && (
+        has_module_access('training_assessment') ||
+        has_module_access('training_assessment_manage') ||
+        has_module_access('training_assessment_take') ||
+        has_module_access('training_screen_ta_my_tests') ||
+        $__ta_gran_m
+      ));
+      $__tl_m = (int)$this->session->userdata('role_id') === 1
+        || (function_exists('training_tl_learner_any') && training_tl_learner_any())
+        || (function_exists('training_lms_admin_any') && training_lms_admin_any());
+      $__ta_nav_open = ($active==='training-assessment' || $active==='training' || $active==='training-lms-admin');
+      ?>
+      <?php if ($__ta_m || $__tl_m): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $__ta_nav_open?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-training-assessment-submenu" role="button" aria-expanded="<?php echo $__ta_nav_open?'true':'false'; ?>">
+          <i class="bi bi-mortarboard me-2"></i>Training &amp; Assessment <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $__ta_nav_open?'show':''; ?>" id="mobile-training-assessment-submenu">
+          <div class="ps-4">
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-2"></i>Dashboard</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/create'); ?>"><i class="bi bi-plus-lg me-2"></i>New assessment</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_import'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/import'); ?>"><i class="bi bi-file-earmark-arrow-up me-2"></i>Import CSV</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-2"></i>Report</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_team_progress'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/team-progress'); ?>"><i class="bi bi-people me-2"></i>Team progress</a>
+            <?php endif; ?>
+            <?php if (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_assessment_manage') || has_module_access('training_assessment') || has_module_access('training_screen_ta_my_tests'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-link-45deg me-2"></i>Assessment (my tests)</a>
+            <?php endif; ?>
+            <?php if ($__tl_m && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training/my-training'); ?>"><i class="bi bi-columns-gap me-2"></i>Training hub</a>
+            <?php endif; ?>
+            <?php if ($__tl_m && function_exists('training_tl_show_module_nav') && training_tl_show_module_nav()): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training'); ?>"><i class="bi bi-journal-richtext me-2"></i>Module</a>
+            <?php endif; ?>
+            <?php if ($__tl_m && function_exists('training_tl_show_assignment_nav') && training_tl_show_assignment_nav()): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training/my-submissions'); ?>"><i class="bi bi-cloud-upload me-2"></i>Assignment</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_catalog') && training_lms_admin_can_catalog())): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-2"></i>LMS admin</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_submissions') && training_lms_admin_can_submissions())): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin/assignment-submissions'); ?>"><i class="bi bi-table me-2"></i>Assignment submissions</a>
+            <?php endif; ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_office') && training_lms_admin_can_office())): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-2"></i>LMS office CSV</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php
       $expenses_group_show = function_exists('has_module_access') && (
         has_module_access('expenses') ||
         has_module_access('expenses_add') ||
@@ -438,13 +506,10 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       </div>
       <?php endif; ?>
       
-      <?php // Admin section: show only to Admin group (Admin, HR, Lead) with permissions module access
-      if(function_exists('is_admin_group') && is_admin_group() && function_exists('has_module_access') && has_module_access('permissions')): ?>
-      <hr class="my-2">
-      <div class="text-uppercase text-muted small px-2">Admin</div>
       <?php
       $settings_group_show = function_exists('has_module_access') && (
         has_module_access('settings') ||
+        has_module_access('system_settings') ||
         has_module_access('permissions') ||
         has_module_access('email_settings') ||
         has_module_access('approvals') ||
@@ -457,9 +522,11 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('statuses')
       );
       ?>
-      <?php if($settings_group_show): ?>
+      <?php if(function_exists('is_admin_group') && is_admin_group() && $settings_group_show): ?>
+      <hr class="my-2">
+      <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
+        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
         <div class="collapse" id="mobile-settings-submenu">
@@ -469,6 +536,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('system_settings')): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='system-settings' && $active_sub==='user-access')?'active':''; ?>" href="<?php echo site_url('system-settings/user-access'); ?>"><i class="bi bi-person-lines-fill me-2"></i>User Access</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
@@ -496,7 +566,6 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
           </div>
         </div>
       </div>
-      <?php endif; ?>
       <?php endif; ?>
       
       <hr class="my-2 border-secondary">

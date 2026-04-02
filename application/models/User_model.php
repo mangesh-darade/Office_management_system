@@ -98,6 +98,29 @@ class User_model extends CI_Model {
         return $this->db->get()->result();
     }
 
+    /**
+     * Active users from `users` for Training & Assessment assign dropdown.
+     * Does not apply role hierarchy (admins and HR need the full list when assigning tests).
+     */
+    public function list_for_training_assign_dropdown($limit = 15000)
+    {
+        $this->db->from($this->table);
+        if ($this->db->field_exists('status', $this->table)) {
+            $this->db->where('status !=', 'inactive');
+        }
+        if ($this->db->field_exists('name', $this->table)) {
+            $this->db->order_by('name', 'ASC');
+        } elseif ($this->db->field_exists('first_name', $this->table)) {
+            $this->db->order_by('first_name', 'ASC');
+            if ($this->db->field_exists('last_name', $this->table)) {
+                $this->db->order_by('last_name', 'ASC');
+            }
+        }
+        $this->db->order_by('email', 'ASC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
     public function list_users($q = '', $limit = 250, $roleIds = null, $userId = null){
         $this->db->from($this->table);
         // Hide soft-deleted users from the grid if status column exists

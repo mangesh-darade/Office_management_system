@@ -134,6 +134,95 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       </div>
       <script>initSidebarGroup('performance-group','performance-toggle','performance-parent','performance-submenu','sb_performance_open',<?php echo $active==='performance'?'true':'false'; ?>);</script>
       <?php endif; ?>
+
+      <?php
+      $ta_gran_nav = function_exists('has_module_access') && (
+          has_module_access('training_screen_ta_dashboard') ||
+          has_module_access('training_screen_ta_create') ||
+          has_module_access('training_screen_ta_import') ||
+          has_module_access('training_screen_ta_report') ||
+          has_module_access('training_screen_ta_team_progress')
+      );
+      $ta_show = (isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (
+          has_module_access('training_assessment') ||
+          has_module_access('training_assessment_manage') ||
+          has_module_access('training_assessment_take') ||
+          has_module_access('training_screen_ta_my_tests') ||
+          $ta_gran_nav
+      ));
+      $tl_show = (isset($is_superadmin) && $is_superadmin)
+          || (function_exists('training_tl_learner_any') && training_tl_learner_any())
+          || (function_exists('training_lms_admin_any') && training_lms_admin_any());
+      $ta_take_only = !(isset($is_superadmin) && $is_superadmin)
+          && function_exists('has_module_access')
+          && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests'))
+          && !has_module_access('training_assessment')
+          && !has_module_access('training_assessment_manage')
+          && !$ta_gran_nav;
+      if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_has_any_admin_screen') && training_ta_has_any_admin_screen())) {
+          $ta_parent_url = site_url('training-assessment');
+      } elseif (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests'))) {
+          $ta_parent_url = site_url('training-assessment/my-assignments');
+      } elseif ($tl_show) {
+          $ta_parent_url = site_url('training/my-training');
+      } else {
+          $ta_parent_url = site_url('training-assessment');
+      }
+      ?>
+      <?php if ($ta_show || $tl_show): ?>
+      <div class="nav-item" id="training-assessment-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="training-assessment-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin')?'active':''; ?>" href="<?php echo $ta_parent_url; ?>">
+            <i class="bi bi-mortarboard me-2"></i>Training &amp; Assessment
+          </a>
+          <button id="training-assessment-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="training-assessment-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="training-assessment-submenu">
+          <div class="submenu-list">
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard'))): ?>
+            <a class="submenu-link <?php echo ($active==='training_assessment' && (!$active_sub || $active_sub==='dashboard'))?'active':''; ?>" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'))): ?>
+            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='create_assessment')?'active':''; ?>" href="<?php echo site_url('training-assessment/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New assessment</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_import'))): ?>
+            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='import_assessment')?'active':''; ?>" href="<?php echo site_url('training-assessment/import'); ?>"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import CSV</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
+            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='report')?'active':''; ?>" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-1"></i>Report</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_team_progress'))): ?>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='team-progress')?'active':''; ?>" href="<?php echo site_url('training-assessment/team-progress'); ?>"><i class="bi bi-people me-1"></i>Team progress</a>
+            <?php endif; ?>
+            <?php if (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_assessment_manage') || has_module_access('training_assessment') || has_module_access('training_screen_ta_my_tests'))): ?>
+            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='my_assignments')?'active':''; ?>" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-link-45deg me-1"></i>Assessment (my tests)</a>
+            <?php endif; ?>
+            <?php if ($tl_show && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>
+            <a class="submenu-link" href="<?php echo site_url('training/my-training'); ?>"><i class="bi bi-columns-gap me-1"></i>Training hub</a>
+            <?php endif; ?>
+            <?php if ($tl_show && function_exists('training_tl_show_module_nav') && training_tl_show_module_nav()): ?>
+            <a class="submenu-link <?php echo ($active==='training' && $active_sub!=='my-submissions' && $active_sub!=='my-training')?'active':''; ?>" href="<?php echo site_url('training'); ?>"><i class="bi bi-journal-richtext me-1"></i>Module</a>
+            <?php endif; ?>
+            <?php if ($tl_show && function_exists('training_tl_show_assignment_nav') && training_tl_show_assignment_nav()): ?>
+            <a class="submenu-link <?php echo ($active==='training' && $active_sub==='my-submissions')?'active':''; ?>" href="<?php echo site_url('training/my-submissions'); ?>"><i class="bi bi-cloud-upload me-1"></i>Assignment</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_catalog') && training_lms_admin_can_catalog())): ?>
+            <a class="submenu-link <?php echo ($active==='training-lms-admin')?'active':''; ?>" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-1"></i>LMS admin</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_submissions') && training_lms_admin_can_submissions())): ?>
+            <a class="submenu-link" href="<?php echo site_url('training-lms-admin/assignment-submissions'); ?>"><i class="bi bi-table me-1"></i>Assignment submissions</a>
+            <?php endif; ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_office') && training_lms_admin_can_office())): ?>
+            <a class="submenu-link" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-1"></i>LMS office CSV</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <script>initSidebarGroup('training-assessment-group','training-assessment-toggle','training-assessment-parent','training-assessment-submenu','sb_training_assessment_open',<?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin')?'true':'false'; ?>);</script>
+      <?php endif; ?>
+
       <?php
       $user_group_show = function_exists('has_module_access') && (
         has_module_access('users') ||
@@ -406,13 +495,11 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       </div>
       <script>initSidebarGroup('reports-group','reports-toggle','reports-parent','reports-submenu','sb_reports_open',<?php echo ($active==='reports'||($this->uri&&$this->uri->segment(1)==='reports'))?'true':'false'; ?>);</script>
       <?php endif; ?>
-      <?php // Admin section: show only to Admin group (Admin, HR, Lead) with permissions module access
-      if(function_exists('is_admin_group') && is_admin_group() && function_exists('has_module_access') && has_module_access('permissions')): ?>
-      <hr class="my-2">
-      <div class="text-uppercase text-muted small px-2">Admin</div>
       <?php
+      // Admin section: admin-group users with any settings-area permission (not only Permission Manager)
       $settings_group_show = function_exists('has_module_access') && (
         has_module_access('settings') ||
+        has_module_access('system_settings') ||
         has_module_access('permissions') ||
         has_module_access('email_settings') ||
         has_module_access('db') ||
@@ -421,13 +508,18 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('admin') ||
-        has_module_access('statuses')
+        has_module_access('statuses') ||
+        has_module_access('approvals') ||
+        has_module_access('lead_mapping') ||
+        ((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (has_module_access('shifts') || has_module_access('shifts_manage'))))
       );
       ?>
-      <?php if($settings_group_show): ?>
+      <?php if(function_exists('is_admin_group') && is_admin_group() && $settings_group_show): ?>
+      <hr class="my-2">
+      <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping']) ? 'active' : ''; ?>" href="#">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-gear me-2"></i>Settings
           </a>
           <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
@@ -447,6 +539,9 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('system_settings')): ?>
+            <a class="submenu-link <?php echo ($active==='system-settings' && isset($active_sub) && $active_sub==='user-access')?'active':''; ?>" href="<?php echo site_url('system-settings/user-access'); ?>"><i class="bi bi-person-lines-fill me-2"></i>User Access</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
             <a class="submenu-link <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
@@ -480,8 +575,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo in_array($active,['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping'])?'true':'false'; ?>);</script>
-      <?php endif; ?>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo in_array($active,['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings'])?'true':'false'; ?>);</script>
       <?php endif; ?>
       <hr class="my-2 border-secondary">
       <a class="nav-link sidebar-link text-danger" href="<?php echo site_url('logout'); ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>

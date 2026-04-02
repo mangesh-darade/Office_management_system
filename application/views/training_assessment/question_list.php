@@ -1,0 +1,103 @@
+<?php $this->load->view('partials/header', array('title' => 'Questions — ' . $assessment->title)); ?>
+<div class="container-fluid py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0"><?php echo htmlspecialchars($assessment->title); ?></h1>
+      <p class="text-muted small mb-0">Drag rows to reorder. Manage MCQ, text, and coding items.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="<?php echo site_url('training-assessment/preview/' . (int)$assessment->id); ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm" aria-label="Preview assessment as candidate"><i class="bi bi-eye me-1"></i>Preview</a>
+      <a href="<?php echo site_url('training-assessment/question/add/' . (int)$assessment->id); ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add question</a>
+      <a href="<?php echo site_url('training-assessment'); ?>" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+    </div>
+  </div>
+
+  <?php if ($this->session->flashdata('success')): ?>
+    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?>
+    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <?php endif; ?>
+
+  <div class="card shadow-sm border-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="text-muted" style="width:2.5rem" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></th>
+            <th>#</th>
+            <th>Type</th>
+            <th>Question</th>
+            <th>Points</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ta-question-sortable">
+          <?php if (empty($questions)): ?>
+          <tr><td colspan="6" class="text-center py-4 text-muted">No questions yet.</td></tr>
+          <?php else: ?>
+          <?php foreach ($questions as $i => $q): ?>
+          <tr data-qid="<?php echo (int)$q->id; ?>">
+            <td class="text-muted ta-drag-handle" style="cursor:grab" aria-hidden="true"><i class="bi bi-grip-vertical"></i></td>
+            <td><?php echo (int)$q->sort_order ?: ($i + 1); ?></td>
+            <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars(strtoupper($q->question_type)); ?></span></td>
+            <td><?php
+              $snippet = strip_tags($q->question_text);
+              if (function_exists('mb_strimwidth')) {
+                echo htmlspecialchars(mb_strimwidth($snippet, 0, 120, '…'));
+              } else {
+                echo htmlspecialchars(strlen($snippet) > 120 ? substr($snippet, 0, 117) . '…' : $snippet);
+              }
+            ?></td>
+            <td><?php echo htmlspecialchars(number_format((float)$q->points, 2)); ?></td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-warning" href="<?php echo site_url('training-assessment/question/edit/' . (int)$q->id); ?>" aria-label="Edit question"><i class="bi bi-pencil me-1"></i>Edit</a>
+              <?php echo form_open('training-assessment/question/duplicate/' . (int)$q->id, array('class' => 'd-inline')); ?>
+              <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+              <button type="submit" class="btn btn-sm btn-outline-info" aria-label="Duplicate question"><i class="bi bi-files me-1"></i>Copy</button>
+              <?php echo form_close(); ?>
+              <form method="post" action="<?php echo site_url('training-assessment/question/delete/' . (int)$q->id); ?>" class="d-inline" onsubmit="return confirm('Delete this question?');">
+                <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Delete question"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<?php if (!empty($questions)): ?>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function() {
+  var aid = <?php echo (int)$assessment->id; ?>;
+  var tbody = document.getElementById('ta-question-sortable');
+  if (!tbody || typeof Sortable === 'undefined') return;
+  var reorderUrl = <?php echo json_encode(site_url('training-assessment/questions/reorder')); ?>;
+  var saveTimer = null;
+  new Sortable(tbody, {
+    handle: '.ta-drag-handle',
+    animation: 150,
+    onEnd: function() {
+      var ids = [];
+      tbody.querySelectorAll('tr[data-qid]').forEach(function(tr) {
+        ids.push(parseInt(tr.getAttribute('data-qid'), 10));
+      });
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(function() {
+        if (!window.jQuery) return;
+        jQuery.post(reorderUrl, { assessment_id: aid, order_json: JSON.stringify(ids) }, function(j) {
+          if (j && j.csrf) {
+            jQuery('input[name="ci_csrf_token"]').val(j.csrf);
+          }
+        }, 'json');
+      }, 400);
+    }
+  });
+})();
+</script>
+<?php endif; ?>
+<?php $this->load->view('partials/footer'); ?>

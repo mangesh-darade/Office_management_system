@@ -403,6 +403,75 @@ $route['approvals/edit/(:num)'] = 'approvals/edit/$1';
 $route['approvals/save'] = 'approvals/save';
 $route['approvals/delete/(:num)'] = 'approvals/delete/$1';
 
+// Training & Assessment
+$route['training-assessment'] = 'training_assessment/dashboard';
+$route['training-assessment/dashboard'] = 'training_assessment/dashboard';
+$route['training-assessment/create'] = 'training_assessment/create_assessment';
+$route['training-assessment/edit/(:num)'] = 'training_assessment/create_assessment/$1';
+$route['training-assessment/save'] = 'training_assessment/save_assessment';
+$route['training-assessment/delete/(:num)'] = 'training_assessment/delete_assessment/$1';
+$route['training-assessment/duplicate/(:num)'] = 'training_assessment/duplicate_assessment/$1';
+$route['training-assessment/preview/(:num)'] = 'training_assessment/preview_assessment/$1';
+$route['training-assessment/questions/reorder'] = 'training_assessment/reorder_questions';
+$route['training-assessment/questions/(:num)'] = 'training_assessment/question_list/$1';
+$route['training-assessment/question/add/(:num)'] = 'training_assessment/add_question/$1';
+$route['training-assessment/question/edit/(:num)'] = 'training_assessment/edit_question/$1';
+$route['training-assessment/question/duplicate/(:num)'] = 'training_assessment/duplicate_question/$1';
+$route['training-assessment/question/save'] = 'training_assessment/save_question';
+$route['training-assessment/question/delete/(:num)'] = 'training_assessment/delete_question/$1';
+$route['training-assessment/assign/(:num)'] = 'training_assessment/assign/$1';
+$route['training-assessment/take/(:any)'] = 'training_assessment_take/take_assessment/$1';
+$route['training-assessment/result/(:num)'] = 'training_assessment/result/$1';
+$route['training-assessment/result-token/(:any)'] = 'training_assessment_take/result_token/$1';
+$route['training-assessment/submit-assessment'] = 'training_assessment_take/submit_assessment';
+$route['training-assessment/ajax-load-question'] = 'training_assessment_take/ajax_load_question';
+$route['training-assessment/ajax-save-answer'] = 'training_assessment_take/ajax_save_answer';
+$route['training-assessment/ajax-run-code'] = 'training_assessment_take/ajax_run_code';
+$route['training-assessment/ajax-timer-sync'] = 'training_assessment_take/ajax_timer_sync';
+$route['training-assessment/candidate-profile'] = 'training_assessment_take/candidate_profile';
+$route['training-assessment/retake-assessment'] = 'training_assessment_take/retake_assessment';
+$route['training-assessment/team-progress'] = 'training_assessment/team_progress';
+$route['training-assessment/certificate/(:num)'] = 'training_assessment/certificate/$1';
+$route['training-assessment/report'] = 'training_assessment/report';
+$route['training-assessment/report/export'] = 'training_assessment/report_export';
+$route['training-assessment/office-export/questions'] = 'training_assessment/office_export_questions';
+$route['training-assessment/office-export/attempt-detail'] = 'training_assessment/office_export_attempt_detail';
+$route['training-assessment/my-assignments'] = 'training_assessment/my_assignments';
+$route['training-assessment/import'] = 'training_assessment/import_assessment';
+$route['training-assessment/import/process'] = 'training_assessment/import_process';
+$route['training-assessment/import/sample'] = 'training_assessment/import_sample_csv';
+
+// Training LMS (courses + topic file assignments)
+$route['training'] = 'training_lms/index';
+$route['training/module/(:num)'] = 'training_lms/module/$1';
+$route['training/topic/(:num)'] = 'training_lms/topic/$1';
+$route['training/submit-assignment'] = 'training_lms/submit_assignment';
+$route['training/download/(:num)'] = 'training_lms/download/$1';
+$route['training/my-submissions'] = 'training_lms/my_submissions';
+$route['training/my-training'] = 'training_lms/learner_hub';
+$route['training/complete-topic'] = 'training_lms/complete_topic';
+
+$route['training-lms-admin'] = 'training_lms_admin/index';
+$route['training-lms-admin/module/create'] = 'training_lms_admin/module_form';
+$route['training-lms-admin/module/edit/(:num)'] = 'training_lms_admin/module_form/$1';
+$route['training-lms-admin/save-module'] = 'training_lms_admin/save_module';
+$route['training-lms-admin/module/delete/(:num)'] = 'training_lms_admin/delete_module/$1';
+$route['training-lms-admin/topics/(:num)'] = 'training_lms_admin/topics/$1';
+$route['training-lms-admin/enrollments/(:num)'] = 'training_lms_admin/module_enrollments/$1';
+$route['training-lms-admin/enrollment-save'] = 'training_lms_admin/enrollment_save';
+$route['training-lms-admin/enrollment-remove'] = 'training_lms_admin/enrollment_remove';
+$route['training-lms-admin/topic/create/(:num)'] = 'training_lms_admin/topic_form/$1';
+$route['training-lms-admin/topic/edit/(:num)/(:num)'] = 'training_lms_admin/topic_form/$1/$2';
+$route['training-lms-admin/save-topic'] = 'training_lms_admin/save_topic';
+$route['training-lms-admin/topic/delete/(:num)'] = 'training_lms_admin/delete_topic/$1';
+$route['training-lms-admin/submissions/(:num)'] = 'training_lms_admin/submissions/$1';
+$route['training-lms-admin/submission/save'] = 'training_lms_admin/submission_save';
+$route['training-lms-admin/download/(:num)'] = 'training_lms_admin/download/$1';
+$route['training-lms-admin/assignment-submissions'] = 'training_lms_admin/assignment_submissions_list';
+$route['training-lms-admin/office-feed'] = 'training_lms_admin/office_feed';
+$route['training-lms-admin/office-feed/export/(:any)'] = 'training_lms_admin/office_feed_export/$1';
+$route['training-lms-admin/office-feed/import-assignments'] = 'training_lms_admin/office_feed_import_assignments';
+
 // Performance Appraisals
 $route['performance'] = 'performance/index';
 $route['performance/create'] = 'performance/create';

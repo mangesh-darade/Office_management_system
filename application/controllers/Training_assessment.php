@@ -1,0 +1,1020 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Training & Assessment module — assessments, questions, assignments, reports, manager views.
+ * Anonymous take / submit / AJAX live in {@see Training_assessment_take}.
+ */
+class Training_assessment extends CI_Controller
+{
+    /** @var Training_assessment_model */
+    public $ta;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->load->model('Training_assessment_model', 'ta');
+        $this->load->library('training_assessment_runtime', null, 'ta_run');
+        $this->load->library('session');
+        $this->load->helper(array('url', 'form', 'permission', 'training'));
+
+        $method = $this->router->fetch_method();
+
+        if ($method === 'my_assignments') {
+            if (!(int) $this->session->userdata('user_id')) {
+                redirect('auth/login');
+            }
+            if (!$this->_ta_can_my_assignments_screen()) {
+                $this->session->set_flashdata('access_denied', 'You do not have access to assigned assessments.');
+                redirect('dashboard');
+            }
+            return;
+        }
+
+        if ($this->_ta_is_take_only_learner()) {
+            if ($method === 'index') {
+                redirect('training-assessment/my-assignments');
+                return;
+            }
+            if ($method === 'certificate') {
+                if (!(int) $this->session->userdata('user_id')) {
+                    redirect('auth/login');
+                }
+                return;
+            }
+            if ($method !== 'my_assignments') {
+                $this->session->set_flashdata('access_denied', 'You only have access to your assigned assessments. Use My assignments below.');
+                redirect('training-assessment/my-assignments');
+                return;
+            }
+            return;
+        }
+
+        if (!training_ta_has_any_admin_screen()) {
+            $this->session->set_flashdata('access_denied', 'You do not have access to Training & Assessment.');
+            redirect('dashboard');
+        }
+    }
+
+    private function _ta_can_my_assignments_screen()
+    {
+        if ((int) $this->session->userdata('role_id') === 1) {
+            return true;
+        }
+        return has_module_access('training_assessment_take')
+            || has_module_access('training_assessment_manage')
+            || has_module_access('training_assessment')
+            || has_module_access('training_screen_ta_my_tests');
+    }
+
+    private function _ta_require_screen($granular_key)
+    {
+        if (!training_ta_can_screen($granular_key)) {
+            show_error('Access denied.', 403);
+        }
+    }
+
+    private function _ta_require_manage_core()
+    {
+        if (!training_ta_admin_broad()) {
+            show_error('Access denied.', 403);
+        }
+    }
+
+    /**
+     * Logged-in user has only training_assessment_take (no manage / full module).
+     */
+    private function _ta_is_take_only_learner()
+    {
+        $uid = (int) $this->session->userdata('user_id');
+        if (!$uid || !function_exists('has_module_access')) {
+            return false;
+        }
+        if ((int) $this->session->userdata('role_id') === 1) {
+            return false;
+        }
+        return (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests'))
+            && !has_module_access('training_assessment')
+            && !has_module_access('training_assessment_manage')
+            && !training_ta_has_any_admin_screen();
+    }
+
+    public function index()
+    {
+        redirect('training_assessment/dashboard');
+    }
+
+    public function dashboard()
+    {
+        $this->_ta_require_screen('training_screen_ta_dashboard');
+        if (!$this->ta->schema_ready()) {
+            $this->load->view('partials/header', array('title' => 'Training & Assessment'));
+            echo '<div class="container py-5"><div class="alert alert-warning">Database tables are not installed. Run <code>database/training_assessment_module.sql</code> on your database.</div></div>';
+            $this->load->view('partials/footer');
+            return;
+        }
+        $search = trim((string)$this->input->get('q'));
+        $status = $this->input->get('status');
+        $status = in_array($status, array('all', 'active', 'inactive'), true) ? $status : 'all';
+        $sort = $this->input->get('sort');
+        $allowedSort = array('created_desc', 'created_asc', 'title_asc', 'title_desc', 'questions_desc');
+        if (!in_array($sort, $allowedSort, true)) {
+            $sort = 'created_desc';
+        }
+        $data['assessments'] = $this->ta->list_assessments_with_stats($search, $status, $sort);
+        $data['filter_q'] = $search;
+        $data['filter_status'] = $status;
+        $data['filter_sort'] = $sort;
+        $data['stats_total_assigned'] = 0;
+        $data['stats_total_completed'] = 0;
+        foreach ($data['assessments'] as $row) {
+            $data['stats_total_assigned'] += (int)$row->assigned_count;
+            $data['stats_total_completed'] += (int)$row->completed_count;
+        }
+        $data['stats_total_pending'] = max(0, $data['stats_total_assigned'] - $data['stats_total_completed']);
+        $this->load->view('training_assessment/dashboard', $data);
+    }
+
+    public function create_assessment($id = null)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $data['assessment'] = null;
+        if ($id !== null && $id !== '') {
+            $data['assessment'] = $this->ta->get_assessment((int)$id);
+            if (!$data['assessment']) {
+                show_404();
+            }
+        }
+        $this->load->view('training_assessment/create_assessment', $data);
+    }
+
+    public function save_assessment()
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $id = (int)$this->input->post('id');
+        $title = trim((string)$this->input->post('title'));
+        if ($title === '') {
+            $this->session->set_flashdata('error', 'Title is required.');
+            redirect($id ? 'training-assessment/edit/' . $id : 'training-assessment/create');
+            return;
+        }
+        $row = array(
+            'title' => $title,
+            'description' => trim((string)$this->input->post('description')),
+            'time_limit_minutes' => max(1, (int)$this->input->post('time_limit_minutes')),
+            'passing_marks' => min(100, max(0, (float)$this->input->post('passing_marks'))),
+            'randomize_questions' => $this->input->post('randomize_questions') ? 1 : 0,
+            'shuffle_options' => $this->input->post('shuffle_options') ? 1 : 0,
+            'max_attempts' => max(0, (int)$this->input->post('max_attempts')),
+            'allow_retake' => $this->input->post('allow_retake') ? 1 : 0,
+            'show_correct_after_submit' => $this->input->post('show_correct_after_submit') ? 1 : 0,
+            'status' => $this->input->post('status') === 'inactive' ? 'inactive' : 'active',
+            'updated_at' => date('Y-m-d H:i:s'),
+        );
+        if ($id) {
+            $this->ta->update_assessment($id, $row);
+            $this->session->set_flashdata('success', 'Assessment updated.');
+            redirect('training-assessment/questions/' . $id);
+            return;
+        }
+        $row['created_by'] = (int)$this->session->userdata('user_id');
+        $row['created_at'] = date('Y-m-d H:i:s');
+        $newId = $this->ta->insert_assessment($row);
+        $this->session->set_flashdata('success', 'Assessment created. Add questions next.');
+        redirect('training-assessment/questions/' . $newId);
+    }
+
+    public function delete_assessment($id)
+    {
+        $this->_ta_require_manage_core();
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $this->ta->delete_assessment((int)$id);
+        $this->session->set_flashdata('success', 'Assessment deleted.');
+        redirect('training-assessment');
+    }
+
+    /**
+     * POST: duplicate assessment (questions + options).
+     */
+    public function duplicate_assessment($id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $newId = $this->ta->duplicate_assessment((int)$id, (int)$this->session->userdata('user_id'));
+        if (!$newId) {
+            $this->session->set_flashdata('error', 'Could not duplicate assessment.');
+            redirect('training-assessment');
+            return;
+        }
+        $this->session->set_flashdata('success', 'Assessment duplicated. You can edit the copy below.');
+        redirect('training-assessment/edit/' . $newId);
+    }
+
+    /**
+     * POST: duplicate one question within its assessment.
+     */
+    public function duplicate_question($question_id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $q = $this->ta->get_question((int)$question_id);
+        if (!$q) {
+            show_404();
+        }
+        $newId = $this->ta->duplicate_question((int)$question_id);
+        if (!$newId) {
+            $this->session->set_flashdata('error', 'Could not duplicate question.');
+            redirect('training-assessment/questions/' . (int)$q->assessment_id);
+            return;
+        }
+        $this->session->set_flashdata('success', 'Question duplicated.');
+        redirect('training-assessment/questions/' . (int)$q->assessment_id);
+    }
+
+    /**
+     * POST JSON: reorder questions (ids in order for one assessment).
+     */
+    public function reorder_questions()
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        header('Content-Type: application/json; charset=utf-8');
+        if ($this->input->method() !== 'post') {
+            echo json_encode(array('ok' => false));
+            return;
+        }
+        if (!$this->ta->schema_ready()) {
+            echo json_encode(array('ok' => false, 'error' => 'schema'));
+            return;
+        }
+        $assessment_id = (int)$this->input->post('assessment_id');
+        $raw = $this->input->post('order');
+        if (!is_array($raw)) {
+            $raw = json_decode((string)$this->input->post('order_json'), true);
+        }
+        if (!is_array($raw) || $assessment_id < 1) {
+            echo json_encode(array('ok' => false, 'error' => 'input'));
+            return;
+        }
+        $ids = array();
+        foreach ($raw as $x) {
+            $ids[] = (int)$x;
+        }
+        $this->ta->reorder_questions($assessment_id, $ids);
+        echo json_encode(array('ok' => true, 'csrf' => $this->security->get_csrf_hash()));
+    }
+
+    /**
+     * Read-only candidate preview (admin).
+     */
+    public function preview_assessment($assessment_id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $a = $this->ta->get_assessment((int)$assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        $data['assessment'] = $a;
+        $data['questions'] = $this->ta->list_questions((int)$assessment_id);
+        $data['options_by_qid'] = array();
+        foreach ($data['questions'] as $q) {
+            if ($q->question_type === 'mcq') {
+                $data['options_by_qid'][(int)$q->id] = $this->ta->get_options((int)$q->id);
+            }
+        }
+        $this->load->view('training_assessment/preview_assessment', $data);
+    }
+
+    /**
+     * Import one assessment + questions from a UTF-8 CSV (see samples/training_assessment_import_sample.csv).
+     */
+    public function import_assessment()
+    {
+        $this->_ta_require_screen('training_screen_ta_import');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $samplePath = FCPATH . 'samples/training_assessment_import_sample.csv';
+        $data['sample_exists'] = is_file($samplePath);
+        $this->load->view('training_assessment/import_assessment', $data);
+    }
+
+    /**
+     * Download the bundled sample CSV (same columns as the importer expects).
+     */
+    public function import_sample_csv()
+    {
+        $this->_ta_require_screen('training_screen_ta_import');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $path = FCPATH . 'samples/training_assessment_import_sample.csv';
+        if (!is_file($path)) {
+            show_error('Sample file is missing on the server.', 404);
+        }
+        $name = 'training_assessment_import_sample.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $name . '"');
+        header('Content-Length: ' . (string)filesize($path));
+        readfile($path);
+        exit;
+    }
+
+    /**
+     * POST: csv_file upload → create assessment and all questions in a transaction.
+     */
+    public function import_process()
+    {
+        $this->_ta_require_screen('training_screen_ta_import');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        if (empty($_FILES['csv_file']['tmp_name']) || !is_uploaded_file($_FILES['csv_file']['tmp_name'])) {
+            $this->session->set_flashdata('error', 'Please choose a CSV file to upload.');
+            redirect('training-assessment/import');
+            return;
+        }
+        $err = $_FILES['csv_file']['error'];
+        if ($err !== UPLOAD_ERR_OK) {
+            $this->session->set_flashdata('error', 'Upload failed (code ' . (int)$err . ').');
+            redirect('training-assessment/import');
+            return;
+        }
+        if (!empty($_FILES['csv_file']['size']) && (int)$_FILES['csv_file']['size'] > 2097152) {
+            $this->session->set_flashdata('error', 'File too large (max 2 MB).');
+            redirect('training-assessment/import');
+            return;
+        }
+        $parsed = $this->ta_run->parse_assessment_csv($_FILES['csv_file']['tmp_name']);
+        if (!empty($parsed['fatal'])) {
+            $this->session->set_flashdata('error', $parsed['fatal']);
+            redirect('training-assessment/import');
+            return;
+        }
+        $result = $this->ta_run->import_assessment_rows($parsed['rows'], (int) $this->session->userdata('user_id'));
+        if (!empty($result['errors'])) {
+            $this->session->set_flashdata('error', implode(' ', $result['errors']));
+            redirect('training-assessment/import');
+            return;
+        }
+        $this->session->set_flashdata('success', 'Imported assessment #' . (int)$result['assessment_id'] . ' with ' . (int)$result['question_count'] . ' question(s).');
+        redirect('training-assessment/questions/' . (int)$result['assessment_id']);
+    }
+
+    public function question_list($assessment_id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $a = $this->ta->get_assessment((int)$assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        $data['assessment'] = $a;
+        $data['questions'] = $this->ta->list_questions((int)$assessment_id);
+        $this->load->view('training_assessment/question_list', $data);
+    }
+
+    public function add_question($assessment_id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $a = $this->ta->get_assessment((int)$assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        $data['assessment'] = $a;
+        $data['question'] = null;
+        $data['options'] = array();
+        $this->load->view('training_assessment/add_question', $data);
+    }
+
+    public function edit_question($question_id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $q = $this->ta->get_question((int)$question_id);
+        if (!$q) {
+            show_404();
+        }
+        $a = $this->ta->get_assessment((int)$q->assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        $data['assessment'] = $a;
+        $data['question'] = $q;
+        $data['options'] = $this->ta->get_options((int)$question_id);
+        $this->load->view('training_assessment/add_question', $data);
+    }
+
+    public function save_question()
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $assessment_id = (int)$this->input->post('assessment_id');
+        $qid = (int)$this->input->post('question_id');
+        $type = $this->input->post('question_type');
+        if (!in_array($type, array('mcq', 'text', 'coding'), true)) {
+            $type = 'mcq';
+        }
+        $text = trim((string)$this->input->post('question_text'));
+        if ($text === '') {
+            $this->session->set_flashdata('error', 'Question text is required.');
+            redirect('training-assessment/questions/' . $assessment_id);
+            return;
+        }
+        $points = max(0.01, (float)$this->input->post('points'));
+        $now = date('Y-m-d H:i:s');
+        $base = array(
+            'assessment_id' => $assessment_id,
+            'question_type' => $type,
+            'question_text' => $text,
+            'points' => $points,
+            'coding_language' => null,
+            'model_answer' => null,
+            'coding_expected_output' => null,
+            'updated_at' => $now,
+        );
+        if ($type === 'text') {
+            $base['model_answer'] = trim((string)$this->input->post('model_answer'));
+        }
+        if ($type === 'coding') {
+            $lang = strtolower(trim((string)$this->input->post('coding_language')));
+            $base['coding_language'] = ($lang === 'js') ? 'js' : 'php';
+            $base['coding_expected_output'] = trim((string)$this->input->post('coding_expected_output'));
+        }
+        if ($qid) {
+            $this->ta->update_question($qid, $base);
+            $newQid = $qid;
+        } else {
+            $base['sort_order'] = (int)$this->input->post('sort_order');
+            if ($base['sort_order'] < 0) {
+                $base['sort_order'] = 0;
+            }
+            $base['created_at'] = $now;
+            $newQid = $this->ta->insert_question($base);
+        }
+        if ($type === 'mcq') {
+            $opts = $this->input->post('option_text');
+            $correct = (int)$this->input->post('correct_index');
+            $rows = array();
+            if (is_array($opts)) {
+                $i = 0;
+                foreach ($opts as $t) {
+                    $t = trim((string)$t);
+                    if ($t === '') {
+                        $i++;
+                        continue;
+                    }
+                    $rows[] = array(
+                        'question_id' => $newQid,
+                        'option_text' => $t,
+                        'is_correct' => ($i === $correct) ? 1 : 0,
+                        'sort_order' => $i,
+                        'created_at' => $now,
+                    );
+                    $i++;
+                }
+            }
+            if (count($rows) < 2) {
+                $this->session->set_flashdata('error', 'MCQ needs at least two options and a correct answer.');
+                redirect('training-assessment/question/add/' . $assessment_id);
+                return;
+            }
+            $this->ta->replace_options($newQid, $rows);
+        }
+        $this->session->set_flashdata('success', 'Question saved.');
+        redirect('training-assessment/questions/' . $assessment_id);
+    }
+
+    public function delete_question($id)
+    {
+        $this->_ta_require_screen('training_screen_ta_create');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $q = $this->ta->get_question((int)$id);
+        if (!$q) {
+            show_404();
+        }
+        $aid = (int)$q->assessment_id;
+        $this->ta->delete_question((int)$id);
+        $this->session->set_flashdata('success', 'Question removed.');
+        redirect('training-assessment/questions/' . $aid);
+    }
+
+    public function assign($assessment_id)
+    {
+        $this->_ta_require_manage_core();
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $a = $this->ta->get_assessment((int)$assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        $questionCount = $this->ta->count_questions_for_assessment((int) $assessment_id);
+
+        if ($this->input->method() === 'post') {
+            if ($questionCount < 1) {
+                $this->session->set_flashdata('error', 'Add at least one question before assigning this assessment.');
+                redirect('training-assessment/questions/' . $assessment_id);
+                return;
+            }
+            $uid = (int)$this->session->userdata('user_id');
+            $mode = (string)$this->input->post('assign_mode');
+
+            if ($mode === 'bulk_department') {
+                $dept = trim((string)$this->input->post('department'));
+                if ($dept === '') {
+                    $this->session->set_flashdata('error', 'Select a department.');
+                    redirect('training-assessment/assign/' . $assessment_id);
+                    return;
+                }
+                $userIds = $this->ta_run->user_ids_for_department($dept);
+                $created = 0;
+                $skipped = 0;
+                $notifyIds = array();
+                foreach ($userIds as $empUserId) {
+                    if ($this->ta->assignment_exists_for_employee((int)$assessment_id, $empUserId)) {
+                        $skipped++;
+                        continue;
+                    }
+                    $this->ta->insert_assessment_user(array(
+                        'assessment_id' => (int)$assessment_id,
+                        'user_id' => $empUserId,
+                        'candidate_name' => null,
+                        'candidate_email' => null,
+                        'access_token' => $this->ta_run->generate_token(),
+                        'assigned_by' => $uid,
+                        'assigned_at' => date('Y-m-d H:i:s'),
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ));
+                    $notifyIds[] = $empUserId;
+                    $created++;
+                }
+                if (!empty($notifyIds)) {
+                    $this->load->model('Notification_model');
+                    $this->Notification_model->create_bulk(
+                        $notifyIds,
+                        'Assessment assigned: ' . $a->title,
+                        'You have a new assessment. Open My assignments to start.',
+                        'info',
+                        'training_assessment',
+                        (int) $assessment_id,
+                        site_url('training-assessment/my-assignments')
+                    );
+                }
+                $this->load->model('Security_audit_model', 'audit');
+                $this->audit->log('training_assessment_assign', $uid, 'bulk_department assessment_id=' . (int) $assessment_id . ' department=' . $dept . ' created=' . $created);
+                $this->session->set_flashdata('success', 'Bulk assign: ' . $created . ' new assignment(s). Skipped ' . $skipped . ' duplicate(s). Invitation emails are not sent in bulk — copy links from the table below.');
+                redirect('training-assessment/assign/' . $assessment_id);
+                return;
+            }
+
+            if ($mode === 'bulk_csv') {
+                $raw = trim((string)$this->input->post('bulk_emails'));
+                $lines = preg_split('/\r\n|\r|\n/', $raw);
+                $created = 0;
+                $skipped = 0;
+                $invalid = 0;
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+                    $parsed = $this->ta_run->parse_bulk_candidate_line($line);
+                    if (!$parsed) {
+                        $invalid++;
+                        continue;
+                    }
+                    $emailNorm = strtolower($parsed['email']);
+                    if ($this->ta->assignment_exists_for_candidate_email((int)$assessment_id, $emailNorm)) {
+                        $skipped++;
+                        continue;
+                    }
+                    $this->ta->insert_assessment_user(array(
+                        'assessment_id' => (int)$assessment_id,
+                        'user_id' => null,
+                        'candidate_name' => $parsed['name'],
+                        'candidate_email' => $parsed['email'],
+                        'access_token' => $this->ta_run->generate_token(),
+                        'assigned_by' => $uid,
+                        'assigned_at' => date('Y-m-d H:i:s'),
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ));
+                    $created++;
+                }
+                $msg = 'Bulk candidates: ' . $created . ' created.';
+                if ($skipped) {
+                    $msg .= ' Skipped ' . $skipped . ' duplicate email(s).';
+                }
+                if ($invalid) {
+                    $msg .= ' ' . $invalid . ' line(s) could not be parsed.';
+                }
+                $msg .= ' Emails are not sent automatically in bulk — share links from the list.';
+                $this->load->model('Security_audit_model', 'audit');
+                $this->audit->log('training_assessment_assign', $uid, 'bulk_csv assessment_id=' . (int) $assessment_id . ' created=' . $created);
+                $this->session->set_flashdata('success', $msg);
+                redirect('training-assessment/assign/' . $assessment_id);
+                return;
+            }
+
+            $token = $this->ta_run->generate_token();
+            $recipientEmail = '';
+            $recipientName = '';
+            $empUserId = 0;
+            if ($mode === 'employee') {
+                $empUserId = (int)$this->input->post('user_id');
+                if ($empUserId < 1) {
+                    $this->session->set_flashdata('error', 'Select an employee.');
+                    redirect('training-assessment/assign/' . $assessment_id);
+                    return;
+                }
+                if ($this->ta->assignment_exists_for_employee((int)$assessment_id, $empUserId)) {
+                    $this->session->set_flashdata('error', 'This employee is already assigned to this assessment. Remove the old assignment from the database or use the existing link from the table below.');
+                    redirect('training-assessment/assign/' . $assessment_id);
+                    return;
+                }
+                $this->ta->insert_assessment_user(array(
+                    'assessment_id' => (int)$assessment_id,
+                    'user_id' => $empUserId,
+                    'candidate_name' => null,
+                    'candidate_email' => null,
+                    'access_token' => $token,
+                    'assigned_by' => $uid,
+                    'assigned_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ));
+                $ur = $this->db->select('email, name')->from('users')->where('id', $empUserId)->limit(1)->get()->row();
+                if ($ur) {
+                    $recipientEmail = trim((string)$ur->email);
+                    $recipientName = trim((string)$ur->name) !== '' ? trim((string)$ur->name) : 'Employee';
+                }
+            } else {
+                $name = trim((string)$this->input->post('candidate_name'));
+                $email = trim((string)$this->input->post('candidate_email'));
+                if ($name === '' || $email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $this->session->set_flashdata('error', 'Valid candidate name and email are required.');
+                    redirect('training-assessment/assign/' . $assessment_id);
+                    return;
+                }
+                if ($this->ta->assignment_exists_for_candidate_email((int)$assessment_id, strtolower($email))) {
+                    $this->session->set_flashdata('error', 'A candidate with this email is already assigned. Use the link in the table below or use a different email.');
+                    redirect('training-assessment/assign/' . $assessment_id);
+                    return;
+                }
+                $this->ta->insert_assessment_user(array(
+                    'assessment_id' => (int)$assessment_id,
+                    'user_id' => null,
+                    'candidate_name' => $name,
+                    'candidate_email' => $email,
+                    'access_token' => $token,
+                    'assigned_by' => $uid,
+                    'assigned_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ));
+                $recipientEmail = $email;
+                $recipientName = $name;
+            }
+            if ($mode === 'employee') {
+                $this->load->model('Notification_model');
+                $this->Notification_model->create(
+                    (int) $empUserId,
+                    'Assessment assigned: ' . $a->title,
+                    'You have a new assessment. Open My assignments or use the take link from email.',
+                    'info',
+                    'training_assessment',
+                    (int) $assessment_id,
+                    site_url('training-assessment/my-assignments')
+                );
+            }
+            $this->load->model('Security_audit_model', 'audit');
+            $this->audit->log(
+                'training_assessment_assign',
+                $uid,
+                $mode . ' assessment_id=' . (int) $assessment_id . ($mode === 'employee' ? ' assignee_user_id=' . (int) $empUserId : '')
+            );
+            $linkUrl = site_url('training-assessment/take/' . rawurlencode($token));
+            $this->session->set_flashdata('ta_assign_link', $linkUrl);
+            $this->session->set_flashdata('ta_assign_email_to', $recipientEmail);
+            $mailRes = $this->ta_run->send_assessment_invite_email($recipientEmail, $recipientName, $a->title, $linkUrl);
+            if (!empty($mailRes['ok'])) {
+                $this->session->set_flashdata('ta_assign_email', 'sent');
+                $this->session->set_flashdata('success', 'Assignment created and invitation email sent to ' . $recipientEmail . '.');
+            } elseif (isset($mailRes['reason']) && $mailRes['reason'] === 'not_configured') {
+                $this->session->set_flashdata('ta_assign_email', 'skipped');
+                $this->session->set_flashdata('success', 'Assignment created. Email was not sent — configure SMTP under Settings → Email. Use the link below to share manually.');
+            } elseif (isset($mailRes['reason']) && $mailRes['reason'] === 'invalid') {
+                $this->session->set_flashdata('ta_assign_email', 'no_address');
+                $this->session->set_flashdata('success', 'Assignment created. No valid email was found for this employee — share the link below manually.');
+            } else {
+                $this->session->set_flashdata('ta_assign_email', 'failed');
+                $this->session->set_flashdata('success', 'Assignment created, but the email could not be sent. Copy the link below and send it manually.');
+            }
+            redirect('training-assessment/assign/' . $assessment_id);
+            return;
+        }
+
+        $this->load->model('User_model');
+        $data['assessment'] = $a;
+        $data['assign_users'] = $this->User_model->list_for_training_assign_dropdown();
+        $data['assignments'] = $this->ta->list_assignments_for_assessment((int)$assessment_id);
+        $data['question_count'] = $questionCount;
+        $data['departments'] = $this->ta_run->distinct_departments();
+        $this->load->view('training_assessment/assign', $data);
+    }
+
+    public function my_assignments()
+    {
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        $data['assignments'] = $this->ta->list_assignments_for_user_detailed($uid);
+        $this->load->helper('training');
+        foreach ($data['assignments'] as $row) {
+            if (!empty($row->completed_at)) {
+                $row->result_url = training_assessment_signed_result_url($row->access_token, $row);
+            } else {
+                $row->result_url = '';
+            }
+        }
+        $this->load->view('training_assessment/my_assignments', $data);
+    }
+
+    public function report()
+    {
+        $this->_ta_require_screen('training_screen_ta_report');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $emp = (int)$this->input->get('employee_user_id');
+        $from = $this->input->get('date_from');
+        $to = $this->input->get('date_to');
+        $assessmentId = (int)$this->input->get('assessment_id');
+        $assigneeType = $this->input->get('assignee_type');
+        $assigneeType = in_array($assigneeType, array('all', 'employee', 'candidate'), true) ? $assigneeType : 'all';
+        $this->load->model('Employee_model');
+        $data['employees'] = $this->Employee_model->all(10000, 0, '', array());
+        $data['assessments'] = $this->ta->list_assessments();
+        $data['rows'] = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
+        $data['filter_employee'] = $emp;
+        $data['filter_from'] = $from;
+        $data['filter_to'] = $to;
+        $data['filter_assessment_id'] = $assessmentId;
+        $data['filter_assignee_type'] = $assigneeType;
+        $this->load->view('training_assessment/report', $data);
+    }
+
+    /**
+     * GET: same filters as report, CSV download.
+     */
+    public function report_export()
+    {
+        $this->_ta_require_screen('training_screen_ta_report');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $emp = (int)$this->input->get('employee_user_id');
+        $from = $this->input->get('date_from');
+        $to = $this->input->get('date_to');
+        $assessmentId = (int)$this->input->get('assessment_id');
+        $assigneeType = $this->input->get('assignee_type');
+        $assigneeType = in_array($assigneeType, array('all', 'employee', 'candidate'), true) ? $assigneeType : 'all';
+        $rows = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
+        $filename = 'training_assessment_report_' . date('Y-m-d_His') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('Assessment', 'Assignee type', 'Assignee name', 'Email', 'Score %', 'Pass', 'Submitted', 'Assigned'));
+        foreach ($rows as $r) {
+            $type = !empty($r->user_id) ? 'employee' : 'candidate';
+            $name = !empty($r->user_name) ? $r->user_name : (string)$r->candidate_name;
+            $email = !empty($r->user_email) ? $r->user_email : (string)$r->candidate_email;
+            fputcsv($out, array(
+                (string)$r->assessment_title,
+                $type,
+                $name,
+                $email,
+                $r->score_percent !== null ? number_format((float)$r->score_percent, 2) : '',
+                $r->passed === null ? 'pending' : ((int)$r->passed === 1 ? 'pass' : 'fail'),
+                $r->submitted_at ? (string)$r->submitted_at : '',
+                (string)$r->assigned_at,
+            ));
+        }
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * Office feed: Topic (LMS-linked), Question, Possible Answers, Type, Assessment id/title.
+     * GET assessment_id (optional, 0 = all).
+     */
+    public function office_export_questions()
+    {
+        $this->_ta_require_screen('training_screen_ta_report');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $aid = (int) $this->input->get('assessment_id');
+        $rows = $this->ta->list_office_question_bank_rows($aid);
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="assessment_question_bank_' . date('Y-m-d_His') . '.csv"');
+        echo "\xEF\xBB\xBF";
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array(
+            'Assessment Id',
+            'Assessment Title',
+            'LMS Topic (linked)',
+            'Question',
+            'Possible Answers',
+            'Type',
+            'Points',
+            'Question Sort',
+        ));
+        foreach ($rows as $r) {
+            fputcsv($out, array(
+                (string) (int) $r->assessment_id,
+                (string) $r->assessment_title,
+                isset($r->lms_topic_names) ? (string) $r->lms_topic_names : '',
+                (string) $r->question_text,
+                isset($r->possible_answers) ? (string) $r->possible_answers : '',
+                (string) $r->question_type,
+                $r->question_points !== null ? (string) $r->question_points : '',
+                isset($r->sort_order) ? (string) (int) $r->sort_order : '',
+            ));
+        }
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * Office feed: one row per question per completed attempt (with overall score and learner answer).
+     * GET assessment_id, date_from, date_to (optional; same meaning as report).
+     */
+    public function office_export_attempt_detail()
+    {
+        $this->_ta_require_screen('training_screen_ta_report');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $aid = (int) $this->input->get('assessment_id');
+        $from = $this->input->get('date_from');
+        $to = $this->input->get('date_to');
+        $rows = $this->ta->list_office_attempt_detail_rows($aid, $from, $to);
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="assessment_attempt_detail_' . date('Y-m-d_His') . '.csv"');
+        echo "\xEF\xBB\xBF";
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array(
+            'Assessment Id',
+            'Assessment Title',
+            'LMS Topic (linked)',
+            'Assessment User Id',
+            'Submitted By',
+            'Submitted By Email',
+            'Assessment Submitted At',
+            'Overall Score %',
+            'Earned Points',
+            'Total Points',
+            'Question Sort',
+            'Question',
+            'Question Type',
+            'Question Max Points',
+            'Question Points Earned',
+            'Learner Answer',
+        ));
+        foreach ($rows as $r) {
+            fputcsv($out, array(
+                (string) (int) $r->assessment_id,
+                (string) $r->assessment_title,
+                isset($r->lms_topic_names) ? (string) $r->lms_topic_names : '',
+                (string) (int) $r->assessment_user_id,
+                (string) $r->submitted_by_name,
+                (string) $r->submitted_by_email,
+                $r->assessment_submitted_at ? (string) $r->assessment_submitted_at : '',
+                $r->overall_score_percent !== null ? (string) $r->overall_score_percent : '',
+                isset($r->earned_points) ? (string) $r->earned_points : '',
+                isset($r->total_points) ? (string) $r->total_points : '',
+                isset($r->question_sort) ? (string) (int) $r->question_sort : '',
+                (string) $r->question_text,
+                (string) $r->question_type,
+                isset($r->question_max_points) ? (string) $r->question_max_points : '',
+                isset($r->question_points_earned) ? (string) $r->question_points_earned : '',
+                isset($r->learner_answer) ? (string) $r->learner_answer : '',
+            ));
+        }
+        fclose($out);
+        exit;
+    }
+
+
+
+    public function result($assessment_user_id)
+    {
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $au = $this->ta->get_assessment_user((int) $assessment_user_id);
+        if (!$au) {
+            show_404();
+        }
+        if (!$this->ta_run->can_manage_result($au)) {
+            show_error('Access denied.', 403);
+        }
+        $this->ta_run->render_result($au);
+    }
+
+    public function team_progress()
+    {
+        $this->_ta_require_screen('training_screen_ta_team_progress');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        $this->load->model('Employee_model');
+        $emp = $this->Employee_model->get_by_user_id($uid);
+        $dept = ($emp && !empty($emp->department)) ? trim((string) $emp->department) : '';
+        $peerIds = array();
+        if ($dept !== '') {
+            $peerIds = $this->ta_run->user_ids_for_department($dept);
+            $peerIds = array_values(array_diff($peerIds, array($uid)));
+        }
+        $data['department'] = $dept;
+        $data['rows'] = !empty($peerIds) ? $this->ta->list_assignments_for_user_ids($peerIds, 0) : array();
+        $this->load->helper('training');
+        foreach ($data['rows'] as $row) {
+            if (!empty($row->completed_at) && !empty($row->access_token) && isset($row->id)) {
+                $row->signed_result_url = training_assessment_signed_result_url($row->access_token, $row);
+            } else {
+                $row->signed_result_url = '';
+            }
+        }
+        $this->load->view('training_assessment/team_progress', $data);
+    }
+
+    public function certificate($assessment_user_id)
+    {
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $au = $this->ta->get_assessment_user((int) $assessment_user_id);
+        if (!$au) {
+            show_404();
+        }
+        if (!$this->ta_run->can_manage_result($au)) {
+            show_error('Access denied.', 403);
+        }
+        $result = $this->ta->get_result_by_au((int) $au->id);
+        if (!$result || empty($au->completed_at)) {
+            show_error('No completed result for this assignment.', 404);
+        }
+        $data['au'] = $au;
+        $data['result'] = $result;
+        $data['assessment'] = $this->ta->get_assessment((int) $au->assessment_id);
+        $this->load->view('training_assessment/certificate', $data);
+    }
+}

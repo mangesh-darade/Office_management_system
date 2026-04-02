@@ -278,6 +278,28 @@ class Permissions extends CI_Controller {
                     'performance_export'      => 'Export Appraisals CSV',
                 ]
             ],
+            'Training & Learning' => [
+                'icon' => 'bi-mortarboard',
+                'modules' => [
+                    'training_lms'               => 'Training LMS — learner (catalog, topics, assignments)',
+                    'training_lms_manage'        => 'Training LMS — admin (modules, enrollments, CSV feeds)',
+                    'training_assessment'        => 'Training & Assessment — build & manage tests',
+                    'training_assessment_manage' => 'Training & Assessment — assign learners, reports, team view',
+                    'training_assessment_take'   => 'Training & Assessment — take assigned tests',
+                    'training_screen_ta_dashboard' => 'Dashboard',
+                    'training_screen_ta_create' => 'New assessment',
+                    'training_screen_ta_import' => 'Import CSV',
+                    'training_screen_ta_report' => 'Report',
+                    'training_screen_ta_team_progress' => 'Team progress',
+                    'training_screen_ta_my_tests' => 'Assessment (my tests)',
+                    'training_screen_tl_hub' => 'Training hub',
+                    'training_screen_tl_module' => 'Module',
+                    'training_screen_tl_assignment' => 'Assignment',
+                    'training_screen_lms_admin' => 'LMS admin',
+                    'training_screen_lms_submissions' => 'Assignment submissions',
+                    'training_screen_lms_office_csv' => 'LMS office CSV',
+                ]
+            ],
             'Business Management' => [
                 'icon' => 'bi-briefcase',
                 'modules' => [
@@ -348,6 +370,7 @@ class Permissions extends CI_Controller {
                     'email_settings'   => 'Email Settings & Templates',
                     'whatsapp'         => 'WhatsApp Integration',
                     'permissions'      => 'Permission Manager',
+                    'permissions_edit' => 'Permission Manager — save role matrix',
                     'statuses'         => 'Status Management',
                     'api_integrations' => 'API Integrations',
                     'lead_mapping'     => 'Lead Mapping',

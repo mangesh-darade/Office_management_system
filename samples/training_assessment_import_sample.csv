@@ -1,0 +1,4 @@
+assessment_title,assessment_description,time_limit_minutes,passing_marks,randomize_questions,shuffle_options,max_attempts,allow_retake,status,question_type,question_text,points,coding_language,model_answer,coding_expected_output,sort_order,opt1,opt2,opt3,opt4,correct_option
+"PHP & CSV import demo","Sample assessment imported from CSV. Row 1 sets the test settings and the first question. Next rows only need question columns (leave assessment columns empty).",45,60,1,1,2,1,active,mcq,"What is PHP?",1,,,,1,"A programming language","A database engine","A web server","None of the above",1
+,,,,,,,,,text,"Explain MVC architecture in a few sentences.",2,,model view controller separation,,2,,,,,
+,,,,,,,,,coding,"Write PHP that outputs the reverse of the string hello (use echo and strrev).",3,php,,olleh,3,,,,,

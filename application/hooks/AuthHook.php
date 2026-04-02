@@ -48,6 +48,18 @@ class AuthHook {
 
         if (in_array($uri, $public, true)) return;
 
+        // Training assessment: candidates may use a secret link without an account (token in URL / POST).
+        if (preg_match('#^training_assessment/(take_assessment|submit_assessment|ajax_save_answer|ajax_load_question|ajax_run_code|ajax_timer_sync|candidate_profile|result_token|retake_assessment)(/|$)#', $uri)) {
+            return;
+        }
+        if (preg_match('#^training_assessment_take/#', $uri)) {
+            return;
+        }
+        // Pretty routes — take, submit, AJAX, candidate, retake, result-token while logged out
+        if (preg_match('#^training-assessment/(take|result-token|submit-assessment|ajax-load-question|ajax-save-answer|ajax-run-code|ajax-timer-sync|candidate-profile|retake-assessment)(/|$)#', $uri)) {
+            return;
+        }
+
         $user_id = $CI->session->userdata('user_id');
         $role_id = (int)$CI->session->userdata('role_id');
 
@@ -333,6 +345,20 @@ class AuthHook {
             'announcements'     => ['announcements', 'announcements_list', 'announcements_add', 'announcements_edit', 'announcements_delete'],
             'recruitment'       => ['recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews'],
             'performance'       => ['performance', 'performance_create', 'performance_view', 'performance_edit', 'performance_delete'],
+            'training_assessment' => [
+                'training_assessment', 'training_assessment_manage', 'training_assessment_take',
+                'training_screen_ta_dashboard', 'training_screen_ta_create', 'training_screen_ta_import',
+                'training_screen_ta_report', 'training_screen_ta_team_progress', 'training_screen_ta_my_tests',
+            ],
+            'training_assessment_take' => ['training_assessment', 'training_assessment_manage', 'training_assessment_take'],
+            'training_lms' => [
+                'training_lms', 'training_lms_manage',
+                'training_screen_tl_hub', 'training_screen_tl_module', 'training_screen_tl_assignment',
+            ],
+            'training_lms_admin' => [
+                'training_lms_manage',
+                'training_screen_lms_admin', 'training_screen_lms_submissions', 'training_screen_lms_office_csv',
+            ],
             'clients'           => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete'],
             'payroll'           => ['payroll', 'payroll_view', 'payroll_manage'],
             'expenses'          => ['expenses', 'expenses_add', 'expenses_edit', 'expenses_delete', 'expenses_approve', 'expenses_reimburse', 'expenses_reports', 'expenses_categories'],
