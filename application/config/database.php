@@ -78,7 +78,7 @@ $db['default'] = array(
 	'hostname' => 'localhost',
 	'username' => 'root',
 	'password' => '',
-	'database' => 'official_internal_portel',
+	'database' => 'admin_stadmin_internal_portal',
 
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',

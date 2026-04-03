@@ -121,7 +121,12 @@ class Training_assessment extends CI_Controller
         if (!in_array($sort, $allowedSort, true)) {
             $sort = 'created_desc';
         }
-        $data['assessments'] = $this->ta->list_assessments_with_stats($search, $status, $sort);
+        $this->load->helper('training');
+        $uid = (int) $this->session->userdata('user_id');
+        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $scope = ($isBroad || $uid < 1) ? 0 : $uid;
+        $data['assessments'] = $this->ta->list_assessments_with_stats($search, $status, $sort, $scope);
+        $data['dashboard_scope_limited'] = !$isBroad && $uid > 0;
         $data['filter_q'] = $search;
         $data['filter_status'] = $status;
         $data['filter_sort'] = $sort;
@@ -791,16 +796,26 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
-        $emp = (int)$this->input->get('employee_user_id');
+        $this->load->helper('training');
+        $sessUid = (int) $this->session->userdata('user_id');
+        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $emp = (int) $this->input->get('employee_user_id');
+        if (!$isBroad && $sessUid > 0) {
+            $emp = $sessUid;
+        }
         $from = $this->input->get('date_from');
         $to = $this->input->get('date_to');
         $assessmentId = (int)$this->input->get('assessment_id');
         $assigneeType = $this->input->get('assignee_type');
         $assigneeType = in_array($assigneeType, array('all', 'employee', 'candidate'), true) ? $assigneeType : 'all';
+        if (!$isBroad && $sessUid > 0) {
+            $assigneeType = 'employee';
+        }
         $this->load->model('Employee_model');
         $data['employees'] = $this->Employee_model->all(10000, 0, '', array());
         $data['assessments'] = $this->ta->list_assessments();
         $data['rows'] = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
+        $data['report_scope_all'] = $isBroad;
         $data['filter_employee'] = $emp;
         $data['filter_from'] = $from;
         $data['filter_to'] = $to;
@@ -818,12 +833,21 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
-        $emp = (int)$this->input->get('employee_user_id');
+        $this->load->helper('training');
+        $sessUid = (int) $this->session->userdata('user_id');
+        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $emp = (int) $this->input->get('employee_user_id');
+        if (!$isBroad && $sessUid > 0) {
+            $emp = $sessUid;
+        }
         $from = $this->input->get('date_from');
         $to = $this->input->get('date_to');
         $assessmentId = (int)$this->input->get('assessment_id');
         $assigneeType = $this->input->get('assignee_type');
         $assigneeType = in_array($assigneeType, array('all', 'employee', 'candidate'), true) ? $assigneeType : 'all';
+        if (!$isBroad && $sessUid > 0) {
+            $assigneeType = 'employee';
+        }
         $rows = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
         $filename = 'training_assessment_report_' . date('Y-m-d_His') . '.csv';
         header('Content-Type: text/csv; charset=utf-8');
@@ -859,8 +883,12 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
+        $this->load->helper('training');
+        $sessUid = (int) $this->session->userdata('user_id');
+        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $scope = ($isBroad || $sessUid < 1) ? 0 : $sessUid;
         $aid = (int) $this->input->get('assessment_id');
-        $rows = $this->ta->list_office_question_bank_rows($aid);
+        $rows = $this->ta->list_office_question_bank_rows($aid, $scope);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="assessment_question_bank_' . date('Y-m-d_His') . '.csv"');
         echo "\xEF\xBB\xBF";
@@ -901,10 +929,14 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
+        $this->load->helper('training');
+        $sessUid = (int) $this->session->userdata('user_id');
+        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $scope = ($isBroad || $sessUid < 1) ? 0 : $sessUid;
         $aid = (int) $this->input->get('assessment_id');
         $from = $this->input->get('date_from');
         $to = $this->input->get('date_to');
-        $rows = $this->ta->list_office_attempt_detail_rows($aid, $from, $to);
+        $rows = $this->ta->list_office_attempt_detail_rows($aid, $from, $to, $scope);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="assessment_attempt_detail_' . date('Y-m-d_His') . '.csv"');
         echo "\xEF\xBB\xBF";

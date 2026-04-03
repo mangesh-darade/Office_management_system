@@ -1,0 +1,2 @@
+Title,Description,Time limit (minutes),Passing marks (%),Max attempts,Status,Randomize questions (0/1),Shuffle options (0/1),Allow retake (0/1),Show correct after submit (0/1)
+Sample quiz from CSV,A short demo assessment,30,60,1,active,0,0,0,0

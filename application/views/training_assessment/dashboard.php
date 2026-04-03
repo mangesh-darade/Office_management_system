@@ -58,6 +58,9 @@
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
+  <?php if (!empty($dashboard_scope_limited)): ?>
+    <div class="alert alert-info small py-2 mb-3">Showing assessments you <strong>created</strong> or are <strong>assigned</strong> to. Administrators see the full catalogue.</div>
+  <?php endif; ?>
 
   <div class="row g-3 mb-4">
     <div class="col-sm-4">

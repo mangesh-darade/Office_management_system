@@ -1,6 +1,13 @@
 <?php $this->load->view('partials/header', array('title' => 'Assessment report')); ?>
+<?php
+  $scopeAll = isset($report_scope_all) ? (bool) $report_scope_all : true;
+  $this->load->helper('training');
+?>
 <div class="container-fluid py-4">
   <h1 class="h4 mb-3"><i class="bi bi-bar-chart me-2"></i>Training assessment report</h1>
+  <?php if (!$scopeAll): ?>
+    <div class="alert alert-info small py-2 mb-3">You see <strong>your own</strong> assessment attempts only. Organization-wide reporting requires Training &amp; Assessment admin access.</div>
+  <?php endif; ?>
   <form method="get" action="<?php echo site_url('training-assessment/report'); ?>" class="row g-2 align-items-end mb-3">
     <div class="col-lg-3 col-md-6">
       <label class="form-label small text-muted mb-0">Assessment</label>
@@ -15,15 +22,16 @@
     </div>
     <div class="col-lg-2 col-md-6">
       <label class="form-label small text-muted mb-0">Assignee type</label>
-      <select name="assignee_type" class="form-select form-select-sm">
+      <select name="assignee_type" class="form-select form-select-sm" <?php echo $scopeAll ? '' : 'disabled'; ?>>
         <option value="all" <?php echo ($filter_assignee_type === 'all') ? 'selected' : ''; ?>>All</option>
         <option value="employee" <?php echo ($filter_assignee_type === 'employee') ? 'selected' : ''; ?>>Employees only</option>
         <option value="candidate" <?php echo ($filter_assignee_type === 'candidate') ? 'selected' : ''; ?>>External candidates</option>
       </select>
+      <?php if (!$scopeAll): ?><input type="hidden" name="assignee_type" value="employee"><?php endif; ?>
     </div>
     <div class="col-lg-3 col-md-6">
       <label class="form-label small text-muted mb-0">Employee (when type allows)</label>
-      <select name="employee_user_id" class="form-select form-select-sm">
+      <select name="employee_user_id" class="form-select form-select-sm" <?php echo $scopeAll ? '' : 'disabled'; ?>>
         <option value="0">All</option>
         <?php foreach ($employees as $e): ?>
           <?php if (empty($e->user_id)) { continue; } ?>
@@ -32,6 +40,7 @@
           </option>
         <?php endforeach; ?>
       </select>
+      <?php if (!$scopeAll && isset($filter_employee)): ?><input type="hidden" name="employee_user_id" value="<?php echo (int)$filter_employee; ?>"><?php endif; ?>
     </div>
     <div class="col-lg-2 col-md-6">
       <label class="form-label small text-muted mb-0">From</label>
@@ -89,8 +98,19 @@
           <td><?php echo htmlspecialchars($r->assessment_title); ?></td>
           <td>
             <?php
-            if (!empty($r->user_name)) {
-              echo htmlspecialchars($r->user_name);
+            if (!empty($r->user_id)) {
+              $disp = isset($r->user_name) ? trim((string) $r->user_name) : '';
+              if ($disp !== '') {
+                echo '<div class="fw-semibold">' . htmlspecialchars($disp) . '</div>';
+                $em = isset($r->user_email) ? trim((string) $r->user_email) : '';
+                if ($em !== '' && strcasecmp($disp, $em) !== 0) {
+                  echo '<div class="small text-muted">' . htmlspecialchars($em) . '</div>';
+                }
+              } elseif (!empty($r->user_email)) {
+                echo htmlspecialchars($r->user_email);
+              } else {
+                echo '<span class="text-muted">User #' . (int) $r->user_id . '</span>';
+              }
             } elseif (!empty($r->candidate_name)) {
               echo htmlspecialchars($r->candidate_name) . ' <span class="text-muted">(candidate)</span>';
             } else {
@@ -109,8 +129,12 @@
             <?php endif; ?>
           </td>
           <td><?php echo $r->submitted_at ? htmlspecialchars($r->submitted_at) : '—'; ?></td>
-          <td class="text-end">
-            <?php if (!empty($r->id)): ?>
+          <td class="text-end text-nowrap">
+            <?php if (!empty($r->completed_at) && !empty($r->access_token)): ?>
+            <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars(training_assessment_signed_result_url($r->access_token, $r)); ?>">Result</a>
+            <?php elseif (!empty($r->access_token) && empty($r->completed_at)): ?>
+            <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training-assessment/take/' . rawurlencode($r->access_token)); ?>">Open</a>
+            <?php elseif (!empty($r->id) && $scopeAll): ?>
             <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('training-assessment/result/' . (int)$r->id); ?>">View</a>
             <?php endif; ?>
           </td>

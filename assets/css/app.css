@@ -183,7 +183,11 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #reports-toggle,
 #daily-activity-toggle,
 #recruitment-toggle,
-#expense-toggle{
+#expense-toggle,
+#performance-toggle,
+#training-assessment-toggle,
+#payroll-toggle,
+#communication-toggle{
   color:#e5e7eb !important;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
@@ -199,7 +203,11 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #reports-toggle:hover,
 #daily-activity-toggle:hover,
 #recruitment-toggle:hover,
-#expense-toggle:hover {
+#expense-toggle:hover,
+#performance-toggle:hover,
+#training-assessment-toggle:hover,
+#payroll-toggle:hover,
+#communication-toggle:hover {
   background: rgba(255,255,255,0.15);
   border-color: rgba(255,255,255,0.2);
   color: #ffffff !important;
@@ -214,7 +222,11 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #reports-toggle .bi,
 #daily-activity-toggle .bi,
 #recruitment-toggle .bi,
-#expense-toggle .bi{
+#expense-toggle .bi,
+#performance-toggle .bi,
+#training-assessment-toggle .bi,
+#payroll-toggle .bi,
+#communication-toggle .bi{
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   opacity:1;
   font-size:.85rem;
@@ -228,7 +240,11 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #leave-toggle.rot .bi,
 #project-toggle.rot .bi,
 #settings-toggle.rot .bi,
-#reports-toggle.rot .bi{ transform: rotate(90deg) scale(1.1); }
+#reports-toggle.rot .bi,
+#performance-toggle.rot .bi,
+#training-assessment-toggle.rot .bi,
+#payroll-toggle.rot .bi,
+#communication-toggle.rot .bi{ transform: rotate(90deg) scale(1.1); }
 
 #daily-activity-group.open > .d-flex > #daily-activity-parent{
   background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
@@ -251,6 +267,38 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
   color:#fff;
   border-radius:10px;
   box-shadow: 0 4px 16px rgba(219, 39, 119, 0.3);
+  transform: translateX(2px);
+}
+
+#performance-group.open > .d-flex > #performance-parent{
+  background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
+  color:#fff;
+  border-radius:10px;
+  box-shadow: 0 4px 16px rgba(126, 34, 206, 0.35);
+  transform: translateX(2px);
+}
+
+#training-assessment-group.open > .d-flex > #training-assessment-parent{
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  color:#fff;
+  border-radius:10px;
+  box-shadow: 0 4px 16px rgba(3, 105, 161, 0.35);
+  transform: translateX(2px);
+}
+
+#payroll-group.open > .d-flex > #payroll-parent{
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color:#0b1220;
+  border-radius:10px;
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.35);
+  transform: translateX(2px);
+}
+
+#communication-group.open > .d-flex > #communication-parent{
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  color:#fff;
+  border-radius:10px;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
   transform: translateX(2px);
 }
 

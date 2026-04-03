@@ -622,6 +622,114 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
     alert('Back navigation is disabled during the assessment.');
   });
 
+  // --- Proctoring: fullscreen, tab switches, shortcuts, clipboard, context menu ---
+  var visibilityHideCount = 0; // allow 1 hide (tab change), auto-submit on 2nd
+
+  function isFullscreenActive() {
+    return !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+  }
+
+  function requestFullscreen() {
+    if (autoFinishing) return;
+    var el = document.documentElement;
+    try {
+      if (el.requestFullscreen) {
+        var p = el.requestFullscreen();
+        if (p && typeof p.catch === 'function') {
+          p.catch(function() {});
+        }
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      } else if (el.mozRequestFullScreen) {
+        el.mozRequestFullScreen();
+      } else if (el.msRequestFullscreen) {
+        el.msRequestFullscreen();
+      }
+    } catch (e) {
+      // Ignore fullscreen errors (browser may block or not support)
+    }
+  }
+
+  function handleFullscreenChange() {
+    if (autoFinishing) return;
+    if (isFullscreenActive()) {
+      return;
+    }
+    // Any exit from fullscreen immediately submits the assessment.
+    finishAssessment('manual');
+  }
+
+  function handleVisibilityHidden() {
+    if (autoFinishing) return;
+    visibilityHideCount++;
+    // First hide = tolerate, second or more = auto-submit.
+    if (visibilityHideCount > 1) {
+      finishAssessment('manual');
+    }
+  }
+
+  if (typeof document.addEventListener === 'function') {
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'hidden') {
+        handleVisibilityHidden();
+      }
+    });
+
+    // We rely on visibilitychange for tab/window switches; blur can double-trigger on some browsers, so skip it.
+
+    document.addEventListener('contextmenu', function(e) {
+      if (autoFinishing) return;
+      e.preventDefault();
+    });
+
+    ['copy', 'cut', 'paste'].forEach(function(ev) {
+      document.addEventListener(ev, function(e) {
+        if (autoFinishing) return;
+        e.preventDefault();
+      });
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (autoFinishing) return;
+      var key = (e.key || '').toLowerCase();
+      var ctrl = e.ctrlKey || e.metaKey;
+      if (
+        // Clipboard & save/print/new/tab/window
+        (ctrl && (key === 'c' || key === 'v' || key === 'x' || key === 's' || key === 'p' || key === 't' || key === 'n' || key === 'w')) ||
+        // Ctrl+Tab approximation (Alt+Tab cannot be fully blocked at browser level)
+        (ctrl && key === 'tab') ||
+        e.key === 'F11'
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+
+    // Try to get fullscreen as soon as the learner interacts with the page.
+    document.addEventListener('click', function initialFsListener() {
+      document.removeEventListener('click', initialFsListener);
+      requestFullscreen();
+    });
+  }
+
+  // Initial fullscreen attempt on load (may be blocked by browser, but harmless).
+  requestFullscreen();
+
+  // One-time notice at assessment start.
+  try {
+    alert('This assessment runs in fullscreen. Do not switch tabs, windows, or exit fullscreen. If you leave this screen, your assessment will be submitted automatically.');
+  } catch (e) {}
+
   buildNav();
   tickTimer();
   timerIv = setInterval(tickTimer, 1000);

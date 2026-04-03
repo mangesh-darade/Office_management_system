@@ -452,6 +452,13 @@ $route['training/my-submissions'] = 'training_lms/my_submissions';
 $route['training/my-training'] = 'training_lms/learner_hub';
 $route['training/complete-topic'] = 'training_lms/complete_topic';
 
+// External Trainings (simple CRUD on sma_external_trainings)
+$route['external-training'] = 'external_training/index';
+$route['external-training/create'] = 'external_training/create';
+$route['external-training/edit/(:num)'] = 'external_training/edit/$1';
+$route['external-training/save'] = 'external_training/save';
+$route['external-training/delete/(:num)'] = 'external_training/delete/$1';
+
 $route['training-lms-admin'] = 'training_lms_admin/index';
 $route['training-lms-admin/module/create'] = 'training_lms_admin/module_form';
 $route['training-lms-admin/module/edit/(:num)'] = 'training_lms_admin/module_form/$1';

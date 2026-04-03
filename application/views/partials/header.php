@@ -135,6 +135,8 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php 
       $active = strtolower($this->uri->segment(1) ?: 'dashboard');
       $active_sub = strtolower($this->uri->segment(2) ?: '');
+      $role_id = (int) $this->session->userdata('role_id');
+      $is_superadmin = ($role_id === 1);
       ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       
@@ -156,16 +158,37 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
-      <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
-      <?php endif; ?>
-      <?php 
-      $role_id = (int)$this->session->userdata('role_id');
-      // Super Admin (role_id 1) always sees WhatsApp; other roles rely on explicit permission
-      $is_superadmin = ($role_id === 1);
-      if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+      <?php
+      $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
+          || $is_superadmin
+          || (function_exists('has_module_access') && has_module_access('whatsapp'));
+      if ($comm_show) {
+          if (function_exists('has_module_access') && has_module_access('mail')) {
+              $comm_mobile_open = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
+          } else {
+              $comm_mobile_open = ($active === 'whatsapp');
+          }
+      } else {
+          $comm_mobile_open = false;
+      }
+      ?>
+      <?php if ($comm_show): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $comm_mobile_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-communication-submenu" role="button" aria-expanded="<?php echo $comm_mobile_open ? 'true' : 'false'; ?>" aria-controls="mobile-communication-submenu">
+          <i class="bi bi-broadcast me-2"></i>Communication <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $comm_mobile_open ? 'show' : ''; ?>" id="mobile-communication-submenu">
+          <div class="ps-4">
+            <?php if (function_exists('has_module_access') && has_module_access('mail')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
+            <a class="nav-link sidebar-link small <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-send me-2"></i>SendGrid (API)</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
       <?php endif; ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
@@ -197,10 +220,10 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       ?>
       <?php if($user_group_show): ?>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-user-submenu" role="button">
+        <a class="nav-link sidebar-link <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-user-submenu" role="button" aria-expanded="<?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true)?'true':'false'; ?>">
           <i class="bi bi-person-lines-fill me-2"></i>User <i class="bi bi-chevron-down float-end"></i>
         </a>
-        <div class="collapse" id="mobile-user-submenu">
+        <div class="collapse <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true)?'show':''; ?>" id="mobile-user-submenu">
           <div class="ps-4">
             <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
@@ -212,7 +235,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('assets') || has_module_access('assets_mgmt'))): ?>
-            <a class="nav-link sidebar-link small <?php echo $active==='assets'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
+            <a class="nav-link sidebar-link small <?php echo $active==='assets-mgmt'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
@@ -230,10 +253,10 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo $active==='payroll'?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-payroll-submenu" role="button" aria-expanded="<?php echo $active==='payroll'?'true':'false'; ?>">
+        <a class="nav-link sidebar-link <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-payroll-submenu" role="button" aria-expanded="<?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'true':'false'; ?>">
           <i class="bi bi-cash-stack me-2"></i>Payroll <i class="bi bi-chevron-down float-end"></i>
         </a>
-        <div class="collapse <?php echo $active==='payroll'?'show':''; ?>" id="mobile-payroll-submenu">
+        <div class="collapse <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'show':''; ?>" id="mobile-payroll-submenu">
           <div class="ps-4">
             <a class="nav-link sidebar-link small" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-file-earmark-text me-2"></i>Payslips</a>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('payroll/structures'); ?>"><i class="bi bi-diagram-3 me-2"></i>Pay Structures</a>
@@ -278,9 +301,16 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       $__tl_m = (int)$this->session->userdata('role_id') === 1
         || (function_exists('training_tl_learner_any') && training_tl_learner_any())
         || (function_exists('training_lms_admin_any') && training_lms_admin_any());
-      $__ta_nav_open = ($active==='training-assessment' || $active==='training' || $active==='training-lms-admin');
+      $__ext_nav = (int)$this->session->userdata('role_id') === 1 || (function_exists('has_module_access') && (
+          has_module_access('external_training')
+          || has_module_access('external_training_list')
+          || has_module_access('external_training_add')
+          || has_module_access('external_training_edit')
+          || has_module_access('external_training_delete')
+      ));
+      $__ta_nav_open = ($active==='training-assessment' || $active==='training' || $active==='training-lms-admin' || $active==='external-training');
       ?>
-      <?php if ($__ta_m || $__tl_m): ?>
+      <?php if ($__ta_m || $__tl_m || $__ext_nav): ?>
       <div class="nav-item">
         <a class="nav-link sidebar-link <?php echo $__ta_nav_open?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-training-assessment-submenu" role="button" aria-expanded="<?php echo $__ta_nav_open?'true':'false'; ?>">
           <i class="bi bi-mortarboard me-2"></i>Training &amp; Assessment <i class="bi bi-chevron-down float-end"></i>
@@ -322,6 +352,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php endif; ?>
             <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_office') && training_lms_admin_can_office())): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-2"></i>LMS office CSV</a>
+            <?php endif; ?>
+            <?php if ($__ext_nav): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='external-training' && (!$active_sub || in_array((string) $active_sub, array('create', 'edit'), true)))?'active':''; ?>" href="<?php echo site_url('external-training'); ?>"><i class="bi bi-collection-play me-2"></i>External trainings</a>
             <?php endif; ?>
           </div>
         </div>
@@ -526,10 +559,11 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button">
+        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true); ?>
+        <a class="nav-link sidebar-link <?php echo $mobile_settings_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button" aria-expanded="<?php echo $mobile_settings_open ? 'true' : 'false'; ?>">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
-        <div class="collapse" id="mobile-settings-submenu">
+        <div class="collapse <?php echo $mobile_settings_open ? 'show' : ''; ?>" id="mobile-settings-submenu">
           <div class="ps-4">
             <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>

@@ -2,6 +2,8 @@
 // Sidebar partial for full-width pages
 $active = strtolower($this->uri->segment(1) ?: 'dashboard');
 $active_sub = strtolower($this->uri->segment(2) ?: '');
+$role_id = (int) $this->session->userdata('role_id');
+$is_superadmin = ($role_id === 1);
 // Only render sidebar for authenticated users
 if (!(int)$this->session->userdata('user_id')) {
   return; // do not output sidebar when not logged in
@@ -52,7 +54,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <div class="submenu-list">
                 <a class="submenu-link <?php echo ($active==='daily-activity' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('daily-activity'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Activity</a>
                 <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='list')?'active':''; ?>" href="<?php echo site_url('daily-activity/list'); ?>"><i class="bi bi-list-ul me-1"></i>All Activities</a>
-                <a class="submenu-link" href="<?php echo site_url('daily-activity/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
+                <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='export')?'active':''; ?>" href="<?php echo site_url('daily-activity/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
             </div>
         </div>
       </div>
@@ -61,16 +63,44 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('mail')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
-      <a class="nav-link sidebar-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-envelope me-2"></i>Send Grid (API)</a>
-      <?php endif; ?>
-      <?php 
-      $role_id = (int)$this->session->userdata('role_id');
-      // Super Admin (role_id 1) always sees WhatsApp; other roles rely on explicit permission
-      $is_superadmin = ($role_id === 1);
-      if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+      <?php
+      $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
+          || $is_superadmin
+          || (function_exists('has_module_access') && has_module_access('whatsapp'));
+      if ($comm_show) {
+          if (function_exists('has_module_access') && has_module_access('mail')) {
+              $comm_parent_url = site_url('mail');
+          } elseif ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))) {
+              $comm_parent_url = site_url('whatsapp');
+          } else {
+              $comm_parent_url = site_url('dashboard');
+          }
+          $comm_nav_active = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
+      }
+      ?>
+      <?php if (!empty($comm_show) && $comm_show): ?>
+      <div class="nav-item" id="communication-group">
+        <div class="d-flex align-items-center justify-content-between">
+          <a id="communication-parent" class="nav-link sidebar-link flex-grow-1 <?php echo !empty($comm_nav_active) && $comm_nav_active ? 'active' : ''; ?>" href="<?php echo $comm_parent_url; ?>">
+            <i class="bi bi-broadcast me-2"></i>Communication
+          </a>
+          <button id="communication-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="communication-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="communication-submenu">
+          <div class="submenu-list">
+            <?php if (function_exists('has_module_access') && has_module_access('mail')): ?>
+            <a class="submenu-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-1"></i>Mail (SMTP)</a>
+            <a class="submenu-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-send me-1"></i>SendGrid (API)</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+            <a class="submenu-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <script>initSidebarGroup('communication-group','communication-toggle','communication-parent','communication-submenu','sb_communication_open',<?php echo !empty($comm_nav_active) && $comm_nav_active ? 'true' : 'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
@@ -102,9 +132,9 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         <div class="ps-3 sidebar-submenu" id="recruitment-submenu">
             <div class="submenu-list">
                 <a class="submenu-link <?php echo ($active==='recruitment' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('recruitment'); ?>"><i class="bi bi-briefcase me-1"></i>Job Openings</a>
-                <a class="submenu-link" href="<?php echo site_url('recruitment/create-job'); ?>"><i class="bi bi-plus-lg me-1"></i>Post New Job</a>
+                <a class="submenu-link <?php echo ($active==='recruitment' && in_array((string) $active_sub, array('create-job', 'edit-job'), true))?'active':''; ?>" href="<?php echo site_url('recruitment/create-job'); ?>"><i class="bi bi-plus-lg me-1"></i>Post New Job</a>
                 <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='candidates')?'active':''; ?>" href="<?php echo site_url('recruitment/candidates'); ?>"><i class="bi bi-people me-1"></i>Candidates</a>
-                <a class="submenu-link" href="<?php echo site_url('recruitment/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
+                <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='export')?'active':''; ?>" href="<?php echo site_url('recruitment/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
             </div>
         </div>
       </div>
@@ -153,6 +183,13 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       $tl_show = (isset($is_superadmin) && $is_superadmin)
           || (function_exists('training_tl_learner_any') && training_tl_learner_any())
           || (function_exists('training_lms_admin_any') && training_lms_admin_any());
+      $ext_train_show = (isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (
+          has_module_access('external_training')
+          || has_module_access('external_training_list')
+          || has_module_access('external_training_add')
+          || has_module_access('external_training_edit')
+          || has_module_access('external_training_delete')
+      ));
       $ta_take_only = !(isset($is_superadmin) && $is_superadmin)
           && function_exists('has_module_access')
           && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests'))
@@ -165,14 +202,16 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           $ta_parent_url = site_url('training-assessment/my-assignments');
       } elseif ($tl_show) {
           $ta_parent_url = site_url('training/my-training');
+      } elseif (!empty($ext_train_show) && !$ta_show && !$tl_show) {
+          $ta_parent_url = site_url('external-training');
       } else {
           $ta_parent_url = site_url('training-assessment');
       }
       ?>
-      <?php if ($ta_show || $tl_show): ?>
+      <?php if ($ta_show || $tl_show || $ext_train_show): ?>
       <div class="nav-item" id="training-assessment-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="training-assessment-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin')?'active':''; ?>" href="<?php echo $ta_parent_url; ?>">
+          <a id="training-assessment-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin'||$active==='external-training')?'active':''; ?>" href="<?php echo $ta_parent_url; ?>">
             <i class="bi bi-mortarboard me-2"></i>Training &amp; Assessment
           </a>
           <button id="training-assessment-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="training-assessment-submenu" title="Toggle">
@@ -182,25 +221,25 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         <div class="ps-3 sidebar-submenu" id="training-assessment-submenu">
           <div class="submenu-list">
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard'))): ?>
-            <a class="submenu-link <?php echo ($active==='training_assessment' && (!$active_sub || $active_sub==='dashboard'))?'active':''; ?>" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && (!$active_sub || $active_sub==='dashboard'))?'active':''; ?>" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'))): ?>
-            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='create_assessment')?'active':''; ?>" href="<?php echo site_url('training-assessment/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New assessment</a>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && in_array($active_sub, array('create', 'edit'), true))?'active':''; ?>" href="<?php echo site_url('training-assessment/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New assessment</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_import'))): ?>
-            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='import_assessment')?'active':''; ?>" href="<?php echo site_url('training-assessment/import'); ?>"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import CSV</a>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && strpos((string) $active_sub, 'import') === 0)?'active':''; ?>" href="<?php echo site_url('training-assessment/import'); ?>"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import CSV</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
-            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='report')?'active':''; ?>" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-1"></i>Report</a>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && strpos((string) $active_sub, 'report') === 0)?'active':''; ?>" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-1"></i>Report</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_team_progress'))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='team-progress')?'active':''; ?>" href="<?php echo site_url('training-assessment/team-progress'); ?>"><i class="bi bi-people me-1"></i>Team progress</a>
             <?php endif; ?>
             <?php if (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_assessment_manage') || has_module_access('training_assessment') || has_module_access('training_screen_ta_my_tests'))): ?>
-            <a class="submenu-link <?php echo ($active==='training_assessment' && $active_sub==='my_assignments')?'active':''; ?>" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-link-45deg me-1"></i>Assessment (my tests)</a>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='my-assignments')?'active':''; ?>" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-link-45deg me-1"></i>Assessment (my tests)</a>
             <?php endif; ?>
             <?php if ($tl_show && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>
-            <a class="submenu-link" href="<?php echo site_url('training/my-training'); ?>"><i class="bi bi-columns-gap me-1"></i>Training hub</a>
+            <a class="submenu-link <?php echo ($active==='training' && $active_sub==='my-training')?'active':''; ?>" href="<?php echo site_url('training/my-training'); ?>"><i class="bi bi-columns-gap me-1"></i>Training hub</a>
             <?php endif; ?>
             <?php if ($tl_show && function_exists('training_tl_show_module_nav') && training_tl_show_module_nav()): ?>
             <a class="submenu-link <?php echo ($active==='training' && $active_sub!=='my-submissions' && $active_sub!=='my-training')?'active':''; ?>" href="<?php echo site_url('training'); ?>"><i class="bi bi-journal-richtext me-1"></i>Module</a>
@@ -208,19 +247,22 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <?php if ($tl_show && function_exists('training_tl_show_assignment_nav') && training_tl_show_assignment_nav()): ?>
             <a class="submenu-link <?php echo ($active==='training' && $active_sub==='my-submissions')?'active':''; ?>" href="<?php echo site_url('training/my-submissions'); ?>"><i class="bi bi-cloud-upload me-1"></i>Assignment</a>
             <?php endif; ?>
+            <?php if ($ext_train_show): ?>
+            <a class="submenu-link <?php echo ($active==='external-training' && (!$active_sub || in_array((string) $active_sub, array('create', 'edit'), true))) ? 'active' : ''; ?>" href="<?php echo site_url('external-training'); ?>"><i class="bi bi-collection-play me-1"></i>External trainings</a>
+            <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_catalog') && training_lms_admin_can_catalog())): ?>
-            <a class="submenu-link <?php echo ($active==='training-lms-admin')?'active':''; ?>" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-1"></i>LMS admin</a>
+            <a class="submenu-link <?php echo ($active==='training-lms-admin' && !in_array((string) $active_sub, array('assignment-submissions', 'office-feed'), true))?'active':''; ?>" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-1"></i>LMS admin</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_submissions') && training_lms_admin_can_submissions())): ?>
-            <a class="submenu-link" href="<?php echo site_url('training-lms-admin/assignment-submissions'); ?>"><i class="bi bi-table me-1"></i>Assignment submissions</a>
+            <a class="submenu-link <?php echo ($active==='training-lms-admin' && $active_sub==='assignment-submissions')?'active':''; ?>" href="<?php echo site_url('training-lms-admin/assignment-submissions'); ?>"><i class="bi bi-table me-1"></i>Assignment submissions</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_office') && training_lms_admin_can_office())): ?>
-            <a class="submenu-link" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-1"></i>LMS office CSV</a>
+            <a class="submenu-link <?php echo ($active==='training-lms-admin' && strpos((string) $active_sub, 'office-feed') === 0)?'active':''; ?>" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-1"></i>LMS office CSV</a>
             <?php endif; ?>
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('training-assessment-group','training-assessment-toggle','training-assessment-parent','training-assessment-submenu','sb_training_assessment_open',<?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin')?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('training-assessment-group','training-assessment-toggle','training-assessment-parent','training-assessment-submenu','sb_training_assessment_open',<?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin'||$active==='external-training')?'true':'false'; ?>);</script>
       <?php endif; ?>
 
       <?php
@@ -241,7 +283,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets','shifts']) ? 'active' : ''; ?>" href="#">
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
           <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
@@ -260,7 +302,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('assets') || has_module_access('assets_mgmt'))): ?>
-            <a class="submenu-link <?php echo $active==='assets'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
+            <a class="submenu-link <?php echo $active==='assets-mgmt'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
@@ -277,13 +319,13 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('user-group','user-toggle','user-parent','user-submenu','sb_user_open',<?php echo in_array($active,['users','roles','attendance','departments','designations','leave','shifts'])?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('user-group','user-toggle','user-parent','user-submenu','sb_user_open',<?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true)?'true':'false'; ?>);</script>
       <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
       <div class="nav-item" id="payroll-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="payroll-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='payroll'?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>">
+          <a id="payroll-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>">
             <i class="bi bi-cash-stack me-2"></i>Payroll
           </a>
           <button id="payroll-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="payroll-submenu" title="Toggle">
@@ -299,7 +341,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('payroll-group','payroll-toggle','payroll-parent','payroll-submenu','sb_payroll_open',<?php echo $active==='payroll'?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('payroll-group','payroll-toggle','payroll-parent','payroll-submenu','sb_payroll_open',<?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'true':'false'; ?>);</script>
       <?php endif; ?>
       
       <?php
@@ -519,7 +561,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings']) ? 'active' : ''; ?>" href="#">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-gear me-2"></i>Settings
           </a>
           <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
@@ -575,7 +617,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo in_array($active,['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings'])?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true)?'true':'false'; ?>);</script>
       <?php endif; ?>
       <hr class="my-2 border-secondary">
       <a class="nav-link sidebar-link text-danger" href="<?php echo site_url('logout'); ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>

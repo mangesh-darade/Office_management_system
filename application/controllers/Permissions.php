@@ -283,6 +283,11 @@ class Permissions extends CI_Controller {
                 'modules' => [
                     'training_lms'               => 'Training LMS — learner (catalog, topics, assignments)',
                     'training_lms_manage'        => 'Training LMS — admin (modules, enrollments, CSV feeds)',
+                    'external_training'          => 'External trainings — links & embeds',
+                    'external_training_list'     => 'External trainings — list',
+                    'external_training_add'      => 'External trainings — add',
+                    'external_training_edit'     => 'External trainings — edit',
+                    'external_training_delete'   => 'External trainings — delete',
                     'training_assessment'        => 'Training & Assessment — build & manage tests',
                     'training_assessment_manage' => 'Training & Assessment — assign learners, reports, team view',
                     'training_assessment_take'   => 'Training & Assessment — take assigned tests',

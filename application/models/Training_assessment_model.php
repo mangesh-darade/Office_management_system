@@ -107,7 +107,10 @@ class Training_assessment_model extends CI_Model
      * @param string      $status   all|active|inactive
      * @param string      $sort     created_desc|created_asc|title_asc|title_desc|questions_desc
      */
-    public function list_assessments_with_stats($search = '', $status = 'all', $sort = 'created_desc')
+    /**
+     * @param int $scope_user_id If &gt; 0 and not org admin, limit to assessments created by or assigned to this user.
+     */
+    public function list_assessments_with_stats($search = '', $status = 'all', $sort = 'created_desc', $scope_user_id = 0)
     {
         $tq = $this->t['questions'];
         $tau = $this->t['assessment_users'];
@@ -117,6 +120,13 @@ class Training_assessment_model extends CI_Model
         $this->db->select('(SELECT COUNT(*) FROM `' . $tau . '` au WHERE au.assessment_id = a.id) AS assigned_count', false);
         $this->db->select('(SELECT COUNT(*) FROM `' . $tau . '` au WHERE au.assessment_id = a.id AND au.completed_at IS NOT NULL) AS completed_count', false);
         $this->db->from($ta . ' a');
+        $scope_user_id = (int) $scope_user_id;
+        if ($scope_user_id > 0) {
+            $this->db->group_start()
+                ->where('a.created_by', $scope_user_id)
+                ->or_where('a.id IN (SELECT au2.assessment_id FROM `' . $tau . '` au2 WHERE au2.user_id = ' . (int) $scope_user_id . ')', null, false)
+            ->group_end();
+        }
         $search = trim((string)$search);
         if ($search !== '') {
             $this->db->group_start()
@@ -413,7 +423,7 @@ class Training_assessment_model extends CI_Model
         }
         $tau = $this->t['assessment_users'];
         $ta = $this->t['assessments'];
-        $this->db->select('au.*, a.title AS assessment_title, a.time_limit_minutes, a.passing_marks, a.randomize_questions, a.shuffle_options, a.max_attempts, a.allow_retake, a.status AS assessment_status, u.name AS assignee_user_name');
+        $this->db->select('au.*, a.title AS assessment_title, a.time_limit_minutes, a.passing_marks, a.randomize_questions, a.shuffle_options, a.max_attempts, a.allow_retake, a.status AS assessment_status, ' . $this->_sql_assignee_display_name() . ' AS assignee_user_name', false);
         $this->db->from($tau . ' au');
         $this->db->join($ta . ' a', 'a.id = au.assessment_id', 'inner');
         $this->db->join('users u', 'u.id = au.user_id', 'left');
@@ -425,7 +435,7 @@ class Training_assessment_model extends CI_Model
     {
         $tau = $this->t['assessment_users'];
         $ta = $this->t['assessments'];
-        $this->db->select('au.*, a.title AS assessment_title, a.time_limit_minutes, a.passing_marks, a.randomize_questions, a.shuffle_options, a.max_attempts, a.allow_retake, a.status AS assessment_status, u.name AS assignee_user_name');
+        $this->db->select('au.*, a.title AS assessment_title, a.time_limit_minutes, a.passing_marks, a.randomize_questions, a.shuffle_options, a.max_attempts, a.allow_retake, a.status AS assessment_status, ' . $this->_sql_assignee_display_name() . ' AS assignee_user_name', false);
         $this->db->from($tau . ' au');
         $this->db->join($ta . ' a', 'a.id = au.assessment_id', 'inner');
         $this->db->join('users u', 'u.id = au.user_id', 'left');
@@ -485,7 +495,7 @@ class Training_assessment_model extends CI_Model
      */
     public function list_assignments_for_assessment($assessment_id, $limit = 50)
     {
-        $this->db->select('au.*, u.email AS user_email, u.name AS user_name');
+        $this->db->select('au.*, u.email AS user_email, ' . $this->_sql_assignee_display_name() . ' AS user_name', false);
         $this->db->from($this->t['assessment_users'] . ' au');
         $this->db->join('users u', 'u.id = au.user_id', 'left');
         $this->db->where('au.assessment_id', (int)$assessment_id);
@@ -502,9 +512,10 @@ class Training_assessment_model extends CI_Model
      * Office feed: question bank with LMS topic names (when training_topics links assessment_id).
      *
      * @param int $assessment_id 0 = all
+     * @param int $scope_user_id If &gt; 0, only assessments created by or assigned to this user.
      * @return array
      */
-    public function list_office_question_bank_rows($assessment_id = 0)
+    public function list_office_question_bank_rows($assessment_id = 0, $scope_user_id = 0)
     {
         if (!$this->schema_ready()) {
             return array();
@@ -517,9 +528,17 @@ class Training_assessment_model extends CI_Model
         }
         $tq = $this->t['questions'];
         $ta = $this->t['assessments'];
+        $tau = $this->t['assessment_users'];
         $this->db->select('q.id AS question_id, q.assessment_id, a.title AS assessment_title, ' . $topicExpr . ' AS lms_topic_names, q.question_text, q.question_type, q.points AS question_points, q.sort_order', false);
         $this->db->from($tq . ' q');
         $this->db->join($ta . ' a', 'a.id = q.assessment_id', 'inner');
+        $scope_user_id = (int) $scope_user_id;
+        if ($scope_user_id > 0) {
+            $this->db->group_start()
+                ->where('a.created_by', $scope_user_id)
+                ->or_where('a.id IN (SELECT au3.assessment_id FROM `' . $tau . '` au3 WHERE au3.user_id = ' . $scope_user_id . ')', null, false)
+            ->group_end();
+        }
         if ((int) $assessment_id > 0) {
             $this->db->where('q.assessment_id', (int) $assessment_id);
         }
@@ -541,7 +560,10 @@ class Training_assessment_model extends CI_Model
      * @param string $date_to       Y-m-d or empty
      * @return array
      */
-    public function list_office_attempt_detail_rows($assessment_id = 0, $date_from = '', $date_to = '')
+    /**
+     * @param int $scope_user_id If &gt; 0, only rows for this employee user_id (employee attempts).
+     */
+    public function list_office_attempt_detail_rows($assessment_id = 0, $date_from = '', $date_to = '', $scope_user_id = 0)
     {
         if (!$this->schema_ready()) {
             return array();
@@ -570,6 +592,10 @@ class Training_assessment_model extends CI_Model
         $this->db->join('users u', 'u.id = au.user_id', 'left');
         if ((int) $assessment_id > 0) {
             $this->db->where('a.id', (int) $assessment_id);
+        }
+        $scope_user_id = (int) $scope_user_id;
+        if ($scope_user_id > 0) {
+            $this->db->where('au.user_id', $scope_user_id);
         }
         $date_from = trim((string) $date_from);
         $date_to = trim((string) $date_to);
@@ -642,12 +668,26 @@ class Training_assessment_model extends CI_Model
         return $code;
     }
 
+    /**
+     * SQL expression for learner display name (alias au, u). Prefer users.name,
+     * then employees first+last name, then email — matches how HR records names.
+     *
+     * @return string
+     */
+    private function _sql_assignee_display_name()
+    {
+        if ($this->db->table_exists('employees')) {
+            return "COALESCE(NULLIF(TRIM(u.name), ''), NULLIF((SELECT TRIM(CONCAT(COALESCE(e2.first_name,''), ' ', COALESCE(e2.last_name,''))) FROM employees e2 WHERE e2.user_id = au.user_id LIMIT 1), ''), u.email)";
+        }
+        return "COALESCE(NULLIF(TRIM(u.name), ''), u.email)";
+    }
+
     public function list_assignments_for_report($employee_user_id, $date_from, $date_to, $assessment_id = 0, $assignee_type = 'all')
     {
         $tau = $this->t['assessment_users'];
         $ta = $this->t['assessments'];
         $tr = $this->t['results'];
-        $this->db->select('au.*, a.title AS assessment_title, r.score_percent, r.passed, r.submitted_at, u.name AS user_name, u.email AS user_email, au.candidate_name, au.candidate_email');
+        $this->db->select('au.*, a.title AS assessment_title, r.score_percent, r.passed, r.submitted_at, ' . $this->_sql_assignee_display_name() . ' AS user_name, u.email AS user_email, au.candidate_name, au.candidate_email', false);
         $this->db->from($tau . ' au');
         $this->db->join($ta . ' a', 'a.id = au.assessment_id', 'inner');
         $this->db->join($tr . ' r', 'r.assessment_user_id = au.id', 'left');
@@ -693,7 +733,7 @@ class Training_assessment_model extends CI_Model
         $tau = $this->t['assessment_users'];
         $ta = $this->t['assessments'];
         $tr = $this->t['results'];
-        $this->db->select('au.*, a.title AS assessment_title, r.score_percent, r.passed, r.submitted_at, u.name AS user_name, u.email AS user_email');
+        $this->db->select('au.*, a.title AS assessment_title, r.score_percent, r.passed, r.submitted_at, ' . $this->_sql_assignee_display_name() . ' AS user_name, u.email AS user_email', false);
         $this->db->from($tau . ' au');
         $this->db->join($ta . ' a', 'a.id = au.assessment_id', 'inner');
         $this->db->join($tr . ' r', 'r.assessment_user_id = au.id', 'left');

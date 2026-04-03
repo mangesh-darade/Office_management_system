@@ -376,7 +376,7 @@ class Training_assessment_take extends CI_Controller
                 $this->ta_run->render_result($au);
                 return;
             }
-            if ($this->ta_run->is_privileged_viewer()) {
+            if ($this->ta_run->can_manage_result($au)) {
                 $this->session->set_userdata('ta_active_token', $token);
                 $this->ta_run->render_result($au);
                 return;
@@ -384,7 +384,12 @@ class Training_assessment_take extends CI_Controller
             show_error('This result link is missing a valid signature. Use the link from My assignments or sign in as the assignee.', 403);
         }
         $sessTok = (string) $this->session->userdata('ta_active_token');
-        if ($sessTok !== $token && !$this->ta_run->is_privileged_viewer()) {
+        $uid = (int) $this->session->userdata('user_id');
+        $this->load->helper('training');
+        $allowIncomplete = ($sessTok === $token)
+            || ($uid > 0 && (int) $au->user_id === $uid)
+            || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        if (!$allowIncomplete) {
             show_error('Access denied.', 403);
         }
         redirect('training-assessment/take/' . rawurlencode($token));

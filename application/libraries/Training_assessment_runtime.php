@@ -55,9 +55,9 @@ class Training_assessment_runtime
         }
         $uid = (int) $this->CI->session->userdata('user_id');
         $sessTok = (string) $this->CI->session->userdata('ta_active_token');
-        $viewer_ok = ($sessTok === $au->access_token)
-            || ($uid > 0 && (int) $au->user_id === $uid)
-            || $this->is_privileged_viewer();
+        $is_assignee_or_token = ($sessTok === $au->access_token)
+            || ($uid > 0 && (int) $au->user_id === $uid);
+        $viewer_ok = $is_assignee_or_token || $this->is_training_ta_org_viewer($au);
         $max = (int) $au->max_attempts;
         $used = (int) $au->attempts_used;
         $can_retake = ((int) $au->allow_retake === 1) && $result && ($max === 0 || $used < $max);
@@ -65,7 +65,7 @@ class Training_assessment_runtime
             'au' => $au,
             'result' => $result,
             'details' => $details,
-            'show_retake' => $viewer_ok && $can_retake,
+            'show_retake' => $is_assignee_or_token && $can_retake,
             'show_correct' => $showCorrect,
         );
         $this->CI->load->view('training_assessment/result', $data);
@@ -73,13 +73,68 @@ class Training_assessment_runtime
 
     public function can_manage_result($au)
     {
-        if ($this->is_privileged_viewer()) {
+        if ($this->is_training_ta_org_viewer($au)) {
             return true;
         }
         $uid = (int) $this->CI->session->userdata('user_id');
         return $uid && (int) $au->user_id === $uid;
     }
 
+    /**
+     * Broad admins or same-department team lead (training_screen_ta_team_progress) may view others' results.
+     * Intentionally excludes training_screen_ta_report alone — report uses signed links or scoped rows.
+     *
+     * @param object $au assessment_users row
+     */
+    public function is_training_ta_org_viewer($au)
+    {
+        if (function_exists('training_ta_admin_broad') && training_ta_admin_broad()) {
+            return true;
+        }
+        return $this->can_team_lead_view_assignee($au);
+    }
+
+    /**
+     * Team progress screen: same department as assignee (employee attempts only).
+     *
+     * @param object $au assessment_users row
+     */
+    public function can_team_lead_view_assignee($au)
+    {
+        if (!function_exists('has_module_access') || !has_module_access('training_screen_ta_team_progress')) {
+            return false;
+        }
+        $assigneeUid = (int) $au->user_id;
+        if ($assigneeUid < 1) {
+            return false;
+        }
+        $viewerUid = (int) $this->CI->session->userdata('user_id');
+        if ($viewerUid < 1) {
+            return false;
+        }
+        if ($viewerUid === $assigneeUid) {
+            return true;
+        }
+        if (!$this->CI->db->table_exists('employees')) {
+            return false;
+        }
+        $this->CI->load->model('Employee_model', 'ta_emp_viewer');
+        $v = $this->CI->ta_emp_viewer->get_by_user_id($viewerUid);
+        $a = $this->CI->ta_emp_viewer->get_by_user_id($assigneeUid);
+        if (!$v || !$a) {
+            return false;
+        }
+        $dv = isset($v->department) ? trim((string) $v->department) : '';
+        $da = isset($a->department) ? trim((string) $a->department) : '';
+        if ($dv === '' || $da === '') {
+            return false;
+        }
+        return strcasecmp($dv, $da) === 0;
+    }
+
+    /**
+     * @deprecated Use is_training_ta_org_viewer() or can_team_lead_view_assignee() — report is no longer blanket-privileged.
+     */
     public function is_privileged_viewer()
     {
         $rid = (int) $this->CI->session->userdata('role_id');
@@ -91,7 +146,6 @@ class Training_assessment_runtime
         }
         return has_module_access('training_assessment')
             || has_module_access('training_assessment_manage')
-            || has_module_access('training_screen_ta_report')
             || has_module_access('training_screen_ta_team_progress');
     }
 

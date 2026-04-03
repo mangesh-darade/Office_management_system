@@ -590,6 +590,18 @@ INSERT IGNORE INTO `permissions` (`role_id`, `module`, `can_access`) VALUES
 (3, 'training_lms', 1),
 (4, 'training_lms', 1);
 
+CREATE TABLE IF NOT EXISTS `sma_external_trainings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `embed_code` text NOT NULL COMMENT 'HTML embed snippet or URL',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_sma_ext_active` (`is_active`),
+  KEY `idx_sma_ext_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 SQL;
     }
