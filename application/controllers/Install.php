@@ -100,9 +100,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(30) NULL,
   avatar VARCHAR(255) NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
-    ON UPDATE CASCADE ON DELETE RESTRICT
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_users_role ON users(role_id);
@@ -132,11 +130,7 @@ CREATE TABLE IF NOT EXISTS employees (
   emergency_contact_name VARCHAR(120) NULL,
   emergency_contact_phone VARCHAR(30) NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_emp_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_emp_reporting FOREIGN KEY (reporting_to) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_employees_reporting_to ON employees(reporting_to);
@@ -151,9 +145,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status ENUM('planned','active','on_hold','completed','cancelled') NOT NULL DEFAULT 'planned',
   manager_id BIGINT UNSIGNED NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_projects_manager FOREIGN KEY (manager_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_projects_manager ON projects(manager_id);
@@ -166,11 +158,7 @@ CREATE TABLE IF NOT EXISTS project_members (
   role ENUM('member','lead','viewer') NOT NULL DEFAULT 'member',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_project_user (project_id, user_id),
-  CONSTRAINT fk_pm_project FOREIGN KEY (project_id) REFERENCES projects(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_pm_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  UNIQUE KEY uq_project_user (project_id, user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_pm_user ON project_members(user_id);
@@ -181,11 +169,7 @@ CREATE TABLE IF NOT EXISTS project_status_history (
   old_status ENUM('planned','active','on_hold','completed','cancelled') NULL,
   new_status ENUM('planned','active','on_hold','completed','cancelled') NOT NULL,
   changed_by BIGINT UNSIGNED NULL,
-  changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_psh_project FOREIGN KEY (project_id) REFERENCES projects(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_psh_user FOREIGN KEY (changed_by) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+  changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_psh_project ON project_status_history(project_id);
@@ -205,13 +189,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   estimate_hours DECIMAL(6,2) NULL,
   actual_hours DECIMAL(6,2) NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_tasks_assigned FOREIGN KEY (assigned_to) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT fk_tasks_creator FOREIGN KEY (created_by) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE RESTRICT
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_tasks_project ON tasks(project_id);
@@ -224,11 +202,7 @@ CREATE TABLE IF NOT EXISTS task_comments (
   task_id BIGINT UNSIGNED NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
   comment TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_tc_task FOREIGN KEY (task_id) REFERENCES tasks(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_tc_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_tc_task ON task_comments(task_id);
@@ -241,11 +215,7 @@ CREATE TABLE IF NOT EXISTS task_attachments (
   mime_type VARCHAR(120) NULL,
   size_bytes BIGINT NULL,
   uploaded_by BIGINT UNSIGNED NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_ta_task FOREIGN KEY (task_id) REFERENCES tasks(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_ta_user FOREIGN KEY (uploaded_by) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE RESTRICT
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_ta_task ON task_attachments(task_id);
@@ -257,11 +227,7 @@ CREATE TABLE IF NOT EXISTS task_activity (
   action ENUM('created','updated','status_changed','assigned','commented','attachment_added') NOT NULL,
   old_value JSON NULL,
   new_value JSON NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_tact_task FOREIGN KEY (task_id) REFERENCES tasks(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_tact_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_tact_task ON task_activity(task_id);
@@ -275,11 +241,7 @@ CREATE TABLE IF NOT EXISTS daily_work_logs (
   notes TEXT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_worklog (user_id, task_id, work_date),
-  CONSTRAINT fk_dwl_task FOREIGN KEY (task_id) REFERENCES tasks(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_dwl_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  UNIQUE KEY uq_worklog (user_id, task_id, work_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_dwl_user_date ON daily_work_logs(user_id, work_date);
@@ -295,9 +257,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   status ENUM('present','absent','half_day','work_from_home') NOT NULL DEFAULT 'present',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_attendance (user_id, att_date),
-  CONSTRAINT fk_att_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  UNIQUE KEY uq_attendance (user_id, att_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_att_user_date ON attendance(user_id, att_date);
@@ -309,9 +269,7 @@ CREATE TABLE IF NOT EXISTS attendance_logs (
   event_time DATETIME NOT NULL,
   ip_address VARCHAR(45) NULL,
   user_agent VARCHAR(255) NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_al_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_al_user_time ON attendance_logs(user_id, event_time);
@@ -337,11 +295,7 @@ CREATE TABLE IF NOT EXISTS leave_balances (
   closing_balance DECIMAL(5,2) NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_leave_balance (user_id, type_id, year),
-  CONSTRAINT fk_lb_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_lb_type FOREIGN KEY (type_id) REFERENCES leave_types(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  UNIQUE KEY uq_leave_balance (user_id, type_id, year)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_lb_user_year ON leave_balances(user_id, year);
@@ -357,13 +311,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   status ENUM('pending','lead_approved','hr_approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
   current_approver_id BIGINT UNSIGNED NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_lr_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_lr_type FOREIGN KEY (type_id) REFERENCES leave_types(id)
-    ON UPDATE CASCADE ON DELETE RESTRICT,
-  CONSTRAINT fk_lr_approver FOREIGN KEY (current_approver_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_lr_user_status ON leave_requests(user_id, status);
@@ -376,11 +324,7 @@ CREATE TABLE IF NOT EXISTS leave_approvals (
   level ENUM('lead','hr') NOT NULL,
   decision ENUM('approved','rejected') NOT NULL,
   remarks TEXT NULL,
-  decided_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_la_leave FOREIGN KEY (leave_id) REFERENCES leave_requests(id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_la_approver FOREIGN KEY (approver_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  decided_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_la_leave ON leave_approvals(leave_id);
@@ -395,9 +339,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   channel ENUM('in_app','email') NOT NULL DEFAULT 'in_app',
   read_at DATETIME NULL,
   sent_at DATETIME NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE CASCADE
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_notif_user ON notifications(user_id);
@@ -411,9 +353,7 @@ CREATE TABLE IF NOT EXISTS activity_log (
   changes JSON NULL,
   ip_address VARCHAR(45) NULL,
   user_agent VARCHAR(255) NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_actlog_actor FOREIGN KEY (actor_id) REFERENCES users(id)
-    ON UPDATE CASCADE ON DELETE SET NULL
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE INDEX idx_actlog_entity ON activity_log(entity_type, entity_id);
@@ -475,8 +415,7 @@ CREATE TABLE IF NOT EXISTS `ta_questions` (
   `created_at` datetime NOT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_ta_q_assessment` (`assessment_id`),
-  CONSTRAINT `fk_ta_questions_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `ta_assessments` (`id`) ON DELETE CASCADE
+  KEY `idx_ta_q_assessment` (`assessment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `ta_question_options` (
@@ -487,8 +426,7 @@ CREATE TABLE IF NOT EXISTS `ta_question_options` (
   `sort_order` int(11) NOT NULL DEFAULT 0,
   `created_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_ta_qo_question` (`question_id`),
-  CONSTRAINT `fk_ta_qo_question` FOREIGN KEY (`question_id`) REFERENCES `ta_questions` (`id`) ON DELETE CASCADE
+  KEY `idx_ta_qo_question` (`question_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `ta_assessment_users` (
@@ -510,8 +448,7 @@ CREATE TABLE IF NOT EXISTS `ta_assessment_users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ta_access_token` (`access_token`),
   KEY `idx_ta_au_assessment` (`assessment_id`),
-  KEY `idx_ta_au_user` (`user_id`),
-  CONSTRAINT `fk_ta_au_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `ta_assessments` (`id`) ON DELETE CASCADE
+  KEY `idx_ta_au_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `ta_user_answers` (
@@ -528,9 +465,7 @@ CREATE TABLE IF NOT EXISTS `ta_user_answers` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ta_au_question` (`assessment_user_id`,`question_id`),
-  KEY `idx_ta_ua_question` (`question_id`),
-  CONSTRAINT `fk_ta_ua_au` FOREIGN KEY (`assessment_user_id`) REFERENCES `ta_assessment_users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_ta_ua_question` FOREIGN KEY (`question_id`) REFERENCES `ta_questions` (`id`) ON DELETE CASCADE
+  KEY `idx_ta_ua_question` (`question_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `ta_results` (
@@ -544,8 +479,7 @@ CREATE TABLE IF NOT EXISTS `ta_results` (
   `submitted_at` datetime NOT NULL,
   `created_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_ta_result_au` (`assessment_user_id`),
-  CONSTRAINT `fk_ta_res_au` FOREIGN KEY (`assessment_user_id`) REFERENCES `ta_assessment_users` (`id`) ON DELETE CASCADE
+  UNIQUE KEY `uq_ta_result_au` (`assessment_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT IGNORE INTO `permissions` (`role_id`, `module`, `can_access`) VALUES
@@ -588,8 +522,7 @@ CREATE TABLE IF NOT EXISTS `training_topics` (
   PRIMARY KEY (`id`),
   KEY `idx_tt_module` (`module_id`),
   KEY `idx_tt_prereq` (`prerequisite_topic_id`),
-  KEY `idx_tt_assessment` (`assessment_id`),
-  CONSTRAINT `fk_tt_module` FOREIGN KEY (`module_id`) REFERENCES `training_modules` (`id`) ON DELETE CASCADE
+  KEY `idx_tt_assessment` (`assessment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `assignments` (
@@ -601,8 +534,7 @@ CREATE TABLE IF NOT EXISTS `assignments` (
   `created_at` datetime NOT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_assign_topic` (`topic_id`),
-  CONSTRAINT `fk_assign_topic` FOREIGN KEY (`topic_id`) REFERENCES `training_topics` (`id`) ON DELETE CASCADE
+  UNIQUE KEY `uq_assign_topic` (`topic_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `assignment_submissions` (
@@ -624,8 +556,7 @@ CREATE TABLE IF NOT EXISTS `assignment_submissions` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_sub_assign` (`assignment_id`),
-  KEY `idx_sub_user` (`user_id`),
-  CONSTRAINT `fk_sub_assign` FOREIGN KEY (`assignment_id`) REFERENCES `assignments` (`id`) ON DELETE CASCADE
+  KEY `idx_sub_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `training_enrollments` (
@@ -638,8 +569,7 @@ CREATE TABLE IF NOT EXISTS `training_enrollments` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_te_user_module` (`user_id`,`module_id`),
-  KEY `idx_te_module` (`module_id`),
-  CONSTRAINT `fk_te_module` FOREIGN KEY (`module_id`) REFERENCES `training_modules` (`id`) ON DELETE CASCADE
+  KEY `idx_te_module` (`module_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `training_topic_completions` (
@@ -649,8 +579,7 @@ CREATE TABLE IF NOT EXISTS `training_topic_completions` (
   `completed_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_ttc_user_topic` (`user_id`,`topic_id`),
-  KEY `idx_ttc_topic` (`topic_id`),
-  CONSTRAINT `fk_ttc_topic` FOREIGN KEY (`topic_id`) REFERENCES `training_topics` (`id`) ON DELETE CASCADE
+  KEY `idx_ttc_topic` (`topic_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT IGNORE INTO `permissions` (`role_id`, `module`, `can_access`) VALUES
