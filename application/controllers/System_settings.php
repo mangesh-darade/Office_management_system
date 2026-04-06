@@ -106,6 +106,7 @@ class System_settings extends CI_Controller {
             ['setting_key' => 'enable_module_reports', 'setting_value' => '1', 'setting_type' => 'boolean', 'description' => 'Enable Reports module', 'category' => 'modules', 'is_public' => 1],
             ['setting_key' => 'enable_module_timesheets', 'setting_value' => '1', 'setting_type' => 'boolean', 'description' => 'Enable Timesheets module', 'category' => 'modules', 'is_public' => 1],
             ['setting_key' => 'enable_module_payroll', 'setting_value' => '1', 'setting_type' => 'boolean', 'description' => 'Enable Payroll module', 'category' => 'modules', 'is_public' => 1],
+            ['setting_key' => 'enable_module_external_training', 'setting_value' => '1', 'setting_type' => 'boolean', 'description' => 'Enable External trainings (system access / success screen)', 'category' => 'modules', 'is_public' => 1],
             
             // Security Settings
             ['setting_key' => 'session_timeout', 'setting_value' => '3600', 'setting_type' => 'number', 'description' => 'Session timeout in seconds', 'category' => 'security', 'is_public' => 0],
@@ -139,7 +140,8 @@ class System_settings extends CI_Controller {
             'users' => ['view', 'add', 'edit', 'delete', 'list'],
             'settings' => ['view', 'edit'],
             'email_settings' => ['view', 'edit', 'test'],
-            'system_settings' => ['view', 'edit']
+            'system_settings' => ['view', 'edit'],
+            'external_training' => ['view', 'add', 'edit', 'delete', 'list'],
         ];
 
         // Role-based default permissions
@@ -157,7 +159,8 @@ class System_settings extends CI_Controller {
                 'announcements' => ['view', 'list'],
                 'reports' => ['view', 'generate'],
                 'timesheets' => ['view', 'list', 'approve', 'reject'],
-                'payroll' => ['view', 'list']
+                'payroll' => ['view', 'list'],
+                'external_training' => ['view', 'add', 'edit', 'delete', 'list'],
             ],
             3 => [ // Lead
                 'dashboard' => ['view', 'edit'],
@@ -167,7 +170,8 @@ class System_settings extends CI_Controller {
                 'attendance' => ['view', 'add', 'list'],
                 'leave_requests' => ['view', 'list'],
                 'announcements' => ['view', 'list'],
-                'timesheets' => ['view', 'add', 'list']
+                'timesheets' => ['view', 'add', 'list'],
+                'external_training' => ['view', 'list', 'add', 'edit'],
             ],
             4 => [ // Staff
                 'dashboard' => ['view'],
@@ -177,7 +181,8 @@ class System_settings extends CI_Controller {
                 'attendance' => ['view', 'add', 'list'],
                 'leave_requests' => ['view', 'add', 'list'],
                 'announcements' => ['view', 'list'],
-                'timesheets' => ['view', 'add', 'list']
+                'timesheets' => ['view', 'add', 'list'],
+                'external_training' => ['view', 'list'],
             ]
         ];
 
@@ -207,6 +212,54 @@ class System_settings extends CI_Controller {
                 }
             }
         }
+    }
+
+    /**
+     * Backfill external_training rows into role_permissions for existing databases (adds a column on the System Settings permissions screen).
+     */
+    private function ensure_external_training_role_permissions()
+    {
+        if (!$this->db->table_exists('role_permissions')) {
+            return;
+        }
+        $cnt = (int) $this->db->where('module', 'external_training')->count_all_results('role_permissions');
+        if ($cnt > 0) {
+            return;
+        }
+        if (!$this->db->table_exists('roles')) {
+            return;
+        }
+        $perms = array('view', 'add', 'edit', 'delete', 'list');
+        foreach ($this->db->get('roles')->result() as $r) {
+            $rid = (int) $r->id;
+            $allowed = $this->default_external_training_role_perms($rid);
+            foreach ($perms as $p) {
+                $this->db->replace('role_permissions', array(
+                    'role_id' => $rid,
+                    'module' => 'external_training',
+                    'permission' => $p,
+                    'is_allowed' => in_array($p, $allowed, true) ? 1 : 0,
+                ));
+            }
+        }
+    }
+
+    /** @return string[] */
+    private function default_external_training_role_perms($role_id)
+    {
+        if ($role_id === 1) {
+            return array('view', 'add', 'edit', 'delete', 'list');
+        }
+        if ($role_id === 2) {
+            return array('view', 'add', 'edit', 'delete', 'list');
+        }
+        if ($role_id === 3) {
+            return array('view', 'list', 'add', 'edit');
+        }
+        if ($role_id === 4) {
+            return array('view', 'list');
+        }
+        return array('view', 'list');
     }
 
     public function index() {
@@ -269,6 +322,7 @@ class System_settings extends CI_Controller {
     }
 
     public function permissions() {
+        $this->ensure_external_training_role_permissions();
         $roles = $this->db->order_by('id')->get('roles')->result();
         $modules = $this->db->select('DISTINCT module')->order_by('module')->get('role_permissions')->result();
         

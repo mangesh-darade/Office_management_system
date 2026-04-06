@@ -35,12 +35,14 @@ $this->load->view('partials/header', array(
         </div>
 
         <div class="mb-3">
-          <label for="embed_code" class="form-label">Embed Code <span class="text-danger">*</span></label>
+          <label for="embed_code" class="form-label">Video link or embed <span class="text-danger">*</span></label>
           <textarea name="embed_code" id="embed_code" rows="5" class="form-control" required><?php
             echo $isEdit ? htmlspecialchars($row->embed_code) : '';
           ?></textarea>
           <div class="form-text">
-            Paste the HTML/embed snippet (for example, an external course player iframe).
+            Paste either a direct <strong>https://…</strong> link (normal YouTube/Vimeo watch links are converted to an embed player in-app) or the full HTML embed snippet.
+            Staff open the training inside this app via <strong>Open (signed in)</strong>; the list page does not show or copy the raw link.
+            To limit “copy video URL” style menus, use a direct <strong>.mp4 / .webm</strong> file link (built-in player). YouTube/Vimeo embeds always show their own right-click menu — that cannot be removed from this app.
           </div>
         </div>
 

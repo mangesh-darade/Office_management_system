@@ -235,7 +235,16 @@ class Training_assessment_take extends CI_Controller
         }
         $fields = array();
         if ($q->question_type === 'mcq') {
-            $fields['selected_option_id'] = (int) $this->input->post('selected_option_id') ?: null;
+            $selCsv = trim((string)$this->input->post('selected_option_ids'));
+            $selArr = $this->ta->parse_option_ids($selCsv);
+            if (empty($selArr)) {
+                $single = (int) $this->input->post('selected_option_id');
+                if ($single > 0) {
+                    $selArr = array($single);
+                }
+            }
+            $fields['selected_option_ids'] = empty($selArr) ? null : implode(',', $selArr);
+            $fields['selected_option_id'] = empty($selArr) ? null : (int) $selArr[0];
             $fields['answer_text'] = null;
             $fields['code_submitted'] = null;
             $fields['execution_output'] = null;

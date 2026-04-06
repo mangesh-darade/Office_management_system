@@ -78,6 +78,20 @@ class Training_assessment_model extends CI_Model
         if (!in_array('show_correct_after_submit', $fields, true)) {
             $this->db->query('ALTER TABLE `' . $tbl . '` ADD `show_correct_after_submit` tinyint(1) NOT NULL DEFAULT 0 COMMENT \'Learner sees correct answers on result\' AFTER `allow_retake`');
         }
+        $qTbl = $this->t['questions'];
+        if ($this->db->table_exists($qTbl)) {
+            $qFields = $this->db->list_fields($qTbl);
+            if (!in_array('text_keyword_pass_percent', $qFields, true)) {
+                $this->db->query('ALTER TABLE `' . $qTbl . '` ADD `text_keyword_pass_percent` decimal(5,2) NOT NULL DEFAULT 50.00 COMMENT \'For text keyword scoring: required match %\' AFTER `model_answer`');
+            }
+        }
+        $uaTbl = $this->t['user_answers'];
+        if ($this->db->table_exists($uaTbl)) {
+            $uaFields = $this->db->list_fields($uaTbl);
+            if (!in_array('selected_option_ids', $uaFields, true)) {
+                $this->db->query('ALTER TABLE `' . $uaTbl . '` ADD `selected_option_ids` text NULL COMMENT \'CSV of selected option ids for multi-correct MCQ\' AFTER `selected_option_id`');
+            }
+        }
     }
 
     public function schema_ready()
@@ -170,7 +184,10 @@ class Training_assessment_model extends CI_Model
             return false;
         }
         if ($question->question_type === 'mcq') {
-            return (int)$answer->selected_option_id > 0;
+            if ((int)$answer->selected_option_id > 0) {
+                return true;
+            }
+            return trim((string)$answer->selected_option_ids) !== '';
         }
         if ($question->question_type === 'text') {
             return trim((string)$answer->answer_text) !== '';
@@ -273,6 +290,7 @@ class Training_assessment_model extends CI_Model
                 'points' => (float)$q->points,
                 'coding_language' => $q->coding_language,
                 'model_answer' => $q->model_answer,
+                'text_keyword_pass_percent' => isset($q->text_keyword_pass_percent) ? (float)$q->text_keyword_pass_percent : 50.00,
                 'coding_expected_output' => $q->coding_expected_output,
                 'sort_order' => (int)$q->sort_order,
                 'created_at' => $now,
@@ -318,6 +336,7 @@ class Training_assessment_model extends CI_Model
             'points' => (float)$q->points,
             'coding_language' => $q->coding_language,
             'model_answer' => $q->model_answer,
+            'text_keyword_pass_percent' => isset($q->text_keyword_pass_percent) ? (float)$q->text_keyword_pass_percent : 50.00,
             'coding_expected_output' => $q->coding_expected_output,
             'sort_order' => $next,
             'created_at' => $now,
@@ -578,7 +597,7 @@ class Training_assessment_model extends CI_Model
         $this->db->select('COALESCE(u.name, au.candidate_name) AS submitted_by_name, COALESCE(u.email, au.candidate_email) AS submitted_by_email', false);
         $this->db->select('r.submitted_at AS assessment_submitted_at, r.score_percent AS overall_score_percent, r.earned_points, r.total_points', false);
         $this->db->select('q.id AS question_id, q.sort_order AS question_sort, q.question_text, q.question_type, q.points AS question_max_points', false);
-        $this->db->select('ua.points_earned AS question_points_earned, ua.selected_option_id, ua.answer_text, ua.code_submitted, ua.execution_output', false);
+        $this->db->select('ua.points_earned AS question_points_earned, ua.selected_option_id, ua.selected_option_ids, ua.answer_text, ua.code_submitted, ua.execution_output', false);
         $tua = $this->t['user_answers'];
         $tq = $this->t['questions'];
         $tau = $this->t['assessment_users'];
@@ -614,6 +633,7 @@ class Training_assessment_model extends CI_Model
             $r->learner_answer = $this->format_answer_for_export(
                 (string) $r->question_type,
                 (int) $r->selected_option_id,
+                isset($r->selected_option_ids) ? $r->selected_option_ids : '',
                 isset($r->answer_text) ? $r->answer_text : '',
                 isset($r->code_submitted) ? $r->code_submitted : '',
                 isset($r->execution_output) ? $r->execution_output : ''
@@ -640,19 +660,30 @@ class Training_assessment_model extends CI_Model
     /**
      * @param string $question_type
      * @param int    $selected_option_id
+     * @param string $selected_option_ids_csv
      * @param string $answer_text
      * @param string $code_submitted
      * @param string $execution_output
      * @return string
      */
-    public function format_answer_for_export($question_type, $selected_option_id, $answer_text, $code_submitted, $execution_output)
+    public function format_answer_for_export($question_type, $selected_option_id, $selected_option_ids_csv, $answer_text, $code_submitted, $execution_output)
     {
         if ($question_type === 'mcq') {
-            if ((int) $selected_option_id < 1) {
+            $ids = $this->parse_option_ids($selected_option_ids_csv);
+            if (empty($ids) && (int)$selected_option_id > 0) {
+                $ids = array((int)$selected_option_id);
+            }
+            if (empty($ids)) {
                 return '';
             }
-            $opt = $this->db->where('id', (int) $selected_option_id)->get($this->t['question_options'])->row();
-            return $opt ? (string) $opt->option_text : '';
+            $labels = array();
+            foreach ($ids as $sid) {
+                $opt = $this->db->where('id', (int) $sid)->get($this->t['question_options'])->row();
+                if ($opt) {
+                    $labels[] = (string) $opt->option_text;
+                }
+            }
+            return implode(' | ', $labels);
         }
         if ($question_type === 'text') {
             return (string) $answer_text;
@@ -666,6 +697,31 @@ class Training_assessment_model extends CI_Model
             return $code . ( $code !== '' ? "\n--- output ---\n" : '' ) . $out;
         }
         return $code;
+    }
+
+    /**
+     * @param string|array|null $csv
+     * @return int[]
+     */
+    public function parse_option_ids($csv)
+    {
+        if (is_array($csv)) {
+            $parts = $csv;
+        } else {
+            $s = trim((string)$csv);
+            if ($s === '') {
+                return array();
+            }
+            $parts = explode(',', $s);
+        }
+        $out = array();
+        foreach ($parts as $p) {
+            $id = (int)trim((string)$p);
+            if ($id > 0) {
+                $out[$id] = $id;
+            }
+        }
+        return array_values($out);
     }
 
     /**
@@ -942,17 +998,35 @@ class Training_assessment_model extends CI_Model
         }
         if ($question->question_type === 'mcq') {
             $opts = $this->get_options((int)$question->id);
-            $correct_id = null;
+            $correct = array();
             foreach ($opts as $o) {
                 if ((int)$o->is_correct === 1) {
-                    $correct_id = (int)$o->id;
-                    break;
+                    $correct[(int)$o->id] = true;
                 }
             }
-            if ($correct_id && (int)$answer->selected_option_id === $correct_id) {
-                return $max;
+            if (empty($correct)) {
+                return 0.0;
             }
-            return 0.0;
+            $selected = $this->parse_option_ids(isset($answer->selected_option_ids) ? $answer->selected_option_ids : '');
+            if (empty($selected) && (int)$answer->selected_option_id > 0) {
+                $selected = array((int)$answer->selected_option_id);
+            }
+            if (empty($selected)) {
+                return 0.0;
+            }
+            $selectedMap = array();
+            foreach ($selected as $sid) {
+                $selectedMap[(int)$sid] = true;
+            }
+            if (count($selectedMap) !== count($correct)) {
+                return 0.0;
+            }
+            foreach ($correct as $cid => $_) {
+                if (!isset($selectedMap[(int)$cid])) {
+                    return 0.0;
+                }
+            }
+            return $max;
         }
         if ($question->question_type === 'text') {
             $text = trim((string)$answer->answer_text);
@@ -963,6 +1037,43 @@ class Training_assessment_model extends CI_Model
             if ($model === '') {
                 // No rubric: award full points for substantive answer
                 return (strlen($text) >= 20) ? $max : ($max * 0.5);
+            }
+            // Keyword mode:
+            // If model_answer contains multiple tokens (comma/newline/semicolon/pipe),
+            // treat them as required keywords/phrases and mark correct when >= 50% match.
+            $keywords = preg_split('/[\r\n,;|]+/', $model);
+            $cleanKeywords = array();
+            if (is_array($keywords)) {
+                foreach ($keywords as $kw) {
+                    $kw = trim((string)$kw);
+                    if ($kw !== '') {
+                        $cleanKeywords[] = $kw;
+                    }
+                }
+            }
+            if (count($cleanKeywords) >= 2) {
+                $matched = 0;
+                $haystack = strtolower($text);
+                foreach ($cleanKeywords as $kw) {
+                    $needle = strtolower($kw);
+                    $isMatch = false;
+                    if (strpos($needle, ' ') !== false) {
+                        $isMatch = (stripos($haystack, $needle) !== false);
+                    } else {
+                        $isMatch = (bool) preg_match('/\b' . preg_quote($needle, '/') . '\b/i', $text);
+                    }
+                    if ($isMatch) {
+                        $matched++;
+                    }
+                }
+                $ratio = $matched / count($cleanKeywords);
+                $requiredPercent = isset($question->text_keyword_pass_percent) ? (float)$question->text_keyword_pass_percent : 50.0;
+                if ($requiredPercent < 1) {
+                    $requiredPercent = 1;
+                } elseif ($requiredPercent > 100) {
+                    $requiredPercent = 100;
+                }
+                return (($ratio * 100) >= $requiredPercent) ? $max : 0.0;
             }
             $pct = 0;
             similar_text(strtolower($text), strtolower($model), $pct);

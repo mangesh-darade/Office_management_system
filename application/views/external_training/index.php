@@ -40,7 +40,7 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
               <th style="width:60px;">ID</th>
               <th>Name</th>
               <th>Active</th>
-              <th>Embed link</th>
+              <th>Play in app</th>
               <th>Created</th>
               <th style="width:200px;">Actions</th>
             </tr>
@@ -59,36 +59,10 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
                   <?php endif; ?>
                 </td>
                 <td>
-                  <?php
-                  $code = (string) $r->embed_code;
-                  $display = (strlen($code) > 60) ? substr($code, 0, 57) . '...' : $code;
-                  // Try to extract a URL from the embed code (handles raw URL or iframe HTML).
-                  $url = '';
-                  if (preg_match('~https?://[^\s"\']+~i', $code, $m)) {
-                    $url = $m[0];
-                  }
-                  ?>
-                  <div class="input-group input-group-sm">
-                    <input type="text"
-                           class="form-control form-control-sm"
-                           readonly
-                           value="<?php echo htmlspecialchars($code); ?>"
-                           onclick="this.select();">
-                    <button type="button"
-                            class="btn btn-outline-secondary btn-sm et-copy-btn"
-                            data-code="<?php echo htmlspecialchars($code); ?>">
-                      Copy
-                    </button>
-                  </div>
-                  <div class="small text-muted mt-1" title="<?php echo htmlspecialchars($code); ?>">
-                    <?php if ($url): ?>
-                      <a href="<?php echo htmlspecialchars($url); ?>" target="_blank" rel="noopener">
-                        <?php echo htmlspecialchars($display); ?>
-                      </a>
-                    <?php else: ?>
-                        <?php echo htmlspecialchars($display); ?>
-                    <?php endif; ?>
-                  </div>
+                  <a href="<?php echo site_url('external-training/watch/' . (int) $r->id); ?>" class="btn btn-sm btn-primary">
+                    <i class="bi bi-play-circle me-1"></i>Open (signed in)
+                  </a>
+                  <div class="small text-muted mt-1">URL/embed text is hidden on this list to reduce sharing.</div>
                 </td>
                 <td><?php echo htmlspecialchars($r->created_at); ?></td>
                 <td>
@@ -116,32 +90,5 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
     </div>
   </div>
 </div>
-<script>
-(function() {
-  document.addEventListener('click', function(e) {
-    var btn = e.target.closest('.et-copy-btn');
-    if (!btn) return;
-    var code = btn.getAttribute('data-code') || '';
-    if (!code) return;
-    try {
-      navigator.clipboard.writeText(code).then(function() {
-        btn.textContent = 'Copied';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
-      }).catch(function() {
-        var tmp = document.createElement('textarea');
-        tmp.style.position = 'fixed';
-        tmp.style.opacity = '0';
-        tmp.value = code;
-        document.body.appendChild(tmp);
-        tmp.select();
-        try { document.execCommand('copy'); } catch (e2) {}
-        document.body.removeChild(tmp);
-        btn.textContent = 'Copied';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
-      });
-    } catch (e) {}
-  });
-})();
-</script>
 <?php $this->load->view('partials/footer'); ?>
 

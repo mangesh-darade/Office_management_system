@@ -229,6 +229,7 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
     hid('finalize_question_id', qid);
     var qt = $wrap.data('qtype');
     if (qt === 'mcq') {
+      hid('finalize_selected_option_ids', data.selected_option_ids || '');
       hid('finalize_selected_option_id', data.selected_option_id || '');
     } else if (qt === 'text') {
       hid('finalize_answer_text', data.answer_text || '');
@@ -386,8 +387,12 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
     var qtype = $wrap.data('qtype');
     var data = { access_token: token, question_id: qid };
     if (qtype === 'mcq') {
-      var v = $wrap.find('.ta-mcq-opt:checked').val();
-      data.selected_option_id = v ? v : '';
+      var vals = [];
+      $wrap.find('.ta-mcq-opt:checked').each(function() {
+        vals.push($(this).val());
+      });
+      data.selected_option_ids = vals.join(',');
+      data.selected_option_id = vals.length ? vals[0] : '';
     } else if (qtype === 'text') {
       data.answer_text = $wrap.find('.ta-text-answer').val();
     } else {
@@ -398,7 +403,7 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
   }
 
   function payloadIsAnswered(data, qtype) {
-    if (qtype === 'mcq') return !!(data.selected_option_id);
+    if (qtype === 'mcq') return !!(data.selected_option_ids && String(data.selected_option_ids).trim());
     if (qtype === 'text') return !!(data.answer_text && String(data.answer_text).trim());
     return !!((data.code_submitted && String(data.code_submitted).trim()) || (data.execution_output && String(data.execution_output).trim()));
   }

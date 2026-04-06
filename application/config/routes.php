@@ -456,6 +456,7 @@ $route['training/complete-topic'] = 'training_lms/complete_topic';
 $route['external-training'] = 'external_training/index';
 $route['external-training/create'] = 'external_training/create';
 $route['external-training/edit/(:num)'] = 'external_training/edit/$1';
+$route['external-training/watch/(:num)'] = 'external_training/watch/$1';
 $route['external-training/save'] = 'external_training/save';
 $route['external-training/delete/(:num)'] = 'external_training/delete/$1';
 

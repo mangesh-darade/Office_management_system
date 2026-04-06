@@ -177,7 +177,8 @@ function get_module_icon($module) {
         'users' => 'person',
         'settings' => 'gear',
         'email_settings' => 'envelope',
-        'system_settings' => 'gear-fill'
+        'system_settings' => 'gear-fill',
+        'external_training' => 'play-btn',
     ];
     return isset($icons[$module]) ? $icons[$module] : 'grid';
 }
@@ -217,7 +218,8 @@ function applyRoleTemplate() {
             'announcements': ['view', 'add', 'edit', 'delete', 'list'],
             'reports': ['view', 'generate'],
             'timesheets': ['view', 'add', 'edit', 'delete', 'list'],
-            'payroll': ['view', 'add', 'edit', 'delete', 'list']
+            'payroll': ['view', 'add', 'edit', 'delete', 'list'],
+            'external_training': ['view', 'add', 'edit', 'delete', 'list']
         },
         2: { // Manager
             'dashboard': ['view', 'edit'],
@@ -229,7 +231,8 @@ function applyRoleTemplate() {
             'announcements': ['view', 'list'],
             'reports': ['view', 'generate'],
             'timesheets': ['view', 'list'],
-            'payroll': ['view', 'list']
+            'payroll': ['view', 'list'],
+            'external_training': ['view', 'add', 'edit', 'delete', 'list']
         },
         3: { // Lead
             'dashboard': ['view'],
@@ -239,7 +242,8 @@ function applyRoleTemplate() {
             'attendance': ['view', 'add', 'list'],
             'leave_requests': ['view', 'list'],
             'announcements': ['view', 'list'],
-            'timesheets': ['view', 'add', 'list']
+            'timesheets': ['view', 'add', 'list'],
+            'external_training': ['view', 'list', 'add', 'edit']
         },
         4: { // Staff
             'dashboard': ['view'],
@@ -249,7 +253,8 @@ function applyRoleTemplate() {
             'attendance': ['view', 'add', 'list'],
             'leave_requests': ['view', 'add', 'list'],
             'announcements': ['view', 'list'],
-            'timesheets': ['view', 'add', 'list']
+            'timesheets': ['view', 'add', 'list'],
+            'external_training': ['view', 'list']
         }
     };
     

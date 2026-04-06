@@ -1,6 +1,19 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 $sel = $ans && $ans->selected_option_id ? (int)$ans->selected_option_id : 0;
+$selMulti = array();
+if ($ans && !empty($ans->selected_option_ids)) {
+  $parts = explode(',', (string)$ans->selected_option_ids);
+  foreach ($parts as $p) {
+    $id = (int)trim((string)$p);
+    if ($id > 0) {
+      $selMulti[$id] = true;
+    }
+  }
+}
+if ($sel > 0 && empty($selMulti)) {
+  $selMulti[$sel] = true;
+}
 $atext = $ans && $ans->answer_text ? $ans->answer_text : '';
 $code = $ans && $ans->code_submitted ? $ans->code_submitted : '';
 $exout = $ans && $ans->execution_output ? $ans->execution_output : '';
@@ -13,8 +26,8 @@ $exout = $ans && $ans->execution_output ? $ans->execution_output : '';
     <div class="list-group">
       <?php foreach ($opts as $o): ?>
         <label class="list-group-item d-flex gap-2 align-items-center">
-          <input class="form-check-input flex-shrink-0 ta-mcq-opt" type="radio" name="mcq_<?php echo (int)$q->id; ?>"
-            value="<?php echo (int)$o->id; ?>" <?php echo $sel === (int)$o->id ? 'checked' : ''; ?>>
+          <input class="form-check-input flex-shrink-0 ta-mcq-opt" type="checkbox" name="mcq_<?php echo (int)$q->id; ?>[]"
+            value="<?php echo (int)$o->id; ?>" <?php echo isset($selMulti[(int)$o->id]) ? 'checked' : ''; ?>>
           <span><?php echo htmlspecialchars($o->option_text); ?></span>
         </label>
       <?php endforeach; ?>

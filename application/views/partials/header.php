@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0d6efd">
   <title><?php echo isset($title) ? htmlspecialchars($title) : 'Office Management'; ?></title>
+  <?php if (!empty($meta_robots)): ?>
+  <meta name="robots" content="<?php echo htmlspecialchars((string) $meta_robots, ENT_QUOTES, 'UTF-8'); ?>">
+  <?php endif; ?>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://cdn.datatables.net/2.0.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
@@ -303,6 +306,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         || (function_exists('training_lms_admin_any') && training_lms_admin_any());
       $__ext_nav = (int)$this->session->userdata('role_id') === 1 || (function_exists('has_module_access') && (
           has_module_access('external_training')
+          || has_module_access('external_training_watch')
           || has_module_access('external_training_list')
           || has_module_access('external_training_add')
           || has_module_access('external_training_edit')

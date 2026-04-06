@@ -185,6 +185,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           || (function_exists('training_lms_admin_any') && training_lms_admin_any());
       $ext_train_show = (isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (
           has_module_access('external_training')
+          || has_module_access('external_training_watch')
           || has_module_access('external_training_list')
           || has_module_access('external_training_add')
           || has_module_access('external_training_edit')

@@ -103,7 +103,7 @@
           $total_cols = 1 + count($admin_roles) + count($user_roles);
         ?>
 
-        <div class="table-responsive" style="max-height: 75vh; overflow-y: auto;">
+        <div class="table-responsive">
           <table class="table table-bordered table-hover perm-table mb-0" id="permTable">
             <thead class="sticky-head">
               <!-- Group header row -->

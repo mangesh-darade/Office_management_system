@@ -476,11 +476,13 @@ class Training_assessment extends CI_Controller
             'points' => $points,
             'coding_language' => null,
             'model_answer' => null,
+            'text_keyword_pass_percent' => 50.00,
             'coding_expected_output' => null,
             'updated_at' => $now,
         );
         if ($type === 'text') {
             $base['model_answer'] = trim((string)$this->input->post('model_answer'));
+            $base['text_keyword_pass_percent'] = min(100, max(1, (float)$this->input->post('text_keyword_pass_percent')));
         }
         if ($type === 'coding') {
             $lang = strtolower(trim((string)$this->input->post('coding_language')));
@@ -500,7 +502,13 @@ class Training_assessment extends CI_Controller
         }
         if ($type === 'mcq') {
             $opts = $this->input->post('option_text');
-            $correct = (int)$this->input->post('correct_index');
+            $correctRaw = $this->input->post('correct_indexes');
+            $correctMap = array();
+            if (is_array($correctRaw)) {
+                foreach ($correctRaw as $ci) {
+                    $correctMap[(int)$ci] = true;
+                }
+            }
             $rows = array();
             if (is_array($opts)) {
                 $i = 0;
@@ -513,7 +521,7 @@ class Training_assessment extends CI_Controller
                     $rows[] = array(
                         'question_id' => $newQid,
                         'option_text' => $t,
-                        'is_correct' => ($i === $correct) ? 1 : 0,
+                        'is_correct' => isset($correctMap[$i]) ? 1 : 0,
                         'sort_order' => $i,
                         'created_at' => $now,
                     );
@@ -521,7 +529,19 @@ class Training_assessment extends CI_Controller
                 }
             }
             if (count($rows) < 2) {
-                $this->session->set_flashdata('error', 'MCQ needs at least two options and a correct answer.');
+                $this->session->set_flashdata('error', 'MCQ needs at least two options.');
+                redirect('training-assessment/question/add/' . $assessment_id);
+                return;
+            }
+            $hasCorrect = false;
+            foreach ($rows as $rr) {
+                if ((int)$rr['is_correct'] === 1) {
+                    $hasCorrect = true;
+                    break;
+                }
+            }
+            if (!$hasCorrect) {
+                $this->session->set_flashdata('error', 'Please mark at least one correct option for MCQ.');
                 redirect('training-assessment/question/add/' . $assessment_id);
                 return;
             }

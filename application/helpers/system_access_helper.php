@@ -224,7 +224,8 @@ if (!function_exists('get_module_icon')) {
             'users' => 'person',
             'settings' => 'gear',
             'email_settings' => 'envelope',
-            'system_settings' => 'gear-fill'
+            'system_settings' => 'gear-fill',
+            'external_training' => 'play-btn',
         ];
         
         return isset($icons[$module]) ? $icons[$module] : 'grid';

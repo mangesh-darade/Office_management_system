@@ -33,14 +33,26 @@ class Training_assessment_runtime
                 $d->ta_correct_summary = '';
                 if ($d->question_type === 'mcq') {
                     $opts = $ta->get_options((int) $d->question_id);
+                    $picked = $ta->parse_option_ids(isset($d->selected_option_ids) ? $d->selected_option_ids : '');
+                    if (empty($picked) && (int)$d->selected_option_id > 0) {
+                        $picked = array((int)$d->selected_option_id);
+                    }
+                    $pickedMap = array();
+                    foreach ($picked as $pid) {
+                        $pickedMap[(int)$pid] = true;
+                    }
+                    $mine = array();
+                    $corr = array();
                     foreach ($opts as $o) {
-                        if ((int) $d->selected_option_id === (int) $o->id) {
-                            $d->ta_your_answer = $o->option_text;
+                        if (isset($pickedMap[(int)$o->id])) {
+                            $mine[] = $o->option_text;
                         }
                         if ((int) $o->is_correct === 1) {
-                            $d->ta_correct_summary = $o->option_text;
+                            $corr[] = $o->option_text;
                         }
                     }
+                    $d->ta_your_answer = !empty($mine) ? implode(', ', $mine) : '';
+                    $d->ta_correct_summary = !empty($corr) ? implode(', ', $corr) : '';
                 } elseif ($d->question_type === 'text') {
                     $d->ta_your_answer = trim((string) $d->answer_text);
                     $d->ta_correct_summary = trim((string) $d->model_answer) !== '' ? $d->model_answer : '(No model answer — scoring used length / similarity.)';
@@ -162,7 +174,16 @@ class Training_assessment_runtime
         }
         $fields = array();
         if ($q->question_type === 'mcq') {
-            $fields['selected_option_id'] = (int) $this->CI->input->post('finalize_selected_option_id') ?: null;
+            $selCsv = trim((string)$this->CI->input->post('finalize_selected_option_ids'));
+            $selArr = $ta->parse_option_ids($selCsv);
+            if (empty($selArr)) {
+                $single = (int) $this->CI->input->post('finalize_selected_option_id');
+                if ($single > 0) {
+                    $selArr = array($single);
+                }
+            }
+            $fields['selected_option_ids'] = empty($selArr) ? null : implode(',', $selArr);
+            $fields['selected_option_id'] = empty($selArr) ? null : (int) $selArr[0];
             $fields['answer_text'] = null;
             $fields['code_submitted'] = null;
             $fields['execution_output'] = null;
@@ -428,6 +449,7 @@ class Training_assessment_runtime
                 'points' => $points,
                 'coding_language' => null,
                 'model_answer' => null,
+                'text_keyword_pass_percent' => 50.00,
                 'coding_expected_output' => null,
                 'sort_order' => $autoSort,
                 'created_at' => $now,
@@ -435,6 +457,7 @@ class Training_assessment_runtime
             );
             if ($type === 'text') {
                 $qRow['model_answer'] = trim(isset($d['model_answer']) ? $d['model_answer'] : '');
+                $qRow['text_keyword_pass_percent'] = min(100, max(1, (float)(isset($d['text_keyword_pass_percent']) && $d['text_keyword_pass_percent'] !== '' ? $d['text_keyword_pass_percent'] : 50)));
             }
             if ($type === 'coding') {
                 $lang = strtolower(trim(isset($d['coding_language']) ? $d['coding_language'] : 'php'));
