@@ -128,6 +128,7 @@ if (!function_exists('training_ta_has_any_admin_screen')) {
             'training_screen_ta_dashboard',
             'training_screen_ta_create',
             'training_screen_ta_import',
+            'training_screen_ta_question_import',
             'training_screen_ta_report',
             'training_screen_ta_submissions',
         );

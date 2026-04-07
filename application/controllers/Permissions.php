@@ -288,6 +288,7 @@ class Permissions extends CI_Controller {
                     'training_screen_ta_dashboard' => 'Dashboard',
                     'training_screen_ta_create' => 'New assessment',
                     'training_screen_ta_import' => 'Import CSV',
+                    'training_screen_ta_question_import' => 'Import Questions + Options',
                     'training_screen_ta_report' => 'Report',
                     'training_screen_ta_submissions' => 'Assessment submissions',
                     'training_screen_tl_hub' => 'Training hub',

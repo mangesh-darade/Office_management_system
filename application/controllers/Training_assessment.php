@@ -43,6 +43,19 @@ class Training_assessment extends CI_Controller
         }
     }
 
+    private function _ta_can_import_questions()
+    {
+        return training_ta_can_screen('training_screen_ta_create')
+            || training_ta_can_screen('training_screen_ta_question_import');
+    }
+
+    private function _ta_require_question_import()
+    {
+        if (!$this->_ta_can_import_questions()) {
+            show_error('Access denied.', 403);
+        }
+    }
+
     private function _ta_require_manage_core()
     {
         if (!training_ta_admin_broad()) {
@@ -387,6 +400,7 @@ class Training_assessment extends CI_Controller
         }
         $data['assessment'] = $a;
         $data['questions'] = $this->ta->list_questions((int)$assessment_id);
+        $data['ta_can_question_import'] = $this->_ta_can_import_questions();
         $this->load->view('training_assessment/question_list', $data);
     }
 
@@ -529,6 +543,236 @@ class Training_assessment extends CI_Controller
         }
         $this->session->set_flashdata('success', 'Question saved.');
         redirect('training-assessment/questions/' . $assessment_id);
+    }
+
+    public function import_questions_sample_csv()
+    {
+        $this->_ta_require_question_import();
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $filename = 'training_assessment_questions_sample.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo "\xEF\xBB\xBF";
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('question_type', 'question_text', 'option_1', 'option_2', 'option_3', 'option_4', 'correct_options'));
+        fputcsv($out, array('mcq', 'What is PHP?', 'Language', 'Database', 'Server', 'Browser', '1'));
+        fputcsv($out, array('mcq', 'Select web technologies', 'HTML', 'CSS', 'MySQL', 'Bootstrap', '1|2|4'));
+        fputcsv($out, array('text', 'Explain MVC architecture in short.', '', '', '', '', ''));
+        fputcsv($out, array('coding', 'Reverse a string input and print output.', '', '', '', '', ''));
+        fclose($out);
+        exit;
+    }
+
+    public function import_questions_process($assessment_id)
+    {
+        $this->_ta_require_question_import();
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+
+        $assessment_id = (int) $assessment_id;
+        $a = $this->ta->get_assessment($assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        if (empty($_FILES['csv_file']['tmp_name']) || !is_uploaded_file($_FILES['csv_file']['tmp_name'])) {
+            $this->session->set_flashdata('error', 'Please choose a CSV file.');
+            redirect('training-assessment/questions/' . $assessment_id);
+            return;
+        }
+
+        $handle = @fopen($_FILES['csv_file']['tmp_name'], 'r');
+        if (!$handle) {
+            $this->session->set_flashdata('error', 'Unable to read CSV file.');
+            redirect('training-assessment/questions/' . $assessment_id);
+            return;
+        }
+
+        $rows = array();
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            $has = false;
+            foreach ($row as $cell) {
+                if (trim((string) $cell) !== '') {
+                    $has = true;
+                    break;
+                }
+            }
+            if ($has) {
+                $rows[] = $row;
+            }
+        }
+        fclose($handle);
+
+        if (empty($rows)) {
+            $this->session->set_flashdata('error', 'CSV file is empty.');
+            redirect('training-assessment/questions/' . $assessment_id);
+            return;
+        }
+
+        $header = array_map('trim', $rows[0]);
+        $headerMap = array();
+        foreach ($header as $idx => $title) {
+            $key = strtolower((string) $title);
+            // Handle UTF-8 BOM + loose separators from Excel-edited CSV files.
+            $key = preg_replace('/^\xEF\xBB\xBF/', '', $key);
+            $key = trim((string) $key);
+            $key = str_replace(array('-', ' '), '_', $key);
+            $key = preg_replace('/_+/', '_', $key);
+            $headerMap[$key] = $idx;
+        }
+
+        $requiredAliases = array(
+            'question_type' => array('question_type', 'questiontype', 'type'),
+            'question_text' => array('question_text', 'question', 'questiontitle', 'question_name'),
+        );
+        $resolved = array();
+        foreach ($requiredAliases as $canonical => $aliases) {
+            $resolved[$canonical] = null;
+            foreach ($aliases as $alias) {
+                if (isset($headerMap[$alias])) {
+                    $resolved[$canonical] = $headerMap[$alias];
+                    break;
+                }
+            }
+            if ($resolved[$canonical] === null) {
+                $this->session->set_flashdata('error', 'Invalid CSV headers. Download sample CSV and try again.');
+                redirect('training-assessment/questions/' . $assessment_id);
+                return;
+            }
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $imported = 0;
+        $skipped = 0;
+        $errors = array();
+        for ($i = 1; $i < count($rows); $i++) {
+            $lineNo = $i + 1;
+            $current = $rows[$i];
+            $type = isset($current[$resolved['question_type']]) ? strtolower(trim((string) $current[$resolved['question_type']])) : 'mcq';
+            if (!in_array($type, array('mcq', 'text', 'coding'), true)) {
+                $type = 'mcq';
+            }
+            $text = isset($current[$resolved['question_text']]) ? trim((string) $current[$resolved['question_text']]) : '';
+            if ($text === '') {
+                $skipped++;
+                $errors[] = 'Line ' . $lineNo . ': question_text is empty';
+                continue;
+            }
+            $points = (isset($headerMap['points']) && isset($current[$headerMap['points']])) ? (float) $current[$headerMap['points']] : 1;
+            if ($points <= 0) {
+                $points = 1;
+            }
+
+            $qRow = array(
+                'assessment_id' => $assessment_id,
+                'question_type' => $type,
+                'question_text' => $text,
+                'points' => $points,
+                'coding_language' => 'php',
+                'model_answer' => null,
+                'text_keyword_pass_percent' => 50.00,
+                'coding_expected_output' => null,
+                'sort_order' => $this->ta->max_sort_order($assessment_id) + 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            );
+            $qid = (int) $this->ta->insert_question($qRow);
+            if ($qid < 1) {
+                $skipped++;
+                $errors[] = 'Line ' . $lineNo . ': failed to create question';
+                continue;
+            }
+
+            if ($type === 'mcq') {
+                $optRows = array();
+                $correctRaw = isset($headerMap['correct_options']) && isset($current[$headerMap['correct_options']]) ? trim((string) $current[$headerMap['correct_options']]) : '1';
+                $correctParts = preg_split('/[\|,]+/', $correctRaw);
+                $correctMap = array();
+                if (is_array($correctParts)) {
+                    foreach ($correctParts as $cp) {
+                        $idx = (int) trim((string) $cp);
+                        if ($idx > 0) {
+                            $correctMap[$idx - 1] = true;
+                        }
+                    }
+                }
+                for ($j = 1; $j <= 6; $j++) {
+                    $col = 'option_' . $j;
+                    if (!isset($headerMap[$col])) {
+                        continue;
+                    }
+                    $ov = isset($current[$headerMap[$col]]) ? trim((string) $current[$headerMap[$col]]) : '';
+                    if ($ov === '') {
+                        continue;
+                    }
+                    $optRows[] = array(
+                        'question_id' => $qid,
+                        'option_text' => $ov,
+                        'is_correct' => isset($correctMap[$j - 1]) ? 1 : 0,
+                        'sort_order' => $j - 1,
+                        'created_at' => $now,
+                    );
+                }
+                if (count($optRows) >= 2) {
+                    $hasCorrect = false;
+                    foreach ($optRows as $orow) {
+                        if ((int) $orow['is_correct'] === 1) {
+                            $hasCorrect = true;
+                            break;
+                        }
+                    }
+                    if (!$hasCorrect) {
+                        $optRows[0]['is_correct'] = 1;
+                    }
+                    $this->ta->replace_options($qid, $optRows);
+                } else {
+                    $this->ta->delete_question($qid);
+                    $skipped++;
+                    $errors[] = 'Line ' . $lineNo . ': MCQ needs at least two non-empty options';
+                    continue;
+                }
+            }
+            $imported++;
+        }
+
+        if ($imported < 1) {
+            $this->session->set_flashdata('error', 'No valid questions imported from CSV.');
+            redirect('training-assessment/questions/' . $assessment_id);
+            return;
+        }
+        $summary = 'Import complete: total ' . max(0, count($rows) - 1) . ', imported ' . $imported . ', skipped ' . $skipped . '.';
+        $this->session->set_flashdata('success', $summary);
+        if (!empty($errors)) {
+            $maxShow = 10;
+            $shown = array_slice($errors, 0, $maxShow);
+            $more = count($errors) - count($shown);
+            $msg = implode(' | ', $shown);
+            if ($more > 0) {
+                $msg .= ' | +' . $more . ' more row error(s)';
+            }
+            $this->session->set_flashdata('error', $msg);
+        }
+        redirect('training-assessment/questions/' . $assessment_id);
+    }
+
+    public function import_questions_dashboard_process()
+    {
+        $this->_ta_require_question_import();
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $assessment_id = (int) $this->input->post('assessment_id');
+        if ($assessment_id < 1) {
+            $this->session->set_flashdata('error', 'Please select an assessment.');
+            redirect('training-assessment');
+            return;
+        }
+        $this->import_questions_process($assessment_id);
     }
 
     public function delete_question($id)

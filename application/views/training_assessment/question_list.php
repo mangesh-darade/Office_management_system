@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', array('title' => 'Questions — ' . $assessment->title)); ?>
+<?php $ta_can_question_import = isset($ta_can_question_import) ? (bool) $ta_can_question_import : false; ?>
 <div class="container-fluid py-4">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
@@ -8,6 +9,9 @@
     <div class="d-flex flex-wrap gap-2">
       <a href="<?php echo site_url('training-assessment/preview/' . (int)$assessment->id); ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm" aria-label="Preview assessment as candidate"><i class="bi bi-eye me-1"></i>Preview</a>
       <a href="<?php echo site_url('training-assessment/question/add/' . (int)$assessment->id); ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add question</a>
+      <?php if ($ta_can_question_import): ?>
+      <a href="<?php echo site_url('training-assessment/question/import/sample'); ?>" class="btn btn-outline-info btn-sm"><i class="bi bi-download me-1"></i>Sample CSV</a>
+      <?php endif; ?>
       <a href="<?php echo site_url('training-assessment'); ?>" class="btn btn-outline-secondary btn-sm">Dashboard</a>
     </div>
   </div>
@@ -17,6 +21,25 @@
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <?php endif; ?>
+
+  <?php if ($ta_can_question_import): ?>
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <h2 class="h6 mb-2">Import Questions + Options (CSV)</h2>
+      <p class="text-muted small mb-3">Upload CSV to create questions for this assessment. For MCQ, provide options and correct indexes (example: <code>1</code> or <code>1|3</code>).</p>
+      <form method="post" action="<?php echo site_url('training-assessment/question/import/' . (int)$assessment->id); ?>" enctype="multipart/form-data" class="row g-2 align-items-end">
+        <div class="col-md-8">
+          <label class="form-label mb-1">CSV file</label>
+          <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+          <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-success w-100"><i class="bi bi-upload me-1"></i>Import CSV</button>
+        </div>
+      </form>
+    </div>
+  </div>
   <?php endif; ?>
 
   <div class="card shadow-sm border-0">
