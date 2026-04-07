@@ -8,6 +8,7 @@ $ajaxLoad = site_url('training-assessment/ajax-load-question');
 $ajaxSave = site_url('training-assessment/ajax-save-answer');
 $ajaxRun = site_url('training-assessment/ajax-run-code');
 $ajaxSync = site_url('training-assessment/ajax-timer-sync');
+$ajaxShot = site_url('training-assessment/ajax-upload-screenshot');
 $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($token));
 ?>
 <style>
@@ -41,6 +42,13 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
   @media (min-width: 992px) {
     #ta-main-col { padding-bottom: 0; }
   }
+  #ta-proctor-video {
+    width: 220px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #111;
+  }
 </style>
 <div id="ta-submit-overlay" class="d-none" aria-live="assertive" aria-busy="true">
   <div class="spinner-border text-primary" style="width:3rem;height:3rem" role="status"></div>
@@ -64,6 +72,15 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
         <div class="small text-md-end"><?php echo htmlspecialchars($au->assessment_title); ?></div>
       </div>
       <div id="ta-time-hints" class="mb-2"></div>
+      <div class="alert alert-secondary py-2 d-flex flex-wrap align-items-center gap-2 mb-2">
+        <video id="ta-proctor-video" autoplay muted playsinline></video>
+        <canvas id="ta-proctor-canvas" class="d-none"></canvas>
+        <div class="small">
+          <div class="fw-semibold">Camera observation is active</div>
+          <div class="text-muted">Automatic screenshots are captured during this assessment.</div>
+          <div id="ta-shot-status" class="text-muted">Waiting for camera permission...</div>
+        </div>
+      </div>
       <div id="ta-warn" class="alert alert-warning d-none small mb-2"><strong>Time is up.</strong> Saving and submitting automatically…</div>
       <div class="card shadow-sm border-0">
         <div class="card-body" style="min-height:280px" id="ta-stage">
@@ -126,6 +143,7 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
   var ajaxSave = <?php echo json_encode($ajaxSave); ?>;
   var ajaxRun = <?php echo json_encode($ajaxRun); ?>;
   var ajaxSync = <?php echo json_encode($ajaxSync); ?>;
+  var ajaxShot = <?php echo json_encode($ajaxShot); ?>;
   var resultTokenUrl = <?php echo json_encode($resultTokenUrl); ?>;
   var endsTs = <?php echo (int)$ends_ts; ?>;
   var total = <?php echo (int)$total_questions; ?>;
@@ -143,6 +161,10 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
     answeredStates.push(!!(initialAnswered[ai]));
   }
   var taDirty = false;
+  var mediaStream = null;
+  var shotIv = null;
+  var shotBusy = false;
+  var shotEveryMs = 1000;
   var confirmModal = null;
   try {
     var elM = document.getElementById('ta-confirm-submit');
@@ -194,6 +216,10 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
     clearAutoSaveDebounce();
     if (timerIv) { clearInterval(timerIv); timerIv = null; }
     if (syncIv) { clearInterval(syncIv); syncIv = null; }
+    if (shotIv) { clearInterval(shotIv); shotIv = null; }
+    if (mediaStream && mediaStream.getTracks) {
+      mediaStream.getTracks().forEach(function(track) { track.stop(); });
+    }
     var reasonVal = reason || 'manual';
     if (reasonVal === 'time_up') reasonVal = 'time_up';
     else if (reasonVal === 'server_time') reasonVal = 'server_time';
@@ -320,6 +346,55 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
         }
       }
     }, 'json');
+  }
+
+  function setShotStatus(txt, kind) {
+    var el = document.getElementById('ta-shot-status');
+    if (!el) return;
+    el.className = (kind === 'err') ? 'text-danger' : ((kind === 'ok') ? 'text-success' : 'text-muted');
+    el.textContent = txt;
+  }
+
+  function uploadScreenshot() {
+    if (autoFinishing || shotBusy) return;
+    var v = document.getElementById('ta-proctor-video');
+    var c = document.getElementById('ta-proctor-canvas');
+    if (!v || !c || !v.videoWidth || !v.videoHeight) return;
+    shotBusy = true;
+    var w = 640;
+    var h = Math.round((v.videoHeight / v.videoWidth) * w);
+    c.width = w;
+    c.height = h > 0 ? h : 360;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(v, 0, 0, c.width, c.height);
+    var dataUrl = c.toDataURL('image/jpeg', 0.72);
+    $.post(ajaxShot, { access_token: token, capture_data: dataUrl }, function(res) {
+      if (res && res.csrf) $('input[name="ci_csrf_token"]').val(res.csrf);
+      if (res && res.force_submit) {
+        finishAssessment('server_time');
+      }
+    }, 'json').always(function() {
+      shotBusy = false;
+    });
+  }
+
+  function initProctorCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setShotStatus('Camera not supported in this browser.', 'err');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      .then(function(stream) {
+        mediaStream = stream;
+        var v = document.getElementById('ta-proctor-video');
+        v.srcObject = stream;
+        setShotStatus('Camera active. Capturing screenshots every 1 second.', 'ok');
+        setTimeout(uploadScreenshot, 3000);
+        shotIv = setInterval(uploadScreenshot, shotEveryMs);
+      })
+      .catch(function() {
+        setShotStatus('Camera access denied. This assessment cannot be proctored fully.', 'err');
+      });
   }
 
   function refreshNavStyles() {
@@ -729,6 +804,7 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
 
   // Initial fullscreen attempt on load (may be blocked by browser, but harmless).
   requestFullscreen();
+  initProctorCamera();
 
   // One-time notice at assessment start.
   try {

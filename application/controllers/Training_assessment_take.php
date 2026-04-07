@@ -325,6 +325,77 @@ class Training_assessment_take extends CI_Controller
         ));
     }
 
+    public function ajax_upload_screenshot()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        if ($this->input->method() !== 'post') {
+            echo json_encode(array('ok' => false, 'error' => 'Method'));
+            return;
+        }
+        $token = trim((string) $this->input->post('access_token'));
+        $au = $this->ta->get_assessment_user_by_token($token);
+        if (!$this->ta_run->ajax_auth_au($au)) {
+            echo json_encode(array('ok' => false, 'error' => 'Auth'));
+            return;
+        }
+        if ($au->completed_at || $this->ta->is_time_expired($au)) {
+            echo json_encode(array('ok' => false, 'error' => 'Closed', 'force_submit' => true));
+            return;
+        }
+
+        $dataUrl = trim((string) $this->input->post('capture_data'));
+        if ($dataUrl === '' || strpos($dataUrl, 'data:image/jpeg;base64,') !== 0) {
+            echo json_encode(array('ok' => false, 'error' => 'Format'));
+            return;
+        }
+        $base64 = substr($dataUrl, strlen('data:image/jpeg;base64,'));
+        $raw = base64_decode($base64, true);
+        if ($raw === false || strlen($raw) < 100) {
+            echo json_encode(array('ok' => false, 'error' => 'Decode'));
+            return;
+        }
+
+        $relDir = 'uploads/training_assessment/screenshots/' . (int) $au->id . '/';
+        $absDir = FCPATH . $relDir;
+        if (!is_dir($absDir)) {
+            @mkdir($absDir, 0777, true);
+        }
+        if (!is_dir($absDir)) {
+            echo json_encode(array('ok' => false, 'error' => 'Storage'));
+            return;
+        }
+
+        $rand = substr(md5(uniqid('', true)), 0, 8);
+        if (function_exists('random_bytes')) {
+            try {
+                $rand = bin2hex(random_bytes(4));
+            } catch (Exception $e) {
+                $rand = substr(md5(uniqid('', true)), 0, 8);
+            }
+        } elseif (function_exists('openssl_random_pseudo_bytes')) {
+            $rand = bin2hex(openssl_random_pseudo_bytes(4));
+        }
+        $filename = 'ss_' . date('Ymd_His') . '_' . $rand . '.jpg';
+        $absPath = $absDir . $filename;
+        if (@file_put_contents($absPath, $raw) === false) {
+            echo json_encode(array('ok' => false, 'error' => 'Write'));
+            return;
+        }
+
+        $capturePath = $relDir . $filename;
+        $now = date('Y-m-d H:i:s');
+        $this->ta->insert_attempt_screenshot(array(
+            'assessment_user_id' => (int) $au->id,
+            'user_id' => ((int) $au->user_id > 0) ? (int) $au->user_id : null,
+            'capture_path' => $capturePath,
+            'captured_at' => $now,
+            'created_at' => $now,
+            'ip_address' => (string) $this->input->ip_address(),
+            'user_agent' => substr((string) $this->input->user_agent(), 0, 255),
+        ));
+        echo json_encode(array('ok' => true, 'csrf' => $this->security->get_csrf_hash()));
+    }
+
     public function submit_assessment()
     {
         if ($this->input->method() !== 'post') {

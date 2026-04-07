@@ -1132,6 +1132,97 @@ class Training_assessment extends CI_Controller
         $this->load->view('training_assessment/submissions', $data);
     }
 
+    public function screenshots($assessment_user_id)
+    {
+        if ((int) $this->session->userdata('role_id') !== 1) {
+            show_error('Access denied.', 403);
+        }
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $au = $this->ta->get_assessment_user((int) $assessment_user_id);
+        if (!$au) {
+            show_404();
+        }
+        if (!$this->ta_run->can_manage_result($au)) {
+            show_error('Access denied.', 403);
+        }
+        $data = array(
+            'au' => $au,
+            'shots' => $this->ta->list_attempt_screenshots((int) $au->id),
+        );
+        $this->load->view('training_assessment/screenshots', $data);
+    }
+
+    public function delete_screenshot($assessment_user_id, $screenshot_id)
+    {
+        if ((int) $this->session->userdata('role_id') !== 1) {
+            show_error('Access denied.', 403);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $au = $this->ta->get_assessment_user((int) $assessment_user_id);
+        if (!$au) {
+            show_404();
+        }
+        $shot = $this->ta->get_attempt_screenshot((int) $screenshot_id);
+        if (!$shot || (int) $shot->assessment_user_id !== (int) $au->id) {
+            show_404();
+        }
+        $absPath = FCPATH . ltrim((string) $shot->capture_path, '/\\');
+        $this->ta->delete_attempt_screenshot((int) $shot->id);
+        if (is_file($absPath)) {
+            @unlink($absPath);
+        }
+        $this->session->set_flashdata('success', 'Screenshot deleted.');
+        redirect('training-assessment/screenshots/' . (int) $au->id);
+    }
+
+    public function delete_screenshots_bulk($assessment_user_id)
+    {
+        if ((int) $this->session->userdata('role_id') !== 1) {
+            show_error('Access denied.', 403);
+        }
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $au = $this->ta->get_assessment_user((int) $assessment_user_id);
+        if (!$au) {
+            show_404();
+        }
+        $ids = $this->input->post('screenshot_ids');
+        if (!is_array($ids) || empty($ids)) {
+            $this->session->set_flashdata('error', 'Please select at least one screenshot.');
+            redirect('training-assessment/screenshots/' . (int) $au->id);
+            return;
+        }
+        $shots = $this->ta->list_attempt_screenshots_by_ids((int) $au->id, $ids);
+        if (empty($shots)) {
+            $this->session->set_flashdata('error', 'No valid screenshots selected.');
+            redirect('training-assessment/screenshots/' . (int) $au->id);
+            return;
+        }
+        $deleted = 0;
+        foreach ($shots as $shot) {
+            $absPath = FCPATH . ltrim((string) $shot->capture_path, '/\\');
+            if ($this->ta->delete_attempt_screenshot((int) $shot->id)) {
+                $deleted++;
+                if (is_file($absPath)) {
+                    @unlink($absPath);
+                }
+            }
+        }
+        $this->session->set_flashdata('success', $deleted . ' screenshot(s) deleted.');
+        redirect('training-assessment/screenshots/' . (int) $au->id);
+    }
+
     /**
      * Office feed: Topic (LMS-linked), Question, Possible Answers, Type, Assessment id/title.
      * GET assessment_id (optional, 0 = all).

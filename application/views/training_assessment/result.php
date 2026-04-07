@@ -137,6 +137,9 @@ $scorePct = $result ? (float)$result->score_percent : 0;
 
     <?php if ($result && !empty($au->id)): ?>
       <p class="mb-3">
+        <?php if ((int) $this->session->userdata('role_id') === 1): ?>
+          <a class="btn btn-outline-dark btn-sm" href="<?php echo site_url('training-assessment/screenshots/' . (int) $au->id); ?>"><i class="bi bi-camera me-1"></i>View screenshots</a>
+        <?php endif; ?>
         <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="<?php echo site_url('training-assessment/certificate/' . (int) $au->id); ?>"><i class="bi bi-award me-1"></i>Print certificate</a>
         <button type="button" class="btn btn-primary btn-sm" onclick="window.print();"><i class="bi bi-file-earmark-pdf me-1"></i>Download Result (PDF)</button>
       </p>

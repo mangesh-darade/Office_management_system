@@ -67,6 +67,11 @@
                   <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('training-assessment/result/' . (int) $r->id); ?>">
                     <i class="bi bi-eye me-1"></i>View
                   </a>
+                  <?php if ((int) $this->session->userdata('role_id') === 1): ?>
+                    <a class="btn btn-sm btn-outline-dark" href="<?php echo site_url('training-assessment/screenshots/' . (int) $r->id); ?>">
+                      <i class="bi bi-camera me-1"></i>Screenshots
+                    </a>
+                  <?php endif; ?>
                 <?php else: ?>
                   —
                 <?php endif; ?>

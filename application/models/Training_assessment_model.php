@@ -92,6 +92,22 @@ class Training_assessment_model extends CI_Model
                 $this->db->query('ALTER TABLE `' . $uaTbl . '` ADD `selected_option_ids` text NULL COMMENT \'CSV of selected option ids for multi-correct MCQ\' AFTER `selected_option_id`');
             }
         }
+        if (!$this->db->table_exists('ta_attempt_screenshots')) {
+            $this->db->query("CREATE TABLE IF NOT EXISTS `ta_attempt_screenshots` (
+                `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                `assessment_user_id` int(11) NOT NULL,
+                `user_id` int(11) DEFAULT NULL,
+                `capture_path` varchar(255) NOT NULL,
+                `captured_at` datetime NOT NULL,
+                `created_at` datetime NOT NULL,
+                `ip_address` varchar(45) DEFAULT NULL,
+                `user_agent` varchar(255) DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_ta_assessment_user_id` (`assessment_user_id`),
+                KEY `idx_ta_user_id` (`user_id`),
+                KEY `idx_ta_captured_at` (`captured_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
     }
 
     public function schema_ready()
@@ -905,6 +921,52 @@ class Training_assessment_model extends CI_Model
     public function get_result_by_au($assessment_user_id)
     {
         return $this->db->where('assessment_user_id', (int)$assessment_user_id)->get($this->t['results'])->row();
+    }
+
+    public function insert_attempt_screenshot($data)
+    {
+        $this->db->insert('ta_attempt_screenshots', $data);
+        return (int) $this->db->insert_id();
+    }
+
+    public function list_attempt_screenshots($assessment_user_id)
+    {
+        return $this->db->from('ta_attempt_screenshots')
+            ->where('assessment_user_id', (int) $assessment_user_id)
+            ->order_by('captured_at', 'DESC')
+            ->order_by('id', 'DESC')
+            ->get()
+            ->result();
+    }
+
+    public function get_attempt_screenshot($id)
+    {
+        return $this->db->from('ta_attempt_screenshots')
+            ->where('id', (int) $id)
+            ->get()
+            ->row();
+    }
+
+    public function delete_attempt_screenshot($id)
+    {
+        $this->db->where('id', (int) $id)->delete('ta_attempt_screenshots');
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function list_attempt_screenshots_by_ids($assessment_user_id, array $ids)
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $ids = array_filter($ids, function ($id) {
+            return $id > 0;
+        });
+        if (empty($ids)) {
+            return array();
+        }
+        return $this->db->from('ta_attempt_screenshots')
+            ->where('assessment_user_id', (int) $assessment_user_id)
+            ->where_in('id', $ids)
+            ->get()
+            ->result();
     }
 
     /**
