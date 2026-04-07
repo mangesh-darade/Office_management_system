@@ -20,31 +20,11 @@ class Training_assessment extends CI_Controller
 
         $method = $this->router->fetch_method();
 
-        if ($method === 'my_assignments') {
-            if (!(int) $this->session->userdata('user_id')) {
-                redirect('auth/login');
-            }
-            if (!$this->_ta_can_my_assignments_screen()) {
-                $this->session->set_flashdata('access_denied', 'You do not have access to assigned assessments.');
-                redirect('dashboard');
-            }
-            return;
-        }
-
         if ($this->_ta_is_take_only_learner()) {
-            if ($method === 'index') {
-                redirect('training-assessment/my-assignments');
-                return;
-            }
             if ($method === 'certificate') {
                 if (!(int) $this->session->userdata('user_id')) {
                     redirect('auth/login');
                 }
-                return;
-            }
-            if ($method !== 'my_assignments') {
-                $this->session->set_flashdata('access_denied', 'You only have access to your assigned assessments. Use My assignments below.');
-                redirect('training-assessment/my-assignments');
                 return;
             }
             return;
@@ -54,17 +34,6 @@ class Training_assessment extends CI_Controller
             $this->session->set_flashdata('access_denied', 'You do not have access to Training & Assessment.');
             redirect('dashboard');
         }
-    }
-
-    private function _ta_can_my_assignments_screen()
-    {
-        if ((int) $this->session->userdata('role_id') === 1) {
-            return true;
-        }
-        return has_module_access('training_assessment_take')
-            || has_module_access('training_assessment_manage')
-            || has_module_access('training_assessment')
-            || has_module_access('training_screen_ta_my_tests');
     }
 
     private function _ta_require_screen($granular_key)
@@ -106,7 +75,11 @@ class Training_assessment extends CI_Controller
 
     public function dashboard()
     {
-        $this->_ta_require_screen('training_screen_ta_dashboard');
+        $canDashboard = training_ta_can_screen('training_screen_ta_dashboard')
+            || (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests')));
+        if (!$canDashboard) {
+            show_error('Access denied.', 403);
+        }
         if (!$this->ta->schema_ready()) {
             $this->load->view('partials/header', array('title' => 'Training & Assessment'));
             echo '<div class="container py-5"><div class="alert alert-warning">Database tables are not installed. Run <code>database/training_assessment_module.sql</code> on your database.</div></div>';
@@ -124,6 +97,10 @@ class Training_assessment extends CI_Controller
         $this->load->helper('training');
         $uid = (int) $this->session->userdata('user_id');
         $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        if (!$isBroad && $uid < 1) {
+            redirect('auth/login');
+            return;
+        }
         $scope = ($isBroad || $uid < 1) ? 0 : $uid;
         $data['assessments'] = $this->ta->list_assessments_with_stats($search, $status, $sort, $scope);
         $data['dashboard_scope_limited'] = !$isBroad && $uid > 0;
@@ -137,6 +114,9 @@ class Training_assessment extends CI_Controller
             $data['stats_total_completed'] += (int)$row->completed_count;
         }
         $data['stats_total_pending'] = max(0, $data['stats_total_assigned'] - $data['stats_total_completed']);
+        $data['ta_can_create'] = function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create');
+        $data['ta_can_import'] = function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_import');
+        $data['ta_can_manage_core'] = function_exists('training_ta_admin_broad') && training_ta_admin_broad();
         $this->load->view('training_assessment/dashboard', $data);
     }
 
@@ -792,24 +772,6 @@ class Training_assessment extends CI_Controller
         $this->load->view('training_assessment/assign', $data);
     }
 
-    public function my_assignments()
-    {
-        if (!$this->ta->schema_ready()) {
-            show_error('Schema not installed.', 500);
-        }
-        $uid = (int) $this->session->userdata('user_id');
-        $data['assignments'] = $this->ta->list_assignments_for_user_detailed($uid);
-        $this->load->helper('training');
-        foreach ($data['assignments'] as $row) {
-            if (!empty($row->completed_at)) {
-                $row->result_url = training_assessment_signed_result_url($row->access_token, $row);
-            } else {
-                $row->result_url = '';
-            }
-        }
-        $this->load->view('training_assessment/my_assignments', $data);
-    }
-
     public function report()
     {
         $this->_ta_require_screen('training_screen_ta_report');
@@ -833,7 +795,8 @@ class Training_assessment extends CI_Controller
         }
         $this->load->model('Employee_model');
         $data['employees'] = $this->Employee_model->all(10000, 0, '', array());
-        $data['assessments'] = $this->ta->list_assessments();
+        $assessmentScopeUid = (!$isBroad && $sessUid > 0) ? $sessUid : 0;
+        $data['assessments'] = $this->ta->list_assessments_with_stats('', 'all', 'title_asc', $assessmentScopeUid);
         $data['rows'] = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
         $data['report_scope_all'] = $isBroad;
         $data['filter_employee'] = $emp;
@@ -891,6 +854,38 @@ class Training_assessment extends CI_Controller
         }
         fclose($out);
         exit;
+    }
+
+    /**
+     * Post-submit assessment listing screen:
+     * - admin scope: all submitted attempts
+     * - user scope: own submitted attempts only
+     */
+    public function submissions()
+    {
+        $this->_ta_require_screen('training_screen_ta_submissions');
+        if (!$this->ta->schema_ready()) {
+            show_error('Schema not installed.', 500);
+        }
+        $this->load->helper('training');
+        $sessUid = (int) $this->session->userdata('user_id');
+        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $emp = $isBroad ? 0 : $sessUid;
+        $assessmentId = (int) $this->input->get('assessment_id');
+        $assigneeType = $isBroad ? 'all' : 'employee';
+        $rows = $this->ta->list_assignments_for_report($emp, '', '', $assessmentId, $assigneeType);
+        $submitted = array();
+        foreach ($rows as $r) {
+            if (!empty($r->submitted_at) || !empty($r->completed_at)) {
+                $submitted[] = $r;
+            }
+        }
+        $data = array(
+            'rows' => $submitted,
+            'show_all_submissions' => $isBroad,
+            'can_review_submissions' => $isBroad,
+        );
+        $this->load->view('training_assessment/submissions', $data);
     }
 
     /**
@@ -1020,33 +1015,7 @@ class Training_assessment extends CI_Controller
         $this->ta_run->render_result($au);
     }
 
-    public function team_progress()
-    {
-        $this->_ta_require_screen('training_screen_ta_team_progress');
-        if (!$this->ta->schema_ready()) {
-            show_error('Schema not installed.', 500);
-        }
-        $uid = (int) $this->session->userdata('user_id');
-        $this->load->model('Employee_model');
-        $emp = $this->Employee_model->get_by_user_id($uid);
-        $dept = ($emp && !empty($emp->department)) ? trim((string) $emp->department) : '';
-        $peerIds = array();
-        if ($dept !== '') {
-            $peerIds = $this->ta_run->user_ids_for_department($dept);
-            $peerIds = array_values(array_diff($peerIds, array($uid)));
-        }
-        $data['department'] = $dept;
-        $data['rows'] = !empty($peerIds) ? $this->ta->list_assignments_for_user_ids($peerIds, 0) : array();
-        $this->load->helper('training');
-        foreach ($data['rows'] as $row) {
-            if (!empty($row->completed_at) && !empty($row->access_token) && isset($row->id)) {
-                $row->signed_result_url = training_assessment_signed_result_url($row->access_token, $row);
-            } else {
-                $row->signed_result_url = '';
-            }
-        }
-        $this->load->view('training_assessment/team_progress', $data);
-    }
+    // my_assignments and team_progress screens have been removed intentionally.
 
     public function certificate($assessment_user_id)
     {

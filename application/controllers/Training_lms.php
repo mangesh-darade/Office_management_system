@@ -311,26 +311,7 @@ class Training_lms extends CI_Controller
         force_download($sub->original_filename, file_get_contents($path));
     }
 
-    public function my_submissions()
-    {
-        if (!training_tl_show_assignment_nav()) {
-            show_error('Access denied.', 403);
-        }
-        if (!$this->lms_assign->schema_ready()) {
-            $this->_schema_missing();
-            return;
-        }
-        $uid = (int) $this->session->userdata('user_id');
-        $this->db->select('s.*, a.name AS assignment_name, t.name AS topic_name, m.title AS module_title');
-        $this->db->from('assignment_submissions s');
-        $this->db->join('assignments a', 'a.id = s.assignment_id', 'inner');
-        $this->db->join('training_topics t', 't.id = a.topic_id', 'inner');
-        $this->db->join('training_modules m', 'm.id = t.module_id', 'inner');
-        $this->db->where('s.user_id', $uid);
-        $this->db->order_by('s.submitted_at', 'DESC');
-        $data['rows'] = $this->db->get()->result();
-        $this->load->view('training_lms/my_submissions', $data);
-    }
+    // my_submissions screen has been removed intentionally.
 
     private function _learner_can_access_module($module_id)
     {

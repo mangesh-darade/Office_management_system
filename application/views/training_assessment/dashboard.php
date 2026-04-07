@@ -1,4 +1,9 @@
-<?php $this->load->view('partials/header', array('title' => 'Training & Assessment')); ?>
+<?php
+$this->load->view('partials/header', array('title' => 'Training & Assessment'));
+$ta_can_create = isset($ta_can_create) ? (bool) $ta_can_create : false;
+$ta_can_import = isset($ta_can_import) ? (bool) $ta_can_import : false;
+$ta_can_manage_core = isset($ta_can_manage_core) ? (bool) $ta_can_manage_core : false;
+?>
 <style>
   .ta-assessment-actions {
     gap: 0.25rem;
@@ -44,12 +49,18 @@
   <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h1 class="h4 mb-1 fw-bold"><i class="bi bi-mortarboard text-primary me-2"></i>Assessments</h1>
-      <p class="text-muted small mb-0">Create timed tests, assign employees or candidates, review results.</p>
+      <p class="text-muted small mb-0"><?php echo ($ta_can_create || $ta_can_manage_core) ? 'Create timed tests, assign employees or candidates, review results.' : 'Assessments assigned to you. Use My assignments to take tests and view results.'; ?></p>
     </div>
+    <?php if ($ta_can_import || $ta_can_create): ?>
     <div class="d-flex flex-wrap gap-2 mt-2 mt-sm-0">
+      <?php if ($ta_can_import): ?>
       <a href="<?php echo site_url('training-assessment/import'); ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import CSV</a>
+      <?php endif; ?>
+      <?php if ($ta_can_create): ?>
       <a href="<?php echo site_url('training-assessment/create'); ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New assessment</a>
+      <?php endif; ?>
     </div>
+    <?php endif; ?>
   </div>
 
   <?php if ($this->session->flashdata('success')): ?>
@@ -59,14 +70,14 @@
     <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
   <?php if (!empty($dashboard_scope_limited)): ?>
-    <div class="alert alert-info small py-2 mb-3">Showing assessments you <strong>created</strong> or are <strong>assigned</strong> to. Administrators see the full catalogue.</div>
+    <div class="alert alert-info small py-2 mb-3">You see assessments <strong>assigned to your account</strong> only. Users with full Training &amp; Assessment admin access see the whole catalogue.</div>
   <?php endif; ?>
 
   <div class="row g-3 mb-4">
     <div class="col-sm-4">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-body py-3">
-          <div class="text-muted small">Assignments (all assessments)</div>
+          <div class="text-muted small"><?php echo !empty($dashboard_scope_limited) ? 'Assignments (your assessments)' : 'Assignments (all assessments)'; ?></div>
           <div class="fs-4 fw-bold"><?php echo (int)$stats_total_assigned; ?></div>
         </div>
       </div>
@@ -177,20 +188,32 @@
               <td><span class="badge bg-<?php echo $a->status === 'active' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($a->status); ?></span></td>
               <td class="text-end ta-col-actions py-2">
                 <?php $taTitleEsc = htmlspecialchars($a->title, ENT_QUOTES, 'UTF-8'); ?>
+                <?php if ($ta_can_create || $ta_can_manage_core): ?>
                 <div class="d-inline-flex flex-nowrap align-items-center justify-content-end ta-assessment-actions" role="group" aria-label="Actions for <?php echo $taTitleEsc; ?>">
+                  <?php if ($ta_can_create): ?>
                   <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('training-assessment/questions/' . (int)$a->id); ?>" title="Questions" aria-label="Questions: <?php echo $taTitleEsc; ?>"><i class="bi bi-list-ol"></i></a>
                   <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training-assessment/preview/' . (int)$a->id); ?>" target="_blank" rel="noopener" title="Preview" aria-label="Preview: <?php echo $taTitleEsc; ?>"><i class="bi bi-eye"></i></a>
+                  <?php endif; ?>
+                  <?php if ($ta_can_manage_core): ?>
                   <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training-assessment/assign/' . (int)$a->id); ?>" title="Assign" aria-label="Assign: <?php echo $taTitleEsc; ?>" <?php echo $qc === 0 ? 'onclick="return confirm(\'This assessment has no questions yet. Continue?\');"' : ''; ?>><i class="bi bi-person-plus"></i></a>
+                  <?php endif; ?>
+                  <?php if ($ta_can_create): ?>
                   <a class="btn btn-sm btn-outline-warning" href="<?php echo site_url('training-assessment/edit/' . (int)$a->id); ?>" title="Edit" aria-label="Edit: <?php echo $taTitleEsc; ?>"><i class="bi bi-pencil"></i></a>
                   <?php echo form_open('training-assessment/duplicate/' . (int)$a->id, array('class' => 'd-inline')); ?>
                   <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                   <button type="submit" class="btn btn-sm btn-outline-info" title="Duplicate" aria-label="Duplicate: <?php echo $taTitleEsc; ?>"><i class="bi bi-files"></i></button>
                   <?php echo form_close(); ?>
+                  <?php endif; ?>
+                  <?php if ($ta_can_manage_core): ?>
                   <?php echo form_open('training-assessment/delete/' . (int)$a->id, array('class' => 'd-inline', 'onsubmit' => 'return confirm(\'Delete this assessment and all related data?\');')); ?>
                   <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                   <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete: <?php echo $taTitleEsc; ?>"><i class="bi bi-trash"></i></button>
                   <?php echo form_close(); ?>
+                  <?php endif; ?>
                 </div>
+                <?php else: ?>
+                <span class="text-muted small">—</span>
+                <?php endif; ?>
               </td>
             </tr>
             <?php endforeach; ?>

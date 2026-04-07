@@ -1,9 +1,17 @@
 <?php
 $waiting = !empty($learner_waiting_enrollment);
 $is_mgr = !empty($is_lms_manager);
-$this->load->view('partials/header', array('title' => 'Training — Module · Topic · Assignment · Assessment'));
+$this->load->view('partials/header', array(
+  'title' => 'Training — Module · Topic · Assignment · Assessment',
+  'extra_css' => array('assets/css/lms-ui.css'),
+));
 ?>
 <div class="container-fluid py-4">
+  <style>
+    .tl-card { border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 8px 18px rgba(15,23,42,.06); background:#fff; transition:all .2s ease; }
+    .tl-card:hover { transform: translateY(-2px); }
+    .tl-progress { height:8px; border-radius:999px; }
+  </style>
   <nav aria-label="breadcrumb" class="mb-2">
     <ol class="breadcrumb small mb-0">
       <li class="breadcrumb-item active" aria-current="page">Training hub</li>
@@ -28,19 +36,19 @@ $this->load->view('partials/header', array('title' => 'Training — Module · To
       </a>
     </div>
     <div class="col-md-4">
-      <a class="card border-0 shadow-sm text-decoration-none h-100 text-body" href="<?php echo site_url('training/my-submissions'); ?>">
+      <a class="card tl-card text-decoration-none h-100 text-body" href="<?php echo site_url('training'); ?>">
         <div class="card-body">
           <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.65rem;">Assignment</div>
-          <div class="fw-semibold">My submissions</div>
-          <div class="small text-muted">Files uploaded for assignments</div>
+          <div class="fw-semibold">Assignment uploads</div>
+          <div class="small text-muted">Upload and track assignment files</div>
         </div>
       </a>
     </div>
     <div class="col-md-4">
-      <a class="card border-0 shadow-sm text-decoration-none h-100 text-body" href="<?php echo site_url('training-assessment/my-assignments'); ?>">
+      <a class="card tl-card text-decoration-none h-100 text-body" href="<?php echo site_url('training-assessment'); ?>">
         <div class="card-body">
           <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.65rem;">Assessment</div>
-          <div class="fw-semibold">My assessments</div>
+          <div class="fw-semibold">Assessment list</div>
           <div class="small text-muted">Tests and results</div>
         </div>
       </a>
@@ -49,20 +57,32 @@ $this->load->view('partials/header', array('title' => 'Training — Module · To
 
   <div class="row g-4">
     <div class="col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
+      <div class="card tl-card h-100">
         <div class="card-header bg-white fw-semibold">Module</div>
         <div class="card-body p-0">
           <?php if (empty($modules)): ?>
             <p class="text-muted small mb-0 p-3"><?php echo $waiting ? 'No enrollments — nothing to show here yet.' : 'No modules available.'; ?></p>
           <?php else: ?>
-            <ul class="list-group list-group-flush">
+            <div class="p-2">
               <?php foreach ($modules as $m): ?>
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  <span><?php echo htmlspecialchars($m->title); ?></span>
-                  <a class="btn btn-sm btn-primary" href="<?php echo site_url('training/module/' . (int) $m->id); ?>">Open module</a>
-                </li>
+                <div class="tl-card p-3 mb-2">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="fw-semibold"><?php echo htmlspecialchars($m->title); ?></div>
+                    <a class="btn btn-sm btn-primary w-100 w-md-auto" href="<?php echo site_url('training/module/' . (int) $m->id); ?>">Start / Continue</a>
+                  </div>
+                  <?php
+                    $statusTxt = 'Not Started';
+                    $pct = 0;
+                    if (!empty($m->topic_count) && (int)$m->topic_count > 0) {
+                      $pct = 15;
+                      $statusTxt = 'In Progress';
+                    }
+                  ?>
+                  <div class="small text-muted mt-2">Duration: <?php echo !empty($m->topic_count) ? (int)$m->topic_count . ' topics' : 'N/A'; ?> · Status: <?php echo $statusTxt; ?></div>
+                  <div class="progress tl-progress mt-2"><div class="progress-bar bg-primary" style="width:<?php echo (int)$pct; ?>%"></div></div>
+                </div>
               <?php endforeach; ?>
-            </ul>
+            </div>
           <?php endif; ?>
         </div>
       </div>

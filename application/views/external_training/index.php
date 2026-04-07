@@ -3,12 +3,24 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $this->load->view('partials/header', array(
   'title' => 'External Trainings',
   'with_sidebar' => true,
+  'extra_css' => array('assets/css/lms-ui.css'),
 ));
 $canAdd = function_exists('has_module_access') && (has_module_access('external_training') || has_module_access('external_training_add'));
 $canEdit = function_exists('has_module_access') && (has_module_access('external_training') || has_module_access('external_training_edit'));
 $canDelete = function_exists('has_module_access') && (has_module_access('external_training') || has_module_access('external_training_delete'));
 ?>
 <div class="container-fluid py-3">
+  <style>
+    .et-wrap { background:#f8fafc; border-radius:12px; padding:16px; }
+    .et-card { border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 8px 18px rgba(15,23,42,.06); background:#fff; }
+    .et-card:hover { box-shadow:0 10px 20px rgba(15,23,42,.08); }
+    @media (max-width: 991.98px) {
+      .et-table-wrap { display:none; }
+      .et-mobile { display:block !important; }
+    }
+    @media (min-width: 992px) { .et-mobile { display:none !important; } }
+  </style>
+  <div class="et-wrap">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">External Trainings</h1>
     <?php if ($canAdd): ?>
@@ -31,16 +43,19 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
     </div>
   <?php endif; ?>
 
-  <div class="card shadow-sm">
+  <div class="card et-card et-table-wrap">
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-striped table-hover mb-0 align-middle">
           <thead class="table-light">
             <tr>
               <th style="width:60px;">ID</th>
-              <th>Name</th>
+              <th>Title</th>
+              <th>Provider</th>
+              <th>Duration</th>
               <th>Active</th>
               <th>Play in app</th>
+              <th>Certificate</th>
               <th>Created</th>
               <th style="width:200px;">Actions</th>
             </tr>
@@ -51,6 +66,8 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
               <tr>
                 <td><?php echo (int) $r->id; ?></td>
                 <td><?php echo htmlspecialchars($r->name); ?></td>
+                <td>External</td>
+                <td>Self-paced</td>
                 <td>
                   <?php if ((int) $r->is_active === 1): ?>
                     <span class="badge bg-success">Active</span>
@@ -63,6 +80,11 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
                     <i class="bi bi-play-circle me-1"></i>Open (signed in)
                   </a>
                   <div class="small text-muted mt-1">URL/embed text is hidden on this list to reduce sharing.</div>
+                </td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Certificate upload UI placeholder">
+                    <i class="bi bi-upload me-1"></i>Upload
+                  </button>
                 </td>
                 <td><?php echo htmlspecialchars($r->created_at); ?></td>
                 <td>
@@ -81,7 +103,7 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
             <?php endforeach; ?>
           <?php else: ?>
             <tr>
-              <td colspan="6" class="text-center text-muted py-4">No external trainings found.</td>
+              <td colspan="9" class="text-center text-muted py-4">No external trainings found.</td>
             </tr>
           <?php endif; ?>
           </tbody>
@@ -89,6 +111,22 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
       </div>
     </div>
   </div>
+  <div class="et-mobile mt-3">
+    <?php if (!empty($rows)): foreach ($rows as $r): ?>
+    <div class="card et-card p-3 mb-2">
+      <div class="fw-semibold"><?php echo htmlspecialchars($r->name); ?></div>
+      <div class="small text-muted">Provider: External · Duration: Self-paced</div>
+      <div class="small text-muted">Created: <?php echo htmlspecialchars($r->created_at); ?></div>
+      <div class="mt-2 d-flex flex-wrap gap-2">
+        <a href="<?php echo site_url('external-training/watch/' . (int) $r->id); ?>" class="btn btn-sm btn-primary"><i class="bi bi-play-circle me-1"></i>Open</a>
+        <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-upload me-1"></i>Upload certificate</button>
+      </div>
+    </div>
+    <?php endforeach; else: ?>
+      <div class="card et-card p-4 text-center text-muted">No external trainings found.</div>
+    <?php endif; ?>
+  </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
 

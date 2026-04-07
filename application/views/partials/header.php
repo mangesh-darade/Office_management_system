@@ -292,7 +292,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
           has_module_access('training_screen_ta_create') ||
           has_module_access('training_screen_ta_import') ||
           has_module_access('training_screen_ta_report') ||
-          has_module_access('training_screen_ta_team_progress')
+          has_module_access('training_screen_ta_submissions')
       );
       $__ta_m = (int)$this->session->userdata('role_id') === 1 || (function_exists('has_module_access') && (
         has_module_access('training_assessment') ||
@@ -321,7 +321,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         </a>
         <div class="collapse <?php echo $__ta_nav_open?'show':''; ?>" id="mobile-training-assessment-submenu">
           <div class="ps-4">
-            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard'))): ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard')) || (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests')))): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-2"></i>Dashboard</a>
             <?php endif; ?>
             <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'))): ?>
@@ -333,11 +333,8 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-2"></i>Report</a>
             <?php endif; ?>
-            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_team_progress'))): ?>
-            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/team-progress'); ?>"><i class="bi bi-people me-2"></i>Team progress</a>
-            <?php endif; ?>
-            <?php if (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_assessment_manage') || has_module_access('training_assessment') || has_module_access('training_screen_ta_my_tests'))): ?>
-            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-link-45deg me-2"></i>Assessment (my tests)</a>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_submissions'))): ?>
+            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/submissions'); ?>"><i class="bi bi-list-check me-2"></i>Assessment submissions</a>
             <?php endif; ?>
             <?php if ($__tl_m && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training/my-training'); ?>"><i class="bi bi-columns-gap me-2"></i>Training hub</a>
@@ -345,17 +342,11 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if ($__tl_m && function_exists('training_tl_show_module_nav') && training_tl_show_module_nav()): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training'); ?>"><i class="bi bi-journal-richtext me-2"></i>Module</a>
             <?php endif; ?>
-            <?php if ($__tl_m && function_exists('training_tl_show_assignment_nav') && training_tl_show_assignment_nav()): ?>
-            <a class="nav-link sidebar-link small" href="<?php echo site_url('training/my-submissions'); ?>"><i class="bi bi-cloud-upload me-2"></i>Assignment</a>
-            <?php endif; ?>
             <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_catalog') && training_lms_admin_can_catalog())): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-2"></i>LMS admin</a>
             <?php endif; ?>
             <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_submissions') && training_lms_admin_can_submissions())): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin/assignment-submissions'); ?>"><i class="bi bi-table me-2"></i>Assignment submissions</a>
-            <?php endif; ?>
-            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_lms_admin_can_office') && training_lms_admin_can_office())): ?>
-            <a class="nav-link sidebar-link small" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-2"></i>LMS office CSV</a>
             <?php endif; ?>
             <?php if ($__ext_nav): ?>
             <a class="nav-link sidebar-link small <?php echo ($active==='external-training' && (!$active_sub || in_array((string) $active_sub, array('create', 'edit'), true)))?'active':''; ?>" href="<?php echo site_url('external-training'); ?>"><i class="bi bi-collection-play me-2"></i>External trainings</a>

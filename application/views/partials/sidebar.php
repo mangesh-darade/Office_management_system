@@ -171,7 +171,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           has_module_access('training_screen_ta_create') ||
           has_module_access('training_screen_ta_import') ||
           has_module_access('training_screen_ta_report') ||
-          has_module_access('training_screen_ta_team_progress')
+          has_module_access('training_screen_ta_submissions')
       );
       $ta_show = (isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (
           has_module_access('training_assessment') ||
@@ -200,7 +200,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_has_any_admin_screen') && training_ta_has_any_admin_screen())) {
           $ta_parent_url = site_url('training-assessment');
       } elseif (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests'))) {
-          $ta_parent_url = site_url('training-assessment/my-assignments');
+          $ta_parent_url = site_url('training-assessment');
       } elseif ($tl_show) {
           $ta_parent_url = site_url('training/my-training');
       } elseif (!empty($ext_train_show) && !$ta_show && !$tl_show) {
@@ -221,7 +221,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         </div>
         <div class="ps-3 sidebar-submenu" id="training-assessment-submenu">
           <div class="submenu-list">
-            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard'))): ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard')) || (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests')))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && (!$active_sub || $active_sub==='dashboard'))?'active':''; ?>" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'))): ?>
@@ -233,32 +233,23 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && strpos((string) $active_sub, 'report') === 0)?'active':''; ?>" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-1"></i>Report</a>
             <?php endif; ?>
-            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_team_progress'))): ?>
-            <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='team-progress')?'active':''; ?>" href="<?php echo site_url('training-assessment/team-progress'); ?>"><i class="bi bi-people me-1"></i>Team progress</a>
-            <?php endif; ?>
-            <?php if (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_assessment_manage') || has_module_access('training_assessment') || has_module_access('training_screen_ta_my_tests'))): ?>
-            <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='my-assignments')?'active':''; ?>" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-link-45deg me-1"></i>Assessment (my tests)</a>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_submissions'))): ?>
+            <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='submissions')?'active':''; ?>" href="<?php echo site_url('training-assessment/submissions'); ?>"><i class="bi bi-list-check me-1"></i>Assessment submissions</a>
             <?php endif; ?>
             <?php if ($tl_show && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>
             <a class="submenu-link <?php echo ($active==='training' && $active_sub==='my-training')?'active':''; ?>" href="<?php echo site_url('training/my-training'); ?>"><i class="bi bi-columns-gap me-1"></i>Training hub</a>
             <?php endif; ?>
             <?php if ($tl_show && function_exists('training_tl_show_module_nav') && training_tl_show_module_nav()): ?>
-            <a class="submenu-link <?php echo ($active==='training' && $active_sub!=='my-submissions' && $active_sub!=='my-training')?'active':''; ?>" href="<?php echo site_url('training'); ?>"><i class="bi bi-journal-richtext me-1"></i>Module</a>
-            <?php endif; ?>
-            <?php if ($tl_show && function_exists('training_tl_show_assignment_nav') && training_tl_show_assignment_nav()): ?>
-            <a class="submenu-link <?php echo ($active==='training' && $active_sub==='my-submissions')?'active':''; ?>" href="<?php echo site_url('training/my-submissions'); ?>"><i class="bi bi-cloud-upload me-1"></i>Assignment</a>
+            <a class="submenu-link <?php echo ($active==='training' && $active_sub!=='my-training')?'active':''; ?>" href="<?php echo site_url('training'); ?>"><i class="bi bi-journal-richtext me-1"></i>Module</a>
             <?php endif; ?>
             <?php if ($ext_train_show): ?>
             <a class="submenu-link <?php echo ($active==='external-training' && (!$active_sub || in_array((string) $active_sub, array('create', 'edit'), true))) ? 'active' : ''; ?>" href="<?php echo site_url('external-training'); ?>"><i class="bi bi-collection-play me-1"></i>External trainings</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_catalog') && training_lms_admin_can_catalog())): ?>
-            <a class="submenu-link <?php echo ($active==='training-lms-admin' && !in_array((string) $active_sub, array('assignment-submissions', 'office-feed'), true))?'active':''; ?>" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-1"></i>LMS admin</a>
+            <a class="submenu-link <?php echo ($active==='training-lms-admin' && $active_sub!=='assignment-submissions')?'active':''; ?>" href="<?php echo site_url('training-lms-admin'); ?>"><i class="bi bi-gear me-1"></i>LMS admin</a>
             <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_submissions') && training_lms_admin_can_submissions())): ?>
             <a class="submenu-link <?php echo ($active==='training-lms-admin' && $active_sub==='assignment-submissions')?'active':''; ?>" href="<?php echo site_url('training-lms-admin/assignment-submissions'); ?>"><i class="bi bi-table me-1"></i>Assignment submissions</a>
-            <?php endif; ?>
-            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_lms_admin_can_office') && training_lms_admin_can_office())): ?>
-            <a class="submenu-link <?php echo ($active==='training-lms-admin' && strpos((string) $active_sub, 'office-feed') === 0)?'active':''; ?>" href="<?php echo site_url('training-lms-admin/office-feed'); ?>"><i class="bi bi-file-earmark-spreadsheet me-1"></i>LMS office CSV</a>
             <?php endif; ?>
           </div>
         </div>

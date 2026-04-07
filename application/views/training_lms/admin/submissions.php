@@ -52,6 +52,7 @@
               <td><?php echo $s->score !== null ? htmlspecialchars($s->score) : '—'; ?></td>
               <td>
                 <a class="btn btn-sm btn-outline-secondary mb-1" href="<?php echo site_url('training-lms-admin/download/' . (int) $s->id); ?>">Download</a>
+                <?php if (!empty($can_review_submissions)): ?>
                 <?php echo form_open('training-lms-admin/submission/save', array('class' => 'border rounded p-2 bg-light')); ?>
                 <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                 <input type="hidden" name="submission_id" value="<?php echo (int) $s->id; ?>">
@@ -74,6 +75,7 @@
                   </div>
                 </div>
                 <?php echo form_close(); ?>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>

@@ -117,12 +117,10 @@ class Training_assessment_model extends CI_Model
     /**
      * Dashboard list with assignment stats and filters.
      *
-     * @param string      $search   title/description LIKE
-     * @param string      $status   all|active|inactive
-     * @param string      $sort     created_desc|created_asc|title_asc|title_desc|questions_desc
-     */
-    /**
-     * @param int $scope_user_id If &gt; 0 and not org admin, limit to assessments created by or assigned to this user.
+     * @param string $search          title/description LIKE
+     * @param string $status          all|active|inactive
+     * @param string $sort            created_desc|created_asc|title_asc|title_desc|questions_desc
+     * @param int    $scope_user_id   If &gt; 0 (non–org-admin), only assessments with an assignment row for this user_id.
      */
     public function list_assessments_with_stats($search = '', $status = 'all', $sort = 'created_desc', $scope_user_id = 0)
     {
@@ -136,10 +134,8 @@ class Training_assessment_model extends CI_Model
         $this->db->from($ta . ' a');
         $scope_user_id = (int) $scope_user_id;
         if ($scope_user_id > 0) {
-            $this->db->group_start()
-                ->where('a.created_by', $scope_user_id)
-                ->or_where('a.id IN (SELECT au2.assessment_id FROM `' . $tau . '` au2 WHERE au2.user_id = ' . (int) $scope_user_id . ')', null, false)
-            ->group_end();
+            // User scope: only assessments assigned to this user (admin passes 0 => all).
+            $this->db->where('a.id IN (SELECT au2.assessment_id FROM `' . $tau . '` au2 WHERE au2.user_id = ' . (int) $scope_user_id . ')', null, false);
         }
         $search = trim((string)$search);
         if ($search !== '') {
@@ -524,14 +520,10 @@ class Training_assessment_model extends CI_Model
     }
 
     /**
-     * @param int    $employee_user_id 0 = all employees (ignored when assignee_type is candidate)
-     * @param string $assignee_type     all|employee|candidate
-     */
-    /**
      * Office feed: question bank with LMS topic names (when training_topics links assessment_id).
      *
      * @param int $assessment_id 0 = all
-     * @param int $scope_user_id If &gt; 0, only assessments created by or assigned to this user.
+     * @param int $scope_user_id If &gt; 0, only questions for assessments assigned to this user (assessment_users.user_id).
      * @return array
      */
     public function list_office_question_bank_rows($assessment_id = 0, $scope_user_id = 0)
@@ -553,10 +545,8 @@ class Training_assessment_model extends CI_Model
         $this->db->join($ta . ' a', 'a.id = q.assessment_id', 'inner');
         $scope_user_id = (int) $scope_user_id;
         if ($scope_user_id > 0) {
-            $this->db->group_start()
-                ->where('a.created_by', $scope_user_id)
-                ->or_where('a.id IN (SELECT au3.assessment_id FROM `' . $tau . '` au3 WHERE au3.user_id = ' . $scope_user_id . ')', null, false)
-            ->group_end();
+            // User scope: only question bank rows for assessments assigned to this user.
+            $this->db->where('a.id IN (SELECT au3.assessment_id FROM `' . $tau . '` au3 WHERE au3.user_id = ' . $scope_user_id . ')', null, false);
         }
         if ((int) $assessment_id > 0) {
             $this->db->where('q.assessment_id', (int) $assessment_id);
@@ -577,10 +567,8 @@ class Training_assessment_model extends CI_Model
      * @param int    $assessment_id 0 = all
      * @param string $date_from     Y-m-d or empty
      * @param string $date_to       Y-m-d or empty
+     * @param int    $scope_user_id If &gt; 0, only rows for this employee user_id (employee attempts).
      * @return array
-     */
-    /**
-     * @param int $scope_user_id If &gt; 0, only rows for this employee user_id (employee attempts).
      */
     public function list_office_attempt_detail_rows($assessment_id = 0, $date_from = '', $date_to = '', $scope_user_id = 0)
     {
@@ -738,6 +726,10 @@ class Training_assessment_model extends CI_Model
         return "COALESCE(NULLIF(TRIM(u.name), ''), u.email)";
     }
 
+    /**
+     * @param int    $employee_user_id 0 = all employees (ignored when assignee_type is candidate)
+     * @param string $assignee_type     all|employee|candidate
+     */
     public function list_assignments_for_report($employee_user_id, $date_from, $date_to, $assessment_id = 0, $assignee_type = 'all')
     {
         $tau = $this->t['assessment_users'];

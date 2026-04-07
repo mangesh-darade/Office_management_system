@@ -392,7 +392,15 @@ class Training_lms_admin extends CI_Controller
         }
         $data['topic'] = $t;
         $data['assignment'] = $assign;
-        $data['submissions'] = $this->lms_assign->list_submissions_for_assignment((int) $assign->id);
+        $rows = $this->lms_assign->list_submissions_for_assignment((int) $assign->id);
+        if (!$this->_lms_admin_can_view_all()) {
+            $uid = (int) $this->session->userdata('user_id');
+            $rows = array_values(array_filter($rows, function ($r) use ($uid) {
+                return isset($r->user_id) && (int) $r->user_id === $uid;
+            }));
+        }
+        $data['submissions'] = $rows;
+        $data['can_review_submissions'] = $this->_lms_admin_can_view_all();
         $this->load->view('training_lms/admin/submissions', $data);
     }
 
@@ -400,6 +408,9 @@ class Training_lms_admin extends CI_Controller
     {
         if (!$this->lms_assign->schema_ready()) {
             show_error('Schema not installed.', 500);
+        }
+        if (!$this->_lms_admin_can_view_all()) {
+            show_error('Access denied.', 403);
         }
         if ($this->input->method() !== 'post') {
             show_404();
@@ -441,168 +452,34 @@ class Training_lms_admin extends CI_Controller
     }
 
     /**
-     * Private admin list: all topic assignment submissions (read-only overview + download / link to grade).
+     * Assignment submissions overview:
+     * - LMS admin/manage users: all users' rows
+     * - restricted submissions role: own rows only
      */
     public function assignment_submissions_list()
     {
-        if (!$this->office_feed->lms_ready() || !$this->lms_assign->schema_ready()) {
+        if (!$this->lms_assign->schema_ready()) {
             $this->_schema_missing();
             return;
         }
-        $data['rows'] = $this->office_feed->feed_assignment_submissions();
+        $uid = (int) $this->session->userdata('user_id');
+        $showAll = $this->_lms_admin_can_view_all();
+        $this->db->select('s.id AS submission_id, s.user_id, t.id AS topic_id, m.title AS module_name, t.name AS topic_name, asn.name AS assignment_name, u.name AS submitted_by_name, u.email AS submitted_by_email, s.submitted_at, s.original_filename AS attachment_filename, s.stored_filename, s.score AS assignment_score, grader.name AS assessed_by_name, s.status, s.feedback', false);
+        $this->db->from('assignment_submissions s');
+        $this->db->join('assignments asn', 'asn.id = s.assignment_id', 'inner');
+        $this->db->join('training_topics t', 't.id = asn.topic_id', 'inner');
+        $this->db->join('training_modules m', 'm.id = t.module_id', 'inner');
+        $this->db->join('users u', 'u.id = s.user_id', 'left');
+        $this->db->join('users grader', 'grader.id = s.assessed_by', 'left');
+        if (!$showAll && $uid > 0) {
+            $this->db->where('s.user_id', $uid);
+        }
+        $this->db->order_by('s.submitted_at', 'DESC');
+        $this->db->order_by('s.id', 'DESC');
+        $data['rows'] = $this->db->get()->result();
+        $data['show_all_submissions'] = $showAll;
+        $data['can_review_submissions'] = $showAll;
         $this->load->view('training_lms/admin/assignment_submissions_list', $data);
-    }
-
-    /**
-     * Office / spreadsheet-style CSV feeds for LMS (modules, assignments, submissions).
-     */
-    public function office_feed()
-    {
-        if (!$this->office_feed->lms_ready()) {
-            $this->_schema_missing();
-            return;
-        }
-        $this->load->view('training_lms/admin/office_feed');
-    }
-
-    /**
-     * POST: CSV upload — create/update file assignments on existing topics (see Office feed page).
-     */
-    public function office_feed_import_assignments()
-    {
-        if (!$this->office_feed->lms_ready() || !$this->lms_assign->schema_ready()) {
-            show_error('LMS schema not installed.', 500);
-        }
-        if ($this->input->method() !== 'post') {
-            show_404();
-        }
-        if (empty($_FILES['csv_file']['tmp_name']) || !is_uploaded_file($_FILES['csv_file']['tmp_name'])) {
-            $this->session->set_flashdata('error', 'Please choose a CSV file to upload.');
-            redirect('training-lms-admin/office-feed');
-            return;
-        }
-        if ((int) $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
-            $this->session->set_flashdata('error', 'Upload failed.');
-            redirect('training-lms-admin/office-feed');
-            return;
-        }
-        if (!empty($_FILES['csv_file']['size']) && (int) $_FILES['csv_file']['size'] > 2097152) {
-            $this->session->set_flashdata('error', 'File too large (max 2 MB).');
-            redirect('training-lms-admin/office-feed');
-            return;
-        }
-        $result = $this->office_feed->import_lms_assignments_from_csv_path($_FILES['csv_file']['tmp_name']);
-        $msgParts = array();
-        if ((int) $result['imported'] > 0) {
-            $msgParts[] = 'Imported or updated ' . (int) $result['imported'] . ' assignment(s).';
-            if ((int) $result['skipped'] > 0) {
-                $msgParts[] = 'Skipped ' . (int) $result['skipped'] . ' row(s).';
-            }
-        }
-        if (!empty($result['errors'])) {
-            $msgParts[] = implode(' ', $result['errors']);
-        }
-        if ((int) $result['imported'] > 0) {
-            $this->session->set_flashdata('success', implode(' ', $msgParts));
-        } elseif (!empty($msgParts)) {
-            $this->session->set_flashdata('error', implode(' ', $msgParts));
-        } else {
-            $this->session->set_flashdata('error', 'No rows were imported.');
-        }
-        redirect('training-lms-admin/office-feed');
-    }
-
-    /**
-     * GET kind: catalog | assignments | submissions
-     */
-    public function office_feed_export($kind = '')
-    {
-        if (!$this->office_feed->lms_ready()) {
-            show_error('LMS schema not installed.', 500);
-        }
-        $kind = strtolower(trim((string) $kind));
-        $allowed = array('catalog', 'assignments', 'submissions');
-        if (!in_array($kind, $allowed, true)) {
-            show_404();
-        }
-
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="lms_office_' . $kind . '_' . date('Y-m-d_His') . '.csv"');
-        echo "\xEF\xBB\xBF";
-        $out = fopen('php://output', 'w');
-
-        if ($kind === 'catalog') {
-            $rows = $this->office_feed->feed_module_topic_catalog();
-            fputcsv($out, array(
-                'Module Name',
-                'Topic',
-                'High-Level Details',
-                'Prerequisites',
-                'Duration (Hours)',
-                'Has Assignment (0/1)',
-                'Has Assessment (0/1)',
-                'Linked Assessment Id',
-                'Linked Assessment Title',
-            ));
-            foreach ($rows as $r) {
-                fputcsv($out, array(
-                    (string) $r->module_name,
-                    (string) $r->topic_name,
-                    (string) $r->high_level_details,
-                    (string) $r->prerequisites,
-                    $r->duration_hours !== null ? (string) $r->duration_hours : '',
-                    isset($r->has_assignment) ? (string) (int) $r->has_assignment : '',
-                    isset($r->has_assessment) ? (string) (int) $r->has_assessment : '',
-                    isset($r->assessment_id) && (int) $r->assessment_id > 0 ? (string) (int) $r->assessment_id : '',
-                    isset($r->linked_assessment_title) ? (string) $r->linked_assessment_title : '',
-                ));
-            }
-        } elseif ($kind === 'assignments') {
-            $rows = $this->office_feed->feed_assignment_definitions();
-            fputcsv($out, array('Module Name', 'Topic', 'Assignment Name', 'Assignment Details', 'Max submissions (0=unlimited)'));
-            foreach ($rows as $r) {
-                fputcsv($out, array(
-                    (string) $r->module_name,
-                    (string) $r->topic_name,
-                    (string) $r->assignment_name,
-                    (string) $r->assignment_details,
-                    isset($r->max_submissions) ? (string) (int) $r->max_submissions : '0',
-                ));
-            }
-        } else {
-            $rows = $this->office_feed->feed_assignment_submissions();
-            fputcsv($out, array(
-                'Module Name',
-                'Topic',
-                'Assignment Name',
-                'Submitted By',
-                'Submitted By Email',
-                'Submitted At',
-                'Attachment (original filename)',
-                'Assignment Score',
-                'Assessed By',
-                'Status',
-                'Feedback',
-            ));
-            foreach ($rows as $r) {
-                fputcsv($out, array(
-                    (string) $r->module_name,
-                    (string) $r->topic_name,
-                    (string) $r->assignment_name,
-                    (string) $r->submitted_by_name,
-                    (string) $r->submitted_by_email,
-                    $r->submitted_at ? (string) $r->submitted_at : '',
-                    (string) $r->attachment_filename,
-                    $r->assignment_score !== null && $r->assignment_score !== '' ? (string) $r->assignment_score : '',
-                    (string) $r->assessed_by_name,
-                    (string) $r->status,
-                    isset($r->feedback) ? (string) $r->feedback : '',
-                ));
-            }
-        }
-
-        fclose($out);
-        exit;
     }
 
     public function download($submission_id)
@@ -627,6 +504,14 @@ class Training_lms_admin extends CI_Controller
         $this->load->view('partials/header', array('title' => 'Training LMS Admin'));
         echo '<div class="container py-5"><div class="alert alert-warning">Run <code>database/training_lms_module.sql</code>.</div></div>';
         $this->load->view('partials/footer');
+    }
+
+    private function _lms_admin_can_view_all()
+    {
+        if ((int) $this->session->userdata('role_id') === 1) {
+            return true;
+        }
+        return function_exists('has_module_access') && has_module_access('training_lms_manage');
     }
 
     /**

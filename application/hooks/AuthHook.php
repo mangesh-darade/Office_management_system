@@ -348,16 +348,16 @@ class AuthHook {
             'training_assessment' => [
                 'training_assessment', 'training_assessment_manage', 'training_assessment_take',
                 'training_screen_ta_dashboard', 'training_screen_ta_create', 'training_screen_ta_import',
-                'training_screen_ta_report', 'training_screen_ta_team_progress', 'training_screen_ta_my_tests',
+                'training_screen_ta_report', 'training_screen_ta_submissions',
             ],
             'training_assessment_take' => ['training_assessment', 'training_assessment_manage', 'training_assessment_take'],
             'training_lms' => [
                 'training_lms', 'training_lms_manage',
-                'training_screen_tl_hub', 'training_screen_tl_module', 'training_screen_tl_assignment',
+                'training_screen_tl_hub', 'training_screen_tl_module',
             ],
             'training_lms_admin' => [
                 'training_lms_manage',
-                'training_screen_lms_admin', 'training_screen_lms_submissions', 'training_screen_lms_office_csv',
+                'training_screen_lms_admin', 'training_screen_lms_submissions',
             ],
             'clients'           => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete'],
             'payroll'           => ['payroll', 'payroll_view', 'payroll_manage'],

@@ -5,48 +5,99 @@ $name = $isCand ? $au->candidate_name : (!empty($au->assignee_user_name) ? $au->
 $this->load->view('partials/header', array(
   'title' => 'Assessment result',
   'with_sidebar' => (bool)(int)$this->session->userdata('user_id'),
+  'extra_css' => array('assets/css/lms-ui.css'),
 ));
 $showRetake = !empty($show_retake);
 $showCorrect = !empty($show_correct);
+$scorePct = $result ? (float)$result->score_percent : 0;
 ?>
+<style>
+  .ta-result-head { background:linear-gradient(135deg, rgba(59,130,246,.14), rgba(255,255,255,.95)); }
+  .ta-kpi .label { color:#64748b; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; }
+  .ta-kpi .value { font-weight:800; font-size:1.35rem; color:#0f172a; line-height:1.2; }
+  .ta-kpi .card-body { padding:.85rem .75rem; }
+  .ta-q-card { border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+  .ta-ok { color:#22c55e; }
+  .ta-bad { color:#ef4444; }
+  /* Mobile: compact single-line KPI rows */
+  @media (max-width: 575.98px) {
+    .ta-result-wrap.lms-soft-wrap { padding:10px !important; }
+    .ta-kpi-row { --bs-gutter-y: 0.35rem; }
+    .ta-kpi .card-body {
+      padding: .45rem .6rem !important;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      text-align: left !important;
+      gap: .5rem;
+      min-height: 0;
+    }
+    .ta-kpi .label {
+      font-size: .62rem;
+      letter-spacing: .04em;
+      margin: 0;
+      flex-shrink: 0;
+      max-width: 42%;
+    }
+    .ta-kpi .value,
+    .ta-kpi .fs-4,
+    .ta-kpi .ta-kpi-learner-name {
+      font-size: .95rem;
+      font-weight: 700;
+      text-align: right;
+      flex: 1;
+      min-width: 0;
+    }
+    .ta-kpi .fs-4 { font-size: 1rem !important; margin: 0; font-weight: 400; }
+    .ta-kpi .badge { font-size: .7rem; padding: .2em .45em; }
+    .ta-kpi .small { font-size: .72rem !important; line-height: 1.2; }
+    .ta-kpi-learner-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ta-progress-mobile .small { font-size: .75rem !important; }
+    .ta-progress-mobile .progress { height: 6px !important; }
+  }
+  @media (max-width: 991.98px) {
+    .ta-result-table { display:none; }
+    .ta-q-mobile { display:block !important; }
+  }
+  @media (min-width: 992px) {
+    .ta-q-mobile { display:none !important; }
+  }
+</style>
 <div class="container py-4">
+  <div class="ta-result-wrap lms-soft-wrap">
   <?php if ($this->session->flashdata('ta_submit_notice')): ?>
     <div class="alert alert-info"><?php echo htmlspecialchars($this->session->flashdata('ta_submit_notice')); ?></div>
-  <?php endif; ?>
-  <?php if ($result): ?>
-  <div class="card border-0 shadow-sm mb-4 bg-success bg-opacity-10 border-success">
-    <div class="card-body text-center py-4">
-      <div class="display-5 text-success mb-2" aria-hidden="true"><i class="bi bi-check-circle-fill"></i></div>
-      <h1 class="h4 mb-2">Thank you</h1>
-      <p class="text-muted mb-0">Your responses have been submitted. Your score and question summary are below.</p>
-    </div>
-  </div>
   <?php endif; ?>
   <h2 class="h5 mb-3">Result: <?php echo htmlspecialchars($au->assessment_title); ?></h2>
   <?php if (!$result): ?>
     <div class="alert alert-warning">No result record found.</div>
   <?php else: ?>
-    <div class="row g-3 mb-4">
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
+    <div class="row g-3 mb-4 ta-kpi-row">
+      <div class="col-6 col-md-3">
+        <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
-            <div class="text-muted small">Score</div>
-            <div class="display-6 fw-bold"><?php echo htmlspecialchars(number_format((float)$result->score_percent, 1)); ?>%</div>
+            <div class="label">Score</div>
+            <div class="value"><?php echo htmlspecialchars(number_format((float)$result->score_percent, 1)); ?>%</div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
+      <div class="col-6 col-md-3">
+        <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
-            <div class="text-muted small">Points</div>
-            <div class="fs-4 fw-bold"><?php echo htmlspecialchars($result->earned_points); ?> / <?php echo htmlspecialchars($result->total_points); ?></div>
+            <div class="label">Total marks</div>
+            <div class="value"><?php echo htmlspecialchars($result->earned_points); ?> / <?php echo htmlspecialchars($result->total_points); ?></div>
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
+      <div class="col-6 col-md-3">
+        <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
-            <div class="text-muted small">Outcome</div>
+            <div class="label">Pass / Fail</div>
             <div class="fs-4">
               <?php if ((int)$result->passed === 1): ?>
                 <span class="badge bg-success">Passed</span>
@@ -57,17 +108,23 @@ $showCorrect = !empty($show_correct);
           </div>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
+      <div class="col-6 col-md-3">
+        <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
-            <div class="text-muted small">Candidate</div>
-            <div class="small fw-semibold"><?php echo htmlspecialchars($name); ?></div>
+            <div class="label">Learner</div>
+            <div class="small fw-semibold ta-kpi-learner-name"><?php echo htmlspecialchars($name); ?></div>
             <?php if ($isCand && !empty($au->candidate_email)): ?>
-              <div class="small text-muted"><?php echo htmlspecialchars($au->candidate_email); ?></div>
+              <div class="small text-muted d-none d-sm-block"><?php echo htmlspecialchars($au->candidate_email); ?></div>
             <?php endif; ?>
           </div>
         </div>
       </div>
+    </div>
+    <div class="mb-3 ta-progress-mobile">
+      <div class="progress" style="height:8px; border-radius:999px;">
+        <div class="progress-bar bg-primary" role="progressbar" style="width:<?php echo max(0, min(100, $scorePct)); ?>%"></div>
+      </div>
+      <div class="small text-muted mt-1">Overall score progress: <?php echo htmlspecialchars(number_format($scorePct, 1)); ?>%</div>
     </div>
 
     <?php if ($showRetake): ?>
@@ -81,6 +138,7 @@ $showCorrect = !empty($show_correct);
     <?php if ($result && !empty($au->id)): ?>
       <p class="mb-3">
         <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="<?php echo site_url('training-assessment/certificate/' . (int) $au->id); ?>"><i class="bi bi-award me-1"></i>Print certificate</a>
+        <button type="button" class="btn btn-primary btn-sm" onclick="window.print();"><i class="bi bi-file-earmark-pdf me-1"></i>Download Result (PDF)</button>
       </p>
     <?php endif; ?>
 
@@ -91,7 +149,7 @@ $showCorrect = !empty($show_correct);
     <?php if (empty($details)): ?>
     <p class="text-muted small">No saved answers for this attempt.</p>
     <?php else: ?>
-    <div class="table-responsive card shadow-sm border-0">
+    <div class="table-responsive ta-soft-card ta-result-table">
       <table class="table table-sm align-middle mb-0">
         <thead class="table-light">
           <tr>
@@ -125,9 +183,9 @@ $showCorrect = !empty($show_correct);
             <td><?php echo htmlspecialchars($d->points_earned); ?> / <?php echo htmlspecialchars($d->question_points); ?></td>
             <td>
               <?php if ((int)$d->is_graded_correct === 1): ?>
-                <span class="text-success" aria-label="Correct"><i class="bi bi-check-circle"></i></span>
+                <span class="ta-ok" aria-label="Correct"><i class="bi bi-check-circle-fill"></i> Correct</span>
               <?php elseif ((int)$d->is_graded_correct === 0): ?>
-                <span class="text-danger" aria-label="Incorrect"><i class="bi bi-x-circle"></i></span>
+                <span class="ta-bad" aria-label="Incorrect"><i class="bi bi-x-circle-fill"></i> Wrong</span>
               <?php else: ?>
                 <span class="text-muted">—</span>
               <?php endif; ?>
@@ -137,6 +195,28 @@ $showCorrect = !empty($show_correct);
         </tbody>
       </table>
     </div>
+    <div class="ta-q-mobile mt-3">
+      <?php foreach ($details as $d): ?>
+      <div class="ta-q-card p-3 mb-2">
+        <div class="fw-semibold mb-1"><?php echo nl2br(htmlspecialchars(strip_tags($d->question_text))); ?></div>
+        <div class="small text-muted mb-1">Type: <?php echo htmlspecialchars(strtoupper($d->question_type)); ?></div>
+        <?php if ($showCorrect): ?>
+        <div class="small"><strong>Selected:</strong> <?php echo isset($d->ta_your_answer) ? nl2br(htmlspecialchars($d->ta_your_answer !== '' ? $d->ta_your_answer : '—')) : '—'; ?></div>
+        <div class="small"><strong>Correct:</strong> <?php echo isset($d->ta_correct_summary) ? nl2br(htmlspecialchars($d->ta_correct_summary)) : '—'; ?></div>
+        <?php endif; ?>
+        <div class="small"><strong>Points:</strong> <?php echo htmlspecialchars($d->points_earned); ?> / <?php echo htmlspecialchars($d->question_points); ?></div>
+        <div class="small mt-1">
+          <?php if ((int)$d->is_graded_correct === 1): ?>
+            <span class="ta-ok"><i class="bi bi-check-circle-fill"></i> Correct</span>
+          <?php elseif ((int)$d->is_graded_correct === 0): ?>
+            <span class="ta-bad"><i class="bi bi-x-circle-fill"></i> Wrong</span>
+          <?php else: ?>
+            <span class="text-muted">—</span>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
     <?php endif; ?>
   <?php endif; ?>
 
@@ -145,5 +225,6 @@ $showCorrect = !empty($show_correct);
       <a href="<?php echo site_url('training-assessment'); ?>" class="btn btn-outline-secondary">Dashboard</a>
     <?php endif; ?>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

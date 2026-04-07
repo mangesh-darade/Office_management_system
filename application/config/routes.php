@@ -430,13 +430,12 @@ $route['training-assessment/ajax-run-code'] = 'training_assessment_take/ajax_run
 $route['training-assessment/ajax-timer-sync'] = 'training_assessment_take/ajax_timer_sync';
 $route['training-assessment/candidate-profile'] = 'training_assessment_take/candidate_profile';
 $route['training-assessment/retake-assessment'] = 'training_assessment_take/retake_assessment';
-$route['training-assessment/team-progress'] = 'training_assessment/team_progress';
 $route['training-assessment/certificate/(:num)'] = 'training_assessment/certificate/$1';
 $route['training-assessment/report'] = 'training_assessment/report';
+$route['training-assessment/submissions'] = 'training_assessment/submissions';
 $route['training-assessment/report/export'] = 'training_assessment/report_export';
 $route['training-assessment/office-export/questions'] = 'training_assessment/office_export_questions';
 $route['training-assessment/office-export/attempt-detail'] = 'training_assessment/office_export_attempt_detail';
-$route['training-assessment/my-assignments'] = 'training_assessment/my_assignments';
 $route['training-assessment/import'] = 'training_assessment/import_assessment';
 $route['training-assessment/import/process'] = 'training_assessment/import_process';
 $route['training-assessment/import/sample'] = 'training_assessment/import_sample_csv';
@@ -448,7 +447,6 @@ $route['training/topic/(:num)'] = 'training_lms/topic/$1';
 $route['training/start-assessment/(:num)'] = 'training_lms/start_assessment/$1';
 $route['training/submit-assignment'] = 'training_lms/submit_assignment';
 $route['training/download/(:num)'] = 'training_lms/download/$1';
-$route['training/my-submissions'] = 'training_lms/my_submissions';
 $route['training/my-training'] = 'training_lms/learner_hub';
 $route['training/complete-topic'] = 'training_lms/complete_topic';
 
@@ -477,9 +475,6 @@ $route['training-lms-admin/submissions/(:num)'] = 'training_lms_admin/submission
 $route['training-lms-admin/submission/save'] = 'training_lms_admin/submission_save';
 $route['training-lms-admin/download/(:num)'] = 'training_lms_admin/download/$1';
 $route['training-lms-admin/assignment-submissions'] = 'training_lms_admin/assignment_submissions_list';
-$route['training-lms-admin/office-feed'] = 'training_lms_admin/office_feed';
-$route['training-lms-admin/office-feed/export/(:any)'] = 'training_lms_admin/office_feed_export/$1';
-$route['training-lms-admin/office-feed/import-assignments'] = 'training_lms_admin/office_feed_import_assignments';
 
 // Performance Appraisals
 $route['performance'] = 'performance/index';

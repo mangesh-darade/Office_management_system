@@ -276,3 +276,162 @@ INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sor
 
 COMMIT;
 
+-- ==========================================================
+-- Day 2 Marketing Assessment Seed (MCQ only)
+-- ==========================================================
+START TRANSACTION;
+
+INSERT INTO `ta_assessments`
+(`title`,`description`,`time_limit_minutes`,`passing_marks`,`randomize_questions`,`shuffle_options`,`max_attempts`,`allow_retake`,`show_correct_after_submit`,`status`,`created_by`,`created_at`,`updated_at`)
+SELECT
+  'Day 2 - Marketing Funnel',
+  'Day 2 assessment focused on funnel stages, metrics, and optimization.',
+  45, 60.00, 1, 1, 0, 1, 1, 'active', 5, NOW(), NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM `ta_assessments` WHERE `title` = 'Day 2 - Marketing Funnel'
+);
+
+SET @aid2 := (SELECT `id` FROM `ta_assessments` WHERE `title` = 'Day 2 - Marketing Funnel' ORDER BY `id` DESC LIMIT 1);
+
+-- Q1
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which stage of the funnel focuses on attracting new users?',1.00,NULL,NULL,50.00,NULL,1,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Conversion',0,1,NOW()),(@q,'Retention',0,2,NOW()),(@q,'Awareness',1,3,NOW()),(@q,'Loyalty',0,4,NOW());
+
+-- Q2
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which metric is most relevant in the awareness stage?',1.00,NULL,NULL,50.00,NULL,2,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Conversion Rate',0,1,NOW()),(@q,'Impressions',1,2,NOW()),(@q,'Revenue',0,3,NOW()),(@q,'Retention Rate',0,4,NOW());
+
+-- Q3
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which of the following are part of the consideration stage?',1.00,NULL,NULL,50.00,NULL,3,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Product comparisons',0,1,NOW()),(@q,'Blog reading',0,2,NOW()),(@q,'Email nurturing',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+-- Q4
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','What is the main goal of the conversion stage?',1.00,NULL,NULL,50.00,NULL,4,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Generate traffic',0,1,NOW()),(@q,'Build awareness',0,2,NOW()),(@q,'Drive purchase/action',1,3,NOW()),(@q,'Retain customers',0,4,NOW());
+
+-- Q5
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which channels are most effective for awareness?',1.00,NULL,NULL,50.00,NULL,5,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'SEO',0,1,NOW()),(@q,'Social Media',0,2,NOW()),(@q,'Paid Ads',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+-- Q6
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which of the following help in retention?',1.00,NULL,NULL,50.00,NULL,6,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Email marketing',0,1,NOW()),(@q,'Loyalty programs',0,2,NOW()),(@q,'Customer support',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+-- Q7
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','CTR stands for:',1.00,NULL,NULL,50.00,NULL,7,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Click Through Rate',1,1,NOW()),(@q,'Customer Total Revenue',0,2,NOW()),(@q,'Conversion Tracking Rate',0,3,NOW()),(@q,'Cost To Retain',0,4,NOW());
+
+-- Q8
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which stage uses retargeting ads most effectively?',1.00,NULL,NULL,50.00,NULL,8,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Awareness',0,1,NOW()),(@q,'Consideration',0,2,NOW()),(@q,'Conversion',1,3,NOW()),(@q,'Retention',0,4,NOW());
+
+-- Q9
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which are examples of conversion actions?',1.00,NULL,NULL,50.00,NULL,9,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Purchase',0,1,NOW()),(@q,'Signup',0,2,NOW()),(@q,'Download',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+-- Q10
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which metric measures customer loyalty?',1.00,NULL,NULL,50.00,NULL,10,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Bounce Rate',0,1,NOW()),(@q,'Retention Rate',1,2,NOW()),(@q,'Impressions',0,3,NOW()),(@q,'CTR',0,4,NOW());
+
+-- Q11
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which tools help in awareness?',1.00,NULL,NULL,50.00,NULL,11,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Google Ads',0,1,NOW()),(@q,'Facebook Ads',0,2,NOW()),(@q,'SEO tools',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+-- Q12 (multi-correct A,B,C)
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Select all correct: Which belong to middle funnel?',1.00,NULL,NULL,50.00,NULL,12,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Email campaigns',1,1,NOW()),(@q,'Case studies',1,2,NOW()),(@q,'Product demos',1,3,NOW()),(@q,'Brand ads',0,4,NOW());
+
+-- Q13 (multi-correct A,B,C)
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Select all correct: Conversion optimization techniques include',1.00,NULL,NULL,50.00,NULL,13,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'A/B Testing',1,1,NOW()),(@q,'CTA improvement',1,2,NOW()),(@q,'Page speed optimization',1,3,NOW()),(@q,'Ignoring UX',0,4,NOW());
+
+-- Q14
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','What is a CTA?',1.00,NULL,NULL,50.00,NULL,14,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Click Tracking Analysis',0,1,NOW()),(@q,'Call To Action',1,2,NOW()),(@q,'Customer Target Area',0,3,NOW()),(@q,'Conversion Tracking Action',0,4,NOW());
+
+-- Q15
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which stage focuses on long-term relationship?',1.00,NULL,NULL,50.00,NULL,15,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Awareness',0,1,NOW()),(@q,'Consideration',0,2,NOW()),(@q,'Conversion',0,3,NOW()),(@q,'Retention',1,4,NOW());
+
+-- Q16
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which funnel stage includes testimonials and reviews?',1.00,NULL,NULL,50.00,NULL,16,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Awareness',0,1,NOW()),(@q,'Consideration',1,2,NOW()),(@q,'Conversion',0,3,NOW()),(@q,'Retention',0,4,NOW());
+
+-- Q17
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which is NOT a funnel stage?',1.00,NULL,NULL,50.00,NULL,17,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Awareness',0,1,NOW()),(@q,'Consideration',0,2,NOW()),(@q,'Distribution',1,3,NOW()),(@q,'Retention',0,4,NOW());
+
+-- Q18
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which strategy increases repeat purchase?',1.00,NULL,NULL,50.00,NULL,18,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Discounts',0,1,NOW()),(@q,'Loyalty programs',0,2,NOW()),(@q,'Email follow-ups',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+-- Q19
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which platform is commonly used for retargeting?',1.00,NULL,NULL,50.00,NULL,19,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Google Ads',0,1,NOW()),(@q,'Facebook Ads',0,2,NOW()),(@q,'Both',1,3,NOW()),(@q,'None',0,4,NOW());
+
+-- Q20
+INSERT INTO `ta_questions` (`assessment_id`,`question_type`,`question_text`,`points`,`coding_language`,`model_answer`,`text_keyword_pass_percent`,`coding_expected_output`,`sort_order`,`created_at`,`updated_at`)
+VALUES (@aid2,'mcq','Which factor impacts conversion most?',1.00,NULL,NULL,50.00,NULL,20,NOW(),NOW());
+SET @q := LAST_INSERT_ID();
+INSERT INTO `ta_question_options` (`question_id`,`option_text`,`is_correct`,`sort_order`,`created_at`) VALUES
+(@q,'Website UX',0,1,NOW()),(@q,'CTA',0,2,NOW()),(@q,'Trust signals',0,3,NOW()),(@q,'All of the above',1,4,NOW());
+
+COMMIT;
+

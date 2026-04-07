@@ -1,14 +1,63 @@
-<?php $this->load->view('partials/header', array('title' => 'Assessment report')); ?>
+<?php $this->load->view('partials/header', array('title' => 'Assessment report', 'extra_css' => array('assets/css/lms-ui.css'))); ?>
 <?php
   $scopeAll = isset($report_scope_all) ? (bool) $report_scope_all : true;
   $this->load->helper('training');
+  $totalRows = is_array($rows) ? count($rows) : 0;
+  $completed = 0;
+  $pending = 0;
+  $sumScore = 0.0;
+  $scoreCount = 0;
+  foreach ((array)$rows as $rr) {
+    if (!empty($rr->submitted_at)) {
+      $completed++;
+    } else {
+      $pending++;
+    }
+    if ($rr->score_percent !== null && $rr->score_percent !== '') {
+      $sumScore += (float)$rr->score_percent;
+      $scoreCount++;
+    }
+  }
+  $avgScore = $scoreCount > 0 ? round($sumScore / $scoreCount, 1) : 0;
 ?>
+<style>
+  .ta-report-kpi .lbl { color:#64748b; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; }
+  .ta-report-kpi .val { color:#0f172a; font-weight:800; font-size:1.35rem; }
+  .ta-chart-card { border:1px solid #e5e7eb; border-radius:12px; background:#fff; box-shadow:0 8px 18px rgba(15,23,42,.05); }
+  @media (max-width: 991.98px){ .ta-filter-sticky{position:static;} }
+</style>
 <div class="container-fluid py-4">
+  <div class="ta-report-wrap lms-soft-wrap">
   <h1 class="h4 mb-3"><i class="bi bi-bar-chart me-2"></i>Training assessment report</h1>
   <?php if (!$scopeAll): ?>
     <div class="alert alert-info small py-2 mb-3">You see <strong>your own</strong> assessment attempts only. Organization-wide reporting requires Training &amp; Assessment admin access.</div>
   <?php endif; ?>
-  <form method="get" action="<?php echo site_url('training-assessment/report'); ?>" class="row g-2 align-items-end mb-3">
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Total Trainings</div><div class="val"><?php echo (int)$totalRows; ?></div></div></div>
+    <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Completed</div><div class="val text-success"><?php echo (int)$completed; ?></div></div></div>
+    <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Pending</div><div class="val text-warning"><?php echo (int)$pending; ?></div></div></div>
+    <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Average Score</div><div class="val text-primary"><?php echo htmlspecialchars(number_format($avgScore,1)); ?>%</div></div></div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <div class="ta-chart-card p-3">
+        <div class="small fw-semibold mb-2">Performance graph</div>
+        <div class="progress" style="height:10px;"><div class="progress-bar bg-primary" style="width:<?php echo max(0,min(100,$avgScore)); ?>%"></div></div>
+        <div class="small text-muted mt-2">Average score trend (current range)</div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="ta-chart-card p-3">
+        <div class="small fw-semibold mb-2">Completion trends</div>
+        <?php $den = max(1, $completed + $pending); $cPct = round(($completed * 100) / $den); ?>
+        <div class="progress" style="height:10px;"><div class="progress-bar bg-success" style="width:<?php echo (int)$cPct; ?>%"></div></div>
+        <div class="small text-muted mt-2"><?php echo (int)$cPct; ?>% completed</div>
+      </div>
+    </div>
+  </div>
+
+  <form method="get" action="<?php echo site_url('training-assessment/report'); ?>" class="ta-filter-sticky row g-2 align-items-end mb-3">
     <div class="col-lg-3 col-md-6">
       <label class="form-label small text-muted mb-0">Assessment</label>
       <select name="assessment_id" class="form-select form-select-sm">
@@ -144,5 +193,6 @@
       </tbody>
     </table>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
