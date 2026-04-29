@@ -333,7 +333,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-2"></i>Report</a>
             <?php endif; ?>
-            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_submissions'))): ?>
+            <?php if ((int)$this->session->userdata('role_id') === 1 || (function_exists('has_module_access') && has_module_access('training_screen_ta_submissions'))): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('training-assessment/submissions'); ?>"><i class="bi bi-list-check me-2"></i>Assessment submissions</a>
             <?php endif; ?>
             <?php if ($__tl_m && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>

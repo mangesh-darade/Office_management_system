@@ -4,7 +4,12 @@
     <h1 class="h5 mb-0 fw-bold">Mark Attendance</h1>
     <div class="d-flex align-items-center gap-2">
       <span class="badge bg-primary text-white" id="liveClock">--:--:--</span>
-      <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('attendance'); ?>">
+      <?php if (function_exists('has_module_access') && has_module_access('attendance')): ?>
+        <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('attendance'); ?>">
+          <i class="bi bi-list-ul"></i> Attendance List
+        </a>
+      <?php endif; ?>
+      <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('dashboard'); ?>">
         <i class="bi bi-arrow-left"></i> Back
       </a>
     </div>
@@ -25,7 +30,6 @@
         var toast = new bootstrap.Toast(toastEl);
         toast.show();
         
-        // Redirect to attendance index page after successful submission
         setTimeout(function(){
           window.location.href = '<?php echo site_url('attendance'); ?>';
         }, 3000);
@@ -63,6 +67,7 @@
   <div class="card shadow-sm border-0">
     <div class="card-body p-3 p-md-4">
       <form method="post" enctype="multipart/form-data" id="attendanceForm">
+        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>" />
         <input type="hidden" name="lat" value="" />
         <input type="hidden" name="lng" value="" />
         <input type="hidden" name="location_name" value="" />
@@ -229,7 +234,7 @@
               <i class="bi bi-check-circle"></i> Mark Attendance
             </button>
             <div class="small text-muted mt-2" id="validationStatus">
-              <i class="bi bi-info-circle"></i> Please complete all mandatory fields: Location<?php echo $face_verification_enabled ? ', Face Verification' : ''; ?>
+              <i class="bi bi-info-circle"></i> Please complete all mandatory fields: <?php echo (isset($location_strict_enabled) && $location_strict_enabled) ? 'Location' : 'Optional Location'; ?><?php echo $face_verification_enabled ? ', Face Verification' : ''; ?>
             </div>
           </div>
         </div>
@@ -270,6 +275,7 @@
           
           // Check if face verification is required from PHP setting
           var faceVerificationRequired = <?php echo $face_verification_enabled ? 'true' : 'false'; ?>;
+          var locationRequired = <?php echo (isset($location_strict_enabled) && $location_strict_enabled) ? 'true' : 'false'; ?>;
           
           // Check if auto capture is enabled from PHP setting
           var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
@@ -287,7 +293,7 @@
             var lng = lngEl ? lngEl.value : '';
             var faceDesc = faceDescEl ? faceDescEl.value : '';
             
-            var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
+            var locationValid = !locationRequired || (lat && lng && lat.trim() !== '' && lng.trim() !== '');
             var faceValid = !faceVerificationRequired || (faceDesc && faceDesc.trim() !== '');
             
             if (submitBtn) {
@@ -305,7 +311,7 @@
                 submitBtn.classList.remove('btn-primary');
                 submitBtn.classList.add('btn-secondary');
                 var missingFields = [];
-                if (!locationValid) missingFields.push('Location');
+                if (locationRequired && !locationValid) missingFields.push('Location');
                 if (faceVerificationRequired && !faceDesc) missingFields.push('Face Verification');
                 if (validationStatus) {
                   validationStatus.innerHTML = '<i class="bi bi-info-circle"></i> Please complete all mandatory fields: ' + missingFields.join(', ');
@@ -389,13 +395,13 @@
               var lng = lngEl ? lngEl.value : '';
               var faceDesc = faceDescEl ? faceDescEl.value : '';
               
-              var locationValid = lat && lng && lat.trim() !== '' && lng.trim() !== '';
+              var locationValid = !locationRequired || (lat && lng && lat.trim() !== '' && lng.trim() !== '');
               var faceValid = !faceVerificationRequired || (faceDesc && faceDesc.trim() !== '');
               
               if (!locationValid || !faceValid) {
                 e.preventDefault();
                 var missingFields = [];
-                if (!locationValid) missingFields.push('Location');
+                if (locationRequired && !locationValid) missingFields.push('Location');
                 if (faceVerificationRequired && !faceDesc) missingFields.push('Face Verification');
                 showCustomToast('Please complete all mandatory fields: ' + missingFields.join(', '), 'error', 5000);
                 return false;

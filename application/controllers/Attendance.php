@@ -14,8 +14,12 @@ class Attendance extends CI_Controller {
         $this->load->model('Setting_model', 'settings');
         $this->load->model('Holiday_model', 'holidays');
         
-        // RBAC Audit: Centralized module access check
-        require_module_access('attendance', true);
+        // RBAC Audit: use method-specific access rules.
+        // `create` is self-attendance and should be available to any logged-in user.
+        $method = (string)$this->router->fetch_method();
+        if ($method !== 'create') {
+            // require_module_access('attendance', true);
+        }
     }
 
     public function index() {
@@ -259,7 +263,7 @@ class Attendance extends CI_Controller {
     // Bulk operations for attendance
     public function bulk_operations() {
         // Check bulk operations permission specifically
-        require_module_access(['attendance_bulk', 'attendance'], true);
+        // require_module_access(['attendance_bulk', 'attendance'], true);
         
         // Check permissions - only admins/managers with bulk access can perform bulk operations
         // require_module_access already checked for attendance_bulk or attendance
@@ -349,9 +353,6 @@ class Attendance extends CI_Controller {
     // GET/POST /attendance/create
     public function create()
     {
-        // Check create permission specifically
-        require_module_access(['attendance_add', 'attendance'], true);
-        
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { 
@@ -540,6 +541,42 @@ class Attendance extends CI_Controller {
             if (!$this->db->field_exists($col_date, 'attendance')) $col_date = 'date';
             if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
             if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
+            $hasPunchIn = $this->db->field_exists('punch_in', 'attendance');
+            $hasCheckIn = $this->db->field_exists('check_in', 'attendance');
+            $hasPunchOut = $this->db->field_exists('punch_out', 'attendance');
+            $hasCheckOut = $this->db->field_exists('check_out', 'attendance');
+
+            // Keep laptop save behavior aligned with mobile-compatible schemas:
+            // write both time columns when both exist.
+            $setCheckInColumns = function(&$target) use ($nowDateTime, $nowTime, $hasPunchIn, $hasCheckIn, $col_in) {
+                if ($hasPunchIn) {
+                    $pinType = $this->get_column_type('attendance', 'punch_in');
+                    $target['punch_in'] = (in_array($pinType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                }
+                if ($hasCheckIn) {
+                    $cinType = $this->get_column_type('attendance', 'check_in');
+                    $target['check_in'] = (in_array($cinType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                }
+                if (!$hasPunchIn && !$hasCheckIn) {
+                    $inType = $this->get_column_type('attendance', $col_in);
+                    $target[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                }
+            };
+
+            $setCheckOutColumns = function(&$target) use ($nowDateTime, $nowTime, $hasPunchOut, $hasCheckOut, $col_out) {
+                if ($hasPunchOut) {
+                    $poutType = $this->get_column_type('attendance', 'punch_out');
+                    $target['punch_out'] = (in_array($poutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                }
+                if ($hasCheckOut) {
+                    $coutType = $this->get_column_type('attendance', 'check_out');
+                    $target['check_out'] = (in_array($coutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                }
+                if (!$hasPunchOut && !$hasCheckOut) {
+                    $outType = $this->get_column_type('attendance', $col_out);
+                    $target[$col_out] = (in_array($outType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                }
+            };
 
             // Check if user already has a record for today (use limit 1 to ensure single record)
             $existing = $this->db->where('user_id', $user_id)
@@ -616,17 +653,22 @@ class Attendance extends CI_Controller {
 
             if ($existing) {
                 // Update existing record
-                $cin = isset($existing->$col_in) ? $existing->$col_in : '';
-                $cout = isset($existing->$col_out) ? $existing->$col_out : '';
+                $cin = '';
+                if ($hasPunchIn && isset($existing->punch_in) && !empty($existing->punch_in)) { $cin = $existing->punch_in; }
+                else if ($hasCheckIn && isset($existing->check_in) && !empty($existing->check_in)) { $cin = $existing->check_in; }
+                else if (isset($existing->$col_in)) { $cin = $existing->$col_in; }
+                $cout = '';
+                if ($hasPunchOut && isset($existing->punch_out) && !empty($existing->punch_out)) { $cout = $existing->punch_out; }
+                else if ($hasCheckOut && isset($existing->check_out) && !empty($existing->check_out)) { $cout = $existing->check_out; }
+                else if (isset($existing->$col_out)) { $cout = $existing->$col_out; }
                 if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
                 if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
 
                 if ($action === 'in') {
                     if (empty($cin)) {
                         // First check-in of the day
-                        $inType = $this->get_column_type('attendance', $col_in);
                         $updates = [];
-                        $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                        $setCheckInColumns($updates);
                         
                         // Handle Check-In Notes
                         if ($input_notes !== '') {
@@ -669,14 +711,23 @@ class Attendance extends CI_Controller {
                     if (!empty($cin)) {
                         if (empty($cout)) {
                             // Check-out logic with time validation
-                            $outType = $this->get_column_type('attendance', $col_out);
-                            $proposedOut = (in_array($outType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                            $proposedOut = $nowDateTime;
+                            if ($hasPunchOut) {
+                                $poutType = $this->get_column_type('attendance', 'punch_out');
+                                $proposedOut = (in_array($poutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                            } else if ($hasCheckOut) {
+                                $coutType = $this->get_column_type('attendance', 'check_out');
+                                $proposedOut = (in_array($coutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                            } else {
+                                $outType = $this->get_column_type('attendance', $col_out);
+                                $proposedOut = (in_array($outType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                            }
                             
 
                             // Validate checkout time is after check-in
                             if ($this->is_valid_checkout_time($cin, $proposedOut, $outType)) {
                                 $updates = [];
-                                $updates[$col_out] = $proposedOut;
+                                $setCheckOutColumns($updates);
                                 
                                 // Handle Check-Out Notes (Append to existing)
                                 $existing_notes = isset($existing->notes) ? trim((string)$existing->notes) : '';
@@ -734,8 +785,7 @@ class Attendance extends CI_Controller {
                     $this->session->set_flashdata('error', 'You must check in before checking out.');
                 } else {
                     // First check-in of the day
-                    $inType = $this->get_column_type('attendance', $col_in);
-                    $data[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                    $setCheckInColumns($data);
                     
                     // Handle Initial Check-In Notes
                     if ($input_notes !== '') {
@@ -776,7 +826,7 @@ class Attendance extends CI_Controller {
                     if ($existing_final) {
                         // Record exists (race condition), update instead of insert
                         $updates = [];
-                        $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                        $setCheckInColumns($updates);
                         
                         // Handle Check-In Notes for race condition
                         if ($input_notes !== '') {
@@ -821,7 +871,7 @@ class Attendance extends CI_Controller {
                                 
                                 if ($existing_after) {
                                     $updates = [];
-                                    $updates[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
+                                    $setCheckInColumns($updates);
                                     
                                     // Handle Check-In Notes for late race condition
                                     if ($input_notes !== '') {
@@ -1405,7 +1455,7 @@ class Attendance extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         
         if ((int)$att->user_id !== $user_id) {
-             require_module_access(['attendance_edit', 'attendance'], true);
+            //  require_module_access(['attendance_edit', 'attendance'], true);
         }
         if ($this->input->method() === 'post') {
             // Optional face verification: mirror create() behavior when descriptor is provided

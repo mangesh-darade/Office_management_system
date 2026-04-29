@@ -13,6 +13,8 @@ define('ROLE_ADMIN', 1);
 define('ROLE_MANAGER', 2);
 define('ROLE_LEAD', 3);
 define('ROLE_STAFF', 4);
+/** Alias: end-user / self-service tier (same id as ROLE_STAFF; not the same as ROLE_MANAGER). */
+define('ROLE_USER', ROLE_STAFF);
 
 /*
 |--------------------------------------------------------------------------

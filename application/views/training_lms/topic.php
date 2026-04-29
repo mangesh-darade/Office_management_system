@@ -36,7 +36,7 @@
       <?php else: ?>
         <span class="small text-muted">Assessment is enabled but the linked test was not found.</span>
       <?php endif; ?>
-      <a class="btn btn-outline-secondary btn-sm ms-auto" href="<?php echo site_url('training-assessment/my-assignments'); ?>"><i class="bi bi-mortarboard me-1"></i>All my assessments</a>
+      <a class="btn btn-outline-secondary btn-sm ms-auto" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-mortarboard me-1"></i>All my assessments</a>
     </div>
   </div>
   <?php endif; ?>

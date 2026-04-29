@@ -44,10 +44,14 @@
                 </div>
                 <div class="card-body text-center">
                     <h6>My Trend Analysis</h6>
-                    <h3 class="display-6 text-<?php echo ($my_forecast['trend'] == 'Getting Later' ? 'warning' : 'success'); ?>">
-                        <?php echo $my_forecast['trend']; ?>
+                    <?php
+                      $forecastTrend = isset($my_forecast['trend']) ? (string)$my_forecast['trend'] : 'Stable';
+                      $forecastAvg = isset($my_forecast['avg_time']) ? (int)$my_forecast['avg_time'] : 0;
+                    ?>
+                    <h3 class="display-6 text-<?php echo ($forecastTrend === 'Getting Later' ? 'warning' : 'success'); ?>">
+                        <?php echo $forecastTrend; ?>
                     </h3>
-                    <p>Average Arrival: <strong><?php echo floor($my_forecast['avg_time']/60) . ':' . str_pad($my_forecast['avg_time']%60, 2, '0', STR_PAD_LEFT); ?></strong></p>
+                    <p>Average Arrival: <strong><?php echo floor($forecastAvg / 60) . ':' . str_pad($forecastAvg % 60, 2, '0', STR_PAD_LEFT); ?></strong></p>
                     <small class="text-muted">Based on Linear Regression of last 30 days</small>
                 </div>
             </div>
@@ -178,5 +182,36 @@
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        var cards = document.querySelectorAll('.external-dashboard-card');
+        var frame = document.getElementById('embeddedDashboardFrame');
+        var title = document.getElementById('embeddedDashboardTitle');
+        var openInTab = document.getElementById('openDashboardInTab');
+
+        function toEmbedUrl(url) {
+            if (!url) return '';
+            return url.replace('://lookerstudio.google.com/reporting/', '://lookerstudio.google.com/embed/reporting/') + '/page/p_0';
+        }
+
+        cards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                var name = card.getAttribute('data-dashboard-name') || 'Dashboard';
+                var reportUrl = card.getAttribute('data-dashboard-url') || '';
+                var embedUrl = toEmbedUrl(reportUrl);
+
+                cards.forEach(function (c) {
+                    c.classList.remove('border-primary');
+                });
+                card.classList.add('border-primary');
+
+                if (title) title.textContent = name + ' Dashboard';
+                if (openInTab) openInTab.setAttribute('href', reportUrl);
+                if (frame) frame.setAttribute('src', embedUrl);
+            });
+        });
+    })();
+</script>
 
 <?php $this->load->view('partials/footer'); ?>

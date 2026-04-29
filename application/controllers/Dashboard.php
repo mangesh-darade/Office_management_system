@@ -7,9 +7,11 @@ class Dashboard extends CI_Controller {
         $this->load->database();
         $this->load->helper(['url', 'group_filter', 'permission', 'dashboard']);
         $this->load->library(['session']);
+        $this->load->model('External_dashboard_model', 'external_dashboards');
         
         // RBAC Audit: Centralized module access check
         require_module_access('dashboard', true);
+        $this->external_dashboards->ensure_schema();
     }
 
     public function index(){
@@ -68,7 +70,8 @@ class Dashboard extends CI_Controller {
                 'role_id' => $role_id, 
                 'announcements' => $announcements,
                 'stats' => $stats,
-                'accessible_modules' => $accessible_modules
+                'accessible_modules' => $accessible_modules,
+                'external_dashboards' => $this->external_dashboards->get_active()
             ]);
         } catch (Exception $e) {
             log_message('error', 'Dashboard error: ' . $e->getMessage());

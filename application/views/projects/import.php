@@ -12,9 +12,7 @@
           Download sample file
         </a>
       </div>
-      <?php if($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger py-2 mb-3"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
-      <?php endif; ?>
+      <?php /* Flash error/success shown via global Bootstrap toast in partials/header.php */ ?>
       <form method="post" enctype="multipart/form-data">
         <div class="row g-2 align-items-center">
           <div class="col-12 col-sm-8">

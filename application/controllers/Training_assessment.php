@@ -109,7 +109,7 @@ class Training_assessment extends CI_Controller
         }
         $this->load->helper('training');
         $uid = (int) $this->session->userdata('user_id');
-        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
         if (!$isBroad && $uid < 1) {
             redirect('auth/login');
             return;
@@ -849,11 +849,11 @@ class Training_assessment extends CI_Controller
                     $this->Notification_model->create_bulk(
                         $notifyIds,
                         'Assessment assigned: ' . $a->title,
-                        'You have a new assessment. Open My assignments to start.',
+                        'You have a new assessment. Open Training & Assessment dashboard to start.',
                         'info',
                         'training_assessment',
                         (int) $assessment_id,
-                        site_url('training-assessment/my-assignments')
+                        site_url('training-assessment')
                     );
                 }
                 $this->load->model('Security_audit_model', 'audit');
@@ -973,11 +973,11 @@ class Training_assessment extends CI_Controller
                 $this->Notification_model->create(
                     (int) $empUserId,
                     'Assessment assigned: ' . $a->title,
-                    'You have a new assessment. Open My assignments or use the take link from email.',
+                    'You have a new assessment. Open Training & Assessment dashboard or use the take link from email.',
                     'info',
                     'training_assessment',
                     (int) $assessment_id,
-                    site_url('training-assessment/my-assignments')
+                    site_url('training-assessment')
                 );
             }
             $this->load->model('Security_audit_model', 'audit');
@@ -1024,7 +1024,7 @@ class Training_assessment extends CI_Controller
         }
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
-        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
         $emp = (int) $this->input->get('employee_user_id');
         if (!$isBroad && $sessUid > 0) {
             $emp = $sessUid;
@@ -1062,7 +1062,7 @@ class Training_assessment extends CI_Controller
         }
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
-        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
         $emp = (int) $this->input->get('employee_user_id');
         if (!$isBroad && $sessUid > 0) {
             $emp = $sessUid;
@@ -1107,13 +1107,17 @@ class Training_assessment extends CI_Controller
      */
     public function submissions()
     {
-        $this->_ta_require_screen('training_screen_ta_submissions');
+        $hasSubmissionsAccess = ((int) $this->session->userdata('role_id') === 1)
+            || (function_exists('has_module_access') && has_module_access('training_screen_ta_submissions'));
+        if (!$hasSubmissionsAccess) {
+            show_error('Access denied.', 403);
+        }
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
-        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
         $emp = $isBroad ? 0 : $sessUid;
         $assessmentId = (int) $this->input->get('assessment_id');
         $assigneeType = $isBroad ? 'all' : 'employee';
@@ -1235,7 +1239,7 @@ class Training_assessment extends CI_Controller
         }
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
-        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
         $scope = ($isBroad || $sessUid < 1) ? 0 : $sessUid;
         $aid = (int) $this->input->get('assessment_id');
         $rows = $this->ta->list_office_question_bank_rows($aid, $scope);
@@ -1281,7 +1285,7 @@ class Training_assessment extends CI_Controller
         }
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
-        $isBroad = ((int) $this->session->userdata('role_id') === 1) || (function_exists('training_ta_admin_broad') && training_ta_admin_broad());
+        $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
         $scope = ($isBroad || $sessUid < 1) ? 0 : $sessUid;
         $aid = (int) $this->input->get('assessment_id');
         $from = $this->input->get('date_from');

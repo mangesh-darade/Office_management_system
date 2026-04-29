@@ -233,7 +233,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_report'))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && strpos((string) $active_sub, 'report') === 0)?'active':''; ?>" href="<?php echo site_url('training-assessment/report'); ?>"><i class="bi bi-bar-chart me-1"></i>Report</a>
             <?php endif; ?>
-            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_submissions'))): ?>
+            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && has_module_access('training_screen_ta_submissions'))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && $active_sub==='submissions')?'active':''; ?>" href="<?php echo site_url('training-assessment/submissions'); ?>"><i class="bi bi-list-check me-1"></i>Assessment submissions</a>
             <?php endif; ?>
             <?php if ($tl_show && function_exists('training_tl_show_hub_nav') && training_tl_show_hub_nav()): ?>

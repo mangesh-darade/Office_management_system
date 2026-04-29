@@ -17,9 +17,6 @@
 ?>
 
 <!-- Flash messages are handled by the global toast container in partials/header.php -->
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-</script>
 
 <?php if (!$canViewAll): ?>
 <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
@@ -724,10 +721,11 @@ function loadAttendanceDetails(page = 1) {
     // Fetch attendance data
     fetch('<?php echo site_url('attendance/get_user_monthly_attendance'); ?>', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `user_id=${currentUserId}&filter_type=${filterType}&filter_value=${filterValue}&page=${currentPage}`
+        body: `user_id=${encodeURIComponent(currentUserId)}&filter_type=${encodeURIComponent(filterType)}&filter_value=${encodeURIComponent(filterValue)}&page=${encodeURIComponent(currentPage)}`
     })
     .then(response => response.json())
     .then(data => {

@@ -10,6 +10,7 @@ $ajaxRun = site_url('training-assessment/ajax-run-code');
 $ajaxSync = site_url('training-assessment/ajax-timer-sync');
 $ajaxShot = site_url('training-assessment/ajax-upload-screenshot');
 $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($token));
+$proctoringEnabled = !empty($proctoring_enabled);
 ?>
 <style>
   #ta-timer-panel.ta-timer-warn {
@@ -72,7 +73,7 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
         <div class="small text-md-end"><?php echo htmlspecialchars($au->assessment_title); ?></div>
       </div>
       <div id="ta-time-hints" class="mb-2"></div>
-      <div class="alert alert-secondary py-2 d-flex flex-wrap align-items-center gap-2 mb-2">
+      <div class="alert alert-secondary py-2 d-flex flex-wrap align-items-center gap-2 mb-2 <?php echo $proctoringEnabled ? '' : 'd-none'; ?>" id="ta-proctor-panel">
         <video id="ta-proctor-video" autoplay muted playsinline></video>
         <canvas id="ta-proctor-canvas" class="d-none"></canvas>
         <div class="small">
@@ -81,6 +82,11 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
           <div id="ta-shot-status" class="text-muted">Waiting for camera permission...</div>
         </div>
       </div>
+      <?php if (!$proctoringEnabled): ?>
+      <div class="alert alert-info py-2 small mb-2">
+        This assessment is running in non-proctored mode (video and screenshot capture are disabled for your access group).
+      </div>
+      <?php endif; ?>
       <div id="ta-warn" class="alert alert-warning d-none small mb-2"><strong>Time is up.</strong> Saving and submitting automatically…</div>
       <div class="card shadow-sm border-0">
         <div class="card-body" style="min-height:280px" id="ta-stage">
@@ -145,6 +151,7 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
   var ajaxSync = <?php echo json_encode($ajaxSync); ?>;
   var ajaxShot = <?php echo json_encode($ajaxShot); ?>;
   var resultTokenUrl = <?php echo json_encode($resultTokenUrl); ?>;
+  var proctoringEnabled = <?php echo $proctoringEnabled ? 'true' : 'false'; ?>;
   var endsTs = <?php echo (int)$ends_ts; ?>;
   var total = <?php echo (int)$total_questions; ?>;
   var idx = 0;
@@ -804,7 +811,12 @@ $resultTokenUrl = site_url('training-assessment/result-token/' . rawurlencode($t
 
   // Initial fullscreen attempt on load (may be blocked by browser, but harmless).
   requestFullscreen();
-  initProctorCamera();
+  if (proctoringEnabled) {
+    initProctorCamera();
+  } else {
+    var pp = document.getElementById('ta-proctor-panel');
+    if (pp) pp.classList.add('d-none');
+  }
 
   // One-time notice at assessment start.
   try {

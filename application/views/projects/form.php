@@ -18,12 +18,7 @@
 </div>
 <?php endif; ?>
 
-<?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-  </div>
-<?php endif; ?>
+<?php /* Flash error is handled globally by the Bootstrap toast in partials/header.php */ ?>
 
 <div class="card shadow-soft my-3">
   <div class="card-body">

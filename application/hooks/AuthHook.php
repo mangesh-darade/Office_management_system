@@ -313,6 +313,19 @@ class AuthHook {
             $controller = strtolower(explode('/', $uri)[0]);
         }
         if (empty($controller)) { return; }
+        $method = '';
+        if (isset($CI->router) && property_exists($CI->router, 'method')) {
+            $method = strtolower((string)$CI->router->method);
+        }
+
+        // Keep controller/method fallback as an additional guard.
+        if ($controller === 'attendance' && $method === 'create') { return; }
+        // If URI clearly targets self-attendance, do not apply route-level RBAC (delimiter # — escape # inside pattern).
+        $uri_lc = strtolower((string) $uri);
+        $uri_lc = trim(preg_replace('#/+#', '/', $uri_lc), '/');
+        if ($uri_lc === 'attendance/create' || preg_match('~(?:^|/)attendance/create(?:$|[/?#])~', $uri_lc)) {
+            return;
+        }
 
         // Controllers that should NEVER be blocked by route-level RBAC
         // (they do their own fine-grained checks, or are always accessible to logged-in users)
@@ -348,7 +361,8 @@ class AuthHook {
             'training_assessment' => [
                 'training_assessment', 'training_assessment_manage', 'training_assessment_take',
                 'training_screen_ta_dashboard', 'training_screen_ta_create', 'training_screen_ta_import',
-                'training_screen_ta_report', 'training_screen_ta_submissions',
+                'training_screen_ta_question_import', 'training_screen_ta_report', 'training_screen_ta_submissions',
+                'training_screen_ta_team_progress', 'training_screen_ta_my_tests',
             ],
             'training_assessment_take' => ['training_assessment', 'training_assessment_manage', 'training_assessment_take'],
             'training_lms' => [

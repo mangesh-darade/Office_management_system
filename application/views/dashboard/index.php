@@ -59,7 +59,39 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
       </div>
       <?php endif; ?>
-      
+
+      <!-- External Dashboards (after announcements) -->
+      <div class="row g-3 mb-3">
+        <?php if (!empty($external_dashboards)): ?>
+          <?php foreach ($external_dashboards as $dash): ?>
+            <?php
+              $permission_key = isset($dash['permission_key']) ? (string)$dash['permission_key'] : '';
+              $can_show = $permission_key !== '' && function_exists('has_module_access') && has_module_access($permission_key);
+              if (!$can_show) { continue; }
+              $label = isset($dash['label']) ? (string)$dash['label'] : 'Dashboard';
+              $url = isset($dash['url']) ? (string)$dash['url'] : '#';
+              $icon_class = isset($dash['icon_class']) && trim($dash['icon_class']) !== '' ? trim($dash['icon_class']) : 'bi bi-bar-chart-line';
+              $gradient_class = isset($dash['gradient_class']) && trim($dash['gradient_class']) !== '' ? trim($dash['gradient_class']) : 'bg-gradient-primary';
+            ?>
+            <div class="col-12 col-sm-6 col-lg-3">
+              <a href="<?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?>" class="card stat-card <?php echo htmlspecialchars($gradient_class, ENT_QUOTES, 'UTF-8'); ?> text-white h-100 hover-lift external-dashboard-card text-decoration-none">
+                <div class="card-body text-start">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                      <h6 class="card-title text-white-50 mb-1"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></h6>
+                      <small class="text-white-50">Open <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?> Looker dashboard</small>
+                    </div>
+                    <div class="stat-icon">
+                      <i class="<?php echo htmlspecialchars($icon_class, ENT_QUOTES, 'UTF-8'); ?> fs-2"></i>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
+
       <!-- Dashboard Statistics Cards -->
       <div class="row g-3 mb-4">
         <?php if (empty($accessible_modules) || in_array('employees', $accessible_modules)): ?>
@@ -353,6 +385,16 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
 
 .announcement-card-top .card-body {
   padding: 1.25rem;
+}
+
+.external-dashboard-card {
+  width: 100%;
+  border: 2px solid transparent;
+}
+
+.external-dashboard-card.active-dashboard {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
 }
 </style>
 

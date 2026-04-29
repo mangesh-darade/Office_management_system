@@ -503,6 +503,7 @@ $config['csrf_exclude_uris'] = array(
 
     // Attendance — AJAX data fetch (read-only query)
     'attendance/get_user_monthly_attendance',
+    'attendance/get-data',
     'attendance/ajax_.*',
 
     // Notifications — mark read / delete (session-authenticated, low value target)

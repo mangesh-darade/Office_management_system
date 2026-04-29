@@ -161,7 +161,7 @@
                             <td><a href="<?php echo site_url('tasks/'.$t->id); ?>" class="text-decoration-none">#<?php echo $t->id; ?></a></td>
                             <td>
                                 <a href="<?php echo site_url('tasks/'.$t->id); ?>" class="fw-medium text-dark text-decoration-none"><?php echo htmlspecialchars($t->title); ?></a>
-                                <?php if($t->requirement_id): ?><br><small class="text-muted"><i class="bi bi-link-45deg"></i> Req #<?php echo $t->requirement_id; ?></small><?php endif; ?>
+                                <?php if(!empty($t->requirement_id)): ?><br><small class="text-muted"><i class="bi bi-link-45deg"></i> Req #<?php echo $t->requirement_id; ?></small><?php endif; ?>
                             </td>
                             <td>
                                 <?php 
@@ -173,9 +173,10 @@
                             <td>
                                 <?php 
                                 $p_colors = ['low'=>'success', 'medium'=>'warning', 'high'=>'danger', 'urgent'=>'dark'];
-                                $p_color = isset($p_colors[$t->priority]) ? $p_colors[$t->priority] : 'secondary';
+                                $t_priority = isset($t->priority) ? $t->priority : '';
+                                $p_color = isset($p_colors[$t_priority]) ? $p_colors[$t_priority] : 'secondary';
                                 ?>
-                                <span class="badge bg-<?php echo $p_color; ?>"><?php echo ucfirst($t->priority); ?></span>
+                                <span class="badge bg-<?php echo $p_color; ?>"><?php echo $t_priority ? ucfirst($t_priority) : '-'; ?></span>
                             </td>
                             <td>
                                 <?php if($t->assigned_to): ?>
@@ -187,7 +188,7 @@
                                 </div>
                                 <?php else: ?><span class="text-muted small">-</span><?php endif; ?>
                             </td>
-                            <td><small><?php echo $t->due_date ? date('M j', strtotime($t->due_date)) : '-'; ?></small></td>
+                            <td><small><?php echo (!empty($t->due_date)) ? date('M j', strtotime($t->due_date)) : '-'; ?></small></td>
                             <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-link text-muted" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>

@@ -15,7 +15,39 @@ class Training_assessment_take extends CI_Controller
         $this->load->model('Training_assessment_model', 'ta');
         $this->load->library('session');
         $this->load->library('training_assessment_runtime', null, 'ta_run');
-        $this->load->helper(array('url', 'form', 'training'));
+        $this->load->helper(array('url', 'form', 'training', 'permission'));
+    }
+
+    private function _resolve_take_security_policy($au)
+    {
+        // External candidates (no employee account) use strict monitored mode by default.
+        if (!$au || (int) $au->user_id < 1) {
+            return array('allowed' => true, 'proctoring' => true);
+        }
+
+        $sessUid = (int) $this->session->userdata('user_id');
+        if ($sessUid < 1 || $sessUid !== (int) $au->user_id) {
+            return array('allowed' => false, 'proctoring' => false);
+        }
+
+        if (!function_exists('has_module_access')) {
+            return array('allowed' => true, 'proctoring' => true);
+        }
+
+        $allowWithout = has_module_access('training_take_without_proctoring');
+        $allowWith = has_module_access('training_take_with_proctoring')
+            || has_module_access('training_assessment_take')
+            || has_module_access('training_assessment')
+            || has_module_access('training_assessment_manage');
+
+        if (!$allowWith && !$allowWithout) {
+            return array('allowed' => false, 'proctoring' => false);
+        }
+
+        return array(
+            'allowed' => true,
+            'proctoring' => !$allowWithout, // "without" permission explicitly disables proctoring.
+        );
     }
 
     public function candidate_profile()
@@ -66,6 +98,10 @@ class Training_assessment_take extends CI_Controller
             }
         }
         $this->session->set_userdata('ta_active_token', $token);
+        $takePolicy = $this->_resolve_take_security_policy($au);
+        if (empty($takePolicy['allowed'])) {
+            show_error('You do not have permission to take this assessment.', 403);
+        }
 
         $max = (int) $au->max_attempts;
         $used = (int) $au->attempts_used;
@@ -112,6 +148,7 @@ class Training_assessment_take extends CI_Controller
             'ends_ts' => strtotime($au->server_ends_at),
             'shuffle_options' => (int) $au->shuffle_options === 1,
             'initial_answered' => $initialAnswered,
+            'proctoring_enabled' => !empty($takePolicy['proctoring']),
         );
         $this->load->view('training_assessment/take_assessment', $data);
     }
@@ -119,20 +156,34 @@ class Training_assessment_take extends CI_Controller
     public function retake_assessment()
     {
         if ($this->input->method() !== 'post') {
-            show_404();
+            $this->session->set_flashdata('error', 'Use the Retake button from your result page.');
+            redirect('training-assessment');
+            return;
         }
         $token = trim((string) $this->input->post('access_token'));
         $au = $this->ta->get_assessment_user_by_token($token);
         if (!$au) {
             show_404();
         }
+        if ((int) $au->user_id > 0) {
+            $sessUid = (int) $this->session->userdata('user_id');
+            if (!$sessUid || $sessUid !== (int) $au->user_id) {
+                $this->session->set_flashdata('error', 'Please log in with the assigned employee account to retake this assessment.');
+                redirect('auth/login');
+                return;
+            }
+        }
         if ((int) $au->allow_retake !== 1) {
-            show_error('Retake not allowed.', 403);
+            $this->session->set_flashdata('error', 'Retake is not allowed for this assessment.');
+            redirect(training_assessment_signed_result_url($token, $au));
+            return;
         }
         $max = (int) $au->max_attempts;
         $used = (int) $au->attempts_used;
         if ($max > 0 && $used >= $max) {
-            show_error('No attempts remaining.', 403);
+            $this->session->set_flashdata('error', 'No attempts remaining for this assessment.');
+            redirect(training_assessment_signed_result_url($token, $au));
+            return;
         }
         $actor = (int) $this->session->userdata('user_id');
         $this->load->model('Security_audit_model', 'audit');
@@ -340,6 +391,11 @@ class Training_assessment_take extends CI_Controller
         }
         if ($au->completed_at || $this->ta->is_time_expired($au)) {
             echo json_encode(array('ok' => false, 'error' => 'Closed', 'force_submit' => true));
+            return;
+        }
+        $takePolicy = $this->_resolve_take_security_policy($au);
+        if (empty($takePolicy['allowed']) || empty($takePolicy['proctoring'])) {
+            echo json_encode(array('ok' => false, 'error' => 'ProctoringDisabled'));
             return;
         }
 

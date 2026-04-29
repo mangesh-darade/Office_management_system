@@ -144,19 +144,33 @@ class Tasks extends CI_Controller {
                 }
             }
             
+            // Cache field list once — avoids multiple DB roundtrips and safely handles un-migrated schemas
+            $task_fields = $this->db->list_fields('tasks');
+
             $data = [
-                'project_id' => $project_id,
-                'project_ids' => $project_ids_json,
-                'requirement_id' => $requirement_id,
-                'title' => trim($this->input->post('title')),
+                'project_id'  => $project_id,
+                'title'       => trim($this->input->post('title')),
                 'description' => $this->input->post('description', TRUE),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
-                'status' => $this->input->post('status') ?: 'pending',
-                'priority' => $this->input->post('priority') ?: 'medium',
-                'start_date' => $this->input->post('start_date') ?: null,
-                'due_date' => $this->input->post('due_date') ?: null,
-                'created_by' => $user_id,
+                'status'      => $this->input->post('status') ?: 'pending',
+                'created_by'  => $user_id,
             ];
+            // Guard all migration-added columns
+            if (in_array('requirement_id', $task_fields, true)) {
+                $data['requirement_id'] = $requirement_id;
+            }
+            if (in_array('priority', $task_fields, true)) {
+                $data['priority'] = $this->input->post('priority') ?: 'medium';
+            }
+            if (in_array('start_date', $task_fields, true)) {
+                $data['start_date'] = $this->input->post('start_date') ?: null;
+            }
+            if (in_array('due_date', $task_fields, true)) {
+                $data['due_date'] = $this->input->post('due_date') ?: null;
+            }
+            if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
+                $data['project_ids'] = $project_ids_json;
+            }
             // If a requirement is selected, override the title with the requirement's title if title is empty
             if ($requirement_id && empty($data['title'])) {
                 $reqTitleRow = $this->db->select('title')->from('requirements')->where('id', (int)$requirement_id)->get()->row();
@@ -349,8 +363,6 @@ class Tasks extends CI_Controller {
                     ->set_output(json_encode(['error' => 'Access denied']));
             }
         }
-    }
-        
         // Helper functions for names
         $assigneeName = function($task) {
             $name = '';
@@ -566,18 +578,32 @@ class Tasks extends CI_Controller {
                 }
             }
             
+            // Cache field list once — avoids multiple DB roundtrips and safely handles un-migrated schemas
+            $task_fields = $this->db->list_fields('tasks');
+
             $data = [
-                'project_id' => $project_id,
-                'project_ids' => $project_ids_json,
-                'requirement_id' => $this->input->post('requirement_id') !== '' ? (int)$this->input->post('requirement_id') : null,
-                'title' => trim($this->input->post('title')),
+                'project_id'  => $project_id,
+                'title'       => trim($this->input->post('title')),
                 'description' => $this->input->post('description', TRUE),
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
-                'status' => $this->input->post('status') ?: 'pending',
-                'priority' => $this->input->post('priority') ?: 'medium',
-                'start_date' => $this->input->post('start_date') ?: null,
-                'due_date' => $this->input->post('due_date') ?: null,
+                'status'      => $this->input->post('status') ?: 'pending',
             ];
+            // Guard all migration-added columns
+            if (in_array('requirement_id', $task_fields, true)) {
+                $data['requirement_id'] = $this->input->post('requirement_id') !== '' ? (int)$this->input->post('requirement_id') : null;
+            }
+            if (in_array('priority', $task_fields, true)) {
+                $data['priority'] = $this->input->post('priority') ?: 'medium';
+            }
+            if (in_array('start_date', $task_fields, true)) {
+                $data['start_date'] = $this->input->post('start_date') ?: null;
+            }
+            if (in_array('due_date', $task_fields, true)) {
+                $data['due_date'] = $this->input->post('due_date') ?: null;
+            }
+            if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
+                $data['project_ids'] = $project_ids_json;
+            }
             // Only set updated_by if the column exists in tasks table
             if ($this->db->field_exists('updated_by', 'tasks')) {
                 $data['updated_by'] = $user_id;

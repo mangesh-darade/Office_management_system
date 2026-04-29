@@ -91,6 +91,28 @@ if (!function_exists('training_ta_admin_broad')) {
     }
 }
 
+/**
+ * Org-wide Training & Assessment data (dashboard lists, report, submissions, exports).
+ * Super admin (role 1), legacy module keys, or any role whose group_type is "admin" in `roles`.
+ * Custom "Admin" roles are often role_id != 1 but still admin group — they should see all rows like super admin.
+ */
+if (!function_exists('training_ta_org_wide_data')) {
+    function training_ta_org_wide_data()
+    {
+        $rid = (int) get_instance()->session->userdata('role_id');
+        if ($rid === 1) {
+            return true;
+        }
+        if (function_exists('training_ta_admin_broad') && training_ta_admin_broad()) {
+            return true;
+        }
+        if (function_exists('is_admin_group') && is_admin_group()) {
+            return true;
+        }
+        return false;
+    }
+}
+
 if (!function_exists('training_ta_can_screen')) {
     /**
      * @param string $granular_key e.g. training_screen_ta_dashboard
@@ -131,6 +153,9 @@ if (!function_exists('training_ta_has_any_admin_screen')) {
             'training_screen_ta_question_import',
             'training_screen_ta_report',
             'training_screen_ta_submissions',
+            // Team leads: no separate list screen, but need module entry for org-scoped result review.
+            'training_screen_ta_team_progress',
+            'training_screen_ta_my_tests',
         );
         foreach ($keys as $k) {
             if (has_module_access($k)) {

@@ -151,6 +151,10 @@ class Permissions extends CI_Controller {
                 'icon' => 'bi-speedometer2',
                 'modules' => [
                     'dashboard' => 'Dashboard Overview',
+                    'dashboard_cheers' => 'Dashboard Card - Cheers',
+                    'dashboard_sateri' => 'Dashboard Card - Sateri',
+                    'dashboard_srujan' => 'Dashboard Card - Srujan',
+                    'dashboard_simpliworks' => 'Dashboard Card - Simpliworks',
                 ]
             ],
             'Daily Activity' => [
@@ -291,6 +295,8 @@ class Permissions extends CI_Controller {
                     'training_screen_ta_question_import' => 'Import Questions + Options',
                     'training_screen_ta_report' => 'Report',
                     'training_screen_ta_submissions' => 'Assessment submissions',
+                    'training_take_with_proctoring' => 'Take Assessment (Video + Screenshot Monitoring)',
+                    'training_take_without_proctoring' => 'Take Assessment (Without Video/Screenshot Monitoring)',
                     'training_screen_tl_hub' => 'Training hub',
                     'training_screen_tl_module' => 'Module',
                     'training_screen_lms_admin' => 'LMS admin',

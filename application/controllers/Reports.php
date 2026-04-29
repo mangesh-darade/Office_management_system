@@ -1583,26 +1583,18 @@ class Reports extends CI_Controller {
         $user_id = $user_id ? (int)$user_id : 0;
 
         if ($user_id > 0) {
-            // Detect punch-in/check-in column for lateness calculation FIRST
+            // Detect all possible check-in/check-out columns and use row-level fallback.
             $fields = $this->db->list_fields('attendance');
-            $checkInCol = null;
-            if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
-            elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
-            
-
-
-            // Detect check-out column
-            $checkOutCol = null;
-            if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
-            elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+            $hasPunchIn = in_array('punch_in', $fields, true);
+            $hasCheckIn = in_array('check_in', $fields, true);
+            $hasPunchOut = in_array('punch_out', $fields, true);
+            $hasCheckOut = in_array('check_out', $fields, true);
 
             $selectCols = ["`$dateCol` AS d", "`$statusCol` AS st"];
-            if ($checkInCol !== null) {
-                $selectCols[] = "`".$checkInCol."` AS cin";
-            }
-            if ($checkOutCol !== null) {
-                $selectCols[] = "`".$checkOutCol."` AS cout";
-            }
+            if ($hasPunchIn) { $selectCols[] = "`punch_in` AS pin"; }
+            if ($hasCheckIn) { $selectCols[] = "`check_in` AS cin"; }
+            if ($hasPunchOut) { $selectCols[] = "`punch_out` AS pout"; }
+            if ($hasCheckOut) { $selectCols[] = "`check_out` AS cout"; }
             // Add location fields if they exist
             if ($this->db->field_exists('checkin_location_name', 'attendance')) {
                 $selectCols[] = "`checkin_location_name` AS cin_loc";
@@ -1634,12 +1626,19 @@ class Reports extends CI_Controller {
                 if ($d === '') { continue; }
                 if (strpos($d, ' ') !== false) { $d = trim(explode(' ', $d)[0]); }
                 $attMap[$d] = (string)$r->st;
-                if ($checkInCol !== null && isset($r->cin)) {
-                    $cinMap[$d] = (string)$r->cin;
-                }
-                if ($checkOutCol !== null && isset($r->cout)) {
-                    $coutMap[$d] = (string)$r->cout;
-                }
+                $pin = isset($r->pin) ? trim((string)$r->pin) : '';
+                $cin = isset($r->cin) ? trim((string)$r->cin) : '';
+                $pout = isset($r->pout) ? trim((string)$r->pout) : '';
+                $cout = isset($r->cout) ? trim((string)$r->cout) : '';
+                $emptyTimes = ['', '00:00:00', '0000-00-00 00:00:00'];
+                if (in_array($pin, $emptyTimes, true)) { $pin = ''; }
+                if (in_array($cin, $emptyTimes, true)) { $cin = ''; }
+                if (in_array($pout, $emptyTimes, true)) { $pout = ''; }
+                if (in_array($cout, $emptyTimes, true)) { $cout = ''; }
+                $effectiveIn = ($pin !== '') ? $pin : $cin;
+                $effectiveOut = ($pout !== '') ? $pout : $cout;
+                if ($effectiveIn !== '') { $cinMap[$d] = $effectiveIn; }
+                if ($effectiveOut !== '') { $coutMap[$d] = $effectiveOut; }
                 if (isset($r->cin_loc) && !empty($r->cin_loc)) {
                     $cinLocMap[$d] = (string)$r->cin_loc;
                 }
@@ -1754,6 +1753,8 @@ class Reports extends CI_Controller {
                 $st = strtolower(trim($raw));
                 $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
                 $holidayName = isset($holidayMap[$d]) ? $holidayMap[$d] : null;
+                $hasInTime = isset($cinMap[$d]) && trim((string)$cinMap[$d]) !== '' && trim((string)$cinMap[$d]) !== '00:00:00' && trim((string)$cinMap[$d]) !== '0000-00-00 00:00:00';
+                $hasOutTime = isset($coutMap[$d]) && trim((string)$coutMap[$d]) !== '' && trim((string)$coutMap[$d]) !== '00:00:00' && trim((string)$coutMap[$d]) !== '0000-00-00 00:00:00';
                 
                 // Determine status: if no attendance record and not on leave and not weekend, mark as absent
                 if ($raw === '' && $leave === '—' && !$isWeekend) {
@@ -1764,6 +1765,11 @@ class Reports extends CI_Controller {
                         $st = 'absent';
                         $raw = 'absent';
                     }
+                }
+                // If day has actual punch times, don't keep it as absent in report.
+                if (($hasInTime || $hasOutTime) && $st === 'absent') {
+                    $st = 'present';
+                    $raw = 'present';
                 }
                 
                 $labelSt = '—';
@@ -1788,8 +1794,14 @@ class Reports extends CI_Controller {
                 $checkInLocation = '—';
                 $checkOutLocation = '—';
                 
-                if ($checkInCol !== null && isset($cinMap[$d]) && $st !== '' && $st !== 'absent') {
-                    $cinRaw = (string)$cinMap[$d];
+                if (isset($cinMap[$d])) {
+                    $cinRaw = trim((string)$cinMap[$d]);
+                    if ($cinRaw === '' || $cinRaw === '00:00:00' || $cinRaw === '0000-00-00 00:00:00') {
+                        $cinRaw = '';
+                    }
+                    if ($cinRaw === '') {
+                        // keep default check-in display as em-dash
+                    } else {
                     $cinTime = $cinRaw;
                     if (strpos($cinRaw, ' ') !== false) {
                         $parts = explode(' ', $cinRaw);
@@ -1829,13 +1841,14 @@ class Reports extends CI_Controller {
                         }
                     }
                 }
+                }
                 
                 // Get check-out time
                 $workedHours = 0;
                 $extraHours = 0;
                 $workedSeconds = 0;
                 $extraSeconds = 0;
-                if ($checkOutCol !== null && isset($coutMap[$d])) {
+                if (isset($coutMap[$d])) {
                     $coutRaw = (string)$coutMap[$d];
                     $coutTime = $coutRaw;
                     if (strpos($coutRaw, ' ') !== false) {
@@ -3321,17 +3334,17 @@ class Reports extends CI_Controller {
         if ($dateCol === null) { $dateCol = isset($fields[1]) ? $fields[1] : 'att_date'; }
         if ($statusCol === null) { $statusCol = isset($fields[2]) ? $fields[2] : 'status'; }
         
-        // Detect check-in/out columns
-        $checkInCol = null;
-        $checkOutCol = null;
-        if (in_array('punch_in', $fields, true)) { $checkInCol = 'punch_in'; }
-        elseif (in_array('check_in', $fields, true)) { $checkInCol = 'check_in'; }
-        if (in_array('punch_out', $fields, true)) { $checkOutCol = 'punch_out'; }
-        elseif (in_array('check_out', $fields, true)) { $checkOutCol = 'check_out'; }
+        // Detect all possible check-in/out columns and use row-level fallback.
+        $hasPunchIn = in_array('punch_in', $fields, true);
+        $hasCheckIn = in_array('check_in', $fields, true);
+        $hasPunchOut = in_array('punch_out', $fields, true);
+        $hasCheckOut = in_array('check_out', $fields, true);
         
         $selectCols = ["`$dateCol` AS d", "`$statusCol` AS st"];
-        if ($checkInCol !== null) { $selectCols[] = "`".$checkInCol."` AS cin"; }
-        if ($checkOutCol !== null) { $selectCols[] = "`".$checkOutCol."` AS cout"; }
+        if ($hasPunchIn) { $selectCols[] = "`punch_in` AS pin"; }
+        if ($hasCheckIn) { $selectCols[] = "`check_in` AS cin"; }
+        if ($hasPunchOut) { $selectCols[] = "`punch_out` AS pout"; }
+        if ($hasCheckOut) { $selectCols[] = "`check_out` AS cout"; }
         if ($this->db->field_exists('checkin_location_name', 'attendance')) {
             $selectCols[] = "`checkin_location_name` AS cin_loc";
         }
@@ -3356,8 +3369,19 @@ class Reports extends CI_Controller {
             if ($d === '') { continue; }
             if (strpos($d, ' ') !== false) { $d = trim(explode(' ', $d)[0]); }
             $attMap[$d] = (string)$r->st;
-            if ($checkInCol !== null && isset($r->cin)) { $cinMap[$d] = (string)$r->cin; }
-            if ($checkOutCol !== null && isset($r->cout)) { $coutMap[$d] = (string)$r->cout; }
+            $pin = isset($r->pin) ? trim((string)$r->pin) : '';
+            $cin = isset($r->cin) ? trim((string)$r->cin) : '';
+            $pout = isset($r->pout) ? trim((string)$r->pout) : '';
+            $cout = isset($r->cout) ? trim((string)$r->cout) : '';
+            $emptyTimes = ['', '00:00:00', '0000-00-00 00:00:00'];
+            if (in_array($pin, $emptyTimes, true)) { $pin = ''; }
+            if (in_array($cin, $emptyTimes, true)) { $cin = ''; }
+            if (in_array($pout, $emptyTimes, true)) { $pout = ''; }
+            if (in_array($cout, $emptyTimes, true)) { $cout = ''; }
+            $effectiveIn = ($pin !== '') ? $pin : $cin;
+            $effectiveOut = ($pout !== '') ? $pout : $cout;
+            if ($effectiveIn !== '') { $cinMap[$d] = $effectiveIn; }
+            if ($effectiveOut !== '') { $coutMap[$d] = $effectiveOut; }
             if (isset($r->cin_loc) && !empty($r->cin_loc)) { $cinLocMap[$d] = (string)$r->cin_loc; }
             if (isset($r->cout_loc) && !empty($r->cout_loc)) { $coutLocMap[$d] = (string)$r->cout_loc; }
             if (isset($r->notes) && !empty(trim($r->notes))) { $notesMap[$d] = trim((string)$r->notes); }
@@ -3418,10 +3442,17 @@ class Reports extends CI_Controller {
             $raw = isset($attMap[$d]) ? $attMap[$d] : '';
             $st = strtolower(trim($raw));
             $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+            $hasInTime = isset($cinMap[$d]) && trim((string)$cinMap[$d]) !== '' && trim((string)$cinMap[$d]) !== '00:00:00' && trim((string)$cinMap[$d]) !== '0000-00-00 00:00:00';
+            $hasOutTime = isset($coutMap[$d]) && trim((string)$coutMap[$d]) !== '' && trim((string)$coutMap[$d]) !== '00:00:00' && trim((string)$coutMap[$d]) !== '0000-00-00 00:00:00';
             
             if ($raw === '' && $leave === '—' && !$isWeekend) {
                 $st = 'absent';
                 $raw = 'absent';
+            }
+            // If day has actual punch times, don't keep it as absent in report.
+            if (($hasInTime || $hasOutTime) && $st === 'absent') {
+                $st = 'present';
+                $raw = 'present';
             }
             
             $labelSt = '—';
@@ -3440,8 +3471,14 @@ class Reports extends CI_Controller {
             $checkInLocation = '—';
             $checkOutLocation = '—';
             
-            if ($checkInCol !== null && isset($cinMap[$d]) && $st !== '' && $st !== 'absent') {
-                $cinRaw = (string)$cinMap[$d];
+            if (isset($cinMap[$d])) {
+                $cinRaw = trim((string)$cinMap[$d]);
+                if ($cinRaw === '' || $cinRaw === '00:00:00' || $cinRaw === '0000-00-00 00:00:00') {
+                    $cinRaw = '';
+                }
+                if ($cinRaw === '') {
+                    // keep default check-in display as em-dash
+                } else {
                 $cinTime = $cinRaw;
                 if (strpos($cinRaw, ' ') !== false) {
                     $parts = explode(' ', $cinRaw);
@@ -3468,12 +3505,13 @@ class Reports extends CI_Controller {
                     }
                 }
             }
+            }
             
             $workedHours = 0;
             $extraHours = 0;
             $workedSeconds = 0;
             $extraSeconds = 0;
-            if ($checkOutCol !== null && isset($coutMap[$d])) {
+            if (isset($coutMap[$d])) {
                 $coutRaw = (string)$coutMap[$d];
                 $coutTime = $coutRaw;
                 if (strpos($coutRaw, ' ') !== false) {

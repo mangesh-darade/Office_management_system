@@ -27,10 +27,12 @@ class Training_assessment_runtime
         $details = $ta->list_answers_with_questions((int) $au->id, isset($au->question_order) ? $au->question_order : null);
         $assessment = $ta->get_assessment((int) $au->assessment_id);
         $showCorrect = $assessment && isset($assessment->show_correct_after_submit) && (int) $assessment->show_correct_after_submit === 1;
-        if ($showCorrect && !empty($details)) {
+        if (!empty($details)) {
             foreach ($details as $d) {
                 $d->ta_your_answer = '';
                 $d->ta_correct_summary = '';
+                $d->ta_option_rows = array();
+                $d->ta_selected_summary = '';
                 if ($d->question_type === 'mcq') {
                     $opts = $ta->get_options((int) $d->question_id);
                     $picked = $ta->parse_option_ids(isset($d->selected_option_ids) ? $d->selected_option_ids : '');
@@ -44,24 +46,38 @@ class Training_assessment_runtime
                     $mine = array();
                     $corr = array();
                     foreach ($opts as $o) {
+                        $isSelected = isset($pickedMap[(int)$o->id]);
+                        $isCorrect = ((int) $o->is_correct === 1);
+                        $d->ta_option_rows[] = array(
+                            'text' => (string) $o->option_text,
+                            'is_selected' => $isSelected,
+                            'is_correct' => $isCorrect,
+                        );
                         if (isset($pickedMap[(int)$o->id])) {
                             $mine[] = $o->option_text;
                         }
-                        if ((int) $o->is_correct === 1) {
+                        if ($isCorrect) {
                             $corr[] = $o->option_text;
                         }
                     }
-                    $d->ta_your_answer = !empty($mine) ? implode(', ', $mine) : '';
-                    $d->ta_correct_summary = !empty($corr) ? implode(', ', $corr) : '';
-                } elseif ($d->question_type === 'text') {
-                    $d->ta_your_answer = trim((string) $d->answer_text);
-                    $d->ta_correct_summary = trim((string) $d->model_answer) !== '' ? $d->model_answer : '(No model answer — scoring used length / similarity.)';
-                } else {
-                    $d->ta_your_answer = trim((string) $d->code_submitted);
-                    if (trim((string) $d->execution_output) !== '') {
-                        $d->ta_your_answer .= ($d->ta_your_answer !== '' ? "\n\nOutput:\n" : "Output:\n") . trim((string) $d->execution_output);
+                    $d->ta_selected_summary = !empty($mine) ? implode(', ', $mine) : '—';
+                    if ($showCorrect) {
+                        $d->ta_your_answer = !empty($mine) ? implode(', ', $mine) : '';
+                        $d->ta_correct_summary = !empty($corr) ? implode(', ', $corr) : '';
                     }
-                    $d->ta_correct_summary = trim((string) $d->coding_expected_output) !== '' ? ('Expected output: ' . $d->coding_expected_output) : '(No fixed expected output.)';
+                } elseif ($d->question_type === 'text') {
+                    if ($showCorrect) {
+                        $d->ta_your_answer = trim((string) $d->answer_text);
+                        $d->ta_correct_summary = trim((string) $d->model_answer) !== '' ? $d->model_answer : '(No model answer — scoring used length / similarity.)';
+                    }
+                } else {
+                    if ($showCorrect) {
+                        $d->ta_your_answer = trim((string) $d->code_submitted);
+                        if (trim((string) $d->execution_output) !== '') {
+                            $d->ta_your_answer .= ($d->ta_your_answer !== '' ? "\n\nOutput:\n" : "Output:\n") . trim((string) $d->execution_output);
+                        }
+                        $d->ta_correct_summary = trim((string) $d->coding_expected_output) !== '' ? ('Expected output: ' . $d->coding_expected_output) : '(No fixed expected output.)';
+                    }
                 }
             }
         }
@@ -100,7 +116,7 @@ class Training_assessment_runtime
      */
     public function is_training_ta_org_viewer($au)
     {
-        if (function_exists('training_ta_admin_broad') && training_ta_admin_broad()) {
+        if (function_exists('training_ta_org_wide_data') && training_ta_org_wide_data()) {
             return true;
         }
         return $this->can_team_lead_view_assignee($au);

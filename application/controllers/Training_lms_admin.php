@@ -453,8 +453,8 @@ class Training_lms_admin extends CI_Controller
 
     /**
      * Assignment submissions overview:
-     * - LMS admin/manage users: all users' rows
-     * - restricted submissions role: own rows only
+     * - Admin group, super admin (role 1), or training_lms_manage: all rows
+     * - Other users (submissions screen access only): own rows
      */
     public function assignment_submissions_list()
     {
@@ -491,6 +491,12 @@ class Training_lms_admin extends CI_Controller
         if (!$sub) {
             show_404();
         }
+        if (!$this->_lms_admin_can_view_all()) {
+            $uid = (int) $this->session->userdata('user_id');
+            if ($uid <= 0 || !isset($sub->user_id) || (int) $sub->user_id !== $uid) {
+                show_error('Access denied.', 403);
+            }
+        }
         $path = FCPATH . 'uploads/lms_assignments/' . $sub->stored_filename;
         if (!is_file($path)) {
             show_error('File not found.', 404);
@@ -509,6 +515,9 @@ class Training_lms_admin extends CI_Controller
     private function _lms_admin_can_view_all()
     {
         if ((int) $this->session->userdata('role_id') === 1) {
+            return true;
+        }
+        if (function_exists('is_admin_group') && is_admin_group()) {
             return true;
         }
         return function_exists('has_module_access') && has_module_access('training_lms_manage');

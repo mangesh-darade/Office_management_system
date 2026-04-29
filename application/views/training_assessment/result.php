@@ -158,8 +158,8 @@ $scorePct = $result ? (float)$result->score_percent : 0;
           <tr>
             <th>Question</th>
             <th>Type</th>
+            <th>Selected option(s)</th>
             <?php if ($showCorrect): ?>
-            <th>Your answer</th>
             <th>Correct / feedback</th>
             <?php endif; ?>
             <th>Points</th>
@@ -177,10 +177,30 @@ $scorePct = $result ? (float)$result->score_percent : 0;
                 $sn = substr($sn, 0, 197) . '…';
               }
               echo nl2br(htmlspecialchars($sn));
-            ?></td>
+            ?>
+            <?php if (!empty($d->ta_option_rows) && is_array($d->ta_option_rows)): ?>
+              <div class="mt-2 small">
+                <?php $optIndex = 0; foreach ($d->ta_option_rows as $opt): ?>
+                  <?php $optLabel = chr(65 + $optIndex); ?>
+                  <span class="me-3 d-inline-block">
+                    <strong><?php echo $optLabel; ?>)</strong>
+                    <?php echo htmlspecialchars(isset($opt['text']) ? $opt['text'] : ''); ?>
+                    <?php if ($showCorrect && !empty($opt['is_selected'])): ?><span class="badge bg-primary-subtle text-primary-emphasis">Selected</span><?php endif; ?>
+                    <?php if ($showCorrect && !empty($opt['is_correct'])): ?><span class="badge bg-success-subtle text-success-emphasis">Correct</span><?php endif; ?>
+                  </span>
+                <?php $optIndex++; endforeach; ?>
+              </div>
+            <?php endif; ?>
+            </td>
             <td><span class="badge bg-secondary"><?php echo htmlspecialchars(strtoupper($d->question_type)); ?></span></td>
+            <td class="small">
+              <?php if ((string)$d->question_type === 'mcq'): ?>
+                <?php echo htmlspecialchars(isset($d->ta_selected_summary) ? $d->ta_selected_summary : '—'); ?>
+              <?php else: ?>
+                —
+              <?php endif; ?>
+            </td>
             <?php if ($showCorrect): ?>
-            <td class="small"><?php echo isset($d->ta_your_answer) ? nl2br(htmlspecialchars($d->ta_your_answer !== '' ? $d->ta_your_answer : '—')) : '—'; ?></td>
             <td class="small"><?php echo isset($d->ta_correct_summary) ? nl2br(htmlspecialchars($d->ta_correct_summary)) : '—'; ?></td>
             <?php endif; ?>
             <td><?php echo htmlspecialchars($d->points_earned); ?> / <?php echo htmlspecialchars($d->question_points); ?></td>
@@ -202,9 +222,27 @@ $scorePct = $result ? (float)$result->score_percent : 0;
       <?php foreach ($details as $d): ?>
       <div class="ta-q-card p-3 mb-2">
         <div class="fw-semibold mb-1"><?php echo nl2br(htmlspecialchars(strip_tags($d->question_text))); ?></div>
+        <?php if (!empty($d->ta_option_rows) && is_array($d->ta_option_rows)): ?>
+        <div class="small mb-1">
+          <?php $optIndex = 0; foreach ($d->ta_option_rows as $opt): ?>
+            <?php $optLabel = chr(65 + $optIndex); ?>
+            <span class="me-2 d-inline-block">
+              <strong><?php echo $optLabel; ?>)</strong> <?php echo htmlspecialchars(isset($opt['text']) ? $opt['text'] : ''); ?>
+              <?php if ($showCorrect && !empty($opt['is_selected'])): ?><span class="badge bg-primary-subtle text-primary-emphasis">Selected</span><?php endif; ?>
+              <?php if ($showCorrect && !empty($opt['is_correct'])): ?><span class="badge bg-success-subtle text-success-emphasis">Correct</span><?php endif; ?>
+            </span>
+          <?php $optIndex++; endforeach; ?>
+        </div>
+        <?php endif; ?>
         <div class="small text-muted mb-1">Type: <?php echo htmlspecialchars(strtoupper($d->question_type)); ?></div>
+        <div class="small"><strong>Selected option(s):</strong>
+          <?php if ((string)$d->question_type === 'mcq'): ?>
+            <?php echo htmlspecialchars(isset($d->ta_selected_summary) ? $d->ta_selected_summary : '—'); ?>
+          <?php else: ?>
+            —
+          <?php endif; ?>
+        </div>
         <?php if ($showCorrect): ?>
-        <div class="small"><strong>Selected:</strong> <?php echo isset($d->ta_your_answer) ? nl2br(htmlspecialchars($d->ta_your_answer !== '' ? $d->ta_your_answer : '—')) : '—'; ?></div>
         <div class="small"><strong>Correct:</strong> <?php echo isset($d->ta_correct_summary) ? nl2br(htmlspecialchars($d->ta_correct_summary)) : '—'; ?></div>
         <?php endif; ?>
         <div class="small"><strong>Points:</strong> <?php echo htmlspecialchars($d->points_earned); ?> / <?php echo htmlspecialchars($d->question_points); ?></div>

@@ -9,12 +9,7 @@
   </div>
 </div>
 
-<?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
-<?php endif; ?>
-<?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
-<?php endif; ?>
+<?php /* Flash messages (success/error) are handled globally by the Bootstrap toast in partials/header.php */ ?>
 
 <div class="row g-3">
   <div class="col-lg-7">

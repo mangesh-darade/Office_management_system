@@ -446,34 +446,40 @@ class Projects extends CI_Controller {
     {
         require_module_access(['projects_edit', 'projects'], true);
         $project_id = (int)$project_id;
-        $project = $this->db->where('id', $project_id)->get('projects')->row();
-        if (!$project) { show_404(); }
+        try {
+            $project = $this->db->where('id', $project_id)->get('projects')->row();
+            if (!$project) { show_404(); return; }
 
-        // Fetch members
-        $this->load->model('Project_model');
-        $members = $this->Project_model->get_project_members($project_id);
+            // Fetch members
+            $this->load->model('Project_model');
+            $members = $this->Project_model->get_project_members($project_id);
 
-        // Basic search for adding members
-        $q = trim((string)$this->input->get('q'));
-        $users = [];
-        if ($q !== ''){
-            $this->db->select('id, email');
-            if ($this->db->field_exists('name','users')) { $this->db->select('name'); }
-            $this->db->from('users');
-            $this->db->group_start()
-                     ->like('email', $q)
-                     ->or_like('name', $q)
-                     ->group_end()
-                     ->order_by('email','ASC');
-            $users = $this->db->get()->result();
+            // Basic search for adding members
+            $q = trim((string)$this->input->get('q'));
+            $users = [];
+            if ($q !== '') {
+                $this->db->select('id, email');
+                if ($this->db->field_exists('name', 'users')) { $this->db->select('name'); }
+                $this->db->from('users');
+                $this->db->group_start()
+                         ->like('email', $q)
+                         ->or_like('name', $q)
+                         ->group_end()
+                         ->order_by('email', 'ASC');
+                $users = $this->db->get()->result();
+            }
+
+            $this->load->view('projects/members', [
+                'project' => $project,
+                'members' => $members,
+                'users'   => $users,
+                'q'       => $q,
+            ]);
+        } catch (Exception $e) {
+            log_message('error', 'Manage members error: ' . $e->getMessage());
+            $this->session->set_flashdata('error', 'An error occurred while loading project members.');
+            redirect('projects/' . $project_id);
         }
-
-        $this->load->view('projects/members', [
-            'project' => $project,
-            'members' => $members,
-            'users' => $users,
-            'q' => $q,
-        ]);
     }
 
     // POST /projects/{id}/add-member
@@ -549,30 +555,52 @@ class Projects extends CI_Controller {
     {
         require_module_access(['projects_edit', 'projects'], true);
         if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
-        $project_id = (int)$project_id; $user_id = (int)$user_id;
-        $this->load->model('Project_model');
-        $ok = $this->Project_model->remove_member($project_id, $user_id);
-        if ($ok) { $this->load->helper('activity'); log_activity('projects', 'updated', $project_id, 'Removed member user#'.$user_id); }
-        $this->load->helper('notification');
-        if ($ok) { 
-            $success_msg = get_notification_message('projects', 'member_remove', 'success');
-            $this->session->set_flashdata('success', $success_msg);
+        $project_id = (int)$project_id;
+        $user_id    = (int)$user_id;
+        try {
+            $this->load->model('Project_model');
+            $ok = $this->Project_model->remove_member($project_id, $user_id);
+            if ($ok) {
+                $this->load->helper('activity');
+                log_activity('projects', 'updated', $project_id, 'Removed member user#' . $user_id);
+                $this->load->helper('notification');
+                $success_msg = get_notification_message('projects', 'member_remove', 'success');
+                $this->session->set_flashdata('success', $success_msg);
+            } else {
+                $this->session->set_flashdata('error', 'Failed to remove member.');
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Remove member error: ' . $e->getMessage());
+            $this->session->set_flashdata('error', 'An error occurred while removing member.');
         }
-        else { $this->session->set_flashdata('error', 'Failed to remove member.'); }
-        redirect('projects/'.$project_id.'/members');
+        redirect('projects/' . $project_id . '/members');
     }
 
     // POST /projects/{id}/member/{user_id}/role
     public function update_member_role($project_id, $user_id)
     {
         require_module_access(['projects_edit', 'projects'], true);
-        $project_id = (int)$project_id; $user_id = (int)$user_id;
-        $role = trim((string)$this->input->post('role')) ?: 'member';
-        $this->load->model('Project_model');
-        $ok = $this->Project_model->update_member_role($project_id, $user_id, $role);
-        if ($ok) { $this->load->helper('activity'); log_activity('projects', 'updated', $project_id, 'Changed role of user#'.$user_id.' to '.$role); }
-        if ($ok) { $this->session->set_flashdata('success', 'Role updated.'); }
-        else { $this->session->set_flashdata('error', 'Failed to update role.'); }
-        redirect('projects/'.$project_id.'/members');
+        if ($this->input->method() !== 'post') { show_error('Method Not Allowed', 405); }
+        $project_id = (int)$project_id;
+        $user_id    = (int)$user_id;
+        try {
+            $role = trim((string)$this->input->post('role')) ?: 'member';
+            // Sanitize role value
+            $allowed_roles = ['manager', 'lead', 'developer', 'tester', 'viewer', 'member'];
+            if (!in_array($role, $allowed_roles, true)) { $role = 'member'; }
+            $this->load->model('Project_model');
+            $ok = $this->Project_model->update_member_role($project_id, $user_id, $role);
+            if ($ok) {
+                $this->load->helper('activity');
+                log_activity('projects', 'updated', $project_id, 'Changed role of user#' . $user_id . ' to ' . $role);
+                $this->session->set_flashdata('success', 'Role updated.');
+            } else {
+                $this->session->set_flashdata('error', 'Failed to update role.');
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Update member role error: ' . $e->getMessage());
+            $this->session->set_flashdata('error', 'An error occurred while updating member role.');
+        }
+        redirect('projects/' . $project_id . '/members');
     }
 }

@@ -35,9 +35,14 @@ class Timesheet_model extends CI_Model {
 
     public function add_entry($timesheet_id, $entry){
         $entry['timesheet_id'] = (int)$timesheet_id;
-        // Ensure billable is set (default to 1 if not provided)
-        if (!isset($entry['billable'])) {
-            $entry['billable'] = 1;
+        // Only include 'billable' if the column exists in timesheet_entries
+        if ($this->db->field_exists('billable', 'timesheet_entries')) {
+            if (!isset($entry['billable'])) {
+                $entry['billable'] = 1; // Default to billable
+            }
+        } else {
+            // Column missing (migration not run) — remove it to prevent SQL error
+            unset($entry['billable']);
         }
         $this->db->insert('timesheet_entries', $entry);
         $entry_id = (int)$this->db->insert_id();
@@ -103,6 +108,15 @@ class Timesheet_model extends CI_Model {
      * Get billable vs non-billable hours for a timesheet
      */
     public function get_billable_hours($timesheet_id){
+        // Guard: return zeroes if billable column hasn't been added by migration yet
+        if (!$this->db->field_exists('billable', 'timesheet_entries')) {
+            $result = $this->db->select_sum('hours')
+                               ->where('timesheet_id', (int)$timesheet_id)
+                               ->get('timesheet_entries')
+                               ->row();
+            $total = $result && $result->hours ? (float)$result->hours : 0.00;
+            return ['billable' => $total, 'non_billable' => 0.00, 'total' => $total];
+        }
         $result = $this->db->select('SUM(CASE WHEN billable = 1 THEN hours ELSE 0 END) as billable_hours,
                                      SUM(CASE WHEN billable = 0 THEN hours ELSE 0 END) as non_billable_hours,
                                      SUM(hours) as total_hours')
@@ -111,9 +125,9 @@ class Timesheet_model extends CI_Model {
                            ->row();
         
         return [
-            'billable' => $result ? (float)$result->billable_hours : 0.00,
+            'billable'     => $result ? (float)$result->billable_hours : 0.00,
             'non_billable' => $result ? (float)$result->non_billable_hours : 0.00,
-            'total' => $result ? (float)$result->total_hours : 0.00
+            'total'        => $result ? (float)$result->total_hours : 0.00
         ];
     }
     
