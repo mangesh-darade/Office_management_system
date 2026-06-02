@@ -138,10 +138,16 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php 
       $active = strtolower($this->uri->segment(1) ?: 'dashboard');
       $active_sub = strtolower($this->uri->segment(2) ?: '');
+      if ($active === 'my-works') {
+        $active = 'my_works';
+      }
       $role_id = (int) $this->session->userdata('role_id');
       $is_superadmin = ($role_id === 1);
       ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+      <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>
+      <?php endif; ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item">
@@ -212,8 +218,15 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php
       $user_group_show = function_exists('has_module_access') && (
         has_module_access('users') ||
+        has_module_access('users_list') ||
         has_module_access('users_add') ||
+        has_module_access('users_edit') ||
+        has_module_access('users_delete') ||
         has_module_access('attendance') ||
+        has_module_access('attendance_list') ||
+        has_module_access('attendance_add') ||
+        has_module_access('attendance_edit') ||
+        has_module_access('attendance_delete') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('permissions') ||
@@ -228,10 +241,10 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         </a>
         <div class="collapse <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true)?'show':''; ?>" id="mobile-user-submenu">
           <div class="ps-4">
-            <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('users') || has_module_access('users_list') || has_module_access('users_add') || has_module_access('users_edit') || has_module_access('users_delete'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('users_add')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('users/create'); ?>"><i class="bi bi-person-plus me-2"></i>Add User</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
@@ -240,8 +253,11 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && (has_module_access('assets') || has_module_access('assets_mgmt'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='assets-mgmt'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('attendance_list') || has_module_access('attendance_add') || has_module_access('attendance_edit') || has_module_access('attendance_delete'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('attendance_add'))): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='attendance' && $active_sub==='create')?'active':''; ?>" href="<?php echo site_url('attendance/create'); ?>"><i class="bi bi-plus-square me-2"></i>Mark Attendance</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('departments')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='departments'?'active':''; ?>" href="<?php echo site_url('departments'); ?>"><i class="bi bi-diagram-3 me-2"></i>Department</a>
@@ -254,7 +270,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       </div>
       <?php endif; ?>
 
-      <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('payroll') || has_module_access('payroll_view') || has_module_access('payroll_manage'))): ?>
       <div class="nav-item">
         <a class="nav-link sidebar-link <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'active':''; ?>" data-bs-toggle="collapse" href="#mobile-payroll-submenu" role="button" aria-expanded="<?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'true':'false'; ?>">
           <i class="bi bi-cash-stack me-2"></i>Payroll <i class="bi bi-chevron-down float-end"></i>
@@ -488,13 +504,18 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php
       $reports_group_show = function_exists('has_module_access') && (
         has_module_access('reports') ||
+        has_module_access('analytics') ||
         has_module_access('reports_overview') ||
         has_module_access('reports_requirements') ||
         has_module_access('reports_tasks_assignment') ||
         has_module_access('reports_projects_status') ||
         has_module_access('reports_leaves') ||
         has_module_access('reports_attendance') ||
-        has_module_access('reports_attendance_employee')
+        has_module_access('reports_attendance_employee') ||
+        has_module_access('reports_daily_activity') ||
+        has_module_access('daily_activity_report') ||
+        has_module_access('reports_payroll') ||
+        has_module_access('reports_expenses')
       );
       ?>
       <?php if($reports_group_show): ?>
@@ -505,6 +526,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         <div class="collapse" id="mobile-reports-submenu">
           <div class="ps-4">
             <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('analytics')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='analytics'?'active':''; ?>" href="<?php echo site_url('analytics'); ?>"><i class="bi bi-cpu me-1"></i>AI Analytics</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('reports_overview')): ?>
             <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && ($seg2==='' || $seg2===null))?'active':''; ?>" href="<?php echo site_url('reports'); ?>">Overview</a>
             <?php endif; ?>
@@ -526,9 +550,15 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && has_module_access('reports_attendance_employee')): ?>
             <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='attendance-employee')?'active':''; ?>" href="<?php echo site_url('reports/attendance-employee'); ?>">Employee Attendance</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('daily_activity_report') || has_module_access('reports_daily_activity') || has_module_access('reports'))): ?>
             <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='daily-activity')?'active':''; ?>" href="<?php echo site_url('reports/daily-activity'); ?>"><i class="bi bi-journal-text me-1"></i>Daily Activity</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('reports_payroll') || has_module_access('reports') || has_module_access('payroll'))): ?>
             <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='payroll')?'active':''; ?>" href="<?php echo site_url('reports/payroll'); ?>"><i class="bi bi-cash-coin me-1"></i>Payroll Report</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('reports_expenses') || has_module_access('reports') || has_module_access('expenses'))): ?>
             <a class="nav-link sidebar-link small <?php echo ($seg1==='reports' && $seg2==='expenses')?'active':''; ?>" href="<?php echo site_url('reports/expenses'); ?>"><i class="bi bi-receipt me-1"></i>Expenses Report</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>

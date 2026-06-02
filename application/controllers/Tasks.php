@@ -30,7 +30,8 @@ class Tasks extends CI_Controller {
         require_module_access(['tasks_list', 'tasks'], true);
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $is_admin = is_admin_group() || has_module_access('tasks_manage');
+        $is_admin = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('tasks_manage');
         
         // Get group-based filters
         $filters = get_user_group_filter($user_id, $role_id);
@@ -60,10 +61,11 @@ class Tasks extends CI_Controller {
         }
         $this->db->select(implode(',', $select));
         
-        // Apply group-based filtering
-        $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
+        // Admin sees all tasks; others see tasks assigned to them only
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('tasks_view_all');
         if (!$can_view_all && $user_id) {
-            apply_role_hierarchy_filter($this->db, 't.created_by', $user_id, $role_id);
+            apply_role_hierarchy_filter($this->db, 't.assigned_to', $user_id, $role_id);
         }
         
         // Apply filters

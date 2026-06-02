@@ -1,0 +1,96 @@
+---
+description: My Works module — architecture, RBAC scope, DataTables list, and safe extension patterns
+globs: application/**/my_works/**,application/controllers/My_works.php,application/models/My_work_model.php,application/helpers/my_works_helper.php,application/views/my_works/**,assets/css/my-works.css
+alwaysApply: false
+---
+
+# My Works — Senior Development Rules
+
+## Purpose
+
+Personal/ad-hoc work tracker (not project tasks). Each row is owned by **creator** and **assignee**; visibility is strict unless admin/view-all.
+
+## Data scope (never bypass)
+
+| Role | List / show / download |
+|------|------------------------|
+| **Admin tier** (`data_scope_sees_all_org_data` / `my_works_sees_all_org_data`) | All org rows |
+| **Everyone else** (staff, manager, lead) | `created_by = session user OR created_for = session user` only |
+
+- **Admin tier** = `ROLE_ADMIN`, role name `admin`, or `roles.group_type = admin`. Not managers/leads unless their role is admin group.
+- **`my_works_view_all` permission** does NOT widen data scope — admin role only for org-wide listings.
+- **List scope**: `_apply_list_scope()` on every query that lists data.
+- **Row access**: `_user_can_access()` + `_require_access()` before show/edit/delete/download/comment.
+
+## Permission keys
+
+| Key | Use |
+|-----|-----|
+| `my_works_list` | View list, detail, download, comment, status (assignee) |
+| `my_works_add` | Create |
+| `my_works_edit` | Full edit (must also pass row access) |
+| `my_works_delete` | Delete (creator or admin/view-all) |
+| `my_works_view_all` | Org-wide list |
+| `my_works_export` | CSV export |
+| `my_works` | Full access alias |
+
+Register new keys in: `Permissions.php`, `AuthHook.php`, `permission_helper.php` (`get_dashboard_module_groups`).
+
+## List view + DataTables
+
+- **Pattern**: Same as Employees/Tasks — server applies filters + scope, returns rows (cap `list_cap` 2000); **DataTables** handles paging/search/sort client-side on `#myWorksTable`.
+- Do **not** add class `datatable` on My Works table (init via `#myWorksTable` in `assets/js/app.js` — script must run from footer after DataTables CDN loads).
+- Non-sortable columns: Status (forms), Actions. Use `data-order` on Due/Updated for correct sort.
+- **Server filters** (GET form): status, tag, q, involvement, created_for/by (admin), urgent/important/overdue.
+- **DT quick search**: filters loaded rows only; use Apply filters for server-side narrowing.
+- Mobile (`d-md-none`): card list, no DataTables.
+
+## Board view
+
+- Same filtered `$rows` split into status columns.
+- Drag-drop calls `update_status` POST with CSRF + `_can_update_status()`.
+- Board does not use DataTables.
+
+## Schema
+
+- Base table `my_works`; extensions via `ensure_schema()` in controller (due_date, task_id, activity, comments).
+- Uploads: `uploads/my_works/` — served only via `download()`; `.htaccess` denies direct access.
+
+## Mutations checklist
+
+On create/update/delete/status/comment:
+
+1. `require_module_access(...)`
+2. Row access check where applicable
+3. Validate `created_for` with `_user_in_assign_scope()`
+4. CSRF on all POST forms (`_csrf.php` partial)
+5. `log_activity()` on meaningful changes
+6. `my_works_notify_assignee()` on create/reassign
+7. `clear_dashboard_cache(user_id, role_id)`
+
+## Files map
+
+| Layer | Path |
+|-------|------|
+| Controller | `application/controllers/My_works.php` |
+| Model | `application/models/My_work_model.php` |
+| Helper | `application/helpers/my_works_helper.php` |
+| Views | `application/views/my_works/` |
+| Routes | `config/routes.php` → `/my-works/*` |
+| CSS | `assets/css/my-works.css` |
+
+## Implementation plan for new features
+
+1. **Define scope** — Does it change who sees data? If yes, update `_apply_list_scope` and `_user_can_access` together.
+2. **Permission** — New action needs a key + seed in Permissions UI.
+3. **Schema** — Column in `ensure_schema()` or migration; model insert/update only whitelisted fields.
+4. **Controller** — Thin: validate → model → activity/notify → redirect/JSON.
+5. **View** — Match existing card/table patterns; PHP 5.6 safe (no `??` in views).
+6. **Test matrix** — Staff A/B/C (creator, assignee, outsider), admin, assignee status-only, CSRF, 403 on foreign ID.
+
+## PHP / CI conventions
+
+- CodeIgniter 3, PHP 5.6+ compatible in views.
+- Reuse helpers: `my_works_status_labels`, `my_works_user_label`, `my_works_is_overdue`, `my_works_safe_redirect`.
+- Use `require_module_access()` not raw session checks in controllers.
+- Prefer extending existing private methods over duplicating query logic.

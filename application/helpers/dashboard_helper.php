@@ -48,11 +48,13 @@ if (!function_exists('get_dashboard_stats')) {
 if (!function_exists('calculate_dashboard_stats')) {
     function calculate_dashboard_stats($user_id, $role_id) {
         $CI =& get_instance();
+        $CI->load->helper(['permission', 'group_filter', 'data_scope', 'my_works']);
         $stats = [];
+        $sees_all = function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data();
         
         // Employee count - optimized query
-        if ($CI->db->table_exists('employees')) {
-            if (in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (dashboard_has_module_access('employees') && $CI->db->table_exists('employees')) {
+            if ($sees_all) {
                 $query = $CI->db->from('employees');
                 if ($CI->db->field_exists('status', 'employees')) {
                     $query->where('status', STATUS_ACTIVE);
@@ -60,23 +62,15 @@ if (!function_exists('calculate_dashboard_stats')) {
                 $stats['employees'] = $query->count_all_results();
             } else {
                 $user_info = $CI->db->where('user_id', $user_id)->get('employees')->row();
-                if ($user_info && can_view_group_data($role_id)) {
-                    $query = $CI->db->from('employees')->where('department', $user_info->department);
-                    if ($CI->db->field_exists('status', 'employees')) {
-                        $query->where('status', STATUS_ACTIVE);
-                    }
-                    $stats['employees'] = $query->count_all_results();
-                } else {
-                    $stats['employees'] = $user_info ? 1 : 0;
-                }
+                $stats['employees'] = $user_info ? 1 : 0;
             }
         } else {
             $stats['employees'] = 0;
         }
         
         // Projects count - optimized with single query using conditional aggregation
-        if ($CI->db->table_exists('projects')) {
-            if (in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (dashboard_has_module_access('projects') && $CI->db->table_exists('projects')) {
+            if ($sees_all) {
                 $stats['projects_total'] = $CI->db->from('projects')->count_all_results();
                 
                 $query = $CI->db->from('projects');
@@ -85,7 +79,6 @@ if (!function_exists('calculate_dashboard_stats')) {
                 }
                 $stats['projects_active'] = $query->count_all_results();
             } else {
-                // Use single query with JOIN for non-admin users
                 $sql = "SELECT 
                             COUNT(DISTINCT p.id) as total,
                             SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) as active
@@ -102,8 +95,8 @@ if (!function_exists('calculate_dashboard_stats')) {
         }
         
         // Tasks count - optimized with single query
-        if ($CI->db->table_exists('tasks')) {
-            if (in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        if (dashboard_has_module_access('tasks') && $CI->db->table_exists('tasks')) {
+            if ($sees_all) {
                 $stats['tasks_total'] = $CI->db->from('tasks')->count_all_results();
                 
                 $query = $CI->db->from('tasks');
@@ -118,39 +111,16 @@ if (!function_exists('calculate_dashboard_stats')) {
                 }
                 $stats['tasks_completed'] = $query->count_all_results();
             } else {
-                if (can_view_group_data($role_id)) {
-                    $user_info = $CI->db->where('user_id', $user_id)->get('employees')->row();
-                    if ($user_info) {
-                        // Single query for all task counts
-                        $sql = "SELECT 
-                                    COUNT(t.id) as total,
-                                    SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) as pending,
-                                    SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) as completed
-                                FROM tasks t 
-                                INNER JOIN employees e ON e.user_id = t.assigned_to 
-                                WHERE e.department = ?";
-                        $result = $CI->db->query($sql, [$user_info->department])->row();
-                        $stats['tasks_total'] = $result ? (int)$result->total : 0;
-                        $stats['tasks_pending'] = $result ? (int)$result->pending : 0;
-                        $stats['tasks_completed'] = $result ? (int)$result->completed : 0;
-                    } else {
-                        $stats['tasks_total'] = 0;
-                        $stats['tasks_pending'] = 0;
-                        $stats['tasks_completed'] = 0;
-                    }
-                } else {
-                    // Single query for user's own tasks
-                    $sql = "SELECT 
-                                COUNT(id) as total,
-                                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
-                            FROM tasks 
-                            WHERE assigned_to = ?";
-                    $result = $CI->db->query($sql, [$user_id])->row();
-                    $stats['tasks_total'] = $result ? (int)$result->total : 0;
-                    $stats['tasks_pending'] = $result ? (int)$result->pending : 0;
-                    $stats['tasks_completed'] = $result ? (int)$result->completed : 0;
-                }
+                $sql = "SELECT 
+                            COUNT(id) as total,
+                            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+                        FROM tasks 
+                        WHERE assigned_to = ?";
+                $result = $CI->db->query($sql, [$user_id])->row();
+                $stats['tasks_total'] = $result ? (int)$result->total : 0;
+                $stats['tasks_pending'] = $result ? (int)$result->pending : 0;
+                $stats['tasks_completed'] = $result ? (int)$result->completed : 0;
             }
         } else {
             $stats['tasks_total'] = 0;
@@ -159,11 +129,11 @@ if (!function_exists('calculate_dashboard_stats')) {
         }
         
         // Today's attendance - optimized
-        if ($CI->db->table_exists('attendance')) {
+        if (dashboard_has_module_access('attendance') && $CI->db->table_exists('attendance')) {
             $today = date('Y-m-d');
-            $date_col = 'date';
-            if (!$CI->db->field_exists('date', 'attendance')) {
-                $date_columns = ['attendance_date', 'created_at', 'timestamp', 'log_date'];
+            $date_col = 'att_date';
+            if (!$CI->db->field_exists('att_date', 'attendance')) {
+                $date_columns = ['date', 'attendance_date', 'created_at', 'timestamp', 'log_date'];
                 foreach ($date_columns as $col) {
                     if ($CI->db->field_exists($col, 'attendance')) {
                         $date_col = $col;
@@ -171,70 +141,68 @@ if (!function_exists('calculate_dashboard_stats')) {
                     }
                 }
             }
-            
-            if (in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+
+            if ($sees_all) {
                 $stats['attendance_today'] = $CI->db->from('attendance')
                                                    ->where($date_col, $today)
                                                    ->count_all_results();
             } else {
-                if (can_view_group_data($role_id)) {
-                    $user_info = $CI->db->where('user_id', $user_id)->get('employees')->row();
-                    if ($user_info) {
-                        $sql = "SELECT COUNT(a.id) as count 
-                                FROM attendance a 
-                                INNER JOIN employees e ON e.user_id = a.user_id 
-                                WHERE a.$date_col = ? AND e.department = ?";
-                        $result = $CI->db->query($sql, [$today, $user_info->department])->row();
-                        $stats['attendance_today'] = $result ? (int)$result->count : 0;
-                    } else {
-                        $stats['attendance_today'] = 0;
-                    }
-                } else {
-                    $stats['attendance_today'] = $CI->db->from('attendance')
-                                                       ->where($date_col, $today)
-                                                       ->where('user_id', $user_id)
-                                                       ->count_all_results();
-                }
+                $stats['attendance_today'] = $CI->db->from('attendance')
+                                                   ->where($date_col, $today)
+                                                   ->where('user_id', $user_id)
+                                                   ->count_all_results();
             }
         } else {
             $stats['attendance_today'] = 0;
         }
         
-        // Leave requests pending - optimized
-        if ($CI->db->table_exists('leave_requests')) {
-            if (in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true)) {
+        // Leave requests pending - optimized (shown on attendance stat card subtitle)
+        if (dashboard_has_module_access('leaves') && $CI->db->table_exists('leave_requests')) {
+            if ($sees_all) {
                 $query = $CI->db->from('leave_requests');
                 if ($CI->db->field_exists('status', 'leave_requests')) {
                     $query->where('status', STATUS_PENDING);
                 }
                 $stats['leaves_pending'] = $query->count_all_results();
             } else {
-                if (can_view_group_data($role_id)) {
-                    $user_info = $CI->db->where('user_id', $user_id)->get('employees')->row();
-                    if ($user_info) {
-                        $sql = "SELECT COUNT(lr.id) as count 
-                                FROM leave_requests lr 
-                                INNER JOIN employees e ON e.user_id = lr.user_id 
-                                INNER JOIN employees cu ON cu.department = e.department 
-                                WHERE cu.user_id = ?";
-                        if ($CI->db->field_exists('status', 'leave_requests')) {
-                            $sql .= " AND lr.status = 'pending'";
-                        }
-                        $result = $CI->db->query($sql, [$user_id])->row();
-                        $stats['leaves_pending'] = $result ? (int)$result->count : 0;
-                    } else {
-                        $stats['leaves_pending'] = 0;
-                    }
-                } else {
-                    $query = $CI->db->from('leave_requests')->where('user_id', $user_id);
-                    if ($CI->db->field_exists('status', 'leave_requests')) {
-                        $query->where('status', STATUS_PENDING);
-                    }
-                    $stats['leaves_pending'] = $query->count_all_results();
+                $query = $CI->db->from('leave_requests')->where('user_id', $user_id);
+                if ($CI->db->field_exists('status', 'leave_requests')) {
+                    $query->where('status', STATUS_PENDING);
                 }
+                $stats['leaves_pending'] = $query->count_all_results();
             }
         } else {
             $stats['leaves_pending'] = 0;
+        }
+
+        // My Works — personal scope (created by or assigned to user) unless org-wide view
+        $stats['my_works_open'] = 0;
+        $stats['my_works_urgent'] = 0;
+        if (dashboard_has_module_access('my_works') && $CI->db->table_exists('my_works')) {
+            $can_view_all_mw = function_exists('my_works_sees_all_org_data') && my_works_sees_all_org_data();
+            if (!function_exists('my_works_sees_all_org_data') && function_exists('data_scope_sees_all_org_data')) {
+                $can_view_all_mw = data_scope_sees_all_org_data();
+            }
+            $CI->db->from('my_works w');
+            if (!$can_view_all_mw && $user_id > 0) {
+                $CI->db->group_start();
+                $CI->db->where('w.created_by', (int) $user_id);
+                $CI->db->or_where('w.created_for', (int) $user_id);
+                $CI->db->group_end();
+            }
+            $CI->db->where('w.status !=', 'closed');
+            $stats['my_works_open'] = (int) $CI->db->count_all_results();
+
+            $CI->db->from('my_works w');
+            if (!$can_view_all_mw && $user_id > 0) {
+                $CI->db->group_start();
+                $CI->db->where('w.created_by', (int) $user_id);
+                $CI->db->or_where('w.created_for', (int) $user_id);
+                $CI->db->group_end();
+            }
+            $CI->db->where('w.is_urgent', 1);
+            $CI->db->where('w.status !=', 'closed');
+            $stats['my_works_urgent'] = (int) $CI->db->count_all_results();
         }
         
         return $stats;
@@ -283,4 +251,3 @@ if (!function_exists('clear_all_dashboard_cache')) {
         }
     }
 }
-

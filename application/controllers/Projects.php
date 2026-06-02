@@ -19,8 +19,9 @@ class Projects extends CI_Controller {
         $role_id = (int)$this->session->userdata('role_id');
         $filters = get_user_group_filter($user_id, $role_id);
         
-        // Admin sees all projects, others see only projects they're members of
-        $can_view_all = is_admin_group() || has_module_access('projects_view_all');
+        // Admin sees all projects; others see only projects they belong to
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('projects_view_all');
         if (!$can_view_all) {
             $projects = $this->Project_model->all($filters);
         } else {

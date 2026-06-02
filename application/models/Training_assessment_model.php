@@ -136,9 +136,10 @@ class Training_assessment_model extends CI_Model
      * @param string $search          title/description LIKE
      * @param string $status          all|active|inactive
      * @param string $sort            created_desc|created_asc|title_asc|title_desc|questions_desc
-     * @param int    $scope_user_id   If &gt; 0 (non–org-admin), only assessments with an assignment row for this user_id.
+     * @param int        $scope_user_id  Legacy: single user id when $scope_user_ids is null.
+     * @param int[]|null $scope_user_ids Non–org-admin: only assessments assigned to these user ids.
      */
-    public function list_assessments_with_stats($search = '', $status = 'all', $sort = 'created_desc', $scope_user_id = 0)
+    public function list_assessments_with_stats($search = '', $status = 'all', $sort = 'created_desc', $scope_user_id = 0, $scope_user_ids = null)
     {
         $tq = $this->t['questions'];
         $tau = $this->t['assessment_users'];
@@ -148,10 +149,20 @@ class Training_assessment_model extends CI_Model
         $this->db->select('(SELECT COUNT(*) FROM `' . $tau . '` au WHERE au.assessment_id = a.id) AS assigned_count', false);
         $this->db->select('(SELECT COUNT(*) FROM `' . $tau . '` au WHERE au.assessment_id = a.id AND au.completed_at IS NOT NULL) AS completed_count', false);
         $this->db->from($ta . ' a');
-        $scope_user_id = (int) $scope_user_id;
-        if ($scope_user_id > 0) {
-            // User scope: only assessments assigned to this user (admin passes 0 => all).
-            $this->db->where('a.id IN (SELECT au2.assessment_id FROM `' . $tau . '` au2 WHERE au2.user_id = ' . (int) $scope_user_id . ')', null, false);
+        if ($scope_user_ids === null && (int) $scope_user_id > 0) {
+            $scope_user_ids = array((int) $scope_user_id);
+        }
+        if (is_array($scope_user_ids) && !empty($scope_user_ids)) {
+            $ids = array_values(array_unique(array_filter(array_map('intval', $scope_user_ids), function ($id) {
+                return $id > 0;
+            })));
+            if (!empty($ids)) {
+                $this->db->where(
+                    'a.id IN (SELECT au2.assessment_id FROM `' . $tau . '` au2 WHERE au2.user_id IN (' . implode(',', $ids) . '))',
+                    null,
+                    false
+                );
+            }
         }
         $search = trim((string)$search);
         if ($search !== '') {
@@ -746,7 +757,7 @@ class Training_assessment_model extends CI_Model
      * @param int    $employee_user_id 0 = all employees (ignored when assignee_type is candidate)
      * @param string $assignee_type     all|employee|candidate
      */
-    public function list_assignments_for_report($employee_user_id, $date_from, $date_to, $assessment_id = 0, $assignee_type = 'all')
+    public function list_assignments_for_report($employee_user_id, $date_from, $date_to, $assessment_id = 0, $assignee_type = 'all', $scope_user_ids = null)
     {
         $tau = $this->t['assessment_users'];
         $ta = $this->t['assessments'];
@@ -762,11 +773,15 @@ class Training_assessment_model extends CI_Model
         $assignee_type = strtolower(trim((string)$assignee_type));
         if ($assignee_type === 'employee') {
             $this->db->where('au.user_id IS NOT NULL', null, false);
-            if ($employee_user_id) {
+            if (is_array($scope_user_ids) && !empty($scope_user_ids)) {
+                $this->db->where_in('au.user_id', array_map('intval', $scope_user_ids));
+            } elseif ($employee_user_id) {
                 $this->db->where('au.user_id', (int)$employee_user_id);
             }
         } elseif ($assignee_type === 'candidate') {
             $this->db->where('au.user_id IS NULL', null, false);
+        } elseif (is_array($scope_user_ids) && !empty($scope_user_ids)) {
+            $this->db->where_in('au.user_id', array_map('intval', $scope_user_ids));
         } elseif ($employee_user_id) {
             $this->db->where('au.user_id', (int)$employee_user_id);
         }

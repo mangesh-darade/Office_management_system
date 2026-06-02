@@ -7,7 +7,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * - Admin tier: ROLE_ADMIN, role name "admin", or roles.group_type = "admin" (is_admin_group).
  * - User tier: roles.group_type = "user" or legacy ROLE_STAFF when group_type column missing (is_user_group).
  *
- * Manager/Lead keep existing hierarchy rules via hierarchy_filter_helper (team visibility), not "own created_by only".
+ * Manager/Lead follow the same rule as staff unless their role has admin group_type.
  *
  * PHP 5.6 / CodeIgniter 3 compatible.
  */

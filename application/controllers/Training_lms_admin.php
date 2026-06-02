@@ -394,9 +394,10 @@ class Training_lms_admin extends CI_Controller
         $data['assignment'] = $assign;
         $rows = $this->lms_assign->list_submissions_for_assignment((int) $assign->id);
         if (!$this->_lms_admin_can_view_all()) {
-            $uid = (int) $this->session->userdata('user_id');
-            $rows = array_values(array_filter($rows, function ($r) use ($uid) {
-                return isset($r->user_id) && (int) $r->user_id === $uid;
+            $this->load->helper('hierarchy_filter');
+            $allowed = get_accessible_hierarchy_user_ids();
+            $rows = array_values(array_filter($rows, function ($r) use ($allowed) {
+                return isset($r->user_id) && in_array((int) $r->user_id, $allowed, true);
             }));
         }
         $data['submissions'] = $rows;
@@ -454,7 +455,7 @@ class Training_lms_admin extends CI_Controller
     /**
      * Assignment submissions overview:
      * - Admin group, super admin (role 1), or training_lms_manage: all rows
-     * - Other users (submissions screen access only): own rows
+     * - Lead / manager / team scope: hierarchy-filtered rows; full org when training_lms_manage or admin
      */
     public function assignment_submissions_list()
     {
@@ -464,6 +465,7 @@ class Training_lms_admin extends CI_Controller
         }
         $uid = (int) $this->session->userdata('user_id');
         $showAll = $this->_lms_admin_can_view_all();
+        $this->load->helper('hierarchy_filter');
         $this->db->select('s.id AS submission_id, s.user_id, t.id AS topic_id, m.title AS module_name, t.name AS topic_name, asn.name AS assignment_name, u.name AS submitted_by_name, u.email AS submitted_by_email, s.submitted_at, s.original_filename AS attachment_filename, s.stored_filename, s.score AS assignment_score, grader.name AS assessed_by_name, s.status, s.feedback', false);
         $this->db->from('assignment_submissions s');
         $this->db->join('assignments asn', 'asn.id = s.assignment_id', 'inner');
@@ -471,14 +473,16 @@ class Training_lms_admin extends CI_Controller
         $this->db->join('training_modules m', 'm.id = t.module_id', 'inner');
         $this->db->join('users u', 'u.id = s.user_id', 'left');
         $this->db->join('users grader', 'grader.id = s.assessed_by', 'left');
-        if (!$showAll && $uid > 0) {
-            $this->db->where('s.user_id', $uid);
+        if (!$showAll) {
+            apply_role_hierarchy_filter($this->db, 's.user_id');
         }
         $this->db->order_by('s.submitted_at', 'DESC');
         $this->db->order_by('s.id', 'DESC');
         $data['rows'] = $this->db->get()->result();
+        $allowed = $showAll ? array() : get_accessible_hierarchy_user_ids();
         $data['show_all_submissions'] = $showAll;
         $data['can_review_submissions'] = $showAll;
+        $data['submissions_scope_team'] = (!$showAll && count($allowed) > 1);
         $this->load->view('training_lms/admin/assignment_submissions_list', $data);
     }
 
@@ -492,8 +496,8 @@ class Training_lms_admin extends CI_Controller
             show_404();
         }
         if (!$this->_lms_admin_can_view_all()) {
-            $uid = (int) $this->session->userdata('user_id');
-            if ($uid <= 0 || !isset($sub->user_id) || (int) $sub->user_id !== $uid) {
+            $this->load->helper('hierarchy_filter');
+            if (!hierarchy_user_can_access(isset($sub->user_id) ? (int) $sub->user_id : 0)) {
                 show_error('Access denied.', 403);
             }
         }
@@ -514,13 +518,8 @@ class Training_lms_admin extends CI_Controller
 
     private function _lms_admin_can_view_all()
     {
-        if ((int) $this->session->userdata('role_id') === 1) {
-            return true;
-        }
-        if (function_exists('is_admin_group') && is_admin_group()) {
-            return true;
-        }
-        return function_exists('has_module_access') && has_module_access('training_lms_manage');
+        return function_exists('training_lms_admin_sees_all_submissions')
+            && training_lms_admin_sees_all_submissions();
     }
 
     /**

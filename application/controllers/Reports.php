@@ -5,7 +5,7 @@ class Reports extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','permission','hierarchy_filter']);
+        $this->load->helper(['url','permission','hierarchy_filter','attendance']);
         $this->load->library('session');
         $this->load->model('Report_model');
         if ($this->db->table_exists('settings')) {
@@ -53,8 +53,13 @@ class Reports extends CI_Controller {
             apply_role_hierarchy_filter($this->db, 'user_id');
             $leaves_by_status = $this->db->group_by('status')->get()->result();
         } elseif ($this->db->table_exists('leaves')) {
-            $leaves_monthly = $this->db->query("SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, COUNT(*) AS total_days FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY ym ORDER BY ym")->result();
-            $leaves_by_status = $this->db->select('status, COUNT(*) AS cnt')->from('leaves')->group_by('status')->get()->result();
+            $leaves_user_filter = hierarchy_sql_user_filter('user_id');
+            $leaves_monthly = $this->db->query(
+                "SELECT DATE_FORMAT(start_date, '%Y-%m') as ym, COUNT(*) AS total_days FROM leaves WHERE start_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)" . $leaves_user_filter . " GROUP BY ym ORDER BY ym"
+            )->result();
+            $this->db->select('status, COUNT(*) AS cnt')->from('leaves');
+            apply_role_hierarchy_filter($this->db, 'user_id');
+            $leaves_by_status = $this->db->group_by('status')->get()->result();
         }
         if ($this->db->table_exists('tasks')) {
             // Top 10 assignees by number of tasks
@@ -86,9 +91,9 @@ class Reports extends CI_Controller {
         if ($attendance_days <= 0) { $attendance_days = 14; }
         if ($attendance_days > 90) { $attendance_days = 90; }
 
-        // Determine group for scoping analytics (admin group sees all, others see own data)
+        // Scope analytics: admin = org-wide, others = logged-in user only
         $currentUserId = (int)$this->session->userdata('user_id');
-        $isAdminGroup = function_exists('is_admin_group') && is_admin_group();
+        $seesAllOrgData = function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data();
 
         if ($this->db->table_exists('attendance')) {
             // Detect user and date columns
@@ -105,7 +110,7 @@ class Reports extends CI_Controller {
                 $sql = "SELECT DATE(`$dateCol`) AS d, COUNT(*) cnt
                         FROM attendance
                         WHERE `$dateCol` >= DATE_SUB(CURDATE(), INTERVAL ".$attendance_days." DAY)";
-                if ($userCol !== null && $currentUserId && !$isAdminGroup) {
+                if ($userCol !== null && $currentUserId && !$seesAllOrgData) {
                     $sql .= " AND `$userCol` = ".(int)$currentUserId;
                 }
                 $sql .= " GROUP BY DATE(`$dateCol`) ORDER BY d";
@@ -136,7 +141,7 @@ class Reports extends CI_Controller {
                     if ($tBase !== false) {
                         $cutoffTime = date('H:i:s', $tBase + ($graceMinutes * 60));
 
-                        if ($currentUserId && !$isAdminGroup) {
+                        if ($currentUserId && !$seesAllOrgData) {
                             // For user group: only show their own late summary
                             $sql = "SELECT `$userCol` AS uid, COUNT(*) AS late_days
                                     FROM attendance
@@ -420,11 +425,13 @@ class Reports extends CI_Controller {
     {
         require_module_access(['reports', 'reports_tasks_assignment'], true);
         $this->load->dbutil();
-        // Example combined report: tasks with project and assignee
+        $this->load->helper('hierarchy_filter');
+        $userFilter = hierarchy_sql_user_filter('t.assigned_to');
         $sql = "SELECT t.id, t.title, t.status, p.name AS project, u.email AS assigned_user, t.created_at
                 FROM tasks t
                 LEFT JOIN projects p ON p.id = t.project_id
                 LEFT JOIN users u ON u.id = t.assigned_to
+                WHERE 1=1" . $userFilter . "
                 ORDER BY t.id DESC";
         $query = $this->db->query($sql);
         $out = $this->dbutil->csv_from_result($query);
@@ -450,7 +457,7 @@ class Reports extends CI_Controller {
         if ($this->db->table_exists('tasks')) {
             // Build base query with filters
             $this->db->select('assigned_to, status, COUNT(*) as cnt')->from('tasks');
-            apply_role_hierarchy_filter($this->db, 'created_by');
+            apply_role_hierarchy_filter($this->db, 'assigned_to');
             
             // Apply filters
             if (!empty($filters['project_id'])) {
@@ -488,7 +495,7 @@ class Reports extends CI_Controller {
             $task_details_map = [];
             
             $this->db->select('assigned_to, title, status, project_id, created_at, due_date')->from('tasks');
-            apply_role_hierarchy_filter($this->db, 'created_by');
+            apply_role_hierarchy_filter($this->db, 'assigned_to');
             
             // Re-apply same filters for task details
             if (!empty($filters['project_id'])) {
@@ -687,16 +694,16 @@ class Reports extends CI_Controller {
         
         // Scope Check
         $currentUserId = (int)$this->session->userdata('user_id');
-        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group()) || (int)$this->session->userdata('role_id') === 1;
+        $seesAllOrgData = function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data();
         apply_role_hierarchy_filter($this->db, 'dl.user_id', $currentUserId, (int)$this->session->userdata('role_id'));
 
         // Show latest entries first
         $this->db->order_by('dl.created_at', 'DESC');
         $rows = $this->db->get()->result();
 
-         // Users for filter
+         // Users for filter (admin only)
         $users = [];
-        if ($isAdminGroup) {
+        if ($seesAllOrgData) {
              $this->db->select('id, name, email')->from('users');
              apply_role_hierarchy_filter($this->db, 'id');
              $users = $this->db->order_by('name')->get()->result();
@@ -717,7 +724,7 @@ class Reports extends CI_Controller {
             'rows' => $rows,
             'filters' => $filters,
             'users' => $users,
-            'is_admin' => $isAdminGroup,
+            'is_admin' => $seesAllOrgData,
             'stats' => [
                 'total_entries' => $total_entries,
                 'unique_users' => count($unique_users),
@@ -1150,7 +1157,9 @@ class Reports extends CI_Controller {
             }
             
             $monthly_sql = "SELECT DATE_FORMAT(start_date, '%Y-%m') ym, SUM(days) AS total_days 
-                           FROM leave_requests WHERE 1=1 $date_filter GROUP BY ym ORDER BY ym";
+                           FROM leave_requests WHERE 1=1 $date_filter"
+                           . hierarchy_sql_user_filter('user_id')
+                           . " GROUP BY ym ORDER BY ym";
             $monthly = $this->db->query($monthly_sql)->result();
             
             // Status breakdown (with filters applied)
@@ -1294,10 +1303,13 @@ class Reports extends CI_Controller {
             }
             
             $monthly_sql = "SELECT DATE_FORMAT(start_date, '%Y-%m') ym, COUNT(*) AS total_days 
-                           FROM leaves WHERE 1=1 $date_filter GROUP BY ym ORDER BY ym";
+                           FROM leaves WHERE 1=1 $date_filter"
+                           . hierarchy_sql_user_filter('user_id')
+                           . " GROUP BY ym ORDER BY ym";
             $monthly = $this->db->query($monthly_sql)->result();
             
             $this->db->select('status, COUNT(*) AS cnt')->from('leaves');
+            apply_role_hierarchy_filter($this->db, 'user_id');
             if (!empty($filters['user_id'])) {
                 $this->db->where('user_id', (int)$filters['user_id']);
             }
@@ -1583,6 +1595,7 @@ class Reports extends CI_Controller {
         $user_id = $user_id ? (int)$user_id : 0;
 
         if ($user_id > 0) {
+            require_hierarchy_user_access($user_id, true);
             // Detect all possible check-in/check-out columns and use row-level fallback.
             $fields = $this->db->list_fields('attendance');
             $hasPunchIn = in_array('punch_in', $fields, true);
@@ -1772,17 +1785,16 @@ class Reports extends CI_Controller {
                     $raw = 'present';
                 }
                 
-                $labelSt = '—';
-                if ($st === 'holiday') { $labelSt = 'Holiday: ' . $holidayName; }
-                elseif ($st === 'present') { 
-                    $labelSt = 'Present'; 
-                    if ($holidayName) { $labelSt .= ' (' . $holidayName . ')'; }
+                if ($isWeekend && $st === '') {
+                    $labelSt = 'Weekend';
+                } elseif ($st === 'holiday' || ($holidayName && $st === 'holiday')) {
+                    $labelSt = attendance_status_display_label('holiday', $holidayName);
+                } else {
+                    $labelSt = attendance_status_display_label(
+                        $st,
+                        ($st === 'present' && $holidayName) ? $holidayName : null
+                    );
                 }
-                elseif ($st === 'half_day') { $labelSt = 'Half Day'; }
-                elseif ($st === 'work_from_home') { $labelSt = 'Work From Home'; }
-                elseif ($st === 'absent') { $labelSt = 'Absent'; }
-                elseif ($st !== '') { $labelSt = $raw; }
-                elseif ($isWeekend) { $labelSt = 'Weekend'; }
 
                 // Late/On Time label based on check-in time when available
                 $lateLabel = '—';
@@ -1972,10 +1984,7 @@ class Reports extends CI_Controller {
             if (!isset($summary[$uid])) {
                 $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
             }
-            if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
-            elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
-            elseif ($st === 'work_from_home') { $summary[$uid]['wfh'] += $cnt; }
-            elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
+            apply_attendance_status_to_summary($summary, $uid, $st, $cnt);
         }
 
         // Initialize summary for all users (even those without attendance records)
@@ -2348,7 +2357,8 @@ class Reports extends CI_Controller {
 
             // Build base WHERE conditions
             $whereConditions = "`$dateCol` >= '$startDate' AND `$dateCol` <= '$endDate'";
-            if ($departmentId && $departmentId !== 'all') {
+            $whereConditions .= hierarchy_sql_user_filter($userCol);
+            if ($departmentId && $departmentId !== 'all' && function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data()) {
                 // Get department name from departments table
                 $dept = $this->db->select('dept_name')->where('id', (int)$departmentId)->get('departments')->row();
                 if ($dept) {
@@ -2365,7 +2375,7 @@ class Reports extends CI_Controller {
                     WHERE $whereConditions
                     GROUP BY `$userCol`, DATE(`$dateCol`), `$statusCol` 
                     ORDER BY bucket DESC, uid ASC 
-                    LIMIT 500";
+                    LIMIT 5000";
             $daily = $this->db->query($sql)->result();
             foreach ($daily as &$d){ $d->name = $getName((int)$d->uid); }
 
@@ -2375,7 +2385,7 @@ class Reports extends CI_Controller {
                     WHERE $whereConditions
                     GROUP BY `$userCol`, YEARWEEK(`$dateCol`), `$statusCol` 
                     ORDER BY bucket DESC, uid ASC 
-                    LIMIT 500";
+                    LIMIT 5000";
             $weekly = $this->db->query($sql)->result();
             foreach ($weekly as &$w){ $w->name = $getName((int)$w->uid); }
 
@@ -2385,7 +2395,7 @@ class Reports extends CI_Controller {
                     WHERE $whereConditions
                     GROUP BY `$userCol`, DATE_FORMAT(`$dateCol`, '%Y-%m'), `$statusCol` 
                     ORDER BY bucket DESC, uid ASC 
-                    LIMIT 500";
+                    LIMIT 5000";
             $monthly = $this->db->query($sql)->result();
             foreach ($monthly as &$m){ $m->name = $getName((int)$m->uid); }
 
@@ -2419,7 +2429,7 @@ class Reports extends CI_Controller {
                             WHERE $whereConditions AND `$checkInColLate` IS NOT NULL AND TIME(`$checkInColLate`) > ?
                             GROUP BY `$userCol`, DATE(`$dateCol`)
                             ORDER BY bucket DESC, uid ASC
-                            LIMIT 500";
+                            LIMIT 5000";
                     $dailyLate = $this->db->query($sql, [$cutoffTime])->result();
                     foreach ($dailyLate as &$r) { $r->name = $getName((int)$r->uid); }
 
@@ -2429,7 +2439,7 @@ class Reports extends CI_Controller {
                             WHERE $whereConditions AND `$checkInColLate` IS NOT NULL AND TIME(`$checkInColLate`) > ?
                             GROUP BY `$userCol`, YEARWEEK(`$dateCol`)
                             ORDER BY bucket DESC, uid ASC
-                            LIMIT 500";
+                            LIMIT 5000";
                     $weeklyLate = $this->db->query($sql, [$cutoffTime])->result();
                     foreach ($weeklyLate as &$r) { $r->name = $getName((int)$r->uid); }
 
@@ -2439,7 +2449,7 @@ class Reports extends CI_Controller {
                             WHERE $whereConditions AND `$checkInColLate` IS NOT NULL AND TIME(`$checkInColLate`) > ?
                             GROUP BY `$userCol`, DATE_FORMAT(`$dateCol`, '%Y-%m')
                             ORDER BY bucket DESC, uid ASC
-                            LIMIT 500";
+                            LIMIT 5000";
                     $monthlyLate = $this->db->query($sql, [$cutoffTime])->result();
                     foreach ($monthlyLate as &$r) { $r->name = $getName((int)$r->uid); }
                 }
@@ -2581,6 +2591,16 @@ class Reports extends CI_Controller {
                     ->set_output(json_encode(['error' => 'Invalid employee selection.']));
                 return;
             }
+
+            foreach ($userIds as $exportUid) {
+                if (!hierarchy_user_can_access($exportUid)) {
+                    $this->output
+                        ->set_status_header(403)
+                        ->set_content_type('application/json')
+                        ->set_output(json_encode(['error' => 'You do not have permission to export data for one or more selected employees.']));
+                    return;
+                }
+            }
             
             // Calculate date range based on period
             $from = '';
@@ -2689,10 +2709,7 @@ class Reports extends CI_Controller {
                 if (!isset($summary[$uid])) {
                     $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
                 }
-                if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
-                elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
-                elseif ($st === 'work_from_home') { $summary[$uid]['wfh'] += $cnt; }
-                elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
+                apply_attendance_status_to_summary($summary, $uid, $st, $cnt);
             }
             
             // Initialize summary for all users (even those without attendance records)
@@ -3013,10 +3030,7 @@ class Reports extends CI_Controller {
                 if (!isset($summary[$uid])) {
                     $summary[$uid] = ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
                 }
-                if ($st === 'present') { $summary[$uid]['present'] += $cnt; }
-                elseif ($st === 'half_day') { $summary[$uid]['half'] += $cnt; }
-                elseif ($st === 'work_from_home') { $summary[$uid]['wfh'] += $cnt; }
-                elseif ($st === 'absent') { $summary[$uid]['absent'] += $cnt; }
+                apply_attendance_status_to_summary($summary, $uid, $st, $cnt);
             }
             
             // Initialize summary for all users (even those without attendance records)
@@ -3455,13 +3469,11 @@ class Reports extends CI_Controller {
                 $raw = 'present';
             }
             
-            $labelSt = '—';
-            if ($st === 'present') { $labelSt = 'Present'; }
-            elseif ($st === 'half_day') { $labelSt = 'Half Day'; }
-            elseif ($st === 'work_from_home') { $labelSt = 'Work From Home'; }
-            elseif ($st === 'absent') { $labelSt = 'Absent'; }
-            elseif ($st !== '') { $labelSt = $raw; }
-            elseif ($isWeekend) { $labelSt = 'Weekend'; }
+            if ($isWeekend && $st === '') {
+                $labelSt = 'Weekend';
+            } else {
+                $labelSt = attendance_status_display_label($st);
+            }
             
             $lateLabel = '—';
             $lateStatus = '';
@@ -3564,6 +3576,10 @@ class Reports extends CI_Controller {
     
     // Export daily details to Excel
     private function export_attendance_employee_detail_excel($user_id, $period, $from, $to, $month, $date) {
+        if (!hierarchy_user_can_access((int)$user_id)) {
+            show_error('You do not have permission to export this employee\'s data.', 403);
+            return;
+        }
         try {
             // Get user name
             $userName = 'Unknown';
@@ -3680,6 +3696,10 @@ class Reports extends CI_Controller {
     
     // Export daily details to PDF
     private function export_attendance_employee_detail_pdf($user_id, $period, $from, $to, $month, $date) {
+        if (!hierarchy_user_can_access((int)$user_id)) {
+            show_error('You do not have permission to export this employee\'s data.', 403);
+            return;
+        }
         try {
             // Get user name
             $userName = 'Unknown';

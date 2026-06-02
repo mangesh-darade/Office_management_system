@@ -1,0 +1,55 @@
+<?php
+  $statusLabels = my_works_status_labels();
+  $statusColors = my_works_status_colors();
+  $borderClass = my_works_row_border_class($r);
+  $stColor = isset($statusColors[$r->status]) ? $statusColors[$r->status] : 'secondary';
+  $stLabel = isset($statusLabels[$r->status]) ? $statusLabels[$r->status] : $r->status;
+  $forLabel = my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for);
+  $byLabel = my_works_user_label($r->created_by_name, $r->created_by_email, $r->created_by);
+  $uid = isset($uid) ? (int) $uid : 0;
+  $canStatus = (!empty($can_quick_edit) || (int) $r->created_for === $uid);
+  $overdue = my_works_is_overdue($r);
+?>
+<div class="mw-item-card <?php echo $borderClass; ?>">
+  <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="d-block text-decoration-none text-body">
+    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+      <div class="fw-semibold"><?php echo htmlspecialchars($r->title); ?></div>
+      <?php if (!$canStatus): ?>
+        <span class="badge bg-<?php echo $stColor; ?> flex-shrink-0"><?php echo htmlspecialchars($stLabel); ?></span>
+      <?php endif; ?>
+    </div>
+    <?php if (!empty($r->details)): ?>
+      <p class="small text-muted mb-2"><?php echo htmlspecialchars(substr(strip_tags($r->details), 0, 120)); ?></p>
+    <?php endif; ?>
+    <div class="d-flex flex-wrap gap-1 mb-2">
+      <?php if ((int) $r->is_urgent === 1): ?><span class="badge bg-danger">Urgent</span><?php endif; ?>
+      <?php if ((int) $r->is_important === 1): ?><span class="badge bg-warning text-dark">Important</span><?php endif; ?>
+      <?php if ($overdue): ?><span class="badge bg-danger">Overdue</span><?php endif; ?>
+      <?php foreach (my_works_parse_tags(isset($r->tag) ? $r->tag : '') as $tg): ?>
+        <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($tg); ?></span>
+      <?php endforeach; ?>
+      <?php if (!empty($r->attachment_stored)): ?><span class="badge bg-light text-muted border"><i class="bi bi-paperclip"></i></span><?php endif; ?>
+      <?php if (!empty($r->url)): ?><span class="badge bg-light text-primary border"><i class="bi bi-link-45deg"></i></span><?php endif; ?>
+    </div>
+    <div class="small text-muted d-flex flex-wrap gap-2 justify-content-between">
+      <span><i class="bi bi-person me-1"></i><?php echo htmlspecialchars($forLabel); ?></span>
+      <span><?php echo my_works_format_when($r->updated_at); ?></span>
+    </div>
+    <div class="small text-muted mt-1">By <?php echo htmlspecialchars($byLabel); ?></div>
+    <?php if (!empty($r->due_date)): ?>
+      <div class="small mt-1 <?php echo $overdue ? 'text-danger fw-semibold' : 'text-muted'; ?>">Due <?php echo htmlspecialchars($r->due_date); ?></div>
+    <?php endif; ?>
+  </a>
+  <?php if ($canStatus): ?>
+    <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="mt-2 mw-quick-status">
+      <?php $this->load->view('my_works/_csrf'); ?>
+      <input type="hidden" name="id" value="<?php echo (int) $r->id; ?>">
+      <input type="hidden" name="redirect" value="<?php echo htmlspecialchars(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>">
+      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+        <?php foreach ($statusLabels as $k => $lbl): ?>
+          <option value="<?php echo $k; ?>" <?php echo $r->status === $k ? 'selected' : ''; ?>><?php echo htmlspecialchars($lbl); ?></option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+  <?php endif; ?>
+</div>

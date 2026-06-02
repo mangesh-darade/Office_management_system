@@ -470,13 +470,8 @@ class Training_lms extends CI_Controller
 
     private function _is_lms_manager()
     {
-        if ((int) $this->session->userdata('role_id') === 1) {
-            return true;
-        }
-        if (!function_exists('has_module_access')) {
-            return false;
-        }
-        return has_module_access('training_lms_manage') || has_module_access('training_screen_lms_admin');
+        return function_exists('training_lms_admin_sees_all_submissions')
+            && training_lms_admin_sees_all_submissions();
     }
 
     private function _schema_missing()

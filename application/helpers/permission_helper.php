@@ -83,12 +83,104 @@ if (!function_exists('require_module_access')) {
     }
 }
 
+if (!function_exists('get_dashboard_module_groups')) {
+    /**
+     * Parent dashboard module keys mapped to granular permission keys.
+     * Keeps stat cards and counters aligned with sidebar / has_module_access checks.
+     */
+    function get_dashboard_module_groups() {
+        return [
+            'employees' => [
+                'employees', 'employees_list', 'employees_add', 'employees_edit', 'employees_delete',
+            ],
+            'projects' => [
+                'projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete',
+            ],
+            'tasks' => [
+                'tasks', 'tasks_list', 'tasks_add', 'tasks_edit', 'tasks_delete',
+            ],
+            'attendance' => [
+                'attendance', 'attendance_list', 'attendance_add', 'attendance_edit',
+                'attendance_delete', 'attendance_view_all', 'attendance_bulk',
+            ],
+            'leaves' => [
+                'leaves', 'leaves_list', 'leaves_add', 'leaves_edit', 'leaves_delete',
+                'leave_requests', 'leave_team', 'leave_calendar', 'leave_approve',
+            ],
+            'reports' => [
+                'reports', 'analytics', 'reports_overview', 'reports_requirements',
+                'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves',
+                'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity',
+                'daily_activity_report', 'reports_payroll', 'reports_expenses',
+            ],
+            'my_works' => [
+                'my_works', 'my_works_list', 'my_works_add', 'my_works_edit', 'my_works_delete',
+                'my_works_view_all', 'my_works_export',
+            ],
+        ];
+    }
+}
+
+if (!function_exists('normalize_accessible_modules_for_dashboard')) {
+    function normalize_accessible_modules_for_dashboard(array $modules) {
+        $normalized = array_values(array_unique(array_filter(array_map(function ($m) {
+            return strtolower(trim((string)$m));
+        }, $modules))));
+
+        foreach (get_dashboard_module_groups() as $parent => $aliases) {
+            foreach ($aliases as $alias) {
+                if (in_array($alias, $normalized, true)) {
+                    if (!in_array($parent, $normalized, true)) {
+                        $normalized[] = $parent;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return $normalized;
+    }
+}
+
+if (!function_exists('dashboard_has_module_access')) {
+    function dashboard_has_module_access($parent_module) {
+        $parent = strtolower(trim((string)$parent_module));
+        if ($parent === '') {
+            return false;
+        }
+        if (has_module_access($parent)) {
+            return true;
+        }
+        $groups = get_dashboard_module_groups();
+        if (!isset($groups[$parent])) {
+            return false;
+        }
+        $aliases = array_values(array_diff($groups[$parent], [$parent]));
+        return can_access_any_module($aliases);
+    }
+}
+
+if (!function_exists('repair_invalid_permission_rows')) {
+    function repair_invalid_permission_rows() {
+        static $done = false;
+        if ($done) { return; }
+        $done = true;
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('permissions')) {
+            return;
+        }
+        $CI->db->where("(module IS NULL OR TRIM(module) = '')", null, false)->delete('permissions');
+    }
+}
+
 if (!function_exists('get_accessible_modules')) {
-    function get_accessible_modules() {
+    function get_accessible_modules($normalize_for_dashboard = false) {
         $CI =& get_instance();
         if (!$CI || !$CI->session) { return []; }
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return []; }
+
+        repair_invalid_permission_rows();
 
         $accessible_modules = [];
         if (isset($CI->db) && $CI->db && $CI->db->table_exists('permissions')) {
@@ -100,6 +192,10 @@ if (!function_exists('get_accessible_modules')) {
             foreach ($result as $row) {
                 $accessible_modules[] = strtolower(trim($row->module));
             }
+        }
+
+        if ($normalize_for_dashboard) {
+            return normalize_accessible_modules_for_dashboard($accessible_modules);
         }
 
         return $accessible_modules;

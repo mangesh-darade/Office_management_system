@@ -156,6 +156,8 @@ $viewerEmail = (string) $this->session->userdata('email');
         <p class="lms-sub-subtitle">
           <?php if (!empty($show_all_submissions)): ?>
             You are viewing all learners' uploads across topics
+          <?php elseif (!empty($submissions_scope_team)): ?>
+            You are viewing uploads for your team (mapped users or same department)
           <?php else: ?>
             You are viewing your own uploads across topics
           <?php endif; ?>

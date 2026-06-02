@@ -16,7 +16,7 @@ class Training_assessment extends CI_Controller
         $this->load->model('Training_assessment_model', 'ta');
         $this->load->library('training_assessment_runtime', null, 'ta_run');
         $this->load->library('session');
-        $this->load->helper(array('url', 'form', 'permission', 'training'));
+        $this->load->helper(array('url', 'form', 'permission', 'training', 'hierarchy_filter'));
 
         $method = $this->router->fetch_method();
 
@@ -81,6 +81,80 @@ class Training_assessment extends CI_Controller
             && !training_ta_has_any_admin_screen();
     }
 
+    /**
+     * Non–org-wide users may only manage assessments they created.
+     *
+     * @param object|null $assessment Row from get_assessment()
+     */
+    private function _ta_can_manage_assessment($assessment)
+    {
+        if (!$assessment) {
+            return false;
+        }
+        if (function_exists('training_ta_org_wide_data') && training_ta_org_wide_data()) {
+            return true;
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            return false;
+        }
+        return isset($assessment->created_by) && (int) $assessment->created_by === $uid;
+    }
+
+    /**
+     * @param int $assessment_id
+     * @return object Assessment row
+     */
+    private function _ta_require_assessment_manage($assessment_id)
+    {
+        $a = $this->ta->get_assessment((int) $assessment_id);
+        if (!$a) {
+            show_404();
+        }
+        if (!$this->_ta_can_manage_assessment($a)) {
+            show_error('You do not have permission to manage this assessment.', 403);
+        }
+        return $a;
+    }
+
+    /**
+     * @return int[]|null null = org-wide (no user filter); array = allowed user ids
+     */
+    private function _ta_hierarchy_scope_user_ids()
+    {
+        $uid = (int) $this->session->userdata('user_id');
+        $role_id = (int) $this->session->userdata('role_id');
+        if (function_exists('training_ta_org_wide_data') && training_ta_org_wide_data()) {
+            return null;
+        }
+        if ($uid < 1) {
+            return array();
+        }
+        return get_accessible_hierarchy_user_ids($uid, $role_id);
+    }
+
+    /**
+     * @param int[]|null $scopeIds
+     * @return array
+     */
+    private function _ta_load_employees_for_report_scope($isBroad, $scopeIds)
+    {
+        if ($isBroad) {
+            $this->load->model('Employee_model');
+            return $this->Employee_model->all(10000, 0, '', array());
+        }
+        if (empty($scopeIds) || !$this->db->table_exists('employees')) {
+            return array();
+        }
+        $this->db->from('employees');
+        if (count($scopeIds) === 1) {
+            $this->db->where('user_id', (int) $scopeIds[0]);
+        } else {
+            $this->db->where_in('user_id', array_map('intval', $scopeIds));
+        }
+        return $this->db->get()->result();
+    }
+
     public function index()
     {
         redirect('training_assessment/dashboard');
@@ -114,9 +188,9 @@ class Training_assessment extends CI_Controller
             redirect('auth/login');
             return;
         }
-        $scope = ($isBroad || $uid < 1) ? 0 : $uid;
-        $data['assessments'] = $this->ta->list_assessments_with_stats($search, $status, $sort, $scope);
-        $data['dashboard_scope_limited'] = !$isBroad && $uid > 0;
+        $scopeIds = $this->_ta_hierarchy_scope_user_ids();
+        $data['assessments'] = $this->ta->list_assessments_with_stats($search, $status, $sort, 0, $scopeIds);
+        $data['dashboard_scope_limited'] = ($scopeIds !== null && !empty($scopeIds));
         $data['filter_q'] = $search;
         $data['filter_status'] = $status;
         $data['filter_sort'] = $sort;
@@ -141,10 +215,7 @@ class Training_assessment extends CI_Controller
         }
         $data['assessment'] = null;
         if ($id !== null && $id !== '') {
-            $data['assessment'] = $this->ta->get_assessment((int)$id);
-            if (!$data['assessment']) {
-                show_404();
-            }
+            $data['assessment'] = $this->_ta_require_assessment_manage((int) $id);
         }
         $this->load->view('training_assessment/create_assessment', $data);
     }
@@ -159,6 +230,9 @@ class Training_assessment extends CI_Controller
             show_404();
         }
         $id = (int)$this->input->post('id');
+        if ($id > 0) {
+            $this->_ta_require_assessment_manage($id);
+        }
         $title = trim((string)$this->input->post('title'));
         if ($title === '') {
             $this->session->set_flashdata('error', 'Title is required.');
@@ -217,6 +291,7 @@ class Training_assessment extends CI_Controller
         if ($this->input->method() !== 'post') {
             show_404();
         }
+        $this->_ta_require_assessment_manage((int) $id);
         $newId = $this->ta->duplicate_assessment((int)$id, (int)$this->session->userdata('user_id'));
         if (!$newId) {
             $this->session->set_flashdata('error', 'Could not duplicate assessment.');
@@ -243,6 +318,7 @@ class Training_assessment extends CI_Controller
         if (!$q) {
             show_404();
         }
+        $this->_ta_require_assessment_manage((int) $q->assessment_id);
         $newId = $this->ta->duplicate_question((int)$question_id);
         if (!$newId) {
             $this->session->set_flashdata('error', 'Could not duplicate question.');
@@ -277,6 +353,7 @@ class Training_assessment extends CI_Controller
             echo json_encode(array('ok' => false, 'error' => 'input'));
             return;
         }
+        $this->_ta_require_assessment_manage($assessment_id);
         $ids = array();
         foreach ($raw as $x) {
             $ids[] = (int)$x;
@@ -294,11 +371,7 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
-        $a = $this->ta->get_assessment((int)$assessment_id);
-        if (!$a) {
-            show_404();
-        }
-        $data['assessment'] = $a;
+        $data['assessment'] = $this->_ta_require_assessment_manage((int) $assessment_id);
         $data['questions'] = $this->ta->list_questions((int)$assessment_id);
         $data['options_by_qid'] = array();
         foreach ($data['questions'] as $q) {
@@ -394,11 +467,7 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
-        $a = $this->ta->get_assessment((int)$assessment_id);
-        if (!$a) {
-            show_404();
-        }
-        $data['assessment'] = $a;
+        $data['assessment'] = $this->_ta_require_assessment_manage((int) $assessment_id);
         $data['questions'] = $this->ta->list_questions((int)$assessment_id);
         $data['ta_can_question_import'] = $this->_ta_can_import_questions();
         $this->load->view('training_assessment/question_list', $data);
@@ -410,11 +479,7 @@ class Training_assessment extends CI_Controller
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
-        $a = $this->ta->get_assessment((int)$assessment_id);
-        if (!$a) {
-            show_404();
-        }
-        $data['assessment'] = $a;
+        $data['assessment'] = $this->_ta_require_assessment_manage((int) $assessment_id);
         $data['question'] = null;
         $data['options'] = array();
         $this->load->view('training_assessment/add_question', $data);
@@ -430,11 +495,7 @@ class Training_assessment extends CI_Controller
         if (!$q) {
             show_404();
         }
-        $a = $this->ta->get_assessment((int)$q->assessment_id);
-        if (!$a) {
-            show_404();
-        }
-        $data['assessment'] = $a;
+        $data['assessment'] = $this->_ta_require_assessment_manage((int) $q->assessment_id);
         $data['question'] = $q;
         $data['options'] = $this->ta->get_options((int)$question_id);
         $this->load->view('training_assessment/add_question', $data);
@@ -450,6 +511,7 @@ class Training_assessment extends CI_Controller
             show_404();
         }
         $assessment_id = (int)$this->input->post('assessment_id');
+        $this->_ta_require_assessment_manage($assessment_id);
         $qid = (int)$this->input->post('question_id');
         $type = $this->input->post('question_type');
         if (!in_array($type, array('mcq', 'text', 'coding'), true)) {
@@ -576,10 +638,7 @@ class Training_assessment extends CI_Controller
         }
 
         $assessment_id = (int) $assessment_id;
-        $a = $this->ta->get_assessment($assessment_id);
-        if (!$a) {
-            show_404();
-        }
+        $this->_ta_require_assessment_manage($assessment_id);
         if (empty($_FILES['csv_file']['tmp_name']) || !is_uploaded_file($_FILES['csv_file']['tmp_name'])) {
             $this->session->set_flashdata('error', 'Please choose a CSV file.');
             redirect('training-assessment/questions/' . $assessment_id);
@@ -788,6 +847,7 @@ class Training_assessment extends CI_Controller
         if (!$q) {
             show_404();
         }
+        $this->_ta_require_assessment_manage((int) $q->assessment_id);
         $aid = (int)$q->assessment_id;
         $this->ta->delete_question((int)$id);
         $this->session->set_flashdata('success', 'Question removed.');
@@ -1025,24 +1085,30 @@ class Training_assessment extends CI_Controller
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
         $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
+        $scopeIds = $this->_ta_hierarchy_scope_user_ids();
         $emp = (int) $this->input->get('employee_user_id');
-        if (!$isBroad && $sessUid > 0) {
-            $emp = $sessUid;
+        if (!$isBroad && !empty($scopeIds)) {
+            if ($emp > 0 && !in_array($emp, $scopeIds, true)) {
+                $emp = (int) $scopeIds[0];
+            }
+            if ($emp <= 0 && count($scopeIds) === 1) {
+                $emp = (int) $scopeIds[0];
+            }
         }
         $from = $this->input->get('date_from');
         $to = $this->input->get('date_to');
         $assessmentId = (int)$this->input->get('assessment_id');
         $assigneeType = $this->input->get('assignee_type');
         $assigneeType = in_array($assigneeType, array('all', 'employee', 'candidate'), true) ? $assigneeType : 'all';
-        if (!$isBroad && $sessUid > 0) {
+        if (!$isBroad && !empty($scopeIds)) {
             $assigneeType = 'employee';
         }
-        $this->load->model('Employee_model');
-        $data['employees'] = $this->Employee_model->all(10000, 0, '', array());
-        $assessmentScopeUid = (!$isBroad && $sessUid > 0) ? $sessUid : 0;
-        $data['assessments'] = $this->ta->list_assessments_with_stats('', 'all', 'title_asc', $assessmentScopeUid);
-        $data['rows'] = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
+        $data['employees'] = $this->_ta_load_employees_for_report_scope($isBroad, $scopeIds);
+        $data['assessments'] = $this->ta->list_assessments_with_stats('', 'all', 'title_asc', 0, $scopeIds);
+        $reportScopeIds = (!$isBroad && $emp <= 0 && !empty($scopeIds)) ? $scopeIds : null;
+        $data['rows'] = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType, $reportScopeIds);
         $data['report_scope_all'] = $isBroad;
+        $data['report_scope_team'] = (!$isBroad && !empty($scopeIds) && count($scopeIds) > 1);
         $data['filter_employee'] = $emp;
         $data['filter_from'] = $from;
         $data['filter_to'] = $to;
@@ -1063,19 +1129,26 @@ class Training_assessment extends CI_Controller
         $this->load->helper('training');
         $sessUid = (int) $this->session->userdata('user_id');
         $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
+        $scopeIds = $this->_ta_hierarchy_scope_user_ids();
         $emp = (int) $this->input->get('employee_user_id');
-        if (!$isBroad && $sessUid > 0) {
-            $emp = $sessUid;
+        if (!$isBroad && !empty($scopeIds)) {
+            if ($emp > 0 && !in_array($emp, $scopeIds, true)) {
+                $emp = (int) $scopeIds[0];
+            }
+            if ($emp <= 0 && count($scopeIds) === 1) {
+                $emp = (int) $scopeIds[0];
+            }
         }
         $from = $this->input->get('date_from');
         $to = $this->input->get('date_to');
         $assessmentId = (int)$this->input->get('assessment_id');
         $assigneeType = $this->input->get('assignee_type');
         $assigneeType = in_array($assigneeType, array('all', 'employee', 'candidate'), true) ? $assigneeType : 'all';
-        if (!$isBroad && $sessUid > 0) {
+        if (!$isBroad && !empty($scopeIds)) {
             $assigneeType = 'employee';
         }
-        $rows = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType);
+        $reportScopeIds = (!$isBroad && $emp <= 0 && !empty($scopeIds)) ? $scopeIds : null;
+        $rows = $this->ta->list_assignments_for_report($emp, $from, $to, $assessmentId, $assigneeType, $reportScopeIds);
         $filename = 'training_assessment_report_' . date('Y-m-d_His') . '.csv';
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -1107,21 +1180,19 @@ class Training_assessment extends CI_Controller
      */
     public function submissions()
     {
-        $hasSubmissionsAccess = ((int) $this->session->userdata('role_id') === 1)
-            || (function_exists('has_module_access') && has_module_access('training_screen_ta_submissions'));
-        if (!$hasSubmissionsAccess) {
+        if (!function_exists('training_ta_can_screen') || !training_ta_can_screen('training_screen_ta_submissions')) {
             show_error('Access denied.', 403);
         }
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
         $this->load->helper('training');
-        $sessUid = (int) $this->session->userdata('user_id');
         $isBroad = function_exists('training_ta_org_wide_data') && training_ta_org_wide_data();
-        $emp = $isBroad ? 0 : $sessUid;
+        $scopeIds = $this->_ta_hierarchy_scope_user_ids();
         $assessmentId = (int) $this->input->get('assessment_id');
         $assigneeType = $isBroad ? 'all' : 'employee';
-        $rows = $this->ta->list_assignments_for_report($emp, '', '', $assessmentId, $assigneeType);
+        $reportScopeIds = (!$isBroad && !empty($scopeIds)) ? $scopeIds : null;
+        $rows = $this->ta->list_assignments_for_report(0, '', '', $assessmentId, $assigneeType, $reportScopeIds);
         $submitted = array();
         foreach ($rows as $r) {
             if (!empty($r->submitted_at) || !empty($r->completed_at)) {
@@ -1131,16 +1202,13 @@ class Training_assessment extends CI_Controller
         $data = array(
             'rows' => $submitted,
             'show_all_submissions' => $isBroad,
-            'can_review_submissions' => $isBroad,
+            'can_review_submissions' => $isBroad || ($scopeIds !== null && count($scopeIds) > 1),
         );
         $this->load->view('training_assessment/submissions', $data);
     }
 
     public function screenshots($assessment_user_id)
     {
-        if ((int) $this->session->userdata('role_id') !== 1) {
-            show_error('Access denied.', 403);
-        }
         if (!$this->ta->schema_ready()) {
             show_error('Schema not installed.', 500);
         }
@@ -1160,9 +1228,6 @@ class Training_assessment extends CI_Controller
 
     public function delete_screenshot($assessment_user_id, $screenshot_id)
     {
-        if ((int) $this->session->userdata('role_id') !== 1) {
-            show_error('Access denied.', 403);
-        }
         if ($this->input->method() !== 'post') {
             show_404();
         }
@@ -1188,7 +1253,7 @@ class Training_assessment extends CI_Controller
 
     public function delete_screenshots_bulk($assessment_user_id)
     {
-        if ((int) $this->session->userdata('role_id') !== 1) {
+        if (!function_exists('training_ta_org_wide_data') || !training_ta_org_wide_data()) {
             show_error('Access denied.', 403);
         }
         if ($this->input->method() !== 'post') {

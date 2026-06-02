@@ -196,7 +196,11 @@ class Roles extends CI_Controller {
             } elseif ($this->db->field_exists('role', 'users')) {
                 $roleName = isset($role->name) ? strtolower(trim($role->name)) : '';
                 if ($roleName !== '') {
-                    $users = $this->db->select('name, email')->where('LOWER(role) =', $roleName, false)->get('users')->result();
+                    $users = $this->db
+                        ->select('name, email')
+                        ->where('LOWER(role) =', $roleName)
+                        ->get('users')
+                        ->result();
                     $userCount = count($users);
                     if ($userCount > 0) {
                         $inUse = true;

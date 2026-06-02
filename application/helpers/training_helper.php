@@ -97,19 +97,35 @@ if (!function_exists('training_ta_admin_broad')) {
  * Custom "Admin" roles are often role_id != 1 but still admin group — they should see all rows like super admin.
  */
 if (!function_exists('training_ta_org_wide_data')) {
+    /**
+     * Org-wide Training & Assessment visibility (lists, reports, submissions).
+     * Aligned with hierarchy_filter: admin = all data; lead/manager/team-progress = team scope; staff = own only.
+     */
     function training_ta_org_wide_data()
     {
-        $rid = (int) get_instance()->session->userdata('role_id');
-        if ($rid === 1) {
-            return true;
+        if (function_exists('hierarchy_filter_sees_all_records')) {
+            $rid = (int) get_instance()->session->userdata('role_id');
+            if (hierarchy_filter_sees_all_records($rid)) {
+                return true;
+            }
         }
         if (function_exists('training_ta_admin_broad') && training_ta_admin_broad()) {
             return true;
         }
-        if (function_exists('is_admin_group') && is_admin_group()) {
+        return false;
+    }
+}
+
+if (!function_exists('training_lms_admin_sees_all_submissions')) {
+    /**
+     * LMS assignment submissions: admin / LMS manage sees all rows; others own uploads only.
+     */
+    function training_lms_admin_sees_all_submissions()
+    {
+        if (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data()) {
             return true;
         }
-        return false;
+        return function_exists('has_module_access') && has_module_access('training_lms_manage');
     }
 }
 

@@ -23,9 +23,11 @@ class Users extends CI_Controller {
         $roleFilter = null;
         $userIdFilter = null;
         $currentUserId = (int)$this->session->userdata('user_id');
-        // For user-group (staff), only show their own record in the list
-        if (!is_admin_group() && !has_module_access('users_view_all') && $currentUserId > 0) {
-            $userIdFilter = $currentUserId;
+        // Admin sees all; others see own record only (unless explicit view-all permission)
+        if (!function_exists('data_scope_sees_all_org_data') || !data_scope_sees_all_org_data()) {
+            if (!has_module_access('users_view_all') && $currentUserId > 0) {
+                $userIdFilter = $currentUserId;
+            }
         }
         $rows = $this->users->list_users($q, 250, $roleFilter, $userIdFilter);
         

@@ -5,7 +5,7 @@ class Leaves extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','download','permission']);
+        $this->load->helper(['url','download','permission','hierarchy_filter']);
         $this->load->library(['session','email']);
         $this->load->model('Leave_model');
         
@@ -22,13 +22,17 @@ class Leaves extends CI_Controller {
     public function export_csv()
     {
         require_module_access(['leaves_list', 'leaves'], true);
+        $this->load->helper('hierarchy_filter');
         $this->load->dbutil();
         if (!$this->db->table_exists('leaves')) {
             $this->session->set_flashdata('error', 'Leaves table does not exist.');
             redirect('leaves');
             return;
         }
-        $query = $this->db->query('SELECT * FROM leaves ORDER BY id DESC');
+        $this->db->from('leaves');
+        apply_role_hierarchy_filter($this->db, 'user_id');
+        $this->db->order_by('id', 'DESC');
+        $query = $this->db->get();
         $csv = $this->dbutil->csv_from_result($query, ",", "\r\n");
         force_download('leaves_export_'.date('Ymd_His').'.csv', $csv);
     }

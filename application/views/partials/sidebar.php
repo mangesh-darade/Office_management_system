@@ -2,6 +2,9 @@
 // Sidebar partial for full-width pages
 $active = strtolower($this->uri->segment(1) ?: 'dashboard');
 $active_sub = strtolower($this->uri->segment(2) ?: '');
+if ($active === 'my-works') {
+  $active = 'my_works';
+}
 $role_id = (int) $this->session->userdata('role_id');
 $is_superadmin = ($role_id === 1);
 // Only render sidebar for authenticated users
@@ -40,6 +43,9 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+      <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>
+      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item" id="daily-activity-group">
         <div class="d-flex align-items-center justify-content-between">
@@ -260,8 +266,15 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       <?php
       $user_group_show = function_exists('has_module_access') && (
         has_module_access('users') ||
+        has_module_access('users_list') ||
         has_module_access('users_add') ||
+        has_module_access('users_edit') ||
+        has_module_access('users_delete') ||
         has_module_access('attendance') ||
+        has_module_access('attendance_list') ||
+        has_module_access('attendance_add') ||
+        has_module_access('attendance_edit') ||
+        has_module_access('attendance_delete') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('permissions') ||
@@ -275,7 +288,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true) ? 'active' : ''; ?>" href="#">
+          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','permissions','attendance','departments','designations','leave','assets-mgmt','shifts'], true) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-person-lines-fill me-2"></i>User
           </a>
           <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
@@ -284,20 +297,26 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         </div>
         <div class="ps-3 sidebar-submenu" id="user-submenu">
           <div class="submenu-list">
-            <?php if(function_exists('has_module_access') && has_module_access('users')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('users') || has_module_access('users_list') || has_module_access('users_add') || has_module_access('users_edit') || has_module_access('users_delete'))): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('users_add')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
             <a class="submenu-link" href="<?php echo site_url('users/create'); ?>"><i class="bi bi-person-plus me-2"></i>Add User</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('roles') || has_module_access('permissions'))): ?>
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
+            <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('assets') || has_module_access('assets_mgmt'))): ?>
             <a class="submenu-link <?php echo $active==='assets-mgmt'?'active':''; ?>" href="<?php echo site_url('assets-mgmt'); ?>"><i class="bi bi-laptop me-2"></i>Assets</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('attendance_list') || has_module_access('attendance_add') || has_module_access('attendance_edit') || has_module_access('attendance_delete'))): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('attendance_add'))): ?>
+            <a class="submenu-link <?php echo ($active==='attendance' && $active_sub==='create')?'active':''; ?>" href="<?php echo site_url('attendance/create'); ?>"><i class="bi bi-plus-square me-2"></i>Mark Attendance</a>
             <?php endif; ?>
             <?php if((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (has_module_access('shifts') || has_module_access('shifts_view') || has_module_access('shifts_manage')))): ?>
             <a class="submenu-link <?php echo $active==='shifts'?'active':''; ?>" href="<?php echo site_url('shifts'); ?>"><i class="bi bi-clock me-2"></i>Shifts</a>
@@ -311,10 +330,10 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('user-group','user-toggle','user-parent','user-submenu','sb_user_open',<?php echo in_array($active, ['users','roles','attendance','departments','designations','leave','assets-mgmt','shifts'], true)?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('user-group','user-toggle','user-parent','user-submenu','sb_user_open',<?php echo in_array($active, ['users','roles','permissions','attendance','departments','designations','leave','assets-mgmt','shifts'], true)?'true':'false'; ?>);</script>
       <?php endif; ?>
 
-      <?php if(function_exists('has_module_access') && has_module_access('payroll')): ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('payroll') || has_module_access('payroll_view') || has_module_access('payroll_manage'))): ?>
       <div class="nav-item" id="payroll-group">
         <div class="d-flex align-items-center justify-content-between">
           <a id="payroll-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>">

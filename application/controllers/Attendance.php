@@ -14,11 +14,43 @@ class Attendance extends CI_Controller {
         $this->load->model('Setting_model', 'settings');
         $this->load->model('Holiday_model', 'holidays');
         
-        // RBAC Audit: use method-specific access rules.
-        // `create` is self-attendance and should be available to any logged-in user.
+        $user_id = (int)$this->session->userdata('user_id');
+        if (!$user_id) {
+            redirect('auth/login');
+            return;
+        }
+
         $method = (string)$this->router->fetch_method();
-        if ($method !== 'create') {
-            // require_module_access('attendance', true);
+        $attendance_list_access = [
+            'attendance', 'attendance_list', 'attendance_edit',
+            'attendance_delete', 'attendance_view_all',
+        ];
+
+        // Self punch — any logged-in user
+        if ($method === 'create') {
+            return;
+        }
+
+        switch ($method) {
+            case 'bulk_operations':
+                require_module_access(['attendance_bulk', 'attendance'], true);
+                break;
+            case 'export':
+                require_module_access(['attendance_list', 'attendance', 'attendance_view_all'], true);
+                break;
+            case 'edit':
+                require_module_access(['attendance_edit', 'attendance'], true);
+                break;
+            case 'delete':
+                require_module_access(['attendance_delete', 'attendance'], true);
+                break;
+            case 'index':
+            case 'get_user_monthly_attendance':
+                require_module_access($attendance_list_access, true);
+                break;
+            default:
+                require_module_access($attendance_list_access, true);
+                break;
         }
     }
 
@@ -262,12 +294,6 @@ class Attendance extends CI_Controller {
 
     // Bulk operations for attendance
     public function bulk_operations() {
-        // Check bulk operations permission specifically
-        // require_module_access(['attendance_bulk', 'attendance'], true);
-        
-        // Check permissions - only admins/managers with bulk access can perform bulk operations
-        // require_module_access already checked for attendance_bulk or attendance
-
         if ($this->input->method() === 'post') {
             $operation = $this->input->post('bulk_action');
             $selected_ids = $this->input->post('selected_ids');
@@ -1450,12 +1476,18 @@ class Attendance extends CI_Controller {
     // GET/POST /attendance/{id}/edit
     public function edit($id)
     {
+        $id = (int)$id;
+        if ($id <= 0) { show_404(); }
+
+        $att = $this->db->where('id', $id)->limit(1)->get('attendance')->row();
+        if (!$att) { show_404(); }
+
         // Ownership: only Admin/HR or owner can edit
         $role_id = (int)$this->session->userdata('role_id');
         $user_id = (int)$this->session->userdata('user_id');
         
         if ((int)$att->user_id !== $user_id) {
-            //  require_module_access(['attendance_edit', 'attendance'], true);
+            require_module_access(['attendance_edit', 'attendance'], true);
         }
         if ($this->input->method() === 'post') {
             // Optional face verification: mirror create() behavior when descriptor is provided

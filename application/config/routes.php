@@ -152,6 +152,17 @@ $route['tasks/(:num)/comment'] = 'tasks/add_comment/$1';
 $route['tasks/(:num)/comments'] = 'tasks/get_comments/$1';
 $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
 
+// My Works (personal / assigned work items)
+$route['my-works'] = 'my_works/index';
+$route['my-works/create'] = 'my_works/create';
+$route['my-works/export'] = 'my_works/export';
+$route['my-works/update-status'] = 'my_works/update_status';
+$route['my-works/(:num)/comment'] = 'my_works/add_comment/$1';
+$route['my-works/(:num)/edit'] = 'my_works/edit/$1';
+$route['my-works/(:num)/delete'] = 'my_works/delete/$1';
+$route['my-works/(:num)/download'] = 'my_works/download/$1';
+$route['my-works/(:num)'] = 'my_works/show/$1';
+
 // Statuses Management
 $route['statuses'] = 'statuses/index';
 $route['statuses/create'] = 'statuses/create';

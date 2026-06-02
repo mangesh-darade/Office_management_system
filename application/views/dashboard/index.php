@@ -94,7 +94,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
 
       <!-- Dashboard Statistics Cards -->
       <div class="row g-3 mb-4">
-        <?php if (empty($accessible_modules) || in_array('employees', $accessible_modules)): ?>
+        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('employees')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-primary text-white h-100 hover-lift">
             <div class="card-body">
@@ -116,7 +116,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
         <?php endif; ?>
         
-        <?php if (empty($accessible_modules) || in_array('projects', $accessible_modules)): ?>
+        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('projects')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-success text-white h-100 hover-lift">
             <div class="card-body">
@@ -138,7 +138,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
         <?php endif; ?>
         
-        <?php if (empty($accessible_modules) || in_array('tasks', $accessible_modules)): ?>
+        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('tasks')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-warning text-white h-100 hover-lift">
             <div class="card-body">
@@ -159,8 +159,30 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
           </div>
         </div>
         <?php endif; ?>
+
+        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('my_works')): ?>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card stat-card bg-gradient-secondary text-white h-100 hover-lift">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">Open My Works</h6>
+                  <h3 class="mb-0 fw-bold"><?php echo isset($stats['my_works_open']) ? number_format($stats['my_works_open']) : '0'; ?></h3>
+                  <small class="text-white-50"><?php echo isset($stats['my_works_urgent']) ? number_format($stats['my_works_urgent']) : '0'; ?> urgent</small>
+                </div>
+                <div class="stat-icon">
+                  <i class="bi bi-clipboard2-check fs-2"></i>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+              <a href="<?php echo site_url('my-works'); ?>" class="btn btn-outline-light btn-sm">View My Works</a>
+            </div>
+          </div>
+        </div>
+        <?php endif; ?>
         
-        <?php if (empty($accessible_modules) || in_array('attendance', $accessible_modules)): ?>
+        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('attendance')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-info text-white h-100 hover-lift">
             <div class="card-body">
@@ -184,7 +206,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       </div>
 
       <div class="row g-3">
-        <?php if(function_exists('has_module_access') && has_module_access('employees')): ?>
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('employees')): ?>
         <a href="<?php echo site_url('employees'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
           <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
@@ -200,7 +222,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </a>
         <?php endif; ?>
         
-        <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('projects')): ?>
         <a href="<?php echo site_url('projects'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
           <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
@@ -216,7 +238,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </a>
         <?php endif; ?>
         
-        <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('tasks')): ?>
         <a href="<?php echo site_url('tasks/board'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
           <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
@@ -227,6 +249,22 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
                 <h5 class="card-title mb-0 text-dark">Tasks</h5>
               </div>
               <p class="card-text text-muted">Task board and progress tracking</p>
+            </div>
+          </div>
+        </a>
+        <?php endif; ?>
+
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('my_works')): ?>
+        <a href="<?php echo site_url('my-works'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-3">
+                <div class="icon-circle bg-secondary text-white me-3">
+                  <i class="bi bi-clipboard2-check"></i>
+                </div>
+                <h5 class="card-title mb-0 text-dark">My Works</h5>
+              </div>
+              <p class="card-text text-muted">Personal tasks and assignments you created or own</p>
             </div>
           </div>
         </a>
@@ -248,7 +286,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </a>
         <?php endif; ?>
         
-        <?php if(function_exists('has_module_access') && has_module_access('attendance')): ?>
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('attendance')): ?>
         <a href="<?php echo site_url('attendance'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
           <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
@@ -264,7 +302,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </a>
         <?php endif; ?>
         
-        <?php if(function_exists('has_module_access') && has_module_access('leaves')): ?>
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('leaves')): ?>
         <a href="<?php echo site_url('leave/apply'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
           <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">
@@ -280,7 +318,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </a>
         <?php endif; ?>
         
-        <?php if(function_exists('has_module_access') && has_module_access('reports')): ?>
+        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('reports')): ?>
         <a href="<?php echo site_url('reports'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
           <div class="card shadow-sm h-100 hover-lift fade-in module-card">
             <div class="card-body">

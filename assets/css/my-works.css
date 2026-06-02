@@ -1,0 +1,224 @@
+/* My Works module — list, board, form, detail */
+.mw-page-header {
+  gap: 0.75rem;
+}
+
+.mw-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .mw-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 992px) {
+  .mw-kpi-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.mw-kpi {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  display: block;
+}
+
+.mw-kpi:hover,
+.mw-kpi.active {
+  border-color: #0d6efd;
+  box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
+  color: inherit;
+}
+
+.mw-kpi .lbl {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.mw-kpi .val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.mw-status-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mw-status-tabs .nav-link {
+  white-space: nowrap;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  padding: 0.35rem 0.85rem;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.mw-status-tabs .nav-link.active {
+  background: #0d6efd;
+  border-color: #0d6efd;
+  color: #fff;
+}
+
+.mw-card-list .mw-item-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.mw-border-urgent {
+  border-left: 4px solid #dc3545 !important;
+}
+
+.mw-border-important {
+  border-left: 4px solid #ffc107 !important;
+}
+
+.mw-board {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .mw-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.mw-board-col {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  min-height: 120px;
+}
+
+.mw-board-col-head {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mw-board-col-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.mw-board-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: box-shadow 0.15s ease;
+}
+
+.mw-board-card:hover {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  color: inherit;
+}
+
+.mw-board-card .title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 0.35rem;
+}
+
+.mw-flag-pills .btn {
+  border-radius: 999px;
+}
+
+.mw-flag-pills .btn-check:checked + .btn-outline-danger {
+  background: #dc3545;
+  color: #fff;
+}
+
+.mw-flag-pills .btn-check:checked + .btn-outline-warning {
+  background: #ffc107;
+  color: #212529;
+}
+
+.mw-detail-actions .btn-group .btn.active {
+  pointer-events: none;
+}
+
+.mw-empty {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: #64748b;
+}
+
+.mw-empty i {
+  font-size: 2.5rem;
+  opacity: 0.35;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.mw-board-col-body.mw-board-drop-target {
+  background: #eef6ff;
+  outline: 2px dashed #0d6efd;
+  outline-offset: -4px;
+}
+
+.mw-board-card-wrap {
+  cursor: grab;
+}
+
+.mw-board-card-wrap:active {
+  cursor: grabbing;
+}
+
+.mw-list-table-card .dt-layout-row {
+  padding: 0.75rem 1rem 0;
+}
+
+.mw-list-table-card .dt-search input,
+.mw-list-table-card .dt-length select {
+  font-size: 0.875rem;
+}
+
+.mw-list-table-card table.dataTable thead th {
+  white-space: nowrap;
+}
+
+.mw-filter-toggle {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .mw-filter-panel.collapse:not(.show) {
+    display: block !important;
+    height: auto !important;
+    visibility: visible !important;
+  }
+}

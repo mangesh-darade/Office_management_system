@@ -19,8 +19,8 @@ class Dashboard extends CI_Controller {
             $user_id = $this->session->userdata('user_id');
             $role_id = $this->session->userdata('role_id');
             
-            // Get accessible modules for this user
-            $accessible_modules = get_accessible_modules();
+            // Normalized parent keys for stat cards (granular permissions → dashboard groups)
+            $accessible_modules = get_accessible_modules(true);
         
         // Get group-based filters
         $filters = get_user_group_filter($user_id, $role_id);

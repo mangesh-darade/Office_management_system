@@ -23,8 +23,8 @@ if (!function_exists('get_user_group_filter')) {
             $role_id = (int)$CI->session->userdata('role_id');
         }
         
-        // Admin group (roles 1, 2) sees all data
-        if (in_array($role_id, [1, 2], true)) {
+        // Admin group sees all data; everyone else sees own records only
+        if (function_exists('hierarchy_filter_sees_all_records') && hierarchy_filter_sees_all_records($role_id)) {
             return [
                 'users' => [],
                 'employees' => [],
@@ -207,8 +207,11 @@ if (!function_exists('can_view_group_data')) {
             $role_id = (int)$CI->session->userdata('role_id');
         }
         
-        // Admin and Manager can view group data
-        return in_array($role_id, [1, 2, 3], true);
+        // Only admin tier can view org-wide group data
+        if (function_exists('hierarchy_filter_sees_all_records') && hierarchy_filter_sees_all_records($role_id)) {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -233,18 +236,11 @@ if (!function_exists('get_accessible_user_ids')) {
         }
         
         // Admin sees all users
-        if (in_array($role_id, [1, 2], true)) {
+        if (function_exists('hierarchy_filter_sees_all_records') && hierarchy_filter_sees_all_records($role_id)) {
             $users = $CI->db->select('id')->get('users')->result();
             return array_map('intval', array_column($users, 'id'));
         }
         
-        // Get users from same department
-        $CI->db->select('e.user_id');
-        $CI->db->from('employees e');
-        $CI->db->join('employees cu', 'cu.department = e.department');
-        $CI->db->where('cu.user_id', $user_id);
-        $users = $CI->db->get()->result();
-        
-        return array_map('intval', array_column($users, 'user_id'));
+        return [(int)$user_id];
     }
 }

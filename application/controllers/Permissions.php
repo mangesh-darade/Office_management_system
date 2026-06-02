@@ -31,6 +31,9 @@ class Permissions extends CI_Controller {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
         } else {
+            // Remove invalid legacy rows with empty module key.
+            $this->db->where("(module IS NULL OR TRIM(module) = '')", null, false)->delete('permissions');
+
             // Upgrade: convert regular index to UNIQUE if needed (prevents duplicate rows)
             $idx = $this->db->query("SHOW INDEX FROM `permissions` WHERE Key_name = 'idx_role_module'")->result();
             if (!empty($idx)) {
@@ -213,6 +216,18 @@ class Permissions extends CI_Controller {
                     'timesheets_delete'    => 'Delete Timesheet Entry',
                 ]
             ],
+            'My Works' => [
+                'icon' => 'bi-clipboard2-check',
+                'modules' => [
+                    'my_works'             => 'My Works (Full Access)',
+                    'my_works_list'        => 'View My Works List',
+                    'my_works_add'         => 'Add My Work Item',
+                    'my_works_edit'        => 'Edit My Work Item',
+                    'my_works_delete'      => 'Delete My Work Item',
+                    'my_works_view_all'    => 'View All My Works (Org-wide)',
+                    'my_works_export'      => 'Export My Works (CSV)',
+                ]
+            ],
             'Attendance & Leave' => [
                 'icon' => 'bi-calendar-check',
                 'modules' => [
@@ -285,22 +300,32 @@ class Permissions extends CI_Controller {
             'Training & Learning' => [
                 'icon' => 'bi-mortarboard',
                 'modules' => [
+                    'external_training'          => 'External trainings (full access)',
                     'external_training_list'     => 'External trainings — list',
                     'external_training_add'      => 'External trainings — add',
                     'external_training_edit'     => 'External trainings — edit',
                     'external_training_delete'   => 'External trainings — delete',
+                    'external_training_watch'    => 'External trainings — watch',
+                    'training_assessment'        => 'Training assessments (full access)',
+                    'training_assessment_manage' => 'Training assessments — manage all',
+                    'training_assessment_take'   => 'Training assessments — take tests',
+                    'training_lms'               => 'Training LMS (learner full)',
+                    'training_lms_manage'        => 'Training LMS — manage catalog & grade',
                     'training_screen_ta_dashboard' => 'Dashboard',
                     'training_screen_ta_create' => 'New assessment',
                     'training_screen_ta_import' => 'Import CSV',
                     'training_screen_ta_question_import' => 'Import Questions + Options',
                     'training_screen_ta_report' => 'Report',
                     'training_screen_ta_submissions' => 'Assessment submissions',
+                    'training_screen_ta_my_tests' => 'My assigned tests',
                     'training_take_with_proctoring' => 'Take Assessment (Video + Screenshot Monitoring)',
                     'training_take_without_proctoring' => 'Take Assessment (Without Video/Screenshot Monitoring)',
                     'training_screen_tl_hub' => 'Training hub',
                     'training_screen_tl_module' => 'Module',
+                    'training_screen_tl_assignment' => 'Topic file assignments (learner)',
                     'training_screen_lms_admin' => 'LMS admin',
                     'training_screen_lms_submissions' => 'Assignment submissions',
+                    'training_screen_lms_office_csv' => 'LMS office CSV import/export',
                 ]
             ],
             'Business Management' => [
@@ -459,9 +484,8 @@ class Permissions extends CI_Controller {
             }
         }
 
-        // Clear and re-insert (simple approach for small matrix)
+        // Update matrix safely (avoid TRUNCATE to preserve transactional safety)
         $this->db->trans_start();
-        $this->db->truncate('permissions');
         
         // Collect all module keys from the hierarchical structure
         $all_module_keys = [];
@@ -475,17 +499,38 @@ class Permissions extends CI_Controller {
         foreach ($roles as $rid => $rname) {
             foreach ($all_module_keys as $key => $label) {
                 $can = (isset($perms[$rid]) && isset($perms[$rid][$key]) && (int)$perms[$rid][$key] === 1) ? 1 : 0;
-                $this->db->insert('permissions', [
-                    'role_id' => (int)$rid,
-                    'module' => $key,
-                    'can_access' => $can
-                ]);
+                // Upsert-like behavior on unique (role_id, module)
+                $exists = $this->db
+                    ->select('id')
+                    ->from('permissions')
+                    ->where('role_id', (int)$rid)
+                    ->where('module', $key)
+                    ->limit(1)
+                    ->get()
+                    ->row();
+                if ($exists) {
+                    $this->db->where('id', (int)$exists->id)->update('permissions', [
+                        'can_access' => $can
+                    ]);
+                } else {
+                    $this->db->insert('permissions', [
+                        'role_id' => (int)$rid,
+                        'module' => $key,
+                        'can_access' => $can
+                    ]);
+                }
+
                 $new_permissions[] = [
                     'role_id' => (int)$rid,
                     'module' => $key,
                     'can_access' => $can
                 ];
             }
+        }
+
+        // Cleanup: remove stale modules that no longer exist in the matrix definition.
+        if (!empty($all_module_keys)) {
+            $this->db->where_not_in('module', array_keys($all_module_keys))->delete('permissions');
         }
         $this->db->trans_complete();
 

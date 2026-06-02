@@ -209,6 +209,26 @@
 }
 
 .att-det-report .att-det-status-badge.late {
+  background: rgba(249, 115, 22, 0.12);
+  color: #ea580c;
+}
+
+.att-det-report .att-det-status-badge.early_leave {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.att-det-report .att-det-status-badge.incomplete {
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+}
+
+.att-det-report .att-det-status-badge.holiday {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.att-det-report .att-det-status-badge.late {
   background: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
 }
@@ -597,54 +617,21 @@
             <tr data-searchable="<?php echo strtolower(htmlspecialchars($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave . ' ' . (isset($d->check_in_time) ? $d->check_in_time : '') . ' ' . (isset($d->check_out_time) ? $d->check_out_time : '') . ' ' . (isset($d->check_in_location) ? $d->check_in_location : '') . ' ' . (isset($d->check_out_location) ? $d->check_out_location : '') . ' ' . (isset($d->worked_hours) ? $d->worked_hours : '') . ' ' . (isset($d->extra_hours) ? $d->extra_hours : '') . ' ' . (isset($d->notes) ? $d->notes : ''))); ?>" data-index="<?php echo $index; ?>">
               <td class="date-cell"><?php echo htmlspecialchars($d->date); ?></td>
               <td>
-                <?php 
-                  $status = strtolower(trim($d->status));
-                  $statusClass = '';
-                  $statusIcon = '';
+                <?php
                   $leaveText = isset($d->leave) ? trim($d->leave) : '';
                   $hasLeave = ($leaveText !== '' && $leaveText !== '—');
-                  $isWFH = ($status === 'work from home' || $status === 'work_from_home');
-                  
-                  switch($status) {
-                    case 'present': 
-                      $statusClass = 'present'; 
-                      $statusIcon = 'bi-check-circle';
-                      break;
-                    case 'absent': 
-                      $statusClass = 'absent'; 
-                      $statusIcon = 'bi-x-circle';
-                      break;
-                    case 'half_day': 
-                      $statusClass = 'half_day'; 
-                      $statusIcon = 'bi-clock';
-                      break;
-                    case 'half day': 
-                      $statusClass = 'half_day'; 
-                      $statusIcon = 'bi-clock';
-                      break;
-                    case 'work from home': 
-                    case 'work_from_home':
-                      $statusClass = 'work_from_home'; 
-                      $statusIcon = 'bi-house';
-                      break;
-                    case 'weekend': 
-                      $statusClass = 'leave'; 
-                      $statusIcon = 'bi-calendar-week';
-                      break;
-                    default: 
-                      if (strpos($status, 'holiday') !== false) {
-                          $statusClass = 'work_from_home'; // blue-ish
-                          $statusIcon = 'bi-calendar-event';
-                      } else {
-                          $statusClass = ''; 
-                          $statusIcon = 'bi-question-circle';
-                      }
+                  $statusRaw = isset($d->status) ? trim((string)$d->status) : '';
+                  if (strtolower($statusRaw) === 'weekend') {
+                      $badge = ['class' => 'leave', 'icon' => 'bi-calendar-week', 'label' => 'Weekend'];
+                  } else {
+                      $badge = attendance_status_badge_meta($statusRaw);
                   }
+                  $isWFH = (normalize_attendance_status_key($statusRaw) === 'work_from_home');
                 ?>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <span class="att-det-status-badge <?php echo $statusClass; ?>">
-                    <i class="bi <?php echo $statusIcon; ?>"></i>
-                    <?php echo htmlspecialchars($d->status); ?>
+                  <span class="att-det-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
+                    <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
                   </span>
                   <?php 
                     if ($hasLeave): 

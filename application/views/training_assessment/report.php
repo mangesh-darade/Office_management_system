@@ -1,6 +1,8 @@
 <?php $this->load->view('partials/header', array('title' => 'Assessment report', 'extra_css' => array('assets/css/lms-ui.css'))); ?>
 <?php
   $scopeAll = isset($report_scope_all) ? (bool) $report_scope_all : true;
+  $scopeTeam = isset($report_scope_team) ? (bool) $report_scope_team : false;
+  $canFilterEmployees = $scopeAll || $scopeTeam;
   $this->load->helper('training');
   $totalRows = is_array($rows) ? count($rows) : 0;
   $completed = 0;
@@ -29,7 +31,9 @@
 <div class="container-fluid py-4">
   <div class="ta-report-wrap lms-soft-wrap">
   <h1 class="h4 mb-3"><i class="bi bi-bar-chart me-2"></i>Training assessment report</h1>
-  <?php if (!$scopeAll): ?>
+  <?php if ($scopeTeam): ?>
+    <div class="alert alert-info small py-2 mb-3">Showing assessment data for <strong>your team</strong> (mapped users or same department). Use the employee filter to narrow results.</div>
+  <?php elseif (!$scopeAll): ?>
     <div class="alert alert-info small py-2 mb-3">You see <strong>your own</strong> assessment attempts only. Organization-wide reporting requires Training &amp; Assessment admin access.</div>
   <?php endif; ?>
   <div class="row g-3 mb-3">
@@ -71,16 +75,16 @@
     </div>
     <div class="col-lg-2 col-md-6">
       <label class="form-label small text-muted mb-0">Assignee type</label>
-      <select name="assignee_type" class="form-select form-select-sm" <?php echo $scopeAll ? '' : 'disabled'; ?>>
+      <select name="assignee_type" class="form-select form-select-sm" <?php echo $canFilterEmployees ? '' : 'disabled'; ?>>
         <option value="all" <?php echo ($filter_assignee_type === 'all') ? 'selected' : ''; ?>>All</option>
         <option value="employee" <?php echo ($filter_assignee_type === 'employee') ? 'selected' : ''; ?>>Employees only</option>
         <option value="candidate" <?php echo ($filter_assignee_type === 'candidate') ? 'selected' : ''; ?>>External candidates</option>
       </select>
-      <?php if (!$scopeAll): ?><input type="hidden" name="assignee_type" value="employee"><?php endif; ?>
+      <?php if (!$canFilterEmployees): ?><input type="hidden" name="assignee_type" value="employee"><?php endif; ?>
     </div>
     <div class="col-lg-3 col-md-6">
       <label class="form-label small text-muted mb-0">Employee (when type allows)</label>
-      <select name="employee_user_id" class="form-select form-select-sm" <?php echo $scopeAll ? '' : 'disabled'; ?>>
+      <select name="employee_user_id" class="form-select form-select-sm" <?php echo $canFilterEmployees ? '' : 'disabled'; ?>>
         <option value="0">All</option>
         <?php foreach ($employees as $e): ?>
           <?php if (empty($e->user_id)) { continue; } ?>
@@ -89,7 +93,7 @@
           </option>
         <?php endforeach; ?>
       </select>
-      <?php if (!$scopeAll && isset($filter_employee)): ?><input type="hidden" name="employee_user_id" value="<?php echo (int)$filter_employee; ?>"><?php endif; ?>
+      <?php if (!$canFilterEmployees && isset($filter_employee)): ?><input type="hidden" name="employee_user_id" value="<?php echo (int)$filter_employee; ?>"><?php endif; ?>
     </div>
     <div class="col-lg-2 col-md-6">
       <label class="form-label small text-muted mb-0">From</label>

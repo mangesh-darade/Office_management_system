@@ -235,6 +235,10 @@
 .att-report .att-status-badge.absent   { background: rgba(239,68,68,0.1);  color: var(--att-danger); }
 .att-report .att-status-badge.half_day { background: rgba(245,158,11,0.1); color: var(--att-warning); }
 .att-report .att-status-badge.work_from_home { background: rgba(6,182,212,0.1); color: var(--att-info); }
+.att-report .att-status-badge.late { background: rgba(249,115,22,0.12); color: #ea580c; }
+.att-report .att-status-badge.early_leave { background: rgba(245,158,11,0.1); color: var(--att-warning); }
+.att-report .att-status-badge.incomplete { background: rgba(100,116,139,0.12); color: #64748b; }
+.att-report .att-status-badge.holiday { background: rgba(99,102,241,0.1); color: #6366f1; }
 
 .att-report .count-cell { text-align: center; font-weight: 600; color: var(--att-text); }
 
@@ -488,35 +492,10 @@
               </td>
               <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
               <td>
-                <?php 
-                  $status = strtolower(isset($r->status)?$r->status:'');
-                  $statusClass = '';
-                  $statusIcon = '';
-                  switch($status) {
-                    case 'present': 
-                      $statusClass = 'present'; 
-                      $statusIcon = 'bi-check-circle';
-                      break;
-                    case 'absent': 
-                      $statusClass = 'absent'; 
-                      $statusIcon = 'bi-x-circle';
-                      break;
-                    case 'half_day': 
-                      $statusClass = 'half_day'; 
-                      $statusIcon = 'bi-clock';
-                      break;
-                    case 'work_from_home': 
-                      $statusClass = 'work_from_home'; 
-                      $statusIcon = 'bi-house';
-                      break;
-                    default: 
-                      $statusClass = ''; 
-                      $statusIcon = 'bi-question-circle';
-                  }
-                ?>
-                <span class="att-status-badge <?php echo $statusClass; ?>">
-                  <i class="bi <?php echo $statusIcon; ?>"></i>
-                  <?php echo htmlspecialchars(ucfirst(isset($r->status)?$r->status:'Unknown')); ?>
+                <?php $badge = attendance_status_badge_meta(isset($r->status) ? $r->status : ''); ?>
+                <span class="att-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
+                  <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
                 </span>
               </td>
               <td class="count-cell"><?php echo (int)$r->cnt; ?></td>
@@ -609,35 +588,10 @@
               </td>
               <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
               <td>
-                <?php 
-                  $status = strtolower(isset($r->status)?$r->status:'');
-                  $statusClass = '';
-                  $statusIcon = '';
-                  switch($status) {
-                    case 'present': 
-                      $statusClass = 'present'; 
-                      $statusIcon = 'bi-check-circle';
-                      break;
-                    case 'absent': 
-                      $statusClass = 'absent'; 
-                      $statusIcon = 'bi-x-circle';
-                      break;
-                    case 'half_day': 
-                      $statusClass = 'half_day'; 
-                      $statusIcon = 'bi-clock';
-                      break;
-                    case 'work_from_home': 
-                      $statusClass = 'work_from_home'; 
-                      $statusIcon = 'bi-house';
-                      break;
-                    default: 
-                      $statusClass = ''; 
-                      $statusIcon = 'bi-question-circle';
-                  }
-                ?>
-                <span class="att-status-badge <?php echo $statusClass; ?>">
-                  <i class="bi <?php echo $statusIcon; ?>"></i>
-                  <?php echo htmlspecialchars(ucfirst(isset($r->status)?$r->status:'Unknown')); ?>
+                <?php $badge = attendance_status_badge_meta(isset($r->status) ? $r->status : ''); ?>
+                <span class="att-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
+                  <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
                 </span>
               </td>
               <td class="count-cell"><?php echo (int)$r->cnt; ?></td>
@@ -732,35 +686,10 @@
               </td>
               <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
               <td>
-                <?php 
-                  $status = strtolower(isset($r->status)?$r->status:'');
-                  $statusClass = '';
-                  $statusIcon = '';
-                  switch($status) {
-                    case 'present': 
-                      $statusClass = 'present'; 
-                      $statusIcon = 'bi-check-circle';
-                      break;
-                    case 'absent': 
-                      $statusClass = 'absent'; 
-                      $statusIcon = 'bi-x-circle';
-                      break;
-                    case 'half_day': 
-                      $statusClass = 'half_day'; 
-                      $statusIcon = 'bi-clock';
-                      break;
-                    case 'work_from_home': 
-                      $statusClass = 'work_from_home'; 
-                      $statusIcon = 'bi-house';
-                      break;
-                    default: 
-                      $statusClass = ''; 
-                      $statusIcon = 'bi-question-circle';
-                  }
-                ?>
-                <span class="att-status-badge <?php echo $statusClass; ?>">
-                  <i class="bi <?php echo $statusIcon; ?>"></i>
-                  <?php echo htmlspecialchars(ucfirst(isset($r->status)?$r->status:'Unknown')); ?>
+                <?php $badge = attendance_status_badge_meta(isset($r->status) ? $r->status : ''); ?>
+                <span class="att-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
+                  <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
                 </span>
               </td>
               <td class="count-cell"><?php echo (int)$r->cnt; ?></td>

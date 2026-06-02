@@ -105,7 +105,15 @@ class Training_assessment_runtime
             return true;
         }
         $uid = (int) $this->CI->session->userdata('user_id');
-        return $uid && (int) $au->user_id === $uid;
+        if ($uid && (int) $au->user_id === $uid) {
+            return true;
+        }
+        $assigneeUid = (int) $au->user_id;
+        if ($assigneeUid > 0 && function_exists('hierarchy_user_can_access')) {
+            $this->CI->load->helper('hierarchy_filter');
+            return hierarchy_user_can_access($assigneeUid);
+        }
+        return false;
     }
 
     /**
