@@ -111,11 +111,16 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'reports', 'analytics', 'reports_overview', 'reports_requirements',
                 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves',
                 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity',
-                'daily_activity_report', 'reports_payroll', 'reports_expenses',
+                'daily_activity_report', 'reports_payroll', 'reports_expenses', 'reports_performance',
             ],
             'my_works' => [
                 'my_works', 'my_works_list', 'my_works_add', 'my_works_edit', 'my_works_delete',
                 'my_works_view_all', 'my_works_export',
+            ],
+            'coaching' => [
+                'coaching', 'coaching_coaches', 'coaching_clients', 'coaching_sessions',
+                'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
+                'coaching_whatsapp_crm', 'coaching_resources', 'coaching_admin', 'coaching_portal',
             ],
         ];
     }
@@ -170,6 +175,88 @@ if (!function_exists('repair_invalid_permission_rows')) {
             return;
         }
         $CI->db->where("(module IS NULL OR TRIM(module) = '')", null, false)->delete('permissions');
+    }
+}
+
+if (!function_exists('seed_coaching_defaults_if_needed')) {
+    /**
+     * Idempotent: Coaching Client role (5) + default coaching permissions for Admin/Manager/Lead.
+     */
+    function seed_coaching_defaults_if_needed()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $CI =& get_instance();
+        if (!isset($CI->db)) {
+            $CI->load->database();
+        }
+        if (!$CI->db) {
+            return;
+        }
+
+        if ($CI->db->table_exists('roles')) {
+            $role_id = 5;
+            $exists = $CI->db->where('id', $role_id)->get('roles')->row();
+            if (!$exists) {
+                $row = array(
+                    'id'   => $role_id,
+                    'name' => 'Coaching Client',
+                );
+                if ($CI->db->field_exists('group_type', 'roles')) {
+                    $row['group_type'] = 'user';
+                }
+                if ($CI->db->field_exists('is_active', 'roles')) {
+                    $row['is_active'] = 1;
+                }
+                if ($CI->db->field_exists('sort_order', 'roles')) {
+                    $row['sort_order'] = $role_id;
+                }
+                $CI->db->insert('roles', $row);
+            }
+        }
+
+        if (!$CI->db->table_exists('permissions')) {
+            return;
+        }
+
+        $all_coaching = array(
+            'coaching', 'coaching_coaches', 'coaching_clients', 'coaching_sessions',
+            'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
+            'coaching_whatsapp_crm', 'coaching_resources', 'coaching_admin', 'coaching_portal',
+        );
+
+        $matrix = array(
+            1 => $all_coaching,
+            2 => $all_coaching,
+            3 => array(
+                'coaching', 'coaching_clients', 'coaching_sessions', 'coaching_goals',
+                'coaching_leads', 'coaching_reports', 'coaching_resources',
+            ),
+            5 => array('coaching_portal'),
+        );
+
+        foreach ($matrix as $role_id => $keys) {
+            foreach ($keys as $module) {
+                $exists = $CI->db
+                    ->where('role_id', (int) $role_id)
+                    ->where('module', $module)
+                    ->limit(1)
+                    ->get('permissions')
+                    ->row();
+                if ($exists) {
+                    continue;
+                }
+                $CI->db->insert('permissions', array(
+                    'role_id'    => (int) $role_id,
+                    'module'     => $module,
+                    'can_access' => 1,
+                ));
+            }
+        }
     }
 }
 

@@ -66,6 +66,24 @@ class Permissions extends CI_Controller {
                 }
                 $this->db->where('module', 'assets_mgmt')->delete('permissions');
             }
+
+            // Migrate permissions_edit -> permissions (single Permission Manager key)
+            $old_perm_edit = $this->db->where('module', 'permissions_edit')->get('permissions')->result();
+            if (!empty($old_perm_edit)) {
+                foreach ($old_perm_edit as $row) {
+                    $exists = $this->db->where('role_id', (int)$row->role_id)->where('module', 'permissions')->get('permissions')->row();
+                    if (!$exists) {
+                        $this->db->insert('permissions', [
+                            'role_id' => (int)$row->role_id,
+                            'module' => 'permissions',
+                            'can_access' => (int)$row->can_access
+                        ]);
+                    } elseif ((int)$row->can_access === 1) {
+                        $this->db->where('id', (int)$exists->id)->update('permissions', ['can_access' => 1]);
+                    }
+                }
+                $this->db->where('module', 'permissions_edit')->delete('permissions');
+            }
         }
 
         // Ensure a simple roles table exists so role labels and groups can be managed from DB.
@@ -134,6 +152,18 @@ class Permissions extends CI_Controller {
                     $this->db->update('roles', ['group_type' => 'user']);
                 }
             }
+        }
+
+        $this->seed_coaching_permissions();
+    }
+
+    /**
+     * Idempotent seed: coaching role + default permissions (delegates to permission_helper).
+     */
+    private function seed_coaching_permissions()
+    {
+        if (function_exists('seed_coaching_defaults_if_needed')) {
+            seed_coaching_defaults_if_needed();
         }
     }
 
@@ -224,7 +254,7 @@ class Permissions extends CI_Controller {
                     'my_works_add'         => 'Add My Work Item',
                     'my_works_edit'        => 'Edit My Work Item',
                     'my_works_delete'      => 'Delete My Work Item',
-                    'my_works_view_all'    => 'View All My Works (Org-wide)',
+                    'my_works_view_all'    => 'View All My Works (Admin roles only — data scope)',
                     'my_works_export'      => 'Export My Works (CSV)',
                 ]
             ],
@@ -240,6 +270,7 @@ class Permissions extends CI_Controller {
                     'attendance_edit'     => 'Edit Attendance Record',
                     'attendance_delete'   => 'Delete Attendance Record',
                     'attendance_bulk'     => 'Bulk Attendance Operations',
+                    'attendance_view_all' => 'View All Attendance (Org-wide)',
                     'leave_requests'      => 'Leave Management — Admin View (Full Access)',
                     'leave_team'          => 'View Team Leaves',
                     'leave_calendar'      => 'Leave Calendar',
@@ -317,6 +348,7 @@ class Permissions extends CI_Controller {
                     'training_screen_ta_question_import' => 'Import Questions + Options',
                     'training_screen_ta_report' => 'Report',
                     'training_screen_ta_submissions' => 'Assessment submissions',
+                    'training_screen_ta_team_progress' => 'Team progress / org-scoped result review',
                     'training_screen_ta_my_tests' => 'My assigned tests',
                     'training_take_with_proctoring' => 'Take Assessment (Video + Screenshot Monitoring)',
                     'training_take_without_proctoring' => 'Take Assessment (Without Video/Screenshot Monitoring)',
@@ -326,6 +358,23 @@ class Permissions extends CI_Controller {
                     'training_screen_lms_admin' => 'LMS admin',
                     'training_screen_lms_submissions' => 'Assignment submissions',
                     'training_screen_lms_office_csv' => 'LMS office CSV import/export',
+                ]
+            ],
+            'Coaching' => [
+                'icon' => 'bi-person-hearts',
+                'modules' => [
+                    'coaching'               => 'Coaching (Full Access)',
+                    'coaching_coaches'       => 'Manage Coaches',
+                    'coaching_clients'       => 'Manage Coaching Clients',
+                    'coaching_sessions'      => 'Manage Sessions',
+                    'coaching_goals'         => 'Manage Goals & Homework',
+                    'coaching_leads'         => 'Manage Leads',
+                    'coaching_billing'       => 'Billing & Installments',
+                    'coaching_reports'       => 'Coaching Reports',
+                    'coaching_whatsapp_crm'  => 'WhatsApp CRM',
+                    'coaching_resources'     => 'Resources & Workshops',
+                    'coaching_admin'         => 'Coaching Admin Settings',
+                    'coaching_portal'        => 'Client Portal Access',
                 ]
             ],
             'Business Management' => [
@@ -349,7 +398,6 @@ class Permissions extends CI_Controller {
                     'expenses_categories'  => 'Manage Expense Categories',
                     'expenses_export'      => 'Export Expenses CSV',
                     'assets'               => 'Asset Management (Full Access)',
-                    'assets_mgmt'          => 'Asset Management (Legacy Key)',
                     'assets_list'          => 'View Asset List',
                     'assets_add'           => 'Add Asset',
                     'assets_edit'          => 'Edit Asset',
@@ -398,7 +446,6 @@ class Permissions extends CI_Controller {
                     'email_settings'   => 'Email Settings & Templates',
                     'whatsapp'         => 'WhatsApp Integration',
                     'permissions'      => 'Permission Manager',
-                    'permissions_edit' => 'Permission Manager — save role matrix',
                     'statuses'         => 'Status Management',
                     'api_integrations' => 'API Integrations',
                     'lead_mapping'     => 'Lead Mapping',
@@ -457,7 +504,7 @@ class Permissions extends CI_Controller {
     public function save()
     {
         // Restrict permission writes — prevents privilege escalation
-        require_module_access(['permissions_edit', 'permissions'], true);
+        require_module_access('permissions', true);
 
         if ($this->input->method() !== 'post') {
             redirect('permissions');

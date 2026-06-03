@@ -136,7 +136,32 @@
 
         <!-- Actions Column -->
         <div class="col-lg-4">
-            <?php if(function_exists('is_admin_group') && is_admin_group()): ?>
+            <?php
+              $uid = (int) $this->session->userdata('user_id');
+              $canEdit = ((int) $expense->user_id === $uid || (function_exists('is_admin_group') && is_admin_group()))
+                && in_array($expense->status, array('pending', 'rejected'), true)
+                && function_exists('has_module_access') && (has_module_access('expenses_edit') || has_module_access('expenses'));
+              $canDel = (((int) $expense->user_id === $uid && in_array($expense->status, array('pending', 'rejected'), true))
+                || (function_exists('is_admin_group') && is_admin_group()))
+                && function_exists('has_module_access') && (has_module_access('expenses_delete') || has_module_access('expenses'));
+            ?>
+            <?php if ($canEdit || $canDel): ?>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3"><h6 class="mb-0 fw-bold">Your Actions</h6></div>
+                <div class="card-body d-grid gap-2">
+                    <?php if ($canEdit): ?>
+                    <a href="<?php echo site_url('expenses/edit/' . (int) $expense->id); ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit claim</a>
+                    <?php endif; ?>
+                    <?php if ($canDel): ?>
+                    <form method="post" action="<?php echo site_url('expenses/delete/' . (int) $expense->id); ?>" onsubmit="return confirm('Delete this expense claim permanently?');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-trash me-1"></i>Delete</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if(function_exists('has_module_access') && (has_module_access('expenses_approve') || has_module_access('expenses'))): ?>
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-bottom py-3">
                     <h6 class="mb-0 fw-bold">Actions</h6>

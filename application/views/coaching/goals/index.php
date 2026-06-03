@@ -1,0 +1,10 @@
+<?php $this->load->view('partials/header', ['title' => 'Goals & Homework']); ?>
+<?php $this->load->view('coaching/_subnav'); ?>
+<form method="get" class="mb-3 row g-2"><div class="col-auto"><select name="client_id" class="form-select" onchange="this.form.submit()"><option value="">Select client</option><?php foreach ($clients as $c): ?><option value="<?php echo (int)$c->id; ?>" <?php echo $client_id===(int)$c->id?'selected':''; ?>><?php echo htmlspecialchars($c->full_name); ?></option><?php endforeach; ?></select></div></form>
+<?php if ($client_id): ?>
+<div class="row g-3">
+<div class="col-md-6"><div class="card shadow-soft"><div class="card-header">Goals</div><div class="card-body"><?php echo form_open('coaching-goals/save-goal'); ?><input type="hidden" name="coaching_client_id" value="<?php echo $client_id; ?>"><input name="title" class="form-control mb-2" placeholder="Goal title" required><input name="target_date" type="date" class="form-control mb-2"><input name="progress_pct" type="number" min="0" max="100" class="form-control mb-2" placeholder="Progress %"><button class="btn btn-sm btn-primary">Add goal</button><?php echo form_close(); ?><hr><?php foreach ($goals as $g): ?><div class="small border-bottom py-1"><?php echo htmlspecialchars($g->title); ?> — <?php echo (int)$g->progress_pct; ?>%</div><?php endforeach; ?></div></div>
+<div class="col-md-6"><div class="card shadow-soft"><div class="card-header">Homework</div><div class="card-body"><?php echo form_open('coaching-goals/save-homework'); ?><input type="hidden" name="coaching_client_id" value="<?php echo $client_id; ?>"><input name="title" class="form-control mb-2" placeholder="Homework" required><input name="due_date" type="date" class="form-control mb-2"><button class="btn btn-sm btn-primary">Add homework</button><?php echo form_close(); ?><hr><?php foreach ($homework as $h): ?><div class="small border-bottom py-1"><?php echo htmlspecialchars($h->title); ?> — <?php echo htmlspecialchars($h->status); ?></div><?php endforeach; ?></div></div>
+</div>
+<?php endif; ?>
+<?php $this->load->view('partials/footer'); ?>

@@ -66,5 +66,14 @@ $config['table_module_mapping'] = array(
     
     // Clients
     'clients' => 'clients',
+
+    // Coaching
+    'coaching_coaches' => 'coaching_coaches',
+    'coaching_clients' => 'coaching_clients',
+    'coaching_sessions' => 'coaching_sessions',
+    'coaching_goals' => 'coaching_goals',
+    'coaching_leads' => 'coaching_leads',
+    'coaching_invoices' => 'coaching_billing',
+    'coaching_automation_rules' => 'coaching_admin',
 );
 

@@ -60,6 +60,14 @@ class AuthHook {
             return;
         }
 
+        // Coaching: public webhooks + workshop registration (no login)
+        if (preg_match('#^coaching-webhooks/(razorpay|whatsapp-inbound)(/|$)#', $uri)) {
+            return;
+        }
+        if (preg_match('#^coaching-leads/workshop-register(/|$)#', $uri)) {
+            return;
+        }
+
         $user_id = $CI->session->userdata('user_id');
         $role_id = (int)$CI->session->userdata('role_id');
 
@@ -332,6 +340,7 @@ class AuthHook {
         $always_allowed_controllers = [
             'dashboard', 'profile', 'auth', 'errors', 'welcome',
             'cron', 'install', 'migrate', 'short_url', 'test_company',
+            'coaching_portal', 'coaching_webhooks',
         ];
         if (in_array($controller, $always_allowed_controllers, true)) { return; }
 
@@ -345,7 +354,7 @@ class AuthHook {
             'permissions'       => ['permissions'],
             'departments'       => ['departments'],
             'designations'      => ['designations'],
-            'attendance'        => ['attendance', 'attendance_list', 'attendance_add', 'attendance_edit', 'attendance_delete', 'attendance_bulk'],
+            'attendance'        => ['attendance', 'attendance_list', 'attendance_add', 'attendance_edit', 'attendance_delete', 'attendance_bulk', 'attendance_view_all'],
             'leave_requests'    => ['leave_requests', 'leave_team', 'leave_approve', 'leave_calendar'],
             'leaves'            => ['leaves', 'leaves_list', 'leaves_add', 'leaves_edit', 'leaves_delete', 'leave_requests'],
             'shifts'            => ['shifts', 'shifts_view', 'shifts_manage'],
@@ -383,11 +392,32 @@ class AuthHook {
                 'external_training_list', 'external_training_add',
                 'external_training_edit', 'external_training_delete',
             ],
+            'training_import' => [
+                'training_assessment', 'training_assessment_manage',
+                'training_screen_ta_import', 'training_lms_manage',
+                'training_screen_lms_office_csv',
+            ],
+            'coaching' => [
+                'coaching', 'coaching_coaches', 'coaching_clients', 'coaching_sessions',
+                'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
+                'coaching_whatsapp_crm', 'coaching_resources', 'coaching_admin',
+            ],
+            'coaching_admin' => ['coaching_admin', 'coaching'],
+            'coaching_billing' => ['coaching_billing', 'coaching'],
+            'coaching_clients' => ['coaching_clients', 'coaching'],
+            'coaching_coaches' => ['coaching_coaches', 'coaching'],
+            'coaching_goals' => ['coaching_goals', 'coaching'],
+            'coaching_leads' => ['coaching_leads', 'coaching'],
+            'coaching_payments' => ['coaching_billing', 'coaching', 'coaching_portal'],
+            'coaching_reports' => ['coaching_reports', 'coaching'],
+            'coaching_resources' => ['coaching_resources', 'coaching'],
+            'coaching_sessions' => ['coaching_sessions', 'coaching'],
+            'coaching_whatsapp_crm' => ['coaching_whatsapp_crm', 'coaching'],
             'clients'           => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete'],
             'payroll'           => ['payroll', 'payroll_view', 'payroll_manage'],
             'expenses'          => ['expenses', 'expenses_add', 'expenses_edit', 'expenses_delete', 'expenses_approve', 'expenses_reimburse', 'expenses_reports', 'expenses_categories'],
             'assets'            => ['assets', 'assets_mgmt', 'assets_list', 'assets_add', 'assets_edit', 'assets_delete'],
-            'reports'           => ['reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity'],
+            'reports'           => ['reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity', 'reports_payroll', 'reports_expenses', 'reports_performance'],
             'analytics'         => ['analytics'],
             'ai_chat'           => ['ai', 'ai_chat', 'ai_widget'],
             'daily_activity'    => ['daily_activity', 'daily_activity_add', 'daily_activity_list', 'daily_activity_report', 'daily_activity_delete'],
@@ -405,7 +435,6 @@ class AuthHook {
             'db'                => ['db'],
             'api_integrations'  => ['api_integrations', 'settings', 'admin'],
             'superadmin'        => ['superadmin'],
-            'roles'             => ['roles', 'permissions'],
         ];
 
         // Get the list of module keys to check for this controller

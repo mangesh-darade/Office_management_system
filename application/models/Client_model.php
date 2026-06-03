@@ -60,10 +60,20 @@ class Client_model extends CI_Model {
     
     // Specific method to get sensitive credentials securely (backend only)
     public function get_client_credentials($id){
-        $row = $this->db->select('db_name, db_username, db_password, pos_url')
+        $row = $this->db->select('db_name, db_username, db_password, pos_url, company_name')
                         ->where('id', (int)$id)
                         ->get('clients')
                         ->row();
+        if ($row) {
+            if ($this->db->field_exists('db_host', 'clients')) {
+                $hostRow = $this->db->select('db_host')->where('id', (int) $id)->get('clients')->row();
+                $row->db_host = $hostRow ? $hostRow->db_host : null;
+            }
+            if ($this->db->field_exists('db_port', 'clients')) {
+                $portRow = $this->db->select('db_port')->where('id', (int) $id)->get('clients')->row();
+                $row->db_port = $portRow ? $portRow->db_port : null;
+            }
+        }
         if ($row && !empty($row->db_password)){
             $row->db_password = $this->decrypt_password($row->db_password);
         }

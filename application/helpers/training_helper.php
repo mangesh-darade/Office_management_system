@@ -294,3 +294,22 @@ if (!function_exists('training_lms_admin_can_office')) {
         return has_module_access('training_lms_manage') || has_module_access('training_screen_lms_office_csv');
     }
 }
+
+if (!function_exists('training_can_import')) {
+    /**
+     * Unified master CSV import (trainings, topics, assignments, assessments).
+     */
+    function training_can_import()
+    {
+        if ((int) get_instance()->session->userdata('role_id') === 1) {
+            return true;
+        }
+        if (function_exists('training_ta_admin_broad') && training_ta_admin_broad()) {
+            return true;
+        }
+        return has_module_access('training_screen_ta_import')
+            || has_module_access('training_assessment_manage')
+            || has_module_access('training_lms_manage')
+            || has_module_access('training_screen_lms_office_csv');
+    }
+}

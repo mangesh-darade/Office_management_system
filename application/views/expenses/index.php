@@ -198,10 +198,25 @@
                                         <?php echo ucfirst($expense->status); ?>
                                     </span>
                                 </td>
-                                <td class="pe-4 text-end">
-                                    <a href="<?php echo site_url('expenses/view/'.$expense->id); ?>" class="btn btn-sm btn-light">
-                                        <i class="bi bi-chevron-right"></i>
-                                    </a>
+                                <td class="pe-4 text-end text-nowrap">
+                                    <a href="<?php echo site_url('expenses/view/'.$expense->id); ?>" class="btn btn-sm btn-light" title="View"><i class="bi bi-eye"></i></a>
+                                    <?php
+                                      $uid = (int) $this->session->userdata('user_id');
+                                      $canEdit = ((int) $expense->user_id === $uid || (function_exists('is_admin_group') && is_admin_group()))
+                                        && in_array($expense->status, array('pending', 'rejected'), true)
+                                        && function_exists('has_module_access') && (has_module_access('expenses_edit') || has_module_access('expenses'));
+                                      $canDel = (((int) $expense->user_id === $uid && in_array($expense->status, array('pending', 'rejected'), true))
+                                        || (function_exists('is_admin_group') && is_admin_group()))
+                                        && function_exists('has_module_access') && (has_module_access('expenses_delete') || has_module_access('expenses'));
+                                    ?>
+                                    <?php if ($canEdit): ?>
+                                    <a href="<?php echo site_url('expenses/edit/'.$expense->id); ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <?php endif; ?>
+                                    <?php if ($canDel): ?>
+                                    <form method="post" action="<?php echo site_url('expenses/delete/'.$expense->id); ?>" class="d-inline" onsubmit="return confirm('Delete this expense claim?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>

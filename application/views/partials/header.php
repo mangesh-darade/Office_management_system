@@ -33,6 +33,13 @@
             echo '<link href="'.htmlspecialchars(base_url($cssFile), ENT_QUOTES, 'UTF-8').'" rel="stylesheet">' . PHP_EOL;
         }
     }
+    $coaching_uri = '';
+    if (isset($this->uri) && method_exists($this->uri, 'segment')) {
+        $coaching_uri = strtolower((string) $this->uri->segment(1));
+    }
+    if ($coaching_uri === 'coaching' || strpos($coaching_uri, 'coaching-') === 0) {
+        echo '<link href="' . htmlspecialchars(base_url('assets/css/coaching.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
+    }
   ?>
   <!-- jQuery must be loaded early so that inline view scripts relying on it (e.g., chats/app.php) can use $.ajax and delegated events -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
@@ -141,6 +148,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       if ($active === 'my-works') {
         $active = 'my_works';
       }
+      $coaching_nav_active = ($active === 'coaching' || strpos((string) $active, 'coaching-') === 0);
       $role_id = (int) $this->session->userdata('role_id');
       $is_superadmin = ($role_id === 1);
       ?>
@@ -229,9 +237,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('attendance_delete') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
-        has_module_access('permissions') ||
-        has_module_access('assets') ||
-        has_module_access('assets_mgmt')
+        has_module_access('assets')
       );
       ?>
       <?php if($user_group_show): ?>
@@ -297,6 +303,66 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('performance/create'); ?>"><i class="bi bi-plus-lg me-2"></i>New Appraisal</a>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('performance/self-assess'); ?>"><i class="bi bi-person-check me-2"></i>Self-Assessment</a>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('performance/export'); ?>"><i class="bi bi-download me-2"></i>Export CSV</a>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <?php
+      $coaching_group_show = $is_superadmin || (function_exists('has_module_access') && (
+          has_module_access('coaching') ||
+          has_module_access('coaching_coaches') ||
+          has_module_access('coaching_clients') ||
+          has_module_access('coaching_sessions') ||
+          has_module_access('coaching_goals') ||
+          has_module_access('coaching_leads') ||
+          has_module_access('coaching_billing') ||
+          has_module_access('coaching_reports') ||
+          has_module_access('coaching_whatsapp_crm') ||
+          has_module_access('coaching_resources') ||
+          has_module_access('coaching_admin')
+      ));
+      ?>
+      <?php if ($coaching_group_show): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $coaching_nav_active ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-coaching-submenu" role="button" aria-expanded="<?php echo $coaching_nav_active ? 'true' : 'false'; ?>" aria-controls="mobile-coaching-submenu">
+          <i class="bi bi-person-hearts me-2"></i>Coaching <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $coaching_nav_active ? 'show' : ''; ?>" id="mobile-coaching-submenu">
+          <div class="ps-4">
+            <?php if ($is_superadmin || has_module_access('coaching')): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='coaching' && (!$active_sub || $active_sub==='index')) ? 'active' : ''; ?>" href="<?php echo site_url('coaching'); ?>"><i class="bi bi-grid me-2"></i>Dashboard</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_clients')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-clients' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-clients'); ?>"><i class="bi bi-people me-2"></i>Clients</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_coaches')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-coaches' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-coaches'); ?>"><i class="bi bi-person-workspace me-2"></i>Coaches</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_sessions')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-sessions' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-sessions'); ?>"><i class="bi bi-calendar3 me-2"></i>Sessions</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_goals')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-goals' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-goals'); ?>"><i class="bi bi-bullseye me-2"></i>Goals</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_leads')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-leads' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-leads'); ?>"><i class="bi bi-funnel me-2"></i>Leads</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_billing')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-billing' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-billing'); ?>"><i class="bi bi-currency-rupee me-2"></i>Billing</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_reports')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-reports' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-reports'); ?>"><i class="bi bi-bar-chart me-2"></i>Reports</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_whatsapp_crm')): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='coaching-whatsapp-crm' || $active==='coaching-whatsapp') ? 'active' : ''; ?>" href="<?php echo site_url('coaching-whatsapp-crm'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp CRM</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_resources')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-resources' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-resources'); ?>"><i class="bi bi-journal-text me-2"></i>Resources</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || has_module_access('coaching_admin')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='coaching-admin' ? 'active' : ''; ?>" href="<?php echo site_url('coaching-admin'); ?>"><i class="bi bi-gear me-2"></i>Admin</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>

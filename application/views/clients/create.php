@@ -117,6 +117,14 @@
           <label class="form-label">DB Password</label>
           <input type="text" name="db_password" class="form-control">
         </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Host</label>
+          <input type="text" name="db_host" class="form-control" placeholder="Remote MySQL host">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">DB Port</label>
+          <input type="text" name="db_port" class="form-control" placeholder="3306">
+        </div>
         <div class="col-md-12">
           <label class="form-label">Notes</label>
           <textarea name="notes" rows="3" class="form-control"></textarea>

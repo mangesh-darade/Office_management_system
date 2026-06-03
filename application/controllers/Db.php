@@ -16,6 +16,20 @@ class Db extends CI_Controller {
 
         $this->ensure_dm_manager_table();
         $this->ensure_client_migrations_table();
+        $this->ensure_client_db_fields();
+    }
+
+    private function ensure_client_db_fields()
+    {
+        if (!$this->db->table_exists('clients')) {
+            return;
+        }
+        if (!$this->db->field_exists('db_host', 'clients')) {
+            $this->db->query('ALTER TABLE `clients` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`');
+        }
+        if (!$this->db->field_exists('db_port', 'clients')) {
+            $this->db->query('ALTER TABLE `clients` ADD `db_port` varchar(10) DEFAULT NULL AFTER `db_host`');
+        }
     }
 
     // Security Helper: Verify CSRF (Manual implementation since global might be off)
@@ -43,17 +57,105 @@ class Db extends CI_Controller {
     }
 
     // Helper: Resolve DB Connection
-    private function resolve_connection($client_id, $manual_config = []) {
+    /**
+     * Connection options: host, port, use_local_credentials, allow_local_fallback
+     */
+    private function is_local_db_host($host)
+    {
+        $h = strtolower(trim((string) $host));
+        return $h === '' || $h === 'localhost' || $h === '127.0.0.1' || $h === '::1';
+    }
+
+    private function resolve_client_connection($client_id, $options = array())
+    {
+        $creds = $this->client_model->get_client_credentials($client_id);
+        if (!$creds) {
+            throw new Exception('Client not found.');
+        }
+        if (empty($creds->db_name)) {
+            throw new Exception('Client "' . (isset($creds->company_name) ? $creds->company_name : ('#' . $client_id)) . '" has no database name configured.');
+        }
+
+        $clientLabel = isset($creds->company_name) ? $creds->company_name : ('Client #' . $client_id);
+
+        if (!empty($options['use_local_credentials'])) {
+            return $this->connect_to_verified($creds->db_name, 'local WAMP credentials for "' . $clientLabel . '"');
+        }
+
+        $host = !empty($options['host']) ? $options['host'] : (!empty($creds->db_host) ? $creds->db_host : ($this->db->hostname ? $this->db->hostname : 'localhost'));
+        $port = !empty($options['port']) ? $options['port'] : (!empty($creds->db_port) ? $creds->db_port : null);
+        $allowFallback = !isset($options['allow_local_fallback']) || $options['allow_local_fallback'];
+        $storedHostIsLocal = $this->is_local_db_host(isset($creds->db_host) ? $creds->db_host : '');
+        $targetHostIsLocal = $this->is_local_db_host($host);
+
+        // Explicit live-server mode: stored cPanel/hosting credentials against remote MySQL
+        if (!empty($options['use_live_server'])) {
+            if ($host === '' || $this->is_local_db_host($host)) {
+                throw new Exception(
+                    'Live server mode for "' . $clientLabel . '" needs a remote DB Host (not localhost). '
+                    . 'Set it under CRM → Clients → Edit, or enter the MySQL hostname in the override field '
+                    . '(cPanel → Remote MySQL shows the server hostname; whitelist your WAMP public IP there).'
+                );
+            }
+            return $this->connect_custom($host, $creds->db_username, $creds->db_password, $creds->db_name, $port);
+        }
+
+        // WAMP/dev: no remote host on client record + connecting to localhost → use OMS (root) creds, not cPanel username
+        if ($targetHostIsLocal && (empty($creds->db_host) || $storedHostIsLocal)) {
+            return $this->connect_to_verified($creds->db_name, 'local WAMP for "' . $clientLabel . '"');
+        }
+
+        try {
+            return $this->connect_custom($host, $creds->db_username, $creds->db_password, $creds->db_name, $port);
+        } catch (Exception $e) {
+            if (!$allowFallback || !$targetHostIsLocal) {
+                throw new Exception(
+                    'Cannot connect to ' . $clientLabel . ' at ' . $host . ' (user: ' . $creds->db_username . '). ' . $e->getMessage()
+                    . ($targetHostIsLocal ? ' Tip: enable "Use local WAMP credentials" or create database "' . $creds->db_name . '" on WAMP.' : ' Tip: set DB Host under CRM → Clients for the remote MySQL server.')
+                );
+            }
+            try {
+                return $this->connect_to_verified($creds->db_name, 'local fallback for "' . $clientLabel . '"');
+            } catch (Exception $e2) {
+                throw new Exception(
+                    'Remote: ' . $e->getMessage() . ' | Local fallback (db: ' . $creds->db_name . '): ' . $e2->getMessage()
+                    . ' — Create database "' . $creds->db_name . '" in phpMyAdmin on WAMP, or set the client DB Host to the live server.'
+                );
+            }
+        }
+    }
+
+    private function compare_connection_options_from_request()
+    {
+        $useLive = $this->input->post('use_live_server') === '1';
+        return array(
+            'host' => trim((string) $this->input->post('db_host')),
+            'port' => trim((string) $this->input->post('db_port')),
+            'use_local_credentials' => !$useLive && $this->input->post('use_local_credentials') === '1',
+            'allow_local_fallback' => !$useLive && $this->input->post('allow_local_fallback') !== '0',
+            'use_live_server' => $useLive,
+        );
+    }
+
+    private function resolve_connection($client_id, $manual_config = array()) {
         if (!empty($client_id)) {
-            $creds = $this->client_model->get_client_credentials($client_id);
-            if (!$creds) { throw new Exception("Client not found."); }
-            return $this->connect_custom(
-                isset($manual_config['host']) ? $manual_config['host'] : ($this->db->hostname ?: 'localhost'), // Default to system host if not stored
-                $creds->db_username,
-                $creds->db_password,
-                $creds->db_name,
-                isset($manual_config['port']) ? $manual_config['port'] : null
-            );
+            $opts = array();
+            if (!empty($manual_config['host'])) {
+                $opts['host'] = $manual_config['host'];
+            }
+            if (!empty($manual_config['port'])) {
+                $opts['port'] = $manual_config['port'];
+            }
+            if (isset($manual_config['use_local_credentials'])) {
+                $opts['use_local_credentials'] = (bool) $manual_config['use_local_credentials'];
+            }
+            if (isset($manual_config['allow_local_fallback'])) {
+                $opts['allow_local_fallback'] = (bool) $manual_config['allow_local_fallback'];
+            }
+            if (isset($manual_config['use_live_server'])) {
+                $opts['use_live_server'] = (bool) $manual_config['use_live_server'];
+            }
+            return $this->resolve_client_connection($client_id, $opts);
         }
         
         // Fallback or Manual
@@ -407,13 +509,20 @@ class Db extends CI_Controller {
 
     // List available databases on the server (for dropdown)
     public function list_databases(){
-        // Optional remote server params
+        $client_id = (int) ($this->input->post('client_id') ?: $this->input->get('client_id'));
         $host = $this->input->post('host') ?: $this->input->get('host');
         $port = $this->input->post('port') ?: $this->input->get('port');
         $user = $this->input->post('user') ?: $this->input->get('user');
         $pass = $this->input->post('pass') ?: $this->input->get('pass');
         try {
-            if ($host && $user !== null){
+            if ($client_id) {
+                $tmp = $this->resolve_client_connection($client_id, array(
+                    'host' => trim((string) $host),
+                    'port' => trim((string) $port),
+                    'allow_local_fallback' => true,
+                ));
+                $res = $tmp->query('SHOW DATABASES');
+            } elseif ($host && $user !== null) {
                 $tmp = $this->connect_custom($host, $user, (string)$pass, '', $port);
                 $res = $tmp->query('SHOW DATABASES');
             } else {
@@ -1193,7 +1302,7 @@ class Db extends CI_Controller {
     }
 
     // Connect to a specific database using current credentials
-    private function connect_to($database){
+    private function connect_to($database, $db_debug = false){
         $driver   = property_exists($this->db, 'dbdriver') ? $this->db->dbdriver : 'mysqli';
         $hostname = property_exists($this->db, 'hostname') ? $this->db->hostname : 'localhost';
         $username = property_exists($this->db, 'username') ? $this->db->username : 'root';
@@ -1209,12 +1318,36 @@ class Db extends CI_Controller {
             'char_set' => $char_set,
             'dbcollat' => $dbcollat,
             'pconnect' => FALSE,
-            'db_debug' => (ENVIRONMENT !== 'production'),
+            'db_debug' => (bool) $db_debug,
             'cache_on' => FALSE,
             'cachedir' => '',
             'save_queries' => TRUE,
         ];
         return $this->load->database($params, TRUE);
+    }
+
+    /**
+     * Connect using OMS config credentials and verify connection.
+     */
+    private function connect_to_verified($database, $context = '')
+    {
+        $prev_level = error_reporting(0);
+        try {
+            $db = $this->connect_to($database);
+            if (!$db->conn_id && method_exists($db, 'initialize')) {
+                $db->initialize();
+            }
+            if (!$db->conn_id) {
+                $err = $db->error();
+                $msg = is_array($err) && !empty($err['message']) ? $err['message'] : 'Connection failed';
+                throw new Exception($msg . ($context !== '' ? ' (' . $context . ')' : ''));
+            }
+            error_reporting($prev_level);
+            return $db;
+        } catch (Exception $e) {
+            error_reporting($prev_level);
+            throw $e;
+        }
     }
 
     // Save a query with project and version
@@ -1588,8 +1721,16 @@ class Db extends CI_Controller {
     public function db_difference(){
         $clients = [];
         if ($this->db->table_exists('clients')) {
-            $sel = ['id','company_name','db_name','db_username']; // Secure
-            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            $sel = ['id', 'company_name', 'db_name', 'db_username'];
+            if ($this->db->field_exists('pos_url', 'clients')) {
+                $sel[] = 'pos_url';
+            }
+            if ($this->db->field_exists('db_host', 'clients')) {
+                $sel[] = 'db_host';
+            }
+            if ($this->db->field_exists('db_port', 'clients')) {
+                $sel[] = 'db_port';
+            }
             $this->db->select(implode(',', $sel));
             $clients = $this->db->from('clients')
                                 ->where('db_name IS NOT NULL')
@@ -1607,11 +1748,345 @@ class Db extends CI_Controller {
         $this->load->view('db/db_difference', [
             'clients' => $clients,
             'csrf_token' => $csrf_token,
+            'master_db' => $this->db->database,
+            'module_tables' => $this->_schema_module_tables_safe(),
         ]);
+    }
+
+    /**
+     * AJAX: Run all registered module schema bootstraps on the master DB.
+     */
+    public function ensure_schemas()
+    {
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        if (!$this->verify_csrf()) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
+            return;
+        }
+        $this->load->helper('schema_automation');
+        $ran = oms_ensure_all_schemas();
+        header('Content-Type: application/json');
+        echo json_encode(array(
+            'success' => true,
+            'modules' => $ran,
+            'module_tables' => oms_schema_module_table_names(),
+            'message' => count($ran) . ' module schema(s) ensured on ' . $this->db->database,
+        ));
+    }
+
+    private function _schema_module_tables_safe()
+    {
+        $this->load->helper('schema_automation');
+        return oms_schema_module_table_names();
+    }
+
+    /**
+     * Build SQL column definition from information_schema row.
+     *
+     * @param object $cRow
+     * @return string
+     */
+    private function build_column_sql_definition($cRow)
+    {
+        $defParts = array('`' . str_replace('`', '``', $cRow->COLUMN_NAME) . '`', $cRow->COLUMN_TYPE);
+        if (!empty($cRow->CHARACTER_SET_NAME)) {
+            $defParts[] = 'CHARACTER SET ' . $cRow->CHARACTER_SET_NAME;
+        }
+        if (!empty($cRow->COLLATION_NAME)) {
+            $defParts[] = 'COLLATE ' . $cRow->COLLATION_NAME;
+        }
+        $defParts[] = (strtoupper($cRow->IS_NULLABLE) === 'YES') ? 'NULL' : 'NOT NULL';
+        if (!is_null($cRow->COLUMN_DEFAULT)) {
+            $def = trim((string) $cRow->COLUMN_DEFAULT);
+            $defUpper = strtoupper($def);
+            if ($defUpper === 'CURRENT_TIMESTAMP' || $defUpper === 'CURRENT_TIMESTAMP()') {
+                $defParts[] = 'DEFAULT CURRENT_TIMESTAMP';
+            } elseif (is_numeric($def)) {
+                $defParts[] = 'DEFAULT ' . $def;
+            } elseif ($defUpper === 'NULL') {
+                $defParts[] = 'DEFAULT NULL';
+            } else {
+                $defParts[] = "DEFAULT '" . str_replace("'", "''", $def) . "'";
+            }
+        }
+        $extra = trim((string) $cRow->EXTRA);
+        if ($extra !== '') {
+            $defParts[] = $extra;
+        }
+        return $this->normalize_column_def(implode(' ', array_filter($defParts)));
+    }
+
+    /**
+     * Normalize CREATE TABLE statement for display or apply.
+     *
+     * @param string $sqlCreate
+     * @param bool   $for_apply Use IF NOT EXISTS for safe re-run
+     * @return string
+     */
+    private function format_create_table_sql($sqlCreate, $for_apply = false)
+    {
+        $sql = trim((string) $sqlCreate);
+        $sql = rtrim($sql, ";\r\n ");
+        if ($for_apply && stripos($sql, 'CREATE TABLE IF NOT EXISTS') === false) {
+            $sql = preg_replace('/^CREATE\s+TABLE/i', 'CREATE TABLE IF NOT EXISTS', $sql, 1);
+        }
+        return $sql . ';';
+    }
+
+    /**
+     * Strip comments and return one executable SQL statement.
+     *
+     * @param string $sql
+     * @return string
+     */
+    private function sanitize_executable_sql($sql)
+    {
+        $sql = trim((string) $sql);
+        if ($sql === '') {
+            return '';
+        }
+        $sql = preg_replace('/--[^\r\n]*/', '', $sql);
+        $sql = trim($sql);
+        if ($sql === '') {
+            return '';
+        }
+        if (substr($sql, -1) !== ';') {
+            $sql .= ';';
+        }
+        return $sql;
+    }
+
+    /**
+     * @param array $ops
+     * @param bool  $for_apply
+     * @return string
+     */
+    private function diff_ops_to_sql($ops, $for_apply = false)
+    {
+        $lines = array();
+        foreach ($ops as $op) {
+            if (!is_array($op)) {
+                continue;
+            }
+            if (!$for_apply && !empty($op['comment'])) {
+                $lines[] = '-- ' . $op['comment'];
+            }
+            if ($for_apply && !empty($op['apply_sql'])) {
+                $lines[] = $op['apply_sql'];
+            } elseif (!empty($op['sql'])) {
+                $lines[] = $op['sql'];
+            }
+        }
+        return implode("\n\n", $lines);
+    }
+
+    /**
+     * Execute diff ops in safe order inside a transaction.
+     *
+     * @param object $conn
+     * @param array  $ops
+     * @return array
+     */
+    private function execute_diff_ops($conn, $ops)
+    {
+        $priority = array(
+            'create_table' => 1,
+            'add_column' => 2,
+            'modify_column' => 3,
+            'add_index' => 4,
+        );
+        usort($ops, function ($a, $b) use ($priority) {
+            $ta = (is_array($a) && isset($a['type']) && isset($priority[$a['type']])) ? $priority[$a['type']] : 99;
+            $tb = (is_array($b) && isset($b['type']) && isset($priority[$b['type']])) ? $priority[$b['type']] : 99;
+            if ($ta === $tb) {
+                return 0;
+            }
+            return ($ta < $tb) ? -1 : 1;
+        });
+
+        $conn->trans_begin();
+        $applied = 0;
+        $executed = array();
+        $errors = array();
+
+        foreach ($ops as $op) {
+            if (!is_array($op)) {
+                continue;
+            }
+            $raw = !empty($op['apply_sql']) ? $op['apply_sql'] : (isset($op['sql']) ? $op['sql'] : '');
+            $sql = $this->sanitize_executable_sql($raw);
+            if ($sql === '') {
+                continue;
+            }
+            if (!$conn->query($sql)) {
+                $err = $conn->error();
+                $msg = is_array($err) && !empty($err['message']) ? $err['message'] : 'Query failed';
+                $errors[] = $msg . ' | ' . $sql;
+                $conn->trans_rollback();
+                throw new Exception($msg);
+            }
+            $applied++;
+            $executed[] = $sql;
+        }
+
+        if ($conn->trans_status() === false) {
+            $conn->trans_rollback();
+            throw new Exception('Database transaction failed.');
+        }
+
+        $conn->trans_commit();
+        return array(
+            'applied' => $applied,
+            'executed' => $executed,
+            'errors' => $errors,
+        );
+    }
+
+    /**
+     * Build SQL ops to sync structure from $src into $tgt (tables/columns/indexes in src missing from tgt).
+     *
+     * @param array  $src
+     * @param array  $tgt
+     * @param object $read_conn DB connection that can SHOW CREATE TABLE from source side
+     * @return array
+     */
+    private function build_structure_diff($src, $tgt, $read_conn)
+    {
+        $ops = array();
+        $missing_tables = array();
+        $missing_columns = array();
+        $changed_columns = array();
+        $missing_indexes = array();
+
+        foreach ($src['tables'] as $tLower => $tRow) {
+            $tName = $tRow->TABLE_NAME;
+            $safeTable = str_replace('`', '``', $tName);
+
+            if (!isset($tgt['tables'][$tLower])) {
+                $res = $read_conn->query('SHOW CREATE TABLE `' . $safeTable . '`');
+                if ($res && $res->num_rows() > 0) {
+                    $row = $res->row_array();
+                    $sqlCreate = isset($row['Create Table']) ? $row['Create Table'] : (isset(array_values($row)[1]) ? array_values($row)[1] : '');
+                    if ($sqlCreate) {
+                        $missing_tables[] = $tName;
+                        $ops[] = array(
+                            'type' => 'create_table',
+                            'table' => $tName,
+                            'comment' => 'Create table `' . $tName . '`',
+                            'sql' => $this->format_create_table_sql($sqlCreate, false),
+                            'apply_sql' => $this->format_create_table_sql($sqlCreate, true),
+                        );
+                    }
+                }
+            } else {
+                $sCols = isset($src['cols'][$tLower]) ? $src['cols'][$tLower] : array();
+                $tCols = isset($tgt['cols'][$tLower]) ? $tgt['cols'][$tLower] : array();
+
+                foreach ($sCols as $cLower => $cRow) {
+                    $cName = $cRow->COLUMN_NAME;
+                    $fullDef = $this->build_column_sql_definition($cRow);
+
+                    if (!isset($tCols[$cLower])) {
+                        $missing_columns[] = array('table' => $tName, 'column' => $cName);
+                        $ops[] = array(
+                            'type' => 'add_column',
+                            'table' => $tName,
+                            'column' => $cName,
+                            'comment' => 'Add column `' . $tName . '`.`' . $cName . '`',
+                            'sql' => 'ALTER TABLE `' . $safeTable . '` ADD COLUMN ' . $fullDef . ';',
+                            'apply_sql' => 'ALTER TABLE `' . $safeTable . '` ADD COLUMN ' . $fullDef . ';',
+                        );
+                    } else {
+                        $tcRow = $tCols[$cLower];
+                        $diff = false;
+                        if (strtolower($cRow->COLUMN_TYPE) !== strtolower($tcRow->COLUMN_TYPE)) {
+                            $diff = true;
+                        }
+                        if (strtoupper($cRow->IS_NULLABLE) !== strtoupper($tcRow->IS_NULLABLE)) {
+                            $diff = true;
+                        }
+                        if ($diff) {
+                            $changed_columns[] = array(
+                                'table' => $tName,
+                                'column' => $cName,
+                                'old' => $tcRow->COLUMN_TYPE,
+                                'new' => $cRow->COLUMN_TYPE,
+                            );
+                            $ops[] = array(
+                                'type' => 'modify_column',
+                                'table' => $tName,
+                                'column' => $cName,
+                                'comment' => 'Modify column `' . $tName . '`.`' . $cName . '` (was ' . $tcRow->COLUMN_TYPE . ')',
+                                'sql' => 'ALTER TABLE `' . $safeTable . '` MODIFY COLUMN ' . $fullDef . ';',
+                                'apply_sql' => 'ALTER TABLE `' . $safeTable . '` MODIFY COLUMN ' . $fullDef . ';',
+                            );
+                        }
+                    }
+                }
+
+                $sIdx = isset($src['indexes'][$tLower]) ? $src['indexes'][$tLower] : array();
+                $tIdx = isset($tgt['indexes'][$tLower]) ? $tgt['indexes'][$tLower] : array();
+
+                foreach ($sIdx as $igname => $igdata) {
+                    if ($igname === 'PRIMARY') {
+                        continue;
+                    }
+                    if (!isset($tIdx[$igname])) {
+                        $cols = array_map(function ($c) {
+                            return '`' . str_replace('`', '``', $c) . '`';
+                        }, $igdata['columns']);
+                        $type = ($igdata['type'] === 'FULLTEXT') ? 'FULLTEXT' : (($igdata['non_unique'] == 0) ? 'UNIQUE' : 'INDEX');
+                        $safeIdx = str_replace('`', '``', $igname);
+                        $indexSql = 'ALTER TABLE `' . $safeTable . '` ADD ' . $type . ' `' . $safeIdx . '` (' . implode(',', $cols) . ');';
+                        $missing_indexes[] = array('table' => $tName, 'index' => $igname);
+                        $ops[] = array(
+                            'type' => 'add_index',
+                            'table' => $tName,
+                            'index' => $igname,
+                            'comment' => 'Add index `' . $igname . '` on `' . $tName . '`',
+                            'sql' => $indexSql,
+                            'apply_sql' => $indexSql,
+                        );
+                    }
+                }
+            }
+        }
+
+        return array(
+            'ops' => $ops,
+            'missing_tables' => $missing_tables,
+            'missing_columns' => $missing_columns,
+            'changed_columns' => $changed_columns,
+            'missing_indexes' => $missing_indexes,
+            'sql' => $this->diff_ops_to_sql($ops, false),
+            'apply_sql' => $this->diff_ops_to_sql($ops, true),
+        );
+    }
+
+    private function resolve_compare_connection($client_id, $db_name, $is_master = false, $conn_options = array())
+    {
+        if ($is_master || ($client_id === 0 && $db_name === $this->db->database)) {
+            return array($this->db, $this->db->database);
+        }
+        if ($client_id) {
+            $conn = $this->resolve_client_connection($client_id, $conn_options);
+            return array($conn, $conn->database);
+        }
+        if ($db_name === '') {
+            throw new Exception('Database name is required.');
+        }
+        $conn = $this->connect_to($db_name);
+        return array($conn, $db_name);
     }
 
     // AJAX: Compare two databases
     public function compare_databases(){
+        if (ob_get_level()) {
+            ob_clean();
+        }
         if (!$this->verify_csrf()){
              header('HTTP/1.1 403 Forbidden'); header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
@@ -1620,30 +2095,24 @@ class Db extends CI_Controller {
         $target_db = trim((string)$this->input->post('target_db'));
         $source_client_id = (int)$this->input->post('source_client_id');
         $target_client_id = (int)$this->input->post('target_client_id');
+        $source_is_master = $this->input->post('source_is_master') === '1';
+        $target_is_master = $this->input->post('target_is_master') === '1';
+        $ensure_master = $this->input->post('ensure_master_schema') === '1';
+
+        if ($ensure_master) {
+            $this->load->helper('schema_automation');
+            oms_ensure_all_schemas();
+        }
         
         // Safety: Manual DB comparison restricted to Admins
-        if (!$source_client_id && !$target_client_id && (!is_admin_group())){
+        if (!$source_client_id && !$target_client_id && !$source_is_master && !$target_is_master && (!function_exists('is_admin_group') || !is_admin_group())){
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Manual DB comparison restricted to Admins.']); return;
         }
 
         try {
-            // Source Connection
-            if ($source_client_id){
-                  $source_conn = $this->resolve_connection($source_client_id);
-                  $source_db = $source_conn->database;
-            } else {
-                 if ($source_db === '') throw new Exception("Source DB required");
-                 $source_conn = $this->connect_to($source_db);
-            }
-            
-            // Target Connection
-            if ($target_client_id){
-                 $target_conn = $this->resolve_connection($target_client_id);
-                 $target_db = $target_conn->database;
-            } else {
-                 if ($target_db === '') throw new Exception("Target DB required");
-                 $target_conn = $this->connect_to($target_db);
-            }
+            $connOpts = $this->compare_connection_options_from_request();
+            list($source_conn, $source_db) = $this->resolve_compare_connection($source_client_id, $source_db, $source_is_master, $connOpts);
+            list($target_conn, $target_db) = $this->resolve_compare_connection($target_client_id, $target_db, $target_is_master, $connOpts);
 
             if ($source_db == $target_db){ throw new Exception("Source and Target are the same."); }
 
@@ -1694,103 +2163,355 @@ class Db extends CI_Controller {
             $src = $fetchStructure($source_conn, $source_db);
             $tgt = $fetchStructure($target_conn, $target_db);
 
-            $ops = [];
-            $missing_tables = [];
-            $missing_columns = [];
-            $changed_columns = [];
-            $missing_indexes = [];
+            $aToB = $this->build_structure_diff($src, $tgt, $source_conn);
+            $bToA = $this->build_structure_diff($tgt, $src, $target_conn);
 
-            // A -> B Comparison
-            foreach ($src['tables'] as $tLower => $tRow){
-                $tName = $tRow->TABLE_NAME;
-                
-                if (!isset($tgt['tables'][$tLower])){
-                    // Missing Table
-                    $res = $source_conn->query('SHOW CREATE TABLE `'.$tName.'`');
-                    if ($res && $res->num_rows() > 0){
-                        $row = $res->row_array();
-                        $sqlCreate = isset($row['Create Table']) ? $row['Create Table'] : (isset(array_values($row)[1]) ? array_values($row)[1] : '');
-                        if ($sqlCreate){
-                            $missing_tables[] = $tName;
-                            $ops[] = "-- Create Table `$tName`\n".rtrim($sqlCreate, "; \r\n").";";
-                        }
+            $moduleTables = $this->_schema_module_tables_safe();
+            $moduleMissingA = array();
+            $moduleMissingB = array();
+            foreach ($aToB['missing_tables'] as $t) {
+                foreach ($moduleTables as $mt) {
+                    if (strcasecmp($t, $mt) === 0) {
+                        $moduleMissingA[] = $t;
+                        break;
                     }
-                } else {
-                    // Check Columns
-                    $sCols = isset($src['cols'][$tLower]) ? $src['cols'][$tLower] : [];
-                    $tCols = isset($tgt['cols'][$tLower]) ? $tgt['cols'][$tLower] : [];
-                    
-                    foreach ($sCols as $cLower => $cRow){
-                        $cName = $cRow->COLUMN_NAME;
-                        // Construct definition
-                        $defParts = ['`'.$cRow->COLUMN_NAME.'`', $cRow->COLUMN_TYPE];
-                        if (!empty($cRow->CHARACTER_SET_NAME)) $defParts[] = 'CHARACTER SET '.$cRow->CHARACTER_SET_NAME;
-                        if (!empty($cRow->COLLATION_NAME)) $defParts[] = 'COLLATE '.$cRow->COLLATION_NAME;
-                        $defParts[] = (strtoupper($cRow->IS_NULLABLE) === 'YES') ? 'NULL' : 'NOT NULL';
-                        if (!is_null($cRow->COLUMN_DEFAULT)){
-                            $def = $cRow->COLUMN_DEFAULT;
-                            if (is_numeric($def)) $defParts[] = 'DEFAULT '.$def;
-                            else if ($def === 'NULL') $defParts[] = 'DEFAULT NULL';
-                            else $defParts[] = "DEFAULT '".str_replace("'","''", $def)."'"; 
-                        }
-                        if (!empty($cRow->EXTRA)) $defParts[] = $cRow->EXTRA;
-                        $fullDef = implode(' ', array_filter($defParts));
-
-                        if (!isset($tCols[$cLower])){
-                            // Missing Column
-                            $missing_columns[] = ['table'=>$tName, 'column'=>$cName];
-                            $ops[] = "ALTER TABLE `$tName` ADD COLUMN $fullDef;";
-                        } else {
-                            // Changed Column? (Type, Nullable, Default)
-                            $tcRow = $tCols[$cLower];
-                            $diff = false;
-                            if (strtolower($cRow->COLUMN_TYPE) !== strtolower($tcRow->COLUMN_TYPE)) $diff = true;
-                            if (strtoupper($cRow->IS_NULLABLE) !== strtoupper($tcRow->IS_NULLABLE)) $diff = true;
-                            // Relax Default check (string vs numeric quirks)
-                            // if ($cRow->COLUMN_DEFAULT !== $tcRow->COLUMN_DEFAULT) $diff = true; 
-                            
-                            if ($diff){
-                                $changed_columns[] = ['table'=>$tName, 'column'=>$cName, 'old'=>$tcRow->COLUMN_TYPE, 'new'=>$cRow->COLUMN_TYPE];
-                                $ops[] = "ALTER TABLE `$tName` MODIFY COLUMN $fullDef; -- Type Change: was " . $tcRow->COLUMN_TYPE;
-                            }
-                        }
-                    }
-
-                    // Check Indexes
-                    $sIdx = isset($src['indexes'][$tLower]) ? $src['indexes'][$tLower] : [];
-                    $tIdx = isset($tgt['indexes'][$tLower]) ? $tgt['indexes'][$tLower] : [];
-                    
-                    foreach ($sIdx as $igname => $igdata){
-                        if ($igname === 'PRIMARY') continue; // Skip primary for now as it's harder to modify
-                        if (!isset($tIdx[$igname])){
-                            // Index missing (by name)
-                            // Check if equivalent index exists by columns? No, strict name check for now.
-                            $cols = array_map(function($c){ return "`$c`"; }, $igdata['columns']);
-                            $type = ($igdata['type'] === 'FULLTEXT') ? 'FULLTEXT' : (($igdata['non_unique'] == 0) ? 'UNIQUE' : 'INDEX');
-                            $missing_indexes[] = ['table'=>$tName, 'index'=>$igname];
-                            $ops[] = "ALTER TABLE `$tName` ADD $type `$igname` (".implode(',', $cols).");";
-                        }
+                }
+            }
+            foreach ($bToA['missing_tables'] as $t) {
+                foreach ($moduleTables as $mt) {
+                    if (strcasecmp($t, $mt) === 0) {
+                        $moduleMissingB[] = $t;
+                        break;
                     }
                 }
             }
 
-            // Return
             header('Content-Type: application/json');
-            echo json_encode([
+            echo json_encode(array(
                 'success' => true,
                 'source_db' => $source_db,
                 'target_db' => $target_db,
-                'tables_sql' => implode("\n\n", $ops),
-                // Legacy fields for frontend compatibility
-                'missing_tables' => $missing_tables,
-                'missing_columns' => $missing_columns,
-                'changed_columns' => $changed_columns,
-                'missing_indexes' => $missing_indexes,
-                'columns_sql' => '', // merged into tables_sql
-            ]);
+                'sql' => $aToB['sql'],
+                'apply_sql' => $aToB['apply_sql'],
+                'tables_sql' => $aToB['sql'],
+                'statement_count' => count($aToB['ops']),
+                'missing_tables' => $aToB['missing_tables'],
+                'missing_columns' => $aToB['missing_columns'],
+                'changed_columns' => $aToB['changed_columns'],
+                'missing_indexes' => $aToB['missing_indexes'],
+                'reverse_sql' => $bToA['sql'],
+                'reverse_apply_sql' => $bToA['apply_sql'],
+                'reverse_statement_count' => count($bToA['ops']),
+                'reverse_missing_tables' => $bToA['missing_tables'],
+                'reverse_missing_columns' => $bToA['missing_columns'],
+                'module_tables_on_master' => $moduleTables,
+                'module_missing_in_target' => $moduleMissingA,
+                'module_missing_in_source' => $moduleMissingB,
+                'columns_sql' => '',
+            ));
 
         } catch(Exception $e) {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>$e->getMessage()]); return;
+        }
+    }
+
+    /**
+     * AJAX: Test client database connection before compare/apply.
+     */
+    public function test_client_connection()
+    {
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        if (!$this->verify_csrf()) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
+            return;
+        }
+        $client_id = (int) $this->input->post('client_id');
+        if (!$client_id) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Select a client.'));
+            return;
+        }
+        try {
+            $connOpts = $this->compare_connection_options_from_request();
+            $conn = $this->resolve_client_connection($client_id, $connOpts);
+            $dbName = $conn->database;
+            header('Content-Type: application/json');
+            echo json_encode(array(
+                'success' => true,
+                'message' => 'Connected to "' . $dbName . '" on ' . (isset($conn->hostname) ? $conn->hostname : 'server') . '.',
+                'database' => $dbName,
+            ));
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => $e->getMessage()));
+        }
+    }
+
+    /**
+     * AJAX: Create empty local WAMP database using the client's stored db_name.
+     */
+    public function create_local_client_database()
+    {
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        if (!$this->verify_csrf()) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
+            return;
+        }
+        $client_id = (int) $this->input->post('client_id');
+        if (!$client_id) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Select a client.'));
+            return;
+        }
+        $creds = $this->client_model->get_client_credentials($client_id);
+        if (!$creds || empty($creds->db_name)) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Client has no database name configured.'));
+            return;
+        }
+        $dbName = preg_replace('/[^a-zA-Z0-9_]/', '', $creds->db_name);
+        if ($dbName === '') {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Invalid database name.'));
+            return;
+        }
+        try {
+            $safe = str_replace('`', '``', $dbName);
+            $this->db->query('CREATE DATABASE IF NOT EXISTS `' . $safe . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci');
+            $this->connect_to_verified($dbName, 'local create for client #' . $client_id);
+            header('Content-Type: application/json');
+            echo json_encode(array(
+                'success' => true,
+                'message' => 'Local database "' . $dbName . '" is ready on WAMP. Use Local WAMP mode and Test connection.',
+                'database' => $dbName,
+            ));
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => $e->getMessage()));
+        }
+    }
+
+    /**
+     * AJAX: Save DB host/port from DB Difference onto the client record (live server setup).
+     */
+    public function save_client_db_host()
+    {
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        if (!$this->verify_csrf()) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
+            return;
+        }
+        $client_id = (int) $this->input->post('client_id');
+        $host = trim((string) $this->input->post('db_host'));
+        $port = trim((string) $this->input->post('db_port'));
+        if (!$client_id) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Select a client.'));
+            return;
+        }
+        if ($host === '' || $this->is_local_db_host($host)) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Enter the remote MySQL hostname from cPanel (not localhost).'));
+            return;
+        }
+        if (!$this->db->table_exists('clients')) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Clients table not found.'));
+            return;
+        }
+        $this->ensure_client_db_fields();
+        $data = array('db_host' => $host, 'updated_at' => date('Y-m-d H:i:s'));
+        if ($this->db->field_exists('db_port', 'clients')) {
+            $data['db_port'] = $port !== '' ? $port : null;
+        }
+        $ok = $this->client_model->update_client($client_id, $data);
+        header('Content-Type: application/json');
+        echo json_encode(array(
+            'success' => (bool) $ok,
+            'message' => $ok ? ('Saved DB host "' . $host . '" on client record.') : 'Failed to update client.',
+            'db_host' => $host,
+            'db_port' => $port,
+        ));
+    }
+
+    /**
+     * AJAX: Apply structure diff SQL to target database (re-computes diff server-side).
+     */
+    public function apply_database_diff()
+    {
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        if (function_exists('has_module_access') && !has_module_access('db_admin') && !has_module_access('db')) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'You do not have permission to apply database changes.'));
+            return;
+        }
+        if (!$this->verify_csrf()) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
+            return;
+        }
+
+        $direction = strtolower(trim((string) $this->input->post('direction')));
+        if (!in_array($direction, array('a_to_b', 'b_to_a'), true)) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => 'Invalid direction.'));
+            return;
+        }
+
+        $source_db = trim((string) $this->input->post('source_db'));
+        $target_db = trim((string) $this->input->post('target_db'));
+        $source_client_id = (int) $this->input->post('source_client_id');
+        $target_client_id = (int) $this->input->post('target_client_id');
+        $source_is_master = $this->input->post('source_is_master') === '1';
+        $target_is_master = $this->input->post('target_is_master') === '1';
+        $ensure_master = $this->input->post('ensure_master_schema') === '1';
+
+        if ($ensure_master) {
+            $this->load->helper('schema_automation');
+            oms_ensure_all_schemas();
+        }
+
+        try {
+            $connOpts = $this->compare_connection_options_from_request();
+            list($source_conn, $source_db) = $this->resolve_compare_connection($source_client_id, $source_db, $source_is_master, $connOpts);
+            list($target_conn, $target_db) = $this->resolve_compare_connection($target_client_id, $target_db, $target_is_master, $connOpts);
+
+            if ($source_db === $target_db) {
+                throw new Exception('Source and Target are the same.');
+            }
+
+            $ignored_tables = array('ci_sessions', 'migrations', 'login_attempts', 'user_autologin', 'notifications');
+            $fetchStructure = function ($conn, $dbname) use ($ignored_tables) {
+                $tables = array();
+                $cols = array();
+                $indexes = array();
+                $q = $conn->query('SELECT TABLE_NAME, ENGINE, TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?', array($dbname));
+                if (!$q) {
+                    return compact('tables', 'cols', 'indexes');
+                }
+                foreach ($q->result() as $r) {
+                    if (in_array($r->TABLE_NAME, $ignored_tables, true)) {
+                        continue;
+                    }
+                    $tables[strtolower($r->TABLE_NAME)] = $r;
+                }
+                if (empty($tables)) {
+                    return compact('tables', 'cols', 'indexes');
+                }
+                $rs = $conn->query('SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?', array($dbname));
+                if ($rs) {
+                    foreach ($rs->result() as $r) {
+                        $t = strtolower($r->TABLE_NAME);
+                        if (!isset($tables[$t])) {
+                            continue;
+                        }
+                        $c = strtolower($r->COLUMN_NAME);
+                        if (!isset($cols[$t])) {
+                            $cols[$t] = array();
+                        }
+                        $cols[$t][$c] = $r;
+                    }
+                }
+                $ris = $conn->query('SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COLUMN_NAME, SEQ_IN_INDEX, INDEX_TYPE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX', array($dbname));
+                if ($ris) {
+                    foreach ($ris->result() as $r) {
+                        $t = strtolower($r->TABLE_NAME);
+                        if (!isset($tables[$t])) {
+                            continue;
+                        }
+                        if (!isset($indexes[$t])) {
+                            $indexes[$t] = array();
+                        }
+                        $idxName = $r->INDEX_NAME;
+                        if (!isset($indexes[$t][$idxName])) {
+                            $indexes[$t][$idxName] = array('non_unique' => $r->NON_UNIQUE, 'columns' => array(), 'type' => $r->INDEX_TYPE);
+                        }
+                        $indexes[$t][$idxName]['columns'][] = $r->COLUMN_NAME;
+                    }
+                }
+                return compact('tables', 'cols', 'indexes');
+            };
+
+            $srcStruct = $fetchStructure($source_conn, $source_db);
+            $tgtStruct = $fetchStructure($target_conn, $target_db);
+
+            if ($direction === 'a_to_b') {
+                $diff = $this->build_structure_diff($srcStruct, $tgtStruct, $source_conn);
+                $applyConn = $target_conn;
+                $applyDb = $target_db;
+                $fromDb = $source_db;
+            } else {
+                $diff = $this->build_structure_diff($tgtStruct, $srcStruct, $target_conn);
+                $applyConn = $source_conn;
+                $applyDb = $source_db;
+                $fromDb = $target_db;
+            }
+
+            if (empty($diff['ops'])) {
+                header('Content-Type: application/json');
+                echo json_encode(array(
+                    'success' => true,
+                    'applied' => 0,
+                    'message' => 'No SQL changes needed — schemas already match.',
+                ));
+                return;
+            }
+
+            $result = $this->execute_diff_ops($applyConn, $diff['ops']);
+
+            $tables = 0;
+            $columns = 0;
+            foreach ($diff['ops'] as $op) {
+                if (!is_array($op) || empty($op['type'])) {
+                    continue;
+                }
+                if ($op['type'] === 'create_table') {
+                    $tables++;
+                } elseif (in_array($op['type'], array('add_column', 'modify_column', 'add_index'), true)) {
+                    $columns++;
+                }
+            }
+
+            $client_id = ($direction === 'a_to_b') ? $target_client_id : $source_client_id;
+            $client_name = trim((string) $this->input->post('target_client_name'));
+            if ($direction === 'b_to_a') {
+                $client_name = trim((string) $this->input->post('source_client_name'));
+            }
+            $this->log_client_migration(
+                $client_id ? $client_id : null,
+                $client_name !== '' ? $client_name : $applyDb,
+                $applyDb,
+                'migrate',
+                $tables,
+                $columns,
+                'db/difference:' . $direction,
+                array('sql' => $result['executed'], 'from_db' => $fromDb)
+            );
+
+            header('Content-Type: application/json');
+            echo json_encode(array(
+                'success' => true,
+                'applied' => (int) $result['applied'],
+                'target_db' => $applyDb,
+                'from_db' => $fromDb,
+                'direction' => $direction,
+                'message' => (int) $result['applied'] . ' SQL statement(s) applied to ' . $applyDb,
+                'executed' => $result['executed'],
+            ));
+        } catch (Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(array('success' => false, 'message' => $e->getMessage()));
         }
     }
 

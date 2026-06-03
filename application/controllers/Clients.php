@@ -61,7 +61,9 @@ class Clients extends CI_Controller {
                 'onboarding_date' => "ALTER TABLE `clients` ADD `onboarding_date` date DEFAULT NULL AFTER `industry`",
                 'db_name' => "ALTER TABLE `clients` ADD `db_name` varchar(255) DEFAULT NULL AFTER `notes`",
                 'db_username' => "ALTER TABLE `clients` ADD `db_username` varchar(255) DEFAULT NULL AFTER `db_name`",
-                'db_password' => "ALTER TABLE `clients` ADD `db_password` varchar(255) DEFAULT NULL AFTER `db_username`"
+                'db_password' => "ALTER TABLE `clients` ADD `db_password` varchar(255) DEFAULT NULL AFTER `db_username`",
+                'db_host' => "ALTER TABLE `clients` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`",
+                'db_port' => "ALTER TABLE `clients` ADD `db_port` varchar(10) DEFAULT NULL AFTER `db_host`",
             ];
             foreach ($fields as $field => $sql){
                 if (!$this->db->field_exists($field, 'clients')){
@@ -249,6 +251,8 @@ class Clients extends CI_Controller {
                     'db_name' => trim($this->input->post('db_name')),
                     'db_username' => trim($this->input->post('db_username')),
                     'db_password' => trim($this->input->post('db_password')),
+                    'db_host' => trim($this->input->post('db_host')),
+                    'db_port' => trim($this->input->post('db_port')),
                     'logo' => $logo_path,
                     'status' => 'active',
                     'created_by' => (int)$this->session->userdata('user_id'),
@@ -455,6 +459,8 @@ class Clients extends CI_Controller {
                         'db_name' => trim($this->input->post('db_name')),
                         'db_username' => trim($this->input->post('db_username')),
                         'db_password' => trim($this->input->post('db_password')),
+                        'db_host' => trim($this->input->post('db_host')),
+                        'db_port' => trim($this->input->post('db_port')),
                         'logo' => $logo_path,
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];

@@ -128,7 +128,16 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">DB Password</label>
-          <input type="text" name="db_password" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_password)?$client->db_password:''); ?>">
+          <input type="password" name="db_password" class="form-control" placeholder="Leave blank to keep existing">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">DB Host</label>
+          <input type="text" name="db_host" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_host)?$client->db_host:''); ?>" placeholder="Live MySQL hostname (cPanel Remote MySQL)">
+          <div class="form-text">Not <code>localhost</code> when connecting from WAMP. Copy from cPanel → Remote MySQL.</div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">DB Port</label>
+          <input type="text" name="db_port" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_port)?$client->db_port:''); ?>" placeholder="3306">
         </div>
         <div class="col-md-12">
           <label class="form-label">Notes</label>

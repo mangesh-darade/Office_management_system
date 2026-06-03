@@ -13,7 +13,7 @@ class Reports extends CI_Controller {
         }
         
         // RBAC Audit: Centralized module access check
-        require_module_access(['reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity', 'daily_activity_report', 'analytics', 'reports_payroll', 'reports_expenses'], true);
+        require_module_access(['reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity', 'daily_activity_report', 'analytics', 'reports_payroll', 'reports_expenses', 'reports_performance'], true);
     }
 
     public function index() {
@@ -4009,6 +4009,130 @@ class Reports extends CI_Controller {
             'status'      => $status,
             'category'    => $category,
             'categories'  => $categories,
+        ]);
+    }
+
+    // ── Performance Appraisals Report ─────────────────────────────────────────
+    public function performance() {
+        require_module_access(['reports', 'reports_performance'], true);
+
+        $period     = $this->input->get('period') ? trim($this->input->get('period')) : '';
+        $status     = $this->input->get('status') ? trim($this->input->get('status')) : '';
+        $department = $this->input->get('department') ? trim($this->input->get('department')) : '';
+
+        $appraisals = [];
+        $summary = [
+            'count' => 0,
+            'avg_kpi' => 0,
+            'avg_rating' => 0,
+            'draft' => 0,
+            'submitted' => 0,
+            'approved' => 0,
+        ];
+
+        if ($this->db->table_exists('performance_appraisals')) {
+            $this->db->select('p.*, e.first_name, e.last_name, e.department, u.name as manager_name');
+            $this->db->from('performance_appraisals p');
+            $this->db->join('employees e', 'e.id = p.employee_id', 'left');
+            $this->db->join('users u', 'u.id = p.manager_id', 'left');
+            if ($period !== '') {
+                $this->db->like('p.period', $period);
+            }
+            if ($status !== '') {
+                $this->db->where('p.status', $status);
+            }
+            if ($department !== '') {
+                $this->db->where('e.department', $department);
+            }
+            if (function_exists('apply_role_hierarchy_filter') && $this->db->field_exists('manager_id', 'performance_appraisals')) {
+                apply_role_hierarchy_filter($this->db, 'p.manager_id');
+            }
+            $this->db->order_by('p.created_at', 'DESC');
+            $appraisals = $this->db->get()->result();
+
+            $kpi_total = 0;
+            $rating_total = 0;
+            $rating_count = 0;
+            foreach ($appraisals as $row) {
+                $summary['count']++;
+                $kpi_total += isset($row->kpi_score) ? (float) $row->kpi_score : 0;
+                if (isset($row->rating) && $row->rating !== null && $row->rating !== '') {
+                    $rating_total += (int) $row->rating;
+                    $rating_count++;
+                }
+                $st = isset($row->status) ? $row->status : 'draft';
+                if (isset($summary[$st])) {
+                    $summary[$st]++;
+                }
+            }
+            if ($summary['count'] > 0) {
+                $summary['avg_kpi'] = round($kpi_total / $summary['count'], 2);
+            }
+            if ($rating_count > 0) {
+                $summary['avg_rating'] = round($rating_total / $rating_count, 2);
+            }
+        }
+
+        $departments = [];
+        if ($this->db->table_exists('employees')) {
+            $rows = $this->db
+                ->distinct()
+                ->select('department')
+                ->where('department IS NOT NULL')
+                ->where('department !=', '')
+                ->get('employees')
+                ->result();
+            foreach ($rows as $r) {
+                $departments[] = $r->department;
+            }
+        }
+
+        $periods = [];
+        if ($this->db->table_exists('performance_appraisals')) {
+            $prows = $this->db
+                ->distinct()
+                ->select('period')
+                ->where('period IS NOT NULL')
+                ->where('period !=', '')
+                ->order_by('period', 'DESC')
+                ->get('performance_appraisals')
+                ->result();
+            foreach ($prows as $pr) {
+                $periods[] = $pr->period;
+            }
+        }
+
+        if ($this->input->get('export') === 'csv') {
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="performance_report_' . date('Y-m-d') . '.csv"');
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Employee', 'Department', 'Period', 'KPI Score', 'Rating', 'Self Rating', 'Status', 'Manager', 'Updated']);
+            foreach ($appraisals as $a) {
+                $emp_name = trim((isset($a->first_name) ? $a->first_name : '') . ' ' . (isset($a->last_name) ? $a->last_name : ''));
+                fputcsv($out, [
+                    $emp_name !== '' ? $emp_name : '—',
+                    isset($a->department) ? $a->department : '',
+                    isset($a->period) ? $a->period : '',
+                    isset($a->kpi_score) ? $a->kpi_score : '',
+                    isset($a->rating) ? $a->rating : '',
+                    isset($a->self_rating) ? $a->self_rating : '',
+                    isset($a->status) ? $a->status : '',
+                    isset($a->manager_name) ? $a->manager_name : '',
+                    isset($a->updated_at) ? $a->updated_at : (isset($a->created_at) ? $a->created_at : ''),
+                ]);
+            }
+            fclose($out);
+            exit;
+        }
+
+        $this->load->view('reports/performance', [
+            'appraisals'  => $appraisals,
+            'summary'     => $summary,
+            'period'      => $period,
+            'status'      => $status,
+            'department'  => $department,
+            'departments' => $departments,
+            'periods'     => $periods,
         ]);
     }
 }

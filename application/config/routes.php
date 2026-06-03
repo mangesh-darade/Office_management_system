@@ -237,6 +237,7 @@ $route['reports/export-attendance-employee'] = 'reports/export_attendance_employ
 $route['reports/daily-activity'] = 'reports/daily_activity';
 $route['reports/payroll'] = 'reports/payroll';
 $route['reports/expenses'] = 'reports/expenses';
+$route['reports/performance'] = 'reports/performance';
 
 // Profile
 $route['profile'] = 'profile/index';
@@ -282,6 +283,11 @@ $route['db'] = 'db/index';
 $route['db/clients'] = 'db/client_panel';
 $route['db/client-migrations'] = 'db/client_migrations';
 $route['db/difference'] = 'db/db_difference';
+$route['db/ensure-schemas'] = 'db/ensure_schemas';
+$route['db/apply-database-diff'] = 'db/apply_database_diff';
+$route['db/test-client-connection'] = 'db/test_client_connection';
+$route['db/create-local-client-db'] = 'db/create_local_client_database';
+$route['db/save-client-db-host'] = 'db/save_client_db_host';
 $route['db/compare-databases'] = 'db/compare_databases';
 $route['db/queries/list'] = 'db/list_queries';
 $route['db/queries/save'] = 'db/save_query';
@@ -467,6 +473,9 @@ $route['training/submit-assignment'] = 'training_lms/submit_assignment';
 $route['training/download/(:num)'] = 'training_lms/download/$1';
 $route['training/my-training'] = 'training_lms/learner_hub';
 $route['training/complete-topic'] = 'training_lms/complete_topic';
+$route['training/import'] = 'training_import/index';
+$route['training/import/sample/(:any)'] = 'training_import/sample/$1';
+$route['training/import/process'] = 'training_import/process';
 
 // External Trainings (simple CRUD on sma_external_trainings)
 $route['external-training'] = 'external_training/index';
@@ -504,6 +513,59 @@ $route['performance/export'] = 'performance/export';
 $route['performance/self-assess'] = 'performance/self_assess';
 $route['performance/self-assess/(:num)'] = 'performance/self_assess/$1';
 
+// Coaching
+$route['coaching'] = 'coaching/index';
+$route['coaching/admin'] = 'coaching_admin/index';
+$route['coaching-admin'] = 'coaching_admin/index';
+$route['coaching-admin/backup'] = 'coaching_admin/backup';
+$route['coaching-admin/run-automation'] = 'coaching_admin/run_automation';
+$route['coaching-portal'] = 'coaching_portal/index';
+$route['coaching-portal/(:any)'] = 'coaching_portal/$1';
+$route['coaching-clients'] = 'coaching_clients/index';
+$route['coaching-clients/create'] = 'coaching_clients/create';
+$route['coaching-clients/edit/(:num)'] = 'coaching_clients/edit/$1';
+$route['coaching-clients/view/(:num)'] = 'coaching_clients/view/$1';
+$route['coaching-coaches'] = 'coaching_coaches/index';
+$route['coaching-coaches/create'] = 'coaching_coaches/create';
+$route['coaching-coaches/edit/(:num)'] = 'coaching_coaches/edit/$1';
+$route['coaching-coaches/delete/(:num)'] = 'coaching_coaches/delete/$1';
+$route['coaching-sessions'] = 'coaching_sessions/index';
+$route['coaching-sessions/calendar'] = 'coaching_sessions/calendar';
+$route['coaching-sessions/create'] = 'coaching_sessions/create';
+$route['coaching-sessions/edit/(:num)'] = 'coaching_sessions/edit/$1';
+$route['coaching-sessions/delete/(:num)'] = 'coaching_sessions/delete/$1';
+$route['coaching-goals'] = 'coaching_goals/index';
+$route['coaching-goals/save-goal'] = 'coaching_goals/save_goal';
+$route['coaching-goals/save-homework'] = 'coaching_goals/save_homework';
+$route['coaching-leads'] = 'coaching_leads/index';
+$route['coaching-leads/create'] = 'coaching_leads/create';
+$route['coaching-leads/edit/(:num)'] = 'coaching_leads/edit/$1';
+$route['coaching-leads/convert/(:num)'] = 'coaching_leads/convert/$1';
+$route['coaching-leads/workshops'] = 'coaching_leads/workshops';
+$route['coaching-leads/workshop-form'] = 'coaching_leads/workshop_form';
+$route['coaching-leads/workshop-form/(:num)'] = 'coaching_leads/workshop_form/$1';
+$route['coaching-leads/workshop-register/(:num)'] = 'coaching_leads/workshop_register/$1';
+$route['coaching-billing'] = 'coaching_billing/index';
+$route['coaching-billing/save-program'] = 'coaching_billing/save_program';
+$route['coaching-billing/create-invoice'] = 'coaching_billing/create_invoice';
+$route['coaching-billing/invoice/(:num)'] = 'coaching_billing/invoice/$1';
+$route['coaching-billing/mark-paid/(:num)'] = 'coaching_billing/mark_paid/$1';
+$route['coaching-billing/payouts'] = 'coaching_billing/payouts';
+$route['coaching-reports'] = 'coaching_reports/index';
+$route['coaching-resources'] = 'coaching_resources/index';
+$route['coaching-resources/save'] = 'coaching_resources/save';
+$route['coaching-whatsapp'] = 'coaching_whatsapp_crm/index';
+$route['coaching-whatsapp-crm'] = 'coaching_whatsapp_crm/index';
+$route['coaching-whatsapp-crm/save-enquiry'] = 'coaching_whatsapp_crm/save_enquiry';
+$route['coaching-whatsapp-crm/broadcast'] = 'coaching_whatsapp_crm/broadcast';
+$route['coaching-payments/pay/(:num)'] = 'coaching_payments/pay/$1';
+$route['coaching-payments/verify'] = 'coaching_payments/verify';
+$route['coaching-payments/confirm-manual/(:num)'] = 'coaching_payments/confirm_manual/$1';
+$route['coaching-payments/success'] = 'coaching_payments/success';
+$route['coaching/payments/(:num)'] = 'coaching_payments/pay/$1';
+$route['coaching-webhooks/razorpay'] = 'coaching_webhooks/razorpay';
+$route['coaching-webhooks/whatsapp-inbound'] = 'coaching_webhooks/whatsapp_inbound';
+
 // Recruitment
 $route['recruitment'] = 'recruitment/index';
 $route['recruitment/create-job'] = 'recruitment/create_job';
@@ -529,10 +591,14 @@ $route['daily-activity/export'] = 'daily_activity/export';
 $route['expenses'] = 'expenses/index';
 $route['expenses/create'] = 'expenses/create';
 $route['expenses/view/(:num)'] = 'expenses/view/$1';
+$route['expenses/edit/(:num)'] = 'expenses/edit/$1';
+$route['expenses/delete/(:num)'] = 'expenses/delete/$1';
 $route['expenses/approve/(:num)'] = 'expenses/approve/$1';
 $route['expenses/reject/(:num)'] = 'expenses/reject/$1';
 $route['expenses/reimburse/(:num)'] = 'expenses/reimburse/$1';
 $route['expenses/categories'] = 'expenses/categories';
+$route['expenses/categories/save'] = 'expenses/save_category';
+$route['expenses/categories/toggle/(:num)'] = 'expenses/toggle_category/$1';
 $route['expenses/reports'] = 'expenses/reports';
 $route['expenses/pending'] = 'expenses/pending';
 $route['expenses/export'] = 'expenses/export';
@@ -579,6 +645,7 @@ $route['profile/delete'] = 'profile/delete_profile';
 // Timesheets sub-actions
 $route['timesheets/delete-entry/(:num)'] = 'timesheets/delete_entry/$1';
 $route['timesheets/analytics'] = 'timesheets/analytics';
+$route['timesheets/task-tracking/(:num)'] = 'timesheets/task_tracking/$1';
 $route['timesheets/task-tracking'] = 'timesheets/task_tracking';
 
 // Requirements comments (AJAX)

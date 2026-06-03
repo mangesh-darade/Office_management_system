@@ -187,7 +187,8 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #performance-toggle,
 #training-assessment-toggle,
 #payroll-toggle,
-#communication-toggle{
+#communication-toggle,
+#coaching-toggle{
   color:#e5e7eb !important;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
@@ -207,7 +208,8 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #performance-toggle:hover,
 #training-assessment-toggle:hover,
 #payroll-toggle:hover,
-#communication-toggle:hover {
+#communication-toggle:hover,
+#coaching-toggle:hover {
   background: rgba(255,255,255,0.15);
   border-color: rgba(255,255,255,0.2);
   color: #ffffff !important;
@@ -226,7 +228,8 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #performance-toggle .bi,
 #training-assessment-toggle .bi,
 #payroll-toggle .bi,
-#communication-toggle .bi{
+#communication-toggle .bi,
+#coaching-toggle .bi{
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   opacity:1;
   font-size:.85rem;
@@ -244,7 +247,8 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #performance-toggle.rot .bi,
 #training-assessment-toggle.rot .bi,
 #payroll-toggle.rot .bi,
-#communication-toggle.rot .bi{ transform: rotate(90deg) scale(1.1); }
+#communication-toggle.rot .bi,
+#coaching-toggle.rot .bi{ transform: rotate(90deg) scale(1.1); }
 
 #daily-activity-group.open > .d-flex > #daily-activity-parent{
   background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
@@ -299,6 +303,14 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
   color:#fff;
   border-radius:10px;
   box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
+  transform: translateX(2px);
+}
+
+#coaching-group.open > .d-flex > #coaching-parent{
+  background: linear-gradient(135deg, #f472b6 0%, #e11d48 100%);
+  color:#fff;
+  border-radius:10px;
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
   transform: translateX(2px);
 }
 

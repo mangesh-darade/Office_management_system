@@ -75,6 +75,11 @@ class Cron extends CI_Controller {
     public function run_all() {
         echo "🚀 Starting cron job execution at " . date('Y-m-d H:i:s') . "\n";
         echo str_repeat("=", 50) . "\n";
+
+        $this->load->helper('schema_automation');
+        $schema_modules = oms_ensure_all_schemas();
+        echo "📦 Schema ensured: " . (count($schema_modules) ? implode(', ', $schema_modules) : 'none') . "\n";
+        echo str_repeat("-", 50) . "\n";
         
         // Process scheduled announcements
         $this->process_announcements();
@@ -82,6 +87,14 @@ class Cron extends CI_Controller {
         
         // Send queued emails
         $this->send_emails();
+        echo str_repeat("-", 50) . "\n";
+
+        // Coaching session email reminders (24h / 1h)
+        $this->coaching_session_reminders();
+        echo str_repeat("-", 50) . "\n";
+
+        // Coaching + other dynamic automation rules
+        $this->coaching_automation();
         echo str_repeat("=", 50) . "\n";
         
         echo "✅ All cron jobs completed at " . date('Y-m-d H:i:s') . "\n";
@@ -100,6 +113,12 @@ class Cron extends CI_Controller {
         
         echo "# Send queued emails every 2 minutes\n";
         echo "*/2 * * * * curl -s " . site_url('cron/send_emails') . " >/dev/null 2>&1\n\n";
+
+        echo "# Coaching session reminders every 15 minutes\n";
+        echo "*/15 * * * * curl -s " . site_url('cron/coaching_session_reminders') . " >/dev/null 2>&1\n\n";
+
+        echo "# Coaching automation rules every 30 minutes\n";
+        echo "*/30 * * * * curl -s " . site_url('cron/coaching_automation') . " >/dev/null 2>&1\n\n";
         
         echo "# Or run all tasks every 5 minutes\n";
         echo "*/5 * * * * curl -s " . site_url('cron/run_all') . " >/dev/null 2>&1\n\n";
@@ -114,6 +133,46 @@ class Cron extends CI_Controller {
         echo "Process Announcements: " . site_url('cron/process_announcements') . "\n";
         echo "Send Emails: " . site_url('cron/send_emails') . "\n";
         echo "Run All: " . site_url('cron/run_all') . "\n";
+        echo "Coaching Session Reminders: " . site_url('cron/coaching_session_reminders') . "\n";
+        echo "Coaching Automation: " . site_url('cron/coaching_automation') . "\n";
+    }
+
+    /**
+     * Run coaching automation rules (stale goals, etc.).
+     */
+    public function coaching_automation()
+    {
+        if (!$this->db->table_exists('coaching_automation_rules')) {
+            echo "⏭ Coaching automation not installed — skipping.\n";
+            return;
+        }
+        $this->load->helper('schema_automation');
+        oms_ensure_all_schemas();
+        $this->load->model('Coaching_model', 'coaching');
+        try {
+            $count = $this->coaching->run_automation_cron();
+            echo "✅ Coaching automation actions: " . (int) $count . " at " . date('Y-m-d H:i:s') . "\n";
+        } catch (Exception $e) {
+            echo "❌ Error running coaching automation: " . $e->getMessage() . "\n";
+        }
+    }
+
+    /**
+     * Send coaching session reminder emails (24h and 1h before).
+     */
+    public function coaching_session_reminders()
+    {
+        if (!$this->db->table_exists('coaching_sessions')) {
+            echo "⏭ Coaching tables not installed — skipping session reminders.\n";
+            return;
+        }
+        $this->load->model('Coaching_model', 'coaching');
+        try {
+            $sent = $this->coaching->process_session_reminder_cron();
+            echo "✅ Coaching session reminders sent: " . (int) $sent . " at " . date('Y-m-d H:i:s') . "\n";
+        } catch (Exception $e) {
+            echo "❌ Error sending coaching session reminders: " . $e->getMessage() . "\n";
+        }
     }
 
     // Test email functionality

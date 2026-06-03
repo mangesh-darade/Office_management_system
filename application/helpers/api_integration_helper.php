@@ -136,6 +136,129 @@ if (!function_exists('is_api_integration_configured')) {
     }
 }
 
+if (!function_exists('normalize_whatsapp_phone')) {
+    /**
+     * Format a phone number for Twilio WhatsApp API.
+     *
+     * @param string $phone
+     * @param string $default_country Country code without + (e.g. 91)
+     * @return string
+     */
+    function normalize_whatsapp_phone($phone, $default_country = '91')
+    {
+        if (strpos($phone, 'whatsapp:') === 0) {
+            return $phone;
+        }
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if ($digits === '') {
+            return '';
+        }
+        if ($default_country !== '' && strlen($digits) === 10) {
+            $digits = $default_country . $digits;
+        }
+        return 'whatsapp:+' . $digits;
+    }
+}
+
+if (!function_exists('send_whatsapp_message')) {
+    /**
+     * Send a WhatsApp message via Twilio (shared by Whatsapp + Coaching modules).
+     *
+     * @param string $phone Recipient phone
+     * @param string $message Plain-text body
+     * @param array  $options content_sid, content_variables, integration_id, default_country
+     * @return array ['success' => bool, 'error' => string|null]
+     */
+    function send_whatsapp_message($phone, $message, $options = array())
+    {
+        $creds = get_whatsapp_credentials(
+            isset($options['integration_id']) ? $options['integration_id'] : null
+        );
+        if (empty($creds['account_sid']) || empty($creds['auth_token'])) {
+            return array('success' => false, 'error' => 'WhatsApp credentials not configured.');
+        }
+
+        $default_country = isset($options['default_country']) ? $options['default_country'] : '91';
+        $to = normalize_whatsapp_phone($phone, $default_country);
+        if ($to === '') {
+            return array('success' => false, 'error' => 'Invalid phone number.');
+        }
+
+        $from = $creds['from_number'] ? $creds['from_number'] : 'whatsapp:+14155238886';
+        $url = 'https://api.twilio.com/2010-04-01/Accounts/' . $creds['account_sid'] . '/Messages.json';
+        $data = array('From' => $from, 'To' => $to);
+
+        if (!empty($options['content_sid'])) {
+            $data['ContentSid'] = $options['content_sid'];
+            if (!empty($options['content_variables'])) {
+                $data['ContentVariables'] = is_array($options['content_variables'])
+                    ? json_encode($options['content_variables'])
+                    : $options['content_variables'];
+            }
+        } else {
+            $data['Body'] = $message;
+        }
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_USERPWD, $creds['account_sid'] . ':' . $creds['auth_token']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+
+        if ($curl_error) {
+            return array('success' => false, 'error' => 'cURL Error: ' . $curl_error);
+        }
+
+        log_message('debug', 'Twilio API Response - HTTP Code: ' . $http_code);
+        log_message('debug', 'Twilio API Response Body: ' . $response);
+
+        $response_data = json_decode($response, true);
+
+        if ($http_code >= 200 && $http_code < 300) {
+            if (is_array($response_data) && isset($response_data['status']) && in_array($response_data['status'], array('failed', 'undelivered'), true)) {
+                $error_msg = !empty($response_data['message']) ? $response_data['message'] : 'Message failed to deliver';
+                if (!empty($response_data['error_code'])) {
+                    $error_msg .= ' (Error Code: ' . $response_data['error_code'] . ')';
+                }
+                return array('success' => false, 'error' => $error_msg);
+            }
+            if (is_array($response_data) && isset($response_data['code']) && (int) $response_data['code'] !== 0) {
+                $error_msg = !empty($response_data['message']) ? $response_data['message'] : 'Twilio API Error';
+                return array('success' => false, 'error' => $error_msg . ' (Code: ' . $response_data['code'] . ')');
+            }
+            return array(
+                'success' => true,
+                'error' => null,
+                'message_sid' => (is_array($response_data) && !empty($response_data['sid'])) ? $response_data['sid'] : null,
+                'status' => (is_array($response_data) && !empty($response_data['status'])) ? $response_data['status'] : 'queued',
+            );
+        }
+
+        $error_msg = 'HTTP ' . $http_code;
+        if (is_array($response_data)) {
+            if (!empty($response_data['message'])) {
+                $error_msg .= ': ' . $response_data['message'];
+            }
+            if (!empty($response_data['code'])) {
+                $error_msg .= ' (Code: ' . $response_data['code'] . ')';
+            }
+            if (!empty($response_data['more_info'])) {
+                $error_msg .= ' - More info: ' . $response_data['more_info'];
+            }
+        }
+        return array('success' => false, 'error' => $error_msg);
+    }
+}
+
 if (!function_exists('get_all_api_integrations')) {
     /**
      * Get all API integrations (optionally filtered by service type)

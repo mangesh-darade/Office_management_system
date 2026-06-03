@@ -526,6 +526,9 @@ $config['csrf_exclude_uris'] = array(
     'whatsapp/webhook',
     'whatsapp/send-task',
 
+    // Coaching — payment / WhatsApp webhooks (external providers)
+    'coaching-webhooks/.*',
+
     // Leave
     'leave/get_employee_tasks/.*',
 

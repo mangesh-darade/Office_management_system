@@ -527,7 +527,226 @@ class Expenses extends CI_Controller {
                 $r->created_at,
             ]);
         }
-        fclose($out);
-        exit;
+        redirect('expenses');
+    }
+
+    /**
+     * Fetch expense with optional hierarchy scope.
+     */
+    private function _fetch_expense($id, $apply_scope = true)
+    {
+        $this->db->select('expenses.*, users.name as username, expense_categories.name as category_name');
+        $this->db->from('expenses');
+        $this->db->join('users', 'users.id = expenses.user_id');
+        $this->db->join('expense_categories', 'expense_categories.id = expenses.category_id');
+        $this->db->where('expenses.id', (int) $id);
+        if ($apply_scope) {
+            apply_role_hierarchy_filter($this->db, 'expenses.user_id');
+        }
+        return $this->db->get()->row();
+    }
+
+    private function _can_edit_expense($expense)
+    {
+        if (!$expense) {
+            return false;
+        }
+        $user_id = (int) $this->session->userdata('user_id');
+        if ((int) $expense->user_id !== $user_id) {
+            if (!(function_exists('has_module_access') && (has_module_access('expenses_edit') || has_module_access('expenses')) && function_exists('is_admin_group') && is_admin_group())) {
+                return false;
+            }
+        } elseif (!(function_exists('has_module_access') && (has_module_access('expenses_edit') || has_module_access('expenses')))) {
+            return false;
+        }
+        return in_array($expense->status, array('pending', 'rejected'), true);
+    }
+
+    private function _can_delete_expense($expense)
+    {
+        if (!$expense) {
+            return false;
+        }
+        $user_id = (int) $this->session->userdata('user_id');
+        $is_owner = ((int) $expense->user_id === $user_id);
+        if ($is_owner) {
+            return in_array($expense->status, array('pending', 'rejected'), true)
+                && function_exists('has_module_access')
+                && (has_module_access('expenses_delete') || has_module_access('expenses'));
+        }
+        return function_exists('has_module_access')
+            && (has_module_access('expenses_delete') || has_module_access('expenses'))
+            && function_exists('is_admin_group') && is_admin_group();
+    }
+
+    /**
+     * GET/POST /expenses/edit/{id}
+     */
+    public function edit($id)
+    {
+        require_module_access(array('expenses_edit', 'expenses'), true);
+        $expense = $this->_fetch_expense($id);
+        if (!$expense) {
+            show_error('Expense not found', 404);
+        }
+        if (!$this->_can_edit_expense($expense)) {
+            show_error('You cannot edit this expense claim.', 403);
+        }
+
+        if ($this->input->method() === 'post') {
+            $category_id = (int) $this->input->post('category_id');
+            $amount = (float) $this->input->post('amount');
+            $description = trim((string) $this->input->post('description'));
+            $expense_date = $this->input->post('expense_date');
+
+            if (!$category_id || !$amount || $description === '' || !$expense_date) {
+                $this->session->set_flashdata('error', 'All fields are required.');
+                redirect('expenses/edit/' . (int) $id);
+                return;
+            }
+
+            $category = $this->db->get_where('expense_categories', array('id' => $category_id))->row();
+            if ($category && $category->budget_limit && $amount > $category->budget_limit) {
+                $this->session->set_flashdata('error', 'Amount exceeds category budget limit.');
+                redirect('expenses/edit/' . (int) $id);
+                return;
+            }
+
+            $receipt_path = $expense->receipt_path;
+            if (!empty($_FILES['receipt']['name'])) {
+                $config = array(
+                    'upload_path' => './uploads/expenses/',
+                    'allowed_types' => 'jpg|jpeg|png|pdf',
+                    'max_size' => 5120,
+                    'file_name' => 'expense_' . time() . '_' . (int) $expense->user_id,
+                );
+                if (!is_dir($config['upload_path'])) {
+                    mkdir($config['upload_path'], 0755, true);
+                }
+                $this->upload->initialize($config);
+                if ($this->upload->do_upload('receipt')) {
+                    $upload_data = $this->upload->data();
+                    $receipt_path = 'uploads/expenses/' . $upload_data['file_name'];
+                } else {
+                    $this->session->set_flashdata('error', strip_tags($this->upload->display_errors('', '')));
+                    redirect('expenses/edit/' . (int) $id);
+                    return;
+                }
+            }
+
+            if ($category && $category->requires_receipt && !$receipt_path) {
+                $this->session->set_flashdata('error', 'Receipt is required for this category.');
+                redirect('expenses/edit/' . (int) $id);
+                return;
+            }
+
+            $this->db->where('id', (int) $id)->update('expenses', array(
+                'category_id' => $category_id,
+                'amount' => $amount,
+                'description' => $description,
+                'expense_date' => $expense_date,
+                'receipt_path' => $receipt_path,
+                'status' => 'pending',
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejection_reason' => null,
+            ));
+
+            $this->session->set_flashdata('success', 'Expense claim updated.');
+            redirect('expenses/view/' . (int) $id);
+            return;
+        }
+
+        $categories = $this->db->get_where('expense_categories', array('is_active' => 1))->result();
+        $this->load->view('expenses/edit', array('expense' => $expense, 'categories' => $categories));
+    }
+
+    /**
+     * POST /expenses/delete/{id}
+     */
+    public function delete($id)
+    {
+        require_module_access(array('expenses_delete', 'expenses'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $expense = $this->_fetch_expense($id);
+        if (!$expense) {
+            show_error('Expense not found', 404);
+        }
+        if (!$this->_can_delete_expense($expense)) {
+            show_error('You cannot delete this expense claim.', 403);
+        }
+        if (!empty($expense->receipt_path)) {
+            $path = FCPATH . $expense->receipt_path;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+        $this->db->where('id', (int) $id)->delete('expenses');
+        $this->session->set_flashdata('success', 'Expense claim deleted.');
+        redirect('expenses');
+    }
+
+    /**
+     * POST /expenses/categories/save — create or update category
+     */
+    public function save_category()
+    {
+        require_module_access(array('expenses_categories', 'expenses'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $id = (int) $this->input->post('id');
+        $name = trim((string) $this->input->post('name'));
+        $description = trim((string) $this->input->post('description'));
+        $budget = $this->input->post('budget_limit');
+        $budget_limit = ($budget !== '' && $budget !== null) ? (float) $budget : null;
+        $requires_receipt = $this->input->post('requires_receipt') ? 1 : 0;
+        $is_active = $this->input->post('is_active') ? 1 : 0;
+
+        if ($name === '') {
+            $this->session->set_flashdata('error', 'Category name is required.');
+            redirect('expenses/categories');
+            return;
+        }
+
+        $payload = array(
+            'name' => $name,
+            'description' => $description,
+            'budget_limit' => $budget_limit,
+            'requires_receipt' => $requires_receipt,
+            'is_active' => $is_active,
+        );
+
+        if ($id > 0) {
+            $this->db->where('id', $id)->update('expense_categories', $payload);
+            $this->session->set_flashdata('success', 'Category updated.');
+        } else {
+            $payload['created_at'] = date('Y-m-d H:i:s');
+            $this->db->insert('expense_categories', $payload);
+            $this->session->set_flashdata('success', 'Category created.');
+        }
+        redirect('expenses/categories');
+    }
+
+    /**
+     * POST /expenses/categories/toggle/{id}
+     */
+    public function toggle_category($id)
+    {
+        require_module_access(array('expenses_categories', 'expenses'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $row = $this->db->get_where('expense_categories', array('id' => (int) $id))->row();
+        if (!$row) {
+            show_404();
+        }
+        $this->db->where('id', (int) $id)->update('expense_categories', array(
+            'is_active' => (int) $row->is_active === 1 ? 0 : 1,
+        ));
+        $this->session->set_flashdata('success', 'Category status updated.');
+        redirect('expenses/categories');
     }
 }

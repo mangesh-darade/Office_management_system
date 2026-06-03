@@ -266,7 +266,11 @@ class Auth extends CI_Controller {
 
             // Handle AJAX response
             if ($is_ajax) {
-                $redirect_url = $this->session->userdata('redirect_url') ?: site_url('dashboard');
+                $this->load->helper('coaching');
+                $default_home = function_exists('coaching_login_redirect')
+                    ? coaching_login_redirect((int) $user->role_id)
+                    : 'dashboard';
+                $redirect_url = $this->session->userdata('redirect_url') ?: site_url($default_home);
                 $this->session->unset_userdata('redirect_url');
                 // Ensure redirect URL is not register/reset password page
                 if (strpos($redirect_url, 'register') !== false || 
@@ -283,7 +287,11 @@ class Auth extends CI_Controller {
             }
 
             // Redirect to intended page or dashboard for non-AJAX requests
-            $redirect_url = $this->session->userdata('redirect_url') ?: 'dashboard';
+            $this->load->helper('coaching');
+            $default_home = function_exists('coaching_login_redirect')
+                ? coaching_login_redirect((int) $user->role_id)
+                : 'dashboard';
+            $redirect_url = $this->session->userdata('redirect_url') ?: $default_home;
             $this->session->unset_userdata('redirect_url');
             // Ensure redirect URL is not register/reset password page
             if (strpos($redirect_url, 'register') !== false || 
@@ -638,8 +646,12 @@ class Auth extends CI_Controller {
                 $this->audit->log('2fa_verified', $user->id, "2FA verified successfully", $ip);
             }
             
-            // Redirect to dashboard
-            $redirect_url = $this->session->userdata('redirect_url') ?: 'dashboard';
+            // Redirect after 2FA
+            $this->load->helper('coaching');
+            $default_home = function_exists('coaching_login_redirect')
+                ? coaching_login_redirect((int) $user->role_id)
+                : 'dashboard';
+            $redirect_url = $this->session->userdata('redirect_url') ?: $default_home;
             $this->session->unset_userdata('redirect_url');
             redirect($redirect_url);
             return;

@@ -289,134 +289,22 @@ class Whatsapp extends CI_Controller {
     }
     
     /**
-     * Send WhatsApp message via Twilio
-     * @param string $to Phone number
+     * Send WhatsApp message via configured provider (Twilio).
+     *
+     * @param string $to Phone number (+91… or local digits)
      * @param string $message Message body (or template message if using ContentSid)
-     * @param array $options Optional: ['content_sid' => '...', 'content_variables' => {...}]
+     * @param array  $options Optional: content_sid, content_variables, integration_id, default_country
+     * @return array
      */
-    private function _send_message($to, $message, $options = []) {
-        if ($this->provider === 'twilio') {
-            return $this->_send_via_twilio($to, $message, $options);
+    private function _send_message($to, $message, $options = array())
+    {
+        if ($this->provider !== 'twilio') {
+            return array('success' => false, 'error' => 'Unsupported provider');
         }
-        
-        return ['success' => false, 'error' => 'Unsupported provider'];
+
+        return send_whatsapp_message($to, $message, $options);
     }
-    
-    /**
-     * Send message via Twilio WhatsApp API
-     * Supports both plain text (Body) and template messages (ContentSid + ContentVariables)
-     */
-    private function _send_via_twilio($to, $message, $options = []) {
-        // Get credentials from database only
-        $creds = get_whatsapp_credentials();
-        
-        if (empty($creds['account_sid']) || empty($creds['auth_token'])) {
-            return ['success' => false, 'error' => 'WhatsApp credentials not found in database. Please configure in API Integrations.'];
-        }
-        
-        $account_sid = $creds['account_sid'];
-        $auth_token = $creds['auth_token'];
-        $from = $creds['from_number'] ?: 'whatsapp:+14155238886';
-        
-        if (empty($account_sid) || empty($auth_token)) {
-            return ['success' => false, 'error' => 'Twilio credentials not configured'];
-        }
-        
-        // Format phone number for WhatsApp (add whatsapp: prefix)
-        if (strpos($to, 'whatsapp:') === false) {
-            $to = 'whatsapp:' . $to;
-        }
-        
-        $url = "https://api.twilio.com/2010-04-01/Accounts/{$account_sid}/Messages.json";
-        
-        // Check if using template message (ContentSid) or plain text (Body)
-        $data = [
-            'From' => $from,
-            'To' => $to
-        ];
-        
-        // Support for template messages via ContentSid
-        if (isset($options['content_sid']) && !empty($options['content_sid'])) {
-            $data['ContentSid'] = $options['content_sid'];
-            // ContentVariables should be a JSON string
-            if (isset($options['content_variables']) && !empty($options['content_variables'])) {
-                if (is_array($options['content_variables'])) {
-                    $data['ContentVariables'] = json_encode($options['content_variables']);
-                } else {
-                    $data['ContentVariables'] = $options['content_variables'];
-                }
-            }
-        } else {
-            // Use plain text Body
-            $data['Body'] = $message;
-        }
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_USERPWD, $account_sid . ':' . $auth_token);
-        // SSL Verification - Disabled for local development
-        // WARNING: In production, enable SSL verification for security
-        // Set to false only if you're in a local/dev environment without proper CA certificates
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        curl_close($ch);
-        
-        if ($curl_error) {
-            return ['success' => false, 'error' => 'cURL Error: ' . $curl_error];
-        }
-        
-        // Log the response for debugging
-        log_message('debug', 'Twilio API Response - HTTP Code: ' . $http_code);
-        log_message('debug', 'Twilio API Response Body: ' . $response);
-        
-        $response_data = json_decode($response, true);
-        
-        if ($http_code >= 200 && $http_code < 300) {
-            // Check if Twilio returned an error in the response body
-            if (isset($response_data['status']) && in_array($response_data['status'], ['failed', 'undelivered'])) {
-                $error_msg = isset($response_data['message']) ? $response_data['message'] : 'Message failed to deliver';
-                if (isset($response_data['error_code'])) {
-                    $error_msg .= ' (Error Code: ' . $response_data['error_code'] . ')';
-                }
-                return ['success' => false, 'error' => $error_msg];
-            }
-            
-            // Check for common Twilio error messages
-            if (isset($response_data['code']) && $response_data['code'] != 0) {
-                $error_msg = isset($response_data['message']) ? $response_data['message'] : 'Twilio API Error';
-                return ['success' => false, 'error' => $error_msg . ' (Code: ' . $response_data['code'] . ')'];
-            }
-            
-            // Success - message was accepted by Twilio
-            return [
-                'success' => true,
-                'message_sid' => isset($response_data['sid']) ? $response_data['sid'] : null,
-                'status' => isset($response_data['status']) ? $response_data['status'] : 'queued'
-            ];
-        } else {
-            // HTTP error
-            $error_message = 'HTTP ' . $http_code;
-            if (isset($response_data['message'])) {
-                $error_message .= ': ' . $response_data['message'];
-            }
-            if (isset($response_data['code'])) {
-                $error_message .= ' (Code: ' . $response_data['code'] . ')';
-            }
-            if (isset($response_data['more_info'])) {
-                $error_message .= ' - More info: ' . $response_data['more_info'];
-            }
-            return ['success' => false, 'error' => $error_message];
-        }
-    }
-    
+
     /**
      * Format phone number (add country code if needed)
      */
