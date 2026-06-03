@@ -139,7 +139,7 @@ class Training_assessment_model extends CI_Model
      * @param int        $scope_user_id  Legacy: single user id when $scope_user_ids is null.
      * @param int[]|null $scope_user_ids Non–org-admin: only assessments assigned to these user ids.
      */
-    public function list_assessments_with_stats($search = '', $status = 'all', $sort = 'created_desc', $scope_user_id = 0, $scope_user_ids = null)
+    public function list_assessments_with_stats($search = '', $status = 'active', $sort = 'created_desc', $scope_user_id = 0, $scope_user_ids = null)
     {
         $tq = $this->t['questions'];
         $tau = $this->t['assessment_users'];
@@ -528,6 +528,7 @@ class Training_assessment_model extends CI_Model
         $this->db->from($tau . ' au');
         $this->db->join($ta . ' a', 'a.id = au.assessment_id', 'inner');
         $this->db->where('au.user_id', (int)$user_id);
+        $this->db->where('a.status', 'active');
         $this->db->order_by('au.assigned_at', 'DESC');
         return $this->db->get()->result();
     }
@@ -840,6 +841,7 @@ class Training_assessment_model extends CI_Model
         $this->db->join($ta . ' a', 'a.id = au.assessment_id', 'inner');
         $this->db->join($tr . ' r', 'r.assessment_user_id = au.id', 'left');
         $this->db->where('au.user_id', (int)$user_id);
+        $this->db->where('a.status', 'active');
         $this->db->order_by('au.assigned_at', 'DESC');
         return $this->db->get()->result();
     }

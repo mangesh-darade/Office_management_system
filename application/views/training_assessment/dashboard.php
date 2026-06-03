@@ -3,6 +3,7 @@ $this->load->view('partials/header', array('title' => 'Training & Assessment'));
 $ta_can_create = isset($ta_can_create) ? (bool) $ta_can_create : false;
 $ta_can_import = isset($ta_can_import) ? (bool) $ta_can_import : false;
 $ta_can_manage_core = isset($ta_can_manage_core) ? (bool) $ta_can_manage_core : false;
+$ta_can_status_filter = isset($ta_can_status_filter) ? (bool) $ta_can_status_filter : false;
 ?>
 <style>
   .ta-assessment-actions {
@@ -103,19 +104,21 @@ $ta_can_manage_core = isset($ta_can_manage_core) ? (bool) $ta_can_manage_core : 
   <form method="get" action="<?php echo site_url('training-assessment'); ?>" class="card shadow-sm border-0 mb-3">
     <div class="card-body py-3">
       <div class="row g-2 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-<?php echo $ta_can_status_filter ? '4' : '6'; ?>">
           <label class="form-label small text-muted mb-0">Search title or description</label>
           <input type="search" name="q" class="form-control form-control-sm" placeholder="Search…" value="<?php echo htmlspecialchars((string)$filter_q); ?>">
         </div>
+        <?php if ($ta_can_status_filter): ?>
         <div class="col-md-3">
           <label class="form-label small text-muted mb-0">Status</label>
           <select name="status" class="form-select form-select-sm">
-            <option value="all" <?php echo $filter_status === 'all' ? 'selected' : ''; ?>>All</option>
             <option value="active" <?php echo $filter_status === 'active' ? 'selected' : ''; ?>>Active</option>
-            <option value="inactive" <?php echo $filter_status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+            <option value="all" <?php echo $filter_status === 'all' ? 'selected' : ''; ?>>All</option>
+            <option value="inactive" <?php echo $filter_status === 'inactive' ? 'selected' : ''; ?>>Inactive only</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <?php endif; ?>
+        <div class="col-md-<?php echo $ta_can_status_filter ? '3' : '4'; ?>">
           <label class="form-label small text-muted mb-0">Sort</label>
           <select name="sort" class="form-select form-select-sm">
             <option value="created_desc" <?php echo $filter_sort === 'created_desc' ? 'selected' : ''; ?>>Newest first</option>

@@ -174,8 +174,16 @@ class Training_assessment extends CI_Controller
             return;
         }
         $search = trim((string)$this->input->get('q'));
-        $status = $this->input->get('status');
-        $status = in_array($status, array('all', 'active', 'inactive'), true) ? $status : 'all';
+        $canStatusFilter = (function_exists('training_ta_admin_broad') && training_ta_admin_broad())
+            || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'));
+        $statusParam = $this->input->get('status');
+        if (!$canStatusFilter) {
+            $status = 'active';
+        } elseif ($statusParam === null || $statusParam === '') {
+            $status = 'active';
+        } else {
+            $status = in_array($statusParam, array('all', 'active', 'inactive'), true) ? $statusParam : 'active';
+        }
         $sort = $this->input->get('sort');
         $allowedSort = array('created_desc', 'created_asc', 'title_asc', 'title_desc', 'questions_desc');
         if (!in_array($sort, $allowedSort, true)) {
@@ -193,6 +201,7 @@ class Training_assessment extends CI_Controller
         $data['dashboard_scope_limited'] = ($scopeIds !== null && !empty($scopeIds));
         $data['filter_q'] = $search;
         $data['filter_status'] = $status;
+        $data['ta_can_status_filter'] = $canStatusFilter;
         $data['filter_sort'] = $sort;
         $data['stats_total_assigned'] = 0;
         $data['stats_total_completed'] = 0;
