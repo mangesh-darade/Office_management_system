@@ -1,13 +1,16 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 class Department_model extends CI_Model {
+    use Schema_columns_trait;
     private $table = 'departments';
     public function __construct(){ parent::__construct(); $this->load->database(); }
 
     public function all(){
         $this->db->from($this->table);
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('status !=', 'inactive');
         }
         $this->db->order_by('id','DESC');
@@ -18,7 +21,7 @@ class Department_model extends CI_Model {
         $this->db->from($this->table);
         $this->db->where('id', (int)$id);
         // Filter out soft-deleted records
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('status !=', 'inactive');
         }
         return $this->db->get()->row(); 
@@ -28,7 +31,7 @@ class Department_model extends CI_Model {
         $this->db->from($this->table);
         $this->db->where('dept_code', $code);
         // Filter out soft-deleted records
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('status !=', 'inactive');
         }
         return $this->db->get()->row(); 
@@ -45,12 +48,12 @@ class Department_model extends CI_Model {
     }
 
     public function soft_delete($id){
-        if ($this->db->field_exists('status', $this->table) && $this->db->field_exists('deleted_at', $this->table)){
+        if ($this->has_column('status') && $this->has_column('deleted_at')){
             $this->db->where('id',(int)$id)->update($this->table, [
                 'status' => 'inactive',
                 'deleted_at' => date('Y-m-d H:i:s')
             ]);
-        } elseif ($this->db->field_exists('status', $this->table)){
+        } elseif ($this->has_column('status')){
             $this->db->where('id',(int)$id)->update($this->table, ['status'=>'inactive']);
         } else {
             $this->db->where('id',(int)$id)->delete($this->table);
@@ -71,7 +74,7 @@ class Department_model extends CI_Model {
         $record = $query->row();
         
         // Check if we have the required fields
-        if ($this->db->field_exists('status', $this->table) && $this->db->field_exists('deleted_at', $this->table)){
+        if ($this->has_column('status') && $this->has_column('deleted_at')){
             // Check if there's already an active record with the same code
             $this->db->from($this->table);
             $this->db->where('dept_code', $record->dept_code);
@@ -91,7 +94,7 @@ class Department_model extends CI_Model {
                 'deleted_at' => NULL
             ]);
             return $this->db->affected_rows() > 0;
-        } elseif ($this->db->field_exists('status', $this->table)){
+        } elseif ($this->has_column('status')){
             $this->db->where('id',(int)$id)->update($this->table, ['status'=>'active']);
             return $this->db->affected_rows() > 0;
         }
@@ -101,7 +104,7 @@ class Department_model extends CI_Model {
     
     public function all_with_deleted($include_deleted = false){
         $this->db->from($this->table);
-        if (!$include_deleted && $this->db->field_exists('status', $this->table)){
+        if (!$include_deleted && $this->has_column('status')){
             $this->db->where('status !=', 'inactive');
         }
         $this->db->order_by('id','DESC');
@@ -110,7 +113,7 @@ class Department_model extends CI_Model {
     
     public function deleted_only(){
         $this->db->from($this->table);
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('status', 'inactive');
         }
         $this->db->order_by('id','DESC');

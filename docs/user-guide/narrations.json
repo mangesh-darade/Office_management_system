@@ -1,0 +1,26 @@
+{
+  "voice": "en-IN-NeerjaNeural",
+  "rate": "+5%",
+  "tracks": {
+    "01-auth/login-demo.webm": "Welcome to the Office Management System. Enter your email or phone number, then your password. Click Sign In. You will reach your dashboard.",
+    "01-auth/dashboard-tour.webm": "This is your dashboard. It shows a quick summary for your role — tasks, leave, attendance, and announcements. Use the sidebar to open any module.",
+    "01-auth/user-guide-tour.webm": "Open User Guide from the sidebar. Here you find every module with screenshots, videos, and voice help. Pick a topic to learn add, edit, and delete steps.",
+    "02-people/employees-tour.webm": "People and Organization module manages users, employees, departments, and clients. This is the employee list. Use Create to add, Edit to update, and Delete to remove records.",
+    "02-people/users-crud.webm": "Users: view the list, open Add User, fill the form and save. Use Edit to update a user or delete to remove access.",
+    "03-attendance-leave/attendance-tour.webm": "Attendance module records punch in and punch out. Allow location when asked. Admins can mark or edit attendance for staff from Mark Attendance.",
+    "03-attendance-leave/leave-apply-tour.webm": "Apply Leave: choose leave type, start and end dates, and a reason. Submit to notify your manager. Edit or delete only while the request is pending.",
+    "04-projects/tasks-board-tour.webm": "Projects and Tasks: create projects, add requirements, and assign tasks. The board view lets you drag cards between Pending, In Progress, and Done.",
+    "05-work/my-works-tour.webm": "My Works is your personal to-do list. Create items, edit details, update status, and delete when finished. Daily Activity logs what you did each day.",
+    "06-reports/reports-tour.webm": "Reports show attendance, leave, tasks, and payroll. Pick a date range, review the table, and export to Excel or PDF. AI Assistant answers questions in plain English.",
+    "07-communication/chats-tour.webm": "Chats let you message colleagues and share files. Announcements post company news. Reminders schedule email campaigns for admins.",
+    "08-finance/expenses-tour.webm": "Finance module covers payroll and expenses. Submit expense claims with receipts. Managers approve from Pending. HR runs payroll from Generate Payroll.",
+    "09-training/assessment-tour.webm": "Training module: create assessments, assign learners, and review submissions. My Training shows courses assigned to you.",
+    "10-admin/settings-tour.webm": "Administration: system settings, permissions, email, holidays, and leave types. Permission Manager controls which menus each role can see.",
+    "02-people/departments-crud.webm": "Departments: browse the list, create with a unique code, edit names or managers, and soft-delete with restore from Show Deleted.",
+    "03-attendance-leave/leave-crud.webm": "Leave: apply from the form, track status in My Leaves, edit while pending, and delete if you cancel the request.",
+    "04-projects/tasks-crud.webm": "Tasks: view the list, create a new task with assignee and due date, edit from the list, delete from task detail.",
+    "05-work/my-works-crud.webm": "My Works: list your items, create a new one, edit details, and delete when complete.",
+    "08-finance/expenses-crud.webm": "Expenses: submit a new claim with receipt, edit before approval, manager approves from pending list.",
+    "07-communication/announcements-crud.webm": "Announcements: create company news, edit before publish, delete old posts from the list."
+  }
+}

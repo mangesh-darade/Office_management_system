@@ -1,14 +1,14 @@
 <?php $this->load->view('partials/header', array('title' => (isset($title) ? $title : 'Users'), 'active' => 'users')); ?>
-<div class="container-fluid p-0">
+<div class="container-fluid py-3 oms-fluid-pad">
   <!-- Header Section -->
   <div class="row g-2 mb-3">
     <div class="col-12">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="oms-page-head d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
         <div>
           <h5 class="mb-0 fw-bold">Users Management</h5>
           <p class="text-muted mb-0 small">Manage system users and their permissions</p>
         </div>
-        <?php if (function_exists('has_module_access') && has_module_access('users_add')): ?>
+        <?php if (function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
         <a href="<?php echo site_url('users/create'); ?>" class="btn btn-primary">
           <i class="bi bi-person-plus-fill me-2"></i>Add New User
         </a>
@@ -231,7 +231,7 @@
                          data-bs-toggle="tooltip" title="View Details">
                         <i class="bi bi-eye"></i>
                       </a>
-                      <?php if (function_exists('has_module_access') && has_module_access('users_delete')): ?>
+                      <?php if (function_exists('has_module_access') && (has_module_access('users_delete') || has_module_access('users'))): ?>
                       <form method="post" action="<?php echo site_url('users/destroy/'.(int)$r->id); ?>" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
                         <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                         <button type="submit" class="btn btn-sm btn-outline-danger btn-icon" data-bs-toggle="tooltip" title="Delete User">
@@ -259,7 +259,7 @@
                 No users have been added to the system yet.
               <?php endif; ?>
             </p>
-            <?php if (function_exists('has_module_access') && has_module_access('users_add')): ?>
+            <?php if (function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
             <a href="<?php echo site_url('users/create'); ?>" class="btn btn-primary">
               <i class="bi bi-person-plus-fill me-2"></i>Add Your First User
             </a>

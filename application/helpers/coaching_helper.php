@@ -283,15 +283,15 @@ if (!function_exists('coaching_ensure_schema')) {
 
         if ($db->table_exists('coaching_sessions')) {
             foreach (['reminder_24h_sent' => 'TINYINT(1) DEFAULT 0', 'reminder_1h_sent' => 'TINYINT(1) DEFAULT 0', 'confirmation_sent' => 'TINYINT(1) DEFAULT 0'] as $col => $def) {
-                if (!$db->field_exists($col, 'coaching_sessions')) {
+                if (!schema_table_has_column($db, 'coaching_sessions', $col)) {
                     $db->query("ALTER TABLE coaching_sessions ADD `{$col}` {$def}");
                 }
             }
         }
-        if ($db->table_exists('coaching_whatsapp_enquiries') && !$db->field_exists('lead_id', 'coaching_whatsapp_enquiries')) {
+        if ($db->table_exists('coaching_whatsapp_enquiries') && !schema_table_has_column($db, 'coaching_whatsapp_enquiries', 'lead_id')) {
             $db->query('ALTER TABLE coaching_whatsapp_enquiries ADD lead_id INT NULL AFTER assigned_user_id');
         }
-        if ($db->table_exists('coaching_clients') && !$db->field_exists('crm_client_id', 'coaching_clients')) {
+        if ($db->table_exists('coaching_clients') && !schema_table_has_column($db, 'coaching_clients', 'crm_client_id')) {
             $db->query('ALTER TABLE coaching_clients ADD crm_client_id INT NULL COMMENT \'optional link to clients table\' AFTER user_id');
         }
 

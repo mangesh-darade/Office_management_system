@@ -25,6 +25,7 @@ if (!function_exists('oms_ensure_all_schemas')) {
         if (!isset($CI->db)) {
             $CI->load->database();
         }
+        $CI->load->helper('schema_columns');
 
         $entries = oms_schema_automation_config('schema_automation');
         if (!is_array($entries)) {
@@ -44,7 +45,12 @@ if (!function_exists('oms_ensure_all_schemas')) {
                     $CI->load->helper($entry['helper']);
                     $fn = $entry['function'];
                     if (function_exists($fn)) {
-                        call_user_func($fn);
+                        $ref = new ReflectionFunction($fn);
+                        if ($ref->getNumberOfRequiredParameters() > 0) {
+                            call_user_func($fn, $CI->db);
+                        } else {
+                            call_user_func($fn);
+                        }
                         $ran[] = $entry['label'];
                     }
                 } elseif (isset($entry['type']) && $entry['type'] === 'model') {
@@ -98,13 +104,6 @@ if (!function_exists('oms_run_all_automation_cron')) {
             if (method_exists($CI->announcements, 'process_scheduled')) {
                 $CI->announcements->process_scheduled();
                 $results['announcements_scheduled'] = 1;
-            }
-        }
-
-        if ($CI->db->table_exists('reminders')) {
-            $CI->load->model('Reminder_model', 'reminders');
-            if (method_exists($CI->reminders, 'ensure_schema')) {
-                $CI->reminders->ensure_schema();
             }
         }
 

@@ -7,7 +7,7 @@ class Attendance extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','company']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','company','schema_columns','attendance_punch','attendance_bulk','attendance_export','attendance_notify','attendance_geo','attendance_list']);
         $this->load->library(['session','upload','email','pagination']);
         $this->load->model('Attendance_model');
         $this->load->model('Face_model', 'faces');
@@ -23,7 +23,8 @@ class Attendance extends CI_Controller {
         $method = (string)$this->router->fetch_method();
         $attendance_list_access = [
             'attendance', 'attendance_list', 'attendance_edit',
-            'attendance_delete', 'attendance_view_all',
+            'attendance_delete', 'attendance_view_all', 'attendance_export',
+            'reports_attendance', 'reports_attendance_employee',
         ];
 
         // Self punch — any logged-in user
@@ -36,7 +37,7 @@ class Attendance extends CI_Controller {
                 require_module_access(['attendance_bulk', 'attendance'], true);
                 break;
             case 'export':
-                require_module_access(['attendance_list', 'attendance', 'attendance_view_all'], true);
+                require_module_access(get_attendance_export_module_keys(), true);
                 break;
             case 'edit':
                 require_module_access(['attendance_edit', 'attendance'], true);
@@ -52,6 +53,27 @@ class Attendance extends CI_Controller {
                 require_module_access($attendance_list_access, true);
                 break;
         }
+    }
+
+    /**
+     * Check whether a column exists on the attendance table (one list_fields call per request).
+     *
+     * @param string $field
+     * @return bool
+     */
+    private function attendance_field_exists($field)
+    {
+        return attendance_punch_has_column($this->db, $field);
+    }
+
+    /**
+     * @return callable(string):bool
+     */
+    private function attendance_has_column_fn()
+    {
+        return function ($field) {
+            return $this->attendance_field_exists($field);
+        };
     }
 
     public function index() {
@@ -96,8 +118,9 @@ class Attendance extends CI_Controller {
         
         // Check edit and delete permissions
         $this->load->helper('permission');
-        $canEditAttendance = function_exists('has_module_access') && has_module_access('attendance_edit');
-        $canDeleteAttendance = function_exists('has_module_access') && has_module_access('attendance_delete');
+        $canEditAttendance = function_exists('has_module_access') && (has_module_access('attendance_edit') || has_module_access('attendance'));
+        $canDeleteAttendance = function_exists('has_module_access') && (has_module_access('attendance_delete') || has_module_access('attendance'));
+        $canExportAttendance = can_access_attendance_export();
         
         $this->load->view('attendance/index', [
             'records' => $records,
@@ -106,6 +129,7 @@ class Attendance extends CI_Controller {
             'can_view_all' => $canViewAll,
             'can_edit_attendance' => $canEditAttendance,
             'can_delete_attendance' => $canDeleteAttendance,
+            'can_export_attendance' => $canExportAttendance,
             'current_user_id' => $user_id,
             'is_admin_group' => is_admin_group(),
             'current_role_id' => $role_id
@@ -129,167 +153,42 @@ class Attendance extends CI_Controller {
             show_error('Forbidden', 403);
         }
 
-        $user_id     = $requested_user_id;
-        $filter_type = $this->input->post('filter_type'); // 'date', 'month', 'year'
+        $user_id      = $requested_user_id;
+        $filter_type  = $this->input->post('filter_type');
         $filter_value = $this->input->post('filter_value');
-        $page = (int)$this->input->post('page') ?: 1;
-        $per_page = 10; // Records per page in popup
-        
-        // Schema-aware column names
-        $col_date = 'att_date';
-        if (!$this->db->field_exists('att_date', 'attendance')) {
-            $date_columns = ['date', 'attendance_date', 'created_at'];
-            foreach ($date_columns as $col) {
-                if ($this->db->field_exists($col, 'attendance')) {
-                    $col_date = $col;
-                    break;
-                }
-            }
+        $page         = (int) $this->input->post('page') ?: 1;
+        $per_page     = 10;
+
+        $hasColumn = $this->attendance_has_column_fn();
+        $col_date = attendance_punch_resolve_date_column($hasColumn);
+
+        $result = attendance_list_fetch_user_popup(
+            $this->db,
+            $user_id,
+            $col_date,
+            $filter_type,
+            $filter_value,
+            $page,
+            $per_page
+        );
+
+        $attendance_data = array();
+        foreach ($result['records'] as $r) {
+            $attendance_data[] = attendance_list_popup_row($r, $col_date, $current_user_id, $current_role_id);
         }
-        
-        $col_in = 'punch_in';
-        $col_out = 'punch_out';
-        if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
-        if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
-        
-        // Get total records count
-        $this->db->from('attendance a');
-        $this->db->where('a.user_id', (int)$user_id);
-        
-        // Apply filters
-        switch ($filter_type) {
-            case 'date':
-                $this->db->where('a.' . $col_date, $filter_value);
-                break;
-            case 'month':
-                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', $filter_value);
-                break;
-            case 'year':
-                $this->db->where('YEAR(a.' . $col_date . ')', $filter_value);
-                break;
-            default:
-                // Default to current month
-                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', date('Y-m'));
-        }
-        
-        $total_records = $this->db->count_all_results();
-        
-        // Calculate pagination
-        $total_pages = ceil($total_records / $per_page);
-        $offset = ($page - 1) * $per_page;
-        
-        // Fetch paginated records
-        $this->db->select('a.*, u.email');
-        $this->db->from('attendance a');
-        $this->db->join('users u', 'u.id = a.user_id', 'left');
-        $this->db->where('a.user_id', (int)$user_id);
-        
-        // Apply filters again
-        switch ($filter_type) {
-            case 'date':
-                $this->db->where('a.' . $col_date, $filter_value);
-                break;
-            case 'month':
-                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', $filter_value);
-                break;
-            case 'year':
-                $this->db->where('YEAR(a.' . $col_date . ')', $filter_value);
-                break;
-            default:
-                $this->db->where('DATE_FORMAT(a.' . $col_date . ', "%Y-%m") =', date('Y-m'));
-        }
-        
-        $records = $this->db->order_by('a.' . $col_date . ' DESC')
-                           ->limit($per_page, $offset)
-                           ->get()
-                           ->result();
-        
-        $attendance_data = [];
-        foreach ($records as $r) {
-            $cin = isset($r->punch_in) ? $r->punch_in : (isset($r->check_in) ? $r->check_in : '');
-            $cout = isset($r->punch_out) ? $r->punch_out : (isset($r->check_out) ? $r->check_out : '');
-            
-            if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
-            if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
-            
-            $cin_disp = $cin;
-            $cout_disp = $cout;
-            if ($cin_disp && strpos($cin_disp, ' ') !== false) { $cin_disp = trim(explode(' ', $cin_disp)[1]); }
-            if ($cout_disp && strpos($cout_disp, ' ') !== false) { $cout_disp = trim(explode(' ', $cout_disp)[1]); }
-            
-            // Determine status
-            // Determine status
-            $status = isset($r->status) ? $r->status : 'incomplete';
-            if ($status === 'incomplete' || empty($status)) {
-                if ($cin && $cout) {
-                    $status = 'present';
-                } elseif ($cin && !$cout) {
-                    $status = 'incomplete';
-                } else {
-                    $status = 'absent';
-                }
-            }
-            
-            // Get check-in location
-            $checkin_location = '';
-            if (isset($r->checkin_location_name) && !empty($r->checkin_location_name)) {
-                $checkin_location = $r->checkin_location_name;
-            } elseif (isset($r->checkin_lat) && isset($r->checkin_lng) && !empty($r->checkin_lat) && !empty($r->checkin_lng)) {
-                $checkin_location = $r->checkin_lat . ', ' . $r->checkin_lng;
-            } elseif (isset($r->location_name) && !empty($r->location_name) && $cin) {
-                $checkin_location = $r->location_name; // Fallback to old location_name for check-in
-            }
-            
-            // Get check-out location
-            $checkout_location = '';
-            if (isset($r->checkout_location_name) && !empty($r->checkout_location_name)) {
-                $checkout_location = $r->checkout_location_name;
-            } elseif (isset($r->checkout_lat) && isset($r->checkout_lng) && !empty($r->checkout_lat) && !empty($r->checkout_lng)) {
-                $checkout_location = $r->checkout_lat . ', ' . $r->checkout_lng;
-            } elseif (isset($r->location_name) && !empty($r->location_name) && $cout) {
-                $checkout_location = $r->location_name; // Fallback to old location_name for check-out
-            }
-            
-            // Get current user info for permission checks
-            $current_user_id = (int)$this->session->userdata('user_id');
-            $current_role_id = (int)$this->session->userdata('role_id');
-            $is_admin = is_admin_group() || has_module_access('attendance_view_all');
-            $can_edit = has_module_access('attendance_edit');
-            $can_delete = has_module_access('attendance_delete');
-            
-            // Check ownership - users can only edit/delete their own records unless admin
-            $record_user_id = isset($r->user_id) ? (int)$r->user_id : 0;
-            $can_edit_this = $can_edit && ($is_admin || $record_user_id === $current_user_id);
-            $can_delete_this = $can_delete && ($is_admin || $record_user_id === $current_user_id);
-            
-            $attendance_data[] = [
-                'id' => $r->id,
-                'user_id' => $record_user_id,
-                'date' => isset($r->$col_date) ? $r->$col_date : '',
-                'check_in' => $cin_disp,
-                'check_out' => $cout_disp,
-                'status' => $status,
-                'notes' => isset($r->notes) ? $r->notes : '',
-                'location' => isset($r->location_name) ? $r->location_name : '', // Backward compatibility
-                'checkin_location' => $checkin_location,
-                'checkout_location' => $checkout_location,
-                'can_edit' => $can_edit_this,
-                'can_delete' => $can_delete_this
-            ];
-        }
-        
-        echo json_encode([
-            'success' => true, 
+
+        echo json_encode(array(
+            'success' => true,
             'data' => $attendance_data,
-            'pagination' => [
-                'current_page' => $page,
-                'total_pages' => $total_pages,
-                'total_records' => $total_records,
-                'per_page' => $per_page,
-                'has_prev' => $page > 1,
-                'has_next' => $page < $total_pages
-            ]
-        ]);
+            'pagination' => array(
+                'current_page'  => $page,
+                'total_pages'   => $result['total_pages'],
+                'total_records' => $result['total'],
+                'per_page'      => $per_page,
+                'has_prev'      => $page > 1,
+                'has_next'      => $page < $result['total_pages'],
+            ),
+        ));
     }
 
     // Bulk operations for attendance
@@ -321,13 +220,13 @@ class Attendance extends CI_Controller {
             try {
                 switch ($operation) {
                     case 'delete':
-                        $affected_count = $this->bulk_delete($valid_ids);
+                        $affected_count = attendance_bulk_delete($this->db, $valid_ids) ? count($valid_ids) : 0;
                         break;
                     case 'mark_present':
-                        $affected_count = $this->bulk_mark_present($valid_ids);
+                        $affected_count = attendance_bulk_mark_present($this->db, $valid_ids);
                         break;
                     case 'clear_checkout':
-                        $affected_count = $this->bulk_clear_checkout($valid_ids);
+                        $affected_count = attendance_bulk_clear_checkout($this->db, $valid_ids);
                         break;
                     default:
                         $this->session->set_flashdata('error', 'Invalid operation selected');
@@ -348,34 +247,6 @@ class Attendance extends CI_Controller {
         redirect('attendance');
     }
 
-    private function bulk_delete($ids) {
-        $this->db->where_in('id', $ids);
-        return $this->db->delete('attendance');
-    }
-
-    private function bulk_mark_present($ids) {
-        // This could be used to mark records as present if they have check-in but no checkout
-        $this->db->where_in('id', $ids);
-        $this->db->where('punch_in IS NOT NULL');
-        $this->db->where('punch_in !=', '00:00:00');
-        $this->db->where('(punch_out IS NULL OR punch_out = "00:00:00")');
-        
-        // Set a default checkout time (e.g., 6:00 PM)
-        $data = ['punch_out' => '18:00:00'];
-        $this->db->update('attendance', $data);
-        
-        return $this->db->affected_rows();
-    }
-
-    private function bulk_clear_checkout($ids) {
-        // Clear checkout times for selected records
-        $this->db->where_in('id', $ids);
-        $data = ['punch_out' => null];
-        $this->db->update('attendance', $data);
-        
-        return $this->db->affected_rows();
-    }
-
     // GET/POST /attendance/create
     public function create()
     {
@@ -388,65 +259,34 @@ class Attendance extends CI_Controller {
             }
 
             // Prevent marking attendance on company holidays
-            $this->load->helper('date');
+            $this->load->helper(['date', 'attendance_punch']);
             $user_timezone = get_user_timezone($user_id);
             $today = get_current_datetime($user_timezone, 'Y-m-d');
-            if ($this->db->table_exists('holidays')) {
-                $holiday_row = $this->db->select('name, status')
-                                        ->from('holidays')
-                                        ->where('holiday_date', $today)
-                                        ->limit(1)
-                                        ->get()
-                                        ->row();
-                if ($holiday_row && isset($holiday_row->status) && $holiday_row->status === 'active') {
-                    $name = isset($holiday_row->name) ? (string)$holiday_row->name : '';
-                    $msg = 'Attendance cannot be marked on company holidays.';
-                    if ($name !== '') {
-                        $msg .= ' Today is: '.$name.'.';
-                    }
-                    $this->session->set_flashdata('error', $msg);
-                    redirect('attendance/create');
-                    return;
-                }
+            $holiday_row = attendance_punch_active_holiday($this->db, $today);
+            if ($holiday_row) {
+                $this->session->set_flashdata('error', attendance_punch_holiday_block_message($holiday_row));
+                redirect('attendance/create');
+                return;
             }
 
             // Enhanced validation
             $action = $this->input->post('action');
             if (!in_array($action, ['in', 'out'], true)) {
-                // Check if user already completed attendance to show appropriate message
                 $this->load->helper('date');
                 $user_timezone = get_user_timezone($user_id);
                 $today = get_current_datetime($user_timezone, 'Y-m-d');
-                $col_date = 'att_date';
-                $col_in = 'punch_in';
-                $col_out = 'punch_out';
-                if (!$this->db->field_exists($col_date, 'attendance')) $col_date = 'date';
-                if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
-                if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
-                
-                $existing_check = $this->db->where('user_id', $user_id)
-                                           ->where($col_date, $today)
-                                           ->limit(1)
-                                           ->get('attendance')
-                                           ->row();
-                
-                if ($existing_check) {
-                    $cin = isset($existing_check->$col_in) ? $existing_check->$col_in : '';
-                    $cout = isset($existing_check->$col_out) ? $existing_check->$col_out : '';
-                    if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
-                    if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
-                    
-                    if (!empty($cin) && !empty($cout)) {
-                        $this->load->helper('notification');
-                        $error_msg = get_notification_message('attendance', 'already_marked', 'error');
-                        $this->session->set_flashdata('error', $error_msg);
-                    } elseif (!empty($cin)) {
-                        $this->session->set_flashdata('error', 'You have already checked in today. Please select check-out action.');
-                    } else {
-                        $this->session->set_flashdata('error', 'Invalid action selected. Please select either check-in or check-out.');
-                    }
+                $error_key = attendance_punch_invalid_action_error(
+                    $this->db,
+                    $this->attendance_has_column_fn(),
+                    $user_id,
+                    $today
+                );
+                if ($error_key === 'already_marked') {
+                    $this->load->helper('notification');
+                    $error_msg = get_notification_message('attendance', 'already_marked', 'error');
+                    $this->session->set_flashdata('error', $error_msg);
                 } else {
-                    $this->session->set_flashdata('error', 'Invalid action selected. Please select either check-in or check-out.');
+                    $this->session->set_flashdata('error', $error_key);
                 }
                 redirect('attendance/create');
                 return;
@@ -478,42 +318,23 @@ class Attendance extends CI_Controller {
             }
 
             // Face verification (optional based on setting)
-            $face_verification_required = $this->settings->get_setting('attendance_face_verification_required', 'yes');
-            $face_verification_enabled = ($face_verification_required === 'yes' || $face_verification_required === '1' || $face_verification_required === 1 || $face_verification_required === true);
-            
-            $face_required = (string)$this->input->post('face_required');
             $face_descriptor = (string)$this->input->post('face_descriptor');
-            
-            // Face verification is mandatory only if setting is enabled
-            if ($face_verification_enabled) {
-                if (empty($face_descriptor)) {
+            $face_check = attendance_punch_verify_face_for_create(
+                $this->settings,
+                $this->faces,
+                $user_id,
+                $face_descriptor
+            );
+            if (!$face_check['ok']) {
+                if (isset($face_check['error']) && $face_check['error'] === 'face_verification_failed') {
                     $this->load->helper('notification');
                     $error_msg = get_notification_message('attendance', 'face_verification_failed', 'error');
                     $this->session->set_flashdata('error', $error_msg);
-                    redirect('attendance/create');
-                    return;
-                }
-                
-                // Verify face descriptor against stored template for this user
-                $stored = $this->faces->get_by_user($user_id);
-                if ($stored && !empty($stored->descriptor)) {
-                    $threshold = 0.6;
-                    $dist = $this->verify_face_descriptor($face_descriptor, $stored->descriptor);
-                    if ($dist === null) {
-                        $this->session->set_flashdata('error', 'Face verification failed: Invalid face data format. Please try capturing your face again.');
-                        redirect('attendance/create');
-                        return;
-                    }
-                    if ($dist > $threshold) {
-                        $this->session->set_flashdata('error', 'Face verification failed: Your face does not match the registered face. Please ensure you are using the same face as registered in your profile.');
-                        redirect('attendance/create');
-                        return;
-                    }
                 } else {
-                    $this->session->set_flashdata('error', 'No registered face found for this user. Please register your face in your profile first.');
-                    redirect('attendance/create');
-                    return;
+                    $this->session->set_flashdata('error', $face_check['error']);
                 }
+                redirect('attendance/create');
+                return;
             }
 
             // Location handling - MANDATORY
@@ -531,26 +352,22 @@ class Attendance extends CI_Controller {
             }
             
             // Validate location against office coordinates if strict mode enabled
-            $location_strict = $this->settings->get_setting('system_enable_location_strict', 'no');
-            if ($location_strict === 'yes') {
-                $office_lat = $this->settings->get_setting('system_office_latitude', '');
-                $office_lng = $this->settings->get_setting('system_office_longitude', '');
-                $allowed_radius = (float)$this->settings->get_setting('system_attendance_radius_meters', 100);
-                
-                if (!empty($office_lat) && !empty($office_lng)) {
-                    $distance = $this->calculate_distance($lat, $lng, $office_lat, $office_lng);
-                    
-                    if ($distance > $allowed_radius) {
-                        $this->load->helper('notification');
-                        $error_msg = get_notification_message('attendance', 'location_mismatch', 'error');
-                        // Add distance info to message if possible
-                        $error_msg = str_replace('{distance}', round($distance, 0), $error_msg);
-                        $error_msg = str_replace('{radius}', round($allowed_radius, 0), $error_msg);
-                        $this->session->set_flashdata('error', $error_msg . ' (Distance: ' . round($distance, 0) . 'm, Allowed: ' . round($allowed_radius, 0) . 'm)');
-                        redirect('attendance/create');
-                        return;
-                    }
-                }
+            $location_check = attendance_punch_validate_location_strict(
+                $this->settings,
+                $lat,
+                $lng,
+                'attendance_geo_calculate_distance'
+            );
+            if (!$location_check['ok']) {
+                $this->load->helper('notification');
+                $error_msg = get_notification_message('attendance', 'location_mismatch', 'error');
+                $distance = isset($location_check['distance']) ? $location_check['distance'] : 0;
+                $allowed_radius = isset($location_check['radius']) ? $location_check['radius'] : 0;
+                $error_msg = str_replace('{distance}', round($distance, 0), $error_msg);
+                $error_msg = str_replace('{radius}', round($allowed_radius, 0), $error_msg);
+                $this->session->set_flashdata('error', $error_msg . ' (Distance: ' . round($distance, 0) . 'm, Allowed: ' . round($allowed_radius, 0) . 'm)');
+                redirect('attendance/create');
+                return;
             }
 
             // Get current date/time with timezone support
@@ -561,48 +378,19 @@ class Attendance extends CI_Controller {
             $today = get_current_datetime($user_timezone, 'Y-m-d');
 
             // Schema-aware column names
-            $col_date = 'att_date';
-            $col_in = 'punch_in';
-            $col_out = 'punch_out';
-            if (!$this->db->field_exists($col_date, 'attendance')) $col_date = 'date';
-            if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
-            if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
-            $hasPunchIn = $this->db->field_exists('punch_in', 'attendance');
-            $hasCheckIn = $this->db->field_exists('check_in', 'attendance');
-            $hasPunchOut = $this->db->field_exists('punch_out', 'attendance');
-            $hasCheckOut = $this->db->field_exists('check_out', 'attendance');
-
-            // Keep laptop save behavior aligned with mobile-compatible schemas:
-            // write both time columns when both exist.
-            $setCheckInColumns = function(&$target) use ($nowDateTime, $nowTime, $hasPunchIn, $hasCheckIn, $col_in) {
-                if ($hasPunchIn) {
-                    $pinType = $this->get_column_type('attendance', 'punch_in');
-                    $target['punch_in'] = (in_array($pinType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                }
-                if ($hasCheckIn) {
-                    $cinType = $this->get_column_type('attendance', 'check_in');
-                    $target['check_in'] = (in_array($cinType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                }
-                if (!$hasPunchIn && !$hasCheckIn) {
-                    $inType = $this->get_column_type('attendance', $col_in);
-                    $target[$col_in] = (in_array($inType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                }
+            $timeCols = attendance_punch_resolve_time_columns($this->attendance_has_column_fn());
+            $col_date = $timeCols['col_date'];
+            $col_in = $timeCols['col_in'];
+            $col_out = $timeCols['col_out'];
+            $hasPunchIn = $timeCols['hasPunchIn'];
+            $hasCheckIn = $timeCols['hasCheckIn'];
+            $hasPunchOut = $timeCols['hasPunchOut'];
+            $hasCheckOut = $timeCols['hasCheckOut'];
+            $db = $this->db;
+            $getColType = function ($table, $column) use ($db) {
+                return attendance_schema_column_type($db, $table, $column);
             };
-
-            $setCheckOutColumns = function(&$target) use ($nowDateTime, $nowTime, $hasPunchOut, $hasCheckOut, $col_out) {
-                if ($hasPunchOut) {
-                    $poutType = $this->get_column_type('attendance', 'punch_out');
-                    $target['punch_out'] = (in_array($poutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                }
-                if ($hasCheckOut) {
-                    $coutType = $this->get_column_type('attendance', 'check_out');
-                    $target['check_out'] = (in_array($coutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                }
-                if (!$hasPunchOut && !$hasCheckOut) {
-                    $outType = $this->get_column_type('attendance', $col_out);
-                    $target[$col_out] = (in_array($outType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                }
-            };
+            $geoGroups = attendance_punch_geo_field_groups();
 
             // Check if user already has a record for today (use limit 1 to ensure single record)
             $existing = $this->db->where('user_id', $user_id)
@@ -633,98 +421,74 @@ class Attendance extends CI_Controller {
                 $data['shift_id'] = $shift->id;
             }
             
-            // Helper function to get location name
-            $self = $this;
-            $getLocationName = function($lat, $lng, $postName) use ($self) {
-                $locFromPost = trim((string)$postName);
+            $getLocationName = function ($lat, $lng, $postName) {
+                $locFromPost = trim((string) $postName);
                 if ($locFromPost !== '') {
                     return $locFromPost;
-                } elseif ($lat !== null && $lng !== null && $lat !== '' && $lng !== '') {
-                    return $self->reverse_geocode($lat, $lng);
                 }
+                if ($lat !== null && $lng !== null && $lat !== '' && $lng !== '') {
+                    return attendance_geo_reverse_geocode($lat, $lng);
+                }
+
                 return null;
             };
-            
-            // Add location fields if they exist in schema (for backward compatibility)
-            if ($this->db->field_exists('latitude', 'attendance')) $data['latitude'] = $lat;
-            if ($this->db->field_exists('longitude', 'attendance')) $data['longitude'] = $lng;
-            if ($this->db->field_exists('lat', 'attendance')) $data['lat'] = $lat;
-            if ($this->db->field_exists('lng', 'attendance')) $data['lng'] = $lng;
-            if ($this->db->field_exists('geo_lat', 'attendance')) $data['geo_lat'] = $lat;
-            if ($this->db->field_exists('geo_lng', 'attendance')) $data['geo_lng'] = $lng;
-            if ($this->db->field_exists('location_name','attendance')) {
-                $locName = $getLocationName($lat, $lng, $location_name);
-                if ($locName) { $data['location_name'] = $locName; }
-            }
-            
-            // Save check-in location separately if action is 'in'
-            if ($action === 'in') {
-                if ($this->db->field_exists('checkin_lat', 'attendance')) $data['checkin_lat'] = $lat;
-                if ($this->db->field_exists('checkin_lng', 'attendance')) $data['checkin_lng'] = $lng;
-                if ($this->db->field_exists('checkin_location_name', 'attendance')) {
-                    $checkinLocName = $getLocationName($lat, $lng, $location_name);
-                    if ($checkinLocName) { $data['checkin_location_name'] = $checkinLocName; }
-                }
-            }
-            
-            // Save check-out location separately if action is 'out'
-            if ($action === 'out') {
-                if ($this->db->field_exists('checkout_lat', 'attendance')) $data['checkout_lat'] = $lat;
-                if ($this->db->field_exists('checkout_lng', 'attendance')) $data['checkout_lng'] = $lng;
-                if ($this->db->field_exists('checkout_location_name', 'attendance')) {
-                    $checkoutLocName = $getLocationName($lat, $lng, $location_name);
-                    if ($checkoutLocName) { $data['checkout_location_name'] = $checkoutLocName; }
-                }
-            }
+
+            attendance_punch_merge_geo_fields(
+                $this->attendance_has_column_fn(),
+                $data,
+                $lat,
+                $lng,
+                $location_name,
+                $action,
+                $getLocationName
+            );
 
             if ($existing) {
                 // Update existing record
-                $cin = '';
-                if ($hasPunchIn && isset($existing->punch_in) && !empty($existing->punch_in)) { $cin = $existing->punch_in; }
-                else if ($hasCheckIn && isset($existing->check_in) && !empty($existing->check_in)) { $cin = $existing->check_in; }
-                else if (isset($existing->$col_in)) { $cin = $existing->$col_in; }
-                $cout = '';
-                if ($hasPunchOut && isset($existing->punch_out) && !empty($existing->punch_out)) { $cout = $existing->punch_out; }
-                else if ($hasCheckOut && isset($existing->check_out) && !empty($existing->check_out)) { $cout = $existing->check_out; }
-                else if (isset($existing->$col_out)) { $cout = $existing->$col_out; }
-                if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
-                if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
+                $times = attendance_punch_read_existing_times(
+                    $existing,
+                    $col_in,
+                    $col_out,
+                    $hasPunchIn,
+                    $hasCheckIn,
+                    $hasPunchOut,
+                    $hasCheckOut
+                );
+                $cin = $times['cin'];
+                $cout = $times['cout'];
 
                 if ($action === 'in') {
                     if (empty($cin)) {
                         // First check-in of the day
                         $updates = [];
-                        $setCheckInColumns($updates);
-                        
-                        // Handle Check-In Notes
-                        if ($input_notes !== '') {
-                            $updates['notes'] = "Check-In: " . $input_notes;
+                        attendance_punch_apply_check_in_columns(
+                            $getColType,
+                            $updates,
+                            $nowDateTime,
+                            $nowTime,
+                            $hasPunchIn,
+                            $hasCheckIn,
+                            $col_in
+                        );
+
+                        $checkInNotes = attendance_punch_check_in_notes($input_notes);
+                        if ($checkInNotes !== null) {
+                            $updates['notes'] = $checkInNotes;
                         }
 
-
-                        // Calculate Status based on Shift (Late Check-in)
-                        if (isset($shift) && $shift) {
-                            $checkInTimeObj = new DateTime($nowDateTime);
-                            $shiftStartTime = new DateTime($today . ' ' . $shift->start_time);
-                            $lateGrace = new DateInterval('PT' . (int)$shift->late_grace_period . 'M');
-                            $shiftStartTime->add($lateGrace);
-
-                            if ($checkInTimeObj > $shiftStartTime) {
-                                $updates['status'] = 'late';
-                            } else {
-                                $updates['status'] = 'present';
-                            }
+                        $checkInStatus = attendance_punch_shift_check_in_status($shift, $nowDateTime, $today);
+                        if ($checkInStatus !== null) {
+                            $updates['status'] = $checkInStatus;
                         }
 
-                        if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
-                        // Update location fields (backward compatibility)
-                        foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
-                            if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
+                        if (array_key_exists('attachment_path', $data) && $data['attachment_path']) {
+                            $updates['attachment_path'] = $data['attachment_path'];
                         }
-                        // Update check-in location fields
-                        foreach (['checkin_lat','checkin_lng','checkin_location_name'] as $field) {
-                            if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
-                        }
+                        attendance_punch_copy_keyed_fields(
+                            $updates,
+                            $data,
+                            array_merge($geoGroups['shared'], $geoGroups['in'])
+                        );
                         $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
                         $this->load->helper('notification');
@@ -737,59 +501,49 @@ class Attendance extends CI_Controller {
                     if (!empty($cin)) {
                         if (empty($cout)) {
                             // Check-out logic with time validation
-                            $proposedOut = $nowDateTime;
-                            if ($hasPunchOut) {
-                                $poutType = $this->get_column_type('attendance', 'punch_out');
-                                $proposedOut = (in_array($poutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                            } else if ($hasCheckOut) {
-                                $coutType = $this->get_column_type('attendance', 'check_out');
-                                $proposedOut = (in_array($coutType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                            } else {
-                                $outType = $this->get_column_type('attendance', $col_out);
-                                $proposedOut = (in_array($outType, ['datetime','timestamp'], true)) ? $nowDateTime : $nowTime;
-                            }
-                            
+                            $proposedOut = attendance_punch_proposed_checkout_time(
+                                $getColType,
+                                $nowDateTime,
+                                $nowTime,
+                                $hasPunchOut,
+                                $hasCheckOut,
+                                $col_out
+                            );
 
                             // Validate checkout time is after check-in
-                            if ($this->is_valid_checkout_time($cin, $proposedOut, $outType)) {
+                            if (attendance_punch_is_valid_checkout_time($cin, $proposedOut, $outType)) {
                                 $updates = [];
-                                $setCheckOutColumns($updates);
-                                
-                                // Handle Check-Out Notes (Append to existing)
-                                $existing_notes = isset($existing->notes) ? trim((string)$existing->notes) : '';
-                                if ($input_notes !== '') {
-                                    if ($existing_notes !== '') {
-                                        $updates['notes'] = $existing_notes . " | Check-Out: " . $input_notes;
-                                    } else {
-                                        $updates['notes'] = "Check-Out: " . $input_notes;
-                                    }
+                                attendance_punch_apply_check_out_columns(
+                                    $getColType,
+                                    $updates,
+                                    $nowDateTime,
+                                    $nowTime,
+                                    $hasPunchOut,
+                                    $hasCheckOut,
+                                    $col_out
+                                );
+
+                                $checkOutNotes = attendance_punch_check_out_notes(
+                                    isset($existing->notes) ? $existing->notes : '',
+                                    $input_notes
+                                );
+                                if ($checkOutNotes !== null) {
+                                    $updates['notes'] = $checkOutNotes;
                                 }
 
-                                if (array_key_exists('attachment_path', $data) && $data['attachment_path']) { $updates['attachment_path'] = $data['attachment_path']; }
-                                // Update check-out location fields
-                                foreach (['checkout_lat','checkout_lng','checkout_location_name'] as $field) {
-                                    if (array_key_exists($field, $data)) { $updates[$field] = $data[$field]; }
+                                if (array_key_exists('attachment_path', $data) && $data['attachment_path']) {
+                                    $updates['attachment_path'] = $data['attachment_path'];
                                 }
-                                
-                                // Calculate Early Leave Status based on Shift
-                                if ($shift) {
-                                    $checkOutTimeObj = new DateTime($proposedOut);
-                                    $shiftEndTime = new DateTime($today . ' ' . $shift->end_time);
-                                    // Early exit grace period subtraction
-                                    $earlyGrace = new DateInterval('PT' . (int)$shift->early_exit_grace_period . 'M');
-                                    $shiftEndTime->sub($earlyGrace);
+                                attendance_punch_copy_keyed_fields($updates, $data, $geoGroups['out']);
 
-                                    if ($checkOutTimeObj < $shiftEndTime) {
-                                        // If already late, stay late. If present, change to early_leave. 
-                                        // Priority: Late > Early Leave > Present (Business logic may vary, assuming Latest status is key or combination)
-                                        // Ideally, store flags, but enum status is single value. 
-                                        // Let's keep existing status if it was 'late', otherwise set to 'early_leave'
-                                        $currentStatus = isset($existing->status) ? $existing->status : 'present';
-                                        if ($currentStatus !== 'late') {
-                                            $updates['status'] = 'early_leave';
-                                        }
-                                    }
-                                }
+                                $currentStatus = isset($existing->status) ? $existing->status : 'present';
+                                attendance_punch_apply_early_leave_status(
+                                    $updates,
+                                    $shift,
+                                    $proposedOut,
+                                    $today,
+                                    $currentStatus
+                                );
                                 
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
@@ -811,34 +565,33 @@ class Attendance extends CI_Controller {
                     $this->session->set_flashdata('error', 'You must check in before checking out.');
                 } else {
                     // First check-in of the day
-                    $setCheckInColumns($data);
-                    
-                    // Handle Initial Check-In Notes
-                    if ($input_notes !== '') {
-                        $data['notes'] = "Check-In: " . $input_notes;
-                    }
-                    
-                    // Calculate Status based on Shift (Initial Check-in)
-                    if ($shift) {
-                        $checkInTimeObj = new DateTime($nowDateTime);
-                        $shiftStartTime = new DateTime($today . ' ' . $shift->start_time);
-                        $lateGrace = new DateInterval('PT' . (int)$shift->late_grace_period . 'M');
-                        $shiftStartTime->add($lateGrace);
+                    attendance_punch_apply_check_in_columns(
+                        $getColType,
+                        $data,
+                        $nowDateTime,
+                        $nowTime,
+                        $hasPunchIn,
+                        $hasCheckIn,
+                        $col_in
+                    );
 
-                        if ($checkInTimeObj > $shiftStartTime) {
-                            $data['status'] = 'late';
-                        } else {
-                            $data['status'] = 'present';
-                        }
+                    $checkInNotes = attendance_punch_check_in_notes($input_notes);
+                    if ($checkInNotes !== null) {
+                        $data['notes'] = $checkInNotes;
+                    }
+
+                    $checkInStatus = attendance_punch_shift_check_in_status($shift, $nowDateTime, $today);
+                    if ($checkInStatus !== null) {
+                        $data['status'] = $checkInStatus;
                     }
 
                     // Populate human-readable location name if schema and coordinates are available
-                    if ($this->db->field_exists('location_name','attendance')) {
+                    if ($this->attendance_field_exists('location_name')) {
                         $locFromPost = trim((string)$this->input->post('location_name'));
                         if ($locFromPost !== '') {
                             $data['location_name'] = $locFromPost;
                         } elseif ($lat !== null && $lng !== null && $lat !== '' && $lng !== '') {
-                            $locName = $this->reverse_geocode($lat, $lng);
+                            $locName = attendance_geo_reverse_geocode($lat, $lng);
                             if ($locName) { $data['location_name'] = $locName; }
                         }
                     }
@@ -851,27 +604,18 @@ class Attendance extends CI_Controller {
                     
                     if ($existing_final) {
                         // Record exists (race condition), update instead of insert
-                        $updates = [];
-                        $setCheckInColumns($updates);
-                        
-                        // Handle Check-In Notes for race condition
-                        if ($input_notes !== '') {
-                            $updates['notes'] = "Check-In: " . $input_notes;
-                        }
-
-                        foreach (['attachment_path', 'ip_address'] as $field) {
-                            if (isset($data[$field])) $updates[$field] = $data[$field];
-                        }
-                        foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
-                            if (isset($data[$field]) && $this->db->field_exists($field, 'attendance')) {
-                                $updates[$field] = $data[$field];
-                            }
-                        }
-                        foreach (['checkin_lat','checkin_lng','checkin_location_name'] as $field) {
-                            if (isset($data[$field]) && $this->db->field_exists($field, 'attendance')) {
-                                $updates[$field] = $data[$field];
-                            }
-                        }
+                        $updates = attendance_punch_build_race_check_in_updates(
+                            $getColType,
+                            $this->attendance_has_column_fn(),
+                            $data,
+                            $nowDateTime,
+                            $nowTime,
+                            $hasPunchIn,
+                            $hasCheckIn,
+                            $col_in,
+                            $input_notes,
+                            $geoGroups
+                        );
                         $this->db->where('id', (int)$existing_final->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
                         $this->load->helper('notification');
@@ -896,27 +640,18 @@ class Attendance extends CI_Controller {
                                                            ->row();
                                 
                                 if ($existing_after) {
-                                    $updates = [];
-                                    $setCheckInColumns($updates);
-                                    
-                                    // Handle Check-In Notes for late race condition
-                                    if ($input_notes !== '') {
-                                        $updates['notes'] = "Check-In: " . $input_notes;
-                                    }
-
-                                    foreach (['attachment_path', 'ip_address'] as $field) {
-                                        if (isset($data[$field])) $updates[$field] = $data[$field];
-                                    }
-                                    foreach (['latitude','longitude','lat','lng','geo_lat','geo_lng','location_name'] as $field) {
-                                        if (isset($data[$field]) && $this->db->field_exists($field, 'attendance')) {
-                                            $updates[$field] = $data[$field];
-                                        }
-                                    }
-                                    foreach (['checkin_lat','checkin_lng','checkin_location_name'] as $field) {
-                                        if (isset($data[$field]) && $this->db->field_exists($field, 'attendance')) {
-                                            $updates[$field] = $data[$field];
-                                        }
-                                    }
+                                    $updates = attendance_punch_build_race_check_in_updates(
+                                        $getColType,
+                                        $this->attendance_has_column_fn(),
+                                        $data,
+                                        $nowDateTime,
+                                        $nowTime,
+                                        $hasPunchIn,
+                                        $hasCheckIn,
+                                        $col_in,
+                                        $input_notes,
+                                        $geoGroups
+                                    );
                                     $this->db->where('id', (int)$existing_after->id)->update('attendance', $updates);
                                     $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
                                     $this->load->helper('notification');
@@ -941,46 +676,26 @@ class Attendance extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         $user_timezone = get_user_timezone($user_id);
         $today = get_current_datetime($user_timezone, 'Y-m-d');
-        $col_date = 'att_date';
-        $col_in = 'punch_in';
-        $col_out = 'punch_out';
-        if (!$this->db->field_exists($col_date, 'attendance')) $col_date = 'date';
-        if (!$this->db->field_exists($col_in, 'attendance')) $col_in = 'check_in';
-        if (!$this->db->field_exists($col_out, 'attendance')) $col_out = 'check_out';
-        
-        $existing = null;
-        $attendance_status = [
-            'has_checkin' => false,
-            'has_checkout' => false,
-            'checkin_time' => '',
-            'checkout_time' => ''
-        ];
-        
-        if ($user_id) {
-            $existing = $this->db->where('user_id', $user_id)
-                                 ->where($col_date, $today)
-                                 ->get('attendance')
-                                 ->row();
-            
-            if ($existing) {
-                $cin = isset($existing->$col_in) ? $existing->$col_in : '';
-                $cout = isset($existing->$col_out) ? $existing->$col_out : '';
-                if ($cin === '00:00:00' || $cin === '0000-00-00 00:00:00') { $cin = ''; }
-                if ($cout === '00:00:00' || $cout === '0000-00-00 00:00:00') { $cout = ''; }
-                
-                $attendance_status['has_checkin'] = !empty($cin);
-                $attendance_status['has_checkout'] = !empty($cout);
-                $attendance_status['checkin_time'] = $cin;
-                $attendance_status['checkout_time'] = $cout;
-            }
-        }
+        $todayStatus = attendance_punch_today_status(
+            $this->db,
+            $this->attendance_has_column_fn(),
+            $user_id,
+            $today
+        );
+        $existing = $todayStatus['existing'];
+        $attendance_status = array(
+            'has_checkin'   => $todayStatus['has_checkin'],
+            'has_checkout'  => $todayStatus['has_checkout'],
+            'checkin_time'  => $todayStatus['checkin_time'],
+            'checkout_time' => $todayStatus['checkout_time'],
+        );
         
         // Get all attendance-related settings
         $auto_capture_setting = $this->settings->get_setting('attendance_auto_capture', 'yes');
         $auto_capture_enabled = ($auto_capture_setting === 'yes' || $auto_capture_setting === '1' || $auto_capture_setting === 1 || $auto_capture_setting === true);
         
         $face_verification_setting = $this->settings->get_setting('attendance_face_verification_required', 'yes');
-        $face_verification_enabled = ($face_verification_setting === 'yes' || $face_verification_setting === '1' || $face_verification_setting === 1 || $face_verification_setting === true);
+        $face_verification_enabled = attendance_punch_setting_is_enabled($face_verification_setting);
         
         $has_registered_face = false;
         if ($face_verification_enabled) {
@@ -1093,384 +808,102 @@ class Attendance extends CI_Controller {
         ]);
     }
 
-    private function get_column_type($table, $column){
-        try {
-            $fields = $this->db->field_data($table);
-            foreach ($fields as $f){
-                if (isset($f->name) && $f->name === $column){
-                    $t = isset($f->type) ? strtolower($f->type) : '';
-                    return $t;
-                }
-            }
-        } catch (Exception $e) {}
-        return '';
-    }
-
-    private function is_empty_time($v){
-        if (!isset($v)) return true;
-        $s = trim((string)$v);
-        if ($s === '' || $s === '0') return true;
-        $zeros = ['00:00', '00:00:00', '0000-00-00', '0000-00-00 00:00:00'];
-        return in_array($s, $zeros, true);
-    }
-
-    private function is_valid_checkout_time($checkIn, $checkOut, $outType){
-        if (empty($checkIn) || empty($checkOut)) return false;
-        
-        // Handle time-only fields
-        if (in_array($outType, ['time'], true)) {
-            // For time fields, we just check basic validity
-            // Since both are same day, check-out should be after check-in
-            $checkInTime = strtotime('1970-01-01 ' . $checkIn);
-            $checkOutTime = strtotime('1970-01-01 ' . $checkOut);
-            
-            if ($checkInTime === false || $checkOutTime === false) return false;
-            
-            // Allow checkout next day (after midnight) but not same day before check-in
-            $timeDiff = $checkOutTime - $checkInTime;
-            return $timeDiff > 0 || $timeDiff < -12 * 3600; // Allow next day checkout
-        }
-        
-        // Handle datetime fields
-        $checkInTime = strtotime($checkIn);
-        $checkOutTime = strtotime($checkOut);
-        
-        if ($checkInTime === false || $checkOutTime === false) return false;
-        
-        // Checkout must be after check-in
-        return $checkOutTime > $checkInTime;
-    }
-
     private function maybe_send_attendance_email($user_id, $action, $dateTime){
-        // Prevent duplicate emails in the same request
         $email_key = $user_id . '_' . $action . '_' . date('Y-m-d H:i:s', strtotime($dateTime));
         if (isset(self::$email_sent_tracker[$email_key])) {
-            return; // Email already sent for this check-in/check-out
+            return;
         }
-        
-        if (!$this->db->table_exists('users')) { return; }
 
-        $select = ['email'];
-        if ($this->db->field_exists('notify_attendance','users')){ $select[] = 'notify_attendance'; }
-        if ($this->db->field_exists('name','users')){ $select[] = 'name'; }
-        $user = $this->db->select(implode(',', $select), false)->from('users')->where('id',(int)$user_id)->get()->row();
-        if (!$user || !isset($user->email) || $user->email === '') { return; }
-
-        $notify = 1;
-        if ($this->db->field_exists('notify_attendance','users')){
-            $raw = isset($user->notify_attendance) ? $user->notify_attendance : 1;
-            if (is_numeric($raw)) {
-                $notify = ((int)$raw === 1) ? 1 : 0;
-            } else if (is_string($raw)) {
-                $notify = in_array(strtolower(trim((string)$raw)), ['1','yes','true','enabled'], true) ? 1 : 0;
-            }
+        $user = attendance_notify_load_user($this->db, $user_id);
+        if (!attendance_notify_user_wants_email($this->db, $user)) {
+            return;
         }
-        if (!$notify) { return; }
 
-        // Check if late mark notification is enabled
-        $late_mark_enabled = $this->settings->get_setting('attendance_late_mark_notification', 'no');
-        $late_mark_enabled = ($late_mark_enabled === 'yes') ? true : false;
-        
-        // Load email helper and configure from settings
+        $late_mark_enabled = ($this->settings->get_setting('attendance_late_mark_notification', 'no') === 'yes');
+
         $this->load->helper('email');
         configure_email_from_settings();
-        $this->email->clear(true);
         $fromAddr = get_system_from_email();
         $fromName = get_company_name();
-        $this->email->from($fromAddr, $fromName);
-        
+
         $isOut = ($action === 'out');
         $user_name = !empty($user->name) ? $user->name : $user->email;
-        
-        // For check-in, check if late and calculate late time
+
         $late_info = null;
         $is_late = false;
-        
         if (!$isOut && $late_mark_enabled && $action === 'in') {
-            $late_info = $this->calculate_late_time($dateTime);
-            if ($late_info && isset($late_info['is_late']) && $late_info['is_late'] === true) {
+            $late_info = attendance_notify_calculate_late_time($this->settings, $dateTime);
+            if ($late_info && !empty($late_info['is_late'])) {
                 $is_late = true;
             }
         }
-        
-        // Send ONLY ONE email - either late mark or regular check-in/check-out
+
         if (!$isOut && $action === 'in' && $is_late) {
-            // LATE CHECK-IN - Send late mark email to employee ONLY
-            $subject = 'Late Mark - Attendance Check-in';
-            $body = '<html><body>';
-            $body .= '<h3 style="color: #dc3545;">Late Mark Notification</h3>';
-            $body .= '<p>Hello ' . htmlspecialchars($user_name) . ',</p>';
-            $body .= '<p>Your attendance check-in has been recorded at <strong>' . htmlspecialchars($dateTime) . '</strong>.</p>';
-            $body .= '<p style="color: #dc3545; font-weight: bold;">You are marked LATE.</p>';
-            $body .= '<p><strong>Late Time:</strong></p>';
-            $body .= '<ul>';
-            $body .= '<li>Hours: ' . $late_info['hours'] . '</li>';
-            $body .= '<li>Minutes: ' . $late_info['minutes'] . '</li>';
-            $body .= '<li>Seconds: ' . $late_info['seconds'] . '</li>';
-            $body .= '</ul>';
-            $body .= '<p><strong>Total Late Time:</strong> ' . htmlspecialchars($late_info['formatted']) . '</p>';
-            $body .= '<p>Expected start time: ' . htmlspecialchars($late_info['expected_time']) . '</p>';
-            $body .= '<p>Thank you.</p>';
-            $body .= '</body></html>';
-            
-            // Send ONLY ONE email to employee
-            $this->email->clear(true);
-            $this->email->from($fromAddr, $fromName);
-            $this->email->to($user->email);
-            $this->email->subject($subject);
-            $this->email->message($body);
-            @$this->email->send();
-            
-            // Mark as sent to prevent duplicates
+            $mail = attendance_notify_late_employee_email($user_name, $dateTime, $late_info);
+            attendance_notify_send_email(
+                $this->email,
+                $fromAddr,
+                $fromName,
+                $user->email,
+                $mail['subject'],
+                $mail['body']
+            );
             self::$email_sent_tracker[$email_key] = true;
-            
-            // Send separate email to HR and Manager (NOT to employee - different recipients)
             $this->send_late_mark_to_managers($user_id, $user_name, $dateTime, $late_info);
-            return; // EXIT - No other email should be sent
+            return;
         }
-        
-        // REGULAR CHECK-IN or CHECK-OUT (NOT LATE) - Send regular email
-        $subject = $isOut ? 'Attendance checkout recorded' : 'Attendance check-in recorded';
-        $body = '<html><body>';
-        $body .= '<h3>Attendance ' . ($isOut ? 'Check-out' : 'Check-in') . ' Recorded</h3>';
-        $body .= '<p>Hello ' . htmlspecialchars($user_name) . ',</p>';
-        $body .= '<p>Your attendance ' . ($isOut ? 'checkout' : 'check-in') . ' has been recorded at <strong>' . htmlspecialchars($dateTime) . '</strong>.</p>';
-        if (!$isOut && $late_mark_enabled && $late_info && isset($late_info['is_late']) && $late_info['is_late'] === false) {
-            $body .= '<p style="color: #28a745; font-weight: bold;">You are on time. Good job!</p>';
-        }
-        $body .= '<p>Thank you.</p>';
-        $body .= '</body></html>';
-        
-        // Send ONLY ONE email to employee (regular check-in/check-out)
-        $this->email->clear(true);
-        $this->email->from($fromAddr, $fromName);
-        $this->email->to($user->email);
-        $this->email->subject($subject);
-        $this->email->message($body);
-        @$this->email->send();
-        
-        // Mark as sent to prevent duplicates
+
+        $mail = attendance_notify_regular_punch_email($user_name, $dateTime, $isOut, $late_info, $late_mark_enabled);
+        attendance_notify_send_email(
+            $this->email,
+            $fromAddr,
+            $fromName,
+            $user->email,
+            $mail['subject'],
+            $mail['body']
+        );
         self::$email_sent_tracker[$email_key] = true;
     }
-    
-    /**
-     * Calculate late time if check-in is after start time + grace period
-     */
+
     private function calculate_late_time($checkinDateTime){
-        // Get attendance settings
-        $start_time = $this->settings->get_setting('attendance_start_time', '09:30');
-        $grace_minutes = (int)$this->settings->get_setting('attendance_grace_minutes', 15);
-        
-        // Parse check-in time
-        $checkin_timestamp = strtotime($checkinDateTime);
-        if ($checkin_timestamp === false) {
-            return null;
-        }
-        
-        // Get today's date from check-in datetime
-        $today = date('Y-m-d', $checkin_timestamp);
-        
-        // Calculate expected check-in time (start time + grace period)
-        $expected_datetime = $today . ' ' . $start_time;
-        $expected_timestamp = strtotime($expected_datetime);
-        $expected_timestamp = $expected_timestamp + ($grace_minutes * 60); // Add grace minutes
-        
-        // Check if check-in is late
-        if ($checkin_timestamp <= $expected_timestamp) {
-            return [
-                'is_late' => false,
-                'hours' => 0,
-                'minutes' => 0,
-                'seconds' => 0,
-                'formatted' => '0 hours 0 minutes 0 seconds',
-                'expected_time' => date('Y-m-d H:i:s', $expected_timestamp)
-            ];
-        }
-        
-        // Calculate late time in seconds
-        $late_seconds = $checkin_timestamp - $expected_timestamp;
-        
-        // Calculate hours, minutes, seconds
-        $hours = floor($late_seconds / 3600);
-        $minutes = floor(($late_seconds % 3600) / 60);
-        $seconds = $late_seconds % 60;
-        
-        // Format late time
-        $formatted_parts = [];
-        if ($hours > 0) {
-            $formatted_parts[] = $hours . ' hour' . ($hours > 1 ? 's' : '');
-        }
-        if ($minutes > 0) {
-            $formatted_parts[] = $minutes . ' minute' . ($minutes > 1 ? 's' : '');
-        }
-        if ($seconds > 0 || empty($formatted_parts)) {
-            $formatted_parts[] = $seconds . ' second' . ($seconds > 1 ? 's' : '');
-        }
-        $formatted = implode(' ', $formatted_parts);
-        
-        return [
-            'is_late' => true,
-            'hours' => $hours,
-            'minutes' => $minutes,
-            'seconds' => $seconds,
-            'formatted' => $formatted,
-            'expected_time' => date('Y-m-d H:i:s', $expected_timestamp),
-            'late_seconds' => $late_seconds
-        ];
-    }
-    
-    /**
-     * Send late mark notification to HR and Managers
-     */
-    private function send_late_mark_to_managers($user_id, $user_name, $checkin_time, $late_info){
-        // Get HR user ID from settings
-        $hr_user_id = $this->settings->get_setting('leave_hr_user_id');
-        $hr_user_id = !empty($hr_user_id) ? (int)$hr_user_id : null;
-        
-        // Get user's manager/reporting_to
-        $manager_id = null;
-        if ($this->db->table_exists('employees')) {
-            $emp = $this->db->where('user_id', $user_id)->get('employees')->row();
-            if ($emp && !empty($emp->reporting_to)) {
-                $manager_id = (int)$emp->reporting_to;
-            }
-        }
-        
-        // Collect recipients (EXCLUDE the employee to prevent duplicate emails)
-        $recipients = [];
-        if ($hr_user_id && $hr_user_id !== $user_id) {
-            // Only add HR if they are not the employee checking in
-            $hr = $this->db->select('email, name')->from('users')->where('id', $hr_user_id)->get()->row();
-            if ($hr && !empty($hr->email)) {
-                $recipients[] = [
-                    'email' => $hr->email,
-                    'name' => !empty($hr->name) ? $hr->name : $hr->email
-                ];
-            }
-        }
-        if ($manager_id && $manager_id !== $hr_user_id && $manager_id !== $user_id) {
-            // Only add Manager if they are not the employee checking in and not already added as HR
-            $manager = $this->db->select('email, name')->from('users')->where('id', $manager_id)->get()->row();
-            if ($manager && !empty($manager->email)) {
-                $recipients[] = [
-                    'email' => $manager->email,
-                    'name' => !empty($manager->name) ? $manager->name : $manager->email
-                ];
-            }
-        }
-        
-        // Send ONE email to all recipients (consolidate to avoid duplicates)
-        if (!empty($recipients)) {
-            // Load email helper and configure from settings
-            $this->load->helper('email');
-            configure_email_from_settings();
-            $fromAddr = get_system_from_email();
-            $fromName = get_company_name();
-            
-            $subject = 'Late Mark - ' . htmlspecialchars($user_name) . ' - ' . date('Y-m-d', strtotime($checkin_time));
-            
-            // Build email body (generic greeting since we're sending to multiple recipients)
-            $body = '<html><body>';
-            $body .= '<h3 style="color: #dc3545;">Late Mark Notification</h3>';
-            $body .= '<p><strong>Employee:</strong> ' . htmlspecialchars($user_name) . '</p>';
-            $body .= '<p><strong>Check-in Time:</strong> ' . htmlspecialchars($checkin_time) . '</p>';
-            $body .= '<p style="color: #dc3545; font-weight: bold;">Employee is marked LATE.</p>';
-            $body .= '<p><strong>Late Time Details:</strong></p>';
-            $body .= '<ul>';
-            $body .= '<li>Hours: ' . $late_info['hours'] . '</li>';
-            $body .= '<li>Minutes: ' . $late_info['minutes'] . '</li>';
-            $body .= '<li>Seconds: ' . $late_info['seconds'] . '</li>';
-            $body .= '</ul>';
-            $body .= '<p><strong>Total Late Time:</strong> ' . htmlspecialchars($late_info['formatted']) . '</p>';
-            $body .= '<p><strong>Expected Check-in Time:</strong> ' . htmlspecialchars($late_info['expected_time']) . '</p>';
-            $body .= '<p>Thank you.</p>';
-            $body .= '</body></html>';
-            
-            // Deduplicate recipients by email address
-            $unique_recipients = [];
-            foreach ($recipients as $recipient) {
-                $email = strtolower(trim($recipient['email']));
-                if (!isset($unique_recipients[$email])) {
-                    $unique_recipients[$email] = $recipient;
-                }
-            }
-            
-            // Send ONE email: first recipient in TO, others in CC
-            if (!empty($unique_recipients)) {
-                $recipient_list = array_values($unique_recipients);
-                $primary_recipient = $recipient_list[0];
-                $cc_list = [];
-                
-                // Add remaining recipients to CC
-                for ($i = 1; $i < count($recipient_list); $i++) {
-                    $cc_list[] = $recipient_list[$i]['email'];
-                }
-                
-                try {
-                    $this->email->clear(true);
-                    $this->email->from($fromAddr, $fromName);
-                    $this->email->to($primary_recipient['email']);
-                    if (!empty($cc_list)) {
-                        $this->email->cc($cc_list);
-                    }
-                    $this->email->subject($subject);
-                    $this->email->message($body);
-                    @$this->email->send();
-                } catch (Exception $e) {
-                    error_log('Late mark notification email failed: ' . $e->getMessage());
-                }
-            }
-        }
+        return attendance_notify_calculate_late_time($this->settings, $checkinDateTime);
     }
 
-    private function reverse_geocode($lat, $lng){
-        $lat = trim((string)$lat);
-        $lng = trim((string)$lng);
-        if ($lat === '' || $lng === '') { return null; }
-        $url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='.
-                rawurlencode($lat).'&lon='.
-                rawurlencode($lng);
-        $opts = [
-            'http' => [
-                'method' => 'GET',
-                'header' => "User-Agent: " . get_company_name() . "/1.0\r\n",
-                'timeout' => 5,
-            ],
-        ];
-        $ctx = stream_context_create($opts);
-        $resp = @file_get_contents($url, false, $ctx);
-        if ($resp === false) { return null; }
-        $j = json_decode($resp, true);
-        if (!is_array($j)) { return null; }
-        if (!empty($j['display_name'])) { return (string)$j['display_name']; }
-        if (!empty($j['address']) && is_array($j['address'])){
-            $addr = $j['address'];
-            $parts = [];
-            foreach (['road','suburb','city','state','country'] as $k){
-                if (!empty($addr[$k])) { $parts[] = $addr[$k]; }
-            }
-            if (!empty($parts)) { return implode(', ', $parts); }
+    private function send_late_mark_to_managers($user_id, $user_name, $checkin_time, $late_info){
+        $recipients = attendance_notify_late_manager_recipients($this->db, $this->settings, $user_id);
+        if (empty($recipients)) {
+            return;
         }
-        return null;
+
+        $this->load->helper('email');
+        configure_email_from_settings();
+        $fromAddr = get_system_from_email();
+        $fromName = get_company_name();
+        $mail = attendance_notify_late_manager_email($user_name, $checkin_time, $late_info);
+
+        $primary = $recipients[0];
+        $cc = array();
+        for ($i = 1, $n = count($recipients); $i < $n; $i++) {
+            $cc[] = $recipients[$i]['email'];
+        }
+
+        try {
+            attendance_notify_send_email(
+                $this->email,
+                $fromAddr,
+                $fromName,
+                $primary['email'],
+                $mail['subject'],
+                $mail['body'],
+                $cc
+            );
+        } catch (Exception $e) {
+            error_log('Late mark notification email failed: ' . $e->getMessage());
+        }
     }
 
     private function verify_face_descriptor($stored_json, $current_json){
-        $a = json_decode($stored_json, true);
-        $b = json_decode($current_json, true);
-        if (!is_array($a) || !is_array($b) || count($a) !== count($b) || count($a) === 0) {
-            return null; // Return null for invalid format
-        }
-        $sum = 0.0;
-        $n = count($a);
-        for ($i = 0; $i < $n; $i++) {
-            $da = isset($a[$i]) ? (float)$a[$i] : 0.0;
-            $db = isset($b[$i]) ? (float)$b[$i] : 0.0;
-            $d = $da - $db;
-            $sum += $d * $d;
-        }
-        $dist = sqrt($sum);
-        // Return the distance value (typical threshold for face-api embeddings is around 0.5–0.6)
-        return $dist;
+        return attendance_punch_face_distance($stored_json, $current_json);
     }
 
     // GET/POST /attendance/{id}/edit
@@ -1490,64 +923,34 @@ class Attendance extends CI_Controller {
             require_module_access(['attendance_edit', 'attendance'], true);
         }
         if ($this->input->method() === 'post') {
-            // Optional face verification: mirror create() behavior when descriptor is provided
-            $face_required = (string)$this->input->post('face_required');
-            $face_descriptor = (string)$this->input->post('face_descriptor');
-            if ($face_required === '1') {
-                if ($face_descriptor === '') {
-                    $this->session->set_flashdata('error', 'Face verification failed: no descriptor provided.');
-                    redirect('attendance/'.$id.'/edit');
-                    return;
-                }
-                $tpl = $this->faces->get_by_user($user_id);
-                if (!$tpl || empty($tpl->descriptor)) {
-                    $this->session->set_flashdata('error', 'Face template not found for this user. Please register face in User profile first.');
-                    redirect('attendance/'.$id.'/edit');
-                    return;
-                }
-                $threshold = 0.6;
-                $dist = $this->verify_face_descriptor($tpl->descriptor, $face_descriptor);
-                if ($dist === null || $dist > $threshold) {
-                    $this->session->set_flashdata('error', 'Face not recognized. Please try again.');
-                    redirect('attendance/'.$id.'/edit');
-                    return;
-                }
+            $face_check = attendance_punch_verify_face_for_edit(
+                $this->faces,
+                $user_id,
+                (string) $this->input->post('face_required'),
+                (string) $this->input->post('face_descriptor')
+            );
+            if (!$face_check['ok']) {
+                $this->session->set_flashdata('error', $face_check['error']);
+                redirect('attendance/'.$id.'/edit');
+                return;
             }
-            $col_date = $this->db->field_exists('att_date','attendance') ? 'att_date' : 'date';
-            $col_in   = $this->db->field_exists('punch_in','attendance') ? 'punch_in' : 'check_in';
-            $col_out  = $this->db->field_exists('punch_out','attendance') ? 'punch_out' : 'check_out';
 
-            $data = [];
-            // Do not overwrite date/check-in/check-out from form; keep backend values
-            if ($this->db->field_exists('notes','attendance')) {
+            $hasColumn = $this->attendance_has_column_fn();
+            $data = array();
+            if ($this->attendance_field_exists('notes')) {
                 $data['notes'] = trim($this->input->post('notes') ?: '');
             }
-            $lat = $this->input->post('lat');
-            $lng = $this->input->post('lng');
-            if ($lat !== null && $lng !== null) {
-                $latCol = null;
-                $lngCol = null;
-                foreach (['latitude','lat','geo_lat'] as $c) {
-                    if ($this->db->field_exists($c, 'attendance')) { $latCol = $c; break; }
-                }
-                foreach (['longitude','lng','geo_lng'] as $c) {
-                    if ($this->db->field_exists($c, 'attendance')) { $lngCol = $c; break; }
-                }
-                if ($latCol && $lngCol) {
-                    $data[$latCol] = (string)$lat;
-                    $data[$lngCol] = (string)$lng;
-                }
-                if ($this->db->field_exists('location_name','attendance')) {
-                    $latTrim = trim((string)$lat);
-                    $lngTrim = trim((string)$lng);
-                    if ($latTrim !== '' && $lngTrim !== '') {
-                        $locName = $this->reverse_geocode($latTrim, $lngTrim);
-                        if ($locName) { $data['location_name'] = $locName; }
-                    }
-                }
-            }
+            $data = array_merge(
+                $data,
+                attendance_punch_merge_edit_geo_fields(
+                    $hasColumn,
+                    $this->input->post('lat'),
+                    $this->input->post('lng'),
+                    'attendance_geo_reverse_geocode'
+                )
+            );
             // Optional new attachment
-            if ($this->db->field_exists('attachment_path','attendance') && !empty($_FILES['attachment']['name'])) {
+            if ($this->attendance_field_exists('attachment_path') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/attendance/';
                 if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $config = [
@@ -1602,99 +1005,6 @@ class Attendance extends CI_Controller {
         redirect('attendance');
     }
 
-    // Calculate attendance statistics
-    private function calculateAttendanceStatistics() {
-        $user_id = (int)$this->session->userdata('user_id');
-        $role_id = (int)$this->session->userdata('role_id');
-        $canManageAll = (function_exists('is_admin_group') && is_admin_group()) || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-        
-        // Base query
-        $this->db->from('attendance a');
-        $this->db->join('users u', 'u.id = a.user_id', 'left');
-        $this->db->join('employees e', 'e.user_id = a.user_id', 'left');
-        
-        // Apply permissions
-        apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
-        
-        // Get all records for statistics
-        $all_records = $this->db->get()->result();
-        
-        $stats = [
-            'total_records' => count($all_records),
-            'present_today' => 0,
-            'pending_checkout' => 0,
-            'absent_today' => 0,
-            'attendance_rate' => 0
-        ];
-        
-        $today = date('Y-m-d');
-        
-        foreach ($all_records as $record) {
-            // Check if present today
-            $cin = isset($record->punch_in) ? $record->punch_in : (isset($record->check_in) ? $record->check_in : '');
-            $cout = isset($record->punch_out) ? $record->punch_out : (isset($record->check_out) ? $record->check_out : '');
-            $att_date = isset($record->att_date) ? $record->att_date : (isset($record->date) ? $record->date : '');
-            
-            if (!empty($cin) && $cin !== '00:00:00') {
-                $stats['present_today']++;
-            }
-            
-            // Check for pending checkout
-            if (!empty($cin) && (empty($cout) || $cout === '00:00:00')) {
-                $stats['pending_checkout']++;
-            }
-            
-            // Check today's attendance for rate calculation
-            if ($att_date === $today) {
-                if (empty($cin) || $cin === '00:00:00') {
-                    $stats['absent_today']++;
-                }
-            }
-        }
-        
-        // Calculate attendance rate
-        $total_expected = $stats['present_today'] + $stats['absent_today'];
-        if ($total_expected > 0) {
-            $stats['attendance_rate'] = round(($stats['present_today'] / $total_expected) * 100, 1);
-        }
-        
-        return $stats;
-    }
-    
-    /**
-     * Calculate distance between two GPS coordinates (Haversine formula)
-     * Returns distance in meters
-     * 
-     * @param float $lat1 Latitude 1
-     * @param float $lon1 Longitude 1
-     * @param float $lat2 Latitude 2
-     * @param float $lon2 Longitude 2
-     * @return float Distance in meters
-     */
-    private function calculate_distance($lat1, $lon1, $lat2, $lon2) {
-        $lat1 = (float)$lat1;
-        $lon1 = (float)$lon1;
-        $lat2 = (float)$lat2;
-        $lon2 = (float)$lon2;
-        
-        // Earth's radius in meters
-        $earth_radius = 6371000;
-        
-        // Convert degrees to radians
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
-        
-        // Haversine formula
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-             sin($dLon / 2) * sin($dLon / 2);
-        
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-        $distance = $earth_radius * $c;
-        
-        return $distance;
-    }
-
     // Export selected attendance records to Excel
     public function export() {
         $format = $this->input->post('format') ?: $this->input->get('format');
@@ -1719,147 +1029,21 @@ class Attendance extends CI_Controller {
             return;
         }
         
-        // Get current user info for role-based access
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
-        $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
-        $canViewAll = $isAdminGroup || in_array($role_id, [ROLE_ADMIN, ROLE_MANAGER], true);
-        
-        // Get group-based filters
-        $filters = get_user_group_filter($user_id, $role_id);
-        
-        // Fetch attendance data for selected users
-        $this->db->select('a.user_id, u.name as user_name, u.email, COUNT(*) as attendance_count, MAX(a.att_date) as last_attendance_date, MIN(a.att_date) as first_attendance_date');
-        $this->db->from('attendance a');
-        $this->db->join('users u', 'u.id = a.user_id', 'left');
-        $this->db->where_in('a.user_id', $userIds);
-        
-        apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
-        
-        $this->db->group_by('a.user_id, u.name, u.email');
-        $this->db->order_by('u.name', 'ASC');
-        
-        $records = $this->db->get()->result();
-        
+
+        $records = attendance_export_fetch_summary($this->db, $userIds, $user_id, $role_id);
+
         if (empty($records)) {
             $this->session->set_flashdata('error', 'No attendance records found for selected employees.');
             redirect('attendance');
             return;
         }
-        
+
         if ($format === 'excel') {
-            $this->export_excel($records);
+            attendance_export_send_csv($records);
         } else {
-            $this->export_pdf($records);
-        }
-    }
-    
-    private function export_excel($records) {
-        $filename = 'attendance_export_' . date('Y-m-d_His') . '.csv';
-        
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-        header('Expires: 0');
-        header('Pragma: public');
-        
-        $output = fopen('php://output', 'w');
-        
-        // Add BOM for UTF-8 Excel compatibility
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        // Headers
-        fputcsv($output, [
-            'Employee Name',
-            'Email',
-            'Total Attendance Records',
-            'First Attendance Date',
-            'Last Attendance Date'
-        ]);
-        
-        // Data rows
-        foreach ($records as $record) {
-            fputcsv($output, [
-                $record->user_name ?: 'Unknown',
-                $record->email ?: '',
-                $record->attendance_count,
-                $record->first_attendance_date ?: '',
-                $record->last_attendance_date ?: ''
-            ]);
-        }
-        
-        fclose($output);
-        exit;
-    }
-    
-    private function export_pdf($records) {
-        $html = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Attendance Export</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h2 { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background-color: #667eea; color: white; padding: 12px; text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid #ddd; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        .header-info { margin-bottom: 20px; color: #666; }
-    </style>
-</head>
-<body>
-    <h2>Attendance Summary Report</h2>
-    <div class="header-info">
-        <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
-        <p><strong>Total Employees:</strong> ' . count($records) . '</p>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Employee Name</th>
-                <th>Email</th>
-                <th>Total Records</th>
-                <th>First Attendance</th>
-                <th>Last Attendance</th>
-            </tr>
-        </thead>
-        <tbody>';
-        
-        foreach ($records as $record) {
-            $html .= '<tr>
-                <td>' . htmlspecialchars($record->user_name ?: 'Unknown') . '</td>
-                <td>' . htmlspecialchars($record->email ?: '') . '</td>
-                <td>' . $record->attendance_count . '</td>
-                <td>' . ($record->first_attendance_date ?: '—') . '</td>
-                <td>' . ($record->last_attendance_date ?: '—') . '</td>
-            </tr>';
-        }
-        
-        $html .= '</tbody>
-    </table>
-</body>
-</html>';
-        
-        // Try to use DomPDF if available
-        if (class_exists('\\Dompdf\\Dompdf')) {
-            $dompdf = new \Dompdf\Dompdf();
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper('A4', 'landscape');
-            $dompdf->render();
-            
-            $filename = 'attendance_export_' . date('Y-m-d_His') . '.pdf';
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
-            echo $dompdf->output();
-            exit;
-        } else {
-            // Fallback to HTML download
-            $filename = 'attendance_export_' . date('Y-m-d_His') . '.html';
-            header('Content-Type: text/html; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
-            echo $html;
-            exit;
+            attendance_export_send_pdf($records);
         }
     }
 }

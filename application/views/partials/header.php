@@ -52,7 +52,7 @@
       for (var i = 0; i < cookies.length; i++) {
         var cookie = cookies[i].trim();
         if (cookie.indexOf('ci_csrf_token=') === 0) {
-          return cookie.substring('ci_csrf_token='.length);
+          return decodeURIComponent(cookie.substring('ci_csrf_token='.length));
         }
       }
       // Fallback: try to get from form
@@ -61,6 +61,70 @@
         return csrfInput.value;
       }
       return '';
+    };
+
+    window.csrfTokenName = 'ci_csrf_token';
+
+    window.appendCsrfToForm = function(form) {
+      if (!form) return form;
+      var token = window.getCsrfToken();
+      if (!token) return form;
+      var existing = form.querySelector('input[name="' + window.csrfTokenName + '"]');
+      if (existing) {
+        existing.value = token;
+        return form;
+      }
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = window.csrfTokenName;
+      input.value = token;
+      form.appendChild(input);
+      return form;
+    };
+
+    window.submitPostForm = function(action, fields, target) {
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = action;
+      form.style.display = 'none';
+      if (target) form.target = target;
+      fields = fields || {};
+      Object.keys(fields).forEach(function(key) {
+        var val = fields[key];
+        if (val === null || val === undefined) return;
+        if (Array.isArray(val)) {
+          val.forEach(function(item) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = item;
+            form.appendChild(input);
+          });
+        } else {
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = val;
+          form.appendChild(input);
+        }
+      });
+      appendCsrfToForm(form);
+      document.body.appendChild(form);
+      form.submit();
+    };
+
+    window.navigateGetDownload = function(baseUrl, params) {
+      var url = baseUrl;
+      var qs = new URLSearchParams();
+      params = params || {};
+      Object.keys(params).forEach(function(k) {
+        if (params[k] !== null && params[k] !== undefined && params[k] !== '') {
+          qs.set(k, params[k]);
+        }
+      });
+      var q = qs.toString();
+      if (q) url += (url.indexOf('?') >= 0 ? '&' : '?') + q;
+      window.location.href = url;
     };
     
     // Auto-include CSRF token in jQuery AJAX requests
@@ -643,14 +707,15 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('departments') ||
         has_module_access('designations') ||
         has_module_access('admin') ||
-        has_module_access('statuses')
+        has_module_access('statuses') ||
+        has_module_access('types')
       );
       ?>
       <?php if(function_exists('is_admin_group') && is_admin_group() && $settings_group_show): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item">
-        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true); ?>
+        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays'], true)); ?>
         <a class="nav-link sidebar-link <?php echo $mobile_settings_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button" aria-expanded="<?php echo $mobile_settings_open ? 'true' : 'false'; ?>">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
@@ -685,6 +750,12 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('statuses'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='statuses'?'active':''; ?>" href="<?php echo site_url('statuses'); ?>"><i class="bi bi-tags me-2"></i>Status Management</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>
             <?php endif; ?>
@@ -692,6 +763,8 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         </div>
       </div>
       <?php endif; ?>
+
+      <?php $this->load->view('partials/sidebar_guide_nav', ['guide_nav_variant' => 'mobile']); ?>
       
       <hr class="my-2 border-secondary">
       <a class="nav-link sidebar-link text-danger" href="<?php echo site_url('logout'); ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>

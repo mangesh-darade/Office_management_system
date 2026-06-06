@@ -16,7 +16,7 @@
       </a>
       <?php endif; ?>
       <?php $is_admin = function_exists('is_admin_group') && is_admin_group(); ?>
-      <?php $can_manage_recruitment = $is_admin || (function_exists('has_module_access') && (has_module_access('recruitment_add') || has_module_access('recruitment'))); ?>
+      <?php $can_manage_recruitment = $is_admin || (function_exists('has_module_access') && (has_module_access('recruitment_jobs') || has_module_access('recruitment_add') || has_module_access('recruitment'))); ?>
       <?php if($can_manage_recruitment): ?>
       <a href="<?php echo site_url('recruitment/create-job'); ?>" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>Post Job

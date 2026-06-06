@@ -5,92 +5,31 @@ class Clients extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','error_handler']);
+        $this->load->helper(['url','form','permission','error_handler','schema_columns','types']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
-        require_module_access('clients', true);
+        require_controller_access('clients', true);
         
         $this->ensure_schema();
         $this->load->model('Client_model','clients');
     }
 
-    private function ensure_schema(){
-        if (!$this->db->table_exists('clients')){
-            $sql = "CREATE TABLE `clients` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `client_code` varchar(50) NOT NULL,
-                `company_name` varchar(255) NOT NULL,
-                `contact_person` varchar(200) DEFAULT NULL,
-                `email` varchar(255) DEFAULT NULL,
-                `phone` varchar(20) DEFAULT NULL,
-                `alternate_phone` varchar(20) DEFAULT NULL,
-                `website` varchar(255) DEFAULT NULL,
-                `demo_url` varchar(255) DEFAULT NULL,
-                `pos_url` varchar(255) DEFAULT NULL,
-                `address` text,
-                `city` varchar(100) DEFAULT NULL,
-                `state` varchar(100) DEFAULT NULL,
-                `country` varchar(100) DEFAULT 'India',
-                `zip_code` varchar(20) DEFAULT NULL,
-                `gstin` varchar(50) DEFAULT NULL,
-                `pan_number` varchar(20) DEFAULT NULL,
-                `industry` varchar(100) DEFAULT NULL,
-                `onboarding_date` date DEFAULT NULL,
-                `client_type` varchar(30) DEFAULT 'company',
-                `account_manager_id` int(11) DEFAULT NULL,
-                `status` varchar(20) DEFAULT 'active',
-                `notes` text,
-                `db_name` varchar(255) DEFAULT NULL,
-                `db_username` varchar(255) DEFAULT NULL,
-                `db_password` varchar(255) DEFAULT NULL,
-                `logo` varchar(255) DEFAULT NULL,
-                `created_by` int(11) DEFAULT NULL,
-                `created_at` datetime DEFAULT NULL,
-                `updated_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uq_client_code` (`client_code`),
-                KEY `idx_status` (`status`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-        if ($this->db->table_exists('clients')){
-            $fields = [
-                'demo_url' => "ALTER TABLE `clients` ADD `demo_url` varchar(255) DEFAULT NULL AFTER `website`",
-                'pos_url' => "ALTER TABLE `clients` ADD `pos_url` varchar(255) DEFAULT NULL AFTER `demo_url`",
-                'onboarding_date' => "ALTER TABLE `clients` ADD `onboarding_date` date DEFAULT NULL AFTER `industry`",
-                'db_name' => "ALTER TABLE `clients` ADD `db_name` varchar(255) DEFAULT NULL AFTER `notes`",
-                'db_username' => "ALTER TABLE `clients` ADD `db_username` varchar(255) DEFAULT NULL AFTER `db_name`",
-                'db_password' => "ALTER TABLE `clients` ADD `db_password` varchar(255) DEFAULT NULL AFTER `db_username`",
-                'db_host' => "ALTER TABLE `clients` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`",
-                'db_port' => "ALTER TABLE `clients` ADD `db_port` varchar(10) DEFAULT NULL AFTER `db_host`",
-            ];
-            foreach ($fields as $field => $sql){
-                if (!$this->db->field_exists($field, 'clients')){
-                    $this->db->query($sql);
-                }
-            }
-        }
-        if (!$this->db->table_exists('client_contacts')){
-            $sql2 = "CREATE TABLE `client_contacts` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `client_id` int(11) NOT NULL,
-                `contact_name` varchar(200) NOT NULL,
-                `designation` varchar(100) DEFAULT NULL,
-                `email` varchar(255) DEFAULT NULL,
-                `phone` varchar(20) DEFAULT NULL,
-                `is_primary` tinyint(1) DEFAULT 0,
-                `department` varchar(100) DEFAULT NULL,
-                `notes` text,
-                `status` varchar(20) DEFAULT 'active',
-                `created_at` datetime DEFAULT NULL,
-                `updated_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                KEY `idx_client` (`client_id`),
-                KEY `idx_primary` (`is_primary`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql2);
-        }
+    private function ensure_schema() {
+        $this->load->helper('clients_schema');
+        clients_schema_ensure($this->db);
+        $this->load->model('Type_model', 'module_types');
+    }
+
+    private function _client_type_options()
+    {
+        return module_type_options_resolved('clients');
+    }
+
+    private function _resolve_client_type($posted)
+    {
+        $type = module_type_validate_code($posted, 'clients', false, 'company');
+        return $type === false ? 'company' : $type;
     }
 
     private function upload_logo($existing = null){
@@ -140,16 +79,20 @@ class Clients extends CI_Controller {
                 $rows = $result['data'];
             }
             
-            $this->load->view('clients/index', ['rows'=>$rows, 'filters'=>$filters]);
+            $this->load->view('clients/index', [
+                'rows'=>$rows,
+                'filters'=>$filters,
+                'client_types'=>$this->_client_type_options(),
+            ]);
             
         } catch (Exception $e) {
             $error_message = handle_database_error($e, 'Unable to load clients list. Please try again.');
             $this->session->set_flashdata('error', $error_message);
-            $this->load->view('clients/index', ['rows'=>[], 'filters'=>[]]);
+            $this->load->view('clients/index', ['rows'=>[], 'filters'=>[], 'client_types'=>$this->_client_type_options()]);
         } catch (Throwable $e) {
             $error_message = handle_database_error($e, 'Unable to load clients list. Please try again.');
             $this->session->set_flashdata('error', $error_message);
-            $this->load->view('clients/index', ['rows'=>[], 'filters'=>[]]);
+            $this->load->view('clients/index', ['rows'=>[], 'filters'=>[], 'client_types'=>$this->_client_type_options()]);
         }
     }
 
@@ -245,7 +188,7 @@ class Clients extends CI_Controller {
                     'pan_number' => trim($this->input->post('pan_number')),
                     'industry' => trim($this->input->post('industry')),
                     'onboarding_date' => $this->input->post('onboarding_date') ?: null,
-                    'client_type' => $this->input->post('client_type') ?: 'company',
+                    'client_type' => $this->_resolve_client_type($this->input->post('client_type')),
                     'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
                     'notes' => trim($this->input->post('notes')),
                     'db_name' => trim($this->input->post('db_name')),
@@ -273,14 +216,12 @@ class Clients extends CI_Controller {
                 
                 $id = $result['data'];
                 if (empty($id) || $id <= 0) {
-                    $this->load->helper('notification');
                     $error_msg = get_notification_message('clients', 'create', 'error');
                     $this->session->set_flashdata('error', $error_msg);
                     redirect('clients/create');
                     return;
                 }
                 
-                $this->load->helper('notification');
                 $success_msg = get_notification_message('clients', 'create', 'success');
                 $this->session->set_flashdata('success', $success_msg);
                 redirect('clients/view/'.$id);
@@ -301,7 +242,10 @@ class Clients extends CI_Controller {
         
         try {
             $managers = $this->clients->get_account_managers();
-            $this->load->view('clients/create', ['managers'=>$managers]);
+            $this->load->view('clients/create', [
+                'managers'=>$managers,
+                'client_types'=>$this->_client_type_options(),
+            ]);
         } catch (Exception $e) {
             $error_message = handle_database_error($e, 'Unable to load client creation form. Please try again.');
             $this->session->set_flashdata('error', $error_message);
@@ -453,7 +397,7 @@ class Clients extends CI_Controller {
                         'pan_number' => trim($this->input->post('pan_number')),
                         'industry' => trim($this->input->post('industry')),
                         'onboarding_date' => $this->input->post('onboarding_date') ?: null,
-                        'client_type' => $this->input->post('client_type') ?: 'company',
+                        'client_type' => $this->_resolve_client_type($this->input->post('client_type')),
                         'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
                         'notes' => trim($this->input->post('notes')),
                         'db_name' => trim($this->input->post('db_name')),
@@ -480,7 +424,6 @@ class Clients extends CI_Controller {
                         return;
                     }
                     
-                    $this->load->helper('notification');
                     $success_msg = get_notification_message('clients', 'update', 'success');
                     $this->session->set_flashdata('success', $success_msg);
                     redirect('clients/view/'.$id);
@@ -500,7 +443,11 @@ class Clients extends CI_Controller {
             }
             
             $managers = $this->clients->get_account_managers();
-            $this->load->view('clients/edit', ['client'=>$c, 'managers'=>$managers]);
+            $this->load->view('clients/edit', [
+                'client'=>$c,
+                'managers'=>$managers,
+                'client_types'=>$this->_client_type_options(),
+            ]);
             
         } catch (Exception $e) {
             $error_message = handle_database_error($e, 'Unable to load client. Please try again.');

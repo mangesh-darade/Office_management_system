@@ -9,7 +9,7 @@ class Status_model extends CI_Model {
         $this->ensure_schema();
     }
     
-    private function ensure_schema(){
+    public function ensure_schema(){
         if (!$this->db->table_exists('statuses')){
             $sql = "CREATE TABLE `statuses` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,

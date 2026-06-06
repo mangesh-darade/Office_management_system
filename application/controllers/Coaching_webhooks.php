@@ -4,14 +4,22 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /**
  * Public webhooks (no login): Razorpay, Twilio WhatsApp inbound.
  */
-class Coaching_webhooks extends CI_Controller {
+class Coaching_webhooks extends Coaching_Controller {
 
     public function __construct()
     {
         parent::__construct();
-        $this->load->database();
-        $this->load->helper(['coaching', 'api_integration']);
-        $this->load->model('Coaching_model', 'coaching');
+        $this->load->helper('api_integration');
+    }
+
+    /**
+     * Webhook endpoints are public; skip coaching RBAC from Coaching_Controller.
+     *
+     * @return bool
+     */
+    protected function coaching_skip_access()
+    {
+        return true;
     }
 
     /**
@@ -58,6 +66,30 @@ class Coaching_webhooks extends CI_Controller {
      */
     public function whatsapp_inbound()
     {
+        $creds = get_whatsapp_credentials();
+        $auth_token = isset($creds['auth_token']) ? (string) $creds['auth_token'] : '';
+
+        if ($auth_token !== '') {
+            $signature = (string) $this->input->get_request_header('X-Twilio-Signature', true);
+            $post_vars = $this->input->post(null, false);
+            if (!is_array($post_vars)) {
+                $post_vars = array();
+            }
+
+            if (!validate_twilio_webhook_signature(
+                $signature,
+                twilio_webhook_request_url(),
+                $post_vars,
+                $auth_token
+            )) {
+                log_message('error', 'Coaching_webhooks: invalid Twilio signature on whatsapp_inbound');
+                $this->output->set_status_header(403);
+                return;
+            }
+        } else {
+            log_message('debug', 'Coaching_webhooks: Twilio auth token not configured; skipping signature check');
+        }
+
         $from = (string) $this->input->post('From');
         $body = trim((string) $this->input->post('Body'));
         $profile = trim((string) $this->input->post('ProfileName'));

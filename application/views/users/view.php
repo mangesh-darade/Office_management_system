@@ -12,7 +12,7 @@
           <a href="<?php echo site_url('users'); ?>" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Back to Users
           </a>
-          <?php if (function_exists('has_module_access') && has_module_access('users_edit')): ?>
+          <?php if (function_exists('has_module_access') && (has_module_access('users_edit') || has_module_access('users'))): ?>
           <a href="<?php echo site_url('users/edit/'.(int)$user->id); ?>" class="btn btn-primary">
             <i class="bi bi-pencil me-1"></i>Edit User
           </a>
@@ -298,7 +298,7 @@
         </div>
         <div class="card-body">
           <div class="d-grid gap-2">
-            <?php if (function_exists('has_module_access') && has_module_access('users_edit')): ?>
+            <?php if (function_exists('has_module_access') && (has_module_access('users_edit') || has_module_access('users'))): ?>
             <a href="<?php echo site_url('users/edit/'.(int)$user->id); ?>" class="btn btn-outline-primary">
               <i class="bi bi-pencil me-2"></i>Edit Profile
             </a>

@@ -732,6 +732,7 @@ function sendSelectedEmails() {
         });
         
         document.body.appendChild(form);
+        if (typeof appendCsrfToForm === 'function') appendCsrfToForm(form);
         form.submit();
     });
 }
@@ -778,6 +779,7 @@ function sendSingleEmail(id) {
         form.appendChild(input);
         
         document.body.appendChild(form);
+        if (typeof appendCsrfToForm === 'function') appendCsrfToForm(form);
         form.submit();
     });
 }

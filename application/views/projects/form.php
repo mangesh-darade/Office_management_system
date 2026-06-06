@@ -39,6 +39,19 @@
           <label class="form-label">Name <span class="text-danger">*</span></label>
           <input required type="text" name="name" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->name) : ''; ?>" placeholder="Website Redesign">
         </div>
+        <?php if (!empty($project_types) && function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'project_type')): ?>
+        <div class="col-md-4">
+          <label class="form-label">Type</label>
+          <?php
+            $curProjectType = (isset($project) && isset($project->project_type)) ? (string) $project->project_type : '';
+            $this->load->view('partials/module_type_select', array(
+              'field_name' => 'project_type',
+              'options' => $project_types,
+              'current' => $curProjectType,
+            ));
+          ?>
+        </div>
+        <?php endif; ?>
         <div class="col-md-4">
           <label class="form-label">Status</label>
           <?php $current_status = isset($project) ? (string)$project->status : 'planned'; ?>

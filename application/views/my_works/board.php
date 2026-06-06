@@ -3,33 +3,9 @@
   $view_mode = 'board';
   $statusLabels = my_works_status_labels();
   $statusColors = my_works_status_colors();
-  $listUrl = site_url('my-works?view=list');
-  $boardUrl = site_url('my-works?view=board');
-  if (!empty($_SERVER['QUERY_STRING'])) {
-    $qs = preg_replace('/(^|&)view=[^&]*/', '', (string) $_SERVER['QUERY_STRING']);
-    $qs = ltrim($qs, '&');
-    if ($qs !== '') {
-      $listUrl .= '&' . $qs;
-      $boardUrl .= '&' . $qs;
-    }
-  }
 ?>
-<div class="container-fluid py-3">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center mb-3 mw-page-header">
-    <div>
-      <h1 class="h4 mb-1 fw-bold"><i class="bi bi-kanban text-primary me-2"></i>My Works Board</h1>
-      <p class="text-muted small mb-0">New &rarr; In Progress &rarr; Closed</p>
-    </div>
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <div class="btn-group btn-group-sm" role="group">
-        <a class="btn btn-outline-primary" href="<?php echo htmlspecialchars($listUrl); ?>"><i class="bi bi-list-ul me-1"></i>List</a>
-        <a class="btn btn-primary" href="<?php echo htmlspecialchars($boardUrl); ?>"><i class="bi bi-kanban me-1"></i>Board</a>
-      </div>
-      <?php if (!empty($can_add)): ?>
-      <a class="btn btn-primary btn-sm" href="<?php echo site_url('my-works/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New Work</a>
-      <?php endif; ?>
-    </div>
-  </div>
+<div class="container-fluid py-3 mw-page">
+  <?php $this->load->view('my_works/_toolbar', array('view_mode' => $view_mode, 'can_add' => !empty($can_add))); ?>
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success py-2"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
@@ -64,10 +40,16 @@
               <div class="mw-board-card-wrap" draggable="true" data-id="<?php echo (int) $r->id; ?>" data-status="<?php echo htmlspecialchars($r->status); ?>">
                 <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-board-card <?php echo $borderClass; ?>">
                   <div class="title"><?php echo htmlspecialchars($r->title); ?></div>
+                  <?php if (!empty($r->work_type) || !empty($r->client_name)): ?>
+                  <div class="d-flex flex-wrap gap-1 mb-1">
+                    <?php if (!empty($r->work_type)): ?><span class="mw-chip mw-chip-type" style="font-size:0.65rem;"><i class="bi bi-tag"></i><?php echo htmlspecialchars(my_works_type_label($r->work_type)); ?></span><?php endif; ?>
+                    <?php if (!empty($r->client_name)): ?><span class="mw-chip mw-chip-client" style="font-size:0.65rem;"><i class="bi bi-building"></i><?php echo htmlspecialchars($r->client_name); ?></span><?php endif; ?>
+                  </div>
+                  <?php endif; ?>
                   <div class="d-flex flex-wrap gap-1 mb-1">
                     <?php if ((int) $r->is_urgent === 1): ?><span class="badge bg-danger">Urgent</span><?php endif; ?>
                     <?php if ((int) $r->is_important === 1): ?><span class="badge bg-warning text-dark">Important</span><?php endif; ?>
-                    <?php if ($overdue): ?><span class="badge bg-danger">Overdue</span><?php endif; ?>
+                    <?php if ($overdue): ?><span class="badge bg-danger-subtle text-danger border">Overdue</span><?php endif; ?>
                     <?php foreach (my_works_parse_tags(isset($r->tag) ? $r->tag : '') as $tg): ?>
                       <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($tg); ?></span>
                     <?php endforeach; ?>

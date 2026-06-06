@@ -10,7 +10,7 @@ class Chats extends CI_Controller {
         $this->load->model('Chat_model');
         
         // RBAC Audit: Centralized module access check
-        require_module_access('chats', true);
+        require_controller_access('chats', true);
         
         $this->_ensure_schema();
     }

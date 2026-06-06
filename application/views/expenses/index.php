@@ -1,5 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Expenses', 'active' => 'expenses']); ?>
-<div class="container-fluid p-0">
+<div class="container-fluid py-3 oms-fluid-pad">
     <div class="row g-2 mb-3">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">

@@ -11,9 +11,9 @@
     <p class="text-muted mb-0 small">Drag and drop tasks to update status</p>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
-    <form method="get" class="d-flex gap-2 flex-wrap">
+    <form method="get" class="d-flex gap-2 flex-wrap oms-filter-row w-100 w-md-auto">
       <?php if(!empty($projects)): ?>
-      <select name="project_id" class="form-select form-select-sm" style="max-width: 150px;" onchange="this.form.submit()">
+      <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="">All Projects</option>
         <?php foreach ($projects as $p): ?>
           <option value="<?php echo $p->id; ?>" <?php echo (isset($filter_project_id) && $filter_project_id == $p->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p->name); ?></option>
@@ -22,7 +22,7 @@
       <?php endif; ?>
       
       <?php if(!empty($assignees)): ?>
-      <select name="assigned_to" class="form-select form-select-sm" style="max-width: 150px;" onchange="this.form.submit()">
+      <select name="assigned_to" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="">All Assignees</option>
         <?php foreach ($assignees as $u): ?>
           <option value="<?php echo $u->id; ?>" <?php echo (isset($filter_assigned_to) && $filter_assigned_to == $u->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($u->name ?: $u->email); ?></option>
@@ -30,7 +30,7 @@
       </select>
       <?php endif; ?>
 
-      <select name="priority" class="form-select form-select-sm" style="max-width: 120px;" onchange="this.form.submit()">
+      <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="">All Priorities</option>
         <?php foreach(['low','medium','high','urgent'] as $pr): ?>
           <option value="<?php echo $pr; ?>" <?php echo (isset($filter_priority) && $filter_priority === $pr) ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option>

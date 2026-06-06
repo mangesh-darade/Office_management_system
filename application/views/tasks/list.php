@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Tasks']); ?>
 <div class="container-fluid py-3">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-list-check text-primary me-2"></i>Tasks</h1>
     <p class="text-muted small mb-0">Track and manage all tasks</p>
@@ -8,6 +8,8 @@
   <div class="d-flex gap-2 mt-2 mt-sm-0">
     <?php if(function_exists('has_module_access') && (has_module_access('tasks_add') || has_module_access('tasks'))): ?>
     <a class="btn btn-primary btn-sm" title="Create" href="<?php echo site_url('tasks/create'); ?>"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">New Task</span></a>
+    <?php endif; ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('tasks_import') || has_module_access('tasks'))): ?>
     <a class="btn btn-outline-secondary btn-sm" title="Import CSV" href="<?php echo site_url('tasks/import'); ?>"><i class="bi bi-upload me-1"></i><span class="d-none d-sm-inline">Import</span></a>
     <?php endif; ?>
     <a class="btn btn-outline-dark btn-sm" title="Board View" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Board</span></a>

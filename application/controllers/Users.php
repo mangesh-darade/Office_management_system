@@ -8,11 +8,11 @@ class Users extends CI_Controller {
         $this->load->model('Face_model', 'faces');
         $this->load->model('Employee_model');
         $this->load->model('Shift_model');
-        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter','schema_columns']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
-        require_module_access('users', true);
+        require_controller_access('users', true);
     }
 
     public function index() {
@@ -130,7 +130,7 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
-        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '') {
+        if (schema_table_has_column($this->db, 'users', 'phone') && $in['phone'] !== '') {
             if (!preg_match('/^[0-9]{10}$/', $in['phone'])) {
                 $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number.');
                 redirect('users/create');
@@ -143,7 +143,7 @@ class Users extends CI_Controller {
             redirect('users/create');
             return;
         }
-        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '' && $this->users->phone_exists($in['phone'])) {
+        if (schema_table_has_column($this->db, 'users', 'phone') && $in['phone'] !== '' && $this->users->phone_exists($in['phone'])) {
             $this->session->set_flashdata('error', 'Mobile number already exists.');
             redirect('users/create');
             return;
@@ -152,7 +152,7 @@ class Users extends CI_Controller {
         $data = $this->_prepare_db_payload($in, true);
         // Handle avatar upload
         $avatarPath = $this->_handle_avatar_upload();
-        if ($avatarPath && $this->db->field_exists('avatar', 'users')) { $data['avatar'] = $avatarPath; }
+        if ($avatarPath && schema_table_has_column($this->db, 'users', 'avatar')) { $data['avatar'] = $avatarPath; }
         
         // Auto-track creation
         $this->load->helper('change_tracker');
@@ -190,7 +190,6 @@ class Users extends CI_Controller {
             }
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
         }
-        $this->load->helper('notification');
         if ($ok) {
             $success_msg = get_notification_message('users', 'create', 'success');
             $this->session->set_flashdata('success', $success_msg);
@@ -271,7 +270,7 @@ class Users extends CI_Controller {
             redirect('users/edit/'.$id);
             return;
         }
-        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '') {
+        if (schema_table_has_column($this->db, 'users', 'phone') && $in['phone'] !== '') {
             if (!preg_match('/^[0-9]{10}$/', $in['phone'])) {
                 $this->session->set_flashdata('error', 'Please enter a valid 10-digit mobile number.');
                 redirect('users/edit/'.$id);
@@ -284,7 +283,7 @@ class Users extends CI_Controller {
             redirect('users/edit/'.$id);
             return;
         }
-        if ($this->db->field_exists('phone', 'users') && $in['phone'] !== '' && $this->users->phone_exists($in['phone'], $id)) {
+        if (schema_table_has_column($this->db, 'users', 'phone') && $in['phone'] !== '' && $this->users->phone_exists($in['phone'], $id)) {
             $this->session->set_flashdata('error', 'Mobile number already exists.');
             redirect('users/edit/'.$id);
             return;
@@ -307,7 +306,7 @@ class Users extends CI_Controller {
         $data = $this->_prepare_db_payload($in, false);
         // Handle avatar upload (replace if new file uploaded)
         $avatarPath = $this->_handle_avatar_upload();
-        if ($avatarPath && $this->db->field_exists('avatar', 'users')) { $data['avatar'] = $avatarPath; }
+        if ($avatarPath && schema_table_has_column($this->db, 'users', 'avatar')) { $data['avatar'] = $avatarPath; }
         
         // Auto-track changes before update
         $this->load->helper('change_tracker');
@@ -351,7 +350,6 @@ class Users extends CI_Controller {
             }
         }
         
-        $this->load->helper('notification');
         if ($ok) {
             $success_msg = get_notification_message('users', 'update', 'success');
             $this->session->set_flashdata('success', $success_msg);
@@ -424,17 +422,17 @@ class Users extends CI_Controller {
         $out = [];
         if ($this->db->table_exists('roles')) {
             $this->db->from('roles');
-            if ($this->db->field_exists('is_active', 'roles')) {
+            if (schema_table_has_column($this->db, 'roles', 'is_active')) {
                 $this->db->where('is_active', 1);
             }
-            if ($this->db->field_exists('sort_order', 'roles')) {
+            if (schema_table_has_column($this->db, 'roles', 'sort_order')) {
                 $this->db->order_by('sort_order', 'ASC');
             }
             $this->db->order_by('id', 'ASC');
             $rows = $this->db->get()->result();
 
             $filterUserGroupOnly = false;
-            if (function_exists('is_user_group') && $this->db->field_exists('group_type', 'roles')) {
+            if (function_exists('is_user_group') && schema_table_has_column($this->db, 'roles', 'group_type')) {
                 // If the currently logged-in user belongs to user group, hide admin-group roles
                 $filterUserGroupOnly = is_user_group();
             }
@@ -477,13 +475,13 @@ class Users extends CI_Controller {
             'name' => $in['name'],
             'email' => $in['email'],
         ];
-        if ($this->db->field_exists('role','users')) { $data['role'] = $in['role']; }
-        if ($this->db->field_exists('role_id','users')) { $data['role_id'] = (int)$in['role_id']; }
-        if ($this->db->field_exists('status','users')) { $data['status'] = $status; }
-        if ($this->db->field_exists('phone','users')) { $data['phone'] = $in['phone']; }
-        if ($this->db->field_exists('is_verified','users')) { $data['is_verified'] = (int)$in['is_verified']; }
+        if (schema_table_has_column($this->db, 'users', 'role')) { $data['role'] = $in['role']; }
+        if (schema_table_has_column($this->db, 'users', 'role_id')) { $data['role_id'] = (int)$in['role_id']; }
+        if (schema_table_has_column($this->db, 'users', 'status')) { $data['status'] = $status; }
+        if (schema_table_has_column($this->db, 'users', 'phone')) { $data['phone'] = $in['phone']; }
+        if (schema_table_has_column($this->db, 'users', 'is_verified')) { $data['is_verified'] = (int)$in['is_verified']; }
         if (!empty($in['password'])) { $data['password_hash'] = password_hash($in['password'], PASSWORD_DEFAULT); }
-        if ($is_create && $this->db->field_exists('created_at','users')) { $data['created_at'] = date('Y-m-d H:i:s'); }
+        if ($is_create && schema_table_has_column($this->db, 'users', 'created_at')) { $data['created_at'] = date('Y-m-d H:i:s'); }
         return $data;
     }
 
@@ -507,7 +505,6 @@ class Users extends CI_Controller {
     }
 
     private function _flash_redirect($ok, $msg, $to) {
-        $this->load->helper('notification');
         if ($ok) { 
             $success_msg = get_notification_message('users', 'delete', 'success');
             $this->session->set_flashdata('success', $success_msg);

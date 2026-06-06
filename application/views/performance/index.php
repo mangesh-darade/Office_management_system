@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Performance Management']); ?>
 <div class="container-fluid py-4">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
         <h1 class="h4 mb-1 fw-bold"><i class="bi bi-award text-primary me-2"></i>Employee Appraisals</h1>
         <p class="text-muted small mb-0">Manage performance reviews and KPI scores</p>
@@ -60,10 +60,10 @@
                         <?php if(function_exists('has_module_access') && (has_module_access('performance_view') || has_module_access('performance'))): ?>
                         <a href="<?php echo site_url('performance/view/'.$p->id); ?>" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
                         <?php endif; ?>
-                        <?php if(function_exists('has_module_access') && has_module_access('performance_edit')): ?>
+                        <?php if(function_exists('has_module_access') && (has_module_access('performance_edit') || has_module_access('performance'))): ?>
                         <a href="<?php echo site_url('performance/edit/'.$p->id); ?>" class="btn btn-sm btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>
                         <?php endif; ?>
-                        <?php if(function_exists('has_module_access') && has_module_access('performance_delete')): ?>
+                        <?php if(function_exists('has_module_access') && (has_module_access('performance_delete') || has_module_access('performance'))): ?>
                         <form method="post" action="<?php echo site_url('performance/delete/'.$p->id); ?>" class="d-inline" onsubmit="return confirm('Delete this appraisal?');">
                             <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>

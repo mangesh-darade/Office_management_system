@@ -1,0 +1,110 @@
+/* In-app user guide — readable typography and screenshots */
+.guide-page {
+  max-width: 1200px;
+}
+
+.guide-module-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.guide-module-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+}
+
+.guide-module-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  background: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.guide-body {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #212529;
+}
+
+.guide-body .guide-h1,
+.guide-body h1.guide-heading {
+  font-size: 1.75rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #0d6efd;
+}
+
+.guide-body .guide-h2,
+.guide-body h2.guide-heading {
+  font-size: 1.35rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: #0d6efd;
+}
+
+.guide-body .guide-h3,
+.guide-body h3.guide-heading {
+  font-size: 1.15rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.guide-body .guide-list {
+  margin-bottom: 1rem;
+  padding-left: 1.25rem;
+}
+
+.guide-body .guide-list li {
+  margin-bottom: 0.35rem;
+}
+
+.guide-body .guide-paragraph {
+  margin-bottom: 0.85rem;
+}
+
+.guide-figure {
+  margin: 1.25rem 0 1.75rem;
+  text-align: center;
+}
+
+.guide-screenshot {
+  max-width: 100%;
+  height: auto;
+  background: #f8f9fa;
+}
+
+.guide-video {
+  max-width: 100%;
+  height: auto;
+  background: #000;
+  max-height: 520px;
+}
+
+.guide-video-figure {
+  background: #f8f9fa;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.guide-table-wrap {
+  font-size: 0.95rem;
+}
+
+.guide-toc .list-group-item.active {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+@media (max-width: 991.98px) {
+  .guide-body {
+    font-size: 1rem;
+  }
+
+  .guide-screenshot {
+    border-radius: 0.375rem;
+  }
+}

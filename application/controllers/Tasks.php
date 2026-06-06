@@ -5,25 +5,13 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
         
         // RBAC Audit: Centralized module access check
         // Allow users with either 'tasks' or 'tasks_list' access
         require_module_access(['tasks', 'tasks_list'], true);
-    }
-
-    /**
-     * Ensure schema - DEPRECATED: Use migrations instead
-     * This method is kept for backward compatibility but should not be used
-     * Run migrations using: php index.php migrate
-     */
-    private function ensure_schema(){
-        // Schema changes have been moved to migrations
-        // See: application/migrations/001_Add_task_schema_fields.php
-        // Run migrations using: php index.php migrate
-        log_message('debug', 'Tasks::ensure_schema() called - consider using migrations instead');
     }
 
     public function index() {
@@ -46,17 +34,17 @@ class Tasks extends CI_Controller {
         $select = ['t.*'];
         // Join projects for name if available
         if ($this->db->table_exists('projects')) {
-            if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+            if (schema_table_has_column($this->db, 'projects', 'name')) { $select[] = 'p.name AS project_name'; }
             $this->db->join('projects p','p.id = t.project_id','left');
         }
         if ($this->db->table_exists('users')) {
             $select[] = 'u.email AS assignee_email';
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
-            if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'u.full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'u.name'; }
             $this->db->join('users u', 'u.id = t.assigned_to', 'left');
         }
-        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
-            if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            if (schema_table_has_column($this->db, 'employees', 'name')) { $select[] = 'e.name AS emp_name'; }
             $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
         }
         $this->db->select(implode(',', $select));
@@ -72,7 +60,7 @@ class Tasks extends CI_Controller {
         if ($project_filter !== '') { $this->db->where('t.project_id', (int)$project_filter); }
         if ($is_admin && $assignee_filter !== '') { $this->db->where('t.assigned_to', (int)$assignee_filter); }
         if ($status_filter !== '') { $this->db->where('t.status', $status_filter); }
-        if ($priority_filter !== '' && $this->db->field_exists('priority','tasks')) { $this->db->where('t.priority', $priority_filter); }
+        if ($priority_filter !== '' && schema_table_has_column($this->db, 'tasks', 'priority')) { $this->db->where('t.priority', $priority_filter); }
         $this->db->order_by('t.id','DESC');
         $tasks = $this->db->get()->result();
 
@@ -83,12 +71,12 @@ class Tasks extends CI_Controller {
         }
         $assignees = [];
         if ($is_admin) {
-            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+            if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
                 $sel = ['users.id','users.email'];
-                $hasEmpName3 = $this->db->field_exists('name','employees');
+                $hasEmpName3 = schema_table_has_column($this->db, 'employees', 'name');
                 if ($hasEmpName3) { $sel[] = 'employees.name AS emp_name'; }
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'users.full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'users.name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'users.full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'users.name'; }
                 $this->db->select(implode(',', $sel))
                          ->from('users')
                          ->join('employees','employees.user_id = users.id','left');
@@ -100,8 +88,8 @@ class Tasks extends CI_Controller {
                 $assignees = $this->db->get()->result();
             } else if ($this->db->table_exists('users')) {
                 $sel = ['id','email'];
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
                 $assignees = $this->db->select(implode(',', $sel))->from('users')->order_by('email','ASC')->get()->result();
             }
         }
@@ -181,7 +169,7 @@ class Tasks extends CI_Controller {
                 }
             }
             // Optional attachment
-            if ($this->db->field_exists('attachment_path', 'tasks') && !empty($_FILES['attachment']['name'])) {
+            if (schema_table_has_column($this->db, 'tasks', 'attachment_path') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/tasks/';
                 if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $this->load->library('upload');
@@ -242,7 +230,6 @@ class Tasks extends CI_Controller {
                     'send_at' => date('Y-m-d H:i:00')
                 ]);
             }
-            $this->load->helper('notification');
             $success_msg = get_notification_message('tasks', 'create', 'success');
             $this->session->set_flashdata('success', $success_msg);
             redirect('tasks/'.$id);
@@ -264,11 +251,11 @@ class Tasks extends CI_Controller {
         // Check if requirement_id is passed via query string
         $preselected_requirement = $this->input->get('requirement_id') ? (int)$this->input->get('requirement_id') : null;
         // Prefer employee name when available
-        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
             $select = ['users.id','users.email'];
-            if ($this->db->field_exists('name','users')) { $select[] = 'users.name'; }
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'users.full_name'; }
-            $hasEmpName = $this->db->field_exists('name','employees');
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'users.name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'users.full_name'; }
+            $hasEmpName = schema_table_has_column($this->db, 'employees', 'name');
             if ($hasEmpName) { $select[] = 'employees.name AS emp_name'; }
             $this->db->select(implode(',', $select))
                      ->from('users')
@@ -281,8 +268,8 @@ class Tasks extends CI_Controller {
             $users = $this->db->get()->result();
         } else {
             $userSelect = ['id','email'];
-            if ($this->db->field_exists('full_name','users')) { $userSelect[] = 'full_name'; }
-            if ($this->db->field_exists('name','users')) { $userSelect[] = 'name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $userSelect[] = 'full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $userSelect[] = 'name'; }
             $users = $this->db->select(implode(',', $userSelect))
                               ->from('users')
                               ->order_by('email','ASC')
@@ -305,34 +292,34 @@ class Tasks extends CI_Controller {
         
         // Join projects for name if available
         if ($this->db->table_exists('projects')) {
-            if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+            if (schema_table_has_column($this->db, 'projects', 'name')) { $select[] = 'p.name AS project_name'; }
             $this->db->join('projects p','p.id = t.project_id','left');
         }
         
         // Join users for assignee info
         if ($this->db->table_exists('users')) {
             $select[] = 'u.email AS assignee_email';
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
-            if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'u.full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'u.name'; }
             $this->db->join('users u', 'u.id = t.assigned_to', 'left');
         }
         
         // Join employees for assignee employee name
-        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
-            if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            if (schema_table_has_column($this->db, 'employees', 'name')) { $select[] = 'e.name AS emp_name'; }
             $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
         }
         
         // Join users for creator info
         if ($this->db->table_exists('users')) {
             $select[] = 'cu.email AS creator_email';
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'cu.full_name AS creator_full_name'; }
-            if ($this->db->field_exists('name','users')) { $select[] = 'cu.name AS creator_name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'cu.full_name AS creator_full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'cu.name AS creator_name'; }
             $this->db->join('users cu', 'cu.id = t.created_by', 'left');
         }
         
         // Join requirements if requirement_id exists
-        if ($this->db->table_exists('requirements') && $this->db->field_exists('requirement_id', 'tasks')) {
+        if ($this->db->table_exists('requirements') && schema_table_has_column($this->db, 'tasks', 'requirement_id')) {
             $select[] = 'r.id AS requirement_id';
             $select[] = 'r.req_number AS requirement_number';
             $select[] = 'r.title AS requirement_title';
@@ -493,34 +480,34 @@ class Tasks extends CI_Controller {
         
         // Join projects for name if available
         if ($this->db->table_exists('projects')) {
-            if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+            if (schema_table_has_column($this->db, 'projects', 'name')) { $select[] = 'p.name AS project_name'; }
             $this->db->join('projects p','p.id = t.project_id','left');
         }
         
         // Join users for assignee info
         if ($this->db->table_exists('users')) {
             $select[] = 'u.email AS assignee_email';
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
-            if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'u.full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'u.name'; }
             $this->db->join('users u', 'u.id = t.assigned_to', 'left');
         }
         
         // Join employees for assignee employee name
-        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
-            if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            if (schema_table_has_column($this->db, 'employees', 'name')) { $select[] = 'e.name AS emp_name'; }
             $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
         }
         
         // Join users for creator info
         if ($this->db->table_exists('users')) {
             $select[] = 'cu.email AS creator_email';
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'cu.full_name AS creator_full_name'; }
-            if ($this->db->field_exists('name','users')) { $select[] = 'cu.name AS creator_name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'cu.full_name AS creator_full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'cu.name AS creator_name'; }
             $this->db->join('users cu', 'cu.id = t.created_by', 'left');
         }
         
         // Join requirements if requirement_id exists
-        if ($this->db->table_exists('requirements') && $this->db->field_exists('requirement_id', 'tasks')) {
+        if ($this->db->table_exists('requirements') && schema_table_has_column($this->db, 'tasks', 'requirement_id')) {
             $select[] = 'r.id AS requirement_id';
             $select[] = 'r.req_number AS requirement_number';
             $select[] = 'r.title AS requirement_title';
@@ -607,11 +594,11 @@ class Tasks extends CI_Controller {
                 $data['project_ids'] = $project_ids_json;
             }
             // Only set updated_by if the column exists in tasks table
-            if ($this->db->field_exists('updated_by', 'tasks')) {
+            if (schema_table_has_column($this->db, 'tasks', 'updated_by')) {
                 $data['updated_by'] = $user_id;
             }
             // Optional new attachment
-            if ($this->db->field_exists('attachment_path', 'tasks') && !empty($_FILES['attachment']['name'])) {
+            if (schema_table_has_column($this->db, 'tasks', 'attachment_path') && !empty($_FILES['attachment']['name'])) {
                 $upload_path = FCPATH.'uploads/tasks/';
                 if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
                 $this->load->library('upload');
@@ -641,7 +628,6 @@ class Tasks extends CI_Controller {
                 if (!empty($db_error['message'])) {
                     log_message('error', 'Task update error: '.$db_error['message']);
                 }
-                $this->load->helper('notification');
                 $error_msg = get_notification_message('tasks', 'update', 'error');
                 $this->session->set_flashdata('error', $error_msg);
                 redirect('tasks/'.$id.'/edit');
@@ -714,7 +700,6 @@ class Tasks extends CI_Controller {
                 }
             }
             
-            $this->load->helper('notification');
             $success_msg = get_notification_message('tasks', 'update', 'success');
             $this->session->set_flashdata('success', $success_msg);
             redirect('tasks/'.$id);
@@ -737,11 +722,11 @@ class Tasks extends CI_Controller {
         }
         
         // Load users
-        if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
             $select = ['users.id','users.email'];
-            if ($this->db->field_exists('name','users')) { $select[] = 'users.name'; }
-            if ($this->db->field_exists('full_name','users')) { $select[] = 'users.full_name'; }
-            $hasEmpName2 = $this->db->field_exists('name','employees');
+            if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'users.name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'users.full_name'; }
+            $hasEmpName2 = schema_table_has_column($this->db, 'employees', 'name');
             if ($hasEmpName2) { $select[] = 'employees.name AS emp_name'; }
             $this->db->select(implode(',', $select))
                      ->from('users')
@@ -754,8 +739,8 @@ class Tasks extends CI_Controller {
             $users = $this->db->get()->result();
         } else {
             $userSelect = ['id','email'];
-            if ($this->db->field_exists('full_name','users')) { $userSelect[] = 'full_name'; }
-            if ($this->db->field_exists('name','users')) { $userSelect[] = 'name'; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) { $userSelect[] = 'full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')) { $userSelect[] = 'name'; }
             $users = $this->db->select(implode(',', $userSelect))
                               ->from('users')
                               ->order_by('email','ASC')
@@ -805,7 +790,6 @@ class Tasks extends CI_Controller {
         $description = 'Task deleted' . ($task && isset($task->title) ? ': ' . $task->title : '');
         auto_log_delete('tasks', 'tasks', (int)$id, $old_data, $description);
         
-        $this->load->helper('notification');
         $success_msg = get_notification_message('tasks', 'delete', 'success');
         $this->session->set_flashdata('success', $success_msg);
         redirect('tasks');
@@ -829,17 +813,17 @@ class Tasks extends CI_Controller {
             $this->db->from('tasks t');
             $select = ['t.*'];
             if ($this->db->table_exists('projects')) {
-                if ($this->db->field_exists('name','projects')) { $select[] = 'p.name AS project_name'; }
+                if (schema_table_has_column($this->db, 'projects', 'name')) { $select[] = 'p.name AS project_name'; }
                 $this->db->join('projects p','p.id = t.project_id','left');
             }
             if ($this->db->table_exists('users')) {
                 $select[] = 'u.email AS assignee_email';
-                if ($this->db->field_exists('full_name','users')) { $select[] = 'u.full_name'; }
-                if ($this->db->field_exists('name','users')) { $select[] = 'u.name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'u.full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'u.name'; }
                 $this->db->join('users u', 'u.id = t.assigned_to', 'left');
             }
-            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
-                if ($this->db->field_exists('name','employees')) { $select[] = 'e.name AS emp_name'; }
+            if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+                if (schema_table_has_column($this->db, 'employees', 'name')) { $select[] = 'e.name AS emp_name'; }
                 $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
             }
             $this->db->select(implode(',', $select));
@@ -857,7 +841,7 @@ class Tasks extends CI_Controller {
             if ($is_admin && $assignee_filter !== '') { 
                 $this->db->where('t.assigned_to', (int)$assignee_filter); 
             }
-            if ($priority_filter !== '' && $this->db->field_exists('priority','tasks')) { 
+            if ($priority_filter !== '' && schema_table_has_column($this->db, 'tasks', 'priority')) { 
                 $this->db->where('t.priority', $priority_filter); 
             }
             
@@ -873,12 +857,12 @@ class Tasks extends CI_Controller {
         
         $assignees = [];
         if ($is_admin) {
-            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+            if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
                 $sel = ['users.id','users.email'];
-                $hasEmpName3 = $this->db->field_exists('name','employees');
+                $hasEmpName3 = schema_table_has_column($this->db, 'employees', 'name');
                 if ($hasEmpName3) { $sel[] = 'employees.name AS emp_name'; }
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'users.full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'users.name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'users.full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'users.name'; }
                 $this->db->select(implode(',', $sel))
                          ->from('users')
                          ->join('employees','employees.user_id = users.id','left');
@@ -890,8 +874,8 @@ class Tasks extends CI_Controller {
                 $assignees = $this->db->get()->result();
             } else if ($this->db->table_exists('users')) {
                 $sel = ['id','email'];
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
                 $assignees = $this->db->select(implode(',', $sel))->from('users')->order_by('email','ASC')->get()->result();
             }
         }
@@ -1021,6 +1005,8 @@ class Tasks extends CI_Controller {
     // GET/POST /tasks/import
     public function import()
     {
+        require_module_access(['tasks_import', 'tasks'], true);
+
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }

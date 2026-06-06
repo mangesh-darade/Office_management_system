@@ -6,13 +6,14 @@ class Settings extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->library(['session','upload','email']);
-        $this->load->helper(['url','form','activity','permission']);
+        $this->load->helper(['url','form','activity','permission','schema_columns','types']);
         $this->load->model('Setting_model','settings');
         $this->load->model('Leave_type_model','leave_types');
         $this->load->model('Holiday_model','holidays');
+        $this->load->model('Type_model','module_types');
         
         // RBAC Audit: Centralized module access check
-        require_module_access(['settings', 'leave_types', 'holidays'], true);
+        require_module_access(['settings', 'leave_types', 'holidays', 'types'], true);
         
         $this->ensure_leave_types_schema();
         $this->ensure_holidays_schema();
@@ -21,10 +22,10 @@ class Settings extends CI_Controller {
     private function ensure_leave_types_schema(){
         // Add status and deleted_at columns if they don't exist
         if ($this->db->table_exists('leave_types')) {
-            if (!$this->db->field_exists('status', 'leave_types')) {
+            if (!schema_table_has_column($this->db, 'leave_types', 'status')) {
                 $this->db->query("ALTER TABLE leave_types ADD COLUMN status ENUM('active','inactive') DEFAULT 'active' AFTER is_paid");
             }
-            if (!$this->db->field_exists('deleted_at', 'leave_types')) {
+            if (!schema_table_has_column($this->db, 'leave_types', 'deleted_at')) {
                 $this->db->query("ALTER TABLE leave_types ADD COLUMN deleted_at DATETIME NULL AFTER status");
             }
             // Update existing records to active if status is null
@@ -51,13 +52,13 @@ class Settings extends CI_Controller {
             ");
         } else {
             // Ensure required columns exist
-            if (!$this->db->field_exists('status', 'holidays')) {
+            if (!schema_table_has_column($this->db, 'holidays', 'status')) {
                 $this->db->query("ALTER TABLE holidays ADD COLUMN status ENUM('active','inactive') NOT NULL DEFAULT 'active' AFTER name");
             }
-            if (!$this->db->field_exists('created_at', 'holidays')) {
+            if (!schema_table_has_column($this->db, 'holidays', 'created_at')) {
                 $this->db->query("ALTER TABLE holidays ADD COLUMN created_at DATETIME NULL AFTER status");
             }
-            if (!$this->db->field_exists('updated_at', 'holidays')) {
+            if (!schema_table_has_column($this->db, 'holidays', 'updated_at')) {
                 $this->db->query("ALTER TABLE holidays ADD COLUMN updated_at DATETIME NULL AFTER created_at");
             }
         }
@@ -71,7 +72,7 @@ class Settings extends CI_Controller {
         // Get all active users for HR dropdown
         $this->db->select('u.id, u.name, u.email');
         $this->db->from('users u');
-        if ($this->db->field_exists('status', 'users')) {
+        if (schema_table_has_column($this->db, 'users', 'status')) {
             $this->db->where('u.status', 'active');
         }
         $this->db->order_by('u.name', 'ASC');
@@ -236,6 +237,16 @@ class Settings extends CI_Controller {
         foreach ($checkbox_fields as $field) {
             $data[$field] = isset($data[$field]) ? $data[$field] : 'no';
         }
+
+        // Keep legacy security keys in sync with settings UI field names.
+        if ($form_section === 'security_2fa')
+        {
+            $data['security_2fa_enabled'] = isset($data['security_enable_2fa']) ? $data['security_enable_2fa'] : 'no';
+        }
+        if ($form_section === 'security_ip')
+        {
+            $data['security_ip_whitelist_enabled'] = isset($data['security_enable_ip_whitelist']) ? $data['security_enable_ip_whitelist'] : 'no';
+        }
         
         // Get old settings before update and track changes
         $old_settings = [];
@@ -264,7 +275,6 @@ class Settings extends CI_Controller {
             log_activity_with_changes('settings', 'updated', null, $old_settings, $data, $description);
         }
         
-        $this->load->helper('notification');
         $success_msg = get_notification_message('settings', 'update', 'success');
         $this->session->set_flashdata('success', $success_msg);
         redirect('settings');
@@ -660,5 +670,113 @@ class Settings extends CI_Controller {
         }
         
         redirect('settings/leave-types');
+    }
+
+    // GET /settings/types
+    public function module_types()
+    {
+        require_module_access(['types', 'settings'], true);
+        $module = trim((string) $this->input->get('module'));
+        $types = $this->module_types->get_all($module !== '' ? $module : null, false);
+        $this->load->view('settings/module_types/index', array(
+            'types'           => $types,
+            'modules'         => $this->module_types->registry_modules(),
+            'selected_module' => $module !== '' ? $module : null,
+        ));
+    }
+
+    // GET/POST /settings/types/create
+    public function module_types_create()
+    {
+        require_module_access(['types', 'settings'], true);
+        if ($this->input->method() === 'post') {
+            $data = array(
+                'name'          => trim((string) $this->input->post('name')),
+                'code'          => trim((string) $this->input->post('code')),
+                'module'        => trim((string) $this->input->post('module')),
+                'display_order' => $this->input->post('display_order') !== '' ? (int) $this->input->post('display_order') : 0,
+                'is_active'     => $this->input->post('is_active') ? 1 : 0,
+                'description'   => trim((string) $this->input->post('description')) ?: null,
+            );
+            if ($data['name'] === '' || $data['code'] === '' || $data['module'] === '') {
+                $this->session->set_flashdata('error', 'Name, code, and module are required.');
+                redirect('settings/types/create');
+                return;
+            }
+            $existing = $this->module_types->get_by_code($data['code'], $data['module']);
+            if ($existing) {
+                $this->session->set_flashdata('error', 'Type code already exists for this module.');
+                redirect('settings/types/create');
+                return;
+            }
+            $id = $this->module_types->create($data);
+            if (function_exists('log_activity')) {
+                log_activity('module_types', 'created', (int) $id, 'Type: ' . $data['name']);
+            }
+            $this->session->set_flashdata('success', 'Type created successfully.');
+            redirect('settings/types');
+            return;
+        }
+        $this->load->view('settings/module_types/form', array(
+            'action'  => 'create',
+            'modules' => $this->module_types->registry_modules(),
+        ));
+    }
+
+    // GET/POST /settings/types/{id}/edit
+    public function module_types_edit($id)
+    {
+        require_module_access(['types', 'settings'], true);
+        $type = $this->module_types->get_by_id((int) $id);
+        if (!$type) {
+            show_404();
+        }
+        if ($this->input->method() === 'post') {
+            $data = array(
+                'name'          => trim((string) $this->input->post('name')),
+                'code'          => trim((string) $this->input->post('code')),
+                'module'        => trim((string) $this->input->post('module')),
+                'display_order' => $this->input->post('display_order') !== '' ? (int) $this->input->post('display_order') : 0,
+                'is_active'     => $this->input->post('is_active') ? 1 : 0,
+                'description'   => trim((string) $this->input->post('description')) ?: null,
+            );
+            $existing = $this->module_types->get_by_code($data['code'], $data['module']);
+            if ($existing && (int) $existing->id !== (int) $id) {
+                $this->session->set_flashdata('error', 'Type code already exists for this module.');
+                redirect('settings/types/' . (int) $id . '/edit');
+                return;
+            }
+            $this->module_types->update((int) $id, $data);
+            if (function_exists('log_activity')) {
+                log_activity('module_types', 'updated', (int) $id, 'Type: ' . $data['name']);
+            }
+            $this->session->set_flashdata('success', 'Type updated successfully.');
+            redirect('settings/types');
+            return;
+        }
+        $this->load->view('settings/module_types/form', array(
+            'action'  => 'edit',
+            'type'    => $type,
+            'modules' => $this->module_types->registry_modules(),
+        ));
+    }
+
+    // POST /settings/types/{id}/delete
+    public function module_types_delete($id)
+    {
+        require_module_access(['types', 'settings'], true);
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+        }
+        $type = $this->module_types->get_by_id((int) $id);
+        if (!$type) {
+            show_404();
+        }
+        $this->module_types->delete((int) $id);
+        if (function_exists('log_activity')) {
+            log_activity('module_types', 'deleted', (int) $id, 'Type removed');
+        }
+        $this->session->set_flashdata('success', 'Type deleted successfully.');
+        redirect('settings/types');
     }
 }

@@ -5,7 +5,7 @@ class Payroll extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','hierarchy_filter','workday']);
+        $this->load->helper(['url','form','permission','hierarchy_filter','workday','schema_columns']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -181,8 +181,9 @@ class Payroll extends CI_Controller {
             $pdfPath = '';
             $pdfName = '';
             
-            // Try dompdf first, then fallback to native PDF generator, then HTML file
-            if (class_exists('\\Dompdf\\Dompdf')){
+            // Try Dompdf first, then fallback to Working PDF generator, then HTML file
+            $this->load->library('pdf_export');
+            if ($this->pdf_export->dompdf_available()) {
                 $pdf_method = 'DomPDF';
                 $viewData = [
                     'row' => $row,
@@ -192,18 +193,14 @@ class Payroll extends CI_Controller {
                     'full_width' => true,
                 ];
                 $html = $this->load->view('payroll/payslip_view', $viewData, true);
-                $dompdf = new \Dompdf\Dompdf();
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4', 'portrait');
-                $dompdf->render();
-                $output = $dompdf->output();
                 $pdfName = 'payslip-'.$id.'.pdf';
                 $pdfPath = $pdfDir.$pdfName;
-                @file_put_contents($pdfPath, $output);
-            } elseif (file_exists(APPPATH.'libraries/Working_pdf_generator.php')) {
+                if (!$this->pdf_export->html_to_pdf_file($html, $pdfPath, 'A4', 'portrait')) {
+                    $pdfPath = '';
+                    $pdfName = '';
+                }
+            } elseif (($gen = $this->pdf_export->working_generator()) !== null) {
                 $pdf_method = 'Working PDF Generator';
-                // Use working PDF generator
-                $this->load->library('working_pdf_generator');
                 
                 // Extract payslip data
                 $fn = isset($row->first_name) ? trim((string)$row->first_name) : '';
@@ -213,24 +210,24 @@ class Payroll extends CI_Controller {
                     $empName = isset($row->name) ? (string)$row->name : (string)$row->email;
                 }
                 
-                $this->working_pdf_generator->setTitle('Payslip - '.$label);
-                $this->working_pdf_generator->setAuthor($company_name);
+                $gen->setTitle('Payslip - '.$label);
+                $gen->setAuthor($company_name);
                 
                 // Header
-                $this->working_pdf_generator->addText('Salary Slip', 16, true);
-                $this->working_pdf_generator->addText($label, 14);
-                $this->working_pdf_generator->addSeparator();
+                $gen->addText('Salary Slip', 16, true);
+                $gen->addText($label, 14);
+                $gen->addSeparator();
                 
                 // Employee details
-                $this->working_pdf_generator->addText('Employee Details', 14, true);
-                $this->working_pdf_generator->addLine('Name:', $empName);
-                $this->working_pdf_generator->addLine('Employee Code:', isset($row->emp_code) ? (string)$row->emp_code : '');
-                $this->working_pdf_generator->addLine('Department:', isset($row->department) ? (string)$row->department : '');
-                $this->working_pdf_generator->addLine('Designation:', isset($row->designation) ? (string)$row->designation : '');
-                $this->working_pdf_generator->addSeparator();
+                $gen->addText('Employee Details', 14, true);
+                $gen->addLine('Name:', $empName);
+                $gen->addLine('Employee Code:', isset($row->emp_code) ? (string)$row->emp_code : '');
+                $gen->addLine('Department:', isset($row->department) ? (string)$row->department : '');
+                $gen->addLine('Designation:', isset($row->designation) ? (string)$row->designation : '');
+                $gen->addSeparator();
                 
                 // Salary details
-                $this->working_pdf_generator->addText('Salary Details', 14, true);
+                $gen->addText('Salary Details', 14, true);
                 
                 $headers = ['Component', 'Amount'];
                 $salary_data = [];
@@ -280,10 +277,10 @@ class Payroll extends CI_Controller {
                 }
                 
                 if (!empty($salary_data)) {
-                    $this->working_pdf_generator->addTable($headers, $salary_data);
+                    $gen->addTable($headers, $salary_data);
                 }
                 
-                $output = $this->working_pdf_generator->output();
+                $output = $gen->output();
                 $pdfName = 'payslip-'.$id.'.pdf';
                 $pdfPath = $pdfDir.$pdfName;
                 @file_put_contents($pdfPath, $output);
@@ -457,7 +454,8 @@ class Payroll extends CI_Controller {
 
         // 1) Try to use latest payslip for bank / PAN / location defaults
         if ($this->db->table_exists('payslips')){
-            $order_col = $this->db->field_exists('pay_period', 'payslips') ? 'pay_period' : 'period';
+            $psCols = payslip_schema_columns($this->db);
+            $order_col = $psCols['period_col'];
             $row = $this->db
                 ->from('payslips')
                 ->where('user_id', $user_id)
@@ -623,8 +621,9 @@ class Payroll extends CI_Controller {
             if ($row) { $rows[] = $row; }
         } else {
             $month = $this->input->get('month') ? $this->input->get('month') : date('Y-m');
-            $period_col = $this->db->field_exists('pay_period', 'payslips') ? 'pay_period' : 'period';
-            $user_col   = $this->db->field_exists('employee_id', 'payslips') ? 'employee_id' : 'user_id';
+            $psCols = payslip_schema_columns($this->db);
+            $period_col = $psCols['period_col'];
+            $user_col   = $psCols['user_col'];
             $this->db->select('ps.*, u.name as employee_name, u.email as employee_email');
             if ($period_col !== 'pay_period') { $this->db->select("ps.{$period_col} as pay_period"); }
             $this->db->from('payslips ps');

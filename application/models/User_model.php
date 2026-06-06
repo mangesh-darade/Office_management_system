@@ -1,7 +1,10 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 class User_model extends CI_Model {
+    use Schema_columns_trait;
     private $table = 'users';
 
     public function __construct(){
@@ -11,12 +14,12 @@ class User_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema(){
+    public function ensure_schema(){
         static $done = false;
         if ($done) { return; }
         $done = true;
         if ($this->db->table_exists($this->table)){
-            if (!$this->db->field_exists('notify_attendance', $this->table)){
+            if (!$this->has_column('notify_attendance')){
                 $this->db->query("ALTER TABLE `".$this->table."` ADD `notify_attendance` TINYINT(1) NOT NULL DEFAULT 1");
             }
         }
@@ -27,7 +30,7 @@ class User_model extends CI_Model {
     }
 
     public function get_by_phone($phone){
-        if (!$this->db->field_exists('phone', $this->table)){
+        if (!$this->has_column('phone')){
             return null;
         }
         return $this->db->get_where($this->table, ['phone' => $phone])->row();
@@ -46,7 +49,7 @@ class User_model extends CI_Model {
         } else {
             // For non-email, check both phone and email fields
             $this->db->group_start();
-            if ($this->db->field_exists('phone', $this->table)) {
+            if ($this->has_column('phone')) {
                 $this->db->where('phone', $identifier);
             }
             $this->db->or_where('email', $identifier);
@@ -85,10 +88,10 @@ class User_model extends CI_Model {
      */
     public function get_all($limit = 1000){
         $this->db->from($this->table);
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('status !=', 'inactive');
         }
-        if ($this->db->field_exists('first_name', $this->table)){
+        if ($this->has_column('first_name')){
             $this->db->order_by('first_name', 'ASC');
         } else {
             $this->db->order_by('name', 'ASC');
@@ -105,14 +108,14 @@ class User_model extends CI_Model {
     public function list_for_training_assign_dropdown($limit = 15000)
     {
         $this->db->from($this->table);
-        if ($this->db->field_exists('status', $this->table)) {
+        if ($this->has_column('status')) {
             $this->db->where('status !=', 'inactive');
         }
-        if ($this->db->field_exists('name', $this->table)) {
+        if ($this->has_column('name')) {
             $this->db->order_by('name', 'ASC');
-        } elseif ($this->db->field_exists('first_name', $this->table)) {
+        } elseif ($this->has_column('first_name')) {
             $this->db->order_by('first_name', 'ASC');
-            if ($this->db->field_exists('last_name', $this->table)) {
+            if ($this->has_column('last_name')) {
                 $this->db->order_by('last_name', 'ASC');
             }
         }
@@ -124,7 +127,7 @@ class User_model extends CI_Model {
     public function list_users($q = '', $limit = 250, $roleIds = null, $userId = null){
         $this->db->from($this->table);
         // Hide soft-deleted users from the grid if status column exists
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('status !=', 'inactive');
         }
         if ($userId !== null){
@@ -134,7 +137,7 @@ class User_model extends CI_Model {
             apply_role_hierarchy_filter($this->db, 'id');
         }
         // Optional role-based filter (used to scope list by group type)
-        if (is_array($roleIds) && !empty($roleIds) && $this->db->field_exists('role_id', $this->table)){
+        if (is_array($roleIds) && !empty($roleIds) && $this->has_column('role_id')){
             $roleIds = array_map('intval', $roleIds);
             $this->db->where_in('role_id', $roleIds);
         }
@@ -159,7 +162,7 @@ class User_model extends CI_Model {
     }
 
     public function phone_exists($phone, $exclude_id = null){
-        if (!$this->db->field_exists('phone', $this->table)){
+        if (!$this->has_column('phone')){
             return false;
         }
         $this->db->from($this->table);
@@ -178,7 +181,7 @@ class User_model extends CI_Model {
 
     public function delete($id){
         // Prefer soft delete to avoid FK constraint errors
-        if ($this->db->field_exists('status', $this->table)){
+        if ($this->has_column('status')){
             $this->db->where('id', (int)$id);
             return $this->db->update($this->table, array('status' => 'inactive'));
         }

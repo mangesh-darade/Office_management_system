@@ -15,6 +15,13 @@ if (!function_exists('has_module_access')) {
 
         $key = strtolower(trim((string)$module));
 
+        // Legacy controller keys → grant when parent module is allowed
+        if ($key === 'assets_mgmt') {
+            if (has_module_access('assets') || has_module_access('assets_manage')) {
+                return true;
+            }
+        }
+
         // Build permission cache once per request
         if ($cache === null) {
             $cache = array();
@@ -92,6 +99,8 @@ if (!function_exists('get_dashboard_module_groups')) {
         return [
             'employees' => [
                 'employees', 'employees_list', 'employees_add', 'employees_edit', 'employees_delete',
+                'employees_view', 'employees_view_all', 'employees_edit_all', 'employees_delete_all',
+                'employees_documents', 'employees_import',
             ],
             'projects' => [
                 'projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete',
@@ -101,7 +110,7 @@ if (!function_exists('get_dashboard_module_groups')) {
             ],
             'attendance' => [
                 'attendance', 'attendance_list', 'attendance_add', 'attendance_edit',
-                'attendance_delete', 'attendance_view_all', 'attendance_bulk',
+                'attendance_delete', 'attendance_view_all', 'attendance_bulk', 'attendance_export',
             ],
             'leaves' => [
                 'leaves', 'leaves_list', 'leaves_add', 'leaves_edit', 'leaves_delete',
@@ -206,13 +215,13 @@ if (!function_exists('seed_coaching_defaults_if_needed')) {
                     'id'   => $role_id,
                     'name' => 'Coaching Client',
                 );
-                if ($CI->db->field_exists('group_type', 'roles')) {
+                if (schema_table_has_column($CI->db, 'roles', 'group_type')) {
                     $row['group_type'] = 'user';
                 }
-                if ($CI->db->field_exists('is_active', 'roles')) {
+                if (schema_table_has_column($CI->db, 'roles', 'is_active')) {
                     $row['is_active'] = 1;
                 }
-                if ($CI->db->field_exists('sort_order', 'roles')) {
+                if (schema_table_has_column($CI->db, 'roles', 'sort_order')) {
                     $row['sort_order'] = $role_id;
                 }
                 $CI->db->insert('roles', $row);
@@ -260,6 +269,47 @@ if (!function_exists('seed_coaching_defaults_if_needed')) {
     }
 }
 
+if (!function_exists('seed_guide_permission_if_needed')) {
+    /**
+     * Grant User Guide to all roles by default (read-only help for every logged-in user).
+     */
+    function seed_guide_permission_if_needed()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions') || !$CI->db->table_exists('roles')) {
+            return;
+        }
+
+        $roles = $CI->db->select('id')->from('roles')->get()->result();
+        foreach ($roles as $role) {
+            $role_id = (int) $role->id;
+            if ($role_id <= 0) {
+                continue;
+            }
+            $exists = $CI->db
+                ->where('role_id', $role_id)
+                ->where('module', 'guide')
+                ->limit(1)
+                ->get('permissions')
+                ->row();
+            if ($exists) {
+                continue;
+            }
+            $CI->db->insert('permissions', [
+                'role_id'    => $role_id,
+                'module'     => 'guide',
+                'can_access' => 1,
+            ]);
+        }
+    }
+}
+
 if (!function_exists('get_accessible_modules')) {
     function get_accessible_modules($normalize_for_dashboard = false) {
         $CI =& get_instance();
@@ -300,6 +350,270 @@ if (!function_exists('can_access_any_module')) {
         }
         
         return false;
+    }
+}
+
+if (!function_exists('get_attendance_export_module_keys')) {
+    /**
+     * Permission keys that allow exporting attendance from the list screen.
+     */
+    function get_attendance_export_module_keys() {
+        return [
+            'attendance_export',
+            'attendance',
+            'attendance_list',
+            'attendance_view_all',
+            'reports_attendance',
+            'reports_attendance_employee',
+        ];
+    }
+}
+
+if (!function_exists('can_access_attendance_export')) {
+    function can_access_attendance_export() {
+        if (function_exists('is_admin_group') && is_admin_group()) {
+            return true;
+        }
+        return can_access_any_module(get_attendance_export_module_keys());
+    }
+}
+
+if (!function_exists('seed_attendance_export_if_needed')) {
+    /**
+     * Grant attendance_export to roles that already have list/report attendance access.
+     */
+    function seed_attendance_export_if_needed()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions')) {
+            return;
+        }
+
+        $source_keys = get_attendance_export_module_keys();
+        $roles = $CI->db
+            ->select('DISTINCT role_id', false)
+            ->where_in('module', $source_keys)
+            ->where('can_access', 1)
+            ->get('permissions')
+            ->result();
+
+        foreach ($roles as $row) {
+            $role_id = (int) $row->role_id;
+            if ($role_id <= 0) {
+                continue;
+            }
+            $exists = $CI->db
+                ->where('role_id', $role_id)
+                ->where('module', 'attendance_export')
+                ->limit(1)
+                ->get('permissions')
+                ->row();
+            if ($exists) {
+                continue;
+            }
+            $CI->db->insert('permissions', [
+                'role_id'    => $role_id,
+                'module'     => 'attendance_export',
+                'can_access' => 1,
+            ]);
+        }
+    }
+}
+
+if (!function_exists('get_controller_module_access_map')) {
+    /**
+     * Single source of truth for route-level RBAC (AuthHook + controller constructors).
+     * Access is granted when the role has ANY listed key.
+     */
+    function get_controller_module_access_map() {
+        return [
+            'users' => ['users', 'users_list', 'users_add', 'users_edit', 'users_delete', 'users_view', 'users_view_all'],
+            'employees' => [
+                'employees', 'employees_list', 'employees_add', 'employees_edit', 'employees_delete',
+                'employees_view', 'employees_view_all', 'employees_edit_all', 'employees_delete_all',
+                'employees_documents', 'employees_delete_document', 'employees_import',
+            ],
+            'roles' => ['roles', 'permissions'],
+            'permissions' => ['permissions'],
+            'departments' => ['departments'],
+            'designations' => ['designations'],
+            'attendance' => [
+                'attendance', 'attendance_list', 'attendance_add', 'attendance_edit', 'attendance_delete',
+                'attendance_bulk', 'attendance_view_all', 'attendance_export',
+                'reports_attendance', 'reports_attendance_employee',
+            ],
+            'leave_requests' => [
+                'leave_requests', 'leave_team', 'leave_approve', 'leave_calendar', 'leave_view_all',
+                'leaves', 'leaves_list', 'leaves_add', 'leaves_edit', 'leaves_delete',
+            ],
+            'leaves' => ['leaves', 'leaves_list', 'leaves_add', 'leaves_edit', 'leaves_delete', 'leave_requests'],
+            'shifts' => ['shifts', 'shifts_view', 'shifts_manage'],
+            'projects' => [
+                'projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete',
+                'projects_view_all', 'projects_import',
+            ],
+            'tasks' => [
+                'tasks', 'tasks_list', 'tasks_add', 'tasks_edit', 'tasks_delete',
+                'tasks_manage', 'tasks_view_all', 'tasks_delete_all', 'tasks_import',
+            ],
+            'my_works' => [
+                'my_works', 'my_works_list', 'my_works_add', 'my_works_edit', 'my_works_delete',
+                'my_works_view_all', 'my_works_export',
+            ],
+            'requirements' => [
+                'requirements', 'requirements_list', 'requirements_add', 'requirements_edit',
+                'requirements_delete', 'requirements_view', 'requirements_board', 'requirements_calendar',
+                'requirements_export', 'requirements_delete_all',
+            ],
+            'timesheets' => ['timesheets', 'timesheets_list', 'timesheets_add', 'timesheets_edit', 'timesheets_delete'],
+            'chats' => ['chats', 'chats_list', 'chats_add', 'chatsgrouping'],
+            'calls' => ['calls', 'chats'],
+            'announcements' => [
+                'announcements', 'announcements_list', 'announcements_add', 'announcements_edit',
+                'announcements_delete', 'announcements_manage',
+            ],
+            'recruitment' => [
+                'recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews',
+                'recruitment_export', 'recruitment_add', 'recruitment_delete',
+            ],
+            'performance' => [
+                'performance', 'performance_create', 'performance_view', 'performance_edit',
+                'performance_delete', 'performance_self_assess', 'performance_export',
+            ],
+            'training_assessment' => [
+                'training_assessment', 'training_assessment_manage', 'training_assessment_take',
+                'training_screen_ta_dashboard', 'training_screen_ta_create', 'training_screen_ta_import',
+                'training_screen_ta_question_import', 'training_screen_ta_report', 'training_screen_ta_submissions',
+                'training_screen_ta_team_progress', 'training_screen_ta_my_tests',
+            ],
+            'training_assessment_take' => [
+                'training_assessment', 'training_assessment_manage', 'training_assessment_take',
+                'training_take_with_proctoring', 'training_take_without_proctoring',
+                'training_screen_ta_my_tests',
+            ],
+            'training_lms' => [
+                'training_lms', 'training_lms_manage',
+                'training_screen_tl_hub', 'training_screen_tl_module', 'training_screen_tl_assignment',
+            ],
+            'training_lms_admin' => [
+                'training_lms_manage',
+                'training_screen_lms_admin', 'training_screen_lms_submissions', 'training_screen_lms_office_csv',
+            ],
+            'external_training' => [
+                'external_training', 'external_training_watch',
+                'external_training_list', 'external_training_add',
+                'external_training_edit', 'external_training_delete',
+            ],
+            'training_import' => [
+                'training_assessment', 'training_assessment_manage',
+                'training_screen_ta_import', 'training_lms_manage',
+                'training_screen_lms_office_csv',
+            ],
+            'coaching' => [
+                'coaching', 'coaching_coaches', 'coaching_clients', 'coaching_sessions',
+                'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
+                'coaching_whatsapp_crm', 'coaching_resources', 'coaching_admin',
+            ],
+            'coaching_admin' => ['coaching_admin', 'coaching'],
+            'coaching_billing' => ['coaching_billing', 'coaching'],
+            'coaching_clients' => ['coaching_clients', 'coaching'],
+            'coaching_coaches' => ['coaching_coaches', 'coaching'],
+            'coaching_goals' => ['coaching_goals', 'coaching'],
+            'coaching_leads' => ['coaching_leads', 'coaching'],
+            'coaching_payments' => ['coaching_billing', 'coaching', 'coaching_portal'],
+            'coaching_reports' => ['coaching_reports', 'coaching'],
+            'coaching_resources' => ['coaching_resources', 'coaching'],
+            'coaching_sessions' => ['coaching_sessions', 'coaching'],
+            'coaching_whatsapp_crm' => ['coaching_whatsapp_crm', 'coaching'],
+            'clients' => [
+                'clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete',
+                'clients_view', 'clients_export',
+            ],
+            'payroll' => ['payroll', 'payroll_view', 'payroll_manage'],
+            'expenses' => [
+                'expenses', 'expenses_add', 'expenses_edit', 'expenses_delete', 'expenses_approve',
+                'expenses_reimburse', 'expenses_reports', 'expenses_categories', 'expenses_export',
+            ],
+            'assets' => [
+                'assets', 'assets_mgmt', 'assets_manage', 'assets_list', 'assets_add', 'assets_edit',
+                'assets_delete', 'assets_assign',
+            ],
+            'reports' => [
+                'reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment',
+                'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee',
+                'reports_daily_activity', 'daily_activity_report', 'analytics', 'reports_payroll',
+                'reports_expenses', 'reports_performance',
+            ],
+            'reports_attendance' => [
+                'reports', 'reports_overview', 'reports_attendance', 'reports_attendance_employee',
+            ],
+            'reports_projects' => [
+                'reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment',
+                'reports_projects_status', 'reports_daily_activity', 'daily_activity_report',
+            ],
+            'reports_hr' => [
+                'reports', 'reports_overview', 'reports_leaves', 'reports_payroll',
+                'reports_expenses', 'reports_performance',
+            ],
+            'analytics' => ['analytics', 'reports'],
+            'ai_chat' => ['ai', 'ai_chat', 'ai_widget'],
+            'daily_activity' => [
+                'daily_activity', 'daily_activity_add', 'daily_activity_list', 'daily_activity_edit',
+                'daily_activity_export', 'daily_activity_report', 'daily_activity_delete',
+                'daily_activity_view_all', 'daily_activity_edit_all', 'daily_activity_delete_all', 'activity',
+            ],
+            'settings' => [
+                'settings', 'holidays', 'holidays_add', 'holidays_edit', 'holidays_delete',
+                'leave_types', 'leave_types_add', 'leave_types_edit', 'leave_types_delete', 'types', 'admin',
+            ],
+            'email_settings' => ['email_settings', 'settings', 'admin'],
+            'system_settings' => ['system_settings', 'settings', 'admin'],
+            'mail' => ['mail', 'settings', 'admin'],
+            'sendgrid' => ['sendgrid', 'email_settings', 'settings', 'admin'],
+            'whatsapp' => ['whatsapp'],
+            'reminders' => ['reminders', 'reminders_list', 'reminders_add', 'reminders_edit', 'reminders_delete'],
+            'notifications' => ['notifications'],
+            'approvals' => ['approvals'],
+            'activity' => ['activity'],
+            'statuses' => ['statuses'],
+            'types' => ['types'],
+            'db' => ['db', 'db_admin'],
+            'api_integrations' => ['api_integrations', 'settings', 'admin'],
+            'superadmin' => ['superadmin'],
+            'guide' => ['guide'],
+            'lead_mapping' => ['lead_mapping'],
+            'dashboard' => ['dashboard'],
+        ];
+    }
+}
+
+if (!function_exists('get_controller_module_access_keys')) {
+    function get_controller_module_access_keys($controller) {
+        $controller = strtolower(trim((string) $controller));
+        $map = get_controller_module_access_map();
+        return isset($map[$controller]) ? $map[$controller] : [$controller];
+    }
+}
+
+if (!function_exists('require_controller_access')) {
+    function require_controller_access($controller, $redirect_to_dashboard = true) {
+        return require_module_access(
+            get_controller_module_access_keys($controller),
+            $redirect_to_dashboard
+        );
+    }
+}
+
+if (!function_exists('can_access_module_with_parent')) {
+    /** True when role has the specific key or the module's full-access parent key. */
+    function can_access_module_with_parent($module_key, $parent_key) {
+        return has_module_access($module_key) || has_module_access($parent_key);
     }
 }
 
@@ -371,7 +685,7 @@ if (!function_exists('is_admin_group')) {
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return false; }
 
-        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('roles') || !$CI->db->field_exists('group_type', 'roles')) {
+        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('roles') || !schema_table_has_column($CI->db, 'roles', 'group_type')) {
             return in_array($role_id, [1, 2, 3], true);
         }
 
@@ -389,7 +703,7 @@ if (!function_exists('is_user_group')) {
         $role_id = (int)$CI->session->userdata('role_id');
         if (!$role_id) { return false; }
 
-        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('roles') || !$CI->db->field_exists('group_type', 'roles')) {
+        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('roles') || !schema_table_has_column($CI->db, 'roles', 'group_type')) {
             return $role_id === 4;
         }
 
@@ -397,5 +711,49 @@ if (!function_exists('is_user_group')) {
         $row = $CI->db->query("SELECT group_type FROM roles WHERE id = ? LIMIT 1", [$role_id])->row();
         $group = $row ? strtolower(trim((string)$row->group_type)) : '';
         return $group === 'user';
+    }
+}
+
+if (!function_exists('has_role')) {
+    /**
+     * True when the session role matches a role slug (admin, manager, lead, staff).
+     * Uses ROLE_* constants when defined, then falls back to roles.name.
+     *
+     * @param string   $role_slug e.g. manager, lead
+     * @param int|null $role_id   Optional role id (defaults to session role_id)
+     */
+    function has_role($role_slug, $role_id = null)
+    {
+        $CI =& get_instance();
+        if (!$CI || !$CI->session) {
+            return false;
+        }
+        $role_id = $role_id === null ? (int) $CI->session->userdata('role_id') : (int) $role_id;
+        if ($role_id <= 0) {
+            return false;
+        }
+
+        $slug = strtolower(trim((string) $role_slug));
+        if ($slug === '') {
+            return false;
+        }
+
+        $constant_map = array(
+            'admin'   => 'ROLE_ADMIN',
+            'manager' => 'ROLE_MANAGER',
+            'lead'    => 'ROLE_LEAD',
+            'staff'   => 'ROLE_STAFF',
+            'user'    => 'ROLE_USER',
+        );
+        if (isset($constant_map[$slug]) && defined($constant_map[$slug])) {
+            if ($role_id === (int) constant($constant_map[$slug])) {
+                return true;
+            }
+        }
+
+        if (!function_exists('get_role_name_by_id')) {
+            $CI->load->helper('hierarchy_filter');
+        }
+        return get_role_name_by_id($role_id) === $slug;
     }
 }

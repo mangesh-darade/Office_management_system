@@ -5,7 +5,7 @@ class Dashboard extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'group_filter', 'permission', 'dashboard']);
+        $this->load->helper(['url', 'group_filter', 'permission', 'dashboard','schema_columns']);
         $this->load->library(['session']);
         $this->load->model('External_dashboard_model', 'external_dashboards');
         
@@ -33,12 +33,12 @@ class Dashboard extends CI_Controller {
             $this->db->from('announcements');
             
             // Check if status column exists
-            if ($this->db->field_exists('status', 'announcements')) {
+            if (schema_table_has_column($this->db, 'announcements', 'status')) {
                 $this->db->where('status','published');
             }
             
             // Check if start_date column exists
-            if ($this->db->field_exists('start_date', 'announcements')) {
+            if (schema_table_has_column($this->db, 'announcements', 'start_date')) {
                 $this->db->group_start()
                             ->where('start_date <=', $today)
                             ->or_where('start_date IS NULL')
@@ -46,7 +46,7 @@ class Dashboard extends CI_Controller {
             }
             
             // Check if end_date column exists
-            if ($this->db->field_exists('end_date', 'announcements')) {
+            if (schema_table_has_column($this->db, 'announcements', 'end_date')) {
                 $this->db->group_start()
                             ->where('end_date >=', $today)
                             ->or_where('end_date IS NULL')
@@ -54,7 +54,7 @@ class Dashboard extends CI_Controller {
             }
             
             // Check if priority column exists
-            if ($this->db->field_exists('priority', 'announcements')) {
+            if (schema_table_has_column($this->db, 'announcements', 'priority')) {
                 $this->db->order_by('priority','DESC');
             }
             
@@ -65,13 +65,42 @@ class Dashboard extends CI_Controller {
         
         // Fetch dashboard statistics with caching (5 minutes TTL)
         $stats = get_dashboard_stats($user_id, $role_id, 300);
+
+        // Today's punch status for Mark Attendance widget (all logged-in users)
+        $mark_attendance = array(
+            'has_checkin'   => false,
+            'has_checkout'  => false,
+            'checkin_time'  => '',
+            'checkout_time' => '',
+        );
+        if ($user_id && $this->db->table_exists('attendance')) {
+            $this->load->helper(array('date', 'attendance_punch'));
+            $user_timezone = get_user_timezone((int) $user_id);
+            $today = get_current_datetime($user_timezone, 'Y-m-d');
+            $has_column_fn = function ($field) {
+                return attendance_punch_has_column($this->db, $field);
+            };
+            $today_status = attendance_punch_today_status(
+                $this->db,
+                $has_column_fn,
+                (int) $user_id,
+                $today
+            );
+            $mark_attendance = array(
+                'has_checkin'   => !empty($today_status['has_checkin']),
+                'has_checkout'  => !empty($today_status['has_checkout']),
+                'checkin_time'  => isset($today_status['checkin_time']) ? (string) $today_status['checkin_time'] : '',
+                'checkout_time' => isset($today_status['checkout_time']) ? (string) $today_status['checkout_time'] : '',
+            );
+        }
         
             $this->load->view('dashboard/index', [
                 'role_id' => $role_id, 
                 'announcements' => $announcements,
                 'stats' => $stats,
                 'accessible_modules' => $accessible_modules,
-                'external_dashboards' => $this->external_dashboards->get_active()
+                'external_dashboards' => $this->external_dashboards->get_active(),
+                'mark_attendance' => $mark_attendance,
             ]);
         } catch (Exception $e) {
             log_message('error', 'Dashboard error: ' . $e->getMessage());

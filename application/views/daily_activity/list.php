@@ -1,20 +1,17 @@
 <?php $this->load->view('partials/header', ['title' => 'Daily Activity List']); ?>
 
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0 text-truncate">Activities</h4>
-        <div class="d-flex flex-nowrap gap-2">
-            <?php if($is_admin): ?>
-            <a href="<?php echo site_url('reports/daily_activity'); ?>" class="btn btn-outline-secondary btn-sm" title="View Report"><i class="bi bi-file-earmark-text"></i><span class="d-none d-sm-inline ms-2">Report</span></a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('daily_activity_export') || has_module_access('daily_activity') || $is_admin)): ?>
-            <a href="<?php echo site_url('daily-activity/export'); ?>" class="btn btn-outline-success btn-sm" title="Export CSV"><i class="bi bi-download"></i><span class="d-none d-sm-inline ms-2">Export</span></a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('daily_activity') || $is_admin)): ?>
-            <a href="<?php echo site_url('daily-activity'); ?>" class="btn btn-primary btn-sm" title="Log New Activity"><i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline ms-2">Add Activity</span></a>
-            <?php endif; ?>
-        </div>
-    </div>
+  <?php $this->load->view('partials/oms_page_head', [
+    'title' => 'Activities',
+    'subtitle' => 'View and export daily work logs',
+    'icon' => 'bi-journal-text',
+    'actions_html' => ''
+      . ($is_admin ? '<a href="' . site_url('reports/daily_activity') . '" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-text me-1"></i><span class="d-none d-sm-inline">Report</span></a>' : '')
+      . ((function_exists('has_module_access') && (has_module_access('daily_activity_export') || has_module_access('daily_activity_report') || has_module_access('daily_activity') || $is_admin))
+          ? '<a href="' . site_url('daily-activity/export') . '" class="btn btn-outline-success btn-sm"><i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">Export</span></a>' : '')
+      . ((function_exists('has_module_access') && (has_module_access('daily_activity') || $is_admin))
+          ? '<a href="' . site_url('daily-activity') . '" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Add</span></a>' : ''),
+  ]); ?>
 
     <?php if ($this->session->flashdata('success')): ?>
         <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>

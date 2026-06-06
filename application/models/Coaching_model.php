@@ -144,7 +144,7 @@ class Coaching_model extends CI_Model {
             'status' => 1,
             'created_at' => date('Y-m-d H:i:s'),
         ];
-        if ($this->db->field_exists('phone', 'users')) {
+        if (schema_table_has_column($this->db, 'users', 'phone')) {
             $payload['phone'] = '';
         }
         $this->db->insert('users', $payload);
@@ -522,53 +522,8 @@ class Coaching_model extends CI_Model {
 
     public function run_automation_cron()
     {
-        $this->load->helper('coaching_notify');
-        $rules = $this->db->where('is_active', 1)->get('coaching_automation_rules')->result();
-        $actions = 0;
-        foreach ($rules as $rule) {
-            if ($rule->trigger_type === 'goal_stale_days') {
-                $cfg = json_decode($rule->trigger_config ? $rule->trigger_config : '{}', true);
-                $days = (is_array($cfg) && isset($cfg['days'])) ? (int) $cfg['days'] : 7;
-                $cutoff = date('Y-m-d H:i:s', strtotime('-' . $days . ' days'));
-                $stale = $this->db->where('status', 'active')
-                    ->where('updated_at <', $cutoff)
-                    ->get('coaching_goals')->result();
-                foreach ($stale as $g) {
-                    $client = $this->client_get($g->coaching_client_id);
-                    $coach_name = '';
-                    $coach_email = null;
-                    if ($client && !empty($client->primary_coach_id)) {
-                        $coach = $this->db->select('u.email, u.name')
-                            ->from('coaching_coaches c')
-                            ->join('users u', 'u.id = c.user_id', 'left')
-                            ->where('c.id', (int) $client->primary_coach_id)
-                            ->get()->row();
-                        if ($coach) {
-                            $coach_name = $coach->name;
-                            $coach_email = $coach->email;
-                        }
-                    }
-                    $subject = 'Stale coaching goal: ' . $g->title;
-                    $body = '<p>Goal <strong>' . htmlspecialchars($g->title) . '</strong> for '
-                        . htmlspecialchars($client ? $client->full_name : 'client')
-                        . ' has had no update in ' . (int) $days . ' days.</p>';
-                    $action = $rule->action_type ? $rule->action_type : 'log_reminder';
-                    if ($action === 'email_coach' && $coach_email) {
-                        if (coaching_send_mail($coach_email, $subject, '<p>Hi ' . htmlspecialchars($coach_name) . ',</p>' . $body)) {
-                            $actions++;
-                        }
-                    } elseif ($action === 'email_client' && $client && $client->email) {
-                        if (coaching_send_mail($client->email, $subject, '<p>Hi ' . htmlspecialchars($client->full_name) . ',</p>' . $body)) {
-                            $actions++;
-                        }
-                    } else {
-                        log_message('info', 'Coaching automation: stale goal #' . (int) $g->id);
-                        $actions++;
-                    }
-                }
-            }
-        }
-        return $actions;
+        $this->load->library('coaching_automation');
+        return $this->coaching_automation->run_automation_cron();
     }
 
     // --- Razorpay orders ---
@@ -610,43 +565,19 @@ class Coaching_model extends CI_Model {
     // --- Session email reminders ---
     public function sessions_needing_reminder($hours_before, $flag_column)
     {
-        if (!$this->db->field_exists($flag_column, 'coaching_sessions')) {
-            return [];
-        }
-        $from = date('Y-m-d H:i:s', strtotime('+' . ($hours_before - 1) . ' hours'));
-        $to = date('Y-m-d H:i:s', strtotime('+' . ($hours_before + 1) . ' hours'));
-        return $this->db
-            ->where('status', 'scheduled')
-            ->where($flag_column, 0)
-            ->where('scheduled_at >=', $from)
-            ->where('scheduled_at <=', $to)
-            ->get('coaching_sessions')
-            ->result();
+        $this->load->library('coaching_automation');
+        return $this->coaching_automation->sessions_needing_reminder($hours_before, $flag_column);
     }
 
     public function session_mark_reminder_sent($session_id, $flag_column)
     {
-        if ($this->db->field_exists($flag_column, 'coaching_sessions')) {
-            $this->db->where('id', (int) $session_id)->update('coaching_sessions', [$flag_column => 1]);
-        }
+        $this->load->library('coaching_automation');
+        return $this->coaching_automation->session_mark_reminder_sent($session_id, $flag_column);
     }
 
     public function process_session_reminder_cron()
     {
-        $this->load->helper('coaching_notify');
-        $sent = 0;
-        foreach ($this->sessions_needing_reminder(24, 'reminder_24h_sent') as $s) {
-            if (coaching_email_session_reminder((int) $s->id, '24h')) {
-                $this->session_mark_reminder_sent((int) $s->id, 'reminder_24h_sent');
-                $sent++;
-            }
-        }
-        foreach ($this->sessions_needing_reminder(1, 'reminder_1h_sent') as $s) {
-            if (coaching_email_session_reminder((int) $s->id, '1h')) {
-                $this->session_mark_reminder_sent((int) $s->id, 'reminder_1h_sent');
-                $sent++;
-            }
-        }
-        return $sent;
+        $this->load->library('coaching_automation');
+        return $this->coaching_automation->process_session_reminder_cron();
     }
 }

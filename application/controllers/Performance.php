@@ -20,7 +20,7 @@ class Performance extends CI_Controller {
     public function create(){
         $role_id = (int)$this->session->userdata('role_id');
         $is_superadmin = ($role_id === 1);
-        if (!$is_superadmin && !(function_exists('has_module_access') && has_module_access('performance_create'))) {
+        if (!$is_superadmin && !(function_exists('has_module_access') && (has_module_access('performance_create') || has_module_access('performance')))) {
             show_error('You do not have permission to create appraisals.', 403);
         }
         if ($this->input->method() === 'post'){
@@ -58,7 +58,7 @@ class Performance extends CI_Controller {
     public function edit($id){
         $role_id = (int)$this->session->userdata('role_id');
         $is_superadmin = ($role_id === 1);
-        if (!$is_superadmin && !(function_exists('has_module_access') && has_module_access('performance_edit'))) {
+        if (!$is_superadmin && !(function_exists('has_module_access') && (has_module_access('performance_edit') || has_module_access('performance')))) {
             show_error('You do not have permission to edit appraisals.', 403);
         }
         $appraisal = $this->Performance_model->get_appraisal((int)$id);
@@ -86,7 +86,7 @@ class Performance extends CI_Controller {
     public function delete($id){
         $role_id = (int)$this->session->userdata('role_id');
         $is_superadmin = ($role_id === 1);
-        if (!$is_superadmin && !(function_exists('has_module_access') && has_module_access('performance_delete'))) {
+        if (!$is_superadmin && !(function_exists('has_module_access') && (has_module_access('performance_delete') || has_module_access('performance')))) {
             show_error('You do not have permission to delete appraisals.', 403);
         }
         if ($this->input->method() !== 'post') { show_404(); }

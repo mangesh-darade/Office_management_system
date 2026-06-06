@@ -6,6 +6,100 @@ class Ai_model extends CI_Model {
     public function __construct() {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('schema_columns');
+    }
+
+    /**
+     * Load user row plus department from employees when available.
+     *
+     * @param int $user_id
+     * @return object|null
+     */
+    private function _get_user_profile($user_id) {
+        $select = ['u.id'];
+        if (schema_table_has_column($this->db, 'users', 'created_at')) {
+            $select[] = 'u.created_at';
+        }
+
+        $this->db->select(implode(', ', $select));
+        $this->db->from('users u');
+        $this->db->where('u.id', (int) $user_id);
+
+        if ($this->db->table_exists('employees')) {
+            $this->db->join('employees e', 'e.user_id = u.id', 'left');
+            if (schema_table_has_column($this->db, 'employees', 'department_id')) {
+                $this->db->select('e.department_id', false);
+            }
+            if (schema_table_has_column($this->db, 'employees', 'department')) {
+                $this->db->select('e.department', false);
+            }
+            if (schema_table_has_column($this->db, 'employees', 'salary_ctc')) {
+                $this->db->select('e.salary_ctc', false);
+            }
+            if (schema_table_has_column($this->db, 'employees', 'basic_salary')) {
+                $this->db->select('e.basic_salary', false);
+            }
+        }
+
+        return $this->db->get()->row();
+    }
+
+    /**
+     * Resolve department key used for peer comparisons.
+     *
+     * @param object|null $user
+     * @return string|int|null
+     */
+    private function _user_department_key($user) {
+        if (!$user) {
+            return null;
+        }
+        if (isset($user->department_id) && $user->department_id !== '' && $user->department_id !== null) {
+            return (int) $user->department_id;
+        }
+        if (isset($user->department) && trim((string) $user->department) !== '') {
+            return trim((string) $user->department);
+        }
+
+        return null;
+    }
+
+    /**
+     * Sum remaining leave balance for a user (schema-aware).
+     *
+     * @param int $user_id
+     * @return float
+     */
+    private function _get_total_leave_balance($user_id) {
+        if (!$this->db->table_exists('leave_balances')) {
+            return 0.0;
+        }
+
+        $this->db->from('leave_balances');
+        $this->db->where('user_id', (int) $user_id);
+        if (schema_table_has_column($this->db, 'leave_balances', 'year')) {
+            $this->db->where('year', (int) date('Y'));
+        }
+
+        if (schema_table_has_column($this->db, 'leave_balances', 'closing_balance')) {
+            $this->db->select_sum('closing_balance', 'total_balance');
+        } elseif (schema_table_has_column($this->db, 'leave_balances', 'remaining_leaves')) {
+            $this->db->select_sum('remaining_leaves', 'total_balance');
+        } elseif (
+            schema_table_has_column($this->db, 'leave_balances', 'opening_balance')
+            && schema_table_has_column($this->db, 'leave_balances', 'accrued')
+            && schema_table_has_column($this->db, 'leave_balances', 'used')
+        ) {
+            $this->db->select('SUM(opening_balance + accrued - used) AS total_balance', false);
+        } else {
+            return 0.0;
+        }
+
+        $balance_row = $this->db->get()->row();
+
+        return ($balance_row && isset($balance_row->total_balance) && $balance_row->total_balance !== null)
+            ? (float) $balance_row->total_balance
+            : 0.0;
     }
 
     /**
@@ -17,11 +111,24 @@ class Ai_model extends CI_Model {
         $risk_factors = [];
 
         // Load User and Department Info
-        $user = $this->db->select('id, created_at, department_id, basic_salary')->get_where('users', ['id' => $user_id])->row();
+        $user = $this->_get_user_profile($user_id);
         if (!$user) return ['error' => 'User not found'];
 
+        $department_key = $this->_user_department_key($user);
+
         // 1. Tenure Check "The 1-2 Year Itch"
-        $join_date = new DateTime($user->created_at);
+        $join_date = null;
+        if (!empty($user->created_at)) {
+            $join_date = new DateTime($user->created_at);
+        } elseif ($this->db->table_exists('employees')) {
+            $emp = $this->db->select('join_date')->from('employees')->where('user_id', (int) $user_id)->get()->row();
+            if ($emp && !empty($emp->join_date)) {
+                $join_date = new DateTime($emp->join_date);
+            }
+        }
+        if (!$join_date) {
+            $join_date = new DateTime();
+        }
         $now = new DateTime();
         $tenure_months = $join_date->diff($now)->m + ($join_date->diff($now)->y * 12);
 
@@ -39,7 +146,7 @@ class Ai_model extends CI_Model {
         $user_absents = $this->db->count_all_results('attendance');
         
         // Get Dept Average
-        $dept_avg_absents = $this->_get_dept_avg_absents($user->department_id);
+        $dept_avg_absents = $this->_get_dept_avg_absents($department_key);
         
         if ($user_absents > 3) {
             $score += 20; 
@@ -59,12 +166,7 @@ class Ai_model extends CI_Model {
         }
 
         // 4. Leave Balance Burn Rate
-        // Check if user has used > 80% of leaves rapidly (mock logic as strictly balance history needed)
-        // We'll check current balance vs usage this month
-        $this->db->where('user_id', $user_id);
-        $this->db->select_sum('remaining_leaves');
-        $balance_row = $this->db->get('leave_balances')->row();
-        $total_balance = $balance_row ? $balance_row->remaining_leaves : 0;
+        $total_balance = $this->_get_total_leave_balance($user_id);
         
         if ($total_balance < 2 && $user_absents > 2) {
             $score += 10;
@@ -101,23 +203,38 @@ class Ai_model extends CI_Model {
         ];
     }
 
-    private function _get_dept_avg_absents($dept_id) {
-        if (!$dept_id) return 2; // Default fallback
-        
-        // Count total users in dept
-        $this->db->where('department_id', $dept_id);
-        $user_count = $this->db->count_all_results('users');
+    private function _get_dept_avg_absents($dept_key) {
+        if ($dept_key === null || $dept_key === '') return 2; // Default fallback
+
+        if (!$this->db->table_exists('employees')) {
+            return 2;
+        }
+
+        $this->db->from('employees e');
+        $this->db->join('users u', 'u.id = e.user_id', 'inner');
+        if (is_int($dept_key) && schema_table_has_column($this->db, 'employees', 'department_id')) {
+            $this->db->where('e.department_id', $dept_key);
+        } elseif (schema_table_has_column($this->db, 'employees', 'department')) {
+            $this->db->where('e.department', (string) $dept_key);
+        } else {
+            return 2;
+        }
+        $user_count = $this->db->count_all_results();
         if ($user_count == 0) return 2;
-        
-        // Count total absents in dept last 30 days
-        $this->db->select('users.id');
+
+        $dateCol = schema_table_has_column($this->db, 'attendance', 'att_date') ? 'att_date' : 'date';
+        $this->db->select('attendance.user_id');
         $this->db->from('attendance');
-        $this->db->join('users', 'users.id = attendance.user_id');
-        $this->db->where('users.department_id', $dept_id);
-        $this->db->where('attendance.att_date >=', date('Y-m-d', strtotime('-30 days')));
+        $this->db->join('employees e', 'e.user_id = attendance.user_id', 'inner');
+        if (is_int($dept_key) && schema_table_has_column($this->db, 'employees', 'department_id')) {
+            $this->db->where('e.department_id', $dept_key);
+        } else {
+            $this->db->where('e.department', (string) $dept_key);
+        }
+        $this->db->where('attendance.' . $dateCol . ' >=', date('Y-m-d', strtotime('-30 days')));
         $this->db->where('attendance.status', 'absent');
         $total_absents = $this->db->count_all_results();
-        
+
         return $total_absents / $user_count;
     }
 

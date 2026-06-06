@@ -18,55 +18,6 @@ class Notifications extends CI_Controller {
         
         // RBAC Audit: Centralized module access check
         require_module_access('notifications', true);
-        
-        $this->ensure_schema();
-    }
-    
-    /**
-     * Ensure notifications table exists
-     */
-    private function ensure_schema()
-    {
-        static $done = false;
-        if ($done) { return; }
-        $done = true;
-        if (!$this->db->table_exists('notifications')) {
-            $sql = "CREATE TABLE `notifications` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `user_id` int(11) NOT NULL,
-                `title` varchar(255) NOT NULL,
-                `message` text NOT NULL,
-                `type` varchar(50) DEFAULT 'info' COMMENT 'info, success, warning, error',
-                `module` varchar(100) DEFAULT NULL COMMENT 'tasks, projects, leaves, etc',
-                `related_id` int(11) DEFAULT NULL COMMENT 'ID of related entity',
-                `action_url` varchar(500) DEFAULT NULL,
-                `is_read` tinyint(1) NOT NULL DEFAULT '0',
-                `is_deleted` tinyint(1) NOT NULL DEFAULT '0',
-                `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                `read_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                KEY `idx_user_id` (`user_id`),
-                KEY `idx_is_read` (`is_read`),
-                KEY `idx_created_at` (`created_at`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-        
-        // Push notification subscriptions table
-        if (!$this->db->table_exists('push_subscriptions')) {
-            $sql = "CREATE TABLE `push_subscriptions` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `user_id` int(11) NOT NULL,
-                `endpoint` text NOT NULL,
-                `p256dh_key` varchar(255) NOT NULL,
-                `auth_token` varchar(255) NOT NULL,
-                `user_agent` varchar(500) DEFAULT NULL,
-                `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `idx_user_endpoint` (`user_id`, `endpoint`(255))
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
     }
     
     /**

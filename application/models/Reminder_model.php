@@ -2,7 +2,8 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Reminder_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){ parent::__construct(); $this->load->database();
+        $this->load->helper('schema_columns'); }
 
     public function ensure_schema(){
         if (!$this->db->table_exists('reminders')){
@@ -27,10 +28,10 @@ class Reminder_model extends CI_Model {
         }
         // Add new columns if missing
         if ($this->db->table_exists('reminders')){
-            if (!$this->db->field_exists('from_email','reminders')){
+            if (!schema_table_has_column($this->db, 'reminders', 'from_email')){
                 $this->db->query("ALTER TABLE `reminders` ADD COLUMN `from_email` varchar(255) DEFAULT NULL AFTER `email`");
             }
-            if (!$this->db->field_exists('from_name','reminders')){
+            if (!schema_table_has_column($this->db, 'reminders', 'from_name')){
                 $this->db->query("ALTER TABLE `reminders` ADD COLUMN `from_name` varchar(255) DEFAULT NULL AFTER `from_email`");
             }
         }
@@ -54,10 +55,10 @@ class Reminder_model extends CI_Model {
             $this->db->query($sql2);
         }
         if ($this->db->table_exists('reminder_schedules')){
-            if (!$this->db->field_exists('schedule_type','reminder_schedules')){
+            if (!schema_table_has_column($this->db, 'reminder_schedules', 'schedule_type')){
                 $this->db->query("ALTER TABLE `reminder_schedules` ADD COLUMN `schedule_type` varchar(20) DEFAULT 'weekly' AFTER `weekdays`");
             }
-            if (!$this->db->field_exists('one_time_at','reminder_schedules')){
+            if (!schema_table_has_column($this->db, 'reminder_schedules', 'one_time_at')){
                 $this->db->query("ALTER TABLE `reminder_schedules` ADD COLUMN `one_time_at` datetime DEFAULT NULL AFTER `send_time`");
             }
         }
@@ -119,9 +120,9 @@ class Reminder_model extends CI_Model {
     public function list_recent($limit = 100){
         if ($this->db->table_exists('users')){
             $labelSql = array();
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $labelSql[] = "CONCAT(u.first_name,' ',u.last_name) AS full_label"; }
-            if ($this->db->field_exists('full_name','users')){ $labelSql[] = 'u.full_name'; }
-            if ($this->db->field_exists('name','users')){ $labelSql[] = 'u.name'; }
+            if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $labelSql[] = "CONCAT(u.first_name,' ',u.last_name) AS full_label"; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')){ $labelSql[] = 'u.full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')){ $labelSql[] = 'u.name'; }
             $select = 'r.*, u.email AS user_email';
             if (!empty($labelSql)){ $select .= ','.implode(',', $labelSql); }
             return $this->db->select($select, false)
@@ -150,9 +151,9 @@ class Reminder_model extends CI_Model {
 
     public function all_users(){
         $labelSql = array();
-        if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $labelSql[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
-        if ($this->db->field_exists('full_name','users')){ $labelSql[] = 'full_name'; }
-        if ($this->db->field_exists('name','users')){ $labelSql[] = 'name'; }
+        if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $labelSql[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
+        if (schema_table_has_column($this->db, 'users', 'full_name')){ $labelSql[] = 'full_name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')){ $labelSql[] = 'name'; }
         $select = 'id,email';
         if (!empty($labelSql)){ $select .= ','.implode(',', $labelSql); }
         return $this->db->select($select, false)->from('users')->where('status !=','inactive')->get()->result();
@@ -266,9 +267,9 @@ class Reminder_model extends CI_Model {
     public function list_paginated($limit = 20, $offset = 0, $status = null){
         if ($this->db->table_exists('users')){
             $labelSql = array();
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $labelSql[] = "CONCAT(u.first_name,' ',u.last_name) AS full_label"; }
-            if ($this->db->field_exists('full_name','users')){ $labelSql[] = 'u.full_name'; }
-            if ($this->db->field_exists('name','users')){ $labelSql[] = 'u.name'; }
+            if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $labelSql[] = "CONCAT(u.first_name,' ',u.last_name) AS full_label"; }
+            if (schema_table_has_column($this->db, 'users', 'full_name')){ $labelSql[] = 'u.full_name'; }
+            if (schema_table_has_column($this->db, 'users', 'name')){ $labelSql[] = 'u.name'; }
             $select = 'r.*, u.email AS user_email';
             if (!empty($labelSql)){ $select .= ','.implode(',', $labelSql); }
             $this->db->select($select, false)

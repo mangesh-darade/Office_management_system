@@ -6,13 +6,25 @@ class Employees extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','group_filter','permission','hierarchy_filter','data_scope']);
+        $this->load->helper(['url','form','group_filter','permission','hierarchy_filter','data_scope','types']);
+        $this->load->model('Type_model', 'module_types');
         $this->load->library(['session']);
         $this->load->model('Employee_model');
         $this->load->model('Shift_model');
         
         // Check module access - redirect to dashboard if not allowed
-        require_module_access('employees', true);
+        require_controller_access('employees', true);
+    }
+
+    private function _employment_type_options()
+    {
+        return module_type_options_resolved('employees');
+    }
+
+    private function _resolve_employment_type($posted)
+    {
+        $type = module_type_validate_code($posted, 'employees', false, 'full_time');
+        return $type === false ? 'full_time' : $type;
     }
 
     // GET /employees
@@ -97,7 +109,7 @@ class Employees extends CI_Controller {
                 'department' => $dept_name,
                 'designation' => $desg_name,
                 'reporting_to' => $this->input->post('reporting_to') !== '' ? (int)$this->input->post('reporting_to') : null,
-                'employment_type' => $this->input->post('employment_type') ?: 'full_time',
+                'employment_type' => $this->_resolve_employment_type($this->input->post('employment_type')),
                 'join_date' => $this->input->post('join_date') ?: null,
                 'dob' => $this->input->post('dob') ?: null,
                 'personal_email' => trim($this->input->post('personal_email')),
@@ -130,7 +142,6 @@ class Employees extends CI_Controller {
                 $id = $this->Employee_model->create($payload);
             } catch (Exception $e) {
                 log_message('error', 'Employee creation error: ' . $e->getMessage());
-                $this->load->helper('notification');
                 $error_msg = get_notification_message('employees', 'create', 'error');
                 $this->session->set_flashdata('error', $error_msg);
                 redirect('employees/create');
@@ -163,6 +174,7 @@ class Employees extends CI_Controller {
             'shifts' => $this->Shift_model->get_all(true),
             // Pre-generate an employee code to show on the create form
             'generated_emp_code' => $this->Employee_model->generate_emp_code(),
+            'employment_types' => $this->_employment_type_options(),
         ];
         $this->load->view('employees/form', $data);
     }
@@ -247,7 +259,7 @@ class Employees extends CI_Controller {
                 'department' => $dept_name,
                 'designation' => $desg_name,
                 'reporting_to' => $this->input->post('reporting_to') !== '' ? (int)$this->input->post('reporting_to') : null,
-                'employment_type' => $this->input->post('employment_type') ?: 'full_time',
+                'employment_type' => $this->_resolve_employment_type($this->input->post('employment_type')),
                 'join_date' => $this->input->post('join_date') ?: null,
                 'dob' => $this->input->post('dob') ?: null,
                 'personal_email' => trim($this->input->post('personal_email')),
@@ -266,6 +278,13 @@ class Employees extends CI_Controller {
                 'pan_no' => trim($this->input->post('pan_no')),
                 'shift_id' => $this->input->post('shift_id') ? (int)$this->input->post('shift_id') : null,
             ];
+            $this->load->helper('validation');
+            $validation = validate_employee_data($payload);
+            if (!$validation['valid']) {
+                $this->session->set_flashdata('error', implode(' ', $validation['errors']));
+                redirect('employees/'.$id.'/edit');
+                return;
+            }
             // Track changes before update
             $this->load->helper(['activity', 'change_tracker']);
             $old_data = track_changes_before('employees', (int)$id);
@@ -278,7 +297,6 @@ class Employees extends CI_Controller {
             $name = trim($fn.' '.$ln);
             $desc = $name !== '' ? ('Employee: '.$name) : ('Employee #'.(int)$id);
             track_changes_after('employees', 'employees', (int)$id, $old_data, $payload, $desc);
-            $this->load->helper('notification');
             $success_msg = get_notification_message('employees', 'update', 'success', ['name' => $name ?: 'Employee #' . $id]);
             $this->session->set_flashdata('success', $success_msg);
             redirect('employees/'.$id);
@@ -299,6 +317,7 @@ class Employees extends CI_Controller {
             'departments' => $departments,
             'designations' => $designations,
             'shifts' => $this->Shift_model->get_all(true),
+            'employment_types' => $this->_employment_type_options(),
         ];
         $this->load->view('employees/form', $data);
     }
@@ -481,7 +500,6 @@ class Employees extends CI_Controller {
         if ($ok && $doc->file_path && is_file($path)) {
             @unlink($path);
         }
-        $this->load->helper('notification');
         $success_msg = get_notification_message('documents', 'delete', 'success');
         $this->session->set_flashdata('success', $success_msg);
         redirect('employees/'.$employee->id.'/documents');

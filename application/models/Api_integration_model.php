@@ -1,7 +1,10 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 class Api_integration_model extends CI_Model {
+    use Schema_columns_trait;
     private $table = 'api_integrations';
     
     public function __construct() {
@@ -11,7 +14,7 @@ class Api_integration_model extends CI_Model {
         $this->ensure_schema();
     }
     
-    private function ensure_schema() {
+    public function ensure_schema() {
         if (!$this->db->table_exists($this->table)) {
             $sql = "CREATE TABLE `{$this->table}` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -35,7 +38,7 @@ class Api_integration_model extends CI_Model {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
         }
-        if ($this->db->table_exists($this->table) && !$this->db->field_exists('created_by', $this->table)) {
+        if ($this->db->table_exists($this->table) && !$this->has_column('created_by')) {
             $this->db->query("ALTER TABLE `{$this->table}` ADD `created_by` int(11) DEFAULT NULL");
             $this->db->query("ALTER TABLE `{$this->table}` ADD KEY `idx_created_by` (`created_by`)");
         }
@@ -45,7 +48,7 @@ class Api_integration_model extends CI_Model {
         if ($service_type) {
             $this->db->where('service_type', $service_type);
         }
-        if ($this->db->field_exists('created_by', $this->table)) {
+        if ($this->has_column('created_by')) {
             apply_role_hierarchy_filter($this->db, 'created_by');
         }
         $this->db->order_by('service_type', 'ASC');
@@ -56,7 +59,7 @@ class Api_integration_model extends CI_Model {
     
     public function get_by_id($id) {
         $this->db->where('id', (int)$id);
-        if ($this->db->field_exists('created_by', $this->table)) {
+        if ($this->has_column('created_by')) {
             apply_role_hierarchy_filter($this->db, 'created_by');
         }
         return $this->db->get($this->table)->row();
@@ -84,7 +87,7 @@ class Api_integration_model extends CI_Model {
     public function create($data) {
         $data['created_at'] = date('Y-m-d H:i:s');
         $data['updated_at'] = date('Y-m-d H:i:s');
-        if ($this->db->field_exists('created_by', $this->table) && !isset($data['created_by'])) {
+        if ($this->has_column('created_by') && !isset($data['created_by'])) {
             $uid = (int)$this->session->userdata('user_id');
             $data['created_by'] = $uid > 0 ? $uid : null;
         }

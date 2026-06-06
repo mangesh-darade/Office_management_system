@@ -16,7 +16,7 @@
 </div>
 <?php endif; ?>
 
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-briefcase text-primary me-2"></i>Clients</h1>
     <p class="text-muted small mb-0">Manage your client relationships</p>
@@ -25,7 +25,7 @@
     <?php if(function_exists('has_module_access') && (has_module_access('clients_add') || has_module_access('clients'))): ?>
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/create'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Client</a>
     <?php endif; ?>
-    <?php if(function_exists('has_module_access') && (has_module_access('clients') || is_admin_group())): ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('clients_export') || has_module_access('clients') || is_admin_group())): ?>
     <a class="btn btn-outline-success btn-sm" href="<?php echo site_url('clients/export'); ?>"><i class="bi bi-download me-1"></i>Export</a>
     <?php endif; ?>
   </div>
@@ -49,10 +49,9 @@
         <?php $ct = isset($filters['client_type']) ? (string)$filters['client_type'] : ''; ?>
         <select name="client_type" class="form-select">
           <option value="">All</option>
-          <option value="individual" <?php echo $ct==='individual'?'selected':''; ?>>Individual</option>
-          <option value="company" <?php echo $ct==='company'?'selected':''; ?>>Company</option>
-          <option value="government" <?php echo $ct==='government'?'selected':''; ?>>Government</option>
-          <option value="startup" <?php echo $ct==='startup'?'selected':''; ?>>Startup</option>
+          <?php if (isset($client_types) && is_array($client_types)): foreach ($client_types as $code => $label): ?>
+            <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $ct === (string) $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+          <?php endforeach; endif; ?>
         </select>
       </div>
       <div class="col-md-4">

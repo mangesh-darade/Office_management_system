@@ -169,8 +169,15 @@ if (!function_exists('validate_employee_data')) {
         // Employment Type - required
         if (empty($data['employment_type'])) {
             $errors[] = 'Employment Type is required.';
-        } elseif (!in_array($data['employment_type'], ['full_time', 'part_time', 'contract', 'intern'], true)) {
-            $errors[] = 'Invalid Employment Type selected.';
+        } else {
+            if (!function_exists('module_type_is_valid')) {
+                get_instance()->load->helper('types');
+            }
+            if (function_exists('module_type_is_valid') && !module_type_is_valid($data['employment_type'], 'employees')) {
+                $errors[] = 'Invalid Employment Type selected.';
+            } elseif (!function_exists('module_type_is_valid') && !in_array($data['employment_type'], ['full_time', 'part_time', 'contract', 'intern'], true)) {
+                $errors[] = 'Invalid Employment Type selected.';
+            }
         }
         
         // Join Date - required

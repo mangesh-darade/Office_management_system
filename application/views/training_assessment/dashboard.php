@@ -47,7 +47,7 @@ $ta_can_status_filter = isset($ta_can_status_filter) ? (bool) $ta_can_status_fil
   }
 </style>
 <div class="container-fluid py-4">
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h1 class="h4 mb-1 fw-bold"><i class="bi bi-mortarboard text-primary me-2"></i>Assessments</h1>
       <p class="text-muted small mb-0"><?php echo ($ta_can_create || $ta_can_manage_core) ? 'Create timed tests, assign employees or candidates, review results.' : 'Assessments assigned to you. Use My assignments to take tests and view results.'; ?></p>

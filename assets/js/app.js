@@ -20,10 +20,10 @@
             lengthChange: true,
             pageLength: 25,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
-            order: [[7, 'desc']],
+            order: [[6, 'desc']],
             columnDefs: [
-              { orderable: false, targets: [5, 8] },
-              { searchable: false, targets: [8] }
+              { orderable: false, targets: [5, 7] },
+              { searchable: false, targets: [7] }
             ],
             language: {
               search: 'Quick search:',

@@ -42,7 +42,7 @@
                     </tr>
                 </table>
                 <div class="mt-3">
-                    <?php if(function_exists('has_module_access') && has_module_access('performance_edit')): ?>
+                    <?php if(function_exists('has_module_access') && (has_module_access('performance_edit') || has_module_access('performance'))): ?>
                     <a href="<?php echo site_url('performance/edit/'.$appraisal->id); ?>" class="btn btn-warning">Edit</a>
                     <?php endif; ?>
                     <a href="<?php echo site_url('performance'); ?>" class="btn btn-secondary">Back to List</a>

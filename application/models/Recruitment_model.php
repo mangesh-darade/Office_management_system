@@ -12,7 +12,7 @@ class Recruitment_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema(){
+    public function ensure_schema(){
         static $done = false;
         if ($done) { return; }
         $done = true;

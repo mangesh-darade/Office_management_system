@@ -155,56 +155,95 @@ class Activity extends CI_Controller {
         }
     }
 
-    // GET /activity/export
+    // GET /activity/export — batched CSV stream to limit memory use
     public function export(){
         try {
-            $this->load->dbutil();
-            
-            // Get filters from query string (same as index)
             $user_id_input = $this->input->get('user_id');
             $user_id = $user_id_input ? (int)$user_id_input : 0;
             $module = trim((string)$this->input->get('module'));
             $action = trim((string)$this->input->get('action'));
             $from = $this->input->get('from');
             $to = $this->input->get('to');
-            
-            // Validate date inputs
+
             if ($from && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
                 $from = null;
             }
             if ($to && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
                 $to = null;
             }
-            
-            // Apply same filters as index
-            $this->db->select('activity_log.*, users.name as user_name, users.email as user_email');
+
+            $filename = 'activity_'.date('Ymd_His');
+            if ($module) { $filename .= '_' . $module; }
+            if ($action) { $filename .= '_' . $action; }
+            $filename .= '.csv';
+
+            // Probe for rows before sending download headers
+            $this->db->select('activity_log.id');
             $this->db->from('activity_log');
-            $this->db->join('users', 'users.id = activity_log.actor_id', 'left');
-            
             if ($user_id) { $this->db->where('activity_log.actor_id', $user_id); }
             if ($module !== '') { $this->db->where('activity_log.entity_type', $module); }
             if ($action !== '') { $this->db->where('activity_log.action', $action); }
             if ($from) { $this->db->where('activity_log.created_at >=', $from.' 00:00:00'); }
             if ($to) { $this->db->where('activity_log.created_at <=', $to.' 23:59:59'); }
-            
-            // Limit export to prevent memory issues (max 10,000 records)
-            $this->db->order_by('activity_log.id','DESC');
-            $this->db->limit(10000);
-            $query = $this->db->get();
-            
-            if ($query->num_rows() == 0) {
+            $this->db->limit(1);
+            if ($this->db->get()->num_rows() === 0) {
                 $this->session->set_flashdata('error', 'No records found to export.');
                 redirect('activity');
                 return;
             }
-            
-            $csv = $this->dbutil->csv_from_result($query, ",", "\r\n");
-            $filename = 'activity_'.date('Ymd_His');
-            if ($module) { $filename .= '_' . $module; }
-            if ($action) { $filename .= '_' . $action; }
-            $filename .= '.csv';
-            
-            force_download($filename, $csv);
+
+            $batch_size = 500;
+            $max_records = 50000;
+            $offset = 0;
+            $total_exported = 0;
+            $header_written = false;
+
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            $output = fopen('php://output', 'w');
+
+            while ($total_exported < $max_records) {
+                $this->db->reset_query();
+                $this->db->select('activity_log.*, users.name as user_name, users.email as user_email');
+                $this->db->from('activity_log');
+                $this->db->join('users', 'users.id = activity_log.actor_id', 'left');
+
+                if ($user_id) { $this->db->where('activity_log.actor_id', $user_id); }
+                if ($module !== '') { $this->db->where('activity_log.entity_type', $module); }
+                if ($action !== '') { $this->db->where('activity_log.action', $action); }
+                if ($from) { $this->db->where('activity_log.created_at >=', $from.' 00:00:00'); }
+                if ($to) { $this->db->where('activity_log.created_at <=', $to.' 23:59:59'); }
+
+                $this->db->order_by('activity_log.id', 'DESC');
+                $this->db->limit($batch_size, $offset);
+                $rows = $this->db->get()->result_array();
+
+                if (empty($rows)) {
+                    break;
+                }
+
+                if (!$header_written) {
+                    fputcsv($output, array_keys($rows[0]));
+                    $header_written = true;
+                }
+
+                foreach ($rows as $row) {
+                    fputcsv($output, $row);
+                    $total_exported++;
+                    if ($total_exported >= $max_records) {
+                        break;
+                    }
+                }
+
+                if (count($rows) < $batch_size) {
+                    break;
+                }
+
+                $offset += $batch_size;
+            }
+
+            fclose($output);
+            exit;
         } catch (Exception $e) {
             log_message('error', 'Activity export error: ' . $e->getMessage());
             $this->session->set_flashdata('error', 'An error occurred while exporting. Please try again.');

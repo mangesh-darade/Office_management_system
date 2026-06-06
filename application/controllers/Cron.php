@@ -7,9 +7,18 @@ class Cron extends CI_Controller {
         
         // Restrict cron to CLI or authorized token
         if (!$this->input->is_cli_request()) {
+            $this->load->model('Setting_model', 'settings');
             $cron_token = $this->input->get('token');
-            $expected_token = 'CHANGE_THIS_TO_A_SECURE_RANDOM_TOKEN';
-            if (empty($cron_token) || $cron_token !== $expected_token) {
+            $expected_token = $this->settings->get_setting('cron_secret_token', '');
+            if ($expected_token === '' || $expected_token === null)
+            {
+                $expected_token = getenv('CRON_TOKEN');
+            }
+            if ($expected_token === false || $expected_token === '')
+            {
+                $expected_token = 'CHANGE_THIS_TO_A_SECURE_RANDOM_TOKEN';
+            }
+            if (empty($cron_token) || !hash_equals((string)$expected_token, (string)$cron_token)) {
                 show_error('Access denied. Cron endpoints require CLI access or valid token.', 403);
             }
         }

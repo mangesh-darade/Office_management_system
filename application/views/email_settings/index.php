@@ -1,7 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'Email Notification Settings']); ?>
 
 <div class="container-fluid py-3">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4">
   <div>
     <h1 class="h4 mb-1 fw-bold">
       <i class="bi bi-envelope-gear text-primary me-2"></i>Email Notification Settings

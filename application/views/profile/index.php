@@ -1,5 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'My Profile']); ?>
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <h1 class="h4 mb-2 mb-sm-0">My Profile</h1>
   </div>
 

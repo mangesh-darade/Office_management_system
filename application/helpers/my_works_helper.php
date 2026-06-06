@@ -29,6 +29,24 @@ if (!function_exists('my_works_user_in_personal_scope')) {
     }
 }
 
+if (!function_exists('my_works_type_labels')) {
+    function my_works_type_labels()
+    {
+        $CI =& get_instance();
+        $CI->load->helper('types');
+        return module_type_options_resolved('my_works');
+    }
+}
+
+if (!function_exists('my_works_type_label')) {
+    function my_works_type_label($key)
+    {
+        $CI =& get_instance();
+        $CI->load->helper('types');
+        return module_type_label($key, 'my_works');
+    }
+}
+
 if (!function_exists('my_works_status_labels')) {
     function my_works_status_labels()
     {

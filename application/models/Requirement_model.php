@@ -2,7 +2,8 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Requirement_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
+    public function __construct(){ parent::__construct(); $this->load->database();
+        $this->load->helper('schema_columns'); $this->load->helper('hierarchy_filter'); }
 
     public function count_requirements($filters = []){
         $this->apply_filters($filters);
@@ -17,12 +18,12 @@ class Requirement_model extends CI_Model {
         if ($this->db->table_exists('users')){
             $sel = [];
             // Assigned to name
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $sel[] = "CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name"; }
-            else if ($this->db->field_exists('name','users')) { $sel[] = "u.name AS assigned_to_name"; }
+            if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $sel[] = "CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name"; }
+            else if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = "u.name AS assigned_to_name"; }
             else { $sel[] = "u.email AS assigned_to_name"; }
             // Owner name
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $sel[] = "CONCAT(ow.first_name,' ',ow.last_name) AS owner_name"; }
-            else if ($this->db->field_exists('name','users')) { $sel[] = "ow.name AS owner_name"; }
+            if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $sel[] = "CONCAT(ow.first_name,' ',ow.last_name) AS owner_name"; }
+            else if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = "ow.name AS owner_name"; }
             else { $sel[] = "ow.email AS owner_name"; }
             $this->db->join('users u','u.id = r.assigned_to','left');
             $this->db->join('users ow','ow.id = r.owner_id','left');
@@ -38,6 +39,7 @@ class Requirement_model extends CI_Model {
         $t = $alias ? $alias.'.' : '';
         if (!empty($filters['status'])){ $this->db->where($t.'status', $filters['status']); }
         if (!empty($filters['priority'])){ $this->db->where($t.'priority', $filters['priority']); }
+        if (!empty($filters['requirement_type'])){ $this->db->where($t.'requirement_type', $filters['requirement_type']); }
         if (!empty($filters['client_id'])){ $this->db->where($t.'client_id', (int)$filters['client_id']); }
         if (!empty($filters['assigned_to'])){ $this->db->where($t.'assigned_to', (int)$filters['assigned_to']); }
         if (!empty($filters['search'])){
@@ -61,13 +63,13 @@ class Requirement_model extends CI_Model {
         if ($this->db->table_exists('users')){
             // Assigned
             $this->db->join('users u','u.id=r.assigned_to','left');
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $this->db->select("CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name", false); }
-            else if ($this->db->field_exists('name','users')) { $this->db->select("u.name AS assigned_to_name", false); }
+            if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $this->db->select("CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name", false); }
+            else if (schema_table_has_column($this->db, 'users', 'name')) { $this->db->select("u.name AS assigned_to_name", false); }
             else { $this->db->select("u.email AS assigned_to_name", false); }
             // Owner
             $this->db->join('users ow','ow.id=r.owner_id','left');
-            if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')){ $this->db->select("CONCAT(ow.first_name,' ',ow.last_name) AS owner_name", false); }
-            else if ($this->db->field_exists('name','users')) { $this->db->select("ow.name AS owner_name", false); }
+            if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')){ $this->db->select("CONCAT(ow.first_name,' ',ow.last_name) AS owner_name", false); }
+            else if (schema_table_has_column($this->db, 'users', 'name')) { $this->db->select("ow.name AS owner_name", false); }
             else { $this->db->select("ow.email AS owner_name", false); }
         }
         apply_role_hierarchy_filter($this->db, 'r.created_by');
@@ -102,9 +104,9 @@ class Requirement_model extends CI_Model {
     public function get_team_members(){
         if (!$this->db->table_exists('users')){ return []; }
         $sel = ['id','email'];
-        if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-        if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
-        if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
+        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
+        if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
         $this->db->select(implode(',', $sel), false)->from('users');
         apply_role_hierarchy_filter($this->db, 'id');
         return $this->db->order_by('email','ASC')->get()->result();
@@ -163,8 +165,8 @@ class Requirement_model extends CI_Model {
     public function get_requirement_comments($requirement_id){
         if (!$this->db->table_exists('requirement_comments')){ return []; }
         $sel = ['c.*', 'u.email'];
-        if ($this->db->field_exists('name','users')) { $sel[] = 'u.name'; }
-        if ($this->db->field_exists('full_name','users')) { $sel[] = 'u.full_name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'u.name'; }
+        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'u.full_name'; }
         $this->db->select(implode(', ', $sel))
                  ->from('requirement_comments c')
                  ->join('users u', 'u.id = c.user_id', 'left')

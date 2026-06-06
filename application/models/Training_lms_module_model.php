@@ -10,6 +10,7 @@ class Training_lms_module_model extends CI_Model
     {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('schema_columns');
     }
 
     public function schema_ready()
@@ -30,11 +31,11 @@ class Training_lms_module_model extends CI_Model
         if (!$this->db->table_exists('training_modules') || !$this->db->table_exists('training_topics')) {
             return;
         }
-        if (!$this->db->field_exists('prerequisite_topic_id', 'training_topics')) {
+        if (!schema_table_has_column($this->db, 'training_topics', 'prerequisite_topic_id')) {
             $this->db->query("ALTER TABLE `training_topics` ADD `prerequisite_topic_id` int(11) DEFAULT NULL COMMENT 'Enforced prerequisite topic' AFTER `module_id`");
             $this->db->query('ALTER TABLE `training_topics` ADD KEY `idx_tt_prereq` (`prerequisite_topic_id`)');
         }
-        if ($this->db->table_exists('assignments') && !$this->db->field_exists('max_submissions', 'assignments')) {
+        if ($this->db->table_exists('assignments') && !schema_table_has_column($this->db, 'assignments', 'max_submissions')) {
             $this->db->query("ALTER TABLE `assignments` ADD `max_submissions` int(11) NOT NULL DEFAULT 0 COMMENT '0 = unlimited uploads per user' AFTER `details`");
         }
         if (!$this->db->table_exists('training_enrollments')) {

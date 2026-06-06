@@ -36,11 +36,13 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Type</label>
-          <select name="requirement_type" class="form-select">
-            <?php $types = array('new_feature','enhancement','bug_fix','maintenance','consultation','other'); foreach ($types as $t): ?>
-              <option value="<?php echo htmlspecialchars($t); ?>" <?php echo ($row->requirement_type===$t)?'selected':''; ?>><?php echo ucfirst(str_replace('_',' ',$t)); ?></option>
-            <?php endforeach; ?>
-          </select>
+          <?php $this->load->view('partials/module_type_select', array(
+            'field_name' => 'requirement_type',
+            'options' => isset($requirement_types) ? $requirement_types : array(),
+            'current' => isset($row->requirement_type) ? (string) $row->requirement_type : 'new_feature',
+            'required' => true,
+            'placeholder' => '— Select type —',
+          )); ?>
         </div>
         <div class="col-md-12">
           <label class="form-label">Description</label>

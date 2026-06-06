@@ -1,5 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => (($action === 'edit') ? 'Edit' : 'Create').' Employee']); ?>
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <h1 class="h4 mb-2 mb-sm-0"><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Employee</h1>
     <a class="btn btn-secondary" href="<?php echo site_url('employees'); ?>">Back</a>
   </div>
@@ -103,13 +103,15 @@
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="employment_type">Employment Type <span class="text-danger">*</span></label>
-        <select name="employment_type" id="employment_type" class="form-select" data-mandatory="true" required>
-          <?php $et = isset($employee->employment_type) ? $employee->employment_type : 'full_time'; ?>
-          <option value="full_time" <?php echo $et==='full_time'?'selected':''; ?>>Full time</option>
-          <option value="part_time" <?php echo $et==='part_time'?'selected':''; ?>>Part time</option>
-          <option value="contract" <?php echo $et==='contract'?'selected':''; ?>>Contract</option>
-          <option value="intern" <?php echo $et==='intern'?'selected':''; ?>>Intern</option>
-        </select>
+        <?php $et = (isset($employee) && isset($employee->employment_type)) ? (string) $employee->employment_type : 'full_time'; ?>
+        <?php $this->load->view('partials/module_type_select', array(
+          'field_name' => 'employment_type',
+          'options' => isset($employment_types) ? $employment_types : array(),
+          'current' => $et,
+          'required' => true,
+          'select_class' => 'form-select',
+          'placeholder' => '— Select type —',
+        )); ?>
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="shift_id">Shift <span class="text-danger">*</span></label>

@@ -259,6 +259,56 @@ if (!function_exists('send_whatsapp_message')) {
     }
 }
 
+if (!function_exists('twilio_webhook_request_url')) {
+    /**
+     * Reconstruct the full webhook URL Twilio signed (must match console URL exactly).
+     *
+     * @return string
+     */
+    function twilio_webhook_request_url()
+    {
+        $protocol = 'http';
+        if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on')) {
+            $protocol = 'https';
+        }
+
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+        $uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
+
+        return $protocol . '://' . $host . $uri;
+    }
+}
+
+if (!function_exists('validate_twilio_webhook_signature')) {
+    /**
+     * Validate X-Twilio-Signature for inbound webhooks (HMAC-SHA1).
+     *
+     * @param string $signature Header value from X-Twilio-Signature
+     * @param string $url       Full webhook URL (see twilio_webhook_request_url)
+     * @param array  $post_vars POST parameters Twilio sent
+     * @param string $auth_token Twilio auth token
+     * @return bool
+     */
+    function validate_twilio_webhook_signature($signature, $url, array $post_vars, $auth_token)
+    {
+        if ($auth_token === '' || $auth_token === null || $signature === '' || $signature === null) {
+            return false;
+        }
+
+        ksort($post_vars);
+        $data = $url;
+        foreach ($post_vars as $key => $value) {
+            $data .= $key . $value;
+        }
+
+        $expected = base64_encode(hash_hmac('sha1', $data, $auth_token, true));
+
+        return hash_equals($expected, $signature);
+    }
+}
+
 if (!function_exists('get_all_api_integrations')) {
     /**
      * Get all API integrations (optionally filtered by service type)

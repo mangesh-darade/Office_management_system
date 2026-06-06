@@ -5,6 +5,7 @@ class Chat_model extends CI_Model {
     public function __construct() {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('schema_columns');
         $this->ensure_schema();
     }
 
@@ -79,8 +80,8 @@ class Chat_model extends CI_Model {
 
     public function list_users_for_select($filters = []) {
         $sel = ['id','email'];
-        if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
-        if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
+        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
         
         $this->db->select(implode(',', $sel))->from('users');
         
@@ -130,8 +131,8 @@ class Chat_model extends CI_Model {
     }
 
     public function list_conversations($user_id, $filters = []) {
-        $name_col = $this->db->field_exists('full_name','users') ? "COALESCE(u.full_name, u.email)" :
-                    ($this->db->field_exists('name','users') ? "COALESCE(u.name, u.email)" : "u.email");
+        $name_col = schema_table_has_column($this->db, 'users', 'full_name') ? "COALESCE(u.full_name, u.email)" :
+                    (schema_table_has_column($this->db, 'users', 'name') ? "COALESCE(u.name, u.email)" : "u.email");
         $sql = "SELECT c.*, 
                        GROUP_CONCAT(u.email ORDER BY u.email SEPARATOR ', ') AS members,
                        GROUP_CONCAT({$name_col} ORDER BY u.email SEPARATOR ', ') AS member_names,
@@ -262,7 +263,7 @@ class Chat_model extends CI_Model {
 
     public function participants($conversation_id) {
         $cols = ['u.id', 'u.email'];
-        if ($this->db->field_exists('name','users')) { $cols[] = 'u.name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')) { $cols[] = 'u.name'; }
         $sql = "SELECT ".implode(', ', $cols)." FROM conversation_participants cp JOIN users u ON u.id=cp.user_id WHERE cp.conversation_id=? ORDER BY u.email";
         return $this->db->query($sql, [$conversation_id])->result();
     }
@@ -278,8 +279,8 @@ class Chat_model extends CI_Model {
     }
 
     public function fetch_messages($conversation_id, $since_id=0) {
-        $name_col = $this->db->field_exists('full_name','users') ? "u.full_name" :
-                    ($this->db->field_exists('name','users') ? "u.name" : "u.email");
+        $name_col = schema_table_has_column($this->db, 'users', 'full_name') ? "u.full_name" :
+                    (schema_table_has_column($this->db, 'users', 'name') ? "u.name" : "u.email");
         $sql = "SELECT m.*, u.email, {$name_col} AS full_name
                 FROM messages m
                 LEFT JOIN users u ON u.id = m.sender_id
@@ -290,8 +291,8 @@ class Chat_model extends CI_Model {
     }
 
     public function get_message_by_id($msg_id) {
-        $name_col = $this->db->field_exists('full_name','users') ? "u.full_name" :
-                    ($this->db->field_exists('name','users') ? "u.name" : "u.email");
+        $name_col = schema_table_has_column($this->db, 'users', 'full_name') ? "u.full_name" :
+                    (schema_table_has_column($this->db, 'users', 'name') ? "u.name" : "u.email");
         $sql = "SELECT m.*, u.email, {$name_col} AS full_name
                 FROM messages m
                 LEFT JOIN users u ON u.id = m.sender_id
@@ -301,14 +302,14 @@ class Chat_model extends CI_Model {
 
     public function delete_message($message_id) {
         // Soft-delete: mark as deleted rather than removing from DB
-        if (!$this->db->field_exists('is_deleted', 'messages')) {
+        if (!schema_table_has_column($this->db, 'messages', 'is_deleted')) {
             $this->db->query("ALTER TABLE `messages` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0");
         }
         $this->db->where('id', (int)$message_id)->update('messages', ['is_deleted' => 1, 'body' => '']);
     }
 
     public function edit_message($message_id, $new_body) {
-        if (!$this->db->field_exists('edited_at', 'messages')) {
+        if (!schema_table_has_column($this->db, 'messages', 'edited_at')) {
             $this->db->query("ALTER TABLE `messages` ADD COLUMN `edited_at` datetime DEFAULT NULL");
         }
         $this->db->where('id', (int)$message_id)->update('messages', [

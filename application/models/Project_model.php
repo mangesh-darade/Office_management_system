@@ -1,7 +1,10 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 class Project_model extends CI_Model {
+    use Schema_columns_trait;
     private $table = 'projects';
     public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
     
@@ -17,9 +20,9 @@ class Project_model extends CI_Model {
                 $this->db->where('pm.user_id', $filters['user_id']);
             }
         }
-        if ($this->db->field_exists('created_by', $this->table)) {
+        if ($this->has_column('created_by')) {
             apply_role_hierarchy_filter($this->db, 'p.created_by');
-        } else if ($this->db->field_exists('manager_id', $this->table)) {
+        } else if ($this->has_column('manager_id')) {
             apply_role_hierarchy_filter($this->db, 'p.manager_id');
         }
         

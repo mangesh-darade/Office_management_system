@@ -1,0 +1,167 @@
+# Office Management System — Cursor AI Rules
+# CodeIgniter 3 | PHP 8.4 | Production Internal Portal
+
+You are working on a large production CodeIgniter 3 Office Management System.
+This is NOT a POS, Restaurant, Inventory, or Webshop system. It is an internal
+HR/operations portal with modules for employees, attendance, payroll, projects,
+training LMS, coaching CRM, and reporting.
+
+Read PROJECT_CONTEXT.md and DEVELOPMENT_GUIDELINES.md before making changes.
+
+---
+
+## ABSOLUTE PROHIBITIONS
+
+Never do these unless the user EXPLICITLY requests it:
+
+- Change business logic
+- Modify API/JSON response shapes or keys
+- Modify database structure (tables, columns, indexes)
+- Modify UI behavior, layouts, or workflows
+- Modify authentication or authorization rules
+- Introduce Laravel, Symfony, or modern framework patterns
+- Introduce Composer packages or DI containers
+- Create unnecessary functions, helpers, libraries, or abstractions
+- Over-engineer solutions (no service layers, repositories, event buses)
+- Refactor unrelated code while fixing a bug
+- Remove runtime ensure_schema without approved migration replacement
+
+---
+
+## FRAMEWORK RULES
+
+- Use CodeIgniter 3 patterns ONLY (controllers, models, views, helpers, hooks)
+- Primary runtime: PHP 8.4 on WAMP with MySQL/mysqli
+- Write application code compatible with CI3 conventions (no strict types, enums, or constructor property promotion in application/)
+- system/ core has PHP 8.4 patches — do not revert AllowDynamicProperties or E_STRICT fixes
+- Use Query Builder for all user-input database queries
+- Use `$this->load->view()` for output, never echo from controllers
+- Add routes to application/config/routes.php for new endpoints
+- Extend CI_Controller (or Coaching_Controller for coaching admin modules)
+- Extend CI_Model for all models
+
+---
+
+## CODING STYLE
+
+- Always use braces for if/else/for/while
+- Never use nested ternary operators
+- Never use single-line if without braces
+- Method names: snake_case (CI convention)
+- Variable names: snake_case
+- Class files: PascalCase matching class name
+- Model files: {Name}_model.php
+- Helper files: {name}_helper.php
+- Match existing indentation (spaces, typically 4 in controllers)
+- Keep changes minimal — smallest correct diff
+- Do not add comments unless explaining non-obvious business logic
+
+---
+
+## SECURITY REQUIREMENTS
+
+- Validate and sanitize all user input
+- Use htmlspecialchars($val, ENT_QUOTES, 'UTF-8') for view output
+- Include CSRF token in all forms
+- Do NOT add new csrf_exclude_uris without explicit approval
+- Use password_hash/password_verify for passwords
+- Cast IDs to (int) in database where clauses
+- Never interpolate user input into raw SQL
+- Store secrets in settings/api_integrations table, not in code
+- New controllers must work with AuthHook (session auth) or be added to public URI whitelist
+
+---
+
+## ARCHITECTURE PATTERNS TO FOLLOW
+
+### Controller constructor pattern:
+```php
+public function __construct() {
+    parent::__construct();
+    require_module_access('module_key');
+    $this->load->model('Example_model', 'example');
+}
+```
+
+### Coaching controllers:
+- Extend Coaching_Controller, set $coaching_permission
+- Use coaching_helper functions
+
+### Autoloaded helpers (do NOT reload inline):
+permission, attendance, training, company, api_integration,
+error_handler, notification, hierarchy_filter, data_scope, coaching
+
+### Layout views:
+partials/header, partials/sidebar, partials/footer
+
+### RBAC:
+- require_module_access() in constructor
+- has_module_access() in views for conditional UI
+- Admin role_id=1 bypasses route RBAC
+
+---
+
+## MODULE MAP (Key Permission Keys)
+
+employees, attendance, leaves, payroll, expenses, projects, tasks,
+requirements, my_works, reports, training_lms, training_assessment,
+coaching, coaching_billing, coaching_clients, coaching_sessions,
+recruitment, performance, assets, chats, notifications, settings,
+permissions, db, ai_chat, analytics, api_integrations
+
+---
+
+## WHEN ADDING NEW FEATURES
+
+1. Controller in application/controllers/
+2. Model in application/models/
+3. Views in application/views/{module}/
+4. Routes in application/config/routes.php
+5. Permission key + seed if RBAC needed
+6. require_module_access() in constructor
+7. Sidebar link in partials/sidebar.php
+8. Migration file for new tables (get approval first)
+9. Do NOT use runtime ensure_schema for new modules
+
+---
+
+## REFACTORING RULES
+
+- Analyze first, explain impact, verify backward compatibility
+- Only SAFE refactors without explicit approval: formatting, dead code removal,
+  redundant helper load removal, comment improvements, consistent spacing
+- Classify all refactor suggestions as SAFE / MEDIUM RISK / HIGH RISK
+- MEDIUM and HIGH risk changes require user approval before execution
+- After any change, confirm: same inputs produce same outputs
+
+---
+
+## TESTING BEFORE COMPLETION
+
+- No new PHP errors or warnings
+- Affected routes load correctly
+- AJAX JSON response keys unchanged
+- Permission checks work for non-admin roles
+- No var_dump/print_r left in code
+
+---
+
+## DOCUMENTATION REFERENCE
+
+| File | Purpose |
+|------|---------|
+| PROJECT_CONTEXT.md | What this system is |
+| PROJECT_ARCHITECTURE.md | Request flow, layers |
+| MODULE_DOCUMENTATION.md | All modules |
+| DATABASE_DOCUMENTATION.md | Tables, schema sources |
+| API_DOCUMENTATION.md | JSON/AJAX endpoints |
+| SECURITY_AUDIT.md | Security findings |
+| REFACTOR_PLAN.md | Classified refactor roadmap |
+
+---
+
+## PRIMARY GOAL
+
+Improve code quality without changing business logic, functionality,
+UI behavior, database behavior, API behavior, or existing workflows.
+This system serves real production users — treat every change as production-critical.

@@ -47,6 +47,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * @author		EllisLab Dev Team
  * @link		https://codeigniter.com/userguide3/libraries/exceptions.html
  */
+#[AllowDynamicProperties]
 class CI_Exceptions {
 
 	/**
@@ -63,9 +64,11 @@ class CI_Exceptions {
 	 */
 	public $levels = array(
 		E_ERROR			=>	'Error',
+		E_RECOVERABLE_ERROR	=>	'Recoverable Error',
 		E_WARNING		=>	'Warning',
 		E_PARSE			=>	'Parsing Error',
 		E_NOTICE		=>	'Notice',
+		E_DEPRECATED		=>	'Deprecated Notice',
 		E_CORE_ERROR		=>	'Core Error',
 		E_CORE_WARNING		=>	'Core Warning',
 		E_COMPILE_ERROR		=>	'Compile Error',
@@ -73,7 +76,8 @@ class CI_Exceptions {
 		E_USER_ERROR		=>	'User Error',
 		E_USER_WARNING		=>	'User Warning',
 		E_USER_NOTICE		=>	'User Notice',
-		E_STRICT		=>	'Runtime Notice'
+		E_USER_DEPRECATED	=>	'User Deprecated Notice',
+		2048			=>	'Runtime Notice'
 	);
 
 	/**

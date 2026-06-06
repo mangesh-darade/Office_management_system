@@ -2,7 +2,8 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Timesheet_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
+    public function __construct(){ parent::__construct(); $this->load->database();
+        $this->load->helper('schema_columns'); $this->load->helper('hierarchy_filter'); }
 
     public function get_user_timesheet($user_id, $week_start){
         $visible = get_accessible_hierarchy_user_ids();
@@ -36,7 +37,7 @@ class Timesheet_model extends CI_Model {
     public function add_entry($timesheet_id, $entry){
         $entry['timesheet_id'] = (int)$timesheet_id;
         // Only include 'billable' if the column exists in timesheet_entries
-        if ($this->db->field_exists('billable', 'timesheet_entries')) {
+        if (schema_table_has_column($this->db, 'timesheet_entries', 'billable')) {
             if (!isset($entry['billable'])) {
                 $entry['billable'] = 1; // Default to billable
             }
@@ -109,7 +110,7 @@ class Timesheet_model extends CI_Model {
      */
     public function get_billable_hours($timesheet_id){
         // Guard: return zeroes if billable column hasn't been added by migration yet
-        if (!$this->db->field_exists('billable', 'timesheet_entries')) {
+        if (!schema_table_has_column($this->db, 'timesheet_entries', 'billable')) {
             $result = $this->db->select_sum('hours')
                                ->where('timesheet_id', (int)$timesheet_id)
                                ->get('timesheet_entries')

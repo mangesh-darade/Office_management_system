@@ -9,7 +9,7 @@ class Assets extends CI_Controller {
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
-        require_module_access(['assets_mgmt', 'assets_list', 'assets'], true);
+        require_controller_access('assets', true);
         
         $this->load->model('Asset_model', 'assets');
     }
@@ -81,7 +81,7 @@ class Assets extends CI_Controller {
 
     // GET/POST /assets/assign/{id}
     public function assign($id){
-        require_module_access(['assets_assign', 'assets_mgmt', 'assets'], true);
+        require_module_access(['assets_assign', 'assets_manage', 'assets_mgmt', 'assets'], true);
         $id = (int)$id;
         $row = $this->assets->find($id);
         if (!$row) { show_404(); }
@@ -105,7 +105,7 @@ class Assets extends CI_Controller {
 
     // POST /assets/return/{id}
     public function return_asset($id){
-        require_module_access(['assets_assign', 'assets_mgmt', 'assets'], true);
+        require_module_access(['assets_assign', 'assets_manage', 'assets_mgmt', 'assets'], true);
         $id = (int)$id;
         $this->assets->mark_returned($id, date('Y-m-d'));
         $this->session->set_flashdata('success', 'Asset marked as returned');

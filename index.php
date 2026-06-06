@@ -71,9 +71,33 @@ switch (ENVIRONMENT)
 	break;
 
 	case 'testing':
+		ini_set('display_errors', 0);
+		if (version_compare(PHP_VERSION, '8.4', '>='))
+		{
+			// Staging: surface PHP 8.4 deprecations in logs (not displayed to users)
+			error_reporting(E_ALL & ~E_NOTICE & ~E_USER_NOTICE);
+		}
+		elseif (version_compare(PHP_VERSION, '5.3', '>='))
+		{
+			error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
+		}
+		else
+		{
+			error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
+		}
+	break;
+
 	case 'production':
 		ini_set('display_errors', 0);
-		if (version_compare(PHP_VERSION, '5.3', '>='))
+		if (isset($_SERVER['CI_DEPRECATIONS']) && $_SERVER['CI_DEPRECATIONS'] === '1')
+		{
+			error_reporting(E_ALL & ~E_NOTICE & ~E_USER_NOTICE);
+		}
+		elseif (version_compare(PHP_VERSION, '8.4', '>='))
+		{
+			error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
+		}
+		elseif (version_compare(PHP_VERSION, '5.3', '>='))
 		{
 			error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
 		}

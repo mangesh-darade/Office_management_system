@@ -79,13 +79,13 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Type</label>
-          <select name="client_type" class="form-select">
-            <option value="company">Company</option>
-            <option value="individual">Individual</option>
-            <option value="government">Government</option>
-            <option value="startup">Startup</option>
-            <option value="other">Other</option>
-          </select>
+          <?php $this->load->view('partials/module_type_select', array(
+            'field_name' => 'client_type',
+            'options' => isset($client_types) ? $client_types : array(),
+            'current' => 'company',
+            'required' => true,
+            'placeholder' => '— Select type —',
+          )); ?>
         </div>
         <div class="col-md-8">
           <label class="form-label">Account Manager</label>

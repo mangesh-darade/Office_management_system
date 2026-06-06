@@ -1,11 +1,16 @@
 <?php $this->load->view('partials/header', ['title' => 'Assets']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Assets</h1>
-  <div class="d-flex gap-2">
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('assets-mgmt/my'); ?>">My Assets</a>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('assets-mgmt/create'); ?>">Add Asset</a>
-  </div>
-</div>
+<div class="container-fluid py-3">
+<?php ob_start(); ?>
+<a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('assets-mgmt/my'); ?>">My Assets</a>
+<?php if(function_exists('has_module_access') && (has_module_access('assets_add') || has_module_access('assets') || has_module_access('assets_manage'))): ?>
+<a class="btn btn-primary btn-sm" href="<?php echo site_url('assets-mgmt/create'); ?>"><i class="bi bi-plus-lg me-1"></i>Add</a>
+<?php endif;
+$this->load->view('partials/oms_page_head', [
+  'title' => 'Assets',
+  'subtitle' => 'Company equipment and assignments',
+  'icon' => 'bi-laptop',
+  'actions_html' => ob_get_clean(),
+]); ?>
 
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
@@ -66,5 +71,6 @@
       </table>
     </div>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

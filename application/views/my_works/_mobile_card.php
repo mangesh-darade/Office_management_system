@@ -12,8 +12,8 @@
 ?>
 <div class="mw-item-card <?php echo $borderClass; ?>">
   <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="d-block text-decoration-none text-body">
-    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
-      <div class="fw-semibold"><?php echo htmlspecialchars($r->title); ?></div>
+    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+      <div class="fw-semibold fs-6 text-dark"><?php echo htmlspecialchars($r->title); ?></div>
       <?php if (!$canStatus): ?>
         <span class="badge bg-<?php echo $stColor; ?> flex-shrink-0"><?php echo htmlspecialchars($stLabel); ?></span>
       <?php endif; ?>
@@ -31,6 +31,19 @@
       <?php if (!empty($r->attachment_stored)): ?><span class="badge bg-light text-muted border"><i class="bi bi-paperclip"></i></span><?php endif; ?>
       <?php if (!empty($r->url)): ?><span class="badge bg-light text-primary border"><i class="bi bi-link-45deg"></i></span><?php endif; ?>
     </div>
+    <?php if (!empty($r->work_type) || !empty($r->client_name) || !empty($r->project_name)): ?>
+    <div class="d-flex flex-wrap gap-1 mb-2">
+      <?php if (!empty($r->work_type)): ?><span class="mw-chip mw-chip-type"><i class="bi bi-tag"></i><?php echo htmlspecialchars(my_works_type_label($r->work_type)); ?></span><?php endif; ?>
+      <?php if (!empty($r->client_name)): ?><span class="mw-chip mw-chip-client"><i class="bi bi-building"></i><?php echo htmlspecialchars($r->client_name); ?></span><?php endif; ?>
+      <?php if (!empty($r->project_name)): ?><span class="mw-chip mw-chip-project"><i class="bi bi-folder"></i><?php echo htmlspecialchars($r->project_name); ?></span><?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($r->url) || !empty($r->closing_comment)): ?>
+    <div class="small text-muted mb-2">
+      <?php if (!empty($r->url)): ?><a href="<?php echo htmlspecialchars($r->url); ?>" target="_blank" rel="noopener" class="me-2"><i class="bi bi-link-45deg me-1"></i>URL</a><?php endif; ?>
+      <?php if (!empty($r->closing_comment)): ?><?php $cc = (string) $r->closing_comment; ?><span title="<?php echo htmlspecialchars($cc); ?>"><i class="bi bi-chat-left-text me-1"></i><?php echo htmlspecialchars(strlen($cc) > 40 ? substr($cc, 0, 40) . '…' : $cc); ?></span><?php endif; ?>
+    </div>
+    <?php endif; ?>
     <div class="small text-muted d-flex flex-wrap gap-2 justify-content-between">
       <span><i class="bi bi-person me-1"></i><?php echo htmlspecialchars($forLabel); ?></span>
       <span><?php echo my_works_format_when($r->updated_at); ?></span>

@@ -398,7 +398,7 @@
 
 <div class="container-fluid py-3">
 <div class="att-emp-report">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h4 class="mb-1 fw-bold"><i class="bi bi-person-badge text-primary me-2"></i>Employee Attendance</h4>
     <p class="text-muted small mb-0">Individual employee attendance records and analytics</p>
@@ -490,28 +490,28 @@
   
   <?php 
     $totalLateHours = 0;
-    foreach ($rows as $r) { $totalLateHours += isset($r->late_hours) ? (float)$r->late_hours : 0; }
+    foreach ($rows as $r) { $totalLateHours += isset($r->late_hours_decimal) ? (float)$r->late_hours_decimal : 0; }
     if ($totalLateHours > 0):
   ?>
   <div class="stat-card" style="background: linear-gradient(135deg, #fee2e2 0%, #f87171 100%);">
     <div class="stat-icon" style="background: rgba(248, 113, 113, 0.2); color: #dc2626;">
       <i class="bi bi-clock-history"></i>
     </div>
-    <div class="stat-value"><?php echo number_format($totalLateHours, 1); ?>h</div>
+    <div class="stat-value"><?php echo attendance_report_format_hours_hhmm($totalLateHours); ?></div>
     <div class="stat-label">Total Late Hours</div>
   </div>
   <?php endif; ?>
   
   <?php 
     $totalExtraHours = 0;
-    foreach ($rows as $r) { $totalExtraHours += isset($r->extra_hours) ? (float)$r->extra_hours : 0; }
+    foreach ($rows as $r) { $totalExtraHours += isset($r->extra_hours_decimal) ? (float)$r->extra_hours_decimal : 0; }
     if ($totalExtraHours > 0):
   ?>
   <div class="stat-card" style="background: linear-gradient(135deg, #d1fae5 0%, #34d399 100%);">
     <div class="stat-icon" style="background: rgba(52, 211, 153, 0.2); color: #059669;">
       <i class="bi bi-hourglass-split"></i>
     </div>
-    <div class="stat-value"><?php echo number_format($totalExtraHours, 1); ?>h</div>
+    <div class="stat-value"><?php echo attendance_report_format_hours_hhmm($totalExtraHours); ?></div>
     <div class="stat-label">Total Extra Hours</div>
   </div>
   <?php endif; ?>
@@ -566,8 +566,14 @@
       <?php if (isset($office_start_time)): ?>
         <div><strong>Office Start:</strong> <?php echo htmlspecialchars($office_start_time); ?></div>
       <?php endif; ?>
+      <?php if (isset($office_end_time)): ?>
+        <div><strong>Office End:</strong> <?php echo htmlspecialchars($office_end_time); ?></div>
+      <?php endif; ?>
       <?php if (isset($grace_minutes)): ?>
         <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
+      <?php endif; ?>
+      <?php if (isset($office_start_time) && isset($office_end_time) && isset($grace_minutes)): ?>
+        <div><strong>On Time Rule:</strong> Check-in by <?php echo htmlspecialchars(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo htmlspecialchars($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($standard_working_hours)): ?>
         <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>
@@ -689,8 +695,8 @@
                        (isset($r->on_time_days) && (float)$r->on_time_days > 0) || 
                        (float)$r->late_days > 0 || 
                        (float)$r->leave_days > 0 || 
-                       (isset($r->late_hours) && (float)$r->late_hours > 0) || 
-                       (isset($r->extra_hours) && (float)$r->extra_hours > 0);
+                       (isset($r->late_hours_decimal) && (float)$r->late_hours_decimal > 0) || 
+                       (isset($r->extra_hours_decimal) && (float)$r->extra_hours_decimal > 0);
             if (!$hasData) continue;
           ?>
             <tr data-searchable="<?php echo strtolower(htmlspecialchars($r->name)); ?>" data-index="<?php echo $index; ?>" data-user-id="<?php echo $r->user_id; ?>">
@@ -745,15 +751,15 @@
                 </div>
               </td>
               <td class="status-cell" style="color: #d97706;">
-                <div><?php echo isset($r->late_hours) ? htmlspecialchars($r->late_hours) : '0'; ?>h</div>
+                <div><?php echo isset($r->late_hours) ? htmlspecialchars($r->late_hours) : '00:00'; ?></div>
                 <div class="progress-bar">
-                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->late_hours) ? (float)$r->late_hours : 0) * 10); ?>%; background: #d97706;"></div>
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->late_hours_decimal) ? (float)$r->late_hours_decimal : 0) * 10); ?>%; background: #d97706;"></div>
                 </div>
               </td>
               <td class="status-cell" style="color: var(--att-emp-success);">
-                <div><?php echo isset($r->extra_hours) ? htmlspecialchars($r->extra_hours) : '0'; ?>h</div>
+                <div><?php echo isset($r->extra_hours) ? htmlspecialchars($r->extra_hours) : '00:00'; ?></div>
                 <div class="progress-bar">
-                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->extra_hours) ? (float)$r->extra_hours : 0) * 5); ?>%; background: var(--att-emp-success);"></div>
+                  <div class="progress-fill" style="width: <?php echo min(100, (isset($r->extra_hours_decimal) ? (float)$r->extra_hours_decimal : 0) * 5); ?>%; background: var(--att-emp-success);"></div>
                 </div>
               </td>
               <td class="text-end">
@@ -969,14 +975,26 @@ function sortTable(columnIndex) {
         aValue = parseFloat(a.cells[7].textContent.trim()) || 0;
         bValue = parseFloat(b.cells[7].textContent.trim()) || 0;
         break;
-      case 8:
-        aValue = parseFloat(a.cells[8].textContent.replace('h', '').trim()) || 0;
-        bValue = parseFloat(b.cells[8].textContent.replace('h', '').trim()) || 0;
+      case 8: {
+        const parseHhMm = (text) => {
+          const parts = text.trim().split(':');
+          if (parts.length !== 2) return 0;
+          return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+        };
+        aValue = parseHhMm(a.cells[8].textContent);
+        bValue = parseHhMm(b.cells[8].textContent);
         break;
-      case 9:
-        aValue = parseFloat(a.cells[9].textContent.replace('h', '').trim()) || 0;
-        bValue = parseFloat(b.cells[9].textContent.replace('h', '').trim()) || 0;
+      }
+      case 9: {
+        const parseHhMm = (text) => {
+          const parts = text.trim().split(':');
+          if (parts.length !== 2) return 0;
+          return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+        };
+        aValue = parseHhMm(a.cells[9].textContent);
+        bValue = parseHhMm(b.cells[9].textContent);
         break;
+      }
     }
     
     if (sortDirection === 'asc') {

@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Team Leaves']); ?>
 <div class="container-fluid py-3">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-people text-primary me-2"></i>Team Leave Requests</h1>
     <p class="text-muted small mb-0">Review and manage team leave applications</p>
@@ -126,7 +126,7 @@
               </td>
               <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->status))); ?></span></td>
               <td><?php echo htmlspecialchars(isset($r->created_at) ? $r->created_at : ''); ?></td>
-              <td style="max-width:280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?></td>
+              <td class="text-truncate" style="max-width:min(280px, 50vw);"><?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?></td>
               <td>
                 <div class="d-flex flex-column gap-2" onclick="event.stopPropagation();">
                   <!-- Approve/Reject actions for managers - Single comment box -->

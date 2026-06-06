@@ -871,6 +871,22 @@
         </div>
       </div>
     </div> <!-- End Row -->
+
+    <?php if (function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
+    <div class="card shadow-sm mt-4 border-0">
+      <div class="card-header bg-light border-0">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-ui-checks-grid text-primary me-2"></i>Module Type Management
+        </h6>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Configure types for My Works, Clients, Projects, Requirements, and Employees. These appear in module dropdowns, filters, and validation.</p>
+        <a href="<?php echo site_url('settings/types'); ?>" class="btn btn-primary">
+          <i class="bi bi-gear me-1"></i>Manage Module Types
+        </a>
+      </div>
+    </div>
+    <?php endif; ?>
   </div> <!-- End General Tab -->
 
   <!-- AI Integration Tab -->

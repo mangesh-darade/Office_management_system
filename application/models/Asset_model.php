@@ -10,7 +10,7 @@ class Asset_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema(){
+    public function ensure_schema(){
         if (!$this->db->table_exists($this->table)){
             $sql = "CREATE TABLE `assets` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,

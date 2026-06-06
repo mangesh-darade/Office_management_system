@@ -373,7 +373,7 @@
 
 <div class="container-fluid py-3">
 <div class="att-det-report">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h4 class="mb-1 fw-bold"><i class="bi bi-person-lines-fill text-primary me-2"></i>Attendance Detail</h4>
     <p class="text-muted small mb-0">Detailed attendance log for individual employee</p>
@@ -538,8 +538,14 @@
       <?php if (isset($office_start_time)): ?>
         <div><strong>Office Start:</strong> <?php echo htmlspecialchars($office_start_time); ?></div>
       <?php endif; ?>
+      <?php if (isset($office_end_time)): ?>
+        <div><strong>Office End:</strong> <?php echo htmlspecialchars($office_end_time); ?></div>
+      <?php endif; ?>
       <?php if (isset($grace_minutes)): ?>
         <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
+      <?php endif; ?>
+      <?php if (isset($office_start_time) && isset($office_end_time) && isset($grace_minutes)): ?>
+        <div><strong>On Time Rule:</strong> Check-in by <?php echo htmlspecialchars(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo htmlspecialchars($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($standard_working_hours)): ?>
         <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>

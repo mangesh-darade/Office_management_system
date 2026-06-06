@@ -6,7 +6,7 @@ class Permissions extends CI_Controller {
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','activity','permission']);
+        $this->load->helper(['url','form','activity','permission','schema_columns']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -17,154 +17,8 @@ class Permissions extends CI_Controller {
 
     private function ensure_schema()
     {
-        static $done = false;
-        if ($done) { return; }
-        $done = true;
-        if (!$this->db->table_exists('permissions')) {
-            $sql = "CREATE TABLE `permissions` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `role_id` int(11) NOT NULL,
-                `module` varchar(100) NOT NULL,
-                `can_access` tinyint(1) NOT NULL DEFAULT '0',
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uq_role_module` (`role_id`,`module`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        } else {
-            // Remove invalid legacy rows with empty module key.
-            $this->db->where("(module IS NULL OR TRIM(module) = '')", null, false)->delete('permissions');
-
-            // Upgrade: convert regular index to UNIQUE if needed (prevents duplicate rows)
-            $idx = $this->db->query("SHOW INDEX FROM `permissions` WHERE Key_name = 'idx_role_module'")->result();
-            if (!empty($idx)) {
-                $this->db->query("ALTER TABLE `permissions` DROP INDEX `idx_role_module`, ADD UNIQUE KEY `uq_role_module` (`role_id`,`module`)");
-            } else {
-                $uq = $this->db->query("SHOW INDEX FROM `permissions` WHERE Key_name = 'uq_role_module'")->result();
-                if (empty($uq)) {
-                    $this->db->query("ALTER TABLE `permissions` ADD UNIQUE KEY `uq_role_module` (`role_id`,`module`)");
-                }
-            }
-
-            // Ensure module column is wide enough (varchar(64) -> varchar(100))
-            $col = $this->db->query("SHOW COLUMNS FROM `permissions` LIKE 'module'")->row();
-            if ($col && strpos(strtolower($col->Type), 'varchar(64)') !== false) {
-                $this->db->query("ALTER TABLE `permissions` MODIFY COLUMN `module` varchar(100) NOT NULL");
-            }
-
-            // Migrate renamed keys: assets_mgmt -> assets (preserve existing permission settings)
-            $old_assets = $this->db->where('module', 'assets_mgmt')->get('permissions')->result();
-            if (!empty($old_assets)) {
-                foreach ($old_assets as $row) {
-                    $exists = $this->db->where('role_id', (int)$row->role_id)->where('module', 'assets')->get('permissions')->row();
-                    if (!$exists) {
-                        $this->db->insert('permissions', [
-                            'role_id' => (int)$row->role_id,
-                            'module' => 'assets',
-                            'can_access' => (int)$row->can_access
-                        ]);
-                    }
-                }
-                $this->db->where('module', 'assets_mgmt')->delete('permissions');
-            }
-
-            // Migrate permissions_edit -> permissions (single Permission Manager key)
-            $old_perm_edit = $this->db->where('module', 'permissions_edit')->get('permissions')->result();
-            if (!empty($old_perm_edit)) {
-                foreach ($old_perm_edit as $row) {
-                    $exists = $this->db->where('role_id', (int)$row->role_id)->where('module', 'permissions')->get('permissions')->row();
-                    if (!$exists) {
-                        $this->db->insert('permissions', [
-                            'role_id' => (int)$row->role_id,
-                            'module' => 'permissions',
-                            'can_access' => (int)$row->can_access
-                        ]);
-                    } elseif ((int)$row->can_access === 1) {
-                        $this->db->where('id', (int)$exists->id)->update('permissions', ['can_access' => 1]);
-                    }
-                }
-                $this->db->where('module', 'permissions_edit')->delete('permissions');
-            }
-        }
-
-        // Ensure a simple roles table exists so role labels and groups can be managed from DB.
-        // IMPORTANT: IDs must stay consistent with existing usage: 1=Admin, 2=Manager/HR, 3=Lead, 4=Staff.
-        if (!$this->db->table_exists('roles')) {
-            $sql = "CREATE TABLE `roles` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `name` varchar(100) NOT NULL,
-                `group_type` varchar(50) DEFAULT NULL,
-                `is_active` tinyint(1) NOT NULL DEFAULT '1',
-                `sort_order` int(11) NOT NULL DEFAULT '0',
-                PRIMARY KEY (`id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-
-        // Add group_type column if missing on existing roles table
-        if ($this->db->table_exists('roles') && !$this->db->field_exists('group_type', 'roles')) {
-            $this->db->query("ALTER TABLE `roles` ADD `group_type` varchar(50) DEFAULT NULL AFTER `name`");
-        }
-
-        // Add is_active column if missing
-        if ($this->db->table_exists('roles') && !$this->db->field_exists('is_active', 'roles')) {
-            $this->db->query("ALTER TABLE `roles` ADD `is_active` tinyint(1) NOT NULL DEFAULT 1 AFTER `group_type`");
-            $this->db->query("UPDATE `roles` SET `is_active` = 1");
-        }
-
-        // Add sort_order column if missing
-        if ($this->db->table_exists('roles') && !$this->db->field_exists('sort_order', 'roles')) {
-            $this->db->query("ALTER TABLE `roles` ADD `sort_order` int(11) NOT NULL DEFAULT 0 AFTER `is_active`");
-            $this->db->query("UPDATE `roles` SET `sort_order` = `id`");
-        }
-
-        // Seed default roles only if table is empty (and respect existing schema)
-        if ($this->db->table_exists('roles')) {
-            $count = $this->db->count_all('roles');
-            if ((int)$count === 0) {
-                $defaults = [
-                    1 => ['name' => 'Admin',   'group_type' => 'admin'],
-                    2 => ['name' => 'Manager', 'group_type' => 'admin'],
-                    3 => ['name' => 'Lead',    'group_type' => 'admin'],
-                    4 => ['name' => 'Staff',   'group_type' => 'user'],
-                ];
-                $hasActive = $this->db->field_exists('is_active', 'roles');
-                $hasSort   = $this->db->field_exists('sort_order', 'roles');
-
-                foreach ($defaults as $id => $cfg) {
-                    $row = [
-                        'id'         => (int)$id,
-                        'name'       => $cfg['name'],
-                        'group_type' => $cfg['group_type'],
-                    ];
-                    if ($hasActive) { $row['is_active'] = 1; }
-                    if ($hasSort)   { $row['sort_order'] = (int)$id; }
-                    $this->db->insert('roles', $row);
-                }
-            } else {
-                // Backfill group_type for known default IDs if missing
-                if ($this->db->field_exists('group_type', 'roles')) {
-                    $this->db->where_in('id', [1, 2, 3]);
-                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
-                    $this->db->update('roles', ['group_type' => 'admin']);
-
-                    $this->db->where('id', 4);
-                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
-                    $this->db->update('roles', ['group_type' => 'user']);
-                }
-            }
-        }
-
-        $this->seed_coaching_permissions();
-    }
-
-    /**
-     * Idempotent seed: coaching role + default permissions (delegates to permission_helper).
-     */
-    private function seed_coaching_permissions()
-    {
-        if (function_exists('seed_coaching_defaults_if_needed')) {
-            seed_coaching_defaults_if_needed();
-        }
+        $this->load->helper('permissions_schema');
+        permissions_schema_ensure($this->db);
     }
 
     private function roles()
@@ -200,6 +54,15 @@ class Permissions extends CI_Controller {
                     'daily_activity_delete' => 'Delete Activity',
                     'daily_activity_export' => 'Export Activity CSV',
                     'daily_activity_report' => 'View Daily Activity Reports',
+                    'daily_activity_view_all' => 'View All Daily Activity (Org-wide)',
+                    'daily_activity_edit_all' => 'Edit Any Daily Activity Entry',
+                    'daily_activity_delete_all' => 'Delete Any Daily Activity Entry',
+                ]
+            ],
+            'Help & User Guide' => [
+                'icon' => 'bi-book',
+                'modules' => [
+                    'guide' => 'User Guide (In-app Help & Videos)',
                 ]
             ],
             'User Management' => [
@@ -210,11 +73,20 @@ class Permissions extends CI_Controller {
                     'users_add'        => 'Add User',
                     'users_edit'       => 'Edit User',
                     'users_delete'     => 'Delete User',
+                    'users_view'       => 'View User Detail',
                     'employees'        => 'Employee Management (Full Access)',
                     'employees_list'   => 'View Employee List',
                     'employees_add'    => 'Add Employee',
                     'employees_edit'   => 'Edit Employee',
                     'employees_delete' => 'Delete Employee',
+                    'employees_view'   => 'View Employee Detail',
+                    'employees_view_all' => 'View All Employees (Org-wide)',
+                    'employees_edit_all' => 'Edit Any Employee Record',
+                    'employees_delete_all' => 'Delete Any Employee Record',
+                    'employees_documents' => 'Manage Employee Documents',
+                    'employees_delete_document' => 'Delete Employee Documents',
+                    'employees_import' => 'Import Employees (CSV)',
+                    'users_view_all'   => 'View All User Accounts (Org-wide)',
                     'departments'      => 'Department Management',
                     'designations'     => 'Designation Management',
                     'roles'            => 'Role Management',
@@ -229,16 +101,27 @@ class Permissions extends CI_Controller {
                     'projects_add'         => 'Add Project',
                     'projects_edit'        => 'Edit Project',
                     'projects_delete'      => 'Delete Project',
+                    'projects_view_all'    => 'View All Projects (Org-wide)',
+                    'projects_import'      => 'Import Projects (CSV)',
                     'tasks'                => 'Task Management (Full Access)',
                     'tasks_list'           => 'View Task List',
                     'tasks_add'            => 'Add Task',
                     'tasks_edit'           => 'Edit Task',
                     'tasks_delete'         => 'Delete Task',
+                    'tasks_manage'         => 'Manage All Tasks (Board / Bulk)',
+                    'tasks_view_all'       => 'View All Tasks (Org-wide)',
+                    'tasks_delete_all'     => 'Delete Any Task',
+                    'tasks_import'         => 'Import Tasks (CSV)',
                     'requirements'         => 'Requirements (Full Access)',
                     'requirements_list'    => 'View Requirements List',
                     'requirements_add'     => 'Add Requirement',
                     'requirements_edit'    => 'Edit Requirement',
                     'requirements_delete'  => 'Delete Requirement',
+                    'requirements_view'    => 'View Requirement Detail',
+                    'requirements_board'   => 'Requirements Board View',
+                    'requirements_calendar'=> 'Requirements Calendar',
+                    'requirements_export'  => 'Export Requirements',
+                    'requirements_delete_all' => 'Delete Any Requirement',
                     'timesheets'           => 'Timesheets (Full Access)',
                     'timesheets_list'      => 'View Timesheet List',
                     'timesheets_add'       => 'Add Timesheet Entry',
@@ -271,10 +154,12 @@ class Permissions extends CI_Controller {
                     'attendance_delete'   => 'Delete Attendance Record',
                     'attendance_bulk'     => 'Bulk Attendance Operations',
                     'attendance_view_all' => 'View All Attendance (Org-wide)',
+                    'attendance_export'   => 'Export Attendance (Excel / PDF)',
                     'leave_requests'      => 'Leave Management — Admin View (Full Access)',
                     'leave_team'          => 'View Team Leaves',
                     'leave_calendar'      => 'Leave Calendar',
                     'leave_approve'       => 'Approve / Reject Leaves',
+                    'leave_view_all'      => 'View All Leave Calendar (Org-wide)',
                     'leaves'              => 'My Leaves — Personal Leave Screen',
                     'leaves_list'         => 'View Own Leave List',
                     'leaves_add'          => 'Apply for Leave',
@@ -304,12 +189,15 @@ class Permissions extends CI_Controller {
                     'announcements_add'      => 'Create Announcement',
                     'announcements_edit'     => 'Edit Announcement',
                     'announcements_delete'   => 'Delete Announcement',
+                    'announcements_manage'   => 'Manage All Announcements (Org-wide)',
                 ]
             ],
             'Recruitment' => [
                 'icon' => 'bi-person-plus',
                 'modules' => [
                     'recruitment'              => 'Recruitment (Full Access)',
+                    'recruitment_add'          => 'Add Job Posting',
+                    'recruitment_delete'       => 'Delete Job Posting',
                     'recruitment_jobs'         => 'Manage Job Postings (Create / Edit / Delete)',
                     'recruitment_candidates'   => 'View & Manage Candidates',
                     'recruitment_interviews'   => 'Schedule Interviews',
@@ -385,6 +273,8 @@ class Permissions extends CI_Controller {
                     'clients_add'          => 'Add Client',
                     'clients_edit'         => 'Edit Client',
                     'clients_delete'       => 'Delete Client',
+                    'clients_view'         => 'View Client Detail',
+                    'clients_export'       => 'Export Clients CSV',
                     'payroll'              => 'Payroll (Full Access)',
                     'payroll_view'         => 'View Own Payslips',
                     'payroll_manage'       => 'Manage Salary Structures & Generate Payslips',
@@ -398,6 +288,8 @@ class Permissions extends CI_Controller {
                     'expenses_categories'  => 'Manage Expense Categories',
                     'expenses_export'      => 'Export Expenses CSV',
                     'assets'               => 'Asset Management (Full Access)',
+                    'assets_mgmt'          => 'Asset Management (Legacy Alias — same as Manage)',
+                    'assets_manage'        => 'Manage All Assets (Org-wide)',
                     'assets_list'          => 'View Asset List',
                     'assets_add'           => 'Add Asset',
                     'assets_edit'          => 'Edit Asset',
@@ -433,6 +325,7 @@ class Permissions extends CI_Controller {
                     'admin'            => 'Admin Access (General Override)',
                     'system_settings'  => 'System Settings Panel (Advanced)',
                     'db'               => 'Database Manager',
+                    'db_admin'         => 'Database Admin Tools (Advanced DB)',
                     'migrate'          => 'Database Migrations',
                     'approvals'        => 'Approval Workflows',
                     'reminders'        => 'Reminders (Full Access)',
@@ -447,6 +340,7 @@ class Permissions extends CI_Controller {
                     'whatsapp'         => 'WhatsApp Integration',
                     'permissions'      => 'Permission Manager',
                     'statuses'         => 'Status Management',
+                    'types'            => 'Type Management',
                     'api_integrations' => 'API Integrations',
                     'lead_mapping'     => 'Lead Mapping',
                     'superadmin'       => 'Super Admin Panel',
@@ -458,7 +352,7 @@ class Permissions extends CI_Controller {
         $db_modules = [];
         if ($this->db->table_exists('modules')) {
             $this->db->from('modules');
-            if ($this->db->field_exists('is_active', 'modules')) {
+            if (schema_table_has_column($this->db, 'modules', 'is_active')) {
                 $this->db->where('is_active', 1);
             }
             $rows = $this->db->get()->result();

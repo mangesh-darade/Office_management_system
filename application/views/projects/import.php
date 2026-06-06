@@ -1,5 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Import Projects']); ?>
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <h1 class="h4 mb-2 mb-sm-0">Import Projects (CSV)</h1>
     <a class="btn btn-secondary" href="<?php echo site_url('projects'); ?>">Back</a>
   </div>

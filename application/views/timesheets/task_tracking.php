@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', array('title' => 'Task Time Tracking')); ?>
 <div class="container-fluid py-3">
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-stopwatch text-primary me-2"></i>Task Time Tracking</h4>
       <p class="text-muted small mb-0">

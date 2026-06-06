@@ -2,7 +2,7 @@
 <div class="container-fluid py-4">
   <div class="row g-3">
     <div class="col-12">
-      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+      <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
         <div>
           <h5 class="mb-1 fw-bold"><i class="bi bi-person-gear text-primary me-2"></i>Roles</h5>
           <p class="text-muted small mb-0">Define user roles and their group types</p>
@@ -28,13 +28,13 @@
                 <tr>
                   <th style="width:70px;">#</th>
                   <th>Name</th>
-                  <?php if ($this->db->field_exists('group_type', 'roles')): ?>
+                  <?php if (schema_table_has_column($this->db, 'roles', 'group_type')): ?>
                   <th style="width:140px;">Group</th>
                   <?php endif; ?>
-                  <?php if ($this->db->field_exists('is_active', 'roles')): ?>
+                  <?php if (schema_table_has_column($this->db, 'roles', 'is_active')): ?>
                   <th style="width:100px;">Active</th>
                   <?php endif; ?>
-                  <?php if ($this->db->field_exists('sort_order', 'roles')): ?>
+                  <?php if (schema_table_has_column($this->db, 'roles', 'sort_order')): ?>
                   <th style="width:120px;">Sort Order</th>
                   <?php endif; ?>
                   <th style="width:130px;" class="text-center">Actions</th>
@@ -46,14 +46,14 @@
                   <tr>
                     <td>#<?php echo $i++; ?></td>
                     <td><?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?></td>
-                    <?php if ($this->db->field_exists('group_type', 'roles')): ?>
+                    <?php if (schema_table_has_column($this->db, 'roles', 'group_type')): ?>
                     <td>
                       <?php
                         echo $groupType === 'admin' ? 'Admin Group' : 'User Group';
                       ?>
                     </td>
                     <?php endif; ?>
-                    <?php if ($this->db->field_exists('is_active', 'roles')): ?>
+                    <?php if (schema_table_has_column($this->db, 'roles', 'is_active')): ?>
                     <td>
                       <?php
                         $active = isset($r->is_active) ? (int)$r->is_active === 1 : true;
@@ -65,7 +65,7 @@
                       <?php endif; ?>
                     </td>
                     <?php endif; ?>
-                    <?php if ($this->db->field_exists('sort_order', 'roles')): ?>
+                    <?php if (schema_table_has_column($this->db, 'roles', 'sort_order')): ?>
                     <td><?php echo isset($r->sort_order) ? (int)$r->sort_order : ''; ?></td>
                     <?php endif; ?>
                     <td class="text-center">

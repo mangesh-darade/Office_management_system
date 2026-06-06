@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Requirements Report']); ?>
   <div class="container-fluid py-3">
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-clipboard-data text-primary me-2"></i>Requirements Report</h4>
       <p class="text-muted small mb-0">Track requirement progress and task completion</p>
@@ -176,7 +176,7 @@
                   <td><span class="badge bg-secondary"><?php echo (int)$r->id; ?></span></td>
                   <td>
                     <div class="fw-semibold text-truncate" title="<?php echo htmlspecialchars($r->title); ?>"><?php echo htmlspecialchars($r->title); ?></div>
-                    <div class="small text-muted"><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $r->requirement_type))); ?></div>
+                    <div class="small text-muted"><?php echo htmlspecialchars(function_exists('module_type_label') ? module_type_label($r->requirement_type, 'requirements') : ucfirst(str_replace('_', ' ', $r->requirement_type))); ?></div>
                     <?php if ($r->budget_estimate): ?>
                       <div class="small text-success">₹<?php echo number_format($r->budget_estimate, 2); ?></div>
                     <?php endif; ?>

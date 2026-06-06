@@ -10,26 +10,7 @@ class Timesheets extends CI_Controller {
         $this->load->model('Timesheet_model','ts');
         
         // RBAC Audit: Centralized module access check
-        require_module_access('timesheets', true);
-        
-        $this->ensure_schema();
-    }
-
-    /**
-     * Ensure schema - DEPRECATED: Use migrations instead
-     * This method is kept for backward compatibility but should not be used
-     * Run migrations using: php index.php migrate
-     */
-    private function ensure_schema(){
-        // Schema changes have been moved to migrations
-        // See: application/migrations/002_Create_timesheets_tables.php
-        // Run migrations using: php index.php migrate
-        log_message('debug', 'Timesheets::ensure_schema() called - consider using migrations instead');
-        
-        // Only create tables if they don't exist (backward compatibility)
-        if (!$this->db->table_exists('timesheets') || !$this->db->table_exists('timesheet_entries')) {
-            log_message('error', 'Timesheets tables missing - please run migrations: php index.php migrate');
-        }
+        require_controller_access('timesheets', true);
     }
 
     // GET/POST /timesheets (My Timesheet)

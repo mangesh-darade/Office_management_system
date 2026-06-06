@@ -482,11 +482,11 @@ $config['csrf_cookie_name'] = 'ci_csrf_token';
 $config['csrf_expire'] = 7200;
 $config['csrf_regenerate'] = FALSE;
 $config['csrf_exclude_uris'] = array(
-    // Background / cron / API
+    // Background / cron / API (no browser session)
     'cron/.*',
     'api/.*',
 
-    // Auth (public forms — CSRF not yet available before login)
+    // Auth (pre-login — CSRF cookie not yet established)
     'auth/login',
     'auth/forgot_password',
     'auth/reset_password',
@@ -495,49 +495,19 @@ $config['csrf_exclude_uris'] = array(
     'auth/verify-code',
     'auth/verify',
 
-    // Tasks — AJAX status updates (session-authenticated, low CSRF risk)
-    'tasks/update-status',
-    'tasks/bulk-update-status',
-    'tasks/get_by_project/.*',
-    'tasks/.*/comments',
-
-    // Attendance — AJAX data fetch (read-only query)
-    'attendance/get_user_monthly_attendance',
-    'attendance/get-data',
-    'attendance/ajax_.*',
-
-    // Notifications — mark read / delete (session-authenticated, low value target)
-    'notifications/mark_read',
-    'notifications/mark_all_read',
-    'notifications/mark-all-read',
-    'notifications/mark-read',
-    'notifications/.*/mark-read',
-    'notifications/.*/delete',
-
-    // Chats & Calls — real-time messaging (session-authenticated)
-    'chats/.*',
-    'calls/.*',
-
-    // AI chat & Analytics — AJAX queries
-    'ai_chat/.*',
-    'analytics/.*',
-
-    // WhatsApp — webhook from external provider + send-task trigger
-    'whatsapp/webhook',
-    'whatsapp/send-task',
-
-    // Coaching — payment / WhatsApp webhooks (external providers)
+    // External webhooks (third-party POST, no CSRF token)
     'coaching-webhooks/.*',
+    'whatsapp/webhook',
 
-    // Leave
-    'leave/get_employee_tasks/.*',
-
-    // Users — AJAX duplicate checks (read-only lookups)
-    'users/save_face',
-    'users/check_email',
-    'users/check-email',
-    'users/check-phone',
-    'users/check_phone',
+    // Public training assessment (token-based candidate flow, no staff session)
+    'training-assessment/submit-assessment',
+    'training-assessment/ajax-load-question',
+    'training-assessment/ajax-save-answer',
+    'training-assessment/ajax-run-code',
+    'training-assessment/ajax-timer-sync',
+    'training-assessment/ajax-upload-screenshot',
+    'training-assessment/candidate-profile',
+    'training-assessment/retake-assessment',
 );
 
 /*

@@ -5,106 +5,31 @@ class Requirements extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','hierarchy_filter']);
+        $this->load->helper(['url','form','permission','hierarchy_filter','schema_columns','types']);
+        $this->load->model('Type_model', 'module_types');
         $this->load->library(['session','upload']);
         
         // RBAC Audit: Centralized module access check
-        require_module_access('requirements', true);
+        require_controller_access('requirements', true);
         
         $this->ensure_schema();
         $this->load->model(['Requirement_model'=>'requirements','Client_model'=>'clients']);
     }
 
-    private function ensure_schema(){
-        if (!$this->db->table_exists('requirements')){
-            $sql = "CREATE TABLE `requirements` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `req_number` varchar(50) DEFAULT NULL,
-                `client_id` int(11) NOT NULL,
-                `project_id` int(11) DEFAULT NULL,
-                `title` varchar(500) NOT NULL,
-                `description` text,
-                `requirement_type` varchar(50) DEFAULT 'new_feature',
-                `priority` varchar(20) DEFAULT 'medium',
-                `status` varchar(50) DEFAULT 'received',
-                `budget_estimate` decimal(15,2) DEFAULT NULL,
-                `currency` varchar(10) DEFAULT 'INR',
-                `expected_delivery_date` date DEFAULT NULL,
-                `received_date` date DEFAULT NULL,
-                `owner_id` int(11) DEFAULT NULL,
-                `assigned_to` int(11) DEFAULT NULL,
-                `created_by` int(11) DEFAULT NULL,
-                `created_at` datetime DEFAULT NULL,
-                `updated_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uq_req_number` (`req_number`),
-                KEY `idx_client` (`client_id`),
-                KEY `idx_status` (`status`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-        // Add missing columns when table already exists
-        if ($this->db->table_exists('requirements')){
-            $fields = $this->db->list_fields('requirements');
-            if (!in_array('owner_id', $fields, true)) { $this->db->query("ALTER TABLE `requirements` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
-        }
-        if (!$this->db->table_exists('requirement_attachments')){
-            $sql2 = "CREATE TABLE `requirement_attachments` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `requirement_id` int(11) NOT NULL,
-                `file_name` varchar(255) NOT NULL,
-                `original_name` varchar(255) NOT NULL,
-                `file_path` varchar(500) NOT NULL,
-                `file_size` int(11) DEFAULT NULL,
-                `file_type` varchar(100) DEFAULT NULL,
-                `uploaded_by` int(11) DEFAULT NULL,
-                `uploaded_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                KEY `idx_requirement` (`requirement_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql2);
-        }
-        if (!$this->db->table_exists('requirement_versions')){
-            $sql3 = "CREATE TABLE `requirement_versions` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `requirement_id` int(11) NOT NULL,
-                `version_no` int(11) NOT NULL,
-                `title` varchar(500) NOT NULL,
-                `description` text,
-                `requirement_type` varchar(50) DEFAULT NULL,
-                `priority` varchar(20) DEFAULT NULL,
-                `status` varchar(50) DEFAULT NULL,
-                `budget_estimate` decimal(15,2) DEFAULT NULL,
-                `expected_delivery_date` date DEFAULT NULL,
-                `received_date` date DEFAULT NULL,
-                `owner_id` int(11) DEFAULT NULL,
-                `assigned_to` int(11) DEFAULT NULL,
-                `created_by` int(11) DEFAULT NULL,
-                `created_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                KEY `idx_req` (`requirement_id`),
-                KEY `idx_version` (`version_no`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql3);
-        }
-        if (!$this->db->table_exists('requirement_comments')){
-            $sql4 = "CREATE TABLE `requirement_comments` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `requirement_id` int(11) NOT NULL,
-                `user_id` int(11) NOT NULL,
-                `comment` text NOT NULL,
-                `created_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                KEY `idx_req_comment` (`requirement_id`),
-                KEY `idx_user_comment` (`user_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql4);
-        }
-        // Add missing columns to versions as well
-        if ($this->db->table_exists('requirement_versions')){
-            $vfields = $this->db->list_fields('requirement_versions');
-            if (!in_array('owner_id', $vfields, true)) { $this->db->query("ALTER TABLE `requirement_versions` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
-        }
+    private function ensure_schema() {
+        $this->load->helper('requirements_schema');
+        requirements_schema_ensure($this->db);
+    }
+
+    private function _requirement_type_options()
+    {
+        return module_type_options_resolved('requirements');
+    }
+
+    private function _resolve_requirement_type($posted, $fallback = 'new_feature')
+    {
+        $type = module_type_validate_code($posted, 'requirements', false, $fallback);
+        return $type === false ? $fallback : $type;
     }
 
     // GET /requirements
@@ -113,6 +38,7 @@ class Requirements extends CI_Controller {
         $filters = [
             'status' => $this->input->get('status'),
             'priority' => $this->input->get('priority'),
+            'requirement_type' => $this->input->get('requirement_type'),
             'client_id' => $this->input->get('client_id'),
             'assigned_to' => $this->input->get('assigned_to'),
             'search' => $this->input->get('q'),
@@ -125,6 +51,7 @@ class Requirements extends CI_Controller {
             'filters'=>$filters,
             'clients'=>$clients,
             'members'=>$members,
+            'requirement_types'=>$this->_requirement_type_options(),
         ]);
     }
 
@@ -154,7 +81,7 @@ class Requirements extends CI_Controller {
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,
                 'title' => trim($this->input->post('title')),
                 'description' => $this->input->post('description'),
-                'requirement_type' => $this->input->post('requirement_type') ?: 'new_feature',
+                'requirement_type' => $this->_resolve_requirement_type($this->input->post('requirement_type')),
                 'priority' => $this->input->post('priority') ?: 'medium',
                 'status' => $this->input->post('status') ?: 'received',
                 'expected_delivery_date' => $expected_delivery_date,
@@ -193,9 +120,9 @@ class Requirements extends CI_Controller {
                     $user_name = '';
                     if ($this->db->table_exists('users')) {
                         $sel = ['email'];
-                        if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-                        if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
-                        if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { 
+                        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
+                        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
+                        if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { 
                             $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; 
                         }
                         $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id', (int)$uid)->get()->row();
@@ -281,9 +208,9 @@ class Requirements extends CI_Controller {
         $projects = [];
         if ($this->db->table_exists('projects')) {
             $this->db->select('id,name')->from('projects');
-            if ($this->db->field_exists('created_by', 'projects')) {
+            if (schema_table_has_column($this->db, 'projects', 'created_by')) {
                 apply_role_hierarchy_filter($this->db, 'created_by');
-            } else if ($this->db->field_exists('manager_id', 'projects')) {
+            } else if (schema_table_has_column($this->db, 'projects', 'manager_id')) {
                 apply_role_hierarchy_filter($this->db, 'manager_id');
             }
             $projects = $this->db->order_by('name','ASC')->get()->result();
@@ -297,7 +224,8 @@ class Requirements extends CI_Controller {
             'clients'=>$clients,
             'members'=>$members,
             'projects'=>$projects,
-            'statuses'=>$statuses_list
+            'statuses'=>$statuses_list,
+            'requirement_types'=>$this->_requirement_type_options(),
         ]);
     }
 
@@ -328,7 +256,7 @@ class Requirements extends CI_Controller {
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,
                 'title' => trim($this->input->post('title')),
                 'description' => $this->input->post('description'),
-                'requirement_type' => $this->input->post('requirement_type') ?: $row->requirement_type,
+                'requirement_type' => $this->_resolve_requirement_type($this->input->post('requirement_type'), isset($row->requirement_type) ? $row->requirement_type : 'new_feature'),
                 'priority' => $this->input->post('priority') ?: $row->priority,
                 'status' => $this->input->post('status') ?: $row->status,
                 'expected_delivery_date' => $expected_delivery_date,
@@ -382,9 +310,9 @@ class Requirements extends CI_Controller {
                     $user_name = '';
                     if ($this->db->table_exists('users')) {
                         $sel = ['email'];
-                        if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-                        if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
-                        if ($this->db->field_exists('first_name','users') && $this->db->field_exists('last_name','users')) { 
+                        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
+                        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
+                        if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { 
                             $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; 
                         }
                         $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id', (int)$uid)->get()->row();
@@ -433,9 +361,9 @@ class Requirements extends CI_Controller {
         $projects = [];
         if ($this->db->table_exists('projects')) {
             $this->db->select('id,name')->from('projects');
-            if ($this->db->field_exists('created_by', 'projects')) {
+            if (schema_table_has_column($this->db, 'projects', 'created_by')) {
                 apply_role_hierarchy_filter($this->db, 'created_by');
-            } else if ($this->db->field_exists('manager_id', 'projects')) {
+            } else if (schema_table_has_column($this->db, 'projects', 'manager_id')) {
                 apply_role_hierarchy_filter($this->db, 'manager_id');
             }
             $projects = $this->db->order_by('name','ASC')->get()->result();
@@ -450,7 +378,8 @@ class Requirements extends CI_Controller {
             'clients'=>$clients,
             'members'=>$members,
             'projects'=>$projects,
-            'statuses'=>$statuses_list
+            'statuses'=>$statuses_list,
+            'requirement_types'=>$this->_requirement_type_options(),
         ]);
     }
 
@@ -468,7 +397,8 @@ class Requirements extends CI_Controller {
             'attachments'=>$attachments,
             'versions'=>$versions,
             'comments'=>$comments,
-            'type_filter'=>$type
+            'type_filter'=>$type,
+            'requirement_types'=>$this->_requirement_type_options(),
         ]);
     }
 

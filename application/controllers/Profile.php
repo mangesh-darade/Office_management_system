@@ -7,7 +7,7 @@ class Profile extends CI_Controller {
         parent::__construct();
         $this->load->database();
         $this->load->library(['session', 'upload']);
-        $this->load->helper(['url', 'form']);
+        $this->load->helper(['url', 'form','schema_columns']);
         $this->load->model(['User_model','Employee_model']);
     }
 
@@ -85,13 +85,13 @@ class Profile extends CI_Controller {
                 
                 // Update password_hash field (check which field name is used)
                 $password_field = 'password_hash';
-                if (!$this->db->field_exists($password_field, 'users')) {
+                if (!schema_table_has_column($this->db, 'users', $password_field)) {
                     $password_field = 'password';
                 }
                 $data[$password_field] = password_hash($password, PASSWORD_DEFAULT);
                 
                 // Update password_changed_at if field exists
-                if ($this->db->field_exists('password_changed_at', 'users')) {
+                if (schema_table_has_column($this->db, 'users', 'password_changed_at')) {
                     $data['password_changed_at'] = date('Y-m-d H:i:s');
                 }
                 
@@ -102,7 +102,6 @@ class Profile extends CI_Controller {
                     $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
                     $this->audit->log('password_changed', $uid, "User changed password", $ip);
                 }
-                $this->load->helper('notification');
                 $success_msg = get_notification_message('profile', 'password_change', 'success');
                 $this->session->set_flashdata('success', $success_msg);
             }
@@ -139,20 +138,26 @@ class Profile extends CI_Controller {
             
             // Update employee data if exists
             if ($employee) {
-                $emp_data = [
-                    'first_name' => trim($this->input->post('first_name')),
-                    'last_name' => trim($this->input->post('last_name')),
-                    'department' => trim($this->input->post('department')),
-                    'designation' => trim($this->input->post('designation')),
-                    'phone' => trim($this->input->post('phone')),
-                    'address' => trim($this->input->post('address')),
-                    'bio' => trim($this->input->post('bio'))
+                $emp_fields = [
+                    'first_name' => trim((string)$this->input->post('first_name')),
+                    'last_name' => trim((string)$this->input->post('last_name')),
+                    'department' => trim((string)$this->input->post('department')),
+                    'designation' => trim((string)$this->input->post('designation')),
+                    'phone' => trim((string)$this->input->post('phone')),
+                    'address' => trim((string)$this->input->post('address')),
+                    'bio' => trim((string)$this->input->post('bio')),
                 ];
-                
-                $this->db->where('user_id', $uid)->update('employees', $emp_data);
+                $emp_data = [];
+                foreach ($emp_fields as $col => $val) {
+                    if (schema_table_has_column($this->db, 'employees', $col)) {
+                        $emp_data[$col] = $val;
+                    }
+                }
+                if (!empty($emp_data)) {
+                    $this->db->where('user_id', $uid)->update('employees', $emp_data);
+                }
             }
             
-            $this->load->helper('notification');
             $success_msg = get_notification_message('profile', 'update', 'success');
             $this->session->set_flashdata('success', $success_msg);
             redirect('profile');

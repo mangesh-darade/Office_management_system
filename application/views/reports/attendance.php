@@ -284,7 +284,7 @@
 <div class="att-report">
 
 <!-- Professional Header -->
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h4 class="mb-1 fw-bold"><i class="bi bi-calendar-check text-primary me-2"></i>Attendance Report</h4>
     <p class="text-muted small mb-0">Track daily, weekly, and monthly attendance patterns</p>

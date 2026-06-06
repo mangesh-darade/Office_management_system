@@ -110,7 +110,7 @@
         </div>
         <?php 
           // Show attachment input only if column exists to avoid DB issues
-          $attachment_enabled = $this->db->field_exists('attachment_path', 'tasks');
+          $attachment_enabled = schema_table_has_column($this->db, 'tasks', 'attachment_path');
         ?>
         <?php if($attachment_enabled): ?>
         <div class="col-12">

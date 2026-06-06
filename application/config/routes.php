@@ -72,6 +72,10 @@ $route['reset-password'] = 'auth/reset_password';
 // Dashboard
 $route['dashboard'] = 'dashboard/index';
 
+// User Guide (in-app help with screenshots)
+$route['guide'] = 'guide/index';
+$route['guide/(:any)'] = 'guide/module/$1';
+
 // Employees
 $route['employees'] = 'employees/index';
 $route['employees/create'] = 'employees/create';
@@ -164,6 +168,12 @@ $route['my-works/(:num)/download'] = 'my_works/download/$1';
 $route['my-works/(:num)'] = 'my_works/show/$1';
 
 // Statuses Management
+$route['types'] = 'types/index';
+$route['types/create'] = 'types/create';
+$route['types/view/(:num)'] = 'types/view/$1';
+$route['types/edit/(:num)'] = 'types/edit/$1';
+$route['types/delete/(:num)'] = 'types/delete/$1';
+$route['types/(:num)'] = 'types/show/$1';
 $route['statuses'] = 'statuses/index';
 $route['statuses/create'] = 'statuses/create';
 $route['statuses/view/(:num)'] = 'statuses/view/$1';
@@ -226,18 +236,18 @@ $route['notifications/unsubscribe-push'] = 'notifications/unsubscribe_push';
 // Reports
 $route['reports'] = 'reports/index';
 $route['reports/export'] = 'reports/export_csv';
-$route['reports/requirements'] = 'reports/requirements';
-$route['reports/tasks-assignment'] = 'reports/tasks_assignment';
-$route['reports/projects-status'] = 'reports/projects_status';
-$route['reports/leaves'] = 'reports/leaves';
-$route['reports/attendance'] = 'reports/attendance';
-$route['reports/attendance-employee'] = 'reports/attendance_employee';
-$route['reports/attendance-employee/(:num)'] = 'reports/attendance_employee/$1';
-$route['reports/export-attendance-employee'] = 'reports/export_attendance_employee';
-$route['reports/daily-activity'] = 'reports/daily_activity';
-$route['reports/payroll'] = 'reports/payroll';
-$route['reports/expenses'] = 'reports/expenses';
-$route['reports/performance'] = 'reports/performance';
+$route['reports/requirements'] = 'reports_projects/requirements';
+$route['reports/tasks-assignment'] = 'reports_projects/tasks_assignment';
+$route['reports/projects-status'] = 'reports_projects/projects_status';
+$route['reports/daily-activity'] = 'reports_projects/daily_activity';
+$route['reports/leaves'] = 'reports_hr/leaves';
+$route['reports/payroll'] = 'reports_hr/payroll';
+$route['reports/expenses'] = 'reports_hr/expenses';
+$route['reports/performance'] = 'reports_hr/performance';
+$route['reports/attendance'] = 'reports_attendance/attendance';
+$route['reports/attendance-employee'] = 'reports_attendance/attendance_employee';
+$route['reports/attendance-employee/(:num)'] = 'reports_attendance/attendance_employee/$1';
+$route['reports/export-attendance-employee'] = 'reports_attendance/export_attendance_employee';
 
 // Profile
 $route['profile'] = 'profile/index';
@@ -263,6 +273,12 @@ $route['settings/leave-types/create'] = 'settings/leave_types_create';
 $route['settings/leave-types/(:num)/edit'] = 'settings/leave_types_edit/$1';
 $route['settings/leave-types/(:num)/delete'] = 'settings/leave_types_delete/$1';
 $route['settings/leave-types/(:num)/restore'] = 'settings/leave_types_restore/$1';
+
+// Module Types Management (Settings)
+$route['settings/types'] = 'settings/module_types';
+$route['settings/types/create'] = 'settings/module_types_create';
+$route['settings/types/(:num)/edit'] = 'settings/module_types_edit/$1';
+$route['settings/types/(:num)/delete'] = 'settings/module_types_delete/$1';
 
 // Holidays Management
 $route['settings/holidays'] = 'settings/holidays';

@@ -1,4 +1,4 @@
-<?php 
+﻿<?php 
   // Get current user role for filtering
   $user_id = (int)$this->session->userdata('user_id');
   $role_id = (int)$this->session->userdata('role_id');
@@ -13,7 +13,15 @@
   $isAdmin = isset($is_admin_group) ? $is_admin_group : $isAdminGroup;
   $currentRoleId = isset($current_role_id) ? $current_role_id : $role_id;
   
-  $this->load->view('partials/header', ['title' => 'Attendance']); 
+  $this->load->view('partials/header', array(
+    'title' => 'Attendance',
+    'extra_css' => array('assets/css/attendance-index.css'),
+  ));
+  $employee_count = isset($total_records) ? (int) $total_records : 0;
+  $summary_scope = $canViewAll ? 'all employees' : 'your department/team';
+  $canExport = isset($can_export_attendance)
+    ? (bool) $can_export_attendance
+    : (function_exists('can_access_attendance_export') && can_access_attendance_export());
 ?>
 
 <!-- Flash messages are handled by the global toast container in partials/header.php -->
@@ -27,428 +35,34 @@
 </div>
 <?php endif; ?>
 
-<style>
-.attendance-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.5rem;
-}
-.attendance-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-}
-.attendance-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-}
-.attendance-subtitle {
-  opacity: 0.9;
-  margin: 0.25rem 0 0 0;
-  font-size: 0.75rem;
-}
-.filter-toggle {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.filter-toggle:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-.filter-toggle-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.filter-toggle-title {
-  font-weight: 600;
-  color: #374151;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-.filter-toggle-arrow {
-  transition: transform 0.3s ease;
-  color: #6b7280;
-}
-.filter-toggle.collapsed .filter-toggle-arrow {
-  transform: rotate(-90deg);
-}
-.filter-content {
-  padding-top: 0.75rem;
-  display: grid;
-  gap: 0.75rem;
-}
-.filter-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
-}
-.filter-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.attendance-table-container {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.attendance-table {
-  margin: 0;
-  border-collapse: collapse;
-  width: 100%;
-}
-.attendance-table thead {
-  background: #f8f9fa;
-}
-.attendance-table thead th {
-  padding: 0.75rem 0.5rem;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  font-size: 0.75rem;
-  border-bottom: 2px solid #e9ecef;
-  white-space: nowrap;
-}
-.attendance-table tbody td {
-  padding: 0.5rem;
-  border-bottom: 1px solid #f1f3f4;
-  vertical-align: middle;
-  font-size: 0.875rem;
-}
-.attendance-table tbody tr:hover {
-  background: #f8f9fa;
-}
-.attendance-table tbody tr:last-child td {
-  border-bottom: none;
-}
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.75rem;
-  flex-shrink: 0;
-}
-.user-details {
-  min-width: 0;
-}
-.user-name {
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
-  font-size: 0.75rem;
-}
-.user-email {
-  color: #6b7280;
-  font-size: 0.625rem;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.time-badge {
-  background: #e3f2fd;
-  color: #1976d2;
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  display: inline-block;
-}
-.time-badge.checkout {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-.status-badge {
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.status-badge.present {
-  background: #d4edda;
-  color: #155724;
-}
-.status-badge.absent {
-  background: #f8d7da;
-  color: #721c24;
-}
-.status-badge.incomplete {
-  background: #fff3cd;
-  color: #856404;
-}
-.status-badge.late {
-  background: #fff3cd;
-  color: #856404;
-}
-.status-badge.early_leave {
-  background: #f8d7da;
-  color: #721c24;
-}
-.location-info {
-  max-width: 150px;
-}
-.location-name {
-  font-size: 0.75rem;
-  color: #374151;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.location-coords {
-  font-size: 0.625rem;
-  color: #6b7280;
-  margin: 0;
-}
-.notes-cell {
-  max-width: 120px;
-}
-.notes-text {
-  font-size: 0.75rem;
-  color: #374151;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin: 0;
-}
-.action-buttons {
-  display: flex;
-  gap: 0.25rem;
-}
-.empty-state {
-  text-align: center;
-  padding: 2rem 0.5rem;
-  color: #6b7280;
-}
-.empty-state-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: #d1d5db;
-}
-.empty-state-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-.empty-state-text {
-  font-size: 0.75rem;
-  color: #9ca3af;
-}
 
-/* Export Actions Bar */
-.export-actions-bar {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-}
-
-/* Checkbox Styles */
-.row-checkbox {
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-}
-
-#selectAll {
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .attendance-container {
-    padding: 0.25rem;
-  }
-  .attendance-header {
-    padding: 0.75rem;
-    text-align: center;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .attendance-header > div {
-    width: 100%;
-    text-align: center;
-  }
-  .attendance-title {
-    font-size: 1.125rem;
-  }
-  .attendance-subtitle {
-    font-size: 0.625rem;
-  }
-  .filter-toggle {
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-  .filter-row {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
-  }
-  .filter-actions {
-    justify-content: center;
-    gap: 0.25rem;
-  }
-  .attendance-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .attendance-table {
-    min-width: 100%;
-    display: block;
-  }
-  .attendance-table thead,
-  .attendance-table tbody,
-  .attendance-table tr {
-    display: block;
-  }
-  .attendance-table thead {
-    display: none;
-  }
-  .attendance-table tbody tr {
-    margin-bottom: 0.75rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 0.75rem;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  .attendance-table tbody td {
-    display: block;
-    padding: 0.5rem 0;
-    border: none;
-    text-align: left;
-    font-size: 0.875rem;
-  }
-  .attendance-table tbody td:before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: #6b7280;
-    display: block;
-    margin-bottom: 0.25rem;
-    font-size: 0.75rem;
-  }
-  .attendance-table tbody td[data-label=""]:before {
-    content: "";
-    display: none;
-  }
-  .export-actions-bar {
-    flex-direction: column;
-    align-items: stretch !important;
-  }
-  .export-actions-bar > div {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .export-actions-bar button {
-    flex: 1;
-    min-width: 120px;
-  }
-  .user-cell {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .user-avatar {
-    width: 40px;
-    height: 40px;
-    font-size: 0.875rem;
-  }
-  .user-name {
-    font-size: 0.875rem;
-  }
-  .user-email {
-    font-size: 0.625rem;
-  }
-  .time-badge,
-  .status-badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-  }
-  .action-buttons {
-    justify-content: flex-start;
-  }
-  .modal-dialog {
-    max-width: 95% !important;
-    margin: 0.5rem;
-  }
-  .modal-body .row {
-    margin: 0;
-  }
-  .modal-body .col-md-4 {
-    padding: 0.25rem;
-    margin-bottom: 0.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .attendance-table {
-    min-width: 450px;
-  }
-  .attendance-table thead th,
-  .attendance-table tbody td {
-    padding: 0.375rem 0.125rem;
-    font-size: 0.625rem;
-  }
-  .time-badge,
-  .status-badge {
-    font-size: 0.5rem;
-    padding: 0.0625rem 0.25rem;
-  }
-}
-</style>
-
-<div class="attendance-container">
-  <!-- Header -->
-  <div class="attendance-header">
-    <div class="d-flex justify-content-between align-items-center w-100">
+<div class="att-page">
+  <div class="att-hero">
+    <div class="att-hero-top">
       <div>
-        <h1 class="attendance-title">Attendance Summary</h1>
-        <p class="attendance-subtitle">
-          Showing attendance summary for all employees
-          <?php if (isset($total_records)): ?>
-            <span class="ms-2">(<?php echo $total_records; ?> employees)</span>
-          <?php endif; ?>
-        </p>
-      </div>
-      <div class="d-flex gap-2">
-        <?php if ($canAddAttendance): ?>
-          <a class="btn btn-light btn-sm" title="Add Attendance" href="<?php echo site_url('attendance/create'); ?>">
-            <i class="bi bi-plus-lg"></i> Add
-          </a>
+        <h1 class="att-hero-title">Attendance Summary</h1>
+        <p class="att-hero-subtitle">Overview for <?php echo htmlspecialchars($summary_scope); ?>.</p>
+        <?php if ($employee_count > 0): ?>
+          <span class="att-hero-count"><?php echo $employee_count; ?> employees</span>
         <?php endif; ?>
       </div>
+      <?php if ($canAddAttendance): ?>
+        <a class="btn btn-light att-hero-add" title="Mark attendance" href="<?php echo site_url('attendance/create'); ?>">
+          <i class="bi bi-plus-lg"></i><span class="d-none d-lg-inline ms-1">Add</span>
+        </a>
+      <?php endif; ?>
     </div>
+    <?php if ($canAddAttendance): ?>
+      <div class="att-hero-actions-mobile">
+        <a class="btn btn-light" href="<?php echo site_url('attendance/create'); ?>">
+          <i class="bi bi-plus-lg me-1"></i>Mark attendance
+        </a>
+      </div>
+    <?php endif; ?>
   </div>
 
-  <!-- Export Actions Bar -->
-  <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('reports_attendance') || is_admin_group())): ?>
-  <div class="export-actions-bar mb-3" id="exportActionsBar" style="display: none;">
+  <?php if ($canExport): ?>
+  <div class="att-export-bar mb-3" id="exportActionsBar" style="display: none;">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
       <span class="text-muted small" id="selectedCount">0 selected</span>
       <div class="d-flex align-items-center gap-2">
@@ -475,87 +89,145 @@
   </div>
   <?php endif; ?>
 
-  <!-- Attendance Table -->
-  <div class="attendance-table-container">
-    <table class="attendance-table" id="attendanceTable">
+  <?php if ($canExport && !empty($records)): ?>
+  <div class="att-mobile-toolbar d-md-none">
+    <label for="selectAllMobile">
+      <input type="checkbox" id="selectAllMobile" title="Select all" onchange="toggleSelectAll(this)">
+      Select all
+    </label>
+    <span class="text-muted small"><?php echo $employee_count; ?> employees</span>
+  </div>
+  <?php endif; ?>
+
+  <div class="att-mobile-list d-md-none">
+    <?php if (!empty($records)) foreach ($records as $r): ?>
+      <?php
+        $display_name = !empty($r->user_name) ? trim($r->user_name) : '';
+        $email = isset($r->email) && $r->email !== '' ? $r->email : '';
+        if ($display_name === '') {
+          $display_name = $email !== '' ? $email : 'Unknown';
+        }
+        $avatar_letter = strtoupper(substr($display_name, 0, 1));
+        $last_attendance_date = isset($r->last_attendance_date) ? $r->last_attendance_date : '';
+        $attendance_count = isset($r->attendance_count) ? (int) $r->attendance_count : 0;
+        $name_js = htmlspecialchars($display_name, ENT_QUOTES, 'UTF-8');
+      ?>
+      <div class="att-mobile-card" data-user-id="<?php echo (int) $r->user_id; ?>" onclick="handleRowClick(event, <?php echo (int) $r->user_id; ?>, '<?php echo $name_js; ?>')">
+        <div class="att-mobile-card-top<?php echo $canExport ? ' has-select' : ''; ?>">
+          <?php if ($canExport): ?>
+          <input type="checkbox" class="row-checkbox" value="<?php echo (int) $r->user_id; ?>" onchange="syncRowCheckbox(this); updateSelection()" onclick="event.stopPropagation();" aria-label="Select <?php echo htmlspecialchars($display_name); ?>">
+          <?php endif; ?>
+          <div class="att-user">
+            <div class="att-user-avatar"><?php echo htmlspecialchars($avatar_letter); ?></div>
+            <div class="min-width-0">
+              <p class="att-user-name"><?php echo htmlspecialchars($display_name); ?></p>
+              <?php if ($email !== '' && $display_name !== $email): ?>
+                <p class="att-user-email"><?php echo htmlspecialchars($email); ?></p>
+              <?php endif; ?>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline-primary att-mobile-view-btn" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo (int) $r->user_id; ?>, '<?php echo $name_js; ?>')" title="View details" aria-label="View details">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <div class="att-mobile-meta">
+          <div class="att-mobile-meta-item">
+            <span class="att-mobile-meta-label">Last attendance</span>
+            <?php if ($last_attendance_date): ?>
+              <span class="att-date-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
+            <?php else: ?>
+              <span class="text-muted">None</span>
+            <?php endif; ?>
+          </div>
+          <div class="att-mobile-meta-item">
+            <span class="att-mobile-meta-label">Total records</span>
+            <span class="att-count-badge"><?php echo $attendance_count; ?></span>
+          </div>
+        </div>
+      </div>
+    <?php endforeach; ?>
+
+    <?php if (empty($records)): ?>
+      <div class="att-empty">
+        <i class="bi bi-calendar-x d-block"></i>
+        <div class="fw-semibold">No attendance records found</div>
+        <div class="small">Start by marking attendance or adding records.</div>
+      </div>
+    <?php endif; ?>
+  </div>
+
+  <div class="att-table-wrap d-none d-md-block">
+    <table class="att-table" id="attendanceTable">
       <thead>
         <tr>
+          <?php if ($canExport): ?>
           <th style="width: 40px;">
-            <input type="checkbox" id="selectAll" title="Select All" onchange="toggleSelectAll(this)">
+            <input type="checkbox" id="selectAll" title="Select all" onchange="toggleSelectAll(this)">
           </th>
+          <?php endif; ?>
           <th>Employee</th>
-          <th>Last Attendance</th>
-          <th>Total Records</th>
+          <th>Last attendance</th>
+          <th>Total records</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <?php if(!empty($records)) foreach($records as $r): ?>
-          <?php 
-            // Get name and email ONLY from users table
-            $display_name = '';
-            if (!empty($r->user_name)) {
-              $display_name = trim($r->user_name);
-            }
-            
-            // Get email from users table
+        <?php if (!empty($records)) foreach ($records as $r): ?>
+          <?php
+            $display_name = !empty($r->user_name) ? trim($r->user_name) : '';
             $email = isset($r->email) && $r->email !== '' ? $r->email : '';
-            
-            // If no name, use email as fallback, or 'Unknown'
-            if (empty($display_name)) {
-              $display_name = !empty($email) ? $email : 'Unknown';
+            if ($display_name === '') {
+              $display_name = $email !== '' ? $email : 'Unknown';
             }
-            
-            // For avatar, use first letter of display name
             $avatar_letter = strtoupper(substr($display_name, 0, 1));
-            
             $last_attendance_date = isset($r->last_attendance_date) ? $r->last_attendance_date : '';
-            $attendance_count = isset($r->attendance_count) ? $r->attendance_count : 0;
+            $attendance_count = isset($r->attendance_count) ? (int) $r->attendance_count : 0;
+            $name_js = htmlspecialchars($display_name, ENT_QUOTES, 'UTF-8');
           ?>
-          <tr data-user-id="<?php echo $r->user_id; ?>" onclick="handleRowClick(event, <?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($display_name); ?>')" style="cursor: pointer;">
-            <td data-label="Select" onclick="event.stopPropagation();">
-              <input type="checkbox" class="row-checkbox" value="<?php echo $r->user_id; ?>" onchange="updateSelection()" onclick="event.stopPropagation();">
+          <tr data-user-id="<?php echo (int) $r->user_id; ?>" onclick="handleRowClick(event, <?php echo (int) $r->user_id; ?>, '<?php echo $name_js; ?>')" style="cursor: pointer;">
+            <?php if ($canExport): ?>
+            <td onclick="event.stopPropagation();">
+              <input type="checkbox" class="row-checkbox" value="<?php echo (int) $r->user_id; ?>" onchange="syncRowCheckbox(this); updateSelection()" onclick="event.stopPropagation();">
             </td>
-            <td data-label="Employee">
-              <div class="user-cell">
-                <div class="user-avatar">
-                  <?php echo htmlspecialchars($avatar_letter); ?>
-                </div>
-                <div class="user-details">
-                  <p class="user-name"><?php echo htmlspecialchars($display_name); ?></p>
-                  <?php if (!empty($email) && $display_name !== $email): ?>
-                    <p class="user-email"><?php echo htmlspecialchars($email); ?></p>
+            <?php endif; ?>
+            <td>
+              <div class="att-user">
+                <div class="att-user-avatar"><?php echo htmlspecialchars($avatar_letter); ?></div>
+                <div class="min-width-0">
+                  <p class="att-user-name"><?php echo htmlspecialchars($display_name); ?></p>
+                  <?php if ($email !== '' && $display_name !== $email): ?>
+                    <p class="att-user-email"><?php echo htmlspecialchars($email); ?></p>
                   <?php endif; ?>
                 </div>
               </div>
             </td>
-            <td data-label="Last Attendance">
+            <td>
               <?php if ($last_attendance_date): ?>
-                <span class="time-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
+                <span class="att-date-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
               <?php else: ?>
-                <span class="text-muted">—</span>
+                <span class="text-muted">&mdash;</span>
               <?php endif; ?>
             </td>
-            <td data-label="Total Records">
-              <span class="status-badge present"><?php echo $attendance_count; ?></span>
+            <td>
+              <span class="att-count-badge"><?php echo $attendance_count; ?></span>
             </td>
-            <td data-label="Actions">
-              <div class="action-buttons">
-                <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo $r->user_id; ?>, '<?php echo htmlspecialchars($display_name); ?>')" title="View Details">
+            <td>
+              <div class="att-action-btns">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showUserAttendanceDetails(<?php echo (int) $r->user_id; ?>, '<?php echo $name_js; ?>')" title="View details">
                   <i class="bi bi-eye"></i>
                 </button>
               </div>
             </td>
           </tr>
         <?php endforeach; ?>
-        
-        <?php if(empty($records)): ?>
+
+        <?php if (empty($records)): ?>
           <tr>
-            <td colspan="5" class="text-center">
-              <div class="empty-state">
-                <i class="bi bi-calendar-x empty-state-icon"></i>
-                <div class="empty-state-title">No attendance records found</div>
-                <div class="empty-state-text">Start by adding attendance records</div>
+            <td colspan="<?php echo $canExport ? 5 : 4; ?>" class="text-center">
+              <div class="att-empty">
+                <i class="bi bi-calendar-x d-block"></i>
+                <div class="fw-semibold">No attendance records found</div>
+                <div class="small">Start by marking attendance or adding records.</div>
               </div>
             </td>
           </tr>
@@ -577,75 +249,85 @@
 
 <!-- Attendance Details Modal -->
 <div class="modal fade" id="attendanceModal" tabindex="-1" aria-labelledby="attendanceModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl" style="max-width: 85%;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="attendanceModalLabel">Attendance Details</h5>
+  <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-md-down att-modal-dialog">
+    <div class="modal-content att-modal-content">
+      <div class="modal-header att-modal-header">
+        <div class="min-width-0">
+          <h5 class="modal-title text-truncate" id="attendanceModalLabel">Attendance Details</h5>
+          <p class="att-modal-subtitle mb-0">Filter by date, month, or year</p>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <div class="row mb-3">
-          <div class="col-md-4">
-            <label class="form-label">Filter Type</label>
-            <select id="filterType" class="form-select">
-              <option value="month">By Month</option>
-              <option value="date">By Date</option>
-              <option value="year">By Year</option>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Select Date/Month/Year</label>
-            <input type="text" id="filterValue" class="form-control" placeholder="Select...">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">&nbsp;</label><br>
-            <button type="button" class="btn btn-primary" onclick="loadAttendanceDetails()">
-              <i class="bi bi-search"></i> Search
-            </button>
+      <div class="modal-body att-modal-body">
+        <div class="att-modal-filters">
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold mb-1" for="filterType">Filter by</label>
+              <select id="filterType" class="form-select">
+                <option value="month">Month</option>
+                <option value="date">Date</option>
+                <option value="year">Year</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-semibold mb-1" for="filterValue">Period</label>
+              <input type="text" id="filterValue" class="form-control" placeholder="Select period">
+            </div>
+            <div class="col-12 col-md-4">
+              <button type="button" class="btn btn-primary w-100 att-modal-search" onclick="loadAttendanceDetails()">
+                <i class="bi bi-search me-1"></i>Search
+              </button>
+            </div>
           </div>
         </div>
-        
-        <div class="table-responsive">
-          <table class="table table-sm" id="attendanceDetailsTable">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Check In</th>
-                <th>Check Out</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th>Check-In Location</th>
-                <th>Check-Out Location</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="attendanceDetailsBody">
-              <tr>
-                <td colspan="7" class="text-center">
-                  <div class="spinner-border spinner-border-sm" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                  </div>
-                  Loading attendance details...
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+        <div id="attendanceDetailsMobile" class="att-detail-list d-md-none">
+          <div class="att-detail-loading text-center text-muted py-4">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <div class="small mt-2">Loading attendance details…</div>
+          </div>
         </div>
-        
-        <!-- Pagination Controls -->
-        <div id="attendancePagination" class="d-flex justify-content-between align-items-center mt-3" style="display: none;">
+
+        <div class="att-detail-table-wrap d-none d-md-block">
+          <div class="table-responsive">
+            <table class="table table-sm att-detail-table" id="attendanceDetailsTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Check in</th>
+                  <th>Check out</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                  <th>Check-in location</th>
+                  <th>Check-out location</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="attendanceDetailsBody">
+                <tr>
+                  <td colspan="8" class="text-center">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    Loading attendance details…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="attendancePagination" class="att-detail-pagination d-flex justify-content-between align-items-center mt-3" style="display: none;">
           <div class="text-muted">
-            <small id="paginationInfo">Showing 0 of 0 records</small>
+            <small id="paginationInfo">Loading records…</small>
           </div>
           <nav>
-            <ul class="pagination pagination-sm mb-0" id="paginationLinks">
-              <!-- Pagination links will be inserted here -->
-            </ul>
+            <ul class="pagination pagination-sm mb-0" id="paginationLinks"></ul>
           </nav>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      <div class="modal-footer att-modal-footer">
+        <button type="button" class="btn btn-secondary w-100 w-md-auto" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -690,33 +372,99 @@ function showUserAttendanceDetails(userId, userName) {
     loadAttendanceDetails();
 }
 
+const ATT_EMPTY_MARK = '<span class="text-muted">&mdash;</span>';
+
+function attEscapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function attDetailLoadingHtml() {
+    return `
+        <div class="att-detail-loading text-center text-muted py-4">
+            <div class="spinner-border spinner-border-sm" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="small mt-2">Loading attendance details…</div>
+        </div>
+    `;
+}
+
+function setAttendanceDetailsLoading() {
+    const tbody = document.getElementById('attendanceDetailsBody');
+    const mobile = document.getElementById('attendanceDetailsMobile');
+    const paginationDiv = document.getElementById('attendancePagination');
+    if (paginationDiv) paginationDiv.style.display = 'none';
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center">${attDetailLoadingHtml()}</td></tr>`;
+    }
+    if (mobile) mobile.innerHTML = attDetailLoadingHtml();
+}
+
+function setAttendanceDetailsMessage(message, isError) {
+    const className = isError ? 'text-danger' : 'text-muted';
+    const tbody = document.getElementById('attendanceDetailsBody');
+    const mobile = document.getElementById('attendanceDetailsMobile');
+    const paginationDiv = document.getElementById('attendancePagination');
+    if (paginationDiv) paginationDiv.style.display = 'none';
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center ${className}">${attEscapeHtml(message)}</td></tr>`;
+    }
+    if (mobile) {
+        mobile.innerHTML = `<div class="att-detail-empty text-center ${className} py-4">${attEscapeHtml(message)}</div>`;
+    }
+}
+
+function attendanceStatusMeta(status) {
+    let statusClass = 'secondary';
+    switch (status) {
+        case 'present': statusClass = 'success'; break;
+        case 'absent': statusClass = 'danger'; break;
+        case 'late': statusClass = 'warning'; break;
+        case 'early_leave': statusClass = 'warning'; break;
+        case 'half_day': statusClass = 'info'; break;
+        default: statusClass = 'warning';
+    }
+    const statusText = String(status || 'incomplete').charAt(0).toUpperCase()
+        + String(status || 'incomplete').slice(1).replace('_', ' ');
+    return { statusClass, statusText };
+}
+
+function buildAttendanceActionButtons(record) {
+    const canEdit = record.can_edit !== undefined ? record.can_edit : false;
+    const canDelete = record.can_delete !== undefined ? record.can_delete : false;
+    let html = '<div class="att-detail-actions-inner d-flex gap-1">';
+    if (canEdit) {
+        html += `<button type="button" class="btn btn-outline-primary btn-sm" onclick="editAttendance(${record.id})" title="Edit">
+            <i class="bi bi-pencil"></i><span class="d-none d-sm-inline ms-1">Edit</span>
+        </button>`;
+    }
+    if (canDelete) {
+        html += `<button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteAttendance(${record.id})" title="Delete">
+            <i class="bi bi-trash"></i><span class="d-none d-sm-inline ms-1">Delete</span>
+        </button>`;
+    }
+    if (!canEdit && !canDelete) {
+        html += '<span class="text-muted small align-self-center">No actions</span>';
+    }
+    html += '</div>';
+    return html;
+}
+
 function loadAttendanceDetails(page = 1) {
     const filterType = document.getElementById('filterType').value;
     const filterValue = document.getElementById('filterValue').value;
     
     if (!filterValue) {
-        // Don't show alert, just return silently
         return;
     }
     
     currentPage = page;
-    
-    const tbody = document.getElementById('attendanceDetailsBody');
-    const paginationDiv = document.getElementById('attendancePagination');
-    
-    // Hide pagination during loading
-    paginationDiv.style.display = 'none';
-    
-    tbody.innerHTML = `
-        <tr>
-            <td colspan="8" class="text-center">
-                <div class="spinner-border spinner-border-sm" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                Loading attendance details...
-            </td>
-        </tr>
-    `;
+    setAttendanceDetailsLoading();
     
     // Fetch attendance data
     fetch('<?php echo site_url('attendance/get_user_monthly_attendance'); ?>', {
@@ -732,101 +480,81 @@ function loadAttendanceDetails(page = 1) {
         if (data.success) {
             displayAttendanceDetails(data.data, data.pagination);
         } else {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="text-center text-danger">
-                        ${data.message || 'Error loading attendance details'}
-                    </td>
-                </tr>
-            `;
-            paginationDiv.style.display = 'none';
+            setAttendanceDetailsMessage(data.message || 'Error loading attendance details', true);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center text-danger">
-                    Error loading attendance details
-                </td>
-            </tr>
-        `;
-        paginationDiv.style.display = 'none';
+        setAttendanceDetailsMessage('Error loading attendance details', true);
     });
 }
 
 function displayAttendanceDetails(data, pagination) {
     const tbody = document.getElementById('attendanceDetailsBody');
+    const mobile = document.getElementById('attendanceDetailsMobile');
     const paginationDiv = document.getElementById('attendancePagination');
     
-    if (data.length === 0) {
-        tbody.innerHTML = `
-              <tr>
-                <td colspan="8" class="text-center text-muted">
-                    No attendance records found for the selected period
-                </td>
-              </tr>
-        `;
-        paginationDiv.style.display = 'none';
+    if (!data || data.length === 0) {
+        setAttendanceDetailsMessage('No attendance records found for the selected period', false);
         return;
     }
     
-    let html = '';
+    let tableHtml = '';
+    let mobileHtml = '';
     data.forEach(record => {
-        let statusClass = 'secondary';
-        switch(record.status) {
-            case 'present': statusClass = 'success'; break;
-            case 'absent': statusClass = 'danger'; break;
-            case 'late': statusClass = 'warning'; break;
-            case 'early_leave': statusClass = 'warning'; break; // or danger/info
-            case 'half_day': statusClass = 'info'; break;
-            default: statusClass = 'warning'; // incomplete
-        }
-        
-        let statusText = record.status.charAt(0).toUpperCase() + record.status.slice(1).replace('_', ' ');
-        
-        // Check permissions for this record
-        const canEdit = record.can_edit !== undefined ? record.can_edit : false;
-        const canDelete = record.can_delete !== undefined ? record.can_delete : false;
-        
-        // Build action buttons HTML
-        let actionButtons = '<div class="btn-group btn-group-sm" role="group">';
-        if (canEdit) {
-            actionButtons += `<button class="btn btn-outline-primary btn-sm" onclick="editAttendance(${record.id})" title="Edit">
-                <i class="bi bi-pencil"></i>
-            </button>`;
-        }
-        if (canDelete) {
-            actionButtons += `<button class="btn btn-outline-danger btn-sm" onclick="deleteAttendance(${record.id})" title="Delete">
-                <i class="bi bi-trash"></i>
-            </button>`;
-        }
-        if (!canEdit && !canDelete) {
-            actionButtons += '<span class="text-muted small">No actions</span>';
-        }
-        actionButtons += '</div>';
-        
-        html += `
+        const meta = attendanceStatusMeta(record.status);
+        const actionButtons = buildAttendanceActionButtons(record);
+        const checkIn = record.check_in ? attEscapeHtml(record.check_in) : ATT_EMPTY_MARK;
+        const checkOut = record.check_out ? attEscapeHtml(record.check_out) : ATT_EMPTY_MARK;
+        const notes = record.notes ? attEscapeHtml(record.notes) : ATT_EMPTY_MARK;
+        const checkinLocation = record.checkin_location ? attEscapeHtml(record.checkin_location) : ATT_EMPTY_MARK;
+        const checkoutLocation = record.checkout_location ? attEscapeHtml(record.checkout_location) : ATT_EMPTY_MARK;
+        const dateLabel = attEscapeHtml(record.date);
+
+        tableHtml += `
             <tr>
-                <td>${record.date}</td>
-                <td>${record.check_in || '<span class="text-muted">—</span>'}</td>
-                <td>${record.check_out || '<span class="text-muted">—</span>'}</td>
-                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
-                <td>${record.notes || '<span class="text-muted">—</span>'}</td>
-                <td>${record.checkin_location || '<span class="text-muted">—</span>'}</td>
-                <td>${record.checkout_location || '<span class="text-muted">—</span>'}</td>
+                <td>${dateLabel}</td>
+                <td>${checkIn}</td>
+                <td>${checkOut}</td>
+                <td><span class="badge bg-${meta.statusClass}">${meta.statusText}</span></td>
+                <td>${notes}</td>
+                <td>${checkinLocation}</td>
+                <td>${checkoutLocation}</td>
                 <td>${actionButtons}</td>
             </tr>
         `;
+
+        mobileHtml += `
+            <div class="att-detail-card">
+                <div class="att-detail-card-head">
+                    <span class="att-detail-date">${dateLabel}</span>
+                    <span class="badge bg-${meta.statusClass}">${meta.statusText}</span>
+                </div>
+                <div class="att-detail-times">
+                    <div class="att-detail-time-box">
+                        <span class="lbl">Check in</span>
+                        <span class="val">${record.check_in ? attEscapeHtml(record.check_in) : '&mdash;'}</span>
+                    </div>
+                    <div class="att-detail-time-box">
+                        <span class="lbl">Check out</span>
+                        <span class="val">${record.check_out ? attEscapeHtml(record.check_out) : '&mdash;'}</span>
+                    </div>
+                </div>
+                ${record.notes ? `<div class="att-detail-field"><span class="lbl">Notes: </span>${attEscapeHtml(record.notes)}</div>` : ''}
+                ${record.checkin_location ? `<div class="att-detail-field"><span class="lbl">Check-in: </span>${attEscapeHtml(record.checkin_location)}</div>` : ''}
+                ${record.checkout_location ? `<div class="att-detail-field"><span class="lbl">Check-out: </span>${attEscapeHtml(record.checkout_location)}</div>` : ''}
+                <div class="att-detail-actions">${actionButtons}</div>
+            </div>
+        `;
     });
     
-    tbody.innerHTML = html;
+    if (tbody) tbody.innerHTML = tableHtml;
+    if (mobile) mobile.innerHTML = mobileHtml;
     
-    // Update pagination
-    if (pagination.total_pages > 1) {
+    if (pagination && pagination.total_pages > 1) {
         updatePaginationControls(pagination);
-        paginationDiv.style.display = 'flex';
-    } else {
+        if (paginationDiv) paginationDiv.style.display = 'flex';
+    } else if (paginationDiv) {
         paginationDiv.style.display = 'none';
     }
 }
@@ -1001,58 +729,79 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Checkbox Selection Functions
+  function getSelectedUserIds() {
+    const ids = new Set();
+    document.querySelectorAll('.row-checkbox:checked').forEach(function(cb) {
+      ids.add(cb.value);
+    });
+    return Array.from(ids);
+  }
+
+  function syncRowCheckbox(changed) {
+    if (!changed || !changed.value) return;
+    document.querySelectorAll('.row-checkbox[value="' + changed.value + '"]').forEach(function(cb) {
+      cb.checked = changed.checked;
+    });
+  }
+
+  function setSelectAllState(checked) {
+    const selectAll = document.getElementById('selectAll');
+    const selectAllMobile = document.getElementById('selectAllMobile');
+    if (selectAll) selectAll.checked = checked;
+    if (selectAllMobile) selectAllMobile.checked = checked;
+  }
+
   function toggleSelectAll(checkbox) {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(cb => {
+    document.querySelectorAll('.row-checkbox').forEach(function(cb) {
       cb.checked = checkbox.checked;
     });
+    setSelectAllState(checkbox.checked);
     updateSelection();
   }
 
   function updateSelection() {
-    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
-    const count = checkboxes.length;
+    const selectedIds = getSelectedUserIds();
+    const count = selectedIds.length;
     const exportBar = document.getElementById('exportActionsBar');
     const selectedCount = document.getElementById('selectedCount');
-    
-    if (count > 0) {
-      exportBar.style.display = 'block';
-      selectedCount.textContent = count + ' selected';
-    } else {
-      exportBar.style.display = 'none';
+
+    if (exportBar) {
+      exportBar.style.display = count > 0 ? 'block' : 'none';
     }
-    
-    // Update select all checkbox
-    const selectAll = document.getElementById('selectAll');
-    const allCheckboxes = document.querySelectorAll('.row-checkbox');
-    selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+    if (selectedCount) {
+      selectedCount.textContent = count + ' selected';
+    }
+
+    const allIds = new Set();
+    document.querySelectorAll('.row-checkbox').forEach(function(cb) {
+      allIds.add(cb.value);
+    });
+    const allSelected = allIds.size > 0 && count === allIds.size;
+    setSelectAllState(allSelected);
   }
 
   function handleRowClick(event, userId, userName) {
-    // Don't trigger if clicking on checkbox or button
-    if (event.target.type === 'checkbox' || event.target.closest('.btn') || event.target.closest('.action-buttons')) {
+    if (event.target.type === 'checkbox' || event.target.closest('.btn') || event.target.closest('.att-action-btns') || event.target.closest('.att-mobile-view-btn')) {
       return;
     }
     showUserAttendanceDetails(userId, userName);
   }
 
   function clearSelection() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(cb => {
+    document.querySelectorAll('.row-checkbox').forEach(function(cb) {
       cb.checked = false;
     });
-    document.getElementById('selectAll').checked = false;
+    setSelectAllState(false);
     updateSelection();
   }
 
   function exportSelected(format) {
-    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
-    if (checkboxes.length === 0) {
+    const userIds = getSelectedUserIds();
+    if (userIds.length === 0) {
       alert('Please select at least one employee to export.');
       return;
     }
     
-    const userIds = Array.from(checkboxes).map(cb => cb.value);
     const userIdsStr = userIds.join(',');
     
     // Show loading message
@@ -1060,26 +809,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const originalHTML = exportBar.innerHTML;
     exportBar.innerHTML = '<div class="text-center"><i class="bi bi-hourglass-split"></i> Preparing export...</div>';
     
-    // Create form and submit
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '<?php echo site_url("attendance/export"); ?>';
-    
-    const formatInput = document.createElement('input');
-    formatInput.type = 'hidden';
-    formatInput.name = 'format';
-    formatInput.value = format;
-    form.appendChild(formatInput);
-    
-    const userIdsInput = document.createElement('input');
-    userIdsInput.type = 'hidden';
-    userIdsInput.name = 'user_ids';
-    userIdsInput.value = userIdsStr;
-    form.appendChild(userIdsInput);
-    
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    // GET download — avoids CSRF 403 on POST (controller accepts GET params)
+    const exportUrl = '<?php echo site_url("attendance/export"); ?>'
+      + '?format=' + encodeURIComponent(format)
+      + '&user_ids=' + encodeURIComponent(userIdsStr);
+    window.location.href = exportUrl;
     
     // Restore original HTML after a delay
     setTimeout(() => {

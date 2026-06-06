@@ -7,6 +7,7 @@ class Expense_model extends CI_Model {
     {
         parent::__construct();
         $this->load->database();
+        $this->load->helper('schema_columns');
         $this->load->helper('hierarchy_filter');
     }
     
@@ -114,8 +115,8 @@ class Expense_model extends CI_Model {
         if (!$month) $month = date('m');
         if (!$year) $year = date('Y');
         
-        $hasBudget   = $this->db->table_exists('expense_categories') && $this->db->field_exists('budget_limit', 'expense_categories');
-        $hasIsActive = $this->db->table_exists('expense_categories') && $this->db->field_exists('is_active', 'expense_categories');
+        $hasBudget   = $this->db->table_exists('expense_categories') && schema_table_has_column($this->db, 'expense_categories', 'budget_limit');
+        $hasIsActive = $this->db->table_exists('expense_categories') && schema_table_has_column($this->db, 'expense_categories', 'is_active');
 
         $budgetCol  = $hasBudget ? 'ec.budget_limit' : 'NULL AS budget_limit';
         $activeWhere = $hasIsActive ? 'WHERE ec.is_active = 1' : '';

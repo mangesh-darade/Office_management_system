@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Task Assignment Report']); ?>
   <div class="container-fluid py-3">
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-people text-primary me-2"></i>Task Assignment Report</h4>
       <p class="text-muted small mb-0">View workload distribution and task completion per employee</p>

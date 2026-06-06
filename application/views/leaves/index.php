@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Leave Management']); ?>
   
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+    <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
       <h1 class="h4 mb-2 mb-sm-0">Leave Management</h1>
       <div class="d-flex gap-2">
         <?php if(function_exists('has_module_access') && (has_module_access('leave_requests') || has_module_access('leaves') || is_admin_group())): ?>

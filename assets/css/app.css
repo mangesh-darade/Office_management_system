@@ -920,3 +920,29 @@ h1.h4, h4.fw-bold, .page-title {
   .modal-dialog.modal-xl,
   .modal-dialog.modal-lg { max-width: calc(100% - 1rem); }
 }
+
+/* ===== OMS list screens — shared mobile UI ===== */
+.oms-page-head { gap: 0.75rem; }
+.oms-page-head-text { min-width: 0; }
+.oms-page-actions { flex-shrink: 0; }
+.oms-page-actions .btn { white-space: nowrap; }
+.oms-filter-row .form-select,
+.oms-filter-row .form-control { min-width: 0; }
+.oms-fluid-pad {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+@media (max-width: 575.98px) {
+  .oms-page-actions { width: 100%; }
+  .oms-page-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .oms-page-actions .btn-group { width: 100%; }
+  .oms-filter-row .form-select,
+  .oms-filter-row .form-control { width: 100%; max-width: 100% !important; }
+  .table-responsive .btn-sm { padding: 0.25rem 0.45rem; }
+}
+@media (max-width: 767.98px) {
+  .container-fluid.p-0:not(.no-mobile-pad) {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}

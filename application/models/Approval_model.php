@@ -9,7 +9,7 @@ class Approval_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema() {
+    public function ensure_schema() {
         static $done = false;
         if ($done) { return; }
         $done = true;
@@ -280,7 +280,7 @@ class Approval_model extends CI_Model {
 
             case 'manager':
                 // Get requester's manager via reporting_to column (if it exists)
-                if (!$this->db->table_exists('employees') || !$this->db->field_exists('reporting_to', 'employees')) {
+                if (!$this->db->table_exists('employees') || !schema_table_has_column($this->db, 'employees', 'reporting_to')) {
                     return false;
                 }
                 $employee = $this->db->get_where('employees', ['user_id' => $request_obj->requester_id])->row();

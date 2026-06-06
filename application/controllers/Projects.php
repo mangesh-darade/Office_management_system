@@ -5,7 +5,8 @@ class Projects extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'group_filter', 'hierarchy_filter', 'permission']);
+        $this->load->helper(['url', 'form', 'group_filter', 'hierarchy_filter', 'permission', 'schema_columns', 'types']);
+        $this->load->model('Type_model', 'module_types');
         $this->load->library(['session']);
         $this->load->model('Project_model');
         
@@ -95,6 +96,15 @@ class Projects extends CI_Controller {
                     'start_date' => $start_date,
                     'end_date' => $end_date,
                 ];
+                if (schema_table_has_column($this->db, 'projects', 'project_type')) {
+                    $project_type = module_type_validate_code($this->input->post('project_type'), 'projects', true);
+                    if ($project_type === false) {
+                        $this->session->set_flashdata('error', 'Please select a valid project type.');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                        return;
+                    }
+                    $data['project_type'] = $project_type;
+                }
                 
                 // Use transaction for data integrity
                 $this->db->trans_start();
@@ -102,7 +112,7 @@ class Projects extends CI_Controller {
                 $id = $this->db->insert_id();
                 
                 // Set created_by if column exists
-                if ($this->db->field_exists('created_by', 'projects')) {
+                if (schema_table_has_column($this->db, 'projects', 'created_by')) {
                     $this->db->where('id', $id)->update('projects', [
                         'created_by' => (int)$this->session->userdata('user_id')
                     ]);
@@ -119,12 +129,10 @@ class Projects extends CI_Controller {
                 $description = 'Project: ' . (string)$data['name'];
                 auto_log_insert('projects', 'projects', (int)$id, $data, $description);
                 
-                $this->load->helper('notification');
                 $success_msg = get_notification_message('projects', 'create', 'success');
                 $this->session->set_flashdata('success', $success_msg);
             } catch (Exception $e) {
                 log_message('error', 'Project creation error: ' . $e->getMessage());
-                $this->load->helper('notification');
                 $error_msg = get_notification_message('projects', 'create', 'error');
                 $this->session->set_flashdata('error', $error_msg);
                 redirect('projects/create');
@@ -154,10 +162,12 @@ class Projects extends CI_Controller {
         $this->load->model('Status_model', 'statuses');
         $statuses_list = $this->statuses->get_by_type('projects', true);
         
+        $project_types = module_type_options_resolved('projects');
         $this->load->view('projects/form', [
-            'action' => 'create', 
+            'action' => 'create',
             'embed' => $embed,
-            'statuses' => $statuses_list
+            'statuses' => $statuses_list,
+            'project_types' => $project_types,
         ]);
     }
 
@@ -304,6 +314,15 @@ class Projects extends CI_Controller {
                     'start_date' => $start_date,
                     'end_date' => $end_date,
                 ];
+                if (schema_table_has_column($this->db, 'projects', 'project_type')) {
+                    $project_type = module_type_validate_code($this->input->post('project_type'), 'projects', true);
+                    if ($project_type === false) {
+                        $this->session->set_flashdata('error', 'Please select a valid project type.');
+                        redirect('projects/'.$id.'/edit');
+                        return;
+                    }
+                    $data['project_type'] = $project_type;
+                }
                 
                 // Load activity tracking helper
                 $this->load->helper('change_tracker');
@@ -317,14 +336,12 @@ class Projects extends CI_Controller {
                 $description = 'Project: ' . (string)$data['name'];
                 track_changes_after('projects', 'projects', (int)$id, $old_data, $data, $description);
                 
-                $this->load->helper('notification');
                 $success_msg = get_notification_message('projects', 'update', 'success');
                 $this->session->set_flashdata('success', $success_msg);
                 redirect('projects/'.$id);
                 return;
             } catch (Exception $e) {
                 log_message('error', 'Project update error: ' . $e->getMessage());
-                $this->load->helper('notification');
                 $error_msg = get_notification_message('projects', 'update', 'error');
                 $this->session->set_flashdata('error', $error_msg);
                 redirect('projects/'.$id.'/edit');
@@ -335,10 +352,12 @@ class Projects extends CI_Controller {
         $this->load->model('Status_model', 'statuses');
         $statuses_list = $this->statuses->get_by_type('projects', true);
         
+        $project_types = module_type_options_resolved('projects');
         $this->load->view('projects/form', [
-            'action' => 'edit', 
+            'action' => 'edit',
             'project' => $project,
-            'statuses' => $statuses_list
+            'statuses' => $statuses_list,
+            'project_types' => $project_types,
         ]);
     }
 
@@ -376,7 +395,6 @@ class Projects extends CI_Controller {
             $description = 'Project deleted: ' . $project->name;
             auto_log_delete('projects', 'projects', (int)$id, $old_data, $description);
             
-            $this->load->helper('notification');
             $success_msg = get_notification_message('projects', 'delete', 'success');
             $this->session->set_flashdata('success', $success_msg);
         } catch (Exception $e) {
@@ -460,7 +478,7 @@ class Projects extends CI_Controller {
             $users = [];
             if ($q !== '') {
                 $this->db->select('id, email');
-                if ($this->db->field_exists('name', 'users')) { $this->db->select('name'); }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $this->db->select('name'); }
                 $this->db->from('users');
                 $this->db->group_start()
                          ->like('email', $q)
@@ -537,7 +555,6 @@ class Projects extends CI_Controller {
             if ($ok) {
                 $this->load->helper('activity');
                 log_activity('projects', 'assigned', $project_id, 'Added member user#'.$user_id.' as '.$role);
-                $this->load->helper('notification');
                 $success_msg = get_notification_message('projects', 'member_add', 'success');
                 $this->session->set_flashdata('success', $success_msg);
             } else {
@@ -564,7 +581,6 @@ class Projects extends CI_Controller {
             if ($ok) {
                 $this->load->helper('activity');
                 log_activity('projects', 'updated', $project_id, 'Removed member user#' . $user_id);
-                $this->load->helper('notification');
                 $success_msg = get_notification_message('projects', 'member_remove', 'success');
                 $this->session->set_flashdata('success', $success_msg);
             } else {

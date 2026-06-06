@@ -10,68 +10,16 @@ class Announcements extends CI_Controller {
         $this->load->model('Announcement_model','ann');
         
         // RBAC Audit: Centralized module access check
-        require_module_access('announcements', true);
+        require_controller_access('announcements', true);
         
         $this->ensure_schema();
         // Load reminders for broadcasting when publishing
         $this->load->model('Reminder_model','reminders');
-        if (method_exists($this->reminders, 'ensure_schema')) { $this->reminders->ensure_schema(); }
     }
 
-    private function ensure_schema(){
-        if (!$this->db->table_exists('announcements')){
-            $sql = "CREATE TABLE `announcements` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `title` varchar(255) NOT NULL,
-                `content` text NOT NULL,
-                `posted_by` int(11) NOT NULL,
-                `target_roles` varchar(100) DEFAULT 'all',
-                `priority` varchar(20) DEFAULT 'medium',
-                `start_date` date DEFAULT NULL,
-                `end_date` date DEFAULT NULL,
-                `status` varchar(20) DEFAULT 'draft',
-                `publish_at` datetime DEFAULT NULL,
-                `expire_at` datetime DEFAULT NULL,
-                `is_recurring` tinyint(1) DEFAULT 0,
-                `recurrence_pattern` varchar(50) DEFAULT NULL,
-                `recurrence_end` date DEFAULT NULL,
-                `email_template` text DEFAULT NULL,
-                `auto_send` tinyint(1) DEFAULT 0,
-                `created_at` datetime DEFAULT NULL,
-                `updated_at` datetime DEFAULT NULL,
-                PRIMARY KEY (`id`),
-                KEY `idx_publish_at` (`publish_at`),
-                KEY `idx_status` (`status`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-        
-        // Add new columns if they don't exist
-        if ($this->db->table_exists('announcements')) {
-            $fields = $this->db->list_fields('announcements');
-            
-            if (!in_array('publish_at', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `publish_at` datetime DEFAULT NULL AFTER `end_date`");
-            }
-            if (!in_array('expire_at', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `expire_at` datetime DEFAULT NULL AFTER `publish_at`");
-            }
-            if (!in_array('is_recurring', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `is_recurring` tinyint(1) DEFAULT 0 AFTER `expire_at`");
-            }
-            if (!in_array('recurrence_pattern', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `recurrence_pattern` varchar(50) DEFAULT NULL AFTER `is_recurring`");
-            }
-            if (!in_array('recurrence_end', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `recurrence_end` date DEFAULT NULL AFTER `recurrence_pattern`");
-            }
-            if (!in_array('email_template', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `email_template` text DEFAULT NULL AFTER `recurrence_end`");
-            }
-            if (!in_array('auto_send', $fields)) {
-                $this->db->query("ALTER TABLE `announcements` ADD COLUMN `auto_send` tinyint(1) DEFAULT 0 AFTER `email_template`");
-            }
-        }
+    private function ensure_schema() {
+        $this->load->helper('announcements_schema');
+        announcements_schema_ensure($this->db);
     }
 
     private function can_manage(){

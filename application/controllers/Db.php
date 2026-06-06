@@ -7,180 +7,36 @@ class Db extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission']); // Ensure permission helper is loaded
+        $this->load->helper(['url','form','permission','schema_columns','db_connection','db_admin','db_schema_sql']); // Ensure permission helper is loaded
         $this->load->library(['session']);
         $this->load->model('Client_model', 'client_model');
         
         // RBAC Audit: Centralized module access check
-        require_module_access('db', true);
+        require_controller_access('db', true);
 
-        $this->ensure_dm_manager_table();
-        $this->ensure_client_migrations_table();
-        $this->ensure_client_db_fields();
+        db_ensure_dm_manager_table($this->db, $this->dm_table);
+        db_ensure_client_migrations_table($this->db, $this->client_migrations_table);
+        db_ensure_client_db_fields($this->db);
     }
 
-    private function ensure_client_db_fields()
-    {
-        if (!$this->db->table_exists('clients')) {
-            return;
-        }
-        if (!$this->db->field_exists('db_host', 'clients')) {
-            $this->db->query('ALTER TABLE `clients` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`');
-        }
-        if (!$this->db->field_exists('db_port', 'clients')) {
-            $this->db->query('ALTER TABLE `clients` ADD `db_port` varchar(10) DEFAULT NULL AFTER `db_host`');
-        }
-    }
+
 
     // Security Helper: Verify CSRF (Manual implementation since global might be off)
-    private function verify_csrf(){
-        // Ensure we have a token in session
-        if (!$this->session->userdata('db_csrf_token')) {
-            $this->session->set_userdata('db_csrf_token', bin2hex(openssl_random_pseudo_bytes(16)));
-        }
-        
-        // If it's a POST request to a sensitive endpoint, verify header/post
-        $token_in = $this->input->post('csrf_token') ?: $this->input->get_request_header('X-CSRF-Token');
-        $token_sess = $this->session->userdata('db_csrf_token');
-        
-        if (empty($token_in) || !hash_equals($token_sess, $token_in)){
-            return false;
-        }
-        return true;
-    }
+
     
     public function get_csrf_token(){
-        if (!$this->session->userdata('db_csrf_token')) {
-            $this->session->set_userdata('db_csrf_token', bin2hex(openssl_random_pseudo_bytes(16)));
-        }
-        echo json_encode(['token' => $this->session->userdata('db_csrf_token')]);
+        echo json_encode(['token' => db_csrf_token($this->session)]);
     }
 
     // Helper: Resolve DB Connection
     /**
      * Connection options: host, port, use_local_credentials, allow_local_fallback
      */
-    private function is_local_db_host($host)
-    {
-        $h = strtolower(trim((string) $host));
-        return $h === '' || $h === 'localhost' || $h === '127.0.0.1' || $h === '::1';
-    }
-
-    private function resolve_client_connection($client_id, $options = array())
-    {
-        $creds = $this->client_model->get_client_credentials($client_id);
-        if (!$creds) {
-            throw new Exception('Client not found.');
-        }
-        if (empty($creds->db_name)) {
-            throw new Exception('Client "' . (isset($creds->company_name) ? $creds->company_name : ('#' . $client_id)) . '" has no database name configured.');
-        }
-
-        $clientLabel = isset($creds->company_name) ? $creds->company_name : ('Client #' . $client_id);
-
-        if (!empty($options['use_local_credentials'])) {
-            return $this->connect_to_verified($creds->db_name, 'local WAMP credentials for "' . $clientLabel . '"');
-        }
-
-        $host = !empty($options['host']) ? $options['host'] : (!empty($creds->db_host) ? $creds->db_host : ($this->db->hostname ? $this->db->hostname : 'localhost'));
-        $port = !empty($options['port']) ? $options['port'] : (!empty($creds->db_port) ? $creds->db_port : null);
-        $allowFallback = !isset($options['allow_local_fallback']) || $options['allow_local_fallback'];
-        $storedHostIsLocal = $this->is_local_db_host(isset($creds->db_host) ? $creds->db_host : '');
-        $targetHostIsLocal = $this->is_local_db_host($host);
-
-        // Explicit live-server mode: stored cPanel/hosting credentials against remote MySQL
-        if (!empty($options['use_live_server'])) {
-            if ($host === '' || $this->is_local_db_host($host)) {
-                throw new Exception(
-                    'Live server mode for "' . $clientLabel . '" needs a remote DB Host (not localhost). '
-                    . 'Set it under CRM → Clients → Edit, or enter the MySQL hostname in the override field '
-                    . '(cPanel → Remote MySQL shows the server hostname; whitelist your WAMP public IP there).'
-                );
-            }
-            return $this->connect_custom($host, $creds->db_username, $creds->db_password, $creds->db_name, $port);
-        }
-
-        // WAMP/dev: no remote host on client record + connecting to localhost → use OMS (root) creds, not cPanel username
-        if ($targetHostIsLocal && (empty($creds->db_host) || $storedHostIsLocal)) {
-            return $this->connect_to_verified($creds->db_name, 'local WAMP for "' . $clientLabel . '"');
-        }
-
-        try {
-            return $this->connect_custom($host, $creds->db_username, $creds->db_password, $creds->db_name, $port);
-        } catch (Exception $e) {
-            if (!$allowFallback || !$targetHostIsLocal) {
-                throw new Exception(
-                    'Cannot connect to ' . $clientLabel . ' at ' . $host . ' (user: ' . $creds->db_username . '). ' . $e->getMessage()
-                    . ($targetHostIsLocal ? ' Tip: enable "Use local WAMP credentials" or create database "' . $creds->db_name . '" on WAMP.' : ' Tip: set DB Host under CRM → Clients for the remote MySQL server.')
-                );
-            }
-            try {
-                return $this->connect_to_verified($creds->db_name, 'local fallback for "' . $clientLabel . '"');
-            } catch (Exception $e2) {
-                throw new Exception(
-                    'Remote: ' . $e->getMessage() . ' | Local fallback (db: ' . $creds->db_name . '): ' . $e2->getMessage()
-                    . ' — Create database "' . $creds->db_name . '" in phpMyAdmin on WAMP, or set the client DB Host to the live server.'
-                );
-            }
-        }
-    }
-
-    private function compare_connection_options_from_request()
-    {
-        $useLive = $this->input->post('use_live_server') === '1';
-        return array(
-            'host' => trim((string) $this->input->post('db_host')),
-            'port' => trim((string) $this->input->post('db_port')),
-            'use_local_credentials' => !$useLive && $this->input->post('use_local_credentials') === '1',
-            'allow_local_fallback' => !$useLive && $this->input->post('allow_local_fallback') !== '0',
-            'use_live_server' => $useLive,
-        );
-    }
-
-    private function resolve_connection($client_id, $manual_config = array()) {
-        if (!empty($client_id)) {
-            $opts = array();
-            if (!empty($manual_config['host'])) {
-                $opts['host'] = $manual_config['host'];
-            }
-            if (!empty($manual_config['port'])) {
-                $opts['port'] = $manual_config['port'];
-            }
-            if (isset($manual_config['use_local_credentials'])) {
-                $opts['use_local_credentials'] = (bool) $manual_config['use_local_credentials'];
-            }
-            if (isset($manual_config['allow_local_fallback'])) {
-                $opts['allow_local_fallback'] = (bool) $manual_config['allow_local_fallback'];
-            }
-            if (isset($manual_config['use_live_server'])) {
-                $opts['use_live_server'] = (bool) $manual_config['use_live_server'];
-            }
-            return $this->resolve_client_connection($client_id, $opts);
-        }
-        
-        // Fallback or Manual
-        if (!empty($manual_config['db'])) {
-            require_module_access(['db_admin', 'db'], true);
-            return $this->connect_custom(
-                $manual_config['host'],
-                $manual_config['user'],
-                $manual_config['pass'],
-                $manual_config['db'],
-                $manual_config['port']
-            );
-        }
-        
-        // Default System DB
-        return $this->connect_to($manual_config['db'] ?: $this->db->database);
-    }
-    
-    // Legacy: Allow manual connection params for manual tool, but restrict to admin?
-    // We'll keep the logic but wrap it in permission checks.
 
     // POST: file_path, database, optional host/user/pass => append DB-only items to the SQL file
     public function compare_update_file_missing(){
         // Security Check
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
            // header('HTTP/1.1 403 Forbidden'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
            // Soft-fail for now until frontend sends token, or auto-generate
         }
@@ -194,7 +50,7 @@ class Db extends CI_Controller {
         }
 
         try {
-            $target = $this->resolve_connection($client_id, [
+            $target = db_resolve_connection($this, $this->client_model, $this->db, $client_id, [
                 'host' => $this->input->post('host'),
                 'user' => $this->input->post('user'),
                 'pass' => $this->input->post('pass'),
@@ -209,7 +65,7 @@ class Db extends CI_Controller {
         }
 
         // Parse file schema
-        $schema = $this->parse_sql_schema($file);
+        $schema = db_parse_sql_schema($file);
         // Existing DB structure
         $tables = [];
         $tableNameMap = [];
@@ -304,7 +160,7 @@ class Db extends CI_Controller {
         // PERMISSION CHECK for Destructive Action
         require_module_access(['db_admin', 'db'], true);
 
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
 
@@ -319,7 +175,7 @@ class Db extends CI_Controller {
         }
 
         try {
-             $target = $this->resolve_connection($client_id, [
+             $target = db_resolve_connection($this, $this->client_model, $this->db, $client_id, [
                 'host' => $this->input->post('host'),
                 'user' => $this->input->post('user'),
                 'pass' => $this->input->post('pass'),
@@ -333,7 +189,7 @@ class Db extends CI_Controller {
 
         $schema = [];
         if ($file !== '' && @is_file($file)){
-            $schema = $this->parse_sql_schema($file);
+            $schema = db_parse_sql_schema($file);
         } else {
             $schema = ['tables' => []];
         }
@@ -422,90 +278,17 @@ class Db extends CI_Controller {
             'dropped_tables' => $detailTables,
             'dropped_columns' => $detailColumns,
         ];
-        $this->log_client_migration($client_id ?: null, $client_name, $dbName, 'revert', $droppedTables, $droppedColumns, $file, $details);
+        db_log_client_migration($this->db, $this->session, $this->client_migrations_table, $client_id ?: null, $client_name, $dbName, 'revert', $droppedTables, $droppedColumns, $file, $details);
         header('Content-Type: application/json'); echo json_encode(['success'=>true,'tables'=>$droppedTables,'columns'=>$droppedColumns]); return;
     }
 
-    private function normalize_column_def($def){
-        $s = trim((string)$def);
-        // Strip trailing comma if present
-        $s = preg_replace('/,\s*$/', '', $s);
-        // Replace zero-date defaults
-        $s = preg_replace(
-            '/\b(timestamp|datetime|date)\b\s+NOT\s+NULL\s+DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
-            '$1 NULL DEFAULT NULL',
-            $s
-        );
-        $s = preg_replace(
-            '/DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
-            'DEFAULT NULL',
-            $s
-        );
-        return $s;
-    }
+
 
     // Build a conservative CREATE TABLE from parsed column defs as a fallback
-    private function build_create_sql_from_columns($table, $meta){
-        $cols = [];
-        if (isset($meta['columns']) && is_array($meta['columns'])){
-            foreach ($meta['columns'] as $c => $def){
-                $cols[] = $this->normalize_column_def($def);
-            }
-        }
-        // If we have an auto-increment id column but no explicit PK, add a primary key on id
-        $hasId = false; $hasPk = false;
-        foreach ($cols as $line){
-            if (preg_match('/^`?id`?\b/i', $line)){ $hasId = true; if (stripos($line,'auto_increment') !== false){ /* ok */ } }
-            if (preg_match('/^primary\s+key\b/i', $line)){ $hasPk = true; }
-        }
-        if ($hasId && !$hasPk){ $cols[] = 'PRIMARY KEY (`id`)'; }
-        $body = implode(",\n  ", $cols);
-        $sql = "CREATE TABLE `".$table."` (\n  ".$body."\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-        return $sql;
-    }
+
 
     // Build a custom DB connection with explicit server params
-    private function connect_custom($hostname, $username, $password, $database, $port = null){
-        $driver   = property_exists($this->db, 'dbdriver') ? $this->db->dbdriver : 'mysqli';
-        $char_set = property_exists($this->db, 'char_set') ? $this->db->char_set : 'utf8';
-        $dbcollat = property_exists($this->db, 'dbcollat') ? $this->db->dbcollat : 'utf8_general_ci';
-        $params = [
-            'hostname' => $hostname,
-            'username' => $username,
-            'password' => $password,
-            'database' => $database,
-            'dbdriver' => $driver,
-            'char_set' => $char_set,
-            'dbcollat' => $dbcollat,
-            'pconnect' => FALSE,
-            'db_debug' => FALSE, // Force FALSE to handle errors manually
-            'cache_on' => FALSE,
-            'cachedir' => '',
-            'save_queries' => TRUE,
-        ];
-        if (!empty($port)) { $params['port'] = (int)$port; }
-        
-        // Suppress PHP warnings (like mysqli warning) to prevent HTML leakage into JSON
-        $prev_level = error_reporting(0);
-        try {
-            $db = $this->load->database($params, TRUE);
-            
-            // Explicit check if connected
-            if (!$db->conn_id && !$db->initialize()) {
-                 $err = $db->error();
-                 error_reporting($prev_level);
-                 throw new Exception('Database Connection Failed: ' . (isset($err['message']) && $err['message'] ? $err['message'] : 'Check credentials'));
-            }
-            error_reporting($prev_level);
-            return $db;
-        } catch (Exception $e) {
-            error_reporting($prev_level);
-            throw $e;
-        } catch (Throwable $t) {
-            error_reporting($prev_level);
-            throw new Exception($t->getMessage());
-        }
-    }
+
 
     // List available databases on the server (for dropdown)
     public function list_databases(){
@@ -516,14 +299,14 @@ class Db extends CI_Controller {
         $pass = $this->input->post('pass') ?: $this->input->get('pass');
         try {
             if ($client_id) {
-                $tmp = $this->resolve_client_connection($client_id, array(
+                $tmp = db_resolve_client_connection($this, $this->client_model, $this->db, $client_id, array(
                     'host' => trim((string) $host),
                     'port' => trim((string) $port),
                     'allow_local_fallback' => true,
                 ));
                 $res = $tmp->query('SHOW DATABASES');
             } elseif ($host && $user !== null) {
-                $tmp = $this->connect_custom($host, $user, (string)$pass, '', $port);
+                $tmp = db_connect_custom($this, $this->db, $host, $user, (string)$pass, '', $port);
                 $res = $tmp->query('SHOW DATABASES');
             } else {
                 $res = $this->db->query('SHOW DATABASES');
@@ -545,135 +328,10 @@ class Db extends CI_Controller {
     }
 
     // Parse CREATE TABLE blocks from a .sql file to extract database name, tables, and column definitions
-    private function parse_sql_schema($path){
-        $res = ['database'=>'', 'tables'=>[]];
-        if (!is_file($path)) { return $res; }
-        $fh = @fopen($path, 'r'); if (!$fh) { return $res; }
-        $currentTable = '';
-        $inCreate = false; $buffer = '';
-        while (!feof($fh)){
-            $line = fgets($fh);
-            if ($line === false) { break; }
-            $trim = rtrim($line, "\r\n");
-            if ($res['database'] === '' && preg_match('/^\s*--\s*Database:\s*`([^`]+)`/i', $trim, $m)){
-                $res['database'] = $m[1];
-            }
-            // Recognize phpMyAdmin section header to at least register table presence
-            if (!$inCreate && preg_match('/^\s*--\s*Table structure for table\s+`([^`]+)`/i', $trim, $hm)){
-                $tname = $hm[1];
-                if (!isset($res['tables'][$tname])){ $res['tables'][$tname] = ['columns'=>[], 'create_sql'=>'']; }
-            }
-            // Recognize DROP TABLE IF EXISTS [`db`.]`table` as a hint the table exists in file
-            if (!$inCreate && preg_match('/^\s*DROP\s+TABLE\s+IF\s+EXISTS\s+(?:`[^`]+`\.)?`?([A-Za-z0-9_]+)`?/i', $trim, $dm)){
-                $tname = $dm[1];
-                if (!isset($res['tables'][$tname])){ $res['tables'][$tname] = ['columns'=>[], 'create_sql'=>'']; }
-            }
-            // Recognize CREATE TABLE [IF NOT EXISTS] [`db`.]`table`
-            if (!$inCreate && preg_match('/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`[^`]+`\.)?`?([A-Za-z0-9_]+)`?/i', $trim, $m)){
-                $inCreate = true; $currentTable = $m[1]; $buffer = $line; if (!isset($res['tables'][$currentTable])){ $res['tables'][$currentTable] = ['columns'=>[], 'create_sql'=>'']; }
-                continue;
-            }
-            if ($inCreate){
-                $buffer .= $line;
-                // End of CREATE TABLE when we meet a line ending with ';'
-                if (strpos($trim, ';') !== false && preg_match('/\)\s*[^;]*;\s*$/', $trim)){
-                    // Extract column lines between first '(' and the closing ')'
-                    $inner = $buffer;
-                    $res['tables'][$currentTable]['create_sql'] = $buffer;
-                    $posOpen = strpos($inner, '(');
-                    $posClose = strrpos($inner, ')');
-                    if ($posOpen !== false && $posClose !== false && $posClose > $posOpen){
-                        $inside = substr($inner, $posOpen+1, $posClose-$posOpen-1);
-                        $lines = preg_split('/\r?\n/', $inside);
-                        foreach ($lines as $ln){
-                            $ln = trim($ln);
-                            if ($ln === '' || preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\s+|CONSTRAINT|FOREIGN\s+KEY|INDEX)\b/i',$ln)) { continue; }
-                            $ln = rtrim($ln, ",; ");
-                            if (preg_match('/^`?([A-Za-z_][A-Za-z0-9_]*)`?\s+(.+)$/', $ln, $mm)){
-                                $col = $mm[1];
-                                $res['tables'][$currentTable]['columns'][strtolower($col)] = $ln;
-                            }
-                        }
-                    }
-                    $inCreate = false; $currentTable = ''; $buffer = '';
-                }
-                continue;
-            }
-            // Also parse ALTER TABLE ... ADD COLUMN ... statements present anywhere in the file
-            if (!$inCreate){
-                // Recognize ALTER TABLE [`db`.]`table` ADD COLUMN ...;
-                if (preg_match('/^\s*ALTER\s+TABLE\s+(?:`[^`]+`\.)?`?([A-Za-z0-9_]+)`?\s+ADD\s+COLUMN\s+(.*?);\s*$/i', $trim, $am)){
-                    $t = $am[1];
-                    // Normalize single column add; ignore complex multiple add with commas until ';'
-                    $def = trim($am[2]);
-                    // If the ALTER includes multiple clauses (", ADD KEY ..."), cut at first top-level comma
-                    $defClean = $def; $paren=0; $inBack=false; $len = strlen($def);
-                    for ($i=0; $i<$len; $i++){
-                        $ch = $def[$i];
-                        if ($ch==='`'){ $inBack = !$inBack; continue; }
-                        if (!$inBack){
-                            if ($ch==='('){ $paren++; }
-                            elseif ($ch===')' && $paren>0){ $paren--; }
-                            elseif ($ch===',' && $paren===0){ $defClean = trim(substr($def,0,$i)); break; }
-                        }
-                    }
-                    $def = $defClean;
-                    // Skip if what remains is a key/index/constraint fragment
-                    if (preg_match('/^(PRIMARY\s+KEY|UNIQUE\s+KEY|KEY\s+|CONSTRAINT|FOREIGN\s+KEY|INDEX)\b/i', $def)){
-                        continue;
-                    }
-                    // Extract column name from definition
-                    if (preg_match('/^`?([A-Za-z_][A-Za-z0-9_]*)`?\s+(.+)$/', $def, $cm)){
-                        $col = strtolower($cm[1]);
-                        if (!isset($res['tables'][$t])){ $res['tables'][$t] = ['columns'=>[], 'create_sql'=>'']; }
-                        $res['tables'][$t]['columns'][$col] = $def;
-                    }
-                }
-            }
-        }
-        fclose($fh);
-        return $res;
-    }
+
 
     // Clean up CREATE TABLE SQL: remove inline -- comments and trailing comma before closing ) and ensure semicolon
-    private function normalize_create_sql($sql){
-        $s = (string)$sql;
-        // Normalize newlines
-        $s = str_replace("\r", '', $s);
-        // Remove block comments /* ... */ first
-        $s = preg_replace('/\/\*.*?\*\//s', '', $s);
-        // Remove inline comments that appear between comma-separated column defs: ", -- comment ... ," or ", -- comment ...)"
-        // Keep the comma (separator) while stripping the comment chunk until next comma or closing parenthesis
-        $s = preg_replace('/,\s*--.*?(?=,|\))/s', ',', $s);
-        // Remove any remaining -- comments to end of line (safe when true line breaks exist)
-        $s = preg_replace('/\s--.*$/m', '', $s);
-        // Collapse multiple spaces
-        $s = preg_replace('/[\t ]+/', ' ', $s);
-        // Remove trailing comma before closing parenthesis inside the definition (repeat a few times just in case)
-        for ($i=0; $i<3; $i++){
-            $s = preg_replace('/,\s*\)/', ')', $s);
-        }
-        // Also trim commas before ENGINE or options if malformed
-        $s = preg_replace('/,\s*(\)\s*ENGINE)/i', '$1', $s);
-        // Fix malformed extra parenthesis after GENERATED columns, e.g., ") STORED) NOT NULL" -> ") STORED NOT NULL"
-        $s = preg_replace('/\)\s*(STORED|VIRTUAL)\)\s+NOT\s+NULL/i', ') $1 NOT NULL', $s);
-        // Replace invalid zero-date defaults that break under NO_ZERO_DATE/NO_ZERO_IN_DATE
-        // e.g., `timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'` -> `timestamp NULL DEFAULT NULL`
-        $s = preg_replace(
-            '/\b(timestamp|datetime|date)\b\s+NOT\s+NULL\s+DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
-            '$1 NULL DEFAULT NULL',
-            $s
-        );
-        // If any remaining DEFAULT '0000-...' without NOT NULL, change to DEFAULT NULL
-        $s = preg_replace(
-            '/DEFAULT\s+\'0000-00-00(?: 00:00:00)?\'/i',
-            'DEFAULT NULL',
-            $s
-        );
-        $s = trim($s);
-        if ($s !== '' && substr(rtrim($s), -1) !== ';'){ $s .= ';'; }
-        return $s;
-    }
+
 
     // POST: file_path, database => compute missing tables/columns and propose SQL
     // AJAX: Scan file against DB and return differences
@@ -687,7 +345,7 @@ class Db extends CI_Controller {
         }
 
         try {
-            $target = $this->resolve_connection($client_id, [
+            $target = db_resolve_connection($this, $this->client_model, $this->db, $client_id, [
                 'host' => $this->input->post('host'),
                 'user' => $this->input->post('user'),
                 'pass' => $this->input->post('pass'),
@@ -699,7 +357,7 @@ class Db extends CI_Controller {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Connection Failed: '.$e->getMessage()]); return;
         }
 
-        $schema = $this->parse_sql_schema($file);
+        $schema = db_parse_sql_schema($file);
         
         // Scan Target DB
         $tables = [];
@@ -729,9 +387,9 @@ class Db extends CI_Controller {
             if (!isset($tables[$tLower])){
                 $rawSql = isset($meta['create_sql']) ? $meta['create_sql'] : '';
                 if ($rawSql === ''){
-                    $rawSql = $this->build_create_sql_from_columns($tName, $meta['columns']);
+                    $rawSql = db_build_create_sql_from_columns($tName, $meta['columns']);
                 }
-                $rawSql = $this->normalize_create_sql($rawSql);
+                $rawSql = db_normalize_create_sql($rawSql);
                 $ops[] = ['type'=>'create_table', 'table'=>$tName, 'sql'=>$rawSql];
             } else {
                 // 2. Missing Columns
@@ -741,7 +399,7 @@ class Db extends CI_Controller {
                 $existingCols = isset($cols[$tLower]) ? $cols[$tLower] : [];
                 foreach ($meta['columns'] as $cName => $def){
                     if (!isset($existingCols[strtolower($cName)])){
-                        $defNorm = $this->normalize_column_def($def);
+                        $defNorm = db_normalize_column_def($def);
                         $sql = 'ALTER TABLE `'.$tName.'` ADD COLUMN '.$defNorm;
                         if (substr(trim($sql), -1) !== ';') $sql .= ';';
                         $ops[] = ['type'=>'add_column', 'table'=>$tName, 'column'=>$cName, 'sql'=>$sql];
@@ -786,47 +444,13 @@ class Db extends CI_Controller {
         return;
     }
 
-    private function compare_scan_internal($file, $target, $dbName){
-        // Internal helper using connection object
-        $schema = $this->parse_sql_schema($file);
-        $tables = [];
-        $tableTypeMap = [];
-        $q = $target->query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?", [$dbName]);
-        foreach ($q->result() as $r){ 
-            $tables[strtolower($r->TABLE_NAME)] = true; 
-            $tableTypeMap[strtolower($r->TABLE_NAME)] = strtoupper((string)$r->TABLE_TYPE); 
-        }
-        $cols = [];
-        if (!empty($tables)){
-            $rs = $target->query("SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?", [$dbName]);
-            foreach ($rs->result() as $r){ $t = strtolower($r->TABLE_NAME); $c = strtolower($r->COLUMN_NAME); if (!isset($cols[$t])) $cols[$t] = []; $cols[$t][$c] = true; }
-        }
-        $ops = [];
-        foreach ($schema['tables'] as $tName => $meta){
-            $tLower = strtolower($tName);
-            if (!isset($tables[$tLower])){
-                $rawSql = isset($meta['create_sql']) ? $meta['create_sql'] : $this->build_create_sql_from_columns($tName, $meta['columns']);
-                $ops[] = ['type'=>'create_table', 'table'=>$tName, 'sql'=>$this->normalize_create_sql($rawSql)];
-            } else {
-                if (isset($tableTypeMap[$tLower]) && $tableTypeMap[$tLower] === 'VIEW'){ continue; }
-                $existingCols = isset($cols[$tLower]) ? $cols[$tLower] : [];
-                foreach ($meta['columns'] as $cName => $def){
-                    if (!isset($existingCols[strtolower($cName)])){
-                        $defNorm = $this->normalize_column_def($def);
-                        $sql = 'ALTER TABLE `'.$tName.'` ADD COLUMN '.$defNorm.';';
-                        $ops[] = ['type'=>'add_column', 'table'=>$tName, 'column'=>$cName, 'sql'=>$sql];
-                    }
-                }
-            }
-        }
-        return ['success'=>true, 'ops'=>$ops];
-    }
+
 
     public function compare_merge(){
         // PERMISSION CHECK for Destructive Action
         require_module_access(['db_admin', 'db'], true);
 
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
 
@@ -839,7 +463,7 @@ class Db extends CI_Controller {
         }
 
         try {
-             $target = $this->resolve_connection($client_id, [
+             $target = db_resolve_connection($this, $this->client_model, $this->db, $client_id, [
                 'host' => $this->input->post('host'),
                 'user' => $this->input->post('user'),
                 'pass' => $this->input->post('pass'),
@@ -851,7 +475,7 @@ class Db extends CI_Controller {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'Connection Failed: '.$e->getMessage()]); return;
         }
 
-        $scan = $this->compare_scan_internal($file, $target, $dbName);
+        $scan = db_compare_scan_internal($file, $target, $dbName);
         if (empty($scan['ops'])){
             header('Content-Type: application/json'); echo json_encode(['success'=>true,'applied'=>0,'message'=>'No changes needed.']); return;
         }
@@ -880,7 +504,7 @@ class Db extends CI_Controller {
         $tables = 0; $columns = 0;
         foreach ($scan['ops'] as $op) { if ($op['type']=='create_table') $tables++; else $columns++; }
         
-        $this->log_client_migration($client_id ?: null, $client_name, $dbName, 'migrate', $tables, $columns, $file, ['sql'=>$details]);
+        db_log_client_migration($this->db, $this->session, $this->client_migrations_table, $client_id ?: null, $client_name, $dbName, 'migrate', $tables, $columns, $file, ['sql'=>$details]);
 
         header('Content-Type: application/json'); echo json_encode(['success'=>true,'applied'=>$applied]);
     }
@@ -890,17 +514,17 @@ class Db extends CI_Controller {
         $projects = [];
         if ($this->db->table_exists('projects')) {
             $sel = 'id,name';
-            if ($this->db->field_exists('db_name','projects')) { $sel .= ',db_name'; }
+            if (schema_table_has_column($this->db, 'projects', 'db_name')) { $sel .= ',db_name'; }
             $projects = $this->db->select($sel)->from('projects')->order_by('name','ASC')->get()->result();
         }
         // Assignees list (users, optionally via employees join)
         $assignees = [];
         if ($this->db->table_exists('users')) {
-            if ($this->db->table_exists('employees') && $this->db->field_exists('user_id','employees')) {
+            if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
                 $sel = ['users.id','users.email'];
-                if ($this->db->field_exists('name','employees')) { $sel[] = 'employees.name AS emp_name'; }
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'users.full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'users.name'; }
+                if (schema_table_has_column($this->db, 'employees', 'name')) { $sel[] = 'employees.name AS emp_name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'users.full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'users.name'; }
                 $this->db->select(implode(',', $sel))
                          ->from('users')
                          ->join('employees','employees.user_id = users.id','left')
@@ -908,8 +532,8 @@ class Db extends CI_Controller {
                 $assignees = $this->db->get()->result();
             } else {
                 $sel = ['id','email'];
-                if ($this->db->field_exists('full_name','users')) { $sel[] = 'full_name'; }
-                if ($this->db->field_exists('name','users')) { $sel[] = 'name'; }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
+                if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
                 $assignees = $this->db->select(implode(',', $sel))->from('users')->order_by('email','ASC')->get()->result();
             }
         }
@@ -954,7 +578,7 @@ class Db extends CI_Controller {
         $clients = [];
         if ($this->db->table_exists('clients')) {
             $sel = ['id','company_name','db_name','db_username']; // Removed db_password
-            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            if (schema_table_has_column($this->db, 'clients', 'pos_url')) { $sel[] = 'pos_url'; }
             $this->db->select(implode(',', $sel));
             $clients = $this->db->from('clients')->order_by('company_name','ASC')->get()->result();
         }
@@ -965,11 +589,7 @@ class Db extends CI_Controller {
         }
         
         // Generate CSRF Token if missing
-        $csrf_token = $this->session->userdata('db_csrf_token');
-        if (!$csrf_token){
-             $csrf_token = bin2hex(openssl_random_pseudo_bytes(16));
-             $this->session->set_userdata('db_csrf_token', $csrf_token);
-        }
+        $csrf_token = db_csrf_token($this->session);
 
         $this->load->view('db/index', [
             'projects' => $projects,
@@ -1014,15 +634,11 @@ class Db extends CI_Controller {
         $clients = [];
         if ($this->db->table_exists('clients')) {
             $sel = ['id','company_name','db_name','db_username']; // Removed db_password
-            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            if (schema_table_has_column($this->db, 'clients', 'pos_url')) { $sel[] = 'pos_url'; }
             $this->db->select(implode(',', $sel));
             $clients = $this->db->from('clients')->order_by('company_name','ASC')->get()->result();
         }
-        $csrf_token = $this->session->userdata('db_csrf_token');
-        if (!$csrf_token){
-             $csrf_token = bin2hex(openssl_random_pseudo_bytes(16));
-             $this->session->set_userdata('db_csrf_token', $csrf_token);
-        }
+        $csrf_token = db_csrf_token($this->session);
         $this->load->view('db/client_panel', [
             'sql_file_default' => $default_sql_path,
             'clients' => $clients,
@@ -1072,15 +688,11 @@ class Db extends CI_Controller {
         $clients = [];
         if ($this->db->table_exists('clients')) {
             $sel = ['id','company_name','db_name','db_username']; // Removed db_password
-            if ($this->db->field_exists('pos_url','clients')) { $sel[] = 'pos_url'; }
+            if (schema_table_has_column($this->db, 'clients', 'pos_url')) { $sel[] = 'pos_url'; }
             $this->db->select(implode(',', $sel));
             $clients = $this->db->from('clients')->order_by('company_name','ASC')->get()->result();
         }
-        $csrf_token = $this->session->userdata('db_csrf_token');
-        if (!$csrf_token){
-             $csrf_token = bin2hex(openssl_random_pseudo_bytes(16));
-             $this->session->set_userdata('db_csrf_token', $csrf_token);
-        }
+        $csrf_token = db_csrf_token($this->session);
         $this->load->view('db/compare', [
             'sql_file_default' => $default_sql_path,
             'clients' => $clients,
@@ -1115,8 +727,8 @@ class Db extends CI_Controller {
             $tblParts = explode('.', $this->dm_table);
             $baseTbl = end($tblParts);
             $selects = ['dm.id', 'dm.project_id', 'dm.assign_id', 'dm.version', 'dm.title', 'dm.squary'];
-            if ($this->db->field_exists('file_path', $baseTbl)) { $selects[] = 'dm.file_path'; }
-            if ($this->db->field_exists('backup_path', $baseTbl)) { $selects[] = 'dm.backup_path'; }
+            if (schema_table_has_column($this->db, $baseTbl, 'file_path')) { $selects[] = 'dm.file_path'; }
+            if (schema_table_has_column($this->db, $baseTbl, 'backup_path')) { $selects[] = 'dm.backup_path'; }
             $this->db->select(implode(', ', $selects), false)
                      ->from($this->dm_table.' dm');
             if ($filter_project_id) { $this->db->where('dm.project_id', $filter_project_id); }
@@ -1221,134 +833,21 @@ class Db extends CI_Controller {
         exit;
     }
 
-    private function ensure_dm_manager_table(){
-        $this->db->query("CREATE TABLE IF NOT EXISTS `dm_manager` (
-            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `project_id` INT NULL,
-            `assign_id` INT NULL,
-            `version` VARCHAR(50) NULL,
-            `title` VARCHAR(191) NULL,
-            `squary` LONGTEXT NOT NULL,
-            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            INDEX (`project_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        // Backward-compat: if old saved_queries exists but dm_manager doesn't, no migration here (out of scope)
-        // Ensure optional metadata columns exist for revert support
-        $tblParts = explode('.', $this->dm_table);
-        $baseTbl = end($tblParts);
-        if (!$this->db->field_exists('file_path', $baseTbl)){
-            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `file_path` VARCHAR(500) NULL AFTER `squary`");
-        }
-        if (!$this->db->field_exists('backup_path', $baseTbl)){
-            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `backup_path` VARCHAR(500) NULL AFTER `file_path`");
-        }
-        if (!$this->db->field_exists('database_name', $baseTbl)){
-            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `database_name` VARCHAR(191) NULL AFTER `backup_path`");
-        }
-        if (!$this->db->field_exists('table_name', $baseTbl)){
-            $this->db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `table_name` VARCHAR(191) NULL AFTER `database_name`");
-        }
-    }
 
-    private function ensure_client_migrations_table(){
-        $tbl = $this->client_migrations_table;
-        $this->db->query("CREATE TABLE IF NOT EXISTS `".$tbl."` (
-            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `client_id` INT NULL,
-            `client_name` VARCHAR(255) NOT NULL,
-            `database_name` VARCHAR(191) NOT NULL,
-            `action` VARCHAR(20) NOT NULL,
-            `tables_count` INT NOT NULL DEFAULT 0,
-            `columns_count` INT NOT NULL DEFAULT 0,
-            `file_path` VARCHAR(500) NULL,
-            `details` LONGTEXT NULL,
-            `run_by` INT NULL,
-            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            INDEX (`client_id`),
-            INDEX (`database_name`),
-            INDEX (`action`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        if (!$this->db->field_exists('details', $tbl)){
-            $this->db->query("ALTER TABLE `".$tbl."` ADD COLUMN `details` LONGTEXT NULL AFTER `file_path`");
-        }
-        if (!$this->db->field_exists('run_by', $tbl)){
-            $this->db->query("ALTER TABLE `".$tbl."` ADD COLUMN `run_by` INT NULL AFTER `details`");
-        }
-    }
 
-    private function log_client_migration($client_id, $client_name, $dbName, $action, $tables, $columns, $file, $details = null){
-        if (!$this->db->table_exists($this->client_migrations_table)) return;
-        if (is_array($details) || is_object($details)){
-            $details = @json_encode($details);
-        }
-        $data = [
-            'client_id' => $client_id ? (int)$client_id : null,
-            'client_name' => (string)$client_name,
-            'database_name' => (string)$dbName,
-            'action' => (string)$action,
-            'tables_count' => (int)$tables,
-            'columns_count' => (int)$columns,
-            'file_path' => $file !== '' ? $file : null,
-            'details' => ($details !== null && $details !== '') ? (string)$details : null,
-            'run_by' => (int)$this->session->userdata('user_id'),
-        ];
-        $this->db->insert($this->client_migrations_table, $data);
-    }
 
-    private function escape_ident($name){
-        return str_replace('`','``',$name);
-    }
+
+
+
+
 
     // Connect to a specific database using current credentials
-    private function connect_to($database, $db_debug = false){
-        $driver   = property_exists($this->db, 'dbdriver') ? $this->db->dbdriver : 'mysqli';
-        $hostname = property_exists($this->db, 'hostname') ? $this->db->hostname : 'localhost';
-        $username = property_exists($this->db, 'username') ? $this->db->username : 'root';
-        $password = property_exists($this->db, 'password') ? $this->db->password : '';
-        $char_set = property_exists($this->db, 'char_set') ? $this->db->char_set : 'utf8';
-        $dbcollat = property_exists($this->db, 'dbcollat') ? $this->db->dbcollat : 'utf8_general_ci';
-        $params = [
-            'hostname' => $hostname,
-            'username' => $username,
-            'password' => $password,
-            'database' => $database,
-            'dbdriver' => $driver,
-            'char_set' => $char_set,
-            'dbcollat' => $dbcollat,
-            'pconnect' => FALSE,
-            'db_debug' => (bool) $db_debug,
-            'cache_on' => FALSE,
-            'cachedir' => '',
-            'save_queries' => TRUE,
-        ];
-        return $this->load->database($params, TRUE);
-    }
+
 
     /**
      * Connect using OMS config credentials and verify connection.
      */
-    private function connect_to_verified($database, $context = '')
-    {
-        $prev_level = error_reporting(0);
-        try {
-            $db = $this->connect_to($database);
-            if (!$db->conn_id && method_exists($db, 'initialize')) {
-                $db->initialize();
-            }
-            if (!$db->conn_id) {
-                $err = $db->error();
-                $msg = is_array($err) && !empty($err['message']) ? $err['message'] : 'Connection failed';
-                throw new Exception($msg . ($context !== '' ? ' (' . $context . ')' : ''));
-            }
-            error_reporting($prev_level);
-            return $db;
-        } catch (Exception $e) {
-            error_reporting($prev_level);
-            throw $e;
-        }
-    }
+
 
     // Save a query with project and version
     public function save_query(){
@@ -1360,12 +859,12 @@ class Db extends CI_Controller {
         $do_validate = (string)$this->input->post('validate_sql') === '1';
         if ($sql_text === ''){ $this->session->set_flashdata('db_error','Query is required.'); redirect('db'); return; }
         // Optional SQL validation against the project's database
-        if ($do_validate && $project_id && $this->db->table_exists('projects') && $this->db->field_exists('db_name','projects')){
+        if ($do_validate && $project_id && $this->db->table_exists('projects') && schema_table_has_column($this->db, 'projects', 'db_name')){
             $p = $this->db->select('db_name')->from('projects')->where('id', (int)$project_id)->get()->row();
             $db_name = ($p && !empty($p->db_name)) ? trim((string)$p->db_name) : '';
             if ($db_name !== ''){
                 try {
-                    $target = $this->connect_to($db_name);
+                    $target = db_connect_to($this, $this->db, $db_name);
                     $first = strtoupper(strtok(ltrim($sql_text), " \t\r\n"));
                     if ($first === 'SELECT' || $first === 'WITH'){
                         // Explain-only for read queries
@@ -1722,13 +1221,13 @@ class Db extends CI_Controller {
         $clients = [];
         if ($this->db->table_exists('clients')) {
             $sel = ['id', 'company_name', 'db_name', 'db_username'];
-            if ($this->db->field_exists('pos_url', 'clients')) {
+            if (schema_table_has_column($this->db, 'clients', 'pos_url')) {
                 $sel[] = 'pos_url';
             }
-            if ($this->db->field_exists('db_host', 'clients')) {
+            if (schema_table_has_column($this->db, 'clients', 'db_host')) {
                 $sel[] = 'db_host';
             }
-            if ($this->db->field_exists('db_port', 'clients')) {
+            if (schema_table_has_column($this->db, 'clients', 'db_port')) {
                 $sel[] = 'db_port';
             }
             $this->db->select(implode(',', $sel));
@@ -1739,17 +1238,13 @@ class Db extends CI_Controller {
                                 ->get()->result();
         }
         
-        $csrf_token = $this->session->userdata('db_csrf_token');
-        if (!$csrf_token){
-             $csrf_token = bin2hex(openssl_random_pseudo_bytes(16));
-             $this->session->set_userdata('db_csrf_token', $csrf_token);
-        }
+        $csrf_token = db_csrf_token($this->session);
         
         $this->load->view('db/db_difference', [
             'clients' => $clients,
             'csrf_token' => $csrf_token,
             'master_db' => $this->db->database,
-            'module_tables' => $this->_schema_module_tables_safe(),
+            'module_tables' => db_schema_module_tables_safe(),
         ]);
     }
 
@@ -1761,7 +1256,7 @@ class Db extends CI_Controller {
         if (ob_get_level()) {
             ob_clean();
         }
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
             header('Content-Type: application/json');
             echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
             return;
@@ -1777,317 +1272,12 @@ class Db extends CI_Controller {
         ));
     }
 
-    private function _schema_module_tables_safe()
-    {
-        $this->load->helper('schema_automation');
-        return oms_schema_module_table_names();
-    }
-
-    /**
-     * Build SQL column definition from information_schema row.
-     *
-     * @param object $cRow
-     * @return string
-     */
-    private function build_column_sql_definition($cRow)
-    {
-        $defParts = array('`' . str_replace('`', '``', $cRow->COLUMN_NAME) . '`', $cRow->COLUMN_TYPE);
-        if (!empty($cRow->CHARACTER_SET_NAME)) {
-            $defParts[] = 'CHARACTER SET ' . $cRow->CHARACTER_SET_NAME;
-        }
-        if (!empty($cRow->COLLATION_NAME)) {
-            $defParts[] = 'COLLATE ' . $cRow->COLLATION_NAME;
-        }
-        $defParts[] = (strtoupper($cRow->IS_NULLABLE) === 'YES') ? 'NULL' : 'NOT NULL';
-        if (!is_null($cRow->COLUMN_DEFAULT)) {
-            $def = trim((string) $cRow->COLUMN_DEFAULT);
-            $defUpper = strtoupper($def);
-            if ($defUpper === 'CURRENT_TIMESTAMP' || $defUpper === 'CURRENT_TIMESTAMP()') {
-                $defParts[] = 'DEFAULT CURRENT_TIMESTAMP';
-            } elseif (is_numeric($def)) {
-                $defParts[] = 'DEFAULT ' . $def;
-            } elseif ($defUpper === 'NULL') {
-                $defParts[] = 'DEFAULT NULL';
-            } else {
-                $defParts[] = "DEFAULT '" . str_replace("'", "''", $def) . "'";
-            }
-        }
-        $extra = trim((string) $cRow->EXTRA);
-        if ($extra !== '') {
-            $defParts[] = $extra;
-        }
-        return $this->normalize_column_def(implode(' ', array_filter($defParts)));
-    }
-
-    /**
-     * Normalize CREATE TABLE statement for display or apply.
-     *
-     * @param string $sqlCreate
-     * @param bool   $for_apply Use IF NOT EXISTS for safe re-run
-     * @return string
-     */
-    private function format_create_table_sql($sqlCreate, $for_apply = false)
-    {
-        $sql = trim((string) $sqlCreate);
-        $sql = rtrim($sql, ";\r\n ");
-        if ($for_apply && stripos($sql, 'CREATE TABLE IF NOT EXISTS') === false) {
-            $sql = preg_replace('/^CREATE\s+TABLE/i', 'CREATE TABLE IF NOT EXISTS', $sql, 1);
-        }
-        return $sql . ';';
-    }
-
-    /**
-     * Strip comments and return one executable SQL statement.
-     *
-     * @param string $sql
-     * @return string
-     */
-    private function sanitize_executable_sql($sql)
-    {
-        $sql = trim((string) $sql);
-        if ($sql === '') {
-            return '';
-        }
-        $sql = preg_replace('/--[^\r\n]*/', '', $sql);
-        $sql = trim($sql);
-        if ($sql === '') {
-            return '';
-        }
-        if (substr($sql, -1) !== ';') {
-            $sql .= ';';
-        }
-        return $sql;
-    }
-
-    /**
-     * @param array $ops
-     * @param bool  $for_apply
-     * @return string
-     */
-    private function diff_ops_to_sql($ops, $for_apply = false)
-    {
-        $lines = array();
-        foreach ($ops as $op) {
-            if (!is_array($op)) {
-                continue;
-            }
-            if (!$for_apply && !empty($op['comment'])) {
-                $lines[] = '-- ' . $op['comment'];
-            }
-            if ($for_apply && !empty($op['apply_sql'])) {
-                $lines[] = $op['apply_sql'];
-            } elseif (!empty($op['sql'])) {
-                $lines[] = $op['sql'];
-            }
-        }
-        return implode("\n\n", $lines);
-    }
-
-    /**
-     * Execute diff ops in safe order inside a transaction.
-     *
-     * @param object $conn
-     * @param array  $ops
-     * @return array
-     */
-    private function execute_diff_ops($conn, $ops)
-    {
-        $priority = array(
-            'create_table' => 1,
-            'add_column' => 2,
-            'modify_column' => 3,
-            'add_index' => 4,
-        );
-        usort($ops, function ($a, $b) use ($priority) {
-            $ta = (is_array($a) && isset($a['type']) && isset($priority[$a['type']])) ? $priority[$a['type']] : 99;
-            $tb = (is_array($b) && isset($b['type']) && isset($priority[$b['type']])) ? $priority[$b['type']] : 99;
-            if ($ta === $tb) {
-                return 0;
-            }
-            return ($ta < $tb) ? -1 : 1;
-        });
-
-        $conn->trans_begin();
-        $applied = 0;
-        $executed = array();
-        $errors = array();
-
-        foreach ($ops as $op) {
-            if (!is_array($op)) {
-                continue;
-            }
-            $raw = !empty($op['apply_sql']) ? $op['apply_sql'] : (isset($op['sql']) ? $op['sql'] : '');
-            $sql = $this->sanitize_executable_sql($raw);
-            if ($sql === '') {
-                continue;
-            }
-            if (!$conn->query($sql)) {
-                $err = $conn->error();
-                $msg = is_array($err) && !empty($err['message']) ? $err['message'] : 'Query failed';
-                $errors[] = $msg . ' | ' . $sql;
-                $conn->trans_rollback();
-                throw new Exception($msg);
-            }
-            $applied++;
-            $executed[] = $sql;
-        }
-
-        if ($conn->trans_status() === false) {
-            $conn->trans_rollback();
-            throw new Exception('Database transaction failed.');
-        }
-
-        $conn->trans_commit();
-        return array(
-            'applied' => $applied,
-            'executed' => $executed,
-            'errors' => $errors,
-        );
-    }
-
-    /**
-     * Build SQL ops to sync structure from $src into $tgt (tables/columns/indexes in src missing from tgt).
-     *
-     * @param array  $src
-     * @param array  $tgt
-     * @param object $read_conn DB connection that can SHOW CREATE TABLE from source side
-     * @return array
-     */
-    private function build_structure_diff($src, $tgt, $read_conn)
-    {
-        $ops = array();
-        $missing_tables = array();
-        $missing_columns = array();
-        $changed_columns = array();
-        $missing_indexes = array();
-
-        foreach ($src['tables'] as $tLower => $tRow) {
-            $tName = $tRow->TABLE_NAME;
-            $safeTable = str_replace('`', '``', $tName);
-
-            if (!isset($tgt['tables'][$tLower])) {
-                $res = $read_conn->query('SHOW CREATE TABLE `' . $safeTable . '`');
-                if ($res && $res->num_rows() > 0) {
-                    $row = $res->row_array();
-                    $sqlCreate = isset($row['Create Table']) ? $row['Create Table'] : (isset(array_values($row)[1]) ? array_values($row)[1] : '');
-                    if ($sqlCreate) {
-                        $missing_tables[] = $tName;
-                        $ops[] = array(
-                            'type' => 'create_table',
-                            'table' => $tName,
-                            'comment' => 'Create table `' . $tName . '`',
-                            'sql' => $this->format_create_table_sql($sqlCreate, false),
-                            'apply_sql' => $this->format_create_table_sql($sqlCreate, true),
-                        );
-                    }
-                }
-            } else {
-                $sCols = isset($src['cols'][$tLower]) ? $src['cols'][$tLower] : array();
-                $tCols = isset($tgt['cols'][$tLower]) ? $tgt['cols'][$tLower] : array();
-
-                foreach ($sCols as $cLower => $cRow) {
-                    $cName = $cRow->COLUMN_NAME;
-                    $fullDef = $this->build_column_sql_definition($cRow);
-
-                    if (!isset($tCols[$cLower])) {
-                        $missing_columns[] = array('table' => $tName, 'column' => $cName);
-                        $ops[] = array(
-                            'type' => 'add_column',
-                            'table' => $tName,
-                            'column' => $cName,
-                            'comment' => 'Add column `' . $tName . '`.`' . $cName . '`',
-                            'sql' => 'ALTER TABLE `' . $safeTable . '` ADD COLUMN ' . $fullDef . ';',
-                            'apply_sql' => 'ALTER TABLE `' . $safeTable . '` ADD COLUMN ' . $fullDef . ';',
-                        );
-                    } else {
-                        $tcRow = $tCols[$cLower];
-                        $diff = false;
-                        if (strtolower($cRow->COLUMN_TYPE) !== strtolower($tcRow->COLUMN_TYPE)) {
-                            $diff = true;
-                        }
-                        if (strtoupper($cRow->IS_NULLABLE) !== strtoupper($tcRow->IS_NULLABLE)) {
-                            $diff = true;
-                        }
-                        if ($diff) {
-                            $changed_columns[] = array(
-                                'table' => $tName,
-                                'column' => $cName,
-                                'old' => $tcRow->COLUMN_TYPE,
-                                'new' => $cRow->COLUMN_TYPE,
-                            );
-                            $ops[] = array(
-                                'type' => 'modify_column',
-                                'table' => $tName,
-                                'column' => $cName,
-                                'comment' => 'Modify column `' . $tName . '`.`' . $cName . '` (was ' . $tcRow->COLUMN_TYPE . ')',
-                                'sql' => 'ALTER TABLE `' . $safeTable . '` MODIFY COLUMN ' . $fullDef . ';',
-                                'apply_sql' => 'ALTER TABLE `' . $safeTable . '` MODIFY COLUMN ' . $fullDef . ';',
-                            );
-                        }
-                    }
-                }
-
-                $sIdx = isset($src['indexes'][$tLower]) ? $src['indexes'][$tLower] : array();
-                $tIdx = isset($tgt['indexes'][$tLower]) ? $tgt['indexes'][$tLower] : array();
-
-                foreach ($sIdx as $igname => $igdata) {
-                    if ($igname === 'PRIMARY') {
-                        continue;
-                    }
-                    if (!isset($tIdx[$igname])) {
-                        $cols = array_map(function ($c) {
-                            return '`' . str_replace('`', '``', $c) . '`';
-                        }, $igdata['columns']);
-                        $type = ($igdata['type'] === 'FULLTEXT') ? 'FULLTEXT' : (($igdata['non_unique'] == 0) ? 'UNIQUE' : 'INDEX');
-                        $safeIdx = str_replace('`', '``', $igname);
-                        $indexSql = 'ALTER TABLE `' . $safeTable . '` ADD ' . $type . ' `' . $safeIdx . '` (' . implode(',', $cols) . ');';
-                        $missing_indexes[] = array('table' => $tName, 'index' => $igname);
-                        $ops[] = array(
-                            'type' => 'add_index',
-                            'table' => $tName,
-                            'index' => $igname,
-                            'comment' => 'Add index `' . $igname . '` on `' . $tName . '`',
-                            'sql' => $indexSql,
-                            'apply_sql' => $indexSql,
-                        );
-                    }
-                }
-            }
-        }
-
-        return array(
-            'ops' => $ops,
-            'missing_tables' => $missing_tables,
-            'missing_columns' => $missing_columns,
-            'changed_columns' => $changed_columns,
-            'missing_indexes' => $missing_indexes,
-            'sql' => $this->diff_ops_to_sql($ops, false),
-            'apply_sql' => $this->diff_ops_to_sql($ops, true),
-        );
-    }
-
-    private function resolve_compare_connection($client_id, $db_name, $is_master = false, $conn_options = array())
-    {
-        if ($is_master || ($client_id === 0 && $db_name === $this->db->database)) {
-            return array($this->db, $this->db->database);
-        }
-        if ($client_id) {
-            $conn = $this->resolve_client_connection($client_id, $conn_options);
-            return array($conn, $conn->database);
-        }
-        if ($db_name === '') {
-            throw new Exception('Database name is required.');
-        }
-        $conn = $this->connect_to($db_name);
-        return array($conn, $db_name);
-    }
-
     // AJAX: Compare two databases
     public function compare_databases(){
         if (ob_get_level()) {
             ob_clean();
         }
-        if (!$this->verify_csrf()){
+        if (!db_verify_csrf($this->session, $this->input)){
              header('HTTP/1.1 403 Forbidden'); header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
 
@@ -2110,9 +1300,9 @@ class Db extends CI_Controller {
         }
 
         try {
-            $connOpts = $this->compare_connection_options_from_request();
-            list($source_conn, $source_db) = $this->resolve_compare_connection($source_client_id, $source_db, $source_is_master, $connOpts);
-            list($target_conn, $target_db) = $this->resolve_compare_connection($target_client_id, $target_db, $target_is_master, $connOpts);
+            $connOpts = db_compare_connection_options_from_request($this->input);
+            list($source_conn, $source_db) = db_resolve_compare_connection($this, $this->client_model, $this->db, $source_client_id, $source_db, $source_is_master, $connOpts);
+            list($target_conn, $target_db) = db_resolve_compare_connection($this, $this->client_model, $this->db, $target_client_id, $target_db, $target_is_master, $connOpts);
 
             if ($source_db == $target_db){ throw new Exception("Source and Target are the same."); }
 
@@ -2163,10 +1353,10 @@ class Db extends CI_Controller {
             $src = $fetchStructure($source_conn, $source_db);
             $tgt = $fetchStructure($target_conn, $target_db);
 
-            $aToB = $this->build_structure_diff($src, $tgt, $source_conn);
-            $bToA = $this->build_structure_diff($tgt, $src, $target_conn);
+            $aToB = db_build_structure_diff($src, $tgt, $source_conn);
+            $bToA = db_build_structure_diff($tgt, $src, $target_conn);
 
-            $moduleTables = $this->_schema_module_tables_safe();
+            $moduleTables = db_schema_module_tables_safe();
             $moduleMissingA = array();
             $moduleMissingB = array();
             foreach ($aToB['missing_tables'] as $t) {
@@ -2223,7 +1413,7 @@ class Db extends CI_Controller {
         if (ob_get_level()) {
             ob_clean();
         }
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
             header('Content-Type: application/json');
             echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
             return;
@@ -2235,8 +1425,8 @@ class Db extends CI_Controller {
             return;
         }
         try {
-            $connOpts = $this->compare_connection_options_from_request();
-            $conn = $this->resolve_client_connection($client_id, $connOpts);
+            $connOpts = db_compare_connection_options_from_request($this->input);
+            $conn = db_resolve_client_connection($this, $this->client_model, $this->db, $client_id, $connOpts);
             $dbName = $conn->database;
             header('Content-Type: application/json');
             echo json_encode(array(
@@ -2258,7 +1448,7 @@ class Db extends CI_Controller {
         if (ob_get_level()) {
             ob_clean();
         }
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
             header('Content-Type: application/json');
             echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
             return;
@@ -2284,7 +1474,7 @@ class Db extends CI_Controller {
         try {
             $safe = str_replace('`', '``', $dbName);
             $this->db->query('CREATE DATABASE IF NOT EXISTS `' . $safe . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci');
-            $this->connect_to_verified($dbName, 'local create for client #' . $client_id);
+            db_connect_to_verified($this, $this->db, $dbName, 'local create for client #' . $client_id);
             header('Content-Type: application/json');
             echo json_encode(array(
                 'success' => true,
@@ -2305,7 +1495,7 @@ class Db extends CI_Controller {
         if (ob_get_level()) {
             ob_clean();
         }
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
             header('Content-Type: application/json');
             echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
             return;
@@ -2318,7 +1508,7 @@ class Db extends CI_Controller {
             echo json_encode(array('success' => false, 'message' => 'Select a client.'));
             return;
         }
-        if ($host === '' || $this->is_local_db_host($host)) {
+        if ($host === '' || db_is_local_db_host($host)) {
             header('Content-Type: application/json');
             echo json_encode(array('success' => false, 'message' => 'Enter the remote MySQL hostname from cPanel (not localhost).'));
             return;
@@ -2328,9 +1518,9 @@ class Db extends CI_Controller {
             echo json_encode(array('success' => false, 'message' => 'Clients table not found.'));
             return;
         }
-        $this->ensure_client_db_fields();
+        db_ensure_client_db_fields($this->db);
         $data = array('db_host' => $host, 'updated_at' => date('Y-m-d H:i:s'));
-        if ($this->db->field_exists('db_port', 'clients')) {
+        if (schema_table_has_column($this->db, 'clients', 'db_port')) {
             $data['db_port'] = $port !== '' ? $port : null;
         }
         $ok = $this->client_model->update_client($client_id, $data);
@@ -2356,7 +1546,7 @@ class Db extends CI_Controller {
             echo json_encode(array('success' => false, 'message' => 'You do not have permission to apply database changes.'));
             return;
         }
-        if (!$this->verify_csrf()) {
+        if (!db_verify_csrf($this->session, $this->input)) {
             header('Content-Type: application/json');
             echo json_encode(array('success' => false, 'message' => 'CSRF Token Mismatch'));
             return;
@@ -2383,9 +1573,9 @@ class Db extends CI_Controller {
         }
 
         try {
-            $connOpts = $this->compare_connection_options_from_request();
-            list($source_conn, $source_db) = $this->resolve_compare_connection($source_client_id, $source_db, $source_is_master, $connOpts);
-            list($target_conn, $target_db) = $this->resolve_compare_connection($target_client_id, $target_db, $target_is_master, $connOpts);
+            $connOpts = db_compare_connection_options_from_request($this->input);
+            list($source_conn, $source_db) = db_resolve_compare_connection($this, $this->client_model, $this->db, $source_client_id, $source_db, $source_is_master, $connOpts);
+            list($target_conn, $target_db) = db_resolve_compare_connection($this, $this->client_model, $this->db, $target_client_id, $target_db, $target_is_master, $connOpts);
 
             if ($source_db === $target_db) {
                 throw new Exception('Source and Target are the same.');
@@ -2447,12 +1637,12 @@ class Db extends CI_Controller {
             $tgtStruct = $fetchStructure($target_conn, $target_db);
 
             if ($direction === 'a_to_b') {
-                $diff = $this->build_structure_diff($srcStruct, $tgtStruct, $source_conn);
+                $diff = db_build_structure_diff($srcStruct, $tgtStruct, $source_conn);
                 $applyConn = $target_conn;
                 $applyDb = $target_db;
                 $fromDb = $source_db;
             } else {
-                $diff = $this->build_structure_diff($tgtStruct, $srcStruct, $target_conn);
+                $diff = db_build_structure_diff($tgtStruct, $srcStruct, $target_conn);
                 $applyConn = $source_conn;
                 $applyDb = $source_db;
                 $fromDb = $target_db;
@@ -2468,7 +1658,7 @@ class Db extends CI_Controller {
                 return;
             }
 
-            $result = $this->execute_diff_ops($applyConn, $diff['ops']);
+            $result = db_execute_diff_ops($applyConn, $diff['ops']);
 
             $tables = 0;
             $columns = 0;
@@ -2488,7 +1678,7 @@ class Db extends CI_Controller {
             if ($direction === 'b_to_a') {
                 $client_name = trim((string) $this->input->post('source_client_name'));
             }
-            $this->log_client_migration(
+            db_log_client_migration($this->db, $this->session, $this->client_migrations_table, 
                 $client_id ? $client_id : null,
                 $client_name !== '' ? $client_name : $applyDb,
                 $applyDb,

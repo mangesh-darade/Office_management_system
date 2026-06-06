@@ -56,7 +56,7 @@ if (!function_exists('calculate_dashboard_stats')) {
         if (dashboard_has_module_access('employees') && $CI->db->table_exists('employees')) {
             if ($sees_all) {
                 $query = $CI->db->from('employees');
-                if ($CI->db->field_exists('status', 'employees')) {
+                if (schema_table_has_column($CI->db, 'employees', 'status')) {
                     $query->where('status', STATUS_ACTIVE);
                 }
                 $stats['employees'] = $query->count_all_results();
@@ -74,7 +74,7 @@ if (!function_exists('calculate_dashboard_stats')) {
                 $stats['projects_total'] = $CI->db->from('projects')->count_all_results();
                 
                 $query = $CI->db->from('projects');
-                if ($CI->db->field_exists('status', 'projects')) {
+                if (schema_table_has_column($CI->db, 'projects', 'status')) {
                     $query->where('status', STATUS_ACTIVE);
                 }
                 $stats['projects_active'] = $query->count_all_results();
@@ -100,13 +100,13 @@ if (!function_exists('calculate_dashboard_stats')) {
                 $stats['tasks_total'] = $CI->db->from('tasks')->count_all_results();
                 
                 $query = $CI->db->from('tasks');
-                if ($CI->db->field_exists('status', 'tasks')) {
+                if (schema_table_has_column($CI->db, 'tasks', 'status')) {
                     $query->where('status', STATUS_PENDING);
                 }
                 $stats['tasks_pending'] = $query->count_all_results();
                 
                 $query = $CI->db->from('tasks');
-                if ($CI->db->field_exists('status', 'tasks')) {
+                if (schema_table_has_column($CI->db, 'tasks', 'status')) {
                     $query->where('status', STATUS_COMPLETED);
                 }
                 $stats['tasks_completed'] = $query->count_all_results();
@@ -132,10 +132,10 @@ if (!function_exists('calculate_dashboard_stats')) {
         if (dashboard_has_module_access('attendance') && $CI->db->table_exists('attendance')) {
             $today = date('Y-m-d');
             $date_col = 'att_date';
-            if (!$CI->db->field_exists('att_date', 'attendance')) {
+            if (!schema_table_has_column($CI->db, 'attendance', 'att_date')) {
                 $date_columns = ['date', 'attendance_date', 'created_at', 'timestamp', 'log_date'];
                 foreach ($date_columns as $col) {
-                    if ($CI->db->field_exists($col, 'attendance')) {
+                    if (schema_table_has_column($CI->db, 'attendance', $col)) {
                         $date_col = $col;
                         break;
                     }
@@ -160,13 +160,13 @@ if (!function_exists('calculate_dashboard_stats')) {
         if (dashboard_has_module_access('leaves') && $CI->db->table_exists('leave_requests')) {
             if ($sees_all) {
                 $query = $CI->db->from('leave_requests');
-                if ($CI->db->field_exists('status', 'leave_requests')) {
+                if (schema_table_has_column($CI->db, 'leave_requests', 'status')) {
                     $query->where('status', STATUS_PENDING);
                 }
                 $stats['leaves_pending'] = $query->count_all_results();
             } else {
                 $query = $CI->db->from('leave_requests')->where('user_id', $user_id);
-                if ($CI->db->field_exists('status', 'leave_requests')) {
+                if (schema_table_has_column($CI->db, 'leave_requests', 'status')) {
                     $query->where('status', STATUS_PENDING);
                 }
                 $stats['leaves_pending'] = $query->count_all_results();

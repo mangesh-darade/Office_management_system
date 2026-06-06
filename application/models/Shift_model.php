@@ -11,7 +11,7 @@ class Shift_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema() {
+    public function ensure_schema() {
         if (!$this->db->table_exists($this->table)) {
             // Check if table exists to avoid race conditions
             if (!$this->db->table_exists($this->table)) {

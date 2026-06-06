@@ -1,7 +1,10 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 class Performance_model extends CI_Model {
+    use Schema_columns_trait;
     private $table = 'performance_appraisals';
 
     public function __construct(){
@@ -10,7 +13,7 @@ class Performance_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema(){
+    public function ensure_schema(){
         static $done = false;
         if ($done) { return; }
         $done = true;
@@ -35,10 +38,10 @@ class Performance_model extends CI_Model {
             $this->db->query($sql);
         } else {
             // Add self-assessment columns if missing
-            if (!$this->db->field_exists('self_rating', $this->table)) {
+            if (!$this->has_column('self_rating')) {
                 $this->db->query("ALTER TABLE `{$this->table}` ADD COLUMN `self_rating` int(11) DEFAULT NULL AFTER `rating`");
             }
-            if (!$this->db->field_exists('self_comments', $this->table)) {
+            if (!$this->has_column('self_comments')) {
                 $this->db->query("ALTER TABLE `{$this->table}` ADD COLUMN `self_comments` text AFTER `self_rating`");
             }
         }

@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Announcements']); ?>
 <div class="container-fluid py-3">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-megaphone text-primary me-2"></i>Announcements</h1>
     <p class="text-muted small mb-0">Company-wide announcements and notices</p>

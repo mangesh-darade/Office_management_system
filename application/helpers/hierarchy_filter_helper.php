@@ -62,7 +62,7 @@ if (!function_exists('hierarchy_filter_sees_all_records')) {
         if ($role_name === 'admin') {
             return true;
         }
-        if (isset($CI->db) && $CI->db && $CI->db->table_exists('roles') && $CI->db->field_exists('group_type', 'roles')) {
+        if (isset($CI->db) && $CI->db && $CI->db->table_exists('roles') && schema_table_has_column($CI->db, 'roles', 'group_type')) {
             $row = $CI->db->query('SELECT `group_type` FROM `roles` WHERE `id` = ? LIMIT 1', array($role_id))->row();
             $group = $row && isset($row->group_type) ? strtolower(trim((string) $row->group_type)) : '';
             if ($group === 'admin') {

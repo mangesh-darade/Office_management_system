@@ -6,11 +6,11 @@ class Daily_activity extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter','schema_columns']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
-        require_module_access(['activity', 'daily_activity'], true);
+        require_controller_access('daily_activity', true);
         
         $this->ensure_table();
     }
@@ -32,16 +32,16 @@ class Daily_activity extends CI_Controller {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
         } else {
             // Check for missing columns in existing table
-            if (!$this->db->field_exists('description', 'daily_work_logs')) {
+            if (!schema_table_has_column($this->db, 'daily_work_logs', 'description')) {
                 $this->db->query("ALTER TABLE `daily_work_logs` ADD COLUMN `description` TEXT NOT NULL AFTER `work_date`");
             }
-            if (!$this->db->field_exists('task_id', 'daily_work_logs')) {
+            if (!schema_table_has_column($this->db, 'daily_work_logs', 'task_id')) {
                  $this->db->query("ALTER TABLE `daily_work_logs` ADD COLUMN `task_id` int(11) DEFAULT NULL AFTER `user_id`");
             }
-            if (!$this->db->field_exists('work_date', 'daily_work_logs')) {
+            if (!schema_table_has_column($this->db, 'daily_work_logs', 'work_date')) {
                  $this->db->query("ALTER TABLE `daily_work_logs` ADD COLUMN `work_date` date NOT NULL AFTER `task_id`");
             }
-            if (!$this->db->field_exists('activity_title', 'daily_work_logs')) {
+            if (!schema_table_has_column($this->db, 'daily_work_logs', 'activity_title')) {
                  $this->db->query("ALTER TABLE `daily_work_logs` ADD COLUMN `activity_title` varchar(255) DEFAULT NULL AFTER `task_id`");
             }
 

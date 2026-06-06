@@ -1,11 +1,14 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 /**
  * Notification_model
  * Handles all database operations for in-app notifications.
  */
 class Notification_model extends CI_Model {
+    use Schema_columns_trait;
 
     private $table = 'notifications';
 
@@ -19,7 +22,7 @@ class Notification_model extends CI_Model {
      * Create the notifications table if missing, or add any missing columns
      * to an existing table so queries never fail with "Unknown column".
      */
-    private function ensure_schema() {
+    public function ensure_schema() {
         static $done = false;
         if ($done) { return; }
         $done = true;
@@ -44,28 +47,30 @@ class Notification_model extends CI_Model {
                 KEY `idx_notif_deleted` (`user_id`, `is_deleted`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $this->db->query($sql);
-            return;
-        }
+        } else {
+            // Add any missing columns to an existing table
+            $cols = array(
+                'title'      => "ALTER TABLE `{$this->table}` ADD COLUMN `title` varchar(255) NOT NULL DEFAULT '' AFTER `user_id`",
+                'message'    => "ALTER TABLE `{$this->table}` ADD COLUMN `message` text AFTER `title`",
+                'type'       => "ALTER TABLE `{$this->table}` ADD COLUMN `type` varchar(50) NOT NULL DEFAULT 'info' AFTER `message`",
+                'module'     => "ALTER TABLE `{$this->table}` ADD COLUMN `module` varchar(100) DEFAULT NULL AFTER `type`",
+                'related_id' => "ALTER TABLE `{$this->table}` ADD COLUMN `related_id` int(11) DEFAULT NULL AFTER `module`",
+                'action_url' => "ALTER TABLE `{$this->table}` ADD COLUMN `action_url` varchar(500) DEFAULT NULL AFTER `related_id`",
+                'is_read'    => "ALTER TABLE `{$this->table}` ADD COLUMN `is_read` tinyint(1) NOT NULL DEFAULT 0 AFTER `action_url`",
+                'read_at'    => "ALTER TABLE `{$this->table}` ADD COLUMN `read_at` datetime DEFAULT NULL AFTER `is_read`",
+                'is_deleted' => "ALTER TABLE `{$this->table}` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0 AFTER `read_at`",
+                'created_at' => "ALTER TABLE `{$this->table}` ADD COLUMN `created_at` datetime NOT NULL AFTER `is_deleted`",
+            );
 
-        // Add any missing columns to an existing table
-        $cols = array(
-            'title'      => "ALTER TABLE `{$this->table}` ADD COLUMN `title` varchar(255) NOT NULL DEFAULT '' AFTER `user_id`",
-            'message'    => "ALTER TABLE `{$this->table}` ADD COLUMN `message` text AFTER `title`",
-            'type'       => "ALTER TABLE `{$this->table}` ADD COLUMN `type` varchar(50) NOT NULL DEFAULT 'info' AFTER `message`",
-            'module'     => "ALTER TABLE `{$this->table}` ADD COLUMN `module` varchar(100) DEFAULT NULL AFTER `type`",
-            'related_id' => "ALTER TABLE `{$this->table}` ADD COLUMN `related_id` int(11) DEFAULT NULL AFTER `module`",
-            'action_url' => "ALTER TABLE `{$this->table}` ADD COLUMN `action_url` varchar(500) DEFAULT NULL AFTER `related_id`",
-            'is_read'    => "ALTER TABLE `{$this->table}` ADD COLUMN `is_read` tinyint(1) NOT NULL DEFAULT 0 AFTER `action_url`",
-            'read_at'    => "ALTER TABLE `{$this->table}` ADD COLUMN `read_at` datetime DEFAULT NULL AFTER `is_read`",
-            'is_deleted' => "ALTER TABLE `{$this->table}` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0 AFTER `read_at`",
-            'created_at' => "ALTER TABLE `{$this->table}` ADD COLUMN `created_at` datetime NOT NULL AFTER `is_deleted`",
-        );
-
-        foreach ($cols as $col => $alter_sql) {
-            if (!$this->db->field_exists($col, $this->table)) {
-                $this->db->query($alter_sql);
+            foreach ($cols as $col => $alter_sql) {
+                if (!$this->has_column($col)) {
+                    $this->db->query($alter_sql);
+                }
             }
         }
+
+        $this->load->helper('notifications_schema');
+        notifications_schema_ensure_push_subscriptions($this->db);
     }
 
     /**

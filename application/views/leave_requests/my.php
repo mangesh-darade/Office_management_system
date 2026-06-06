@@ -1,11 +1,13 @@
 <?php $this->load->view('partials/header', ['title' => 'My Leaves']); ?>
 <div class="container-fluid py-3">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-calendar2-check text-primary me-2"></i>My Leave Requests</h1>
     <p class="text-muted small mb-0">View and track your leave applications</p>
   </div>
+  <?php if(function_exists('has_module_access') && (has_module_access('leaves_add') || has_module_access('leaves') || has_module_access('leave_requests'))): ?>
   <a class="btn btn-primary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('leave/apply'); ?>"><i class="bi bi-plus-lg me-1"></i>Apply Leave</a>
+  <?php endif; ?>
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>

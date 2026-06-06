@@ -6,7 +6,8 @@ class Client_model extends CI_Model {
 
     public function __construct(){ 
         parent::__construct(); 
-        $this->load->database(); 
+        $this->load->database();
+        $this->load->helper('schema_columns'); 
         $this->load->library('encryption');
         $this->encryption->initialize(['key' => $this->config->item('encryption_key')]);
     }
@@ -65,11 +66,11 @@ class Client_model extends CI_Model {
                         ->get('clients')
                         ->row();
         if ($row) {
-            if ($this->db->field_exists('db_host', 'clients')) {
+            if (schema_table_has_column($this->db, 'clients', 'db_host')) {
                 $hostRow = $this->db->select('db_host')->where('id', (int) $id)->get('clients')->row();
                 $row->db_host = $hostRow ? $hostRow->db_host : null;
             }
-            if ($this->db->field_exists('db_port', 'clients')) {
+            if (schema_table_has_column($this->db, 'clients', 'db_port')) {
                 $portRow = $this->db->select('db_port')->where('id', (int) $id)->get('clients')->row();
                 $row->db_port = $portRow ? $portRow->db_port : null;
             }
@@ -156,8 +157,8 @@ class Client_model extends CI_Model {
 
     public function get_account_managers(){
         $select = ['id','email'];
-        if ($this->db->field_exists('full_name','users')) { $select[] = 'full_name'; }
-        if ($this->db->field_exists('name','users')) { $select[] = 'name'; }
+        if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'full_name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'name'; }
         return $this->db->select(implode(',', $select))->from('users')->order_by('email','ASC')->get()->result();
     }
 

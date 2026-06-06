@@ -1,7 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'Employee Shifts']); ?>
 
 <div class="container-fluid py-3">
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+    <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
         <div>
             <h1 class="h4 mb-1 fw-bold"><i class="bi bi-clock text-primary me-2"></i>Employee Shifts</h1>
             <p class="text-muted small mb-0">Manage work shift schedules</p>

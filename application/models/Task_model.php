@@ -3,13 +3,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Task_model extends CI_Model {
     private $table = 'tasks';
-    public function __construct(){ parent::__construct(); $this->load->database(); }
+    public function __construct(){ parent::__construct(); $this->load->database();
+        $this->load->helper('schema_columns'); }
     public function all(){ return $this->db->order_by('id','DESC')->get($this->table)->result(); }
 
     // Comments
     public function get_task_comments($task_id){
         $sel = ['c.*', 'u.email'];
-        if ($this->db->field_exists('name','users')) { $sel[] = 'u.name'; }
+        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'u.name'; }
         $this->db->select(implode(', ', $sel))
                  ->from('task_comments c')
                  ->join('users u', 'u.id = c.user_id', 'left')

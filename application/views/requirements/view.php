@@ -15,7 +15,10 @@
         <div class="mb-2 text-muted small">
           <span class="me-3">Client: <?php echo htmlspecialchars(isset($req->client_name)?$req->client_name:''); ?></span>
           <span class="me-3">Status: <span class="badge bg-light text-dark border"><?php echo htmlspecialchars(isset($req->status)?$req->status:'received'); ?></span></span>
-          <span>Priority: <span class="badge bg-secondary"><?php echo htmlspecialchars(isset($req->priority)?$req->priority:'medium'); ?></span></span>
+          <span class="me-3">Priority: <span class="badge bg-secondary"><?php echo htmlspecialchars(isset($req->priority)?$req->priority:'medium'); ?></span></span>
+          <?php if (!empty($req->requirement_type)): ?>
+          <span>Type: <span class="badge bg-info text-dark"><?php echo htmlspecialchars(function_exists('module_type_label') ? module_type_label($req->requirement_type, 'requirements') : $req->requirement_type); ?></span></span>
+          <?php endif; ?>
         </div>
         <?php if (isset($req->description) && $req->description !== ''): ?>
         <div class="border rounded p-3 bg-white">
@@ -62,7 +65,7 @@
     <?php
     // Get linked tasks for this requirement
     $linked_tasks = [];
-    if ($this->db->table_exists('tasks') && $this->db->field_exists('requirement_id', 'tasks')) {
+    if ($this->db->table_exists('tasks') && schema_table_has_column($this->db, 'tasks', 'requirement_id')) {
         $this->db->select('t.id, t.title, t.status, t.priority, t.due_date, p.name AS project_name');
         $this->db->from('tasks t');
         $this->db->join('projects p', 'p.id = t.project_id', 'left');
@@ -167,12 +170,10 @@
           <?php $curType = isset($type_filter) ? (string)$type_filter : ''; ?>
           <label class="small text-muted me-2">Filter by type</label>
           <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
-            <?php $types = array('', 'new_feature','enhancement','bug_fix','maintenance','consultation','other','announcement');
-              foreach ($types as $t): ?>
-              <option value="<?php echo htmlspecialchars($t); ?>" <?php echo ($curType===$t)?'selected':''; ?>>
-                <?php echo $t===''?'All':ucfirst(str_replace('_',' ',$t)); ?>
-              </option>
-            <?php endforeach; ?>
+            <option value="" <?php echo $curType === '' ? 'selected' : ''; ?>>All</option>
+            <?php if (isset($requirement_types) && is_array($requirement_types)): foreach ($requirement_types as $code => $label): ?>
+              <option value="<?php echo htmlspecialchars($code); ?>" <?php echo ($curType === (string) $code) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <?php endforeach; endif; ?>
           </select>
         </form>
       </div>

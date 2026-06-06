@@ -5,7 +5,7 @@ class Roles extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'permission']);
+        $this->load->helper(['url', 'permission','schema_columns']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -53,13 +53,13 @@ class Roles extends CI_Controller {
             return;
         }
         $data = ['name' => $name];
-        if ($this->db->field_exists('group_type', 'roles')) {
+        if (schema_table_has_column($this->db, 'roles', 'group_type')) {
             $data['group_type'] = $groupType;
         }
-        if ($this->db->field_exists('is_active', 'roles')) {
+        if (schema_table_has_column($this->db, 'roles', 'is_active')) {
             $data['is_active'] = 1;
         }
-        if ($this->db->field_exists('sort_order', 'roles')) {
+        if (schema_table_has_column($this->db, 'roles', 'sort_order')) {
             $maxRow = $this->db->select_max('sort_order')->get('roles')->row();
             $next = 1;
             if ($maxRow && isset($maxRow->sort_order)) {
@@ -131,7 +131,7 @@ class Roles extends CI_Controller {
         }
 
         $data = ['name' => $name];
-        if ($this->db->field_exists('group_type', 'roles')) {
+        if (schema_table_has_column($this->db, 'roles', 'group_type')) {
             $data['group_type'] = $groupType;
         }
 
@@ -181,7 +181,7 @@ class Roles extends CI_Controller {
         $userCount = 0;
         $userNames = [];
         if ($this->db->table_exists('users')) {
-            if ($this->db->field_exists('role_id', 'users')) {
+            if (schema_table_has_column($this->db, 'users', 'role_id')) {
                 $users = $this->db->select('name, email')->where('role_id', $id)->get('users')->result();
                 $userCount = count($users);
                 if ($userCount > 0) {
@@ -193,7 +193,7 @@ class Roles extends CI_Controller {
                         $userNames[] = $name;
                     }
                 }
-            } elseif ($this->db->field_exists('role', 'users')) {
+            } elseif (schema_table_has_column($this->db, 'users', 'role')) {
                 $roleName = isset($role->name) ? strtolower(trim($role->name)) : '';
                 if ($roleName !== '') {
                     $users = $this->db
@@ -250,52 +250,7 @@ class Roles extends CI_Controller {
     }
 
     private function ensure_schema() {
-        if (!$this->db->table_exists('roles')) {
-            $sql = "CREATE TABLE `roles` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `name` varchar(100) NOT NULL,
-                `group_type` varchar(50) DEFAULT NULL,
-                `is_active` tinyint(1) NOT NULL DEFAULT '1',
-                `sort_order` int(11) NOT NULL DEFAULT '0',
-                PRIMARY KEY (`id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-
-        if ($this->db->table_exists('roles') && !$this->db->field_exists('group_type', 'roles')) {
-            $this->db->query("ALTER TABLE `roles` ADD `group_type` varchar(50) DEFAULT NULL AFTER `name`");
-        }
-
-        if ($this->db->table_exists('roles')) {
-            $count = $this->db->count_all('roles');
-            if ((int)$count === 0) {
-                $defaults = [
-                    1 => ['name' => 'Admin',   'group_type' => 'admin'],
-                    2 => ['name' => 'Manager', 'group_type' => 'admin'],
-                    3 => ['name' => 'Lead',    'group_type' => 'admin'],
-                    4 => ['name' => 'Staff',   'group_type' => 'user'],
-                ];
-                foreach ($defaults as $id => $cfg) {
-                    $row = [
-                        'id'         => (int)$id,
-                        'name'       => $cfg['name'],
-                        'group_type' => $cfg['group_type'],
-                        'is_active'  => 1,
-                        'sort_order' => (int)$id,
-                    ];
-                    $this->db->insert('roles', $row);
-                }
-            } else {
-                if ($this->db->field_exists('group_type', 'roles')) {
-                    $this->db->where_in('id', [1, 2, 3]);
-                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
-                    $this->db->update('roles', ['group_type' => 'admin']);
-
-                    $this->db->where('id', 4);
-                    $this->db->where("(group_type IS NULL OR group_type = '')", null, false);
-                    $this->db->update('roles', ['group_type' => 'user']);
-                }
-            }
-        }
+        $this->load->helper('org_schema');
+        org_schema_ensure_roles($this->db);
     }
 }

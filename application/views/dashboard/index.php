@@ -32,9 +32,9 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       <div class="mb-4">
         <div class="card shadow-sm border-primary announcement-card-top">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
               <h5 class="mb-0"><i class="bi bi-megaphone me-2 text-primary"></i>Latest Announcements</h5>
-              <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements'); ?>">View all</a>
+              <a class="btn btn-outline-primary btn-sm flex-shrink-0" href="<?php echo site_url('announcements'); ?>">View all</a>
             </div>
             <div class="row g-3">
               <?php foreach ($announcements as $a): ?>
@@ -59,6 +59,84 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
       </div>
       <?php endif; ?>
+
+      <!-- Mark Attendance — first action for all users, directly below announcements -->
+      <?php
+        $ma = isset($mark_attendance) && is_array($mark_attendance) ? $mark_attendance : array();
+        $ma_checkin  = !empty($ma['has_checkin']);
+        $ma_checkout = !empty($ma['has_checkout']);
+        $ma_in_raw   = isset($ma['checkin_time']) ? trim((string) $ma['checkin_time']) : '';
+        $ma_out_raw  = isset($ma['checkout_time']) ? trim((string) $ma['checkout_time']) : '';
+        $ma_format_time = function ($raw) {
+          if ($raw === '') { return ''; }
+          $ts = strtotime($raw);
+          if ($ts !== false) { return date('g:i A', $ts); }
+          if (preg_match('/^(\d{1,2}:\d{2}(?::\d{2})?)/', $raw, $m)) {
+            $t = strtotime($m[1]);
+            return $t !== false ? date('g:i A', $t) : $m[1];
+          }
+          return $raw;
+        };
+        $ma_in_time  = $ma_format_time($ma_in_raw);
+        $ma_out_time = $ma_format_time($ma_out_raw);
+        $ma_status_detail = '';
+        if ($ma_checkin && $ma_checkout) {
+          $ma_status_label = 'Complete for today';
+          $ma_status_class = 'success';
+          $ma_status_icon  = 'bi-check-circle-fill';
+          if ($ma_in_time !== '' || $ma_out_time !== '') {
+            $parts = array();
+            if ($ma_in_time !== '') { $parts[] = 'In ' . $ma_in_time; }
+            if ($ma_out_time !== '') { $parts[] = 'Out ' . $ma_out_time; }
+            $ma_status_detail = implode(' · ', $parts);
+          }
+        } elseif ($ma_checkin) {
+          $ma_status_label = 'Checked in';
+          $ma_status_class = 'warning';
+          $ma_status_icon  = 'bi-clock-history';
+          $ma_status_detail = $ma_in_time !== '' ? 'Since ' . $ma_in_time . ' — remember to check out' : 'Remember to check out when you leave';
+        } else {
+          $ma_status_label = 'Not marked yet';
+          $ma_status_class = 'primary';
+          $ma_status_icon  = 'bi-calendar-check';
+          $ma_status_detail = 'Tap the button below to check in for today';
+        }
+        $ma_btn_label = ($ma_checkin && !$ma_checkout) ? 'Check out now' : (($ma_checkin && $ma_checkout) ? 'View attendance' : 'Mark attendance');
+        $ma_btn_icon  = ($ma_checkin && !$ma_checkout) ? 'bi-box-arrow-right' : (($ma_checkin && $ma_checkout) ? 'bi-eye' : 'bi-plus-square');
+      ?>
+      <div class="mb-4 mark-attendance-wrap">
+        <div class="card shadow-sm border-0 mark-attendance-card overflow-hidden">
+          <div class="card-body p-3 p-md-4">
+            <div class="mark-attendance-layout">
+              <div class="mark-attendance-main">
+                <div class="mark-attendance-icon rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+                  <i class="bi bi-fingerprint"></i>
+                </div>
+                <div class="mark-attendance-copy min-w-0">
+                  <h5 class="mark-attendance-title mb-1">Mark Attendance</h5>
+                  <p class="text-muted small mb-2 mb-md-1">Record your check-in and check-out for today.</p>
+                  <div class="mark-attendance-status">
+                    <span class="badge rounded-pill mark-attendance-badge bg-<?php echo $ma_status_class; ?>-subtle text-<?php echo $ma_status_class; ?> border border-<?php echo $ma_status_class; ?>-subtle">
+                      <i class="bi <?php echo $ma_status_icon; ?> me-1"></i><?php echo htmlspecialchars($ma_status_label); ?>
+                    </span>
+                    <?php if ($ma_status_detail !== ''): ?>
+                      <p class="mark-attendance-status-detail small text-muted mb-0"><?php echo htmlspecialchars($ma_status_detail); ?></p>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              </div>
+              <div class="mark-attendance-actions">
+                <a href="<?php echo site_url('attendance/create'); ?>" class="btn btn-primary mark-attendance-btn-primary">
+                  <i class="bi <?php echo $ma_btn_icon; ?> me-2"></i><?php echo htmlspecialchars($ma_btn_label); ?>
+                </a>
+                <a href="<?php echo site_url('attendance'); ?>" class="btn btn-outline-secondary mark-attendance-btn-secondary">
+                  <i class="bi bi-clock-history me-1 d-md-none"></i>History
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- External Dashboards (after announcements) -->
       <div class="row g-3 mb-3">
@@ -416,6 +494,151 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
 .fade-in:nth-child(6) { animation-delay: 0.6s; }
 .fade-in:nth-child(7) { animation-delay: 0.7s; }
 .fade-in:nth-child(8) { animation-delay: 0.8s; }
+
+.mark-attendance-wrap {
+  max-width: 100%;
+}
+
+.mark-attendance-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+  border-left: 4px solid #0d6efd !important;
+  border-radius: 12px;
+}
+
+.mark-attendance-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .mark-attendance-layout {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+  }
+}
+
+.mark-attendance-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mark-attendance-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mark-attendance-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+  word-wrap: break-word;
+}
+
+.mark-attendance-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  background: #e7f1ff;
+  color: #0d6efd;
+  font-size: 1.35rem;
+}
+
+@media (min-width: 768px) {
+  .mark-attendance-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    font-size: 1.5rem;
+  }
+}
+
+.mark-attendance-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.mark-attendance-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4em 0.75em;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.mark-attendance-status-detail {
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.mark-attendance-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+@media (min-width: 576px) {
+  .mark-attendance-actions {
+    flex-direction: row;
+    width: auto;
+  }
+}
+
+.mark-attendance-btn-primary,
+.mark-attendance-btn-secondary {
+  width: 100%;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+@media (min-width: 576px) {
+  .mark-attendance-btn-primary,
+  .mark-attendance-btn-secondary {
+    width: auto;
+    min-width: 9rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .mark-attendance-btn-primary {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+.external-dashboard-card .card-body {
+  padding: 1rem 1.1rem;
+}
+
+@media (max-width: 575.98px) {
+  .external-dashboard-card .card-body small {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .stat-card .card-body {
+    padding: 1rem;
+  }
+}
 
 .announcement-card-top {
   border-top: 3px solid #007bff !important;

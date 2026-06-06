@@ -1,16 +1,42 @@
-<?php $this->load->view('partials/header', ['title' => 'Mark Attendance']); ?>
-<div class="container-fluid px-3 px-md-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h5 mb-0 fw-bold">Mark Attendance</h1>
-    <div class="d-flex align-items-center gap-2">
-      <span class="badge bg-primary text-white" id="liveClock">--:--:--</span>
+<?php
+  $this->load->view('partials/header', array('title' => 'Mark Attendance', 'extra_css' => array('assets/css/attendance-create.css')));
+  $att_format_time = function ($raw) {
+    $raw = trim((string) $raw);
+    if ($raw === '') { return ''; }
+    $ts = strtotime($raw);
+    if ($ts !== false) { return date('g:i A', $ts); }
+    if (preg_match('/^(\d{1,2}:\d{2}(?::\d{2})?)/', $raw, $m)) {
+      $t = strtotime($m[1]);
+      return $t !== false ? date('g:i A', $t) : $m[1];
+    }
+    return $raw;
+  };
+  $has_status = isset($attendance_status) && is_array($attendance_status);
+  $st_in  = $has_status && !empty($attendance_status['has_checkin']);
+  $st_out = $has_status && !empty($attendance_status['has_checkout']);
+  $st_in_label  = $has_status ? $att_format_time(isset($attendance_status['checkin_time']) ? $attendance_status['checkin_time'] : '') : '';
+  $st_out_label = $has_status ? $att_format_time(isset($attendance_status['checkout_time']) ? $attendance_status['checkout_time'] : '') : '';
+?>
+<div class="container-fluid px-3 px-md-4 att-punch-page">
+  <div class="att-punch-header">
+    <div class="att-punch-header-row">
+      <a class="btn btn-outline-secondary att-punch-back" href="<?php echo site_url('dashboard'); ?>" aria-label="Back to dashboard">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div class="att-punch-title-wrap">
+        <h1 class="att-punch-title">Mark Attendance</h1>
+        <p class="att-punch-subtitle">Check in when you arrive, check out when you leave</p>
+      </div>
+      <span class="badge bg-primary att-punch-clock" id="liveClock">--:--:--</span>
+    </div>
+    <div class="att-punch-header-actions">
       <?php if (function_exists('has_module_access') && has_module_access('attendance')): ?>
-        <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('attendance'); ?>">
-          <i class="bi bi-list-ul"></i> Attendance List
+        <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('attendance'); ?>">
+          <i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">Attendance </span>List
         </a>
       <?php endif; ?>
-      <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('dashboard'); ?>">
-        <i class="bi bi-arrow-left"></i> Back
+      <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('dashboard'); ?>">
+        <i class="bi bi-house me-1"></i>Dashboard
       </a>
     </div>
   </div>
@@ -64,7 +90,7 @@
     <!-- Toasts will be dynamically created here -->
   </div>
 
-  <div class="card shadow-sm border-0">
+  <div class="card shadow-sm att-punch-card">
     <div class="card-body p-3 p-md-4">
       <form method="post" enctype="multipart/form-data" id="attendanceForm">
         <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>" />
@@ -132,35 +158,56 @@
         </div>
         <?php else: ?>
 
-        <!-- Action Selection -->
-        <div class="row mb-3">
-          <div class="col-12">
-            <div class="btn-group w-100" role="group">
-              <input type="radio" class="btn-check" name="action" id="actionIn" value="in" 
-                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && !$attendance_status['has_checkout']) ? '' : 'checked'; ?>
-                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && $attendance_status['has_checkout']) ? 'disabled' : ''; ?>>
-              <label class="btn btn-outline-success" for="actionIn">
-                <i class="bi bi-box-arrow-in-right"></i> Check IN
-              </label>
-              
-              <input type="radio" class="btn-check" name="action" id="actionOut" value="out"
-                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && !$attendance_status['has_checkout']) ? 'checked' : ''; ?>
-                     <?php echo (isset($attendance_status) && !$attendance_status['has_checkin']) ? 'disabled' : ''; ?>
-                     <?php echo (isset($attendance_status) && $attendance_status['has_checkin'] && $attendance_status['has_checkout']) ? 'disabled' : ''; ?>>
-              <label class="btn btn-outline-danger" for="actionOut">
-                <i class="bi bi-box-arrow-right"></i> Check OUT
-              </label>
-            </div>
-            <?php if(isset($attendance_status) && $attendance_status['has_checkin'] && $attendance_status['has_checkout']): ?>
-            <div class="text-center mt-2">
-              <small class="text-muted"><i class="bi bi-info-circle"></i> Attendance already completed for today</small>
-            </div>
-            <?php elseif(isset($attendance_status) && !$attendance_status['has_checkin']): ?>
-            <div class="text-center mt-2">
-              <small class="text-muted"><i class="bi bi-info-circle"></i> Please check in first</small>
-            </div>
+        <?php if ($has_status): ?>
+        <div class="att-punch-status-banner <?php echo ($st_in && $st_out) ? 'is-complete' : ($st_in ? 'is-checked-in' : 'is-pending'); ?>">
+          <i class="bi <?php echo ($st_in && $st_out) ? 'bi-check-circle-fill' : ($st_in ? 'bi-clock-history' : 'bi-info-circle'); ?> flex-shrink-0 mt-1"></i>
+          <div>
+            <?php if ($st_in && $st_out): ?>
+              <strong>Attendance complete for today.</strong>
+              <?php if ($st_in_label !== '' || $st_out_label !== ''): ?>
+                <div class="small mt-1">
+                  <?php if ($st_in_label !== ''): ?>In <?php echo htmlspecialchars($st_in_label); ?><?php endif; ?>
+                  <?php if ($st_out_label !== ''): ?><?php echo $st_in_label !== '' ? ' · ' : ''; ?>Out <?php echo htmlspecialchars($st_out_label); ?><?php endif; ?>
+                </div>
+              <?php endif; ?>
+            <?php elseif ($st_in): ?>
+              <strong>You're checked in<?php echo $st_in_label !== '' ? ' at ' . htmlspecialchars($st_in_label) : ''; ?>.</strong>
+              <div class="small mt-1">Select <strong>Check OUT</strong> below when you finish for the day.</div>
+            <?php else: ?>
+              <strong>Ready to start your day.</strong>
+              <div class="small mt-1">Tap <strong>Check IN</strong> below to mark your arrival.</div>
             <?php endif; ?>
           </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Action Selection -->
+        <div class="mb-2">
+          <div class="att-punch-action-toggle" role="group" aria-label="Check in or check out">
+            <input type="radio" class="btn-check" name="action" id="actionIn" value="in"
+                   <?php echo ($st_in && !$st_out) ? '' : (($st_in && $st_out) ? '' : 'checked'); ?>
+                   <?php echo ($st_in && $st_out) ? 'disabled' : ''; ?>>
+            <label class="btn btn-outline-success" for="actionIn">
+              <i class="bi bi-box-arrow-in-right"></i> Check IN
+            </label>
+
+            <input type="radio" class="btn-check" name="action" id="actionOut" value="out"
+                   <?php echo ($st_in && !$st_out) ? 'checked' : ''; ?>
+                   <?php echo !$st_in ? 'disabled' : ''; ?>
+                   <?php echo ($st_in && $st_out) ? 'disabled' : ''; ?>>
+            <label class="btn btn-outline-danger" for="actionOut">
+              <i class="bi bi-box-arrow-right"></i> Check OUT
+            </label>
+          </div>
+          <p class="att-punch-hint mb-0" id="actionHint">
+            <?php if ($st_in && $st_out): ?>
+              <i class="bi bi-check2-circle"></i> No further action needed today.
+            <?php elseif ($st_in): ?>
+              <i class="bi bi-arrow-right-circle"></i> Check OUT is available — use it when you leave.
+            <?php else: ?>
+              <i class="bi bi-sunrise"></i> Check IN is selected — submit after face and location are ready.
+            <?php endif; ?>
+          </p>
         </div>
 
         <?php if (isset($is_holiday) && $is_holiday): ?>
@@ -181,62 +228,56 @@
         <?php endif; ?>
 
         <!-- Notes and Location -->
-        <div class="row mb-3">
-          <div class="col-12">
-            <label class="form-label fw-semibold">
-              <i class="bi bi-chat-text"></i> Notes
-            </label>
-            <textarea name="notes" class="form-control form-control-sm" rows="2" 
-                      placeholder="Add any notes..."></textarea>
-          </div>
+        <div class="mb-3">
+          <label class="att-punch-section-label">
+            <i class="bi bi-chat-text"></i> Notes <span class="text-muted fw-normal">(optional)</span>
+          </label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Add any notes…"></textarea>
         </div>
 
         <!-- Location Status -->
-        <div class="row mb-3">
-          <div class="col-12">
-            <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
-              <i class="bi bi-geo-alt text-primary"></i>
-              <small class="text-muted" id="geoHint">Getting location...</small>
-            </div>
+        <div class="mb-3">
+          <label class="att-punch-section-label">
+            <i class="bi bi-geo-alt"></i> Location
+          </label>
+          <div class="att-punch-location-box is-loading" id="geoHintBox">
+            <i class="bi bi-geo-alt-fill text-primary" id="geoHintIcon"></i>
+            <small class="text-primary" id="geoHint">Getting your location…</small>
           </div>
         </div>
 
         <!-- Face Verification -->
         <?php $face_verification_enabled = isset($face_verification_enabled) ? $face_verification_enabled : true; ?>
-        <div class="row mb-4" id="faceVerificationSection" style="<?php echo $face_verification_enabled ? '' : 'display: none;'; ?>">
-          <div class="col-12 col-md-8 col-lg-6 mx-auto">
-            <label class="form-label fw-semibold">
-              <i class="bi bi-camera"></i> Face Verification <?php echo $face_verification_enabled ? '<span class="text-danger">*</span>' : ''; ?>
+        <div class="mb-4" id="faceVerificationSection" style="<?php echo $face_verification_enabled ? '' : 'display: none;'; ?>">
+            <label class="att-punch-section-label">
+              <i class="bi bi-camera"></i> Face verification <?php echo $face_verification_enabled ? '<span class="text-danger">*</span>' : ''; ?>
             </label>
-            <div class="position-relative">
-              <video id="attFaceVideo" class="w-100 rounded border shadow-sm" 
-                     autoplay muted playsinline style="height: 240px; background: #000; object-fit: cover;"></video>
+            <div class="position-relative att-punch-face-wrap">
+              <video id="attFaceVideo" class="w-100"
+                     autoplay muted playsinline></video>
               <div class="position-absolute top-50 start-50 translate-middle text-white text-center" id="cameraLoader">
                 <div class="spinner-border spinner-border-sm" role="status"></div>
                 <div class="small mt-1">Starting camera...</div>
               </div>
             </div>
-            <canvas id="attFaceCanvas" class="w-100 rounded border shadow-sm mt-2" style="height: 240px; display: none; object-fit: cover; background: #000;"></canvas>
+            <canvas id="attFaceCanvas" class="w-100 mt-2" style="display: none;"></canvas>
             <div class="small mt-2 text-center" id="attFaceStatus"></div>
-            <button type="button" class="btn btn-primary btn-lg w-100 mt-3 fw-semibold" id="btnAttFaceVerify" disabled>
-              <i class="bi bi-camera-fill me-2"></i> Capture Face
+            <button type="button" class="btn btn-primary w-100 mt-3 fw-semibold att-punch-submit" id="btnAttFaceVerify" disabled>
+              <i class="bi bi-camera-fill me-2"></i> Capture face
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-lg w-100 mt-2 fw-semibold" id="btnRetakeFace" style="display: none;">
-              <i class="bi bi-arrow-clockwise me-2"></i> Retake Face
+            <button type="button" class="btn btn-outline-secondary w-100 mt-2 fw-semibold" id="btnRetakeFace" style="display: none;">
+              <i class="bi bi-arrow-clockwise me-2"></i> Retake face
             </button>
-          </div>
         </div>
 
         <!-- Submit Button -->
-        <div class="row">
-          <div class="col-12">
-            <button class="btn btn-primary w-100 py-2 fw-semibold" type="submit" id="submitBtn" disabled>
-              <i class="bi bi-check-circle"></i> Mark Attendance
+        <div class="mt-2">
+            <button class="btn btn-primary w-100 att-punch-submit" type="submit" id="submitBtn" disabled>
+              <i class="bi bi-check-circle me-2"></i>Mark attendance
             </button>
-            <div class="small text-muted mt-2" id="validationStatus">
-              <i class="bi bi-info-circle"></i> Please complete all mandatory fields: <?php echo (isset($location_strict_enabled) && $location_strict_enabled) ? 'Location' : 'Optional Location'; ?><?php echo $face_verification_enabled ? ', Face Verification' : ''; ?>
+            <div class="att-punch-validation text-muted mt-2" id="validationStatus">
+              <i class="bi bi-info-circle"></i> Complete required steps: <?php echo (isset($location_strict_enabled) && $location_strict_enabled) ? 'Location' : 'Location (optional)'; ?><?php echo $face_verification_enabled ? ', Face verification' : ''; ?>
             </div>
-          </div>
         </div>
         <?php endif; ?>
       </form>
@@ -456,21 +497,44 @@
             showCustomToast(message, type, type === 'error' ? 5000 : 3000);
           }
           
+          function setGeoBoxState(state, text) {
+            var box = document.getElementById('geoHintBox');
+            var hint = document.getElementById('geoHint');
+            var icon = document.getElementById('geoHintIcon');
+            if (!hint) return;
+            hint.textContent = text;
+            if (box) {
+              box.classList.remove('is-loading', 'is-success', 'is-error');
+              if (state === 'success') box.classList.add('is-success');
+              else if (state === 'error') box.classList.add('is-error');
+              else if (state === 'loading') box.classList.add('is-loading');
+            }
+            hint.classList.remove('text-primary', 'text-success', 'text-danger', 'text-secondary', 'text-muted');
+            if (state === 'success') {
+              hint.classList.add('text-success');
+              if (icon) icon.className = 'bi bi-check-circle-fill text-success';
+            } else if (state === 'error') {
+              hint.classList.add('text-danger');
+              if (icon) icon.className = 'bi bi-geo-alt-fill text-danger';
+            } else if (state === 'loading') {
+              hint.classList.add('text-primary');
+              if (icon) icon.className = 'bi bi-geo-alt-fill text-primary';
+            } else {
+              hint.classList.add('text-secondary');
+            }
+          }
+
           function resolveAddress(lat, lng, hint, locEl){
             try {
               if (!hint) return;
               if (!lat || !lng) return;
               showToast('Location captured, resolving address...', 'info');
-              hint.textContent = 'Location captured, resolving address...';
-              hint.classList.remove('text-muted');
-              hint.classList.add('text-primary');
+              setGeoBoxState('loading', 'Location captured, resolving address…');
               
               // Use a CORS proxy or skip address resolution due to CORS issues
               // For now, we'll just mark location as captured without address resolution
               setTimeout(function(){
-                hint.textContent = 'Location captured successfully';
-                hint.classList.remove('text-primary');
-                hint.classList.add('text-success');
+                setGeoBoxState('success', 'Location captured successfully');
                 showToast('Location captured successfully', 'success');
                 
                 // Location is fully captured, now start camera
@@ -864,13 +928,7 @@
           
           // Show initial location toast
           showToast('Getting location...', 'info');
-          
-          // Initialize location status
-          if (hint) {
-            hint.textContent = 'Getting location...';
-            hint.classList.remove('text-muted');
-            hint.classList.add('text-primary');
-          }
+          setGeoBoxState('loading', 'Getting your location…');
           
           if (navigator.geolocation && latEl && lngEl){
             navigator.geolocation.getCurrentPosition(function(pos){
@@ -892,11 +950,7 @@
             }, function(){ 
               try { 
                 showToast('Location access denied', 'error');
-                if (hint) {
-                  hint.textContent = 'Location access denied';
-                  hint.classList.remove('text-muted');
-                  hint.classList.add('text-danger');
-                }
+                setGeoBoxState('error', 'Location access denied — enable GPS in browser settings');
                 // Even if location fails, start camera after a delay
                 setTimeout(function(){
                   if (!cameraStarted) {
@@ -909,11 +963,7 @@
             }, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
           } else { 
             showToast('Location not available on this device', 'warning');
-            if (hint) {
-              hint.textContent = 'Location not available';
-              hint.classList.remove('text-muted');
-              hint.classList.add('text-secondary');
-            }
+            setGeoBoxState('error', 'Location not available on this device');
             // Start camera even if location not available
             setTimeout(function(){
               if (!cameraStarted) {

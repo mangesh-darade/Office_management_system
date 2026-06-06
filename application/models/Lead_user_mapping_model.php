@@ -11,7 +11,7 @@ class Lead_user_mapping_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema()
+    public function ensure_schema()
     {
         if (!$this->db->table_exists($this->table)) {
             $this->db->query("CREATE TABLE `{$this->table}` (

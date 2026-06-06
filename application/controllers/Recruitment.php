@@ -15,7 +15,7 @@ class Recruitment extends CI_Controller {
         }
 
         // RBAC Audit: Centralized module access check
-        require_module_access(['recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews', 'recruitment_export'], true);
+        require_controller_access('recruitment', true);
     }
 
     private function _is_admin() {
@@ -33,6 +33,7 @@ class Recruitment extends CI_Controller {
     }
 
     public function create_job(){
+        require_module_access(['recruitment_jobs', 'recruitment_add', 'recruitment'], true);
         if ($this->input->method() === 'post'){
             $data = [
                 'title'            => $this->input->post('title'),
@@ -53,6 +54,7 @@ class Recruitment extends CI_Controller {
     }
 
     public function edit_job($id){
+        require_module_access(['recruitment_jobs', 'recruitment_add', 'recruitment'], true);
         $job = $this->Recruitment_model->get_job($id);
         if (!$job) { show_404(); return; }
 
@@ -75,6 +77,7 @@ class Recruitment extends CI_Controller {
     }
 
     public function delete_job($id){
+        require_module_access(['recruitment_jobs', 'recruitment_delete', 'recruitment'], true);
         if ($this->input->method() !== 'post') { show_404(); return; }
         $job = $this->Recruitment_model->get_job($id);
         if (!$job) { show_404(); return; }
@@ -84,6 +87,7 @@ class Recruitment extends CI_Controller {
     }
 
     public function close_job($id){
+        require_module_access(['recruitment_jobs', 'recruitment_add', 'recruitment'], true);
         if ($this->input->method() !== 'post') { show_404(); return; }
         $job = $this->Recruitment_model->get_job($id);
         if (!$job) { show_404(); return; }

@@ -164,12 +164,15 @@ class Ai_chat extends CI_Controller {
                 ];
                 $this->session->set_userdata('ai_conversation_history', $conversation_history);
                 
-                echo json_encode([
+                $payload = [
                     'status' => 'success',
                     'response' => $final_answer,
-                    'debug_sql' => isset($response['query']) ? $response['query'] : '',
-                    'csrf_token' => $this->security->get_csrf_hash()
-                ]);
+                    'csrf_token' => $this->security->get_csrf_hash(),
+                ];
+                if (ENVIRONMENT === 'development' && (int) $this->session->userdata('role_id') === ROLE_ADMIN) {
+                    $payload['debug_sql'] = isset($response['query']) ? $response['query'] : '';
+                }
+                echo json_encode($payload);
             } else {
                 // Just a conversational response
                 $text_content = isset($response['text']) ? $response['text'] : json_encode($response);
@@ -274,6 +277,19 @@ class Ai_chat extends CI_Controller {
                 return ['error' => 'Destructive or unsafe queries are blocked.'];
             }
         }
+
+        // Block multi-statement and system-catalog probing
+        if (strpos($sql, ';') !== false) {
+            return ['error' => 'Multiple SQL statements are not allowed.'];
+        }
+
+        if (preg_match('/\b(SLEEP|BENCHMARK|LOAD_FILE|GET_LOCK|RELEASE_LOCK)\s*\(/i', $sql)) {
+            return ['error' => 'Unsafe SQL functions are blocked.'];
+        }
+
+        if (preg_match('/\binformation_schema\b|\bmysql\.|\bperformance_schema\b|\bsys\./i', $sql)) {
+            return ['error' => 'Access to system tables is blocked.'];
+        }
         
         // 4. Check table access permissions (Existing Logic)
         $this->load->helper('permission');
@@ -318,6 +334,13 @@ class Ai_chat extends CI_Controller {
             isset($join_matches[1]) ? $join_matches[1] : []
         );
         $tables_in_query = array_unique(array_map('strtolower', $tables_in_query));
+
+        $blocked_catalog = array('information_schema', 'mysql', 'performance_schema', 'sys');
+        foreach ($tables_in_query as $table) {
+            if (in_array($table, $blocked_catalog, true)) {
+                return ['error' => 'Access to system tables is blocked.'];
+            }
+        }
         
         foreach ($tables_in_query as $table) {
             $module = isset($table_to_module_map[$table]) ? $table_to_module_map[$table] : null;
@@ -342,15 +365,20 @@ class Ai_chat extends CI_Controller {
             }
         }
 
-        // 5. Enforce LIMIT to prevent massive data dumps
-        // Remove trailing semicolon if present
+        // 5. Enforce LIMIT cap to prevent massive data dumps
         $sql = rtrim($sql, ';');
-        
-        if (!preg_match('/\bLIMIT\b/i', $sql)) {
-            $sql .= " LIMIT 100";
+
+        if (preg_match('/\bLIMIT\s+(\d+)/i', $sql, $limit_match)) {
+            if ((int) $limit_match[1] > 100) {
+                $sql = preg_replace('/\bLIMIT\s+\d+/i', 'LIMIT 100', $sql, 1);
+            }
         } else {
-            // Optional: enforce max limit if needed
-            // preg_replace('/LIMIT\s+\d+/i', 'LIMIT 100', $sql); 
+            $sql .= ' LIMIT 100';
+        }
+
+        $this->load->library('ai_handler');
+        if (!$this->ai_handler->is_safe_select_query($sql)) {
+            return ['error' => 'Query failed safety validation.'];
         }
 
         // Execute the query
@@ -507,28 +535,15 @@ class Ai_chat extends CI_Controller {
 </body>
 </html>';
         
-        // Try to use DomPDF if available
-        if (class_exists('\\Dompdf\\Dompdf')) {
-            try {
-                $dompdf = new \Dompdf\Dompdf();
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4', 'landscape');
-                $dompdf->render();
-                
-                file_put_contents($filepath, $dompdf->output());
-                return ['path' => 'uploads/reports/' . $filename, 'format' => 'pdf'];
-            } catch (Exception $e) {
-                // Fallback to HTML
-                $html_filename = $filename_base . '.html';
-                file_put_contents($dir . $html_filename, $html);
-                return ['path' => 'uploads/reports/' . $html_filename, 'format' => 'html'];
-            }
-        } else {
-            // Fallback to HTML file
-            $html_filename = $filename_base . '.html';
-            file_put_contents($dir . $html_filename, $html);
-            return ['path' => 'uploads/reports/' . $html_filename, 'format' => 'html'];
+        // Render via Pdf_export facade (Dompdf) or fallback to HTML file
+        $this->load->library('pdf_export');
+        if ($this->pdf_export->html_to_pdf_file($html, $filepath, 'A4', 'landscape')) {
+            return ['path' => 'uploads/reports/' . $filename, 'format' => 'pdf'];
         }
+
+        $html_filename = $filename_base . '.html';
+        file_put_contents($dir . $html_filename, $html);
+        return ['path' => 'uploads/reports/' . $html_filename, 'format' => 'html'];
     }
     
     /**

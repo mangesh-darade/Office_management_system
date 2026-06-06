@@ -105,6 +105,7 @@ $autoload['helper'][] = 'notification';
 $autoload['helper'][] = 'hierarchy_filter';
 $autoload['helper'][] = 'data_scope';
 $autoload['helper'][] = 'coaching';
+$autoload['helper'][] = 'schema_columns';
 
 /*
 | -------------------------------------------------------------------

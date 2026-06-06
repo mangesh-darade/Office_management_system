@@ -644,6 +644,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         has_module_access('designations') ||
         has_module_access('admin') ||
         has_module_access('statuses') ||
+        has_module_access('types') ||
         has_module_access('approvals') ||
         has_module_access('lead_mapping') ||
         ((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (has_module_access('shifts') || has_module_access('shifts_manage'))))
@@ -654,7 +655,7 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) ? 'active' : ''; ?>" href="#">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays'], true)) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-gear me-2"></i>Settings
           </a>
           <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
@@ -668,6 +669,9 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('holidays') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
@@ -707,8 +711,9 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true)?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays'], true)))?'true':'false'; ?>);</script>
       <?php endif; ?>
+      <?php $this->load->view('partials/sidebar_guide_nav', ['guide_nav_variant' => 'desktop']); ?>
       <hr class="my-2 border-secondary">
       <a class="nav-link sidebar-link text-danger" href="<?php echo site_url('logout'); ?>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
     </nav>

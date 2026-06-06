@@ -1,7 +1,10 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+require_once APPPATH . 'core/Schema_columns_trait.php';
+
 class Role_model extends CI_Model {
+    use Schema_columns_trait;
     private $table = 'roles';
 
     public function __construct(){ parent::__construct(); $this->load->database(); }
@@ -21,10 +24,10 @@ class Role_model extends CI_Model {
         $out = [];
         if ($this->db->table_exists($this->table)) {
             $this->db->from($this->table);
-            if ($this->db->field_exists('is_active', $this->table)) {
+            if ($this->has_column('is_active')) {
                 $this->db->where('is_active', 1);
             }
-            if ($this->db->field_exists('sort_order', $this->table)) {
+            if ($this->has_column('sort_order')) {
                 $this->db->order_by('sort_order', 'ASC');
             }
             $this->db->order_by('id', 'ASC');
@@ -48,10 +51,10 @@ class Role_model extends CI_Model {
     {
         if (!$this->db->table_exists($this->table)) { return []; }
         $this->db->from($this->table);
-        if ($this->db->field_exists('is_active', $this->table)) {
+        if ($this->has_column('is_active')) {
             $this->db->order_by('is_active', 'DESC');
         }
-        if ($this->db->field_exists('sort_order', $this->table)) {
+        if ($this->has_column('sort_order')) {
             $this->db->order_by('sort_order', 'ASC');
         }
         $this->db->order_by('id', 'ASC');

@@ -10,7 +10,7 @@
   if (!empty($rows)) { foreach ($rows as $r) { $totalAll += (float)$r->hours; } }
 ?>
 <div class="container-fluid py-3">
-  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
+  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-bar-chart-line text-primary me-2"></i>Monthly Hours Report</h4>
       <p class="text-muted small mb-0"><?php echo htmlspecialchars($monthLabel . ' ' . $year); ?> &mdash; Hours logged by each team member</p>

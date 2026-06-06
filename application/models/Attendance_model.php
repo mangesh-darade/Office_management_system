@@ -10,7 +10,7 @@ class Attendance_model extends CI_Model {
         $this->ensure_schema();
     }
 
-    private function ensure_schema(){
+    public function ensure_schema(){
         static $done = false;
         if ($done) { return; }
         $done = true;
@@ -66,12 +66,21 @@ class Attendance_model extends CI_Model {
     public function get_columns()
     {
         static $cols = null;
-        if ($cols !== null) { return $cols; }
-        $cols = [
-            'date'      => $this->db->field_exists('att_date',   $this->table) ? 'att_date'   : 'date',
-            'punch_in'  => $this->db->field_exists('punch_in',   $this->table) ? 'punch_in'   : 'check_in',
-            'punch_out' => $this->db->field_exists('punch_out',  $this->table) ? 'punch_out'  : 'check_out',
-        ];
+        if ($cols !== null) {
+            return $cols;
+        }
+
+        $fields = $this->db->table_exists($this->table) ? $this->db->list_fields($this->table) : array();
+        $has = function ($name) use ($fields) {
+            return in_array($name, $fields, true);
+        };
+
+        $cols = array(
+            'date'      => $has('att_date') ? 'att_date' : 'date',
+            'punch_in'  => $has('punch_in') ? 'punch_in' : 'check_in',
+            'punch_out' => $has('punch_out') ? 'punch_out' : 'check_out',
+        );
+
         return $cols;
     }
 

@@ -271,19 +271,10 @@
         <div class="invalid-feedback">Password must be at least 6 characters</div>
       </div>
       
+      <input type="hidden" name="role_id" value="<?php echo (int) ROLE_STAFF; ?>">
       <div class="form-floating">
-        <select name="role_id" class="form-select" id="roleSelect" required>
-          <option value="">Select Role</option>
-          <?php
-            $roleOptions = isset($roles) && is_array($roles) && !empty($roles)
-              ? $roles
-              : [1 => 'Admin', 2 => 'Manager', 3 => 'Lead', 4 => 'Staff'];
-            foreach ($roleOptions as $id => $name): ?>
-              <option value="<?php echo (int)$id; ?>"><?php echo htmlspecialchars($name); ?></option>
-          <?php endforeach; ?>
-        </select>
-        <label for="roleSelect">Role</label>
-        <div class="invalid-feedback">Please select a role</div>
+        <input type="text" class="form-control" id="roleDisplay" value="Staff" readonly>
+        <label for="roleDisplay">Role</label>
       </div>
       
       <div class="d-grid gap-2 mt-2">
@@ -543,7 +534,6 @@
       var verifyCodeInput = document.getElementById('verifyCodeInput');
       var phoneInput = document.getElementById('phoneInput');
       var passwordInput = document.getElementById('passwordInput');
-      var roleSelect = document.getElementById('roleSelect');
       
       // Validate each field and show specific errors
       var errors = [];
@@ -604,14 +594,6 @@
         passwordInput.classList.add('is-invalid');
       } else {
         passwordInput.classList.remove('is-invalid');
-      }
-      
-      // Role validation
-      if (!roleSelect.value) {
-        errors.push('Please select a role');
-        roleSelect.classList.add('is-invalid');
-      } else {
-        roleSelect.classList.remove('is-invalid');
       }
       
       // Show errors if any

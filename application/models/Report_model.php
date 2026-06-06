@@ -2,7 +2,8 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Report_model extends CI_Model {
-    public function __construct(){ parent::__construct(); $this->load->database(); $this->load->helper('hierarchy_filter'); }
+    public function __construct(){ parent::__construct(); $this->load->database();
+        $this->load->helper('schema_columns'); $this->load->helper('hierarchy_filter'); }
 
     /**
      * Attendance summary report.
@@ -15,7 +16,7 @@ class Report_model extends CI_Model {
      */
     public function get_attendance_summary($from, $to, $user_id = null)
     {
-        $date_col = $this->db->field_exists('att_date', 'attendance') ? 'att_date' : 'date';
+        $date_col = schema_table_has_column($this->db, 'attendance', 'att_date') ? 'att_date' : 'date';
         $this->db->select([
             "DATE(`{$date_col}`) AS report_date",
             'COUNT(*) AS total',
@@ -129,9 +130,9 @@ class Report_model extends CI_Model {
         if (!empty($filters['client_id'])) {
             $this->db->where('p.client_id', (int)$filters['client_id']);
         }
-        if ($this->db->field_exists('created_by', 'projects')) {
+        if (schema_table_has_column($this->db, 'projects', 'created_by')) {
             apply_role_hierarchy_filter($this->db, 'p.created_by');
-        } else if ($this->db->field_exists('manager_id', 'projects')) {
+        } else if (schema_table_has_column($this->db, 'projects', 'manager_id')) {
             apply_role_hierarchy_filter($this->db, 'p.manager_id');
         }
         $this->db->group_by('p.id');

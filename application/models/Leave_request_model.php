@@ -6,11 +6,12 @@ class Leave_request_model extends CI_Model {
         parent::__construct(); 
         $this->load->database();
         $this->load->helper('hierarchy_filter');
+        $this->load->helper('schema_columns');
         $this->load->model('Setting_model', 'settings');
         $this->ensure_schema();
     }
 
-    private function ensure_schema(){
+    public function ensure_schema(){
         static $done = false;
         if ($done) { return; }
         $done = true;
@@ -60,7 +61,7 @@ class Leave_request_model extends CI_Model {
                  ->where('lr.status', 'pending')
                  ->order_by('lr.created_at', 'DESC');
         // Only filter by current_approver_id if the column exists
-        if ($this->db->field_exists('current_approver_id', 'leave_requests')) {
+        if (schema_table_has_column($this->db, 'leave_requests', 'current_approver_id')) {
             $this->db->where('lr.current_approver_id', (int)$manager_id);
         }
         apply_role_hierarchy_filter($this->db, 'lr.user_id');
@@ -202,10 +203,10 @@ class Leave_request_model extends CI_Model {
     private function remove_wfh_attendance_records($user_id, $start_date, $end_date) {
         $dateCol = 'att_date';
         $statusCol = 'status';
-        if (!$this->db->field_exists($dateCol, 'attendance')) {
+        if (!schema_table_has_column($this->db, 'attendance', $dateCol)) {
             $dateCol = 'date';
         }
-        if (!$this->db->field_exists($statusCol, 'attendance')) {
+        if (!schema_table_has_column($this->db, 'attendance', $statusCol)) {
             return;
         }
         
@@ -239,10 +240,10 @@ class Leave_request_model extends CI_Model {
         // Detect date and status column names
         $dateCol = 'att_date';
         $statusCol = 'status';
-        if (!$this->db->field_exists($dateCol, 'attendance')) {
+        if (!schema_table_has_column($this->db, 'attendance', $dateCol)) {
             $dateCol = 'date';
         }
-        if (!$this->db->field_exists($statusCol, 'attendance')) {
+        if (!schema_table_has_column($this->db, 'attendance', $statusCol)) {
             return; // Can't create records if status column doesn't exist
         }
         
@@ -274,7 +275,7 @@ class Leave_request_model extends CI_Model {
                 $this->db->where('id', (int)$existing->id)
                          ->update('attendance', array_merge(
                              [$statusCol => 'work_from_home'],
-                             $this->db->field_exists('updated_at', 'attendance') ? ['updated_at' => date('Y-m-d H:i:s')] : []
+                             schema_table_has_column($this->db, 'attendance', 'updated_at') ? ['updated_at' => date('Y-m-d H:i:s')] : []
                          ));
             } else {
                 // Create new attendance record with WFH status
@@ -284,12 +285,12 @@ class Leave_request_model extends CI_Model {
                     $statusCol => 'work_from_home',
                     'created_at' => date('Y-m-d H:i:s'),
                 ];
-                if ($this->db->field_exists('updated_at', 'attendance')) {
+                if (schema_table_has_column($this->db, 'attendance', 'updated_at')) {
                     $data['updated_at'] = date('Y-m-d H:i:s');
                 }
                 
                 // Add source field if it exists
-                if ($this->db->field_exists('source', 'attendance')) {
+                if (schema_table_has_column($this->db, 'attendance', 'source')) {
                     $data['source'] = 'manual';
                 }
                 
@@ -488,7 +489,7 @@ class Leave_request_model extends CI_Model {
         
         // Check if accrual is enabled for this leave type
         $accrual_enabled = false;
-        if ($this->db->field_exists('accrual_enabled', 'leave_types')) {
+        if (schema_table_has_column($this->db, 'leave_types', 'accrual_enabled')) {
             $accrual_enabled = (bool)$type->accrual_enabled;
         }
         
@@ -533,7 +534,7 @@ class Leave_request_model extends CI_Model {
             
             // Get monthly accrual rate
             $monthly_accrual = 0.0;
-            if ($this->db->field_exists('monthly_accrual', 'leave_types') && isset($type->monthly_accrual)) {
+            if (schema_table_has_column($this->db, 'leave_types', 'monthly_accrual') && isset($type->monthly_accrual)) {
                 $monthly_accrual = (float)$type->monthly_accrual;
             } elseif (isset($type->annual_quota)) {
                 // Calculate monthly from annual quota

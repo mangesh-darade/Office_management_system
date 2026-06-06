@@ -1,0 +1,662 @@
+{
+  "modules": [
+    {
+      "id": "01",
+      "slug": "01-login-dashboard",
+      "file": "01-authentication-dashboard.md",
+      "title": "Login & Dashboard",
+      "purpose": "Sign in securely, see your home summary, update your profile, and read alerts.",
+      "video": "videos/01-auth/login-demo.webm",
+      "entities": [
+        {
+          "name": "Login",
+          "menu": "Login page",
+          "purpose": "Open the app with your email or phone and password.",
+          "list": {"image": "images/01-auth/login.png", "video": "videos/01-auth/login-demo.webm"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Forgot password",
+          "menu": "Forgot password link on login",
+          "purpose": "Reset your password using your registered mobile number and OTP.",
+          "list": {"image": "images/01-auth/forgot-password.png"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Dashboard",
+          "menu": "Dashboard",
+          "purpose": "Quick overview of tasks, leave, attendance, and announcements for your role.",
+          "list": {"image": "images/01-auth/dashboard.png", "video": "videos/01-auth/dashboard-tour.webm"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Profile",
+          "menu": "Top right → Profile",
+          "purpose": "View and update your personal details, password, and photo.",
+          "list": {"image": "images/01-auth/profile.png"},
+          "add": null,
+          "edit": {"image": "images/01-auth/profile-edit.png", "route": "profile/edit", "steps": ["Change fields or password.", "Upload avatar.", "Save."]},
+          "delete": {"steps": ["Remove avatar uses the button on edit profile.", "Account delete is admin-only."]}
+        },
+        {
+          "name": "Notifications",
+          "menu": "Notifications",
+          "purpose": "See task, leave, and system alerts. Mark read or open linked pages.",
+          "list": {"image": "images/01-auth/notifications.png"},
+          "add": null,
+          "edit": null,
+          "delete": {"steps": ["Open a notification → Delete button on the row (if shown).", "Mark all read clears the badge without deleting history."]}
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "slug": "02-people",
+      "file": "02-people-organization.md",
+      "title": "People & Organization",
+      "purpose": "Manage staff accounts, HR records, departments, job titles, shifts, assets, and clients.",
+      "video": "videos/02-people/employees-tour.webm",
+      "entities": [
+        {
+          "name": "Users",
+          "menu": "User Management → Users",
+          "purpose": "Create login accounts and assign roles so people can access the system.",
+          "list": {"image": "images/02-people/users.png", "route": "users", "video": "videos/02-people/users-crud.webm"},
+          "add": {"image": "images/02-people/users-add.png", "route": "users/create", "steps": ["Click Add User.", "Enter email, name, phone, password, role.", "Set Active → Save."]},
+          "edit": {"image": "images/02-people/users-edit.png", "list_route": "users", "steps": ["Open user from list → Edit.", "Change role, status, or contact → Save."]},
+          "delete": {"steps": ["Admin: open user → Delete / deactivate.", "Prefer deactivate to block login without losing history."]}
+        },
+        {
+          "name": "Employees",
+          "menu": "Employees",
+          "purpose": "Link users to HR data: code, department, designation, shift, documents.",
+          "list": {"image": "images/02-people/employees.png", "route": "employees"},
+          "add": {"image": "images/02-people/employees-add.png", "route": "employees/create", "steps": ["Click Create.", "Select user, code, department, designation, shift.", "Save."]},
+          "edit": {"image": "images/02-people/employees-edit.png", "list_route": "employees", "steps": ["Open employee → Edit.", "Update HR fields → Save."]},
+          "delete": {"steps": ["Admin delete from employee detail or list action.", "Import CSV available for bulk add."]}
+        },
+        {
+          "name": "Departments",
+          "menu": "User Management → Department",
+          "purpose": "Organize staff into teams. Used in reports and leave approval scope.",
+          "list": {"image": "images/02-people/departments.png", "route": "departments", "video": "videos/02-people/departments-crud.webm"},
+          "add": {"image": "images/02-people/departments-add.png", "route": "departments/create", "steps": ["Click Create.", "Unique code + name + optional manager.", "Save."]},
+          "edit": {"image": "images/02-people/departments-edit.png", "list_route": "departments", "steps": ["Click Edit on row.", "Update fields → Save."]},
+          "delete": {"steps": ["Delete soft-hides the department.", "Show Deleted → Restore to bring it back."]}
+        },
+        {
+          "name": "Designations",
+          "menu": "User Management → Designation",
+          "purpose": "Define job titles and levels for employees.",
+          "list": {"image": "images/02-people/designations.png", "route": "designations"},
+          "add": {"image": "images/02-people/designations-add.png", "route": "designations/create"},
+          "edit": {"image": "images/02-people/designations-edit.png", "list_route": "designations"},
+          "delete": {"steps": ["Soft delete like departments.", "Restore from Show Deleted."]}
+        },
+        {
+          "name": "Shifts",
+          "menu": "User Management → Shifts",
+          "purpose": "Set work hours and grace period for attendance late rules.",
+          "list": {"image": "images/02-people/shifts.png", "route": "shifts"},
+          "add": {"image": "images/02-people/shifts-add.png", "route": "shifts/create"},
+          "edit": {"image": "images/02-people/shifts-edit.png", "list_route": "shifts"},
+          "delete": {"steps": ["Delete from list if no employees depend on the shift."]}
+        },
+        {
+          "name": "Assets",
+          "menu": "User Management → Assets",
+          "purpose": "Track laptops, phones, and equipment assigned to staff.",
+          "list": {"image": "images/02-people/assets.png", "route": "assets-mgmt"},
+          "add": {"image": "images/02-people/assets-add.png", "route": "assets-mgmt/create"},
+          "edit": {"image": "images/02-people/assets-edit.png", "list_route": "assets-mgmt"},
+          "delete": {"steps": ["Mark returned instead of delete when possible.", "Admin can remove asset record from edit screen."]}
+        },
+        {
+          "name": "Clients",
+          "menu": "Clients",
+          "purpose": "Store customer companies linked to projects.",
+          "list": {"image": "images/02-people/clients.png", "route": "clients"},
+          "add": {"image": "images/02-people/clients-add.png", "route": "clients/create"},
+          "edit": {"image": "images/02-people/clients-edit.png", "list_route": "clients"},
+          "delete": {"steps": ["Delete from client list or detail.", "Export list to CSV from list page."]}
+        },
+        {
+          "name": "Roles",
+          "menu": "User Management → Roles",
+          "purpose": "Group permissions (Staff, Admin, etc.). Pair with Permission Manager.",
+          "list": {"image": "images/02-people/roles.png", "route": "roles"},
+          "add": {"steps": ["Add role name on roles page → Save.", "Then grant modules in Permission Manager."]},
+          "edit": {"steps": ["Edit role name or description on roles page."]},
+          "delete": {"steps": ["Delete only if no users use the role."]}
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "slug": "03-attendance-leave",
+      "file": "03-attendance-leave.md",
+      "title": "Attendance & Leave",
+      "purpose": "Record daily punch in/out, request time off, approve team leave, and log timesheets.",
+      "video": "videos/03-attendance-leave/attendance-tour.webm",
+      "entities": [
+        {
+          "name": "Attendance",
+          "menu": "User Management → Attendance",
+          "purpose": "Daily punch in and punch out with optional location or face check.",
+          "list": {"image": "images/03-attendance-leave/attendance.png", "video": "videos/03-attendance-leave/attendance-tour.webm", "route": "attendance"},
+          "add": {"image": "images/03-attendance-leave/attendance-add.png", "route": "attendance/create", "steps": ["Admin: Mark Attendance.", "Pick employee, date, in/out times.", "Save."]},
+          "edit": {"image": "images/03-attendance-leave/attendance-edit.png", "list_route": "attendance", "steps": ["Admin: open record → Edit.", "Fix punch times → Save."]},
+          "delete": {"steps": ["Admin delete from attendance edit or list."]}
+        },
+        {
+          "name": "Apply leave",
+          "menu": "Leave → Apply Leave",
+          "purpose": "Request casual, sick, WFH, or other leave types.",
+          "list": {"image": "images/03-attendance-leave/leave-apply.png", "video": "videos/03-attendance-leave/leave-apply-tour.webm", "route": "leave/apply"},
+          "add": {"steps": ["Fill type, dates, reason.", "Submit → manager notified."]},
+          "edit": {"image": "images/03-attendance-leave/leave-edit.png", "list_route": "leave/my", "steps": ["My Leaves → open pending request → Edit."]},
+          "delete": {"steps": ["My Leaves → Delete while status is Pending only."]}
+        },
+        {
+          "name": "My leaves",
+          "menu": "Leave → My Leaves",
+          "purpose": "Track your leave request status.",
+          "list": {"image": "images/03-attendance-leave/leave-my.png", "route": "leave/my", "video": "videos/03-attendance-leave/leave-crud.webm"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Team leaves",
+          "menu": "Leave → Team Leaves",
+          "purpose": "Managers approve or reject team leave requests.",
+          "list": {"image": "images/03-attendance-leave/leave-team.png", "route": "leave/team"},
+          "add": null,
+          "edit": {"steps": ["Open request → Approve or Reject with comment."]},
+          "delete": null
+        },
+        {
+          "name": "Leave calendar",
+          "menu": "Leave → Calendar",
+          "purpose": "See who is off on which days.",
+          "list": {"image": "images/03-attendance-leave/leave-calendar.png", "route": "leave/calendar"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Timesheets",
+          "menu": "Project → Timesheets",
+          "purpose": "Log hours against projects separately from attendance punch.",
+          "list": {"image": "images/03-attendance-leave/timesheets.png", "route": "timesheets"},
+          "add": {"steps": ["Add row with project, task, hours.", "Submit for approval if required."]},
+          "edit": {"steps": ["Edit entry before approval."]},
+          "delete": {"steps": ["Delete draft entries from timesheet list."]}
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "slug": "04-projects-tasks",
+      "file": "04-projects-tasks.md",
+      "title": "Projects & Tasks",
+      "purpose": "Plan projects, capture requirements, assign tasks, and track status on a board.",
+      "video": "videos/04-projects/tasks-board-tour.webm",
+      "entities": [
+        {
+          "name": "Projects",
+          "menu": "Project → Projects",
+          "purpose": "Group work by client with dates, members, and status.",
+          "list": {"image": "images/04-projects/projects.png", "route": "projects"},
+          "add": {"image": "images/04-projects/projects-add.png", "route": "projects/create"},
+          "edit": {"image": "images/04-projects/projects-edit.png", "list_route": "projects"},
+          "delete": {"steps": ["Delete from project detail (admin).", "Add members after create."]}
+        },
+        {
+          "name": "Requirements",
+          "menu": "Project → Requirements",
+          "purpose": "Store specs linked to projects and tasks.",
+          "list": {"image": "images/04-projects/requirements.png", "route": "requirements"},
+          "add": {"image": "images/04-projects/requirements-add.png", "route": "requirements/create"},
+          "edit": {"image": "images/04-projects/requirements-edit.png", "list_route": "requirements"},
+          "delete": {"steps": ["Delete from requirement detail."]}
+        },
+        {
+          "name": "Tasks (list)",
+          "menu": "Project → Task",
+          "purpose": "Assign and filter work with priority and due dates.",
+          "list": {"image": "images/04-projects/tasks-list.png", "route": "tasks", "video": "videos/04-projects/tasks-crud.webm"},
+          "add": {"image": "images/04-projects/tasks-add.png", "route": "tasks/create"},
+          "edit": {"image": "images/04-projects/tasks-edit.png", "list_route": "tasks"},
+          "delete": {"steps": ["Delete from task detail.", "Comments on task detail page."]}
+        },
+        {
+          "name": "Tasks (board)",
+          "menu": "Project → Task → Board",
+          "purpose": "Drag cards between Pending, In Progress, Done.",
+          "list": {"image": "images/04-projects/tasks-board.png", "video": "videos/04-projects/tasks-board-tour.webm", "route": "tasks/board"},
+          "add": null,
+          "edit": {"steps": ["Drag card or change status dropdown."]},
+          "delete": null
+        },
+        {
+          "name": "Approvals",
+          "menu": "Approvals",
+          "purpose": "Admin: configure multi-step approval workflows.",
+          "list": {"image": "images/04-projects/approvals.png", "route": "approvals"},
+          "add": {"image": "images/04-projects/approvals-add.png", "route": "approvals/create"},
+          "edit": {"image": "images/04-projects/approvals-edit.png", "list_route": "approvals"},
+          "delete": {"steps": ["Delete workflow from approvals list."]}
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "slug": "05-work-tracking",
+      "file": "05-work-tracking.md",
+      "title": "Work Tracking",
+      "purpose": "Personal to-dos, daily activity logs, and performance appraisals.",
+      "video": "videos/05-work/my-works-tour.webm",
+      "entities": [
+        {
+          "name": "My Works",
+          "menu": "My Works",
+          "purpose": "Your internal to-do list with attachments and assignees.",
+          "list": {"image": "images/05-work/my-works.png", "video": "videos/05-work/my-works-crud.webm", "route": "my-works"},
+          "add": {"image": "images/05-work/my-works-add.png", "route": "my-works/create"},
+          "edit": {"image": "images/05-work/my-works-edit.png", "list_route": "my-works"},
+          "delete": {"steps": ["Open item → Delete.", "Export filtered list from list page."]}
+        },
+        {
+          "name": "Daily Activity",
+          "menu": "Daily Activity",
+          "purpose": "Log what you worked on each day for managers.",
+          "list": {"image": "images/05-work/daily-activity.png", "route": "daily-activity"},
+          "add": {"steps": ["Fill date, project, description → Submit."]},
+          "edit": {"image": "images/05-work/daily-activity-edit.png", "list_route": "daily-activity/list"},
+          "delete": {"steps": ["All Activities list → Delete row (if permitted)."]}
+        },
+        {
+          "name": "All Activities",
+          "menu": "Daily Activity → List",
+          "purpose": "Browse and export team daily activity.",
+          "list": {"image": "images/05-work/daily-activity-list.png", "route": "daily-activity/list"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Performance",
+          "menu": "Performance",
+          "purpose": "HR appraisal cycles and employee self-assessment.",
+          "list": {"image": "images/05-work/performance.png", "route": "performance"},
+          "add": {"image": "images/05-work/performance-add.png", "route": "performance/create"},
+          "edit": {"image": "images/05-work/performance-edit.png", "list_route": "performance"},
+          "delete": {"steps": ["HR can delete draft appraisals."]}
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "slug": "06-reports-analytics",
+      "file": "06-reports-analytics.md",
+      "title": "Reports & Analytics",
+      "purpose": "Export attendance, leave, tasks, payroll, and ask the AI assistant questions.",
+      "video": "videos/06-reports/reports-tour.webm",
+      "entities": [
+        {
+          "name": "Reports home",
+          "menu": "Reports",
+          "purpose": "Jump to any report type you have permission for.",
+          "list": {"image": "images/06-reports/reports-home.png", "route": "reports"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Employee attendance",
+          "menu": "Reports → Employee Attendance",
+          "purpose": "Per-person present, absent, late, leave summary and export.",
+          "list": {"image": "images/06-reports/attendance-employee.png", "video": "videos/06-reports/reports-tour.webm", "route": "reports/attendance-employee"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Org attendance",
+          "menu": "Reports → Attendance",
+          "purpose": "Company-wide attendance for a date range.",
+          "list": {"image": "images/06-reports/attendance-org.png", "route": "reports/attendance"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Leave report",
+          "menu": "Reports → Leaves",
+          "purpose": "Leave balances and usage.",
+          "list": {"image": "images/06-reports/leaves.png", "route": "reports/leaves"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Task assignment",
+          "menu": "Reports → Task Assignment",
+          "purpose": "Who is assigned to which tasks.",
+          "list": {"image": "images/06-reports/tasks-assignment.png", "route": "reports/tasks-assignment"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Daily activity report",
+          "menu": "Reports → Daily Activity",
+          "purpose": "Manager view of staff activity logs.",
+          "list": {"image": "images/06-reports/daily-activity.png", "route": "reports/daily-activity"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "AI Analytics",
+          "menu": "Analytics",
+          "purpose": "AI insights on operational data.",
+          "list": {"image": "images/06-reports/analytics.png", "route": "analytics"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "AI Assistant",
+          "menu": "AI Assistant",
+          "purpose": "Ask questions in plain English; get tables and exports.",
+          "list": {"image": "images/06-reports/ai-chat.png", "route": "ai-chat"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "slug": "07-communication",
+      "file": "07-communication.md",
+      "title": "Communication",
+      "purpose": "Chat with colleagues, send mail, post announcements, and schedule reminders.",
+      "video": "videos/07-communication/chats-tour.webm",
+      "entities": [
+        {
+          "name": "Chats",
+          "menu": "Chats",
+          "purpose": "Direct messages and group chat with file attachments.",
+          "list": {"image": "images/07-communication/chats.png", "video": "videos/07-communication/chats-tour.webm", "route": "chats/app"},
+          "add": {"steps": ["Start DM or create group (admin)."]},
+          "edit": {"steps": ["Edit or delete your own messages."]},
+          "delete": {"steps": ["Delete message from chat menu."]}
+        },
+        {
+          "name": "Mail",
+          "menu": "Mail",
+          "purpose": "Send email via SMTP from the app.",
+          "list": {"image": "images/07-communication/mail.png", "route": "mail"},
+          "add": {"steps": ["Compose new mail on mail page."]},
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "SendGrid",
+          "menu": "SendGrid",
+          "purpose": "API bulk email (admin).",
+          "list": {"image": "images/07-communication/sendgrid.png", "route": "sendgrid"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "WhatsApp",
+          "menu": "WhatsApp",
+          "purpose": "WhatsApp integration (admin).",
+          "list": {"image": "images/07-communication/whatsapp.png", "route": "whatsapp"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Announcements",
+          "menu": "Announcements",
+          "purpose": "Company news on dashboard and email.",
+          "list": {"image": "images/07-communication/announcements.png", "route": "announcements", "video": "videos/07-communication/announcements-crud.webm"},
+          "add": {"image": "images/07-communication/announcements-add.png", "route": "announcements/create"},
+          "edit": {"image": "images/07-communication/announcements-edit.png", "list_route": "announcements"},
+          "delete": {"steps": ["Delete from announcements list."]}
+        },
+        {
+          "name": "Reminders",
+          "menu": "Settings → Reminders",
+          "purpose": "Scheduled email campaigns and templates.",
+          "list": {"image": "images/07-communication/reminders.png", "route": "reminders"},
+          "add": {"steps": ["Create template or schedule.", "Bulk send or import CSV."]},
+          "edit": {"steps": ["Edit schedule or template from list."]},
+          "delete": {"steps": ["Delete reminder or template from list."]}
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "slug": "08-finance",
+      "file": "08-finance.md",
+      "title": "Finance",
+      "purpose": "Payroll, expense claims, and recruitment.",
+      "video": "videos/08-finance/expenses-tour.webm",
+      "entities": [
+        {
+          "name": "Payslips",
+          "menu": "Payroll → Payslips",
+          "purpose": "View salary slips.",
+          "list": {"image": "images/08-finance/payroll-payslips.png", "route": "payroll/payslips"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Pay structures",
+          "menu": "Payroll → Pay Structures",
+          "purpose": "Salary templates per employee.",
+          "list": {"image": "images/08-finance/payroll-structures.png", "route": "payroll/structures"},
+          "add": {"image": "images/08-finance/payroll-structure-add.png", "route": "payroll/structure/create"},
+          "edit": {"image": "images/08-finance/payroll-structure-edit.png", "list_route": "payroll/structures"},
+          "delete": {"steps": ["Remove structure if not in use."]}
+        },
+        {
+          "name": "Generate payroll",
+          "menu": "Payroll → Generate",
+          "purpose": "Run payroll for a month.",
+          "list": {"image": "images/08-finance/payroll-generate.png", "route": "payroll/generate"},
+          "add": {"steps": ["Select period → preview → confirm."]},
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Expenses",
+          "menu": "Expenses",
+          "purpose": "Submit reimbursement claims with receipts.",
+          "list": {"image": "images/08-finance/expenses.png", "video": "videos/08-finance/expenses-crud.webm", "route": "expenses"},
+          "add": {"image": "images/08-finance/expenses-add.png", "route": "expenses/create"},
+          "edit": {"image": "images/08-finance/expenses-edit.png", "list_route": "expenses"},
+          "delete": {"steps": ["Delete draft before approval.", "Manager approves from Pending."]}
+        },
+        {
+          "name": "Pending expenses",
+          "menu": "Expenses → Pending",
+          "purpose": "Manager queue to approve or reject.",
+          "list": {"image": "images/08-finance/expenses-pending.png", "route": "expenses/pending"},
+          "add": null,
+          "edit": {"steps": ["Approve, Reject, or mark Reimbursed."]},
+          "delete": null
+        },
+        {
+          "name": "Recruitment",
+          "menu": "Recruitment",
+          "purpose": "Job posts and candidate pipeline.",
+          "list": {"image": "images/08-finance/recruitment.png", "route": "recruitment"},
+          "add": {"image": "images/08-finance/recruitment-add.png", "route": "recruitment/create-job"},
+          "edit": {"image": "images/08-finance/recruitment-edit.png", "list_route": "recruitment"},
+          "delete": {"steps": ["Close or delete job posting.", "Update candidate status on profile."]}
+        }
+      ]
+    },
+    {
+      "id": "09",
+      "slug": "09-training-coaching",
+      "file": "09-training-coaching.md",
+      "title": "Training & Coaching",
+      "purpose": "Tests, LMS courses, external training links, and coaching CRM.",
+      "video": "videos/09-training/assessment-tour.webm",
+      "entities": [
+        {
+          "name": "Training & Assessment",
+          "menu": "Training & Assessment",
+          "purpose": "Create tests and review candidate submissions.",
+          "list": {"image": "images/09-training/assessment.png", "video": "videos/09-training/assessment-tour.webm", "route": "training-assessment"},
+          "add": {"image": "images/09-training/assessment-add.png", "route": "training-assessment/create"},
+          "edit": {"image": "images/09-training/assessment-edit.png", "list_route": "training-assessment"},
+          "delete": {"steps": ["Delete assessment from dashboard."]}
+        },
+        {
+          "name": "My Training",
+          "menu": "Training → My Training",
+          "purpose": "Courses assigned to you as a learner.",
+          "list": {"image": "images/09-training/my-training.png", "route": "training/my-training"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "LMS Admin",
+          "menu": "Training LMS Admin",
+          "purpose": "Create modules, topics, enrollments.",
+          "list": {"image": "images/09-training/lms-admin.png", "route": "training-lms-admin"},
+          "add": {"image": "images/09-training/lms-module-add.png", "route": "training-lms-admin/module/create"},
+          "edit": null,
+          "delete": {"steps": ["Delete module or topic from admin lists."]}
+        },
+        {
+          "name": "External training",
+          "menu": "External Training",
+          "purpose": "Track third-party video or URL courses.",
+          "list": {"image": "images/09-training/external-training.png", "route": "external-training"},
+          "add": {"image": "images/09-training/external-training-add.png", "route": "external-training/create"},
+          "edit": {"image": "images/09-training/external-training-edit.png", "list_route": "external-training"},
+          "delete": {"steps": ["Delete from external training list."]}
+        },
+        {
+          "name": "Coaching",
+          "menu": "Coaching",
+          "purpose": "Coaching business: clients, sessions, billing.",
+          "list": {"image": "images/09-training/coaching.png", "route": "coaching"},
+          "add": {"steps": ["Use Coaching → Sessions → Create.", "Clients and billing in sub-menus."]},
+          "edit": null,
+          "delete": null
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "slug": "10-administration",
+      "file": "10-administration.md",
+      "title": "Administration",
+      "purpose": "System settings, permissions, email, holidays, activity log, and database tools.",
+      "video": "videos/10-admin/settings-tour.webm",
+      "entities": [
+        {
+          "name": "System settings",
+          "menu": "Settings → System Settings",
+          "purpose": "Company info, attendance rules, leave, security, AI keys.",
+          "list": {"image": "images/10-admin/settings.png", "video": "videos/10-admin/settings-tour.webm", "route": "settings"},
+          "add": null,
+          "edit": {"steps": ["Change tab → edit values → Save."]},
+          "delete": null
+        },
+        {
+          "name": "Permissions",
+          "menu": "Settings → Permission Manager",
+          "purpose": "Tick which modules each role can access.",
+          "list": {"image": "images/10-admin/permissions.png", "route": "permissions"},
+          "add": null,
+          "edit": {"steps": ["Select role → tick modules → Save."]},
+          "delete": null
+        },
+        {
+          "name": "Email settings",
+          "menu": "Settings → Email Settings",
+          "purpose": "SMTP for leave, task, and reminder emails.",
+          "list": {"image": "images/10-admin/email-settings.png", "route": "email-settings"},
+          "add": null,
+          "edit": {"steps": ["Update SMTP → Test email → Save."]},
+          "delete": null
+        },
+        {
+          "name": "Activity log",
+          "menu": "Activity",
+          "purpose": "Audit who did what and when.",
+          "list": {"image": "images/10-admin/activity.png", "route": "activity"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Holidays",
+          "menu": "Settings → Holidays",
+          "purpose": "Company holidays for attendance reports.",
+          "list": {"image": "images/10-admin/holidays.png", "route": "settings/holidays"},
+          "add": {"image": "images/10-admin/holidays-add.png", "route": "settings/holidays/create"},
+          "edit": {"image": "images/10-admin/holidays-edit.png", "list_route": "settings/holidays"},
+          "delete": {"steps": ["Delete holiday from list."]}
+        },
+        {
+          "name": "Leave types",
+          "menu": "Settings → Leave Types",
+          "purpose": "Casual, sick, and other leave categories.",
+          "list": {"image": "images/10-admin/leave-types.png", "route": "settings/leave-types"},
+          "add": {"image": "images/10-admin/leave-types-add.png", "route": "settings/leave-types/create"},
+          "edit": {"image": "images/10-admin/leave-types-edit.png", "list_route": "settings/leave-types"},
+          "delete": {"steps": ["Soft delete; restore from Show Deleted."]}
+        },
+        {
+          "name": "API integrations",
+          "menu": "Settings → API Integrations",
+          "purpose": "Store Twilio, Azure, and other API keys.",
+          "list": {"image": "images/10-admin/api-integrations.png", "route": "api-integrations"},
+          "add": {"image": "images/10-admin/api-integrations-add.png", "route": "api-integrations/create"},
+          "edit": {"image": "images/10-admin/api-integrations-edit.png", "list_route": "api-integrations"},
+          "delete": {"steps": ["Delete integration from list."]}
+        },
+        {
+          "name": "Database manager",
+          "menu": "DB (superadmin)",
+          "purpose": "Schema tools and saved queries — use with care.",
+          "list": {"image": "images/10-admin/db.png", "route": "db"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Super Admin",
+          "menu": "Super Admin",
+          "purpose": "Elevated system tools.",
+          "list": {"image": "images/10-admin/superadmin.png", "route": "superadmin"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        }
+      ]
+    }
+  ]
+}

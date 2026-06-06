@@ -79,14 +79,13 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Type</label>
-          <?php $ct = isset($client->client_type)?(string)$client->client_type:'company'; ?>
-          <select name="client_type" class="form-select">
-            <option value="company" <?php echo $ct==='company'?'selected':''; ?>>Company</option>
-            <option value="individual" <?php echo $ct==='individual'?'selected':''; ?>>Individual</option>
-            <option value="government" <?php echo $ct==='government'?'selected':''; ?>>Government</option>
-            <option value="startup" <?php echo $ct==='startup'?'selected':''; ?>>Startup</option>
-            <option value="other" <?php echo $ct==='other'?'selected':''; ?>>Other</option>
-          </select>
+          <?php $ct = isset($client->client_type) ? (string) $client->client_type : 'company'; ?>
+          <?php $this->load->view('partials/module_type_select', array(
+            'field_name' => 'client_type',
+            'options' => isset($client_types) ? $client_types : array(),
+            'current' => $ct,
+            'required' => true,
+          )); ?>
         </div>
         <div class="col-md-4">
           <label class="form-label">Status</label>
