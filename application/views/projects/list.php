@@ -6,6 +6,9 @@
     <p class="text-muted small mb-0">Manage all your projects</p>
   </div>
   <div class="d-flex gap-2 mt-2 mt-sm-0">
+    <?php if (function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
+    <a class="btn btn-outline-secondary btn-sm" title="Portfolio Matrix" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-1"></i><span class="d-none d-sm-inline">Matrix</span></a>
+    <?php endif; ?>
     <?php if(function_exists('has_module_access') && (has_module_access('projects_add') || has_module_access('projects'))): ?>
     <a class="btn btn-primary btn-sm" title="Create" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">New Project</span></a>
     <?php endif; ?>

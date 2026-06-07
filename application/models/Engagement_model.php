@@ -45,6 +45,64 @@ class Engagement_model extends CI_Model
         return (int) $this->db->insert_id();
     }
 
+    public function list_release_notes($release_id)
+    {
+        if (!$this->db->table_exists('project_release_notes')) {
+            return array();
+        }
+        return $this->db->where('release_id', (int) $release_id)
+            ->order_by('sort_order', 'ASC')
+            ->order_by('id', 'ASC')
+            ->get('project_release_notes')
+            ->result();
+    }
+
+    public function save_release_notes($release_id, array $points)
+    {
+        if (!$this->db->table_exists('project_release_notes')) {
+            return;
+        }
+        $release_id = (int) $release_id;
+        $this->db->where('release_id', $release_id)->delete('project_release_notes');
+        $order = 0;
+        foreach ($points as $point) {
+            $text = trim((string) $point);
+            if ($text === '') {
+                continue;
+            }
+            $this->db->insert('project_release_notes', array(
+                'release_id' => $release_id,
+                'sort_order' => $order++,
+                'point_text' => mb_substr($text, 0, 500),
+                'source_type' => 'manual',
+                'source_id' => null,
+                'created_at' => date('Y-m-d H:i:s'),
+            ));
+        }
+    }
+
+    public function mark_release_notes_sent($release_id)
+    {
+        if (!$this->db->table_exists('project_releases')) {
+            return;
+        }
+        if (!schema_table_has_column($this->db, 'project_releases', 'notes_sent_at')) {
+            return;
+        }
+        $this->db->where('id', (int) $release_id)->update('project_releases', array(
+            'notes_sent_at' => date('Y-m-d H:i:s'),
+        ));
+    }
+
+    public function get_release_with_project($id)
+    {
+        $this->db->select('r.*, p.name AS project_name');
+        $this->db->from('project_releases r');
+        $this->db->join('projects p', 'p.id = r.project_id', 'left');
+        $this->db->where('r.id', (int) $id);
+        return $this->db->get()->row();
+    }
+
     public function list_kb($filters = array())
     {
         $this->db->select('k.*, u.name AS author_name');

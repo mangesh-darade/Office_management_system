@@ -32,6 +32,52 @@ class Projects extends CI_Controller {
         $this->load->view('projects/list', ['projects' => $projects]);
     }
 
+    public function matrix()
+    {
+        require_module_access(array('projects', 'projects_list', 'projects_matrix'), true);
+        $this->load->helper(array('action_priority_matrix', 'project_matrix'));
+        $this->load->model('Status_model', 'statuses');
+
+        $user_id = (int) $this->session->userdata('user_id');
+        $role_id = (int) $this->session->userdata('role_id');
+        $filters = project_matrix_parse_filters($this->input);
+
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('projects_view_all');
+        $group_filters = get_user_group_filter($user_id, $role_id);
+        if (!$can_view_all) {
+            $projects = $this->Project_model->all($group_filters);
+        } else {
+            $projects = $this->Project_model->all(array());
+        }
+
+        $projects = project_matrix_enrich_projects($this->db, $projects);
+        $projects = project_matrix_filter_projects($projects, $filters, $this->db);
+        $matrix_columns = project_matrix_build_columns($projects);
+
+        $status_rows = $this->statuses->get_by_type('projects', true);
+        $status_map = array();
+        foreach ($status_rows as $s) {
+            $status_map[(string) $s->code] = (string) $s->name;
+        }
+
+        $clients = array();
+        if ($this->db->table_exists('clients') && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $clients = $this->db->select('id, company_name')->order_by('company_name', 'ASC')->get('clients')->result();
+        }
+
+        $this->load->view('projects/matrix', array(
+            'projects'         => $projects,
+            'matrix_columns'   => $matrix_columns,
+            'filters'          => $filters,
+            'status_map'       => $status_map,
+            'status_rows'      => $status_rows,
+            'clients'          => $clients,
+            'can_view_works'   => project_matrix_can_view_works(),
+            'can_view_tasks'   => project_matrix_can_view_tasks(),
+        ));
+    }
+
     // GET /projects/create, POST /projects/create
     public function create()
     {

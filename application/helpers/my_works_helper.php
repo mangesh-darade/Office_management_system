@@ -235,3 +235,95 @@ if (!function_exists('my_works_safe_redirect')) {
         return site_url($url);
     }
 }
+
+if (!function_exists('my_works_matrix_quadrants')) {
+    function my_works_matrix_quadrants()
+    {
+        if (!function_exists('apm_quadrants')) {
+            $CI =& get_instance();
+            $CI->load->helper('action_priority_matrix');
+        }
+        return apm_quadrants();
+    }
+}
+
+if (!function_exists('my_works_matrix_high_effort')) {
+    function my_works_matrix_high_effort($row)
+    {
+        if ((int) (isset($row->is_urgent) ? $row->is_urgent : 0) === 1) {
+            return true;
+        }
+        if (isset($row->status) && (string) $row->status === 'in_progress') {
+            return true;
+        }
+        if (!empty($row->task_id)) {
+            return true;
+        }
+        if (!empty($row->attachment_stored)) {
+            return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('my_works_matrix_quadrant_for_row')) {
+    function my_works_matrix_quadrant_for_row($row)
+    {
+        if (!function_exists('apm_quadrant_from_axes')) {
+            $CI =& get_instance();
+            $CI->load->helper('action_priority_matrix');
+        }
+        $high_impact = (int) (isset($row->is_important) ? $row->is_important : 0) === 1;
+        return apm_quadrant_from_axes($high_impact, my_works_matrix_high_effort($row));
+    }
+}
+
+if (!function_exists('my_works_build_matrix_columns')) {
+    /**
+     * @param object[] $rows
+     * @param bool $exclude_closed Skip closed items when no status filter is applied
+     */
+    function my_works_build_matrix_columns(array $rows, $exclude_closed = true)
+    {
+        $defs = my_works_matrix_quadrants();
+        $columns = array();
+        foreach (array_keys($defs) as $key) {
+            $columns[$key] = array();
+        }
+        foreach ($rows as $row) {
+            if ($exclude_closed && isset($row->status) && (string) $row->status === 'closed') {
+                continue;
+            }
+            $q = my_works_matrix_quadrant_for_row($row);
+            if (!isset($columns[$q])) {
+                $q = 'fill_ins';
+            }
+            $columns[$q][] = $row;
+        }
+        return $columns;
+    }
+}
+
+if (!function_exists('my_works_matrix_flags_from_quadrant')) {
+    function my_works_matrix_flags_from_quadrant($quadrant)
+    {
+        $map = array(
+            'quick_wins'       => array('is_important' => 1, 'is_urgent' => 0),
+            'major_projects'   => array('is_important' => 1, 'is_urgent' => 1),
+            'fill_ins'         => array('is_important' => 0, 'is_urgent' => 0),
+            'hard_slogs'       => array('is_important' => 0, 'is_urgent' => 1),
+        );
+        $quadrant = (string) $quadrant;
+        return isset($map[$quadrant]) ? $map[$quadrant] : null;
+    }
+}
+
+if (!function_exists('my_works_can_view_projects')) {
+    function my_works_can_view_projects()
+    {
+        if (!function_exists('has_module_access')) {
+            return false;
+        }
+        return has_module_access('projects') || has_module_access('projects_list');
+    }
+}

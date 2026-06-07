@@ -48,7 +48,11 @@
             paging: true,
             searching: true,
             lengthChange: true,
-            order: []
+            order: [],
+            language: {
+              emptyTable: 'No data available',
+              zeroRecords: 'No matching records found'
+            }
           };
           if (col !== null && col !== '') {
             var cidx = parseInt(col, 10);

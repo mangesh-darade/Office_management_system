@@ -2,12 +2,14 @@
   $toolbar_mode = isset($view_mode) ? $view_mode : 'list';
   $listUrl = site_url('my-works?view=list');
   $boardUrl = site_url('my-works?view=board');
+  $matrixUrl = site_url('my-works?view=matrix');
   if (!empty($_SERVER['QUERY_STRING'])) {
     $qs = preg_replace('/(^|&)view=[^&]*/', '', (string) $_SERVER['QUERY_STRING']);
     $qs = ltrim($qs, '&');
     if ($qs !== '') {
       $listUrl .= '&' . $qs;
       $boardUrl .= '&' . $qs;
+      $matrixUrl .= '&' . $qs;
     }
   }
 ?>
@@ -34,6 +36,9 @@
           </a>
           <a class="btn <?php echo $toolbar_mode === 'board' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($boardUrl); ?>">
             <i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Board</span>
+          </a>
+          <a class="btn <?php echo $toolbar_mode === 'matrix' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($matrixUrl); ?>" title="Eisenhower priority matrix">
+            <i class="bi bi-grid-3x3-gap me-1"></i><span class="d-none d-sm-inline">Matrix</span>
           </a>
         </div>
         <?php if (!empty($can_add)): ?>

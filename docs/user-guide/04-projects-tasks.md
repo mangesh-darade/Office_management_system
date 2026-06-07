@@ -11,7 +11,7 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 ## Projects
 
-**Purpose:** Group work by client with dates, members, and status.
+**Purpose:** Group work by client with dates, members, and status; portfolio matrix by delivery and timeline risk.
 
 **Menu:** Project → Projects
 
@@ -29,6 +29,11 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 ![Edit screen — Projects](images/04-projects/projects-edit.png)
 
 
+**Steps:**
+
+1. Open project from list or Portfolio Matrix (projects/matrix).
+2. Matrix quadrants: On Track, At Risk, Stalled, Pipeline & Done.
+3. Click project card for detail; use My Works / Tasks shortcuts on card.
 
 ### Delete / remove
 
@@ -36,6 +41,22 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 1. Delete from project detail (admin).
 2. Add members after create.
+
+---
+
+## Projects (Portfolio Matrix)
+
+**Purpose:** 4-quadrant Action Priority Matrix (Effort × Impact): Quick Wins, Major Projects, Fill-ins, Hard Slogs.
+
+**Menu:** Project → Portfolio Matrix
+
+### Edit (update existing)
+
+**Steps:**
+
+1. Filter by status, client, or search.
+2. Click project name → project detail.
+3. Open linked My Works or Task board from card.
 
 ---
 
@@ -152,7 +173,7 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 ## Releases
 
-**Purpose:** Track project version releases and go-live dates; earns reward points when marked released.
+**Purpose:** Track project version releases, document release note points, and email stakeholders via Reminders when a release goes live.
 
 **Menu:** Project → Releases
 
@@ -161,13 +182,17 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 **Steps:**
 
 1. Pick project and version.
-2. Set planned date → Save.
+2. Add release note points (what is included).
+3. Set planned date → Save.
 
 ### Edit (update existing)
 
 **Steps:**
 
-1. Open release → Edit status to Released when live.
+1. Open release → Add or edit release note points.
+2. Review related defects linked to this release (Add to notes).
+3. Select recipients and Send notes now, or check Send when I save.
+4. Set status to Released when live (earns reward points).
 
 ---
 

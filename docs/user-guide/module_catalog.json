@@ -212,11 +212,20 @@
         {
           "name": "Projects",
           "menu": "Project → Projects",
-          "purpose": "Group work by client with dates, members, and status.",
+          "purpose": "Group work by client with dates, members, and status; portfolio matrix by delivery and timeline risk.",
           "list": {"image": "images/04-projects/projects.png", "route": "projects"},
           "add": {"image": "images/04-projects/projects-add.png", "route": "projects/create"},
-          "edit": {"image": "images/04-projects/projects-edit.png", "list_route": "projects"},
+          "edit": {"image": "images/04-projects/projects-edit.png", "list_route": "projects", "steps": ["Open Portfolio Matrix (projects/matrix).", "Quadrants: Quick Wins, Major Projects, Fill-ins, Hard Slogs.", "Click project name → project detail."]},
           "delete": {"steps": ["Delete from project detail (admin).", "Add members after create."]}
+        },
+        {
+          "name": "Projects (Portfolio Matrix)",
+          "menu": "Project → Portfolio Matrix",
+          "purpose": "4-quadrant Action Priority Matrix (Effort × Impact): Quick Wins, Major Projects, Fill-ins, Hard Slogs.",
+          "list": {"route": "projects/matrix"},
+          "add": null,
+          "edit": {"steps": ["Filter by status, client, or search.", "Click project name → project detail.", "Open linked My Works or Task board from card."]},
+          "delete": null
         },
         {
           "name": "Requirements",
@@ -257,10 +266,10 @@
         {
           "name": "Releases",
           "menu": "Project → Releases",
-          "purpose": "Track project version releases and go-live dates; earns reward points when marked released.",
+          "purpose": "Track project version releases, document release note points, and email stakeholders via Reminders when a release goes live.",
           "list": {"route": "releases"},
-          "add": {"route": "releases/create", "steps": ["Pick project and version.", "Set planned date → Save."]},
-          "edit": {"list_route": "releases", "steps": ["Open release → Edit status to Released when live."]},
+          "add": {"route": "releases/create", "steps": ["Pick project and version.", "Add release note points (what is included).", "Set planned date → Save."]},
+          "edit": {"list_route": "releases", "steps": ["Open release → Add or edit release note points.", "Review related defects linked to this release (Add to notes).", "Select recipients and Send notes now, or check Send when I save.", "Set status to Released when live (earns reward points)."]},
           "delete": null
         },
         {
@@ -285,10 +294,10 @@
         {
           "name": "My Works",
           "menu": "My Works",
-          "purpose": "Your internal to-do list with attachments and assignees.",
+          "purpose": "Your internal to-do list with attachments, assignees, and Eisenhower priority matrix by project.",
           "list": {"image": "images/05-work/my-works.png", "video": "videos/05-work/my-works-crud.webm", "route": "my-works"},
           "add": {"image": "images/05-work/my-works-add.png", "route": "my-works/create"},
-          "edit": {"image": "images/05-work/my-works-edit.png", "list_route": "my-works"},
+          "edit": {"image": "images/05-work/my-works-edit.png", "list_route": "my-works", "steps": ["List, Board, or Matrix view.", "Matrix uses Action Priority (Effort × Impact); drag to reprioritize.", "Mark Important/Urgent on form; click project for project detail."]},
           "delete": {"steps": ["Open item → Delete.", "Export filtered list from list page."]}
         },
         {

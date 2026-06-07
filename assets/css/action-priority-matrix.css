@@ -1,0 +1,206 @@
+/* Action-Priority Matrix — Effort × Impact */
+.apm-sheet {
+  background: #fff;
+  border: 1px solid #94a3b8;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.apm-title-bar {
+  background: linear-gradient(180deg, #e8eef4 0%, #dde5ed 100%);
+  border-bottom: 2px solid #64748b;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1e293b;
+  text-align: center;
+}
+
+.apm-table {
+  display: grid;
+  grid-template-columns: 3.25rem 1fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
+  width: 100%;
+}
+
+.apm-corner {
+  grid-column: 1;
+  grid-row: 1;
+  background: #64748b;
+  border-right: 1px solid #475569;
+  border-bottom: 1px solid #475569;
+  min-height: 2rem;
+}
+
+.apm-axis-x {
+  background: #64748b;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 0.5rem 0.35rem;
+  border-right: 1px solid #475569;
+  border-bottom: 1px solid #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apm-axis-x-low { grid-column: 2; grid-row: 1; }
+.apm-axis-x-high { grid-column: 3; grid-row: 1; border-right: none; }
+
+.apm-axis-y {
+  background: #64748b;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.2rem;
+  border-right: 1px solid #475569;
+  border-bottom: 1px solid #475569;
+}
+
+.apm-axis-y-high { grid-column: 1; grid-row: 2; }
+.apm-axis-y-low { grid-column: 1; grid-row: 3; border-bottom: none; }
+
+.apm-quadrant {
+  border-right: 1px solid #94a3b8;
+  border-bottom: 1px solid #94a3b8;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+}
+
+.apm-q-quick_wins { grid-column: 2; grid-row: 2; }
+.apm-q-major_projects { grid-column: 3; grid-row: 2; border-right: none; }
+.apm-q-fill_ins { grid-column: 2; grid-row: 3; border-bottom: none; }
+.apm-q-hard_slogs { grid-column: 3; grid-row: 3; border-right: none; border-bottom: none; }
+
+.apm-tone-green { background: #c3e6cb; }
+.apm-tone-yellow { background: #ffeeba; }
+.apm-tone-yellow-soft { background: #fff3cd; }
+.apm-tone-red { background: #f5c6cb; }
+
+.apm-quadrant-head {
+  padding: 0.45rem 0.6rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1e293b;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apm-quadrant-head .apm-count {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+
+.apm-quadrant-body {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  overflow-y: auto;
+  max-height: min(46vh, 380px);
+}
+
+.apm-quadrant-body.apm-drop-target {
+  outline: 2px dashed #2563eb;
+  outline-offset: -3px;
+}
+
+.apm-item {
+  display: block;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.8125rem;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.apm-item:hover {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+}
+
+.apm-item-title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.apm-item-title:hover {
+  color: #2563eb;
+}
+
+.apm-item-meta {
+  font-size: 0.72rem;
+  color: #475569;
+  margin-top: 0.15rem;
+}
+
+.apm-item-link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.apm-item-link:hover {
+  text-decoration: underline;
+}
+
+.apm-empty {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: center;
+  padding: 0.75rem 0.35rem;
+}
+
+.apm-item-draggable-wrap.apm-item-draggable {
+  opacity: 0.65;
+}
+
+.apm-item-draggable-wrap {
+  cursor: grab;
+}
+
+@media (max-width: 767.98px) {
+  .apm-table {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .apm-corner,
+  .apm-axis-x,
+  .apm-axis-y {
+    display: none;
+  }
+
+  .apm-quadrant {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    border-right: none;
+    border-bottom: 1px solid #94a3b8;
+    min-height: 130px;
+  }
+
+  .apm-quadrant-body {
+    max-height: none;
+  }
+}

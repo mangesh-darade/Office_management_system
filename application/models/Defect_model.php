@@ -106,6 +106,18 @@ class Defect_model extends CI_Model
         return $this->db->order_by('id', 'DESC')->get()->result();
     }
 
+    public function list_by_release($release_id)
+    {
+        if (!$this->db->table_exists('project_defects')) {
+            return array();
+        }
+        $this->db->select('d.id, d.defect_number, d.title, d.status, d.severity');
+        $this->db->from('project_defects d');
+        $this->db->where('d.release_id', (int) $release_id);
+        $this->db->order_by('d.id', 'ASC');
+        return $this->db->get()->result();
+    }
+
     public function task_options($project_id = null)
     {
         if (!$this->db->table_exists('tasks')) {

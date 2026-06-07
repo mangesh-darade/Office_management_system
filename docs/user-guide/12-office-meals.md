@@ -71,7 +71,7 @@ Order breakfast and lunch, manage the meal calendar, provider counts, change req
 
 ## Meal Settings
 
-**Purpose:** Cut-off times, max breakfast plates, weekly menu template, provider contact, dashboard announcement toggle.
+**Purpose:** Cut-off times, max breakfast plates, weekly menu template, email notifications, dashboard announcement toggle.
 
 **Menu:** Office Meals → Settings
 
@@ -87,7 +87,7 @@ Order breakfast and lunch, manage the meal calendar, provider counts, change req
 
 1. Set breakfast and lunch cut-offs.
 2. Edit Mon–Sun weekly menu.
-3. Toggle dashboard announcement and set provider contact if needed.
+3. Set provider contact and dashboard announcement toggle.
 4. Save settings.
 5. Apply weekly menu to calendar.
 

@@ -11,7 +11,7 @@ Personal to-dos, daily activity logs, and performance appraisals.
 
 ## My Works
 
-**Purpose:** Your internal to-do list with attachments and assignees.
+**Purpose:** Your internal to-do list with attachments, assignees, and Eisenhower priority matrix by project.
 
 **Menu:** My Works
 
@@ -32,6 +32,11 @@ Personal to-dos, daily activity logs, and performance appraisals.
 ![Edit screen — My Works](images/05-work/my-works-edit.png)
 
 
+**Steps:**
+
+1. List, Board, or Matrix view.
+2. Matrix uses Action Priority (Effort × Impact); drag to reprioritize.
+3. Mark Important/Urgent on form; click project for project detail.
 
 ### Delete / remove
 

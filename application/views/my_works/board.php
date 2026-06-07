@@ -40,6 +40,9 @@
               <div class="mw-board-card-wrap" draggable="true" data-id="<?php echo (int) $r->id; ?>" data-status="<?php echo htmlspecialchars($r->status); ?>">
                 <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-board-card <?php echo $borderClass; ?>">
                   <div class="title"><?php echo htmlspecialchars($r->title); ?></div>
+                  <?php if (!empty($r->project_name)): ?>
+                    <span class="mw-chip mw-chip-project" style="font-size:0.65rem;"><i class="bi bi-folder2-open"></i><?php echo htmlspecialchars($r->project_name); ?></span>
+                  <?php endif; ?>
                   <?php if (!empty($r->work_type) || !empty($r->client_name)): ?>
                   <div class="d-flex flex-wrap gap-1 mb-1">
                     <?php if (!empty($r->work_type)): ?><span class="mw-chip mw-chip-type" style="font-size:0.65rem;"><i class="bi bi-tag"></i><?php echo htmlspecialchars(my_works_type_label($r->work_type)); ?></span><?php endif; ?>

@@ -14,6 +14,11 @@ if (!function_exists('engagement_schema_ensure')) {
         }
         $done = true;
 
+        if (!function_exists('schema_table_has_column')) {
+            $CI =& get_instance();
+            $CI->load->helper('schema_columns');
+        }
+
         if (!$db->table_exists('project_releases')) {
             $db->query("CREATE TABLE `project_releases` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -30,6 +35,26 @@ if (!function_exists('engagement_schema_ensure')) {
                 PRIMARY KEY (`id`),
                 KEY `idx_pr_project` (`project_id`),
                 KEY `idx_pr_status` (`status`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+
+        if ($db->table_exists('project_releases')) {
+            if (!schema_table_has_column($db, 'project_releases', 'notes_sent_at')) {
+                $db->query("ALTER TABLE `project_releases` ADD COLUMN `notes_sent_at` datetime DEFAULT NULL AFTER `released_at`");
+            }
+        }
+
+        if (!$db->table_exists('project_release_notes')) {
+            $db->query("CREATE TABLE `project_release_notes` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `release_id` int(11) NOT NULL,
+                `sort_order` int(11) NOT NULL DEFAULT 0,
+                `point_text` varchar(500) NOT NULL,
+                `source_type` varchar(20) DEFAULT 'manual',
+                `source_id` int(11) DEFAULT NULL,
+                `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_prn_release` (`release_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
 

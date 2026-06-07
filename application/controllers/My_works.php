@@ -162,11 +162,19 @@ class My_works extends CI_Controller
         require_module_access(array('my_works_list', 'my_works'), true);
         $filters = $this->_sanitize_filters($this->_parse_filters());
         $view_mode = trim((string) $this->input->get('view'));
-        if (!in_array($view_mode, array('list', 'board'), true)) {
+        if (!in_array($view_mode, array('list', 'board', 'matrix'), true)) {
             $view_mode = 'list';
         }
         $data = $this->_list_view_data($filters, $view_mode);
-        $this->load->view($view_mode === 'board' ? 'my_works/board' : 'my_works/list', $data);
+        if ($view_mode === 'board') {
+            $this->load->view('my_works/board', $data);
+            return;
+        }
+        if ($view_mode === 'matrix') {
+            $this->load->view('my_works/matrix', $data);
+            return;
+        }
+        $this->load->view('my_works/list', $data);
     }
 
     public function export()
@@ -448,5 +456,46 @@ class My_works extends CI_Controller
         $this->session->set_flashdata('success', 'Status updated.');
         $redirect = my_works_safe_redirect($this->input->post('redirect'), 'my-works/' . $id);
         redirect($redirect);
+    }
+
+    public function update_matrix()
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $id = (int) $this->input->post('id');
+        $quadrant = trim((string) $this->input->post('quadrant'));
+        $flags = my_works_matrix_flags_from_quadrant($quadrant);
+        if (!$flags) {
+            show_error('Invalid quadrant.', 400);
+        }
+        $item = $this->my_works->find($id);
+        if (!$item) {
+            show_404();
+        }
+        if (!$this->_can_update_status($item)) {
+            show_error('Access denied.', 403);
+        }
+        $prev_q = my_works_matrix_quadrant_for_row($item);
+        $this->my_works->update($id, $flags);
+        if ($prev_q !== $quadrant) {
+            $defs = my_works_matrix_quadrants();
+            $from = isset($defs[$prev_q]['label']) ? $defs[$prev_q]['label'] : $prev_q;
+            $to = isset($defs[$quadrant]['label']) ? $defs[$quadrant]['label'] : $quadrant;
+            $this->my_works->log_activity($id, $this->_current_user_id(), 'priority', $from . ' → ' . $to);
+        }
+        $this->_clear_dashboard_cache();
+        if ($this->input->is_ajax_request()) {
+            $this->output->set_content_type('application/json')->set_output(json_encode(array(
+                'ok'       => true,
+                'quadrant' => $quadrant,
+                'urgent'   => $flags['is_urgent'],
+                'important'=> $flags['is_important'],
+            )));
+            return;
+        }
+        $this->session->set_flashdata('success', 'Priority updated.');
+        redirect('my-works?view=matrix');
     }
 }

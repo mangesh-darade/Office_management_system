@@ -3,7 +3,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Timesheet_model extends CI_Model {
     public function __construct(){ parent::__construct(); $this->load->database();
-        $this->load->helper('schema_columns'); $this->load->helper('hierarchy_filter'); }
+        $this->load->helper(array('schema_columns', 'hierarchy_filter', 'timesheet_schema'));
+        timesheet_schema_ensure($this->db);
+    }
 
     public function get_user_timesheet($user_id, $week_start){
         $visible = get_accessible_hierarchy_user_ids();
@@ -140,8 +142,8 @@ class Timesheet_model extends CI_Model {
                           p.id as project_id, p.name as project_name,
                           u.id as user_id, u.email as user_email,
                           SUM(te.hours) as total_hours,
-                          SUM(CASE WHEN te.billable = 1 THEN te.hours ELSE 0 END) as billable_hours,
-                          COUNT(te.id) as entry_count')
+                          ' . timesheet_billable_hours_sql($this->db, 'te') . ',
+                          COUNT(te.id) as entry_count', false)
                  ->from('timesheet_entries te')
                  ->join('timesheets ts', 'ts.id = te.timesheet_id', 'left')
                  ->join('users u', 'u.id = ts.user_id', 'left')
@@ -174,9 +176,9 @@ class Timesheet_model extends CI_Model {
     public function get_project_analytics($project_id = null, $start_date = null, $end_date = null){
         $this->db->select('p.id as project_id, p.name as project_name,
                           SUM(te.hours) as total_hours,
-                          SUM(CASE WHEN te.billable = 1 THEN te.hours ELSE 0 END) as billable_hours,
+                          ' . timesheet_billable_hours_sql($this->db, 'te') . ',
                           COUNT(DISTINCT ts.user_id) as user_count,
-                          COUNT(te.id) as entry_count')
+                          COUNT(te.id) as entry_count', false)
                  ->from('timesheet_entries te')
                  ->join('timesheets ts', 'ts.id = te.timesheet_id', 'left')
                  ->join('projects p', 'p.id = te.project_id', 'left')
@@ -207,10 +209,10 @@ class Timesheet_model extends CI_Model {
     public function get_user_analytics($user_id = null, $start_date = null, $end_date = null){
         $this->db->select('u.id as user_id, u.email as user_email,
                           SUM(te.hours) as total_hours,
-                          SUM(CASE WHEN te.billable = 1 THEN te.hours ELSE 0 END) as billable_hours,
+                          ' . timesheet_billable_hours_sql($this->db, 'te') . ',
                           COUNT(DISTINCT te.project_id) as project_count,
                           COUNT(te.id) as entry_count,
-                          AVG(te.hours) as avg_hours_per_entry')
+                          AVG(te.hours) as avg_hours_per_entry', false)
                  ->from('timesheet_entries te')
                  ->join('timesheets ts', 'ts.id = te.timesheet_id', 'left')
                  ->join('users u', 'u.id = ts.user_id', 'left');

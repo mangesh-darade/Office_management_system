@@ -220,11 +220,13 @@ if (!function_exists('my_works_list_view_data')) {
             }
             $columns[$st][] = $row;
         }
+        $matrix_columns = my_works_build_matrix_columns($rows, ($filters['status'] === ''));
         return array(
             'rows'             => $rows,
             'filters'          => $filters,
             'stats'            => $stats,
             'columns'          => $columns,
+            'matrix_columns'   => $matrix_columns,
             'total_rows'       => $total,
             'list_capped'      => ($total > count($rows)),
             'list_shown_count' => count($rows),

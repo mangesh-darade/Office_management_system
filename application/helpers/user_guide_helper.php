@@ -39,8 +39,9 @@ if (!function_exists('user_guide_all_modules')) {
                 'title' => 'Projects & Tasks', 'icon' => 'bi-kanban',
                 'access_keys' => [
                     'projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete',
+                    'projects_view_all', 'projects_import', 'projects_matrix',
                     'requirements', 'tasks', 'tasks_list', 'tasks_add', 'tasks_edit', 'tasks_delete',
-                    'timesheets', 'releases', 'releases_add', 'releases_edit',
+                    'timesheets', 'releases', 'releases_add', 'releases_edit', 'releases_send_notes',
                     'defects', 'defects_list', 'defects_add', 'defects_edit', 'defects_delete',
                 ],
             ],

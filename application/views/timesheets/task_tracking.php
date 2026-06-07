@@ -45,9 +45,7 @@
           </tr>
         </thead>
         <tbody>
-          <?php if (empty($tracking)): ?>
-            <tr><td colspan="5" class="text-center text-muted py-5">No time logged for this task in the selected period.</td></tr>
-          <?php else: ?>
+          <?php if (!empty($tracking)): ?>
             <?php $sum = 0; foreach ($tracking as $r): $sum += (float) $r->total_hours; ?>
               <tr>
                 <td><?php echo htmlspecialchars($r->user_email); ?></td>
@@ -61,7 +59,13 @@
         </tbody>
         <?php if (!empty($tracking)): ?>
         <tfoot class="table-light">
-          <tr><th colspan="2">Total</th><th><?php echo number_format($sum, 2); ?></th><th colspan="2"></th></tr>
+          <tr>
+            <th>Total</th>
+            <th></th>
+            <th><?php echo number_format($sum, 2); ?></th>
+            <th></th>
+            <th></th>
+          </tr>
         </tfoot>
         <?php endif; ?>
       </table>

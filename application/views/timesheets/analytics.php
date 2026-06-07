@@ -55,9 +55,7 @@
           <table class="table table-sm table-hover mb-0 datatable">
             <thead class="table-light"><tr><th>Project</th><th>Hours</th><th>Billable</th><th>Users</th></tr></thead>
             <tbody>
-              <?php if (empty($project_analytics)): ?>
-                <tr><td colspan="4" class="text-muted text-center py-4">No data</td></tr>
-              <?php else: foreach ($project_analytics as $r): ?>
+              <?php if (!empty($project_analytics)): foreach ($project_analytics as $r): ?>
                 <tr>
                   <td><?php echo htmlspecialchars($r->project_name ? $r->project_name : ('#' . $r->project_id)); ?></td>
                   <td><?php echo number_format((float) $r->total_hours, 2); ?></td>
@@ -77,9 +75,7 @@
           <table class="table table-sm table-hover mb-0 datatable">
             <thead class="table-light"><tr><th>User</th><th>Hours</th><th>Projects</th><th>Entries</th></tr></thead>
             <tbody>
-              <?php if (empty($user_analytics)): ?>
-                <tr><td colspan="4" class="text-muted text-center py-4">No data</td></tr>
-              <?php else: foreach ($user_analytics as $r): ?>
+              <?php if (!empty($user_analytics)): foreach ($user_analytics as $r): ?>
                 <tr>
                   <td><?php echo htmlspecialchars($r->user_email); ?></td>
                   <td><?php echo number_format((float) $r->total_hours, 2); ?></td>
@@ -99,9 +95,7 @@
           <table class="table table-sm table-hover mb-0 datatable">
             <thead class="table-light"><tr><th>Task</th><th>Project</th><th>User</th><th>Hours</th><th></th></tr></thead>
             <tbody>
-              <?php if (empty($task_tracking)): ?>
-                <tr><td colspan="5" class="text-muted text-center py-4">No task-linked entries in this period</td></tr>
-              <?php else: foreach ($task_tracking as $r): ?>
+              <?php if (!empty($task_tracking)): foreach ($task_tracking as $r): ?>
                 <tr>
                   <td><?php echo htmlspecialchars($r->task_title ? $r->task_title : ('Task #' . $r->task_id)); ?></td>
                   <td><?php echo htmlspecialchars($r->project_name ? $r->project_name : '—'); ?></td>

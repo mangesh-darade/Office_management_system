@@ -558,7 +558,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="ps-3 sidebar-submenu" id="project-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
-            <a class="submenu-link <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
+            <a class="submenu-link <?php echo ($active==='projects' && $active_sub!=='matrix')?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
+            <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='matrix')?'active':''; ?>" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-2"></i>Portfolio Matrix</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('projects_add')): ?>
             <a class="submenu-link" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-square me-2"></i>Add Project</a>
@@ -585,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('project-group','project-toggle','project-parent','project-submenu','sb_project_open',<?php echo in_array($active,['projects','requirements','tasks','timesheets','releases','defects'])?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('project-group','project-toggle','project-parent','project-submenu','sb_project_open',<?php echo in_array($active,['projects','requirements','tasks','timesheets','releases','defects']) || ($active==='projects' && $active_sub==='matrix')?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>

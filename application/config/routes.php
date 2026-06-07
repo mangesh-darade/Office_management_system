@@ -112,6 +112,7 @@ $route['clients/(:num)/contacts'] = 'clients/contacts/$1';
 
 // Projects
 $route['projects'] = 'projects/index';
+$route['projects/matrix'] = 'projects/matrix';
 $route['projects/create'] = 'projects/create';
 $route['projects/(:num)'] = 'projects/show/$1';
 $route['projects/(:num)/edit'] = 'projects/edit/$1';
@@ -161,6 +162,7 @@ $route['my-works'] = 'my_works/index';
 $route['my-works/create'] = 'my_works/create';
 $route['my-works/export'] = 'my_works/export';
 $route['my-works/update-status'] = 'my_works/update_status';
+$route['my-works/update-matrix'] = 'my_works/update_matrix';
 $route['my-works/(:num)/comment'] = 'my_works/add_comment/$1';
 $route['my-works/(:num)/edit'] = 'my_works/edit/$1';
 $route['my-works/(:num)/delete'] = 'my_works/delete/$1';
@@ -697,6 +699,7 @@ $route['users/destroy/(:num)'] = 'users/destroy/$1';
 $route['releases'] = 'releases/index';
 $route['releases/create'] = 'releases/create';
 $route['releases/edit/(:num)'] = 'releases/edit/$1';
+$route['releases/send-notes/(:num)'] = 'releases/send_notes/$1';
 $route['defects'] = 'defects/index';
 $route['defects/create'] = 'defects/create';
 $route['defects/view/(:num)'] = 'defects/view/$1';

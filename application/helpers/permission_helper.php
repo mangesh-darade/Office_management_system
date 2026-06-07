@@ -143,6 +143,7 @@ if (!function_exists('get_dashboard_module_groups')) {
             ],
             'projects' => [
                 'projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete',
+                'projects_view_all', 'projects_import', 'projects_matrix',
             ],
             'tasks' => [
                 'tasks', 'tasks_list', 'tasks_add', 'tasks_edit', 'tasks_delete',
@@ -566,7 +567,7 @@ if (!function_exists('seed_project_extensions_permissions_if_needed')) {
         $all_roles = $CI->db->select('id')->from('roles')->get()->result();
         $staff_defect_keys = array('defects_list', 'defects_add', 'defects_view');
         $admin_keys = array(
-            'releases', 'releases_add', 'releases_edit',
+            'releases', 'releases_add', 'releases_edit', 'releases_send_notes',
             'defects', 'defects_edit', 'defects_delete',
         );
 
@@ -642,7 +643,7 @@ if (!function_exists('get_controller_module_access_map')) {
             'shifts' => ['shifts', 'shifts_view', 'shifts_manage'],
             'projects' => [
                 'projects', 'projects_list', 'projects_add', 'projects_edit', 'projects_delete',
-                'projects_view_all', 'projects_import',
+                'projects_view_all', 'projects_import', 'projects_matrix',
             ],
             'tasks' => [
                 'tasks', 'tasks_list', 'tasks_add', 'tasks_edit', 'tasks_delete',
@@ -774,7 +775,7 @@ if (!function_exists('get_controller_module_access_map')) {
             'superadmin' => ['superadmin'],
             'guide' => ['guide'],
             'lead_mapping' => ['lead_mapping'],
-            'releases' => ['releases', 'releases_add', 'releases_edit'],
+            'releases' => ['releases', 'releases_add', 'releases_edit', 'releases_send_notes'],
             'defects' => [
                 'defects', 'defects_list', 'defects_add', 'defects_edit',
                 'defects_delete', 'defects_view',

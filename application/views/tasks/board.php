@@ -2,60 +2,76 @@
   'title' => 'Task Board',
   'extra_css' => ['assets/css/tasks.css'],
 ]); ?>
-<div class="container-fluid py-3">
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4">
-  <div>
-    <h1 class="h4 mb-1 fw-bold">
-      <i class="bi bi-kanban text-primary me-2"></i>Task Board
-    </h1>
-    <p class="text-muted mb-0 small">Drag and drop tasks to update status</p>
-  </div>
-  <div class="d-flex gap-2 flex-wrap align-items-center">
-    <form method="get" class="d-flex gap-2 flex-wrap oms-filter-row w-100 w-md-auto">
-      <?php if(!empty($projects)): ?>
-      <select name="project_id" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Projects</option>
-        <?php foreach ($projects as $p): ?>
-          <option value="<?php echo $p->id; ?>" <?php echo (isset($filter_project_id) && $filter_project_id == $p->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p->name); ?></option>
-        <?php endforeach; ?>
-      </select>
-      <?php endif; ?>
-      
-      <?php if(!empty($assignees)): ?>
-      <select name="assigned_to" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Assignees</option>
-        <?php foreach ($assignees as $u): ?>
-          <option value="<?php echo $u->id; ?>" <?php echo (isset($filter_assigned_to) && $filter_assigned_to == $u->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($u->name ?: $u->email); ?></option>
-        <?php endforeach; ?>
-      </select>
-      <?php endif; ?>
+<div class="container-fluid py-3 task-board-page">
+<?php
+$can_add = function_exists('has_module_access') && (has_module_access('tasks_add') || has_module_access('tasks'));
+$head_actions = '';
+if ($can_add) {
+  $head_actions .= '<a class="btn btn-primary btn-sm" href="'.site_url('tasks/create').'"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">New </span>Task</a>';
+}
+$head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="'.site_url('tasks').'"><i class="bi bi-list me-1"></i>List</a>';
+$this->load->view('partials/oms_page_head', [
+  'title' => 'Task Board',
+  'icon' => 'bi-kanban',
+  'subtitle' => 'Drag and drop tasks to update status',
+  'actions_html' => $head_actions,
+  'mb' => 'mb-3',
+]);
+$has_filters = (isset($filter_project_id) && $filter_project_id !== '')
+  || (isset($filter_assigned_to) && $filter_assigned_to !== '')
+  || (isset($filter_priority) && $filter_priority !== '');
+?>
 
-      <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Priorities</option>
-        <?php foreach(['low','medium','high','urgent'] as $pr): ?>
-          <option value="<?php echo $pr; ?>" <?php echo (isset($filter_priority) && $filter_priority === $pr) ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option>
-        <?php endforeach; ?>
-      </select>
-      
-      <?php if((isset($filter_project_id) && $filter_project_id!=='') || (isset($filter_assigned_to) && $filter_assigned_to!=='') || (isset($filter_priority) && $filter_priority!=='')): ?>
-      <a href="<?php echo site_url('tasks/board'); ?>" class="btn btn-outline-secondary btn-sm" title="Clear Filters"><i class="bi bi-x-circle"></i></a>
-      <?php endif; ?>
-    </form>
-
-    <div class="input-group input-group-sm" style="width: 200px;">
-      <input type="text" class="form-control" id="searchTasks" placeholder="Quick search...">
-      <button class="btn btn-outline-secondary" type="button" id="clearSearch">
-        <i class="bi bi-x-lg"></i>
+<div class="card shadow-soft task-board-toolbar mb-3">
+  <div class="card-body py-2 px-3">
+    <div class="task-board-toolbar-inner">
+      <button class="btn btn-outline-secondary btn-sm d-md-none task-board-filters-toggle<?php echo $has_filters ? '' : ' collapsed'; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#taskBoardFilters" aria-expanded="<?php echo $has_filters ? 'true' : 'false'; ?>" aria-controls="taskBoardFilters">
+        <i class="bi bi-funnel me-1"></i>Filters<?php if ($has_filters): ?><span class="badge bg-primary ms-1">On</span><?php endif; ?>
       </button>
+
+      <div class="collapse<?php echo $has_filters ? ' show' : ''; ?> d-md-block task-board-filters-wrap" id="taskBoardFilters">
+        <form method="get" class="task-board-filters oms-filter-row">
+          <?php if (!empty($projects)): ?>
+          <select name="project_id" class="form-select form-select-sm" aria-label="Filter by project" onchange="this.form.submit()">
+            <option value="">All Projects</option>
+            <?php foreach ($projects as $p): ?>
+              <option value="<?php echo $p->id; ?>" <?php echo (isset($filter_project_id) && $filter_project_id == $p->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p->name); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php endif; ?>
+
+          <?php if (!empty($assignees)): ?>
+          <select name="assigned_to" class="form-select form-select-sm" aria-label="Filter by assignee" onchange="this.form.submit()">
+            <option value="">All Assignees</option>
+            <?php foreach ($assignees as $u): ?>
+              <option value="<?php echo $u->id; ?>" <?php echo (isset($filter_assigned_to) && $filter_assigned_to == $u->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($u->name ?: $u->email); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <?php endif; ?>
+
+          <select name="priority" class="form-select form-select-sm" aria-label="Filter by priority" onchange="this.form.submit()">
+            <option value="">All Priorities</option>
+            <?php foreach (['low','medium','high','urgent'] as $pr): ?>
+              <option value="<?php echo $pr; ?>" <?php echo (isset($filter_priority) && $filter_priority === $pr) ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option>
+            <?php endforeach; ?>
+          </select>
+
+          <?php if ($has_filters): ?>
+          <a href="<?php echo site_url('tasks/board'); ?>" class="btn btn-outline-secondary btn-sm task-board-clear-filters" title="Clear filters"><i class="bi bi-x-circle"></i><span class="d-none d-lg-inline ms-1">Clear</span></a>
+          <?php endif; ?>
+        </form>
+      </div>
+
+      <div class="task-board-search-wrap">
+        <div class="input-group input-group-sm task-board-search">
+          <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" class="form-control" id="searchTasks" placeholder="Quick search…" aria-label="Quick search tasks">
+          <button class="btn btn-outline-secondary" type="button" id="clearSearch" aria-label="Clear search">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
     </div>
-    <?php if(function_exists('has_module_access') && (has_module_access('tasks_add') || has_module_access('tasks'))): ?>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('tasks/create'); ?>">
-      <i class="bi bi-plus-lg me-1"></i> New Task
-    </a>
-    <?php endif; ?>
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks'); ?>">
-      <i class="bi bi-list me-1"></i> List
-    </a>
   </div>
 </div>
 
@@ -90,9 +106,10 @@
         return $first.($last && $last!==$first ? $last : '');
       };
     ?>
-    <div class="row g-3">
+    <div class="kanban-scroll-wrap">
+    <div class="row g-3 kanban-columns flex-nowrap flex-lg-wrap">
       <?php foreach ($columns as $status => $items): ?>
-        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+        <div class="col kanban-col col-10 col-sm-8 col-md-6 col-lg-3">
           <div class="card shadow-sm kanban-column-card fade-in">
             <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
               <div class="d-flex align-items-center">
@@ -216,6 +233,7 @@
           </div>
         </div>
       <?php endforeach; ?>
+    </div>
     </div>
   </div>
 
