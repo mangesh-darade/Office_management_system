@@ -55,6 +55,9 @@ def render_entity(ent: dict) -> str:
         parts.append(md_image(f"Video — {ent['name']}", vid))
     if lst.get("image"):
         parts.append(md_image(f"View list — {ent['name']}", lst["image"]))
+    if lst.get("steps"):
+        parts.append("### How to use\n")
+        parts.append(md_steps(lst.get("steps"), "Steps"))
 
     add = ent.get("add")
     if add:

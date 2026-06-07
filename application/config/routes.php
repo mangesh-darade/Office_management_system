@@ -692,3 +692,56 @@ $route['email-settings/edit-template/(:num)'] = 'email_settings/edit_template/$1
 
 // Users destroy (actual delete POST action)
 $route['users/destroy/(:num)'] = 'users/destroy/$1';
+
+// Engagement modules (missing modules for rewards)
+$route['releases'] = 'releases/index';
+$route['releases/create'] = 'releases/create';
+$route['releases/edit/(:num)'] = 'releases/edit/$1';
+$route['defects'] = 'defects/index';
+$route['defects/create'] = 'defects/create';
+$route['defects/view/(:num)'] = 'defects/view/$1';
+$route['defects/edit/(:num)'] = 'defects/edit/$1';
+$route['defects/delete/(:num)'] = 'defects/delete/$1';
+$route['knowledge-base'] = 'knowledge_base/index';
+$route['knowledge-base/create'] = 'knowledge_base/create';
+$route['knowledge-base/edit/(:num)'] = 'knowledge_base/edit/$1';
+$route['knowledge-base/view/(:num)'] = 'knowledge_base/view/$1';
+$route['helpdesk'] = 'helpdesk/index';
+$route['helpdesk/create'] = 'helpdesk/create';
+$route['helpdesk/edit/(:num)'] = 'helpdesk/edit/$1';
+$route['events'] = 'events/index';
+$route['events/create'] = 'events/create';
+$route['events/edit/(:num)'] = 'events/edit/$1';
+$route['certifications'] = 'certifications/index';
+$route['certifications/create'] = 'certifications/create';
+$route['certifications/approve/(:num)'] = 'certifications/approve/$1';
+$route['certifications/reject/(:num)'] = 'certifications/reject/$1';
+$route['customer-feedback'] = 'customer_feedback/index';
+$route['customer-feedback/create'] = 'customer_feedback/create';
+
+// Rewards & Recognition
+$route['rewards'] = 'rewards/index';
+$route['rewards/history'] = 'rewards/history';
+$route['rewards/leaderboard'] = 'rewards/leaderboard';
+$route['rewards/cheer'] = 'rewards/cheer';
+$route['rewards/rules'] = 'rewards/rules';
+$route['rewards/edit-rule'] = 'rewards/edit_rule';
+$route['rewards/edit-rule/(:num)'] = 'rewards/edit_rule/$1';
+$route['rewards/manual-grant'] = 'rewards/manual_grant';
+$route['rewards/submit-claim'] = 'rewards/submit_claim';
+$route['rewards/approvals'] = 'rewards/approvals';
+$route['rewards/approve-claim/(:num)'] = 'rewards/approve_claim/$1';
+$route['rewards/reject-claim/(:num)'] = 'rewards/reject_claim/$1';
+$route['rewards/office-closing'] = 'rewards/office_closing';
+
+// Office Meals
+$route['meals'] = 'meals/index';
+$route['meals/save_order'] = 'meals/save_order';
+$route['meals/submit_request'] = 'meals/submit_request';
+$route['meals/review_request'] = 'meals/review_request';
+$route['meals/calendar'] = 'meals/calendar';
+$route['meals/provider'] = 'meals/provider';
+$route['meals/settings'] = 'meals/settings';
+$route['meals/history'] = 'meals/history';
+$route['meals/all_orders'] = 'meals/all_orders';
+$route['meals/export'] = 'meals/export';

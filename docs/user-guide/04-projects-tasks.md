@@ -2,7 +2,7 @@
 
 ## What is this module for?
 
-Plan projects, capture requirements, assign tasks, and track status on a board.
+Plan projects, capture requirements, assign tasks, track releases and defects, and manage status on a board.
 
 ![Animated overview — Projects & Tasks](videos/04-projects/tasks-board-tour-voiced.webm)
 
@@ -147,6 +147,55 @@ Plan projects, capture requirements, assign tasks, and track status on a board.
 **How:**
 
 1. Delete workflow from approvals list.
+
+---
+
+## Releases
+
+**Purpose:** Track project version releases and go-live dates; earns reward points when marked released.
+
+**Menu:** Project → Releases
+
+### Add (create new)
+
+**Steps:**
+
+1. Pick project and version.
+2. Set planned date → Save.
+
+### Edit (update existing)
+
+**Steps:**
+
+1. Open release → Edit status to Released when live.
+
+---
+
+## Defects
+
+**Purpose:** Log, assign, and resolve bugs linked to projects, releases, and tasks.
+
+**Menu:** Project → Defects
+
+### Add (create new)
+
+**Steps:**
+
+1. Select project.
+2. Describe issue and steps to reproduce.
+3. Assign if known → Save.
+
+### Edit (update existing)
+
+**Steps:**
+
+1. Open defect → Edit status to Fixed/Verified/Closed when resolved.
+
+### Delete / remove
+
+**How:**
+
+1. Open defect detail → Delete (admin).
 
 ---
 

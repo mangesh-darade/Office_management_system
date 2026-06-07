@@ -111,6 +111,7 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
 .perm-section { cursor: pointer; user-select: none; }
 .perm-section .section-actions { cursor: default; }
 .perm-row.section-collapsed { display: none !important; }
+.perm-tag { font-size: 0.65rem; font-weight: 600; letter-spacing: .03em; vertical-align: middle; }
 </style>
 
 <div class="container-fluid py-2 perm-page">
@@ -256,11 +257,21 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
                 </tr>
 
                 <!-- Module rows -->
-                <?php foreach($menu_data['modules'] as $key => $label): ?>
+                <?php foreach($menu_data['modules'] as $key => $def):
+                  $meta = permissions_module_meta($def);
+                  $label = $meta['label'];
+                  $tag = $meta['tag'];
+                  $searchLabel = strtolower($label . ' ' . $key . ' ' . $tag);
+                ?>
                   <tr class="perm-row section-collapsed section_<?php echo $section_slug; ?>"
-                      data-label="<?php echo htmlspecialchars(strtolower($label.' '.$key), ENT_QUOTES, 'UTF-8'); ?>">
+                      data-label="<?php echo htmlspecialchars($searchLabel, ENT_QUOTES, 'UTF-8'); ?>">
                     <td class="ps-4 perm-sticky-module">
-                      <div class="fw-semibold"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></div>
+                      <div class="fw-semibold d-flex align-items-center flex-wrap gap-1">
+                        <span><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php if ($tag !== ''): ?>
+                          <span class="badge perm-tag <?php echo htmlspecialchars(permissions_module_tag_class($tag), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($tag, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <?php endif; ?>
+                      </div>
                       <div class="module-key"><?php echo htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?></div>
                     </td>
                     <?php foreach($admin_roles as $rid => $rname): ?>

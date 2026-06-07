@@ -47,21 +47,26 @@
   <?php endif; ?>
 </div>
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-  <button class="btn btn-outline-secondary btn-sm mw-filter-toggle d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#mwFilterPanel" aria-expanded="false">
-    <i class="bi bi-funnel me-1"></i>Filters &amp; search
-  </button>
-  <?php if (!empty($can_export)): ?>
-  <a class="btn btn-outline-secondary btn-sm ms-md-auto" href="<?php echo htmlspecialchars($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
-  <?php endif; ?>
+<?php if (!empty($can_export)): ?>
+<div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2">
+  <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
 </div>
+<?php endif; ?>
 
-<div class="collapse mw-filter-panel d-md-block" id="mwFilterPanel">
-  <div class="card shadow-sm border-0 mb-3 mw-filter-card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-      <span class="fw-semibold small text-uppercase"><i class="bi bi-funnel me-1"></i>Search &amp; filters</span>
+<div class="card shadow-sm border-0 mb-3 mw-filter-card">
+  <button class="card-header mw-filter-header d-flex align-items-center justify-content-between w-100 border-0"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#mwFilterBody"
+          aria-expanded="false"
+          aria-controls="mwFilterBody">
+    <span class="fw-semibold small text-uppercase"><i class="bi bi-funnel me-1"></i>Search &amp; filters</span>
+    <span class="d-flex align-items-center gap-2">
       <span class="text-muted small d-none d-md-inline">Narrow results by client, type, status, and more</span>
-    </div>
+      <i class="bi bi-chevron-up mw-filter-chevron" aria-hidden="true"></i>
+    </span>
+  </button>
+  <div class="collapse" id="mwFilterBody">
     <div class="card-body">
       <form method="get" action="<?php echo site_url('my-works'); ?>" class="row g-3 align-items-end">
         <input type="hidden" name="view" value="<?php echo htmlspecialchars(isset($view_mode) ? $view_mode : 'list'); ?>">

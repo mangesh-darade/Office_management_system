@@ -16,7 +16,10 @@ if (!(int)$this->session->userdata('user_id')) {
 <script>
 /**
  * Shared sidebar submenu initialiser — single definition used by all submenu groups.
+ * On page load only the current module expands (forceOpen); localStorage is not restored.
+ * Opening one group collapses the others (accordion).
  */
+window._sidebarGroups = window._sidebarGroups || [];
 function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, forceOpen) {
     var group      = document.getElementById(groupId);
     var btn        = document.getElementById(toggleId);
@@ -30,15 +33,42 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         if (group) { group.classList.toggle('open', open); }
         try { localStorage.setItem(storageKey, open ? '1' : '0'); } catch(e) {}
     }
-    var saved = null;
-    try { saved = localStorage.getItem(storageKey); } catch(e) {}
-    setOpen(forceOpen || saved === '1');
-    function toggle() { setOpen(box.style.display === 'none'); }
+    var controller = { setOpen: setOpen, forceOpen: !!forceOpen };
+    window._sidebarGroups.push(controller);
+    setOpen(false);
+    function toggle() {
+        var willOpen = box.style.display === 'none';
+        if (willOpen) {
+            window._sidebarGroups.forEach(function(entry) {
+                if (entry !== controller) { entry.setOpen(false); }
+            });
+        }
+        setOpen(willOpen);
+    }
     btn.addEventListener('click', function(ev) { ev.preventDefault(); toggle(); });
     if (parentLink) {
         parentLink.addEventListener('click', function(ev) { ev.preventDefault(); toggle(); });
     }
 }
+function sidebarApplyInitialOpen() {
+    var target = null;
+    window._sidebarGroups.forEach(function(entry) {
+        if (entry.forceOpen) { target = entry; }
+    });
+    if (target) { target.setOpen(true); }
+}
+function sidebarClearParentActiveWhenChildActive() {
+    document.querySelectorAll('.sidebar-submenu .submenu-link.active').forEach(function(link) {
+        var group = link.closest('.nav-item, .sidebar-group');
+        if (!group) { return; }
+        var parent = group.querySelector('[id$="-parent"]');
+        if (parent) { parent.classList.remove('active'); }
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    sidebarApplyInitialOpen();
+    sidebarClearParentActiveWhenChildActive();
+});
 </script>
 <aside class="d-none d-md-block col-md-3 col-lg-2 sidebar-left">
   <div class="sidebar-inner p-3">
@@ -510,13 +540,15 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         has_module_access('projects') ||
         has_module_access('requirements') ||
         has_module_access('tasks') ||
-        has_module_access('timesheets')
+        has_module_access('timesheets') ||
+        has_module_access('releases') ||
+        has_module_access('defects')
       );
       ?>
       <?php if($project_group_show): ?>
       <div class="nav-item" id="project-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="project-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['projects','requirements','tasks','timesheets']) ? 'active' : ''; ?>" href="#">
+          <a id="project-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['projects','requirements','tasks','timesheets','releases','defects']) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-kanban me-2"></i>Project
           </a>
           <button id="project-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="project-submenu" title="Toggle">
@@ -544,16 +576,71 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
             <a class="submenu-link <?php echo ($active==='timesheets' && $active_sub==='analytics')?'active':''; ?>" href="<?php echo site_url('timesheets/analytics'); ?>"><i class="bi bi-graph-up me-2"></i>Analytics</a>
             <?php endif; ?>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('releases')): ?>
+            <a class="submenu-link <?php echo $active==='releases'?'active':''; ?>" href="<?php echo site_url('releases'); ?>"><i class="bi bi-rocket-takeoff me-2"></i>Releases</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('defects')): ?>
+            <a class="submenu-link <?php echo $active==='defects'?'active':''; ?>" href="<?php echo site_url('defects'); ?>"><i class="bi bi-bug me-2"></i>Defects</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('project-group','project-toggle','project-parent','project-submenu','sb_project_open',<?php echo in_array($active,['projects','requirements','tasks','timesheets'])?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('project-group','project-toggle','project-parent','project-submenu','sb_project_open',<?php echo in_array($active,['projects','requirements','tasks','timesheets','releases','defects'])?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>
       <?php endif; ?>
+      <?php $this->load->view('partials/sidebar_meals_group', array('variant' => 'desktop', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
+      <?php endif; ?>
+
+      <?php
+        $engagement_nav_active = in_array($active, array('rewards','knowledge-base','helpdesk','events','certifications','customer-feedback'), true);
+        $engagement_any = function_exists('has_module_access') && (
+          has_module_access('rewards') || has_module_access('knowledge_base')
+          || has_module_access('helpdesk') || has_module_access('events') || has_module_access('certifications')
+          || has_module_access('customer_feedback')
+        );
+      ?>
+      <?php if ($engagement_any): ?>
+      <div class="sidebar-group" id="engagement-group">
+        <div class="d-flex align-items-center">
+          <a id="engagement-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $engagement_nav_active ? 'active' : ''; ?>" href="<?php echo site_url('rewards'); ?>">
+            <i class="bi bi-trophy me-2"></i>Rewards & Engagement
+          </a>
+          <button id="engagement-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="engagement-submenu" title="Toggle">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <div class="ps-3 sidebar-submenu" id="engagement-submenu">
+          <div class="submenu-list">
+            <?php if (has_module_access('rewards')): ?>
+            <a class="submenu-link <?php echo ($active==='rewards' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('rewards'); ?>"><i class="bi bi-star me-1"></i>My Rewards</a>
+            <a class="submenu-link <?php echo ($active==='rewards' && $active_sub==='leaderboard')?'active':''; ?>" href="<?php echo site_url('rewards/leaderboard'); ?>"><i class="bi bi-bar-chart me-1"></i>Leaderboard</a>
+            <?php endif; ?>
+            <?php if (has_module_access('knowledge_base')): ?>
+            <a class="submenu-link <?php echo $active==='knowledge-base'?'active':''; ?>" href="<?php echo site_url('knowledge-base'); ?>"><i class="bi bi-journal-bookmark me-1"></i>Knowledge Base</a>
+            <?php endif; ?>
+            <?php if (has_module_access('helpdesk')): ?>
+            <a class="submenu-link <?php echo $active==='helpdesk'?'active':''; ?>" href="<?php echo site_url('helpdesk'); ?>"><i class="bi bi-life-preserver me-1"></i>Helpdesk</a>
+            <?php endif; ?>
+            <?php if (has_module_access('events')): ?>
+            <a class="submenu-link <?php echo $active==='events'?'active':''; ?>" href="<?php echo site_url('events'); ?>"><i class="bi bi-calendar-event me-1"></i>Events</a>
+            <?php endif; ?>
+            <?php if (has_module_access('certifications')): ?>
+            <a class="submenu-link <?php echo $active==='certifications'?'active':''; ?>" href="<?php echo site_url('certifications'); ?>"><i class="bi bi-patch-check me-1"></i>Certifications</a>
+            <?php endif; ?>
+            <?php if (has_module_access('customer_feedback')): ?>
+            <a class="submenu-link <?php echo $active==='customer-feedback'?'active':''; ?>" href="<?php echo site_url('customer-feedback'); ?>"><i class="bi bi-chat-heart me-1"></i>Customer Feedback</a>
+            <?php endif; ?>
+            <?php if (has_module_access('rewards_rules') || has_module_access('rewards_admin')): ?>
+            <a class="submenu-link <?php echo ($active==='rewards' && $active_sub==='rules')?'active':''; ?>" href="<?php echo site_url('rewards/rules'); ?>"><i class="bi bi-gear me-1"></i>Reward Rules</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+      <script>initSidebarGroup('engagement-group','engagement-toggle','engagement-parent','engagement-submenu','sb_engagement_open',<?php echo $engagement_nav_active ? 'true' : 'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>

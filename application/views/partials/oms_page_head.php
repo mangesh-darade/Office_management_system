@@ -11,9 +11,9 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 $mb = isset($mb) ? (string) $mb : 'mb-3';
 ?>
-<div class="oms-page-head d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 <?php echo htmlspecialchars($mb, ENT_QUOTES, 'UTF-8'); ?>">
-  <div class="oms-page-head-text flex-grow-1 min-w-0">
-    <h1 class="h4 mb-1 fw-bold text-truncate">
+<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 w-100 <?php echo htmlspecialchars($mb, ENT_QUOTES, 'UTF-8'); ?>">
+  <div class="oms-page-head-text">
+    <h1 class="h4 mb-1 fw-bold">
       <?php if (!empty($icon)): ?>
         <i class="<?php echo htmlspecialchars($icon, ENT_QUOTES, 'UTF-8'); ?> text-primary me-2"></i>
       <?php endif; ?>
@@ -24,7 +24,7 @@ $mb = isset($mb) ? (string) $mb : 'mb-3';
     <?php endif; ?>
   </div>
   <?php if (!empty($actions_html)): ?>
-    <div class="oms-page-actions d-flex flex-wrap gap-2 w-100 w-md-auto">
+    <div class="oms-page-actions d-flex flex-wrap gap-2 mt-2 mt-sm-0">
       <?php echo $actions_html; ?>
     </div>
   <?php endif; ?>

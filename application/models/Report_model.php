@@ -118,7 +118,7 @@ class Report_model extends CI_Model {
     public function get_projects_status_report($filters = [])
     {
         $this->db->select('p.id, p.name, p.status, p.start_date, p.end_date,
-                           c.name AS client_name,
+                           c.company_name AS client_name,
                            COUNT(t.id) AS task_count,
                            SUM(CASE WHEN t.status = "completed" THEN 1 ELSE 0 END) AS completed_tasks');
         $this->db->from('projects p');

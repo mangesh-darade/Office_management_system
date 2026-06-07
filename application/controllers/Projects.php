@@ -329,8 +329,21 @@ class Projects extends CI_Controller {
                 
                 // Get old data before update
                 $old_data = track_changes_before('projects', (int)$id);
+                $old_status = isset($project->status) ? (string) $project->status : '';
+                $new_status = $this->input->post('status') ?: 'planned';
                 
                 $this->db->where('id', (int)$id)->update('projects', $data);
+                
+                if ($old_status !== $new_status) {
+                    $this->load->helper('rewards');
+                    reward_engine_dispatch('project_status_update', array(
+                        'user_id' => (int) $this->session->userdata('user_id'),
+                        'source_module' => 'projects',
+                        'source_record_id' => (int) $id,
+                        'reference_label' => 'Project status: ' . $new_status,
+                        'payload' => array('status' => $new_status),
+                    ));
+                }
                 
                 // Log update with change tracking
                 $description = 'Project: ' . (string)$data['name'];

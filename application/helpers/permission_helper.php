@@ -1,5 +1,44 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 
+if (!function_exists('permissions_module_meta')) {
+    /**
+     * Normalize a permission row from Permissions.php (string label or array with tag).
+     *
+     * @param string|array $def
+     * @return array{label:string,tag:string}
+     */
+    function permissions_module_meta($def)
+    {
+        if (is_array($def)) {
+            return array(
+                'label' => isset($def['label']) ? (string) $def['label'] : '',
+                'tag'   => isset($def['tag']) ? (string) $def['tag'] : '',
+            );
+        }
+        return array(
+            'label' => (string) $def,
+            'tag'   => '',
+        );
+    }
+}
+
+if (!function_exists('permissions_module_tag_class')) {
+    function permissions_module_tag_class($tag)
+    {
+        $tag = strtolower(trim((string) $tag));
+        if ($tag === 'screen') {
+            return 'bg-info text-dark';
+        }
+        if ($tag === 'action') {
+            return 'bg-warning text-dark';
+        }
+        if ($tag === 'full') {
+            return 'bg-primary';
+        }
+        return 'bg-secondary';
+    }
+}
+
 if (!function_exists('has_module_access')) {
     function has_module_access($module) {
         static $cache = null;
@@ -130,6 +169,14 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'coaching', 'coaching_coaches', 'coaching_clients', 'coaching_sessions',
                 'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
                 'coaching_whatsapp_crm', 'coaching_resources', 'coaching_admin', 'coaching_portal',
+            ],
+            'rewards' => [
+                'rewards', 'rewards_leaderboard', 'rewards_submit', 'rewards_approve',
+                'rewards_admin', 'rewards_rules', 'rewards_manual_grant',
+            ],
+            'meals' => [
+                'meals_order', 'meals_calendar', 'meals_provider', 'meals_settings',
+                'meals_history', 'meals_all_orders',
             ],
         ];
     }
@@ -426,6 +473,145 @@ if (!function_exists('seed_attendance_export_if_needed')) {
     }
 }
 
+if (!function_exists('seed_engagement_rewards_permissions_if_needed')) {
+    /**
+     * Grant default Rewards access to all roles; full Engagement modules to admin roles.
+     */
+    function seed_engagement_rewards_permissions_if_needed()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions') || !$CI->db->table_exists('roles')) {
+            return;
+        }
+        $CI->load->helper('schema_columns');
+
+        $all_roles = $CI->db->select('id')->from('roles')->get()->result();
+        $staff_keys = array('rewards', 'rewards_leaderboard', 'rewards_submit', 'meals_order');
+        $admin_keys = array(
+            'knowledge_base', 'knowledge_base_add', 'knowledge_base_edit',
+            'helpdesk', 'helpdesk_manage',
+            'events', 'events_add', 'events_edit',
+            'certifications', 'certifications_approve',
+            'customer_feedback',
+            'rewards_admin', 'rewards_rules', 'rewards_manual_grant', 'rewards_approve',
+            'meals_calendar', 'meals_provider', 'meals_settings', 'meals_history', 'meals_all_orders',
+        );
+
+        $admin_role_ids = array();
+        if (schema_table_has_column($CI->db, 'roles', 'group_type')) {
+            $rows = $CI->db->select('id')->from('roles')->where('group_type', 'admin')->get()->result();
+            foreach ($rows as $r) {
+                $admin_role_ids[(int) $r->id] = true;
+            }
+        }
+        if (empty($admin_role_ids)) {
+            foreach (array(1, 2, 3) as $rid) {
+                $admin_role_ids[$rid] = true;
+            }
+        }
+
+        foreach ($all_roles as $role) {
+            $role_id = (int) $role->id;
+            if ($role_id <= 0) {
+                continue;
+            }
+            $keys = $staff_keys;
+            if (isset($admin_role_ids[$role_id])) {
+                $keys = array_merge($keys, $admin_keys);
+            }
+            foreach ($keys as $module) {
+                $exists = $CI->db
+                    ->where('role_id', $role_id)
+                    ->where('module', $module)
+                    ->limit(1)
+                    ->get('permissions')
+                    ->row();
+                if ($exists) {
+                    continue;
+                }
+                $CI->db->insert('permissions', array(
+                    'role_id'    => $role_id,
+                    'module'     => $module,
+                    'can_access' => 1,
+                ));
+            }
+        }
+    }
+}
+
+if (!function_exists('seed_project_extensions_permissions_if_needed')) {
+    /**
+     * Grant Releases (admin) and Defects (all staff report, admin full) under Project menu.
+     */
+    function seed_project_extensions_permissions_if_needed()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions') || !$CI->db->table_exists('roles')) {
+            return;
+        }
+        $CI->load->helper('schema_columns');
+
+        $all_roles = $CI->db->select('id')->from('roles')->get()->result();
+        $staff_defect_keys = array('defects_list', 'defects_add', 'defects_view');
+        $admin_keys = array(
+            'releases', 'releases_add', 'releases_edit',
+            'defects', 'defects_edit', 'defects_delete',
+        );
+
+        $admin_role_ids = array();
+        if (schema_table_has_column($CI->db, 'roles', 'group_type')) {
+            $rows = $CI->db->select('id')->from('roles')->where('group_type', 'admin')->get()->result();
+            foreach ($rows as $r) {
+                $admin_role_ids[(int) $r->id] = true;
+            }
+        }
+        if (empty($admin_role_ids)) {
+            foreach (array(1, 2, 3) as $rid) {
+                $admin_role_ids[$rid] = true;
+            }
+        }
+
+        foreach ($all_roles as $role) {
+            $role_id = (int) $role->id;
+            if ($role_id <= 0) {
+                continue;
+            }
+            $keys = $staff_defect_keys;
+            if (isset($admin_role_ids[$role_id])) {
+                $keys = array_merge($keys, $admin_keys);
+            }
+            foreach ($keys as $module) {
+                $exists = $CI->db
+                    ->where('role_id', $role_id)
+                    ->where('module', $module)
+                    ->limit(1)
+                    ->get('permissions')
+                    ->row();
+                if ($exists) {
+                    continue;
+                }
+                $CI->db->insert('permissions', array(
+                    'role_id'    => $role_id,
+                    'module'     => $module,
+                    'can_access' => 1,
+                ));
+            }
+        }
+    }
+}
+
 if (!function_exists('get_controller_module_access_map')) {
     /**
      * Single source of truth for route-level RBAC (AuthHook + controller constructors).
@@ -588,6 +774,24 @@ if (!function_exists('get_controller_module_access_map')) {
             'superadmin' => ['superadmin'],
             'guide' => ['guide'],
             'lead_mapping' => ['lead_mapping'],
+            'releases' => ['releases', 'releases_add', 'releases_edit'],
+            'defects' => [
+                'defects', 'defects_list', 'defects_add', 'defects_edit',
+                'defects_delete', 'defects_view',
+            ],
+            'knowledge_base' => ['knowledge_base', 'knowledge_base_add', 'knowledge_base_edit'],
+            'helpdesk' => ['helpdesk', 'helpdesk_manage'],
+            'events' => ['events', 'events_add', 'events_edit'],
+            'certifications' => ['certifications', 'certifications_approve'],
+            'customer_feedback' => ['customer_feedback'],
+            'rewards' => [
+                'rewards', 'rewards_leaderboard', 'rewards_submit', 'rewards_approve',
+                'rewards_admin', 'rewards_rules', 'rewards_manual_grant',
+            ],
+            'meals' => [
+                'meals_order', 'meals_calendar', 'meals_provider',
+                'meals_settings', 'meals_history', 'meals_all_orders',
+            ],
             'dashboard' => ['dashboard'],
         ];
     }

@@ -912,6 +912,25 @@ class Tasks extends CI_Controller {
         $this->db->where('id',$id)->update('tasks',['status'=>$status]);
         $this->load->helper('activity');
         log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$status);
+
+        if ($status === 'completed' && $old_status !== 'completed') {
+            $this->load->helper('rewards');
+            $beforeDue = false;
+            if (!empty($task->due_date)) {
+                $beforeDue = (date('Y-m-d') <= $task->due_date);
+            }
+            $beneficiary = !empty($task->assigned_to) ? (int) $task->assigned_to : (int) $task->created_by;
+            $actor = (int) $this->session->userdata('user_id');
+            if ($beforeDue) {
+                reward_engine_claim('delivery_before_deadline', array(
+                    'user_id' => $beneficiary,
+                    'actor_id' => $actor > 0 ? $actor : $beneficiary,
+                    'source_module' => 'tasks',
+                    'source_record_id' => (int) $id,
+                    'reference_label' => 'Task completed before deadline: ' . (string) $task->title,
+                ));
+            }
+        }
         
         // Send email notification if status changed and task has assignee
         if ($old_status !== $status && !empty($task->assigned_to)) {

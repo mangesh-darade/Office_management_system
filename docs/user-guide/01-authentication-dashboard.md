@@ -45,25 +45,6 @@ Sign in securely, see your home summary, update your profile, and read alerts.
 
 ![View list — Dashboard](images/01-auth/dashboard.png)
 
-### Mark attendance (dashboard)
-
-**Purpose:** Check in or check out quickly from the home page without opening the full attendance list.
-
-**Who sees it:** All logged-in users — the card appears directly below announcements.
-
-**What it shows:**
-
-- Today's status (not checked in, checked in, or complete)
-- Check-in and check-out times when already recorded
-- **Mark attendance** — opens the punch screen (`attendance/create`)
-- **View list** — opens the attendance summary (if you have attendance access)
-
-**Steps:**
-
-1. Open **Dashboard**.
-2. Find the **Mark attendance** card below announcements.
-3. Tap **Mark attendance** to check in or out (face and location may be required per company settings).
-4. Use **View list** to see your team's attendance summary (managers/admins).
 
 ---
 

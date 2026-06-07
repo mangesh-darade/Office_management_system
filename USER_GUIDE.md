@@ -34,6 +34,8 @@ Each module is a separate guide with **steps + screenshots** for every screen.
 | 08 | **Finance** | Payroll, expenses, recruitment | [Open →](docs/user-guide/08-finance.md) |
 | 09 | **Training & Coaching** | Tests, LMS, coaching CRM | [Open →](docs/user-guide/09-training-coaching.md) |
 | 10 | **Administration** | Settings, permissions, email, DB | [Open →](docs/user-guide/10-administration.md) |
+| 11 | **Engagement & Rewards** | Points, leaderboard, releases, KB, helpdesk | [Open →](docs/user-guide/11-engagement-rewards.md) |
+| 12 | **Office Meals** | Order breakfast/lunch, calendar, provider, settings | [Open →](docs/user-guide/12-office-meals.md) |
 
 **Full index with image list:** [docs/user-guide/README.md](docs/user-guide/README.md)
 
@@ -49,6 +51,8 @@ Each module is a separate guide with **steps + screenshots** for every screen.
 | Apply for leave | **Leave → Apply Leave** |
 | See my tasks | **Project → Task** (board) |
 | Log my work | **My Works** |
+| See reward points | **Rewards & Engagement → My Rewards** |
+| Order breakfast / lunch | **Office Meals → My Orders** — see [Module 12](docs/user-guide/12-office-meals.md) |
 | Chat with a colleague | **Chats** |
 | Change my details | Top right → **Profile** |
 | Log out | **Log out** (bottom of sidebar) |

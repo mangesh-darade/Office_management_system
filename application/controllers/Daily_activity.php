@@ -214,6 +214,15 @@ class Daily_activity extends CI_Controller {
         ];
 
         if($this->db->insert('daily_work_logs', $data)) {
+            $logId = (int) $this->db->insert_id();
+            $this->load->helper('rewards');
+            reward_engine_dispatch('daily_activity_logged', array(
+                'user_id' => $user_id,
+                'source_module' => 'daily_activity',
+                'source_record_id' => $logId,
+                'reference_label' => 'Daily activity',
+                'payload' => array(),
+            ));
             $this->session->set_flashdata('success', 'Activity logged successfully');
         } else {
              $this->session->set_flashdata('error', 'Database Error: Could not save activity.');

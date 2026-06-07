@@ -34,7 +34,7 @@ Personal/ad-hoc work tracker (not project tasks). Each row is owned by **creator
 | `my_works_export` | CSV export |
 | `my_works` | Full access alias |
 
-Register new keys in: `Permissions.php`, `AuthHook.php`, `permission_helper.php` (`get_dashboard_module_groups`).
+Register new keys in: `Permissions.php`, `permission_helper.php` (`get_controller_module_access_map`, `get_dashboard_module_groups`). See `.cursor/rules/new-feature-rbac-and-guide.mdc`.
 
 ## List view + DataTables
 

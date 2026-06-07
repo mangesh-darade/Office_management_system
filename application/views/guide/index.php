@@ -9,13 +9,18 @@ $this->load->view('partials/header', [
   <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
       <h1 class="h3 mb-2"><i class="bi bi-book me-2 text-primary"></i>User Guide</h1>
-      <p class="text-muted mb-0">Simple help with screenshots for every module. Pick a topic below.</p>
+      <p class="text-muted mb-0">Simple help with screenshots for modules you can access. Pick a topic below.</p>
     </div>
     <a href="<?php echo site_url('dashboard'); ?>" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Dashboard
     </a>
   </div>
 
+  <?php if (empty($modules)): ?>
+  <div class="alert alert-info">
+    No guide topics match your current permissions. Ask an administrator to assign module access in Permission Manager.
+  </div>
+  <?php else: ?>
   <div class="row g-3">
     <?php foreach ($modules as $mod): ?>
     <div class="col-sm-6 col-lg-4">
@@ -36,6 +41,7 @@ $this->load->view('partials/header', [
     </div>
     <?php endforeach; ?>
   </div>
+  <?php endif; ?>
 </div>
 
 <?php $this->load->view('partials/footer'); ?>

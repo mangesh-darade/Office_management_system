@@ -9,17 +9,20 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "application"
 
 KEY_RE = re.compile(
-    r"(?:has_module_access|require_module_access|get_controller_module_access_keys|"
+    r"(?:has_module_access|require_module_access|require_meal_access|meal_role_has|meal_can_access|get_controller_module_access_keys|"
     r"require_controller_access|can_access_any_module)\s*\(\s*(?:\[([^\]]+)\]|['\"]([a-z0-9_]+)['\"])",
     re.I,
 )
 MAP_KEY_RE = re.compile(r"'([a-z0-9_]+)'\s*=>\s*\[")
 PERM_KEY_RE = re.compile(r"'([a-z0-9_]+)'\s*=>\s*'")
+PERM_ARRAY_KEY_RE = re.compile(r"'([a-z0-9_]+)'\s*=>\s*array\s*\(")
 
 
 def keys_from_permissions_php() -> set[str]:
     text = (APP / "controllers/Permissions.php").read_text(encoding="utf-8", errors="replace")
-    return set(PERM_KEY_RE.findall(text))
+    keys = set(PERM_KEY_RE.findall(text))
+    keys |= set(PERM_ARRAY_KEY_RE.findall(text))
+    return keys
 
 
 def keys_from_codebase() -> set[str]:

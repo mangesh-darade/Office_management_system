@@ -491,7 +491,8 @@ class Attendance extends CI_Controller {
                         );
                         $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                        $this->load->helper('notification');
+                        $checkInStatus = isset($updates['status']) ? (string) $updates['status'] : 'present';
+                        $this->rewards_after_checkin($user_id, (int) $existing->id, $checkInStatus, $today);
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
                     } else {
@@ -547,7 +548,14 @@ class Attendance extends CI_Controller {
                                 
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
-                                $this->load->helper('notification');
+                                $this->load->helper(array('notification', 'rewards'));
+                                reward_engine_dispatch('attendance_checkout', array(
+                                    'user_id' => $user_id,
+                                    'source_module' => 'attendance',
+                                    'source_record_id' => (int) $existing->id,
+                                    'reference_label' => 'Check-out',
+                                    'payload' => array(),
+                                ));
                                 $success_msg = get_notification_message('attendance', 'create', 'success');
                                 $this->session->set_flashdata('success', $success_msg);
                             } else {
@@ -618,6 +626,8 @@ class Attendance extends CI_Controller {
                         );
                         $this->db->where('id', (int)$existing_final->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
+                        $checkInStatus = isset($updates['status']) ? (string) $updates['status'] : (isset($data['status']) ? (string) $data['status'] : 'present');
+                        $this->rewards_after_checkin($user_id, (int) $existing_final->id, $checkInStatus, $today);
                         $this->load->helper('notification');
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
@@ -625,8 +635,10 @@ class Attendance extends CI_Controller {
                         // No existing record, safe to insert
                         try {
                             $this->db->insert('attendance', $data);
+                            $attId = (int) $this->db->insert_id();
                             $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                            $this->load->helper('notification');
+                            $checkInStatus = isset($data['status']) ? (string) $data['status'] : 'present';
+                            $this->rewards_after_checkin($user_id, $attId, $checkInStatus, $today);
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
                         } catch (Exception $e) {
@@ -654,6 +666,8 @@ class Attendance extends CI_Controller {
                                     );
                                     $this->db->where('id', (int)$existing_after->id)->update('attendance', $updates);
                                     $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
+                                    $checkInStatus = isset($updates['status']) ? (string) $updates['status'] : (isset($data['status']) ? (string) $data['status'] : 'present');
+                                    $this->rewards_after_checkin($user_id, (int) $existing_after->id, $checkInStatus, $today);
                                     $this->load->helper('notification');
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
@@ -806,6 +820,22 @@ class Attendance extends CI_Controller {
             'expected_checkin_time' => $expected_checkin_time,
             'today' => $today
         ]);
+    }
+
+    /**
+     * Award check-in points and scan for prior missed checkouts.
+     */
+    private function rewards_after_checkin($user_id, $attendance_id, $status, $today)
+    {
+        $this->load->helper(array('rewards', 'rewards_automation'));
+        reward_engine_dispatch('attendance_checkin', array(
+            'user_id' => (int) $user_id,
+            'source_module' => 'attendance',
+            'source_record_id' => (int) $attendance_id,
+            'reference_label' => 'Check-in',
+            'payload' => array('status' => (string) $status),
+        ));
+        rewards_automation_after_checkin($this->db, (int) $user_id, $today);
     }
 
     private function maybe_send_attendance_email($user_id, $action, $dateTime){

@@ -9,7 +9,7 @@ $guide_modules = user_guide_modules();
 $guide_nav_active = (isset($active) && $active === 'guide');
 $guide_sub = isset($active_sub) ? (string) $active_sub : '';
 $guide_variant = isset($guide_nav_variant) ? (string) $guide_nav_variant : 'desktop';
-$guide_show = !function_exists('has_module_access') || has_module_access('guide');
+$guide_show = (!function_exists('has_module_access') || has_module_access('guide')) && !empty($guide_modules);
 
 if (!$guide_show) {
     return;

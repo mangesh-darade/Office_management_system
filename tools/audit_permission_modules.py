@@ -16,7 +16,9 @@ KEY_RE = re.compile(
 
 def keys_from_permissions_php() -> set[str]:
     text = (APP / "controllers/Permissions.php").read_text(encoding="utf-8", errors="replace")
-    return set(re.findall(r"'([a-z0-9_]+)'\s*=>\s*'", text))
+    keys = set(re.findall(r"'([a-z0-9_]+)'\s*=>\s*'", text))
+    keys |= set(re.findall(r"'([a-z0-9_]+)'\s*=>\s*array\s*\(", text))
+    return keys
 
 
 def keys_from_codebase() -> set[str]:

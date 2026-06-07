@@ -1,0 +1,144 @@
+---
+description: When adding screens, controller methods, or features — also update RBAC permissions and User Guide
+globs: application/controllers/**,application/views/**,application/core/**,application/config/routes.php,application/helpers/permission_helper.php,application/helpers/permissions_schema_helper.php,application/hooks/AuthHook.php,docs/user-guide/**,USER_GUIDE.md
+alwaysApply: false
+---
+
+# New feature checklist — Permissions + User Guide (required)
+
+When you add or change **any user-facing functionality** (controller method, route, view/screen, export, sidebar link, API action), complete **both** tracks below in the **same change** — do not leave RBAC or docs for a follow-up.
+
+User-facing means: anything a logged-in user can open, click, or submit (including exports and AJAX actions).
+
+---
+
+## A. Permissions (Permission Manager screen)
+
+### 1. Register the key in the matrix
+
+Add to `application/controllers/Permissions.php` → `modules()` under the correct menu group:
+
+```php
+'my_module_export' => 'Export My Module (CSV)',
+```
+
+Naming: `{module}` = full access parent; `{module}_list|add|edit|delete|export|import` = granular actions.
+
+### 2. Wire RBAC in code (same keys everywhere)
+
+| Layer | File | Action |
+|-------|------|--------|
+| Route gate | `application/helpers/permission_helper.php` → `get_controller_module_access_map()` | Add key(s) to the controller’s array |
+| Constructor | Controller `__construct()` | `require_controller_access('controller_name')` OR method-level `require_module_access([...])` |
+| Actions | Each public method | Gate with the **same** keys the view will use |
+| UI buttons | View | `has_module_access('key') \|\| has_module_access('parent')` — view keys must match controller |
+
+Do **not** duplicate keys in `AuthHook.php` — it reads `get_controller_module_access_map()`.
+
+Optional: add parent alias in `get_dashboard_module_groups()` when adding granular keys.
+
+### 3. Align view ↔ controller (avoid Access Denied bugs)
+
+- Export/import: use **GET** for read-only downloads OR `submitPostForm()` / `appendCsrfToForm()` for POST (CSRF is on).
+- If the view shows a button, the controller method must allow **at least one** of the same keys.
+- Prefer shared helpers: `get_attendance_export_module_keys()`, `can_access_attendance_export()` pattern for complex exports.
+
+### 4. Verify
+
+```bash
+python tools/audit_permission_modules.py
+python tools/audit_rbac_alignment.py
+```
+
+Fix until **MISSING from permission matrix: 0** and no view/controller key mismatches.
+
+### 5. After deploy
+
+Admin opens **Permission Manager → Save** once so new rows persist per role (or add a one-time seed in `permissions_schema_helper.php` if all roles should get a default).
+
+---
+
+## B. User Guide (in-app Help + markdown)
+
+### 1. Catalog entry (source of truth)
+
+Edit `docs/user-guide/module_catalog.json`:
+
+- New **entity** under the right module, or new module block if needed.
+- Set `purpose`, `menu`, routes, and `list` / `add` / `edit` / `delete` steps (null if N/A).
+
+Example entity fields: `list.route`, `add.route`, `edit.steps[]`, `delete.steps[]`.
+
+### 2. Regenerate markdown
+
+```bash
+python tools/generate_user_guide_modules.py
+```
+
+Update `USER_GUIDE.md` module table if you added a **new top-level module** (01–10).
+
+### 3. Screenshots / video (when UI changed)
+
+```bash
+python tools/capture_user_guide_screenshots.py
+# optional: python tools/capture_user_guide_videos.py
+```
+
+In-app guide reads from `docs/user-guide/` via `application/helpers/user_guide_helper.php` — no extra view work if catalog + images exist.
+
+### 4. New sidebar menu item
+
+Also update `application/views/partials/sidebar.php` (and mobile nav in `header.php` if duplicated) with `has_module_access()` using the **same key** as the controller.
+
+---
+
+## C. Minimum diff example (new export action)
+
+```
+Permissions.php          → 'tasks_export' => 'Export Tasks'
+permission_helper.php    → add 'tasks_export' to 'tasks' map
+Tasks.php export()       → require_module_access(['tasks_export','tasks'], true)
+views/tasks/list.php     → button gated on tasks_export || tasks
+module_catalog.json      → entity delete/export steps + route
+generate_user_guide_modules.py → run
+audit_*.py               → run
+```
+
+---
+
+## D. Do not skip
+
+- ❌ Controller-only permission with no matrix row (admins cannot assign it)
+- ❌ View button without controller gate (or opposite — silent redirect)
+- ❌ POST export/form without CSRF
+- ❌ Feature shipped with no `module_catalog.json` update
+
+If the change is **internal only** (refactor, no new/changed user action), say so and skip A/B.
+
+---
+
+## E. Office Meals — strict RBAC (exception)
+
+Office Meals uses **Permission Manager only** — no Super Admin bypass:
+
+| Layer | Use |
+|-------|-----|
+| Matrix | `Permissions.php` → **Office Meals** section (6 **Screen** keys) |
+| Checks | `meal_role_has()`, `meal_can_access()`, `require_meal_access()` in `meal_helper.php` |
+| Controller | `Meals.php` → `require_meal_access('meals_*')` per action; constructor uses `meal_has_any_access()` |
+| Sidebar / tabs | `meal_has_any_access()`, `meal_can_order()`, `meal_can_view_all_orders()` in `_nav.php` |
+
+**Permission keys (assign per role):**
+
+| Key | Screen |
+|-----|--------|
+| `meals_order` | My Orders |
+| `meals_calendar` | Meal Calendar |
+| `meals_provider` | Meal Provider |
+| `meals_settings` | Meal Settings |
+| `meals_history` | Meal History |
+| `meals_all_orders` | All meal orders |
+
+Do **not** gate meals with `has_module_access()` or `require_controller_access('meals')` — those ignore unchecked permissions for role 1.
+
+Update `module_catalog.json` under module **12 — Office Meals** when adding meal screens. Run `python tools/test_meals_module.py` after changes.

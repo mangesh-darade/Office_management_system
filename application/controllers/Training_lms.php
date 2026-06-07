@@ -218,6 +218,14 @@ class Training_lms extends CI_Controller
         }
         $uid = (int) $this->session->userdata('user_id');
         if ($this->lms_topic->mark_topic_completed($uid, $topic_id)) {
+            $this->load->helper('rewards');
+            reward_engine_dispatch('lms_topic_completed', array(
+                'user_id' => $uid,
+                'source_module' => 'training_lms',
+                'source_record_id' => $topic_id,
+                'reference_label' => isset($t->name) ? (string) $t->name : 'LMS topic',
+                'payload' => array(),
+            ));
             $this->session->set_flashdata('success', 'Topic marked as complete.');
         } else {
             $this->session->set_flashdata('error', 'Could not save completion. Ensure the database is up to date (open LMS admin once or run the latest LMS SQL).');

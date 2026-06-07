@@ -62,6 +62,17 @@ class Dashboard extends CI_Controller {
                      ->limit(5);
             $announcements = $this->db->get()->result();
         }
+
+        $meal_dashboard = null;
+        if ($this->db->table_exists('meal_calendar')) {
+            $this->load->helper(array('meal_schema', 'meal'));
+            meal_schema_ensure($this->db);
+            meal_cleanup_legacy_meal_announcements($this->db);
+            $announcements = meal_filter_dashboard_announcements($announcements);
+            if (meal_can_view_dashboard_announcement($this->db)) {
+                $meal_dashboard = meal_dashboard_today_tomorrow($this->db);
+            }
+        }
         
         // Fetch dashboard statistics with caching (5 minutes TTL)
         $stats = get_dashboard_stats($user_id, $role_id, 300);
@@ -97,6 +108,7 @@ class Dashboard extends CI_Controller {
             $this->load->view('dashboard/index', [
                 'role_id' => $role_id, 
                 'announcements' => $announcements,
+                'meal_dashboard' => $meal_dashboard,
                 'stats' => $stats,
                 'accessible_modules' => $accessible_modules,
                 'external_dashboards' => $this->external_dashboards->get_active(),

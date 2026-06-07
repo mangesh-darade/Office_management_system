@@ -594,12 +594,14 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('projects') ||
         has_module_access('requirements') ||
         has_module_access('tasks') ||
-        has_module_access('timesheets')
+        has_module_access('timesheets') ||
+        has_module_access('releases') ||
+        has_module_access('defects')
       );
       ?>
       <?php if($project_group_show): ?>
       <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo in_array($active, ['projects','requirements','tasks','timesheets']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-project-submenu" role="button">
+        <a class="nav-link sidebar-link <?php echo in_array($active, ['projects','requirements','tasks','timesheets','releases','defects']) ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-project-submenu" role="button">
           <i class="bi bi-kanban me-2"></i>Project <i class="bi bi-chevron-down float-end"></i>
         </a>
         <div class="collapse" id="mobile-project-submenu">
@@ -619,13 +621,55 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && has_module_access('timesheets')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='timesheets'?'active':''; ?>" href="<?php echo site_url('timesheets'); ?>"><i class="bi bi-calendar3 me-2"></i>Timesheet</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('releases')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='releases'?'active':''; ?>" href="<?php echo site_url('releases'); ?>"><i class="bi bi-rocket-takeoff me-2"></i>Releases</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('defects')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='defects'?'active':''; ?>" href="<?php echo site_url('defects'); ?>"><i class="bi bi-bug me-2"></i>Defects</a>
+            <?php endif; ?>
           </div>
         </div>
       </div>
       <?php endif; ?>
       
+      <?php $this->load->view('partials/sidebar_meals_group', array('variant' => 'mobile', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
+      <?php endif; ?>
+      <?php
+        $engagement_mobile_active = in_array($active, array('rewards','knowledge-base','helpdesk','events','certifications','customer-feedback'), true);
+        $engagement_mobile_any = function_exists('has_module_access') && (
+          has_module_access('rewards') || has_module_access('knowledge_base')
+          || has_module_access('helpdesk') || has_module_access('events') || has_module_access('certifications')
+          || has_module_access('customer_feedback')
+        );
+      ?>
+      <?php if ($engagement_mobile_any): ?>
+      <a class="nav-link sidebar-link <?php echo $engagement_mobile_active ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-engagement-submenu" role="button" aria-expanded="<?php echo $engagement_mobile_active ? 'true' : 'false'; ?>">
+        <i class="bi bi-trophy me-2"></i>Rewards & Engagement
+      </a>
+      <div class="collapse <?php echo $engagement_mobile_active ? 'show' : ''; ?>" id="mobile-engagement-submenu">
+        <div class="ps-3">
+          <?php if (has_module_access('rewards')): ?>
+          <a class="nav-link sidebar-link small <?php echo ($active==='rewards')?'active':''; ?>" href="<?php echo site_url('rewards'); ?>"><i class="bi bi-star me-2"></i>My Rewards</a>
+          <?php endif; ?>
+          <?php if (has_module_access('knowledge_base')): ?>
+          <a class="nav-link sidebar-link small <?php echo $active==='knowledge-base'?'active':''; ?>" href="<?php echo site_url('knowledge-base'); ?>"><i class="bi bi-journal-bookmark me-2"></i>Knowledge Base</a>
+          <?php endif; ?>
+          <?php if (has_module_access('helpdesk')): ?>
+          <a class="nav-link sidebar-link small <?php echo $active==='helpdesk'?'active':''; ?>" href="<?php echo site_url('helpdesk'); ?>"><i class="bi bi-life-preserver me-2"></i>Helpdesk</a>
+          <?php endif; ?>
+          <?php if (has_module_access('events')): ?>
+          <a class="nav-link sidebar-link small <?php echo $active==='events'?'active':''; ?>" href="<?php echo site_url('events'); ?>"><i class="bi bi-calendar-event me-2"></i>Events</a>
+          <?php endif; ?>
+          <?php if (has_module_access('certifications')): ?>
+          <a class="nav-link sidebar-link small <?php echo $active==='certifications'?'active':''; ?>" href="<?php echo site_url('certifications'); ?>"><i class="bi bi-patch-check me-2"></i>Certifications</a>
+          <?php endif; ?>
+          <?php if (has_module_access('customer_feedback')): ?>
+          <a class="nav-link sidebar-link small <?php echo $active==='customer-feedback'?'active':''; ?>" href="<?php echo site_url('customer-feedback'); ?>"><i class="bi bi-chat-heart me-2"></i>Customer Feedback</a>
+          <?php endif; ?>
+        </div>
+      </div>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>

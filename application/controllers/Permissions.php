@@ -127,6 +127,15 @@ class Permissions extends CI_Controller {
                     'timesheets_add'       => 'Add Timesheet Entry',
                     'timesheets_edit'      => 'Edit Timesheet Entry',
                     'timesheets_delete'    => 'Delete Timesheet Entry',
+                    'releases'               => 'Release Management (Full Access)',
+                    'releases_add'           => 'Add Release',
+                    'releases_edit'          => 'Edit Release',
+                    'defects'                => 'Defect Management (Full Access)',
+                    'defects_list'           => 'View Defect List',
+                    'defects_add'            => 'Add Defect',
+                    'defects_edit'           => 'Edit Defect',
+                    'defects_delete'         => 'Delete Defect',
+                    'defects_view'           => 'View Defect Detail',
                 ]
             ],
             'My Works' => [
@@ -140,6 +149,58 @@ class Permissions extends CI_Controller {
                     'my_works_view_all'    => 'View All My Works (Admin roles only — data scope)',
                     'my_works_export'      => 'Export My Works (CSV)',
                 ]
+            ],
+            'Engagement & Rewards' => [
+                'icon' => 'bi-trophy',
+                'modules' => [
+                    'rewards'                => 'Rewards & Recognition (Full Access)',
+                    'rewards_leaderboard'    => 'View Leaderboard',
+                    'rewards_submit'         => 'Submit Claims / Send Cheers',
+                    'rewards_approve'        => 'Approve Reward Claims',
+                    'rewards_admin'          => 'Rewards Administration',
+                    'rewards_rules'          => 'Manage Reward Rules',
+                    'rewards_manual_grant'   => 'Manual Point Grants',
+                    'knowledge_base'         => 'Knowledge Base (Full Access)',
+                    'knowledge_base_add'     => 'Add KB Article',
+                    'knowledge_base_edit'    => 'Edit KB Article',
+                    'helpdesk'               => 'Helpdesk / Tickets (Full Access)',
+                    'helpdesk_manage'        => 'Manage All Tickets',
+                    'events'                 => 'Company Events (Full Access)',
+                    'events_add'             => 'Add Event',
+                    'events_edit'            => 'Edit Event',
+                    'certifications'         => 'Certifications (Full Access)',
+                    'certifications_approve' => 'Approve Certifications',
+                    'customer_feedback'      => 'Customer Feedback Log',
+                ]
+            ],
+            'Office Meals' => [
+                'icon' => 'bi-cup-hot',
+                'modules' => [
+                    'meals_order' => array(
+                        'label' => 'My Orders',
+                        'tag'   => 'Screen',
+                    ),
+                    'meals_calendar' => array(
+                        'label' => 'Meal Calendar',
+                        'tag'   => 'Screen',
+                    ),
+                    'meals_provider' => array(
+                        'label' => 'Meal Provider',
+                        'tag'   => 'Screen',
+                    ),
+                    'meals_settings' => array(
+                        'label' => 'Meal Settings',
+                        'tag'   => 'Screen',
+                    ),
+                    'meals_history' => array(
+                        'label' => 'Meal History',
+                        'tag'   => 'Screen',
+                    ),
+                    'meals_all_orders' => array(
+                        'label' => 'All meal orders',
+                        'tag'   => 'Screen',
+                    ),
+                ],
             ],
             'Attendance & Leave' => [
                 'icon' => 'bi-calendar-check',
@@ -366,8 +427,13 @@ class Permissions extends CI_Controller {
 
         // Merge database modules with menu structure
         foreach ($menu_structure as $menu_name => &$menu_data) {
-            foreach ($menu_data['modules'] as $key => $label) {
-                if (isset($db_modules[$key])) {
+            foreach ($menu_data['modules'] as $key => $def) {
+                if (!isset($db_modules[$key])) {
+                    continue;
+                }
+                if (is_array($def)) {
+                    $menu_data['modules'][$key]['label'] = $db_modules[$key];
+                } else {
                     $menu_data['modules'][$key] = $db_modules[$key];
                 }
             }
@@ -431,8 +497,9 @@ class Permissions extends CI_Controller {
         // Collect all module keys from the hierarchical structure
         $all_module_keys = [];
         foreach ($modules as $menu_name => $menu_data) {
-            foreach ($menu_data['modules'] as $key => $label) {
-                $all_module_keys[$key] = $label;
+            foreach ($menu_data['modules'] as $key => $def) {
+                $meta = permissions_module_meta($def);
+                $all_module_keys[$key] = $meta['label'];
             }
         }
         

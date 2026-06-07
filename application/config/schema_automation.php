@@ -14,6 +14,8 @@ $config['schema_automation'] = array(
     array('type' => 'helper', 'helper' => 'expenses_schema', 'function' => 'expenses_schema_ensure', 'label' => 'Expenses'),
     array('type' => 'helper', 'helper' => 'requirements_schema', 'function' => 'requirements_schema_ensure', 'label' => 'Requirements'),
     array('type' => 'helper', 'helper' => 'announcements_schema', 'function' => 'announcements_schema_ensure', 'label' => 'Announcements'),
+    array('type' => 'helper', 'helper' => 'engagement_schema', 'function' => 'engagement_schema_ensure', 'label' => 'Engagement modules'),
+    array('type' => 'helper', 'helper' => 'rewards_schema', 'function' => 'rewards_schema_ensure', 'label' => 'Rewards'),
     array('type' => 'helper', 'helper' => 'email_settings_schema', 'function' => 'email_settings_schema_ensure', 'label' => 'Email settings'),
     array('type' => 'helper', 'helper' => 'system_settings_schema', 'function' => 'system_settings_schema_ensure', 'label' => 'System settings'),
     array('type' => 'helper', 'helper' => 'coaching', 'function' => 'coaching_ensure_schema', 'label' => 'Coaching'),

@@ -4,7 +4,7 @@ Complete guides in **simple English** with **readable screenshots** for every sc
 
 **Start:** [USER_GUIDE.md](../../USER_GUIDE.md)
 
-**In the app:** sidebar → **User Guide** (all 10 modules with screenshots).
+**In the app:** sidebar → **User Guide** (all 12 modules with screenshots).
 
 ---
 
@@ -22,8 +22,10 @@ Complete guides in **simple English** with **readable screenshots** for every sc
 | 08 Finance | 6 | [08-finance.md](08-finance.md) |
 | 09 Training & Coaching | 5 | [09-training-coaching.md](09-training-coaching.md) |
 | 10 Administration | 9 | [10-administration.md](10-administration.md) |
+| 11 Engagement & Rewards | 10 | [11-engagement-rewards.md](11-engagement-rewards.md) |
+| 12 Office Meals | 7 | [12-office-meals.md](12-office-meals.md) |
 
-**Total: 63 screenshots + 13 animated videos** at readable size.
+**Total: 63+ screenshots + 13 animated videos** at readable size (add engagement screenshots via capture script).
 
 ---
 

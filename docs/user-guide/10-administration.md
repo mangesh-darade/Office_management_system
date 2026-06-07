@@ -31,7 +31,7 @@ System settings, permissions, email, holidays, activity log, and database tools.
 
 ## Permissions
 
-**Purpose:** Tick which modules each role can access.
+**Purpose:** Tick which modules each role can access. Office Meals has six Screen permissions (My Orders, Meal Calendar, Meal Provider, Meal Settings, Meal History, All meal orders) under the Office Meals group — unchecked roles lose sidebar and screen access.
 
 **Menu:** Settings → Permission Manager
 
@@ -42,7 +42,9 @@ System settings, permissions, email, holidays, activity log, and database tools.
 
 **Steps:**
 
-1. Select role → tick modules → Save.
+1. Expand module group (e.g. Office Meals).
+2. Tick Screen permissions per role.
+3. Save — meals access follows Permission Manager strictly (no Super Admin bypass for Office Meals).
 
 ---
 
@@ -183,4 +185,4 @@ System settings, permissions, email, holidays, activity log, and database tools.
 
 ---
 
-**Back to start:** [USER_GUIDE.md](../../USER_GUIDE.md)
+**Next module:** [11 — Engagement & Rewards](11-engagement-rewards.md)

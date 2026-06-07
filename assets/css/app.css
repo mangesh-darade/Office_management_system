@@ -188,7 +188,9 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #training-assessment-toggle,
 #payroll-toggle,
 #communication-toggle,
-#coaching-toggle{
+#coaching-toggle,
+#meals-toggle,
+#engagement-toggle{
   color:#e5e7eb !important;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.1);
@@ -209,7 +211,9 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #training-assessment-toggle:hover,
 #payroll-toggle:hover,
 #communication-toggle:hover,
-#coaching-toggle:hover {
+#coaching-toggle:hover,
+#meals-toggle:hover,
+#engagement-toggle:hover {
   background: rgba(255,255,255,0.15);
   border-color: rgba(255,255,255,0.2);
   color: #ffffff !important;
@@ -229,7 +233,9 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #training-assessment-toggle .bi,
 #payroll-toggle .bi,
 #communication-toggle .bi,
-#coaching-toggle .bi{
+#coaching-toggle .bi,
+#meals-toggle .bi,
+#engagement-toggle .bi{
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   opacity:1;
   font-size:.85rem;
@@ -248,7 +254,9 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 #training-assessment-toggle.rot .bi,
 #payroll-toggle.rot .bi,
 #communication-toggle.rot .bi,
-#coaching-toggle.rot .bi{ transform: rotate(90deg) scale(1.1); }
+#coaching-toggle.rot .bi,
+#meals-toggle.rot .bi,
+#engagement-toggle.rot .bi{ transform: rotate(90deg) scale(1.1); }
 
 #daily-activity-group.open > .d-flex > #daily-activity-parent{
   background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
@@ -922,8 +930,8 @@ h1.h4, h4.fw-bold, .page-title {
 }
 
 /* ===== OMS list screens — shared mobile UI ===== */
-.oms-page-head { gap: 0.75rem; }
-.oms-page-head-text { min-width: 0; }
+.oms-page-head { gap: 0.75rem; width: 100%; }
+.oms-page-head-text { flex: 1 1 auto; min-width: min(100%, 16rem); }
 .oms-page-actions { flex-shrink: 0; }
 .oms-page-actions .btn { white-space: nowrap; }
 .oms-filter-row .form-select,
@@ -944,5 +952,332 @@ h1.h4, h4.fw-bold, .page-title {
   .container-fluid.p-0:not(.no-mobile-pad) {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
+  }
+}
+
+/* Office Meals — day cards */
+.meal-day-flags {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+@media (max-width: 575.98px) {
+  .meal-day-flags { grid-template-columns: 1fr; }
+}
+
+/* Meals sub-nav — horizontal scroll on mobile */
+.oms-meals-subnav-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-left: -0.25rem;
+  margin-right: -0.25rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+.oms-meals-subnav {
+  gap: 0.35rem;
+  padding-bottom: 0.15rem;
+}
+.oms-meals-subnav .nav-link {
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.75rem;
+}
+@media (max-width: 575.98px) {
+  .oms-fluid-pad .card.shadow-soft .card-header {
+    font-size: 0.9rem;
+  }
+  .meal-change-status {
+    font-size: 0.8125rem;
+    padding: 0.6rem;
+  }
+  .meal-order-locked .badge {
+    display: inline-block;
+    margin-top: 0.25rem;
+  }
+  #meal-orders-panel .badge.rounded-pill {
+    font-size: 0.7rem;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+.meal-flag-box {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: #fff;
+  min-height: 100%;
+}
+.meal-flag-box.is-locked {
+  background: #f8f9fa;
+  opacity: 0.92;
+}
+.meal-flag-box.is-locked .form-check-input:disabled {
+  opacity: 0.55;
+}
+.meal-flag-box.is-unavailable {
+  background: #f8f9fa;
+  opacity: 0.65;
+}
+.meal-flag-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.35rem;
+}
+.meal-flag-menu {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+  min-height: 1.1rem;
+}
+.meal-flag-cutoff {
+  font-size: 0.7rem;
+  color: #6c757d;
+}
+.meal-plates-row {
+  margin-top: 0.5rem;
+}
+.meal-plates-row .btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.35rem;
+}
+.meal-change-status {
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.85rem;
+}
+.meal-change-status--pending {
+  background: #fff8e6;
+  border: 1px solid #ffc107;
+}
+.meal-change-status--approved {
+  background: #ecfdf0;
+  border: 1px solid #28a745;
+}
+.meal-change-status--rejected {
+  background: #fdf2f2;
+  border: 1px solid #dc3545;
+}
+.meal-req-option {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  cursor: pointer;
+}
+.meal-req-option input {
+  margin-top: 0;
+}
+.meal-req-option:has(input:checked) {
+  font-weight: 600;
+  border-width: 2px;
+}
+
+/* Dashboard announcements panel */
+.dashboard-announcements .announcement-panel {
+  border: 1px solid rgba(13, 110, 253, 0.12);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+.announcement-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+.announcement-panel__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #212529;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.announcement-panel__title .bi-megaphone {
+  color: var(--bs-primary);
+  font-size: 1.15rem;
+}
+.announcements-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.announcement-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: #f8f9fa;
+  border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+  border-radius: 0.65rem;
+  border-left: 4px solid var(--bs-primary);
+}
+.announcement-item--high {
+  border-left-color: #fd7e14;
+  background: #fffaf5;
+}
+.announcement-item--meals {
+  border-left-color: #dc3545;
+  background: linear-gradient(135deg, #fff8f8 0%, #fff 55%);
+}
+.announcement-item__icon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--bs-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.announcement-item__icon--meals {
+  background: #dc3545;
+}
+.announcement-item__body {
+  flex: 1;
+  min-width: 0;
+}
+.announcement-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+.announcement-item__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #212529;
+}
+.announcement-item__meta {
+  display: block;
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 0.15rem;
+}
+.announcement-item__text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #495057;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.announcement-item__action {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Meals day cards inside announcement */
+.meal-dashboard-days {
+  margin-top: 0.5rem;
+}
+.meal-dashboard-day {
+  border: 1px solid rgba(220, 53, 69, 0.22);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  height: 100%;
+}
+.meal-dashboard-day.is-today {
+  box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.08);
+}
+.meal-dashboard-day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(220, 53, 69, 0.15);
+}
+.meal-dashboard-day-label {
+  font-weight: 700;
+  color: #dc3545;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+}
+.meal-dashboard-day-date {
+  font-size: 0.78rem;
+  color: #6c757d;
+}
+.meal-dashboard-meal {
+  font-size: 0.82rem;
+  margin-bottom: 0.45rem;
+}
+.meal-dashboard-meal:last-child {
+  margin-bottom: 0;
+}
+.meal-dashboard-meal-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.meal-dashboard-meal-row > .bi {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  font-size: 1rem;
+}
+.meal-dashboard-meal-note {
+  font-size: 0.78rem;
+  color: #495057;
+  margin-top: 0.1rem;
+}
+.meal-dashboard-meal-cutoff {
+  display: block;
+  font-size: 0.72rem;
+  color: #6c757d;
+  margin-top: 0.15rem;
+}
+.meal-dashboard-none {
+  font-size: 0.82rem;
+  color: #6c757d;
+}
+
+@media (max-width: 575.98px) {
+  .dashboard-announcements .announcement-panel .card-body {
+    padding: 0.85rem !important;
+  }
+  .announcement-item {
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.75rem;
+  }
+  .announcement-item__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1rem;
+  }
+  .announcement-item__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .announcement-item__action {
+    width: 100%;
+    justify-content: center;
+  }
+  .announcement-item__text {
+    -webkit-line-clamp: 4;
+  }
+  .meal-dashboard-day-date {
+    font-size: 0.72rem;
+  }
+}
+
+@media (min-width: 576px) {
+  .announcement-item--meals .announcement-item__head {
+    align-items: center;
   }
 }

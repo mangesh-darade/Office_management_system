@@ -28,32 +28,58 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       <?php endif; ?>
       
       <!-- Announcements at Top -->
-      <?php if (!empty($announcements)): ?>
-      <div class="mb-4">
-        <div class="card shadow-sm border-primary announcement-card-top">
-          <div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-              <h5 class="mb-0"><i class="bi bi-megaphone me-2 text-primary"></i>Latest Announcements</h5>
-              <a class="btn btn-outline-primary btn-sm flex-shrink-0" href="<?php echo site_url('announcements'); ?>">View all</a>
+      <?php
+        $meal_dashboard = isset($meal_dashboard) ? $meal_dashboard : null;
+        $show_meal_grid = ($meal_dashboard !== null);
+        $show_announcements = !empty($announcements) || $show_meal_grid;
+      ?>
+      <?php if ($show_announcements): ?>
+      <div class="mb-4 dashboard-announcements">
+        <div class="card shadow-sm announcement-panel">
+          <div class="card-body p-3 p-md-4">
+            <div class="announcement-panel__head">
+              <h5 class="announcement-panel__title mb-0">
+                <i class="bi bi-megaphone"></i>Latest Announcements
+              </h5>
+              <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements'); ?>">View all</a>
             </div>
-            <div class="row g-3">
-              <?php foreach ($announcements as $a): ?>
-                <div class="col-12 col-md-6">
-                  <div class="d-flex align-items-start p-3 rounded bg-light">
-                    <div class="me-3">
-                      <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                        <i class="bi bi-bullhorn"></i>
+            <div class="announcements-feed">
+              <?php if ($show_meal_grid): ?>
+                <?php $this->load->view('meals/_dashboard_grid', array(
+                  'meal_dashboard' => $meal_dashboard,
+                  'can_order' => function_exists('meal_can_order') && meal_can_order(),
+                  'can_provider' => function_exists('meal_can_access') && meal_can_access('meals_provider'),
+                )); ?>
+              <?php endif; ?>
+              <?php if (!empty($announcements)): ?>
+                <?php foreach ($announcements as $a):
+                  $snippet = '';
+                  if (!empty($a->content)) {
+                      $snippet = trim(preg_replace('/\s+/', ' ', strip_tags((string) $a->content)));
+                  }
+                  $priority = isset($a->priority) ? strtolower((string) $a->priority) : '';
+                  $prioClass = ($priority === 'high') ? 'announcement-item--high' : '';
+                ?>
+                <article class="announcement-item <?php echo htmlspecialchars($prioClass); ?>">
+                  <div class="announcement-item__icon" aria-hidden="true">
+                    <i class="bi bi-bullhorn"></i>
+                  </div>
+                  <div class="announcement-item__body">
+                    <div class="announcement-item__head">
+                      <div class="min-w-0">
+                        <h6 class="announcement-item__title mb-0"><?php echo htmlspecialchars($a->title); ?></h6>
+                        <?php if ($priority !== ''): ?>
+                          <span class="announcement-item__meta"><?php echo htmlspecialchars(ucfirst($priority)); ?> priority</span>
+                        <?php endif; ?>
                       </div>
                     </div>
-                    <div class="flex-grow-1">
-                      <h6 class="mb-1 fw-semibold"><?php echo htmlspecialchars($a->title); ?></h6>
-                      <?php if (!empty($a->start_date) || !empty($a->end_date)): ?>
-                        <small class="text-muted"><?php echo htmlspecialchars(($a->start_date?:'—').' to '.($a->end_date?:'—')); ?></small>
-                      <?php endif; ?>
-                    </div>
+                    <?php if ($snippet !== ''): ?>
+                      <p class="announcement-item__text mb-0"><?php echo htmlspecialchars($snippet); ?></p>
+                    <?php endif; ?>
                   </div>
-                </div>
-              <?php endforeach; ?>
+                </article>
+                <?php endforeach; ?>
+              <?php endif; ?>
             </div>
           </div>
         </div>

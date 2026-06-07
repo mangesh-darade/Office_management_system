@@ -206,7 +206,7 @@
       "slug": "04-projects-tasks",
       "file": "04-projects-tasks.md",
       "title": "Projects & Tasks",
-      "purpose": "Plan projects, capture requirements, assign tasks, and track status on a board.",
+      "purpose": "Plan projects, capture requirements, assign tasks, track releases and defects, and manage status on a board.",
       "video": "videos/04-projects/tasks-board-tour.webm",
       "entities": [
         {
@@ -253,6 +253,24 @@
           "add": {"image": "images/04-projects/approvals-add.png", "route": "approvals/create"},
           "edit": {"image": "images/04-projects/approvals-edit.png", "list_route": "approvals"},
           "delete": {"steps": ["Delete workflow from approvals list."]}
+        },
+        {
+          "name": "Releases",
+          "menu": "Project → Releases",
+          "purpose": "Track project version releases and go-live dates; earns reward points when marked released.",
+          "list": {"route": "releases"},
+          "add": {"route": "releases/create", "steps": ["Pick project and version.", "Set planned date → Save."]},
+          "edit": {"list_route": "releases", "steps": ["Open release → Edit status to Released when live."]},
+          "delete": null
+        },
+        {
+          "name": "Defects",
+          "menu": "Project → Defects",
+          "purpose": "Log, assign, and resolve bugs linked to projects, releases, and tasks.",
+          "list": {"route": "defects"},
+          "add": {"route": "defects/create", "steps": ["Select project.", "Describe issue and steps to reproduce.", "Assign if known → Save."]},
+          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved."]},
+          "delete": {"steps": ["Open defect detail → Delete (admin)."]}
         }
       ]
     },
@@ -587,10 +605,10 @@
         {
           "name": "Permissions",
           "menu": "Settings → Permission Manager",
-          "purpose": "Tick which modules each role can access.",
+          "purpose": "Tick which modules each role can access. Office Meals has six Screen permissions (My Orders, Meal Calendar, Meal Provider, Meal Settings, Meal History, All meal orders) under the Office Meals group — unchecked roles lose sidebar and screen access.",
           "list": {"image": "images/10-admin/permissions.png", "route": "permissions"},
           "add": null,
-          "edit": {"steps": ["Select role → tick modules → Save."]},
+          "edit": {"steps": ["Expand module group (e.g. Office Meals).", "Tick Screen permissions per role.", "Save — meals access follows Permission Manager strictly (no Super Admin bypass for Office Meals)."]},
           "delete": null
         },
         {
@@ -654,6 +672,211 @@
           "list": {"image": "images/10-admin/superadmin.png", "route": "superadmin"},
           "add": null,
           "edit": null,
+          "delete": null
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "slug": "11-engagement-rewards",
+      "file": "11-engagement-rewards.md",
+      "title": "Engagement & Rewards",
+      "purpose": "Earn points for daily work, share knowledge, and recognize colleagues.",
+      "entities": [
+        {
+          "name": "My Rewards",
+          "menu": "Rewards & Engagement → My Rewards",
+          "purpose": "See your points, level, and recent awards.",
+          "list": {"route": "rewards"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Leaderboard",
+          "menu": "Rewards → Leaderboard",
+          "purpose": "Compare monthly points with colleagues.",
+          "list": {"route": "rewards/leaderboard"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Send Cheer",
+          "menu": "Rewards → Send Cheer",
+          "purpose": "Recognize a colleague with peer points.",
+          "add": {"route": "rewards/cheer", "steps": ["Pick colleague.", "Write a short thank-you.", "Send."]},
+          "list": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Submit Reward Claim",
+          "menu": "Rewards → Submit Claim",
+          "purpose": "Lead/Admin: submit delivery, innovation, social, and other approval-based activities for team members.",
+          "add": {"route": "rewards/submit-claim", "steps": ["Pick activity.", "Select team member(s).", "Add notes → Submit for approval."]},
+          "list": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Reward Approvals",
+          "menu": "Rewards → Approvals",
+          "purpose": "Approve or reject pending point claims.",
+          "list": {"route": "rewards/approvals"},
+          "edit": {"steps": ["Approve or Reject each pending row."]},
+          "add": null,
+          "delete": null
+        },
+        {
+          "name": "Office Closing Checklist",
+          "menu": "Rewards → Office Closing",
+          "purpose": "Daily closing checklist submission (+30 points).",
+          "add": {"route": "rewards/office-closing", "steps": ["Confirm date.", "Submit checklist once per day."]},
+          "list": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Reward Rules (admin)",
+          "menu": "Rewards → Reward Rules",
+          "purpose": "Configure automatic point rules and manual grants.",
+          "list": {"route": "rewards/rules"},
+          "add": {"route": "rewards/edit-rule", "steps": ["Set trigger event, points, and conditions.", "Save."]},
+          "edit": {"list_route": "rewards/rules", "steps": ["Open rule → Edit → Save."]},
+          "delete": {"steps": ["Disable rule from edit screen (set Active = No)."]}
+        },
+        {
+          "name": "Knowledge Base",
+          "menu": "Knowledge Base",
+          "purpose": "Publish how-to articles; earn points when published.",
+          "list": {"route": "knowledge-base"},
+          "add": {"route": "knowledge-base/create", "steps": ["Write title and body.", "Set status Published → Save."]},
+          "edit": {"list_route": "knowledge-base", "steps": ["Edit article → Update → Save."]},
+          "delete": null
+        },
+        {
+          "name": "Helpdesk",
+          "menu": "Helpdesk",
+          "purpose": "Raise and resolve internal support tickets.",
+          "list": {"route": "helpdesk"},
+          "add": {"route": "helpdesk/create", "steps": ["Subject and description → Submit."]},
+          "edit": {"list_route": "helpdesk", "steps": ["Manager: assign and set status Resolved."]},
+          "delete": null
+        },
+        {
+          "name": "Events",
+          "menu": "Events",
+          "purpose": "Company workshops and town halls calendar.",
+          "list": {"route": "events"},
+          "add": {"route": "events/create", "steps": ["Title, date/time, location → Save."]},
+          "edit": {"list_route": "events", "steps": ["Edit event details from admin list."]},
+          "delete": null
+        },
+        {
+          "name": "Certifications",
+          "menu": "Certifications",
+          "purpose": "Submit external certs for manager approval and points.",
+          "list": {"route": "certifications"},
+          "add": {"route": "certifications/create", "steps": ["Enter cert name and evidence URL.", "Submit for approval."]},
+          "edit": {"steps": ["Manager approves or rejects from list."]},
+          "delete": null
+        },
+        {
+          "name": "Customer Feedback",
+          "menu": "Customer Feedback",
+          "purpose": "Log structured client feedback linked to projects.",
+          "list": {"route": "customer-feedback"},
+          "add": {"route": "customer-feedback/create", "steps": ["Client, rating, feedback text → Save."]},
+          "edit": null,
+          "delete": null
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "slug": "12-office-meals",
+      "file": "12-office-meals.md",
+      "title": "Office Meals",
+      "purpose": "Order breakfast and lunch, manage the meal calendar, provider counts, change requests after cut-off, and org-wide order reports.",
+      "entities": [
+        {
+          "name": "My Orders",
+          "menu": "Office Meals → My Orders",
+          "purpose": "Order today's breakfast (0–3 plates) and lunch (none / half / full tiffin). Auto-saves. Tomorrow is preview only. After cut-off, request a change for provider approval.",
+          "list": {
+            "route": "meals",
+            "image": "images/12-meals/my-orders.png",
+            "steps": ["See Today and Tomorrow on one page.", "Breakfast: pick plate count (auto-saves).", "Lunch: pick No / Half tiffin / Full tiffin.", "After lock: use Request change if you need a different order."]
+          },
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Meal Calendar",
+          "menu": "Office Meals → Calendar",
+          "purpose": "Plan which dates have breakfast and lunch; optional menu notes. Can auto-publish dashboard announcements.",
+          "list": {"route": "meals/calendar", "image": "images/12-meals/calendar.png"},
+          "add": {"route": "meals/calendar", "image": "images/12-meals/calendar-edit.png", "steps": ["Open month view.", "Tick breakfast/lunch per date.", "Add menu notes.", "Save calendar."]},
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Meal Provider",
+          "menu": "Office Meals → Provider",
+          "purpose": "Daily plate/tiffin counts after cut-off, approve or reject employee change requests, export CSV.",
+          "list": {
+            "route": "meals/provider",
+            "image": "images/12-meals/provider.png",
+            "steps": ["Pick date.", "Review counts after breakfast/lunch lock.", "Approve or reject pending change requests.", "Export CSV if allowed."]
+          },
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Meal Settings",
+          "menu": "Office Meals → Settings",
+          "purpose": "Cut-off times, max breakfast plates, weekly menu template, email notifications, dashboard announcement toggle.",
+          "list": {"route": "meals/settings", "image": "images/12-meals/settings.png"},
+          "add": {"route": "meals/settings", "image": "images/12-meals/settings-edit.png", "steps": ["Set breakfast and lunch cut-offs.", "Edit Mon–Sun weekly menu.", "Set provider contact and dashboard announcement toggle.", "Save settings.", "Apply weekly menu to calendar."]},
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Meal History",
+          "menu": "Office Meals → History",
+          "purpose": "Audit log of order changes (who changed what and when).",
+          "list": {
+            "route": "meals/history",
+            "image": "images/12-meals/history.png",
+            "steps": ["Filter by date and/or employee.", "Review change log rows."]
+          },
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "All Meal Orders",
+          "menu": "Office Meals → All Orders",
+          "purpose": "Org-wide roster: every employee's breakfast and lunch order for a selected date.",
+          "list": {
+            "route": "meals/all_orders",
+            "image": "images/12-meals/all-orders.png",
+            "steps": ["Pick date.", "Optionally show only employees with orders.", "Review totals and per-employee rows.", "Export CSV if allowed."]
+          },
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "Permissions (Office Meals)",
+          "menu": "Settings → Permission Manager → Office Meals",
+          "purpose": "Assign six Screen permissions per role. Unchecked roles cannot see Office Meals in the sidebar.",
+          "list": {"route": "permissions", "image": "images/12-meals/permissions.png"},
+          "add": null,
+          "edit": {"steps": ["Expand Office Meals group.", "Employee: tick My Orders only.", "Provider: tick Meal Calendar + Meal Provider.", "Admin: tick all screens or All meal orders.", "Save permissions."]},
           "delete": null
         }
       ]

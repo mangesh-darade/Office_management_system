@@ -93,5 +93,11 @@ if (!function_exists('permissions_schema_ensure')) {
         if (function_exists('seed_attendance_export_if_needed')) {
             seed_attendance_export_if_needed();
         }
+        if (function_exists('seed_engagement_rewards_permissions_if_needed')) {
+            seed_engagement_rewards_permissions_if_needed();
+        }
+        if (function_exists('seed_project_extensions_permissions_if_needed')) {
+            seed_project_extensions_permissions_if_needed();
+        }
     }
 }
