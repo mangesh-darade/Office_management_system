@@ -59,6 +59,13 @@ class Status_model extends CI_Model {
             ['name' => 'In Progress', 'code' => 'in_progress', 'type' => 'tasks', 'color' => '#007bff', 'icon' => 'play-circle', 'display_order' => 2],
             ['name' => 'Completed', 'code' => 'completed', 'type' => 'tasks', 'color' => '#28a745', 'icon' => 'check', 'display_order' => 3],
             ['name' => 'Blocked', 'code' => 'blocked', 'type' => 'tasks', 'color' => '#dc3545', 'icon' => 'x-circle', 'display_order' => 4],
+
+            // My Works statuses
+            ['name' => 'New', 'code' => 'new', 'type' => 'my_works', 'color' => '#3b82f6', 'icon' => 'circle', 'display_order' => 1],
+            ['name' => 'In Progress', 'code' => 'in_progress', 'type' => 'my_works', 'color' => '#eab308', 'icon' => 'play-circle', 'display_order' => 2],
+            ['name' => 'Needs Discussion', 'code' => 'need_discussion', 'type' => 'my_works', 'color' => '#ef4444', 'icon' => 'chat-dots', 'display_order' => 3],
+            ['name' => 'Closed', 'code' => 'closed', 'type' => 'my_works', 'color' => '#22c55e', 'icon' => 'check-circle', 'display_order' => 4],
+            ['name' => 'Postponed', 'code' => 'postponed', 'type' => 'my_works', 'color' => '#f97316', 'icon' => 'pause-circle', 'display_order' => 5],
         ];
         
         foreach ($defaults as $status) {
@@ -128,6 +135,25 @@ class Status_model extends CI_Model {
             $options[$status->code] = $status->name;
         }
         return $options;
+    }
+
+    public function seed_my_works_statuses_if_missing()
+    {
+        if (!$this->db->table_exists('statuses')) {
+            return;
+        }
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        foreach (my_works_status_fallback_definitions() as $status) {
+            $status['type'] = 'my_works';
+            $status['is_active'] = 1;
+            if ($this->get_by_code($status['code'], 'my_works')) {
+                continue;
+            }
+            $status['created_at'] = date('Y-m-d H:i:s');
+            $status['updated_at'] = date('Y-m-d H:i:s');
+            $this->db->insert('statuses', $status);
+        }
     }
 }
 

@@ -14,7 +14,7 @@ class My_works extends CI_Controller
         $this->load->helper('schema_columns');
         $this->load->helper(array(
             'url', 'form', 'permission', 'hierarchy_filter', 'data_scope',
-            'my_works', 'my_works_access', 'my_works_query', 'my_works_form',
+            'my_works', 'my_works_status', 'my_works_access', 'my_works_query', 'my_works_form',
             'my_works_attachment', 'download',
         ));
         $this->load->library(array('session', 'upload'));
@@ -304,10 +304,34 @@ class My_works extends CI_Controller
         require_module_access(array('my_works_list', 'my_works'), true);
         $filters = $this->_sanitize_filters($this->_parse_filters());
         $view_mode = trim((string) $this->input->get('view'));
-        if (!in_array($view_mode, array('list', 'board', 'matrix'), true)) {
-            $view_mode = 'list';
+        if ($view_mode === 'dashboard') {
+            $view_mode = 'overview';
+        }
+        if (!in_array($view_mode, array('overview', 'hub', 'list', 'board', 'matrix'), true)) {
+            $view_mode = 'overview';
         }
         $data = $this->_list_view_data($filters, $view_mode);
+        if ($view_mode === 'overview') {
+            $c = $this->_ctx();
+            $exclude_closed = ($filters['status'] === '');
+            $dash = my_works_build_dashboard_sections($data['rows'], $exclude_closed);
+            $data['dashboard_sections'] = $dash['sections'];
+            $data['dashboard_counts'] = $dash['counts'];
+            $this->load->view('my_works/overview', $data);
+            return;
+        }
+        if ($view_mode === 'hub') {
+            $c = $this->_ctx();
+            $data['feed'] = my_works_fetch_recent_feed($this->db, $c['can_view_all'], $c['user_id'], 40);
+            $overview_items = array();
+            foreach ($data['rows'] as $row) {
+                $overview_items[(int) $row->id] = my_works_overview_item_payload($row, $data['attachments_map']);
+            }
+            $data['overview_items'] = $overview_items;
+            $data['can_edit'] = function_exists('has_module_access') && (has_module_access('my_works_edit') || has_module_access('my_works'));
+            $this->load->view('my_works/overview_hub', $data);
+            return;
+        }
         if ($view_mode === 'board') {
             $this->load->view('my_works/board', $data);
             return;
@@ -425,8 +449,7 @@ class My_works extends CI_Controller
             redirect('my-works/' . (int) $id);
             return;
         }
-        $this->load->view('my_works/form', array(
-            'action' => 'create',
+        $this->load->view('my_works/form_create', array(
             'item' => $old ? (object) $old : null,
             'users' => $this->_assignable_users(),
             'tags' => $this->my_works->distinct_tags_scoped(array($this, '_apply_list_scope')),
@@ -550,12 +573,38 @@ class My_works extends CI_Controller
         $comment = trim((string) $this->input->post('comment'));
         if ($comment === '') {
             $this->session->set_flashdata('error', 'Comment cannot be empty.');
+            $redirect = trim((string) $this->input->post('redirect'));
+            if ($redirect !== '' && strpos($redirect, 'my-works') !== false) {
+                redirect($redirect);
+                return;
+            }
             redirect('my-works/' . (int) $id);
             return;
         }
+        $uploads = $this->_handle_uploads();
+        if ($uploads === false) {
+            $redirect = trim((string) $this->input->post('redirect'));
+            if ($redirect !== '') {
+                redirect($redirect);
+            } else {
+                redirect('my-works/' . (int) $id);
+            }
+            return;
+        }
         $this->my_works->add_comment((int) $id, $this->_current_user_id(), $comment);
-        $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'comment', 'Added a comment');
+        if (!empty($uploads)) {
+            $this->_save_new_attachments((int) $id, $uploads);
+            $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'comment', 'Added a comment with attachment(s)');
+        } else {
+            $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'comment', 'Added a comment');
+        }
+        $this->_clear_dashboard_cache();
         $this->session->set_flashdata('success', 'Comment added.');
+        $redirect = trim((string) $this->input->post('redirect'));
+        if ($redirect !== '' && strpos($redirect, 'my-works') !== false) {
+            redirect($redirect);
+            return;
+        }
         redirect('my-works/' . (int) $id);
     }
 
@@ -650,8 +699,8 @@ class My_works extends CI_Controller
             show_404();
         }
         $id = (int) $this->input->post('id');
-        $status = trim((string) $this->input->post('status'));
-        if (!in_array($status, array('new', 'in_progress', 'closed'), true)) {
+        $status = my_works_status_sanitize($this->input->post('status'));
+        if (!my_works_status_is_valid($status)) {
             show_error('Invalid status.', 400);
         }
         $item = $this->my_works->find($id);
@@ -715,5 +764,93 @@ class My_works extends CI_Controller
         }
         $this->session->set_flashdata('success', 'Priority updated.');
         redirect('my-works?view=matrix');
+    }
+
+    public function update_lane()
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+
+        $id = (int) $this->input->post('id');
+        $lane = trim((string) $this->input->post('lane'));
+        if ($id < 1 || !my_works_dashboard_lane_is_valid($lane)) {
+            show_error('Invalid lane.', 400);
+        }
+
+        $item = $this->my_works->find($id);
+        if (!$item) {
+            show_404();
+        }
+        if (!$this->_can_update_status($item)) {
+            show_error('Access denied.', 403);
+        }
+
+        $from_lane = my_works_dashboard_lane_for_row($item);
+        if ($from_lane === $lane) {
+            if ($this->input->is_ajax_request()) {
+                $this->output->set_content_type('application/json')->set_output(json_encode(array(
+                    'ok'            => true,
+                    'lane'          => $lane,
+                    'computed_lane' => $lane,
+                )));
+                return;
+            }
+            redirect('my-works?view=overview');
+            return;
+        }
+
+        $updates = my_works_lane_updates_for_drop($lane, $item);
+        if ($updates === false || empty($updates)) {
+            show_error('Unable to move item to that lane.', 400);
+        }
+
+        $prev_status = isset($item->status) ? (string) $item->status : '';
+        $prev_due = isset($item->due_date) ? (string) $item->due_date : '';
+        $prev_tag = isset($item->tag) ? (string) $item->tag : '';
+        $user_id = $this->_current_user_id();
+
+        $this->my_works->update($id, $updates);
+
+        $labels = my_works_dashboard_lane_labels();
+        $from_label = isset($labels[$from_lane]) ? $labels[$from_lane] : $from_lane;
+        $to_label = isset($labels[$lane]) ? $labels[$lane] : $lane;
+        $this->my_works->log_activity($id, $user_id, 'lane', $from_label . ' → ' . $to_label);
+
+        if (isset($updates['status']) && $prev_status !== (string) $updates['status']) {
+            $this->my_works->log_activity($id, $user_id, 'status', $prev_status . ' → ' . $updates['status']);
+        }
+        if (isset($updates['due_date']) && $prev_due !== (string) $updates['due_date']) {
+            $detail = ($prev_due !== '' ? $prev_due : 'none') . ' → ' . $updates['due_date'];
+            $this->my_works->log_activity($id, $user_id, 'due_date', $detail);
+        }
+        if (array_key_exists('tag', $updates)) {
+            $new_tag = $updates['tag'] !== null ? (string) $updates['tag'] : '';
+            if ($prev_tag !== $new_tag) {
+                $tag_detail = ($prev_tag !== '' ? $prev_tag : 'none') . ' → ' . ($new_tag !== '' ? $new_tag : 'none');
+                $this->my_works->log_activity($id, $user_id, 'updated', 'Tags: ' . $tag_detail);
+            }
+        }
+
+        $this->_clear_dashboard_cache();
+
+        $updated = $this->my_works->find($id);
+        $computed_lane = $updated ? my_works_dashboard_lane_for_row($updated) : $lane;
+        $response = array(
+            'ok'            => true,
+            'lane'          => $lane,
+            'computed_lane' => $computed_lane,
+            'status'        => $updated && isset($updated->status) ? (string) $updated->status : '',
+            'due_date'      => $updated && isset($updated->due_date) ? (string) $updated->due_date : '',
+        );
+
+        if ($this->input->is_ajax_request()) {
+            $this->output->set_content_type('application/json')->set_output(json_encode($response));
+            return;
+        }
+
+        $this->session->set_flashdata('success', 'Work item moved to ' . $to_label . '.');
+        redirect('my-works?view=overview');
     }
 }

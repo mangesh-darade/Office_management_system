@@ -78,6 +78,15 @@ if (!function_exists('my_works_type_label')) {
 if (!function_exists('my_works_status_labels')) {
     function my_works_status_labels()
     {
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        $labels = array();
+        foreach (my_works_status_records() as $row) {
+            $labels[(string) $row->code] = (string) $row->name;
+        }
+        if (!empty($labels)) {
+            return $labels;
+        }
         return array(
             'new'         => 'New',
             'in_progress' => 'In Progress',
@@ -89,11 +98,46 @@ if (!function_exists('my_works_status_labels')) {
 if (!function_exists('my_works_status_colors')) {
     function my_works_status_colors()
     {
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        $colors = array();
+        foreach (my_works_status_records() as $row) {
+            $colors[(string) $row->code] = my_works_status_bootstrap_class($row->code);
+        }
+        if (!empty($colors)) {
+            return $colors;
+        }
         return array(
             'new'         => 'secondary',
             'in_progress' => 'primary',
             'closed'      => 'success',
         );
+    }
+}
+
+if (!function_exists('my_works_priority_label')) {
+    function my_works_priority_label($row)
+    {
+        if ((int) $row->is_urgent === 1 && (int) $row->is_important === 1) {
+            return 'High';
+        }
+        if ((int) $row->is_urgent === 1 || (int) $row->is_important === 1) {
+            return 'Medium';
+        }
+        return 'Normal';
+    }
+}
+
+if (!function_exists('my_works_priority_class')) {
+    function my_works_priority_class($row)
+    {
+        if ((int) $row->is_urgent === 1 && (int) $row->is_important === 1) {
+            return 'high';
+        }
+        if ((int) $row->is_urgent === 1 || (int) $row->is_important === 1) {
+            return 'medium';
+        }
+        return 'normal';
     }
 }
 
@@ -523,5 +567,277 @@ if (!function_exists('my_works_can_view_projects')) {
             return false;
         }
         return has_module_access('projects') || has_module_access('projects_list');
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_keys')) {
+    function my_works_dashboard_lane_keys()
+    {
+        return array('yesterday', 'todays_plan', 'future_pipeline', 'back_log', 'need_discussion');
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_labels')) {
+    function my_works_dashboard_lane_labels()
+    {
+        return array(
+            'yesterday'        => 'Yesterday',
+            'todays_plan'      => "Today's Plan",
+            'future_pipeline'  => 'Future Pipeline',
+            'back_log'         => 'Back Log',
+            'need_discussion'  => 'Need Discussion',
+        );
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_is_valid')) {
+    function my_works_dashboard_lane_is_valid($lane)
+    {
+        return in_array((string) $lane, my_works_dashboard_lane_keys(), true);
+    }
+}
+
+if (!function_exists('my_works_strip_lane_routing_tags')) {
+    function my_works_strip_lane_routing_tags($tag_string)
+    {
+        $tags = my_works_parse_tags($tag_string);
+        $out = array();
+        foreach ($tags as $tag) {
+            $tl = strtolower((string) $tag);
+            if (strpos($tl, 'discussion') !== false || strpos($tl, 'postponed') !== false) {
+                continue;
+            }
+            $out[] = $tag;
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('my_works_lane_updates_for_drop')) {
+    /**
+     * Field updates when a work item is dropped onto an overview lane.
+     *
+     * @return array|false
+     */
+    function my_works_lane_updates_for_drop($lane, $item)
+    {
+        if (!my_works_dashboard_lane_is_valid($lane) || !$item) {
+            return false;
+        }
+
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+
+        $today = date('Y-m-d');
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $tomorrow = date('Y-m-d', strtotime('+1 day'));
+        $backlog_date = date('Y-m-d', strtotime('-3 days'));
+        $current_status = isset($item->status) ? strtolower(trim((string) $item->status)) : 'new';
+        $tags = my_works_parse_tags(isset($item->tag) ? $item->tag : '');
+        $updates = array();
+
+        if ($lane === 'need_discussion') {
+            $updates['status'] = 'need_discussion';
+            $has_discussion_tag = false;
+            foreach ($tags as $tag) {
+                if (strpos(strtolower((string) $tag), 'discussion') !== false) {
+                    $has_discussion_tag = true;
+                    break;
+                }
+            }
+            if (!$has_discussion_tag) {
+                $tags[] = 'discussion';
+                $updates['tag'] = my_works_normalize_tags(implode(', ', $tags));
+            }
+            return $updates;
+        }
+
+        if (in_array($current_status, array('need_discussion', 'needs_discussion', 'postponed'), true)) {
+            $updates['status'] = 'in_progress';
+        }
+
+        $tags = my_works_strip_lane_routing_tags(isset($item->tag) ? $item->tag : '');
+        $updates['tag'] = empty($tags) ? null : my_works_normalize_tags(implode(', ', $tags));
+
+        if ($lane === 'future_pipeline') {
+            $updates['status'] = 'postponed';
+            $due = !empty($item->due_date) ? (string) $item->due_date : '';
+            if ($due === '' || $due <= $today) {
+                $updates['due_date'] = $tomorrow;
+            }
+            return $updates;
+        }
+
+        if ($lane === 'todays_plan') {
+            $updates['due_date'] = $today;
+            return $updates;
+        }
+
+        if ($lane === 'yesterday') {
+            $updates['due_date'] = $yesterday;
+            return $updates;
+        }
+
+        if ($lane === 'back_log') {
+            $updates['due_date'] = $backlog_date;
+            return $updates;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_for_row')) {
+    /**
+     * Overview column placement: status lanes first, then due-date lanes.
+     */
+    function my_works_dashboard_lane_for_row($row)
+    {
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+
+        $st = isset($row->status) ? strtolower(trim((string) $row->status)) : '';
+        if ($st === 'need_discussion' || $st === 'needs_discussion') {
+            return 'need_discussion';
+        }
+        if ($st === 'postponed') {
+            return 'future_pipeline';
+        }
+
+        $tags = my_works_parse_tags(isset($row->tag) ? $row->tag : '');
+        foreach ($tags as $tag) {
+            $tl = strtolower((string) $tag);
+            if (strpos($tl, 'discussion') !== false) {
+                return 'need_discussion';
+            }
+            if (strpos($tl, 'postponed') !== false) {
+                return 'future_pipeline';
+            }
+        }
+
+        $today = date('Y-m-d');
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        $due = !empty($row->due_date) ? (string) $row->due_date : '';
+        if ($due !== '') {
+            if ($due > $today) {
+                return 'future_pipeline';
+            }
+            if ($due === $today) {
+                return 'todays_plan';
+            }
+            if ($due === $yesterday) {
+                return 'yesterday';
+            }
+            return 'back_log';
+        }
+
+        $updated = !empty($row->updated_at) ? substr((string) $row->updated_at, 0, 10) : '';
+        if ($updated === $yesterday) {
+            return 'yesterday';
+        }
+        if ($updated === $today) {
+            return 'todays_plan';
+        }
+        return 'back_log';
+    }
+}
+
+if (!function_exists('my_works_build_dashboard_sections')) {
+    /**
+     * @return array{ad_hoc: array<string, array>, project: array<string, array>, counts: array<string, int>}
+     */
+    function my_works_build_dashboard_sections(array $rows, $exclude_closed = true)
+    {
+        $lanes = my_works_dashboard_lane_keys();
+        $sections = array(
+            'ad_hoc'  => array(),
+            'project' => array(),
+        );
+        foreach ($lanes as $lane) {
+            $sections['ad_hoc'][$lane] = array();
+            $sections['project'][$lane] = array();
+        }
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        foreach ($rows as $row) {
+            if ($exclude_closed && isset($row->status) && my_works_status_is_closed($row->status)) {
+                continue;
+            }
+            $lane = my_works_dashboard_lane_for_row($row);
+            if (!isset($sections['ad_hoc'][$lane])) {
+                $lane = 'back_log';
+            }
+            $has_project = (!empty($row->project_id) && (int) $row->project_id > 0) || !empty($row->project_name);
+            if ($has_project) {
+                $sections['project'][$lane][] = $row;
+            } else {
+                $sections['ad_hoc'][$lane][] = $row;
+            }
+        }
+        $counts = array(
+            'ad_hoc'  => 0,
+            'project' => 0,
+            'total'   => 0,
+        );
+        foreach (array('ad_hoc', 'project') as $section_key) {
+            foreach ($lanes as $lane) {
+                $n = count($sections[$section_key][$lane]);
+                $counts[$section_key] += $n;
+                $counts['total'] += $n;
+            }
+        }
+        return array(
+            'sections' => $sections,
+            'counts'   => $counts,
+        );
+    }
+}
+
+if (!function_exists('my_works_dashboard_status_dot')) {
+    function my_works_dashboard_status_dot($row)
+    {
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        $st = isset($row->status) ? (string) $row->status : my_works_status_default_code();
+        return my_works_status_dashboard_dot_class($st);
+    }
+}
+
+if (!function_exists('my_works_short_user_name')) {
+    function my_works_short_user_name($name, $email, $user_id = 0)
+    {
+        $label = my_works_user_label($name, $email, $user_id);
+        $parts = preg_split('/\s+/', trim($label));
+        if (count($parts) >= 2) {
+            $last = array_pop($parts);
+            $lastInitial = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $last), 0, 1));
+            if ($lastInitial === '') {
+                return $label;
+            }
+            return implode(' ', $parts) . ' ' . $lastInitial . '.';
+        }
+        return $label;
+    }
+}
+
+if (!function_exists('my_works_dashboard_project_label')) {
+    function my_works_dashboard_project_label($row)
+    {
+        if (!empty($row->project_name)) {
+            return (string) $row->project_name;
+        }
+        if (!empty($row->client_name)) {
+            return (string) $row->client_name;
+        }
+        return '—';
+    }
+}
+
+if (!function_exists('my_works_dashboard_week_range_label')) {
+    function my_works_dashboard_week_range_label()
+    {
+        $start = strtotime('monday this week');
+        $end = strtotime('sunday this week');
+        return date('j M', $start) . ' – ' . date('j M Y', $end);
     }
 }

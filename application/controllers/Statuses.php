@@ -20,7 +20,7 @@ class Statuses extends CI_Controller {
         $type = $this->input->get('type');
         $statuses = $this->statuses->get_all($type, false); // Get all including inactive
         
-        $types = ['requirements', 'projects', 'tasks'];
+        $types = ['requirements', 'projects', 'tasks', 'my_works'];
         
         $this->load->view('statuses/index', [
             'statuses' => $statuses,
@@ -57,7 +57,7 @@ class Statuses extends CI_Controller {
             return;
         }
         
-        $types = ['requirements', 'projects', 'tasks'];
+        $types = ['requirements', 'projects', 'tasks', 'my_works'];
         $this->load->view('statuses/form', ['action' => 'create', 'types' => $types]);
     }
     
@@ -104,7 +104,7 @@ class Statuses extends CI_Controller {
             return;
         }
         
-        $types = ['requirements', 'projects', 'tasks'];
+        $types = ['requirements', 'projects', 'tasks', 'my_works'];
         $this->load->view('statuses/form', ['action' => 'edit', 'status' => $status, 'types' => $types]);
     }
     

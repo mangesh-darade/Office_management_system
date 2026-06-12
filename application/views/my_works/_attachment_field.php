@@ -4,8 +4,10 @@
   $max_mb = isset($max_mb) ? (int) $max_mb : my_works_upload_max_mb();
   $max_bytes = isset($max_bytes) ? (int) $max_bytes : my_works_upload_max_bytes();
   $max_files = isset($max_files) ? (int) $max_files : my_works_max_attachments_per_submit();
+  $show_help = !isset($show_help) || $show_help;
+  $inline_row = !empty($inline_row);
 ?>
-<div class="mw-attachment-widget" data-max-bytes="<?php echo (int) $max_bytes; ?>" data-max-files="<?php echo (int) $max_files; ?>">
+<div class="mw-attachment-widget<?php echo $inline_row ? ' mw-attachment-widget-inline' : ''; ?>" data-max-bytes="<?php echo (int) $max_bytes; ?>" data-max-files="<?php echo (int) $max_files; ?>">
   <div class="mw-attachment-picker-row">
     <label class="mw-attachment-choose" for="<?php echo htmlspecialchars($input_id, ENT_QUOTES, 'UTF-8'); ?>" title="Choose files to attach">
       <i class="bi bi-paperclip mw-attachment-choose-icon"></i>
@@ -30,6 +32,8 @@
     </div>
   </div>
 
+  <?php if ($show_help): ?>
   <div class="form-text mt-2">Up to <?php echo (int) $max_files; ?> files, max <?php echo (int) $max_mb; ?> MB each — images, PDF, Office, video, audio, zip, and more.</div>
+  <?php endif; ?>
   <div class="small text-danger mw-attachment-error mt-1" hidden></div>
 </div>

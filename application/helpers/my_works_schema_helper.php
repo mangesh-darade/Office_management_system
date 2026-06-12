@@ -69,6 +69,18 @@ if (!function_exists('my_works_schema_ensure')) {
             if (schema_table_has_column($db, 'my_works', 'tag')) {
                 $db->query('ALTER TABLE `my_works` MODIFY `tag` varchar(255) DEFAULT NULL');
             }
+            if (schema_table_has_column($db, 'my_works', 'status')) {
+                $col = $db->query("SHOW COLUMNS FROM `my_works` LIKE 'status'")->row();
+                if ($col && stripos((string) $col->Type, 'enum') !== false) {
+                    $db->query("ALTER TABLE `my_works` MODIFY `status` varchar(50) NOT NULL DEFAULT 'new'");
+                }
+            }
+        }
+
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        if (function_exists('my_works_status_ensure_seeded')) {
+            my_works_status_ensure_seeded();
         }
 
         if (!$db->table_exists('my_work_activity')) {

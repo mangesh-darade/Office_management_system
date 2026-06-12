@@ -2,6 +2,8 @@
 
   $toolbar_mode = isset($view_mode) ? $view_mode : 'list';
 
+  $overviewUrl = site_url('my-works?view=overview');
+
   $listUrl = site_url('my-works?view=list');
 
   $boardUrl = site_url('my-works?view=board');
@@ -17,6 +19,8 @@
     $qs = ltrim($qs, '&');
 
     if ($qs !== '') {
+
+      $overviewUrl .= '&' . $qs;
 
       $listUrl .= '&' . $qs;
 
@@ -69,6 +73,12 @@
       <div class="mw-toolbar-actions">
 
         <div class="btn-group btn-group-sm mw-view-toggle" role="group" aria-label="View mode">
+
+          <a class="btn <?php echo $toolbar_mode === 'overview' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($overviewUrl); ?>" title="My Work Overview">
+
+            <i class="bi bi-grid-1x2 me-1"></i><span class="d-none d-sm-inline">Overview</span>
+
+          </a>
 
           <a class="btn <?php echo $toolbar_mode === 'list' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($listUrl); ?>">
 

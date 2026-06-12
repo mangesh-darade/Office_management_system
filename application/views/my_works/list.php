@@ -108,19 +108,15 @@
 
               <tr>
 
-                <th>Work item</th>
-
-                <th>Context</th>
-
-                <th>Due</th>
+                <th>Item</th>
 
                 <th>Assignee</th>
 
-                <th class="d-none d-xl-table-cell">Created by</th>
-
                 <th>Status</th>
 
-                <th>Updated</th>
+                <th>Last update</th>
+
+                <th>Priority</th>
 
                 <th class="text-end">Actions</th>
 
@@ -144,13 +140,13 @@
 
                   $overdue = my_works_is_overdue($r);
 
-                  $dueOrder = !empty($r->due_date) ? strtotime($r->due_date) : 0;
-
                   $updatedOrder = !empty($r->updated_at) ? strtotime($r->updated_at) : 0;
+
+                  $priorityOrder = ((int) $r->is_urgent * 10) + (int) $r->is_important;
 
                   $forLabel = my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for);
 
-                  $byLabel = my_works_user_label($r->created_by_name, $r->created_by_email, $r->created_by);
+                  $rowAttachments = my_works_row_attachments($r, isset($attachments_map) ? $attachments_map : null);
 
                   $initials = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $forLabel), 0, 2));
 
@@ -169,10 +165,6 @@
                     </a>
 
                     <div class="mw-work-meta d-flex flex-wrap align-items-center gap-1 mt-1">
-
-                      <?php if ((int) $r->is_urgent === 1): ?><span class="badge bg-danger">Urgent</span><?php endif; ?>
-
-                      <?php if ((int) $r->is_important === 1): ?><span class="badge bg-warning text-dark">Important</span><?php endif; ?>
 
                       <?php if ($overdue): ?><span class="badge bg-danger-subtle text-danger border border-danger-subtle">Overdue</span><?php endif; ?>
 
@@ -204,44 +196,6 @@
 
                   <td>
 
-                    <div class="d-flex flex-wrap">
-
-                      <?php if (!empty($r->work_type)): ?>
-
-                        <span class="mw-chip mw-chip-type"><i class="bi bi-tag"></i><?php echo htmlspecialchars(my_works_type_label($r->work_type)); ?></span>
-
-                      <?php endif; ?>
-
-                      <?php if (!empty($r->client_name)): ?>
-
-                        <span class="mw-chip mw-chip-client"><i class="bi bi-building"></i><?php echo htmlspecialchars($r->client_name); ?></span>
-
-                      <?php endif; ?>
-
-                      <?php if (!empty($r->project_name)): ?>
-
-                        <span class="mw-chip mw-chip-project"><i class="bi bi-folder"></i><?php echo htmlspecialchars($r->project_name); ?></span>
-
-                      <?php endif; ?>
-
-                      <?php if (empty($r->work_type) && empty($r->client_name) && empty($r->project_name)): ?>
-
-                        <span class="text-muted small">&mdash;</span>
-
-                      <?php endif; ?>
-
-                    </div>
-
-                  </td>
-
-                  <td class="<?php echo $overdue ? 'mw-due-overdue' : 'mw-due-ok'; ?>" data-order="<?php echo (int) $dueOrder; ?>">
-
-                    <?php echo !empty($r->due_date) ? htmlspecialchars($r->due_date) : '<span class="text-muted">&mdash;</span>'; ?>
-
-                  </td>
-
-                  <td>
-
                     <div class="mw-assignee">
 
                       <span class="mw-assignee-avatar" title="<?php echo htmlspecialchars($forLabel); ?>"><?php echo htmlspecialchars($initials); ?></span>
@@ -251,8 +205,6 @@
                     </div>
 
                   </td>
-
-                  <td class="small d-none d-xl-table-cell text-muted"><?php echo htmlspecialchars($byLabel); ?></td>
 
                   <td data-order="<?php echo htmlspecialchars($r->status); ?>">
 
@@ -288,10 +240,31 @@
 
                   <td class="small text-muted" data-order="<?php echo (int) $updatedOrder; ?>" title="<?php echo $r->updated_at ? htmlspecialchars($r->updated_at) : ''; ?>"><?php echo my_works_format_when($r->updated_at); ?></td>
 
+                  <td data-order="<?php echo (int) $priorityOrder; ?>">
+                    <?php if ((int) $r->is_urgent === 1): ?><span class="badge bg-danger">Urgent</span><?php endif; ?>
+                    <?php if ((int) $r->is_important === 1): ?><span class="badge bg-warning text-dark">Important</span><?php endif; ?>
+                    <?php if ((int) $r->is_urgent !== 1 && (int) $r->is_important !== 1): ?>
+                      <span class="text-muted small">&mdash;</span>
+                    <?php endif; ?>
+                  </td>
+
                   <td class="text-end text-nowrap">
                     <div class="btn-group btn-group-sm mw-list-actions" role="group">
-                      <a class="btn btn-outline-primary" href="<?php echo site_url('my-works/' . (int) $r->id); ?>" title="View details"><i class="bi bi-eye"></i></a>
-                      <?php $this->load->view('my_works/_attachment_actions', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
+                      <a class="btn btn-outline-primary" href="<?php echo site_url('my-works/' . (int) $r->id); ?>" title="View"><i class="bi bi-eye"></i></a>
+                      <?php if (!empty($rowAttachments)): ?>
+                        <?php $this->load->view('my_works/_attachment_actions', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
+                      <?php else: ?>
+                        <button type="button" class="btn btn-outline-secondary" disabled title="No attachments"><i class="bi bi-paperclip"></i></button>
+                      <?php endif; ?>
+                      <button type="button"
+                              class="btn btn-outline-secondary mw-list-comment-btn"
+                              data-bs-toggle="modal"
+                              data-bs-target="#mwListCommentModal"
+                              data-work-id="<?php echo (int) $r->id; ?>"
+                              data-work-title="<?php echo htmlspecialchars($r->title, ENT_QUOTES, 'UTF-8'); ?>"
+                              title="Add comment">
+                        <i class="bi bi-chat-dots"></i>
+                      </button>
                     </div>
                   </td>
 
@@ -313,8 +286,35 @@
 
 </div>
 
+<?php $this->load->view('my_works/_list_comment_modal'); ?>
 <?php $this->load->view('my_works/_media_preview_modal'); ?>
 <?php $this->load->view('my_works/_media_preview_scripts'); ?>
+
+<?php if (!empty($rows)): ?>
+<script>
+(function () {
+  var modal = document.getElementById('mwListCommentModal');
+  var form = document.getElementById('mwListCommentForm');
+  if (!modal || !form) { return; }
+  var commentBase = <?php echo json_encode(site_url('my-works/')); ?>;
+  var listRedirect = <?php echo json_encode(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>;
+  modal.addEventListener('show.bs.modal', function (event) {
+    var btn = event.relatedTarget;
+    if (!btn || !btn.classList.contains('mw-list-comment-btn')) { return; }
+    var workId = btn.getAttribute('data-work-id') || '';
+    var workTitle = btn.getAttribute('data-work-title') || '';
+    form.action = commentBase + workId + '/comment';
+    document.getElementById('mwListCommentRedirect').value = listRedirect;
+    document.getElementById('mwListCommentWorkTitle').textContent = workTitle;
+    var textarea = document.getElementById('mwListCommentText');
+    if (textarea) { textarea.value = ''; }
+    var fileInput = form.querySelector('input[type="file"]');
+    if (fileInput) { fileInput.value = ''; }
+  });
+})();
+</script>
+<script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
+<?php endif; ?>
 
 <?php $this->load->view('partials/footer'); ?>
 

@@ -19,11 +19,16 @@
   <?php $this->load->view('my_works/_filters'); ?>
 
   <div class="mw-board">
-    <?php foreach (array('new', 'in_progress', 'closed') as $colStatus): ?>
+    <?php
+    $this->load->helper('my_works_status');
+    $boardStatuses = my_works_status_records();
+  ?>
+  <?php foreach ($boardStatuses as $statusRow): ?>
       <?php
+        $colStatus = (string) $statusRow->code;
         $colItems = isset($columns[$colStatus]) ? $columns[$colStatus] : array();
-        $badge = isset($statusColors[$colStatus]) ? $statusColors[$colStatus] : 'secondary';
-        $label = isset($statusLabels[$colStatus]) ? $statusLabels[$colStatus] : $colStatus;
+        $badge = isset($statusColors[$colStatus]) ? $statusColors[$colStatus] : my_works_status_bootstrap_class($colStatus);
+        $label = isset($statusLabels[$colStatus]) ? $statusLabels[$colStatus] : (string) $statusRow->name;
       ?>
       <div class="mw-board-col">
         <div class="mw-board-col-head">

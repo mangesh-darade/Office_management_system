@@ -8,6 +8,8 @@
 
   $status = ($item && isset($item->status)) ? (string) $item->status : 'new';
 
+  $this->load->helper('my_works_status');
+  $statusRecords = my_works_status_records();
   $statusLabels = my_works_status_labels();
 
   $typeLabels = my_works_type_labels();
@@ -233,11 +235,15 @@
 
               <select name="status" class="form-select">
 
-                <?php foreach ($statusLabels as $k => $lbl): ?>
-
-                  <option value="<?php echo $k; ?>" <?php echo $status === $k ? 'selected' : ''; ?>><?php echo htmlspecialchars($lbl); ?></option>
-
-                <?php endforeach; ?>
+                <?php if (!empty($statusRecords)): ?>
+                  <?php foreach ($statusRecords as $st): ?>
+                    <option value="<?php echo htmlspecialchars((string) $st->code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $status === (string) $st->code ? 'selected' : ''; ?>><?php echo htmlspecialchars((string) $st->name, ENT_QUOTES, 'UTF-8'); ?></option>
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <?php foreach ($statusLabels as $k => $lbl): ?>
+                    <option value="<?php echo $k; ?>" <?php echo $status === $k ? 'selected' : ''; ?>><?php echo htmlspecialchars($lbl); ?></option>
+                  <?php endforeach; ?>
+                <?php endif; ?>
 
               </select>
 

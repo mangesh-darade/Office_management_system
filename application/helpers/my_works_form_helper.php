@@ -443,10 +443,8 @@ if (!function_exists('my_works_validate_payload')) {
         if ($created_for === false) {
             return false;
         }
-        $status = trim((string) $CI->input->post('status'));
-        if (!in_array($status, array('new', 'in_progress', 'closed'), true)) {
-            $status = 'new';
-        }
+        $CI->load->helper('my_works_status');
+        $status = my_works_status_sanitize($CI->input->post('status'), 'new');
         $url = trim((string) $CI->input->post('url'));
         if ($url !== '' && !preg_match('#^https?://#i', $url)) {
             $url = 'https://' . $url;
