@@ -508,53 +508,66 @@ class Employees extends CI_Controller {
     // GET/POST /employees/import
     public function import()
     {
-        // Only admin/manager roles may import employees
         require_module_access(['employees_import', 'employees'], true);
 
         if ($this->input->method() === 'post') {
-            if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-                $this->session->set_flashdata('error', 'Please upload a valid CSV file');
+            $this->load->helper('csv_import');
+            $opened = csv_import_open('file');
+            if (!$opened['ok']) {
+                $this->session->set_flashdata('error', $opened['error']);
                 redirect('employees/import');
                 return;
             }
-            $path = $_FILES['file']['tmp_name'];
-            $handle = fopen($path, 'r');
-            if (!$handle) {
-                $this->session->set_flashdata('error', 'Unable to read uploaded file');
+            $columns = csv_import_require_columns($opened['map'], array('emp_code', 'first_name'));
+            if (!$columns['ok']) {
+                fclose($opened['handle']);
+                $this->session->set_flashdata('error', $columns['error']);
                 redirect('employees/import');
                 return;
             }
-            $header = fgetcsv($handle);
-            if (!$header) { fclose($handle); $this->session->set_flashdata('error', 'CSV is empty'); redirect('employees/import'); return; }
-            // Expected columns (case-insensitive): emp_code, first_name, last_name, email, department, designation, phone, join_date
-            $map = [];
-            foreach ($header as $i => $col) { $map[strtolower(trim($col))] = $i; }
-            $rows = [];
-            while (($data = fgetcsv($handle)) !== false) {
-                $rows[] = [
-                    'emp_code' => (isset($map['emp_code']) && isset($data[$map['emp_code']])) ? $data[$map['emp_code']] : null,
-                    'first_name' => (isset($map['first_name']) && isset($data[$map['first_name']])) ? $data[$map['first_name']] : null,
-                    'last_name' => (isset($map['last_name']) && isset($data[$map['last_name']])) ? $data[$map['last_name']] : null,
-                    'email' => (isset($map['email']) && isset($data[$map['email']])) ? $data[$map['email']] : null,
-                    'department' => (isset($map['department']) && isset($data[$map['department']])) ? $data[$map['department']] : null,
-                    'designation' => (isset($map['designation']) && isset($data[$map['designation']])) ? $data[$map['designation']] : null,
-                    'phone' => (isset($map['phone']) && isset($data[$map['phone']])) ? $data[$map['phone']] : null,
-                    'join_date' => (isset($map['join_date']) && isset($data[$map['join_date']])) ? $data[$map['join_date']] : null,
-                ];
-            }
-            fclose($handle);
             $inserted = 0;
-            foreach ($rows as $r) {
-                if (!empty($r['emp_code']) && !empty($r['first_name'])) {
-                    $this->Employee_model->create($r);
+            $skipped = 0;
+            $row_errors = array();
+            $line = 1;
+            $prev_debug = $this->db->db_debug;
+            $this->db->db_debug = false;
+            while (($row = fgetcsv($opened['handle'])) !== false) {
+                $line++;
+                $emp_code = csv_import_get($opened['map'], $row, 'emp_code');
+                $first_name = csv_import_get($opened['map'], $row, 'first_name');
+                if ($emp_code === '' || $first_name === '') {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'emp_code and first_name are required.');
+                    continue;
+                }
+                $data = array(
+                    'emp_code' => $emp_code,
+                    'first_name' => $first_name,
+                    'last_name' => csv_import_get($opened['map'], $row, 'last_name', null) ?: null,
+                    'email' => csv_import_get($opened['map'], $row, 'email', null) ?: null,
+                    'department' => csv_import_get($opened['map'], $row, 'department', null) ?: null,
+                    'designation' => csv_import_get($opened['map'], $row, 'designation', null) ?: null,
+                    'phone' => csv_import_get($opened['map'], $row, 'phone', null) ?: null,
+                    'join_date' => csv_import_get($opened['map'], $row, 'join_date', null) ?: null,
+                );
+                $new_id = $this->Employee_model->create($data);
+                if ($new_id) {
                     $inserted++;
+                } else {
+                    $skipped++;
+                    $db_error = $this->db->error();
+                    $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+                    csv_import_add_row_error($row_errors, $line, $reason);
+                    log_message('error', 'Employee import error: ' . $reason);
                 }
             }
-            $this->load->helper(['activity', 'notification']);
-            log_activity('employees', 'created', null, 'Imported '.$inserted.' employees');
-            $success_msg = get_notification_message('employees', 'import', 'success', ['count' => $inserted]);
-            $this->session->set_flashdata('success', $success_msg);
-            redirect('employees');
+            $this->db->db_debug = $prev_debug;
+            fclose($opened['handle']);
+            if ($inserted > 0) {
+                $this->load->helper('activity');
+                log_activity('employees', 'created', null, 'Imported ' . $inserted . ' employees');
+            }
+            csv_import_finish($inserted, $skipped, $row_errors, 'employees', 'employees', 'employees/import');
             return;
         }
         $this->load->view('employees/import');

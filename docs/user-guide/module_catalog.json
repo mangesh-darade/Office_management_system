@@ -219,6 +219,15 @@
           "delete": {"steps": ["Delete from project detail (admin).", "Add members after create."]}
         },
         {
+          "name": "Project Members",
+          "menu": "Project → Projects → project detail → Manage Members",
+          "purpose": "Assign users to a project and set their role (manager, lead, developer, tester, viewer, member) for access and team visibility.",
+          "list": {"image": "images/04-projects/project-members.png", "route": "projects/{id}/members"},
+          "add": {"steps": ["Open Manage Members from project detail.", "Search user by email or name.", "Pick role and click Add."]},
+          "edit": {"steps": ["Change role in Current Members table.", "Click Update."]},
+          "delete": {"steps": ["Click Remove on a member row.", "Confirm removal."]}
+        },
+        {
           "name": "Projects (Portfolio Matrix)",
           "menu": "Project → Portfolio Matrix",
           "purpose": "4-quadrant Action Priority Matrix (Effort × Impact): Quick Wins, Major Projects, Fill-ins, Hard Slogs.",

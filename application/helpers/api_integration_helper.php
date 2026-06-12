@@ -205,8 +205,9 @@ if (!function_exists('send_whatsapp_message')) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_USERPWD, $creds['account_sid'] . ':' . $creds['auth_token']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $ssl_verify = (ENVIRONMENT !== 'development');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $ssl_verify);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $ssl_verify ? 2 : 0);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
         $response = curl_exec($ch);

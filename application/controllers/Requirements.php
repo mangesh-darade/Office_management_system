@@ -447,6 +447,127 @@ class Requirements extends CI_Controller {
         $this->load->view('requirements/calendar', array('rows'=>$rows));
     }
 
+    // GET/POST /requirements/import
+    public function import()
+    {
+        require_module_access(['requirements_add', 'requirements'], true);
+        if ($this->input->method() === 'post') {
+            $user_id = (int) $this->session->userdata('user_id');
+            if (!$user_id) {
+                redirect('login');
+                return;
+            }
+            $this->load->helper('csv_import');
+            $opened = csv_import_open('file');
+            if (!$opened['ok']) {
+                $this->session->set_flashdata('error', $opened['error']);
+                redirect('requirements/import');
+                return;
+            }
+            $columns = csv_import_require_columns($opened['map'], array('title', 'client_name'));
+            if (!$columns['ok']) {
+                fclose($opened['handle']);
+                $this->session->set_flashdata('error', $columns['error']);
+                redirect('requirements/import');
+                return;
+            }
+            $inserted = 0;
+            $skipped = 0;
+            $row_errors = array();
+            $client_cache = array();
+            $project_cache = array();
+            $line = 1;
+            $allowed_priority = array('low', 'medium', 'high', 'urgent');
+            $allowed_status = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
+            $prev_debug = $this->db->db_debug;
+            $this->db->db_debug = false;
+            while (($row = fgetcsv($opened['handle'])) !== false) {
+                $line++;
+                $title = csv_import_get($opened['map'], $row, 'title');
+                if ($title === '') {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'Missing requirement title.');
+                    continue;
+                }
+                $client_name = csv_import_get_any($opened['map'], $row, array('client_name', 'client'), '');
+                $client_id = csv_import_resolve_client_id($this->db, $client_name, $client_cache);
+                if ($client_id <= 0) {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'Unknown client name or code.');
+                    continue;
+                }
+                $project_id = null;
+                $project_name = csv_import_get_any($opened['map'], $row, array('project_name', 'project'), '');
+                if ($project_name !== '') {
+                    $resolved_project = csv_import_resolve_project_id($this->db, $opened['map'], $row, $project_cache);
+                    if ($resolved_project <= 0) {
+                        $skipped++;
+                        csv_import_add_row_error($row_errors, $line, 'Unknown project name or code.');
+                        continue;
+                    }
+                    $project_id = $resolved_project;
+                }
+                $priority = csv_import_validate_enum(
+                    csv_import_get($opened['map'], $row, 'priority', 'medium'),
+                    $allowed_priority,
+                    'medium',
+                    $row_errors,
+                    $line,
+                    'priority'
+                );
+                if ($priority === false) {
+                    $skipped++;
+                    continue;
+                }
+                $status = csv_import_validate_enum(
+                    csv_import_get($opened['map'], $row, 'status', 'received'),
+                    $allowed_status,
+                    'received',
+                    $row_errors,
+                    $line,
+                    'status'
+                );
+                if ($status === false) {
+                    $skipped++;
+                    continue;
+                }
+                $data = array(
+                    'req_number' => $this->generate_req_number(),
+                    'client_id' => $client_id,
+                    'project_id' => $project_id,
+                    'title' => $title,
+                    'description' => csv_import_get($opened['map'], $row, 'description', null) ?: null,
+                    'requirement_type' => $this->_resolve_requirement_type(csv_import_get($opened['map'], $row, 'requirement_type', 'new_feature')),
+                    'priority' => $priority,
+                    'status' => $status,
+                    'received_date' => csv_import_get($opened['map'], $row, 'received_date', date('Y-m-d')) ?: date('Y-m-d'),
+                    'expected_delivery_date' => csv_import_get($opened['map'], $row, 'expected_delivery_date', null) ?: null,
+                    'owner_id' => $user_id,
+                    'assigned_to' => null,
+                    'created_by' => $user_id,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                );
+                $id = $this->requirements->create_requirement($data);
+                if ($id) {
+                    $this->requirements->create_version((int) $id, 1, $data);
+                    $inserted++;
+                } else {
+                    $skipped++;
+                    $db_error = $this->db->error();
+                    $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+                    csv_import_add_row_error($row_errors, $line, $reason);
+                    log_message('error', 'Requirement import error: ' . $reason);
+                }
+            }
+            $this->db->db_debug = $prev_debug;
+            fclose($opened['handle']);
+            csv_import_finish($inserted, $skipped, $row_errors, 'requirements', 'requirements', 'requirements/import');
+            return;
+        }
+        $this->load->view('requirements/import');
+    }
+
     // GET /requirements/export
     public function export(){
         require_module_access(['requirements_export', 'requirements'], true);

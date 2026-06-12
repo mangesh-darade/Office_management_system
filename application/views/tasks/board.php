@@ -110,28 +110,21 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
     <div class="row g-3 kanban-columns flex-nowrap flex-lg-wrap">
       <?php foreach ($columns as $status => $items): ?>
         <div class="col kanban-col col-10 col-sm-8 col-md-6 col-lg-3">
-          <div class="card shadow-sm kanban-column-card fade-in">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-              <div class="d-flex align-items-center">
-                <div class="status-indicator status-<?php echo $status; ?> me-2"></div>
-                <h6 class="mb-0 fw-semibold">
+          <div class="card shadow-sm kanban-column-card fade-in" data-column-status="<?php echo $status; ?>">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 kanban-column-header">
+              <div class="d-flex align-items-center min-w-0">
+                <div class="status-indicator status-<?php echo $status; ?> me-2 flex-shrink-0"></div>
+                <h6 class="mb-0 fw-semibold text-truncate">
                   <?php echo $labels[$status]; ?>
                   <span class="badge bg-<?php echo $badges[$status]; ?> ms-2" id="count-<?php echo $status; ?>"><?php echo count($items); ?></span>
                 </h6>
               </div>
-              <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
-                  <i class="bi bi-three-dots"></i>
-                </button>
-                <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#" onclick="expandColumn('<?php echo $status; ?>')">
-                    <i class="bi bi-arrows-expand me-2"></i>Expand
-                  </a></li>
-                  <li><a class="dropdown-item" href="#" onclick="collapseColumn('<?php echo $status; ?>')">
-                    <i class="bi bi-arrows-collapse me-2"></i>Collapse
-                  </a></li>
-                </ul>
-              </div>
+              <button class="btn btn-sm btn-outline-secondary kanban-col-toggle flex-shrink-0" type="button"
+                onclick="toggleKanbanColumn('<?php echo $status; ?>', event)"
+                title="Collapse column"
+                aria-label="Toggle column <?php echo $labels[$status]; ?>">
+                <i class="bi bi-chevron-up kanban-col-toggle-icon"></i>
+              </button>
             </div>
             <div class="card-body p-2">
               <div class="kanban-column" data-status="<?php echo $status; ?>" ondragover="event.preventDefault();" ondrop="handleDrop(event, this)">
@@ -156,36 +149,35 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
                           <span class="priority-indicator priority-<?php echo $priority; ?>" title="Priority: <?php echo ucfirst($priority); ?>"></span>
                           <span class="task-id text-muted small fw-mono">#<?php echo (int)$t->id; ?></span>
                         </div>
-                        <div class="d-flex align-items-center gap-1">
-                          <button class="btn btn-sm btn-link text-muted p-0" type="button" onclick="showTaskPreview(<?php echo (int)$t->id; ?>)" title="Quick Preview">
+                        <div class="kanban-card-actions">
+                          <button class="btn btn-sm btn-light border" type="button" onclick="showTaskPreview(<?php echo (int)$t->id; ?>)" title="Quick preview">
                             <i class="bi bi-eye"></i>
                           </button>
+                          <a class="btn btn-sm btn-light border" href="<?php echo site_url('tasks/'.$t->id); ?>" title="View details">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                          </a>
+                          <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
+                          <a class="btn btn-sm btn-primary" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>" title="Edit task">
+                            <i class="bi bi-pencil"></i>
+                          </a>
+                          <?php endif; ?>
+                          <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
                           <div class="dropdown">
-                            <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-popper-config='{"strategy":"fixed","placement":"bottom-end"}' aria-expanded="false" title="More actions">
                               <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                              <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id); ?>">
-                                <i class="bi bi-eye me-2"></i>View Details
-                              </a></li>
-                              <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
-                              <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>">
-                                <i class="bi bi-pencil me-2"></i>Edit
-                              </a></li>
-                              <?php endif; ?>
-                              <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
-                              <li><hr class="dropdown-divider"></li>
                               <li>
-                                <form method="post" action="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
+                                <form method="post" action="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" class="m-0" onsubmit="return confirm('Delete this task?');">
                                   <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-                                  <button type="submit" class="dropdown-item text-danger border-0 bg-transparent w-100 text-start">
+                                  <button type="submit" class="dropdown-item text-danger">
                                     <i class="bi bi-trash me-2"></i>Delete
                                   </button>
                                 </form>
                               </li>
-                              <?php endif; ?>
                             </ul>
                           </div>
+                          <?php endif; ?>
                         </div>
                       </div>
                     </div>
@@ -195,12 +187,10 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
                       </h6>
                       <?php if (!empty($t->description)): ?>
                         <div class="task-description mb-2">
-                          <?php 
-                            $allowed = '<p><br><strong><em><b><i><ul><ol><li><a>';
-                            $desc = isset($t->description) ? strip_tags($t->description, $allowed) : '';
-                            $desc = trim($desc);
-                            if (!empty($desc)) {
-                              echo strlen($desc) > 80 ? htmlspecialchars(substr($desc, 0, 80)) . '...' : htmlspecialchars($desc);
+                          <?php
+                            $desc = trim(strip_tags((string) $t->description));
+                            if ($desc !== '') {
+                              echo htmlspecialchars(strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc);
                             }
                           ?>
                         </div>
@@ -427,15 +417,25 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
       }, 5000);
     }
     
-    // Column expand/collapse functions
-    function expandColumn(status) {
-      const column = document.querySelector(`.kanban-column[data-status="${status}"]`).parentElement.parentElement;
-      column.classList.remove('collapsed');
+    function updateKanbanColumnToggle(card) {
+      const btn = card.querySelector('.kanban-col-toggle');
+      const icon = card.querySelector('.kanban-col-toggle-icon');
+      if (!btn || !icon) return;
+      const collapsed = card.classList.contains('collapsed');
+      icon.className = collapsed ? 'bi bi-chevron-down kanban-col-toggle-icon' : 'bi bi-chevron-up kanban-col-toggle-icon';
+      btn.title = collapsed ? 'Expand column' : 'Collapse column';
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
-    
-    function collapseColumn(status) {
-      const column = document.querySelector(`.kanban-column[data-status="${status}"]`).parentElement.parentElement;
-      column.classList.add('collapsed');
+
+    function toggleKanbanColumn(status, e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const card = document.querySelector(`.kanban-column-card[data-column-status="${status}"]`);
+      if (!card) return;
+      card.classList.toggle('collapsed');
+      updateKanbanColumnToggle(card);
     }
     
     // Search functionality

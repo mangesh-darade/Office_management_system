@@ -31,9 +31,9 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 **Steps:**
 
-1. Open project from list or Portfolio Matrix (projects/matrix).
-2. Matrix quadrants: On Track, At Risk, Stalled, Pipeline & Done.
-3. Click project card for detail; use My Works / Tasks shortcuts on card.
+1. Open Portfolio Matrix (projects/matrix).
+2. Quadrants: Quick Wins, Major Projects, Fill-ins, Hard Slogs.
+3. Click project name → project detail.
 
 ### Delete / remove
 
@@ -41,6 +41,39 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 1. Delete from project detail (admin).
 2. Add members after create.
+
+---
+
+## Project Members
+
+**Purpose:** Assign users to a project and set their role (manager, lead, developer, tester, viewer, member) for access and team visibility.
+
+**Menu:** Project → Projects → project detail → Manage Members
+
+![View list — Project Members](images/04-projects/project-members.png)
+
+
+### Add (create new)
+
+**Steps:**
+
+1. Open Manage Members from project detail.
+2. Search user by email or name.
+3. Pick role and click Add.
+
+### Edit (update existing)
+
+**Steps:**
+
+1. Change role in Current Members table.
+2. Click Update.
+
+### Delete / remove
+
+**How:**
+
+1. Click Remove on a member row.
+2. Confirm removal.
 
 ---
 

@@ -54,7 +54,15 @@ Complete guides in **simple English** with **readable screenshots** for every sc
 ```powershell
 $env:OMS_TEST_LOGIN="your_phone_or_email"
 $env:OMS_TEST_PASSWORD="your_password"
+$env:OMS_GUIDE_PROJECT_ID="3"   # optional — for projects/{id}/members routes
 python tools/capture_user_guide_screenshots.py
+```
+
+Capture only the Project Members screen (live app when credentials are set, otherwise a layout fixture):
+
+```powershell
+python tools/capture_project_members_guide.py
+# or: python tools/capture_user_guide_screenshots.py --only images/04-projects/project-members.png
 ```
 
 ## Screenshot folders
@@ -64,7 +72,7 @@ python tools/capture_user_guide_screenshots.py
 | [images/01-auth/](images/01-auth/) | login, forgot-password, dashboard, profile, profile-edit, notifications |
 | [images/02-people/](images/02-people/) | users, employees, departments, designations, shifts, assets, clients, roles |
 | [images/03-attendance-leave/](images/03-attendance-leave/) | attendance, leave-apply, leave-my, leave-team, leave-calendar, timesheets |
-| [images/04-projects/](images/04-projects/) | projects, requirements, tasks-list, tasks-board, approvals |
+| [images/04-projects/](images/04-projects/) | projects, project-members, requirements, tasks-list, tasks-board, approvals |
 | [images/05-work/](images/05-work/) | my-works, daily-activity, daily-activity-list, performance |
 | [images/06-reports/](images/06-reports/) | reports-home, attendance-employee, attendance-org, leaves, tasks-assignment, daily-activity, analytics, ai-chat |
 | [images/07-communication/](images/07-communication/) | chats, mail, sendgrid, whatsapp, announcements, reminders |

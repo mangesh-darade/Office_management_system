@@ -1,4 +1,18 @@
-<?php $this->load->view('partials/header', ['title' => 'Employee Attendance Detail']); ?>
+<?php
+$detail_page_title = 'Employee Attendance Detail';
+if (!empty($name)) {
+    $detail_page_title = $name . ' - Attendance';
+}
+$this->load->view('partials/header', ['title' => $detail_page_title]);
+$back_query = array('period' => isset($period) ? $period : 'monthly');
+if (!empty($month)) {
+    $back_query['month'] = $month;
+}
+if (!empty($date)) {
+    $back_query['date'] = $date;
+}
+$back_url = site_url('reports/attendance-employee') . '?' . http_build_query($back_query);
+?>
 
 <style>
 /* Scoped Employee Attendance Detail Styles */
@@ -64,6 +78,54 @@
   color: #64748b;
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.att-det-report .employee-banner {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.att-det-report .employee-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb 0%, #4338ca 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.att-det-report .employee-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.att-det-report .employee-meta {
+  color: #64748b;
+  font-size: 0.875rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.att-det-report .employee-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 /* Filter Section */
@@ -379,10 +441,31 @@
     <p class="text-muted small mb-0">Detailed attendance log for individual employee</p>
   </div>
   <div class="d-flex gap-2 mt-2 mt-sm-0">
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('reports/attendance'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
   </div>
 </div>
 
+<?php
+$display_name = !empty($name) ? $name : ('User #' . (int) (isset($user_id) ? $user_id : 0));
+$avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
+?>
+<div class="employee-banner">
+  <div class="employee-avatar"><?php echo htmlspecialchars($avatar_initial, ENT_QUOTES, 'UTF-8'); ?></div>
+  <div>
+    <div class="employee-name"><?php echo htmlspecialchars($display_name, ENT_QUOTES, 'UTF-8'); ?></div>
+    <div class="employee-meta">
+      <?php if (!empty($email)): ?>
+        <span><i class="bi bi-envelope"></i><?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?></span>
+      <?php endif; ?>
+      <?php if (!empty($emp_code)): ?>
+        <span><i class="bi bi-person-badge"></i><?php echo htmlspecialchars($emp_code, ENT_QUOTES, 'UTF-8'); ?></span>
+      <?php endif; ?>
+      <?php if (!empty($user_id)): ?>
+        <span><i class="bi bi-hash"></i>User ID <?php echo (int) $user_id; ?></span>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
 
 <!-- Statistics Cards -->
 <div class="stats-grid">
@@ -497,9 +580,16 @@
 <!-- Filter Section -->
 <div class="filter-section">
   <form method="get" class="filter-form">
-    <input type="hidden" name="period" value="<?php echo isset($period) ? htmlspecialchars($period) : 'monthly'; ?>">
+    <div class="form-group">
+      <label class="form-label">Period</label>
+      <select name="period" class="form-control" id="period-select" onchange="updatePeriodFilters()">
+        <option value="daily" <?php echo (isset($period) && $period === 'daily') ? 'selected' : ''; ?>>Daily</option>
+        <option value="weekly" <?php echo (isset($period) && $period === 'weekly') ? 'selected' : ''; ?>>Weekly</option>
+        <option value="monthly" <?php echo (!isset($period) || $period === 'monthly') ? 'selected' : ''; ?>>Monthly</option>
+      </select>
+    </div>
     <div class="form-group" id="date-filter-group" style="display: <?php echo (isset($period) && $period !== 'monthly') ? 'flex' : 'none'; ?>;">
-      <label class="form-label"><?php echo (isset($period) && $period === 'daily') ? 'Date' : 'Week Start Date'; ?></label>
+      <label class="form-label" id="date-label"><?php echo (isset($period) && $period === 'daily') ? 'Date' : 'Week Start Date'; ?></label>
       <input type="date" name="date" value="<?php echo isset($date) ? htmlspecialchars($date) : date('Y-m-d'); ?>" class="form-control">
     </div>
     <div class="form-group" id="month-filter-group" style="display: <?php echo (!isset($period) || $period === 'monthly') ? 'flex' : 'none'; ?>;">
@@ -951,15 +1041,36 @@ function getCurrentFilters() {
   const month = urlParams.get('month') || '';
   const date = urlParams.get('date') || '';
   
-  const periodSelect = document.querySelector('input[name="period"]');
+  const periodSelect = document.getElementById('period-select');
   const monthInput = document.querySelector('input[name="month"]');
   const dateInput = document.querySelector('input[name="date"]');
-  
+
   return {
-    period: period || (periodSelect ? periodSelect.value : 'monthly'),
-    month: month || (monthInput ? monthInput.value : ''),
-    date: date || (dateInput ? dateInput.value : '')
+    period: periodSelect ? periodSelect.value : (period || 'monthly'),
+    month: monthInput ? monthInput.value : (month || ''),
+    date: dateInput ? dateInput.value : (date || '')
   };
+}
+
+function updatePeriodFilters() {
+  const periodSelect = document.getElementById('period-select');
+  const period = periodSelect.value;
+  const dateGroup = document.getElementById('date-filter-group');
+  const monthGroup = document.getElementById('month-filter-group');
+  const dateLabel = document.getElementById('date-label');
+
+  if (period === 'monthly') {
+    dateGroup.style.display = 'none';
+    monthGroup.style.display = 'flex';
+  } else {
+    dateGroup.style.display = 'flex';
+    monthGroup.style.display = 'none';
+    if (period === 'daily') {
+      dateLabel.textContent = 'Date';
+    } else {
+      dateLabel.textContent = 'Week Start Date';
+    }
+  }
 }
 
 // Export to Excel function

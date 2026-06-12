@@ -222,7 +222,7 @@ class Reports_base extends CI_Controller {
      * @param array|null $flags
      * @return string
      */
-    protected function user_display_name_sql_expr($userAlias = 'u', $empAlias = 'e', array $flags = null)
+    protected function user_display_name_sql_expr($userAlias = 'u', $empAlias = 'e', $flags = null)
     {
         if ($flags === null) {
             $flags = $this->user_employee_name_flags();

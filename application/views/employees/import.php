@@ -6,7 +6,13 @@
 
   <div class="card shadow-soft">
     <div class="card-body">
-      <p class="text-muted">Upload a CSV with headers: <code>emp_code, first_name, last_name, email, department, designation, phone, join_date</code></p>
+      <p class="text-muted mb-2">Upload a CSV with headers: <code>emp_code, first_name, last_name, email, department, designation, phone, join_date</code></p>
+      <div class="mb-3">
+        <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url('assets/samples/employees_import_sample.csv'); ?>" download>
+          <i class="bi bi-download me-1"></i>Download sample file
+        </a>
+      </div>
+      <?php $this->load->view('partials/import_errors'); ?>
       <?php if($this->session->flashdata('error')): ?>
         <div class="alert alert-danger py-2 mb-3"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
       <?php endif; ?>

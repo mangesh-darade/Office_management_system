@@ -302,6 +302,10 @@ if (!function_exists('get_all_default_notification_messages')) {
             'projects_delete_error' => 'Failed to delete project',
             'projects_complete_success' => 'Project marked as complete',
             'projects_complete_error' => 'Failed to complete project',
+            'projects_member_add_success' => 'Member added successfully',
+            'projects_member_add_error' => 'Failed to add member',
+            'projects_member_remove_success' => 'Member removed successfully',
+            'projects_member_remove_error' => 'Failed to remove member',
             
             // Leave Requests
             'leaves_create_success' => 'Leave request submitted successfully',

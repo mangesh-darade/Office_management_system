@@ -14,11 +14,12 @@ class My_works extends CI_Controller
         $this->load->helper('schema_columns');
         $this->load->helper(array(
             'url', 'form', 'permission', 'hierarchy_filter', 'data_scope',
-            'my_works', 'my_works_access', 'my_works_query', 'my_works_form', 'download',
+            'my_works', 'my_works_access', 'my_works_query', 'my_works_form',
+            'my_works_attachment', 'download',
         ));
         $this->load->library(array('session', 'upload'));
         $this->load->model('My_work_model', 'my_works');
-        require_module_access(array('my_works', 'my_works_list'), true);
+        require_module_access(array('my_works', 'my_works_list', 'my_works_add'), true);
         $this->ensure_schema();
     }
 
@@ -123,9 +124,150 @@ class My_works extends CI_Controller
         my_works_clear_dashboard_cache($c['user_id'], $c['role_id']);
     }
 
-    private function _handle_upload($existing = null)
+    private function _handle_uploads()
     {
-        return my_works_handle_upload($this->upload_dir, $existing);
+        return my_works_handle_uploads($this->upload_dir);
+    }
+
+    private function _save_new_attachments($work_id, array $uploads)
+    {
+        $work_id = (int) $work_id;
+        if ($work_id < 1 || empty($uploads)) {
+            return;
+        }
+        $sort = $this->my_works->max_attachment_sort($work_id);
+        foreach ($uploads as $upload) {
+            $sort++;
+            $this->my_works->insert_attachment(
+                $work_id,
+                $upload['original'],
+                $upload['stored'],
+                isset($upload['size']) ? (int) $upload['size'] : 0,
+                $sort
+            );
+        }
+        my_works_sync_legacy_attachment_columns($this->db, $work_id);
+    }
+
+    private function _process_remove_attachments($work_id)
+    {
+        $work_id = (int) $work_id;
+        $remove_ids = $this->input->post('remove_attachments');
+        if (!is_array($remove_ids) || $work_id < 1) {
+            if ($this->input->post('remove_attachment')) {
+                $item = $this->my_works->find($work_id);
+                if ($item) {
+                    $atts = $this->my_works->list_attachments($work_id);
+                    foreach ($atts as $att) {
+                        my_works_delete_attachment_file($att->stored_name);
+                        $this->my_works->delete_attachment($work_id, (int) $att->id);
+                    }
+                    if (empty($atts) && !empty($item->attachment_stored)) {
+                        my_works_delete_attachment_file($item->attachment_stored);
+                    }
+                    my_works_sync_legacy_attachment_columns($this->db, $work_id);
+                }
+            }
+            return;
+        }
+        foreach ($remove_ids as $raw_id) {
+            $att_id = (int) $raw_id;
+            if ($att_id < 1) {
+                continue;
+            }
+            $att = $this->my_works->find_attachment($work_id, $att_id);
+            if ($att) {
+                my_works_delete_attachment_file($att->stored_name);
+                $this->my_works->delete_attachment($work_id, $att_id);
+            }
+        }
+        my_works_sync_legacy_attachment_columns($this->db, $work_id);
+    }
+
+    private function _delete_all_attachment_files($work_id, $item = null)
+    {
+        $work_id = (int) $work_id;
+        $atts = $this->my_works->list_attachments($work_id);
+        foreach ($atts as $att) {
+            my_works_delete_attachment_file($att->stored_name);
+        }
+        if ($item && !empty($item->attachment_stored)) {
+            my_works_delete_attachment_file($item->attachment_stored);
+        }
+    }
+
+    private function _resolve_legacy_attachment($work_id, $item)
+    {
+        $atts = my_works_attachments_for_work($this->db, (int) $work_id);
+        if (!empty($atts)) {
+            return $this->my_works->find_attachment((int) $work_id, (int) $atts[0]['id']);
+        }
+        if ($item && !empty($item->attachment_stored)) {
+            return (object) array(
+                'id'            => 0,
+                'work_id'       => (int) $work_id,
+                'original_name' => $item->attachment_original,
+                'stored_name'   => $item->attachment_stored,
+                'file_size'     => 0,
+            );
+        }
+        return null;
+    }
+
+    private function _serve_attachment($att, $inline = false)
+    {
+        if (!$att || empty($att->stored_name)) {
+            show_404();
+        }
+        $path = FCPATH . $this->upload_dir . $att->stored_name;
+        if (!is_file($path)) {
+            show_error('File not found.', 404);
+        }
+        $name = !empty($att->original_name) ? (string) $att->original_name : (string) $att->stored_name;
+        if (!$inline) {
+            force_download($name, file_get_contents($path));
+            return;
+        }
+        $kind = my_works_attachment_kind($name, (string) $att->stored_name);
+        if (!in_array($kind, array('video', 'image', 'audio'), true)) {
+            return false;
+        }
+        $mime = my_works_attachment_mime_type($name);
+        $size = filesize($path);
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . $size);
+        header('Accept-Ranges: bytes');
+        header('Content-Disposition: inline; filename="' . basename($name) . '"');
+        if ($kind === 'video' || $kind === 'audio') {
+            $range = isset($_SERVER['HTTP_RANGE']) ? (string) $_SERVER['HTTP_RANGE'] : '';
+            if ($range !== '' && preg_match('/bytes=(\d+)-(\d*)/', $range, $m)) {
+                $start = (int) $m[1];
+                $end = ($m[2] !== '') ? (int) $m[2] : ($size - 1);
+                if ($start <= $end && $end < $size) {
+                    $length = $end - $start + 1;
+                    header('HTTP/1.1 206 Partial Content');
+                    header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+                    header('Content-Length: ' . $length);
+                    $fp = fopen($path, 'rb');
+                    if ($fp) {
+                        fseek($fp, $start);
+                        $remaining = $length;
+                        while ($remaining > 0 && !feof($fp)) {
+                            $chunk = fread($fp, min(8192, $remaining));
+                            if ($chunk === false) {
+                                break;
+                            }
+                            echo $chunk;
+                            $remaining -= strlen($chunk);
+                        }
+                        fclose($fp);
+                    }
+                    exit;
+                }
+            }
+        }
+        readfile($path);
+        exit;
     }
 
     private function _validate_payload($is_edit = false, $existing = null)
@@ -211,9 +353,54 @@ class My_works extends CI_Controller
         exit;
     }
 
+    public function quick_add()
+    {
+        my_works_require_add_access();
+        $c = $this->_ctx();
+        $redirect_default = 'my-works';
+        if ($this->input->method() === 'post') {
+            $payload = my_works_validate_quick_payload($c['can_view_all'], $c['user_id'], $c['role_id']);
+            $redirect_path = trim((string) $this->input->post('redirect'));
+            if ($redirect_path === '' || strpos($redirect_path, '://') !== false) {
+                $redirect_path = $redirect_default;
+            }
+            if ($payload === false) {
+                my_works_flash_quick_add_old();
+                redirect('my-works/quick-add?redirect=' . rawurlencode($redirect_path));
+                return;
+            }
+            $uploads = $this->_handle_uploads();
+            if ($uploads === false) {
+                my_works_flash_quick_add_old();
+                redirect('my-works/quick-add?redirect=' . rawurlencode($redirect_path));
+                return;
+            }
+            $payload['created_by'] = $c['user_id'];
+            $id = $this->my_works->insert($payload);
+            $this->_save_new_attachments($id, $uploads);
+            $this->my_works->log_activity($id, $c['user_id'], 'created', 'Work item created (quick add)');
+            my_works_notify_assignee($id, $payload['created_for'], $payload['title'], $payload['created_by']);
+            $this->_clear_dashboard_cache();
+            $this->session->set_flashdata('success', 'Work item added.');
+            redirect(my_works_safe_redirect($redirect_path, $redirect_default));
+            return;
+        }
+        $old = $this->session->flashdata('mw_quick_add_old');
+        $redirect = trim((string) $this->input->get('redirect'));
+        if ($redirect === '' || strpos($redirect, '://') !== false) {
+            $redirect = $redirect_default;
+        }
+        $this->load->view('my_works/quick_add', array(
+            'item'   => $old ? (object) $old : null,
+            'users'  => $this->_assignable_users(),
+            'scope'  => $this->_scope_context(),
+            'redirect' => $redirect,
+        ));
+    }
+
     public function create()
     {
-        require_module_access(array('my_works_add', 'my_works'), true);
+        my_works_require_add_access();
         $old = $this->session->flashdata('mw_form_old');
         if ($this->input->method() === 'post') {
             $payload = $this->_validate_payload();
@@ -222,22 +409,20 @@ class My_works extends CI_Controller
                 redirect('my-works/create');
                 return;
             }
-            $upload = $this->_handle_upload();
-            if ($upload === false) {
+            $uploads = $this->_handle_uploads();
+            if ($uploads === false) {
                 $this->_flash_form_old();
                 redirect('my-works/create');
                 return;
             }
-            list($orig, $stored) = $upload;
             $payload['created_by'] = $this->_current_user_id();
-            $payload['attachment_original'] = $orig;
-            $payload['attachment_stored'] = $stored;
             $id = $this->my_works->insert($payload);
+            $this->_save_new_attachments($id, $uploads);
             $this->my_works->log_activity($id, $this->_current_user_id(), 'created', 'Work item created');
             my_works_notify_assignee($id, $payload['created_for'], $payload['title'], $payload['created_by']);
             $this->_clear_dashboard_cache();
             $this->session->set_flashdata('success', 'Work item created.');
-            redirect('my-works/' . $id);
+            redirect('my-works/' . (int) $id);
             return;
         }
         $this->load->view('my_works/form', array(
@@ -294,6 +479,7 @@ class My_works extends CI_Controller
             'activity' => $this->my_works->list_activity((int) $id),
             'client_label' => $client_label,
             'project_label' => $project_label,
+            'attachments' => my_works_attachments_for_work($this->db, (int) $id),
         ));
     }
 
@@ -313,26 +499,13 @@ class My_works extends CI_Controller
                 redirect('my-works/' . (int) $id . '/edit');
                 return;
             }
-            $upload = $this->_handle_upload($item);
-            if ($upload === false) {
+            $uploads = $this->_handle_uploads();
+            if ($uploads === false) {
                 redirect('my-works/' . (int) $id . '/edit');
                 return;
             }
-            list($orig, $stored) = $upload;
-            if ($orig !== null) {
-                $payload['attachment_original'] = $orig;
-                $payload['attachment_stored'] = $stored;
-            }
-            if ($this->input->post('remove_attachment')) {
-                if (!empty($item->attachment_stored)) {
-                    $path = FCPATH . $this->upload_dir . $item->attachment_stored;
-                    if (is_file($path)) {
-                        @unlink($path);
-                    }
-                }
-                $payload['attachment_original'] = null;
-                $payload['attachment_stored'] = null;
-            }
+            $this->_process_remove_attachments((int) $id);
+            $this->_save_new_attachments((int) $id, $uploads);
             $prev_for = (int) $item->created_for;
             $prev_status = (string) $item->status;
             $this->my_works->update((int) $id, $payload);
@@ -359,6 +532,7 @@ class My_works extends CI_Controller
             'clients' => my_works_clients_for_dropdown($this->db),
             'projects' => my_works_projects_for_dropdown($this->db),
             'projects_have_client' => schema_table_has_column($this->db, 'projects', 'client_id'),
+            'attachments' => my_works_attachments_for_work($this->db, (int) $id),
         ));
     }
 
@@ -398,12 +572,7 @@ class My_works extends CI_Controller
         if (!$this->_can_delete($item)) {
             show_error('You do not have permission to delete this work item.', 403);
         }
-        if (!empty($item->attachment_stored)) {
-            $path = FCPATH . $this->upload_dir . $item->attachment_stored;
-            if (is_file($path)) {
-                @unlink($path);
-            }
-        }
+        $this->_delete_all_attachment_files((int) $id, $item);
         $this->my_works->delete((int) $id);
         $this->_clear_dashboard_cache();
         $this->session->set_flashdata('success', 'Work item deleted.');
@@ -414,15 +583,64 @@ class My_works extends CI_Controller
     {
         require_module_access(array('my_works_list', 'my_works'), true);
         $item = $this->my_works->find((int) $id);
-        if (!$item || empty($item->attachment_stored)) {
+        if (!$item) {
             show_404();
         }
         $this->_require_access($item);
-        $path = FCPATH . $this->upload_dir . $item->attachment_stored;
-        if (!is_file($path)) {
-            show_error('File not found.', 404);
+        $att = $this->_resolve_legacy_attachment((int) $id, $item);
+        if (!$att) {
+            show_404();
         }
-        force_download($item->attachment_original ? $item->attachment_original : $item->attachment_stored, file_get_contents($path));
+        $this->_serve_attachment($att, false);
+    }
+
+    public function preview($id)
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        $item = $this->my_works->find((int) $id);
+        if (!$item) {
+            show_404();
+        }
+        $this->_require_access($item);
+        $att = $this->_resolve_legacy_attachment((int) $id, $item);
+        if (!$att) {
+            show_404();
+        }
+        if ($this->_serve_attachment($att, true) === false) {
+            redirect('my-works/' . (int) $id . '/download');
+        }
+    }
+
+    public function attachment_download($id, $attachment_id)
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        $item = $this->my_works->find((int) $id);
+        if (!$item) {
+            show_404();
+        }
+        $this->_require_access($item);
+        $att = $this->my_works->find_attachment((int) $id, (int) $attachment_id);
+        if (!$att) {
+            show_404();
+        }
+        $this->_serve_attachment($att, false);
+    }
+
+    public function attachment_preview($id, $attachment_id)
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        $item = $this->my_works->find((int) $id);
+        if (!$item) {
+            show_404();
+        }
+        $this->_require_access($item);
+        $att = $this->my_works->find_attachment((int) $id, (int) $attachment_id);
+        if (!$att) {
+            show_404();
+        }
+        if ($this->_serve_attachment($att, true) === false) {
+            redirect('my-works/' . (int) $id . '/attachment/' . (int) $attachment_id . '/download');
+        }
     }
 
     public function update_status()

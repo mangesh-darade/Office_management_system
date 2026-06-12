@@ -1,3 +1,3 @@
 code,name,status,start_date,end_date
-PRJ001,Website Revamp,planned,2025-01-01,2025-03-31
-PRJ002,Mobile App,active,2025-02-15,2025-06-30
+PRJ-WEB-03,Website Redesign,active,2025-01-01,2025-12-31
+PRJ-API-01,API Modernization,planned,2025-03-01,2025-09-30

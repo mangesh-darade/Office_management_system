@@ -14,7 +14,10 @@
 
 <div class="container-fluid py-3 mw-page">
 
-  <?php $this->load->view('my_works/_toolbar', array('view_mode' => $view_mode, 'can_add' => !empty($can_add))); ?>
+  <?php $this->load->view('my_works/_toolbar', array(
+    'view_mode' => $view_mode,
+    'can_add' => !empty($can_add),
+  )); ?>
 
 
 
@@ -80,7 +83,12 @@
 
       <?php foreach ($rows as $r): ?>
 
-        <?php $this->load->view('my_works/_mobile_card', array('r' => $r, 'can_quick_edit' => !empty($can_quick_edit), 'uid' => $uid)); ?>
+        <?php $this->load->view('my_works/_mobile_card', array(
+          'r' => $r,
+          'can_quick_edit' => !empty($can_quick_edit),
+          'uid' => $uid,
+          'attachments_map' => isset($attachments_map) ? $attachments_map : null,
+        )); ?>
 
       <?php endforeach; ?>
 
@@ -174,7 +182,7 @@
 
                       <?php endforeach; ?>
 
-                      <?php if (!empty($r->attachment_stored)): ?><span class="text-muted" title="Has attachment"><i class="bi bi-paperclip"></i></span><?php endif; ?>
+                      <?php $this->load->view('my_works/_attachment_badge', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
 
                       <?php if (!empty($r->url)): ?><a href="<?php echo htmlspecialchars($r->url); ?>" target="_blank" rel="noopener" class="text-primary" title="Open link" onclick="event.stopPropagation();"><i class="bi bi-link-45deg"></i></a><?php endif; ?>
 
@@ -281,9 +289,10 @@
                   <td class="small text-muted" data-order="<?php echo (int) $updatedOrder; ?>" title="<?php echo $r->updated_at ? htmlspecialchars($r->updated_at) : ''; ?>"><?php echo my_works_format_when($r->updated_at); ?></td>
 
                   <td class="text-end text-nowrap">
-
-                    <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('my-works/' . (int) $r->id); ?>" title="View details"><i class="bi bi-eye"></i></a>
-
+                    <div class="btn-group btn-group-sm mw-list-actions" role="group">
+                      <a class="btn btn-outline-primary" href="<?php echo site_url('my-works/' . (int) $r->id); ?>" title="View details"><i class="bi bi-eye"></i></a>
+                      <?php $this->load->view('my_works/_attachment_actions', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
+                    </div>
                   </td>
 
                 </tr>
@@ -303,6 +312,9 @@
   <?php endif; ?>
 
 </div>
+
+<?php $this->load->view('my_works/_media_preview_modal'); ?>
+<?php $this->load->view('my_works/_media_preview_scripts'); ?>
 
 <?php $this->load->view('partials/footer'); ?>
 

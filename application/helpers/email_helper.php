@@ -93,8 +93,8 @@ if (!function_exists('send_task_notification')) {
      */
     function send_task_notification($to, $subject, $task, $action = 'created') {
         $CI =& get_instance();
-        $CI->email->clear(TRUE);
         configure_email_from_settings();
+        $CI->email->clear(TRUE);
 
         // Configure email
         $from = get_system_from_email();
@@ -124,8 +124,8 @@ if (!function_exists('send_multiple_tasks_notification')) {
      */
     function send_multiple_tasks_notification($to, $subject, $tasks, $action = 'created') {
         $CI =& get_instance();
-        $CI->email->clear(TRUE);
         configure_email_from_settings();
+        $CI->email->clear(TRUE);
 
         // Configure email
         $from = get_system_from_email();

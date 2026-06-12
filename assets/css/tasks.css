@@ -156,12 +156,31 @@
 }
 
 .kanban .kanban-column-card.collapsed {
-  height: 60px;
-  overflow: hidden;
+  min-height: 0;
 }
 
 .kanban .kanban-column-card.collapsed .card-body {
-  display: none;
+  display: none !important;
+}
+
+.kanban .kanban-column-card .kanban-column-header {
+  position: relative;
+  z-index: 5;
+  overflow: visible;
+}
+
+.kanban .kanban-column-card.collapsed .kanban-column-header {
+  border-bottom: 0;
+}
+
+.kanban .kanban-col-toggle {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .kanban .kanban-column {
@@ -187,16 +206,16 @@
   border-radius: 12px;
   margin-bottom: 12px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  transition: all 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
   cursor: move;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .kanban-card:hover {
   box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-  transform: translateY(-2px);
   border-color: #cbd5e1;
 }
 
@@ -209,11 +228,36 @@
   padding: 10px 12px;
   border-bottom: 1px solid #f1f5f9;
   background: #fafbfc;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+}
+
+.kanban-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.kanban-card-actions .btn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.kanban-card-actions .dropdown-menu {
+  z-index: 1080;
 }
 
 .kanban-card-body {
   padding: 12px;
   flex: 1;
+  overflow: hidden;
 }
 
 .kanban-card-footer {
@@ -325,6 +369,10 @@
 
 .kanban .priority-low {
   background: #10b981;
+}
+
+.kanban .priority-urgent {
+  background: #dc2626;
 }
 
 .kanban .task-id {
@@ -788,10 +836,9 @@
   background: #f8fafc;
 }
 
-/* Preview button styling */
-.kanban-card .btn-link:hover {
-  color: #3b82f6 !important;
-  transform: scale(1.1);
+/* Card action buttons */
+.kanban-card-actions .btn:hover {
+  z-index: 3;
 }
 
 /* Loading state for preview */

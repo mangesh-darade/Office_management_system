@@ -5,7 +5,10 @@
   $statusColors = my_works_status_colors();
 ?>
 <div class="container-fluid py-3 mw-page">
-  <?php $this->load->view('my_works/_toolbar', array('view_mode' => $view_mode, 'can_add' => !empty($can_add))); ?>
+  <?php $this->load->view('my_works/_toolbar', array(
+    'view_mode' => $view_mode,
+    'can_add' => !empty($can_add),
+  )); ?>
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success py-2"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>

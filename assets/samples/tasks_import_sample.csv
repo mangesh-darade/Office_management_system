@@ -1,0 +1,5 @@
+project_name,title,description,assigned_to,status
+ElintOm Product Transaction History,Fix login redirect,Investigate redirect loop after sign-in,102,pending
+ElintOm Product Transaction History,API error handling,Add clear validation messages for 400 responses,103,in_progress
+ElintOm Product Transaction History,Update export filters,Allow CSV export filtered by project and status,,pending
+ElintOm Product Transaction History,Regression test checklist,Run smoke tests on tasks and requirements modules,104,blocked

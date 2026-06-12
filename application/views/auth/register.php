@@ -297,7 +297,7 @@
     for (var i = 0; i < cookies.length; i++) {
       var cookie = cookies[i].trim();
       if (cookie.indexOf('ci_csrf_token=') === 0) {
-        return cookie.substring('ci_csrf_token='.length);
+        return decodeURIComponent(cookie.substring('ci_csrf_token='.length));
       }
     }
     // Fallback: try to get from form

@@ -15,7 +15,10 @@
 
       <?php if (!empty($razorpay_error)): ?>
         <div class="alert alert-danger small"><?php echo htmlspecialchars($razorpay_error); ?></div>
-        <a class="btn btn-outline-primary" href="<?php echo site_url('coaching-payments/confirm-manual/' . (int) $installment->id); ?>">Record manual payment</a>
+        <form method="post" action="<?php echo site_url('coaching-payments/confirm-manual/' . (int) $installment->id); ?>" class="d-inline">
+          <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+          <button type="submit" class="btn btn-outline-primary">Record manual payment</button>
+        </form>
       <?php elseif ($settings && $settings->gateway === 'razorpay' && $settings->is_active && !empty($razorpay_order_id) && $settings->key_id): ?>
         <p class="small text-muted">Secure payment via Razorpay (UPI, cards, netbanking).</p>
         <button type="button" class="btn btn-primary w-100" id="rzp-pay-btn">Pay now</button>
@@ -51,7 +54,10 @@
         </script>
       <?php else: ?>
         <p class="small">Online gateway not configured. Use manual confirmation or ask admin to set Razorpay keys under Coaching → Settings.</p>
-        <a class="btn btn-primary" href="<?php echo site_url('coaching-payments/confirm-manual/' . (int) $installment->id); ?>">Confirm manual payment</a>
+        <form method="post" action="<?php echo site_url('coaching-payments/confirm-manual/' . (int) $installment->id); ?>" class="d-inline">
+          <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+          <button type="submit" class="btn btn-primary">Confirm manual payment</button>
+        </form>
       <?php endif; ?>
       <a class="btn btn-link btn-sm d-block mt-2" href="<?php echo site_url('coaching-portal'); ?>">Back to portal</a>
     </div>

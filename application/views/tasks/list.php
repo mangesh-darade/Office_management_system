@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Tasks']); ?>
 <div class="container-fluid py-3">
+<?php $this->load->view('partials/import_errors'); ?>
 <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
     <h1 class="h4 mb-1 fw-bold"><i class="bi bi-list-check text-primary me-2"></i>Tasks</h1>
@@ -71,10 +72,20 @@
   </div>
 </div>
 
+<?php
+  $tasks_priority_col = (isset($is_admin) && $is_admin) ? 6 : 5;
+  $tasks_priority_rank = array('urgent' => 1, 'high' => 2, 'medium' => 3, 'low' => 4);
+  $tasks_priority_badge = array(
+    'urgent' => 'danger',
+    'high'   => 'danger',
+    'medium' => 'warning text-dark',
+    'low'    => 'success',
+  );
+?>
 <div class="card shadow-soft">
   <div class="card-body">
     <div class="table-responsive">
-      <table class="table table-striped align-middle datatable" data-order-col="2" data-order-dir="asc">
+      <table class="table table-striped align-middle datatable" data-order-col="<?php echo (int) $tasks_priority_col; ?>" data-order-dir="asc">
         <thead>
           <tr>
             <th>#</th>
@@ -86,7 +97,7 @@
             <?php endif; ?>
             <th>Status</th>
             <th>Priority</th>
-            <th class="text-end">Actions</th>
+            <th class="text-end" style="min-width: 130px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -117,18 +128,25 @@
               </td>
               <?php endif; ?>
               <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($t->status); ?></span></td>
-              <td><span class="badge bg-secondary"><?php echo htmlspecialchars(isset($t->priority) ? $t->priority : ''); ?></span></td>
-              <td class="text-end">
-                <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('tasks/'.$t->id); ?>"><i class="bi bi-eye"></i></a>
-                <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
-                <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
-                <?php endif; ?>
-                <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
-                <form method="post" action="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
-                  <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-                  <button type="submit" class="btn btn-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
-                </form>
-                <?php endif; ?>
+              <?php
+                $task_priority = isset($t->priority) ? strtolower((string) $t->priority) : 'medium';
+                $task_priority_sort = isset($tasks_priority_rank[$task_priority]) ? (int) $tasks_priority_rank[$task_priority] : 5;
+              ?>
+              <?php $task_priority_badge = isset($tasks_priority_badge[$task_priority]) ? $tasks_priority_badge[$task_priority] : 'secondary'; ?>
+              <td data-order="<?php echo $task_priority_sort; ?>"><span class="badge bg-<?php echo $task_priority_badge; ?>"><?php echo htmlspecialchars(ucfirst($task_priority !== '' ? $task_priority : 'medium')); ?></span></td>
+              <td class="text-end text-nowrap table-actions">
+                <div class="d-inline-flex align-items-center justify-content-end gap-1 flex-nowrap">
+                  <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('tasks/'.$t->id); ?>"><i class="bi bi-eye"></i></a>
+                  <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
+                  <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('tasks/'.$t->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>
+                  <?php endif; ?>
+                  <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
+                  <form method="post" action="<?php echo site_url('tasks/'.$t->id.'/delete'); ?>" class="d-inline m-0" onsubmit="return confirm('Delete this task?');">
+                    <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                    <button type="submit" class="btn btn-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                  </form>
+                  <?php endif; ?>
+                </div>
               </td>
             </tr>
           <?php endforeach; ?>

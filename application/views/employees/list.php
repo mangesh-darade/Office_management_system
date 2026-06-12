@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Employees']); ?>
 <div class="container-fluid py-4">
+<?php $this->load->view('partials/import_errors'); ?>
   <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h1 class="h4 mb-1 fw-bold"><i class="bi bi-people text-primary me-2"></i>Employees</h1>

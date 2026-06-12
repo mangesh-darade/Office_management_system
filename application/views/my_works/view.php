@@ -184,7 +184,7 @@
 
           <?php if (!empty($item->details)): ?>
 
-            <div class="mw-details"><?php echo nl2br(htmlspecialchars($item->details)); ?></div>
+            <div class="mw-details mw-details-rich"><?php echo my_works_render_details($item->details); ?></div>
 
           <?php else: ?>
 
@@ -194,25 +194,11 @@
 
 
 
-          <?php if (!empty($item->url) || !empty($item->attachment_stored)): ?>
+          <?php if (!empty($item->url)): ?>
 
             <hr class="my-3">
 
-            <div class="d-flex flex-wrap gap-2">
-
-              <?php if (!empty($item->url)): ?>
-
-                <a href="<?php echo htmlspecialchars($item->url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open link</a>
-
-              <?php endif; ?>
-
-              <?php if (!empty($item->attachment_stored)): ?>
-
-                <a href="<?php echo site_url('my-works/' . (int) $item->id . '/download'); ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download me-1"></i><?php echo htmlspecialchars($item->attachment_original ? $item->attachment_original : 'Download'); ?></a>
-
-              <?php endif; ?>
-
-            </div>
+            <a href="<?php echo htmlspecialchars($item->url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open link</a>
 
           <?php endif; ?>
 
@@ -231,6 +217,25 @@
         </div>
 
       </div>
+
+
+
+      <?php if (!empty($attachments)): ?>
+
+      <div class="card shadow-sm border-0 mb-3">
+
+        <div class="card-body">
+
+          <?php $this->load->view('my_works/_attachments_panel', array(
+            'attachments' => $attachments,
+            'title' => $item->title,
+          )); ?>
+
+        </div>
+
+      </div>
+
+      <?php endif; ?>
 
 
 
@@ -518,5 +523,7 @@
 
 </div>
 
+<?php $this->load->view('my_works/_media_preview_modal'); ?>
+<?php $this->load->view('my_works/_media_preview_scripts'); ?>
 <?php $this->load->view('partials/footer'); ?>
 

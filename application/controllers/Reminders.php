@@ -14,12 +14,40 @@ class Reminders extends CI_Controller {
 
         $method = (string) $this->router->fetch_method();
         $cron_methods = array('cron_morning', 'cron_night', 'send_queue', 'cron_generate_today');
-        if (!in_array($method, $cron_methods, true)) {
+        if (in_array($method, $cron_methods, true)) {
+            // Cron-style methods: allow CLI or a valid cron token; otherwise
+            // require the reminders module permission like every other method.
+            if (!$this->input->is_cli_request() && !$this->_valid_cron_token()) {
+                require_module_access('reminders', true);
+            }
+        } else {
             require_module_access('reminders', true);
         }
 
         $this->load->model('Reminder_model', 'reminders');
         $this->reminders->ensure_schema();
+    }
+
+    /**
+     * Same token rules as Cron controller: settings value or CRON_TOKEN env.
+     * No configured token means HTTP token access is disabled (fail closed).
+     *
+     * @return bool
+     */
+    private function _valid_cron_token(){
+        $token = (string) $this->input->get('token');
+        if ($token === '') {
+            return false;
+        }
+        $this->load->model('Setting_model', 'settings');
+        $expected = $this->settings->get_setting('cron_secret_token', '');
+        if ($expected === '' || $expected === null) {
+            $expected = getenv('CRON_TOKEN');
+        }
+        if ($expected === false || $expected === '' || $expected === null) {
+            return false;
+        }
+        return hash_equals((string) $expected, $token);
     }
 
     public function index(){

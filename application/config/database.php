@@ -95,3 +95,38 @@ $db['default'] = array(
 	'failover' => array(),
 	'save_queries' => (ENVIRONMENT !== 'production')
 );
+
+/*
+| Read-only connection for AI-generated SQL (least privilege).
+| Create a MySQL user with SELECT-only grants and set the env vars:
+|   AI_DB_RO_USER / AI_DB_RO_PASS (optionally AI_DB_RO_HOST / AI_DB_RO_NAME)
+| Example grant:
+|   CREATE USER 'oms_ai_ro'@'localhost' IDENTIFIED BY '<strong-password>';
+|   GRANT SELECT ON admin_stadmin_internal_portal.* TO 'oms_ai_ro'@'localhost';
+| When the env vars are absent this group falls back to the default
+| credentials, so nothing breaks on installs without the read-only user.
+*/
+$__ai_ro_user = getenv('AI_DB_RO_USER');
+$__ai_ro_pass = getenv('AI_DB_RO_PASS');
+$db['ai_readonly'] = array(
+	'dsn'	=> '',
+	'hostname' => (getenv('AI_DB_RO_HOST') ?: $db['default']['hostname']),
+	'username' => ($__ai_ro_user !== false && $__ai_ro_user !== '') ? $__ai_ro_user : $db['default']['username'],
+	'password' => ($__ai_ro_pass !== false) ? $__ai_ro_pass : $db['default']['password'],
+	'database' => (getenv('AI_DB_RO_NAME') ?: $db['default']['database']),
+
+	'dbdriver' => 'mysqli',
+	'dbprefix' => '',
+	'pconnect' => FALSE,
+	'db_debug' => FALSE,
+	'cache_on' => FALSE,
+	'cachedir' => '',
+	'char_set' => 'utf8',
+	'dbcollat' => 'utf8_general_ci',
+	'swap_pre' => '',
+	'encrypt' => FALSE,
+	'compress' => FALSE,
+	'stricton' => FALSE,
+	'failover' => array(),
+	'save_queries' => FALSE
+);

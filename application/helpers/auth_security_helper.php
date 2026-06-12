@@ -23,6 +23,23 @@ if (!function_exists('auth_get_security_toggle')) {
     }
 }
 
+if (!function_exists('auth_client_ip')) {
+    /**
+     * Best-effort client IP (respects CI proxy_ips when configured).
+     *
+     * @return string
+     */
+    function auth_client_ip()
+    {
+        $CI =& get_instance();
+        if ($CI && isset($CI->input) && method_exists($CI->input, 'ip_address')) {
+            return trim((string) $CI->input->ip_address());
+        }
+
+        return isset($_SERVER['REMOTE_ADDR']) ? trim((string) $_SERVER['REMOTE_ADDR']) : '';
+    }
+}
+
 if (!function_exists('auth_ip_in_cidr_range')) {
     function auth_ip_in_cidr_range($ip, $subnet, $mask)
     {

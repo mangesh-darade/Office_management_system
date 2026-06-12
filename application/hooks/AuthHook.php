@@ -43,8 +43,9 @@ class AuthHook {
         // Allow assets
         if (strpos($uri, 'assets/') === 0) return;
 
-        // Normalize index.php prefix
-        $uri = preg_replace('#^index\.php/#','', $uri);
+        // Normalize index.php prefix and trailing slashes (Safari/iOS may append '/')
+        $uri = preg_replace('#^index\.php/#', '', $uri);
+        $uri = trim($uri, '/');
 
         if (in_array($uri, $public, true)) return;
 
@@ -225,14 +226,23 @@ class AuthHook {
             }
         }
         
-        // Check IP whitelist for authenticated users
+        // Check IP whitelist for authenticated users (skip Super Admin + self punch — mobile IPs / iCloud Relay)
         $ip_whitelist_enabled = $CI->settings->get_setting('security_enable_ip_whitelist', null);
         if ($ip_whitelist_enabled === null || $ip_whitelist_enabled === '')
         {
             $ip_whitelist_enabled = $CI->settings->get_setting('security_ip_whitelist_enabled', 'no');
         }
-        if ($ip_whitelist_enabled === 'yes') {
-            $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+        $method = '';
+        if (isset($CI->router) && property_exists($CI->router, 'method')) {
+            $method = strtolower((string) $CI->router->method);
+        }
+        $skip_ip_whitelist = ($role_id === 1)
+            || ($controller === 'attendance' && $method === 'create');
+        if ($ip_whitelist_enabled === 'yes' && !$skip_ip_whitelist) {
+            if (!function_exists('auth_client_ip')) {
+                $CI->load->helper('auth_security');
+            }
+            $ip = auth_client_ip();
             $whitelist = $CI->settings->get_setting('security_ip_whitelist', '');
             
             if (!empty($whitelist)) {

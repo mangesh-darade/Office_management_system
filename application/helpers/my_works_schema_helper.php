@@ -95,5 +95,45 @@ if (!function_exists('my_works_schema_ensure')) {
                 KEY `idx_mwc_work` (`work_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
+
+        if (!$db->table_exists('my_work_attachments')) {
+            $db->query("CREATE TABLE `my_work_attachments` (
+                `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+                `work_id` int(11) unsigned NOT NULL,
+                `original_name` varchar(255) NOT NULL,
+                `stored_name` varchar(255) NOT NULL,
+                `file_size` int(11) unsigned NOT NULL DEFAULT 0,
+                `sort_order` int(11) unsigned NOT NULL DEFAULT 0,
+                `created_at` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_mwa_work` (`work_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+
+        if ($db->table_exists('my_work_attachments') && $db->table_exists('my_works')) {
+            $legacy = $db->select('id, attachment_original, attachment_stored')
+                ->from('my_works')
+                ->where('attachment_stored IS NOT NULL', null, false)
+                ->where('attachment_stored !=', '')
+                ->get()
+                ->result();
+            foreach ($legacy as $row) {
+                $exists = $db->where('work_id', (int) $row->id)
+                    ->count_all_results('my_work_attachments');
+                if ($exists > 0) {
+                    continue;
+                }
+                $path = FCPATH . 'uploads/my_works/' . $row->attachment_stored;
+                $size = is_file($path) ? (int) filesize($path) : 0;
+                $db->insert('my_work_attachments', array(
+                    'work_id'       => (int) $row->id,
+                    'original_name' => $row->attachment_original ? (string) $row->attachment_original : (string) $row->attachment_stored,
+                    'stored_name'   => (string) $row->attachment_stored,
+                    'file_size'     => $size,
+                    'sort_order'    => 0,
+                    'created_at'    => date('Y-m-d H:i:s'),
+                ));
+            }
+        }
     }
 }

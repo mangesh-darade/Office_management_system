@@ -14,9 +14,11 @@ class Cron extends CI_Controller {
             {
                 $expected_token = getenv('CRON_TOKEN');
             }
-            if ($expected_token === false || $expected_token === '')
+            // Fail closed: no configured token means HTTP cron access is disabled.
+            if ($expected_token === false || $expected_token === '' || $expected_token === null)
             {
-                $expected_token = 'CHANGE_THIS_TO_A_SECURE_RANDOM_TOKEN';
+                log_message('error', 'Cron: HTTP request rejected — cron_secret_token / CRON_TOKEN not configured.');
+                show_error('Access denied. Cron endpoints require CLI access or a configured secret token.', 403);
             }
             if (empty($cron_token) || !hash_equals((string)$expected_token, (string)$cron_token)) {
                 show_error('Access denied. Cron endpoints require CLI access or valid token.', 403);

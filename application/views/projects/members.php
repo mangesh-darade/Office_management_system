@@ -42,8 +42,9 @@
                     <div class="d-flex gap-2">
                       <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || is_admin_group())): ?>
                       <form method="post" action="<?php echo site_url('projects/'.$project->id.'/member/'.(int)$m->user_id.'/role'); ?>" class="d-flex gap-2">
+                        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                         <select name="role" class="form-select form-select-sm" required>
-                          <?php $roles=['manager','lead','developer','tester','viewer','member']; foreach ($roles as $r): ?>
+                          <?php $roles = isset($member_roles) ? $member_roles : array('manager','lead','developer','tester','viewer','member'); foreach ($roles as $r): ?>
                             <option value="<?php echo $r; ?>" <?php echo ($r===$role)?'selected':''; ?>><?php echo ucfirst($r); ?></option>
                           <?php endforeach; ?>
                         </select>
@@ -92,14 +93,12 @@
                     </td>
                     <td>
                       <form method="post" action="<?php echo site_url('projects/'.$project->id.'/add-member'); ?>" class="d-flex gap-2">
+                        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                         <input type="hidden" name="user_id" value="<?php echo (int)$u->id; ?>" />
                         <select name="role" class="form-select form-select-sm">
-                          <option value="member">Member</option>
-                          <option value="manager">Manager</option>
-                          <option value="lead">Lead</option>
-                          <option value="developer">Developer</option>
-                          <option value="tester">Tester</option>
-                          <option value="viewer">Viewer</option>
+                          <?php $roles = isset($member_roles) ? $member_roles : array('manager','lead','developer','tester','viewer','member'); foreach ($roles as $r): ?>
+                            <option value="<?php echo $r; ?>" <?php echo ($r === 'member') ? 'selected' : ''; ?>><?php echo ucfirst($r); ?></option>
+                          <?php endforeach; ?>
                         </select>
                         <button class="btn btn-primary btn-sm">Add</button>
                       </form>

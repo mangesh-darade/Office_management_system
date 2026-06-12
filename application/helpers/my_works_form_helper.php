@@ -108,6 +108,143 @@ if (!function_exists('my_works_clear_dashboard_cache')) {
     }
 }
 
+if (!function_exists('my_works_upload_allowed_types')) {
+    function my_works_upload_allowed_types()
+    {
+        return 'gif|jpg|jpeg|png|webp|bmp|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|7z|tar|gz|csv|mp4|webm|mov|avi|mkv|m4v|mp3|wav|ogg|flac|aac|m4a|wmv|flv|mpeg|mpg|3gp';
+    }
+}
+
+if (!function_exists('my_works_upload_max_bytes')) {
+    /** Application attachment cap: 100 MB */
+    function my_works_upload_max_bytes()
+    {
+        return 104857600;
+    }
+}
+
+if (!function_exists('my_works_upload_max_kb')) {
+    function my_works_upload_max_kb()
+    {
+        return (int) floor(my_works_upload_max_bytes() / 1024);
+    }
+}
+
+if (!function_exists('my_works_upload_max_mb')) {
+    function my_works_upload_max_mb()
+    {
+        return 100;
+    }
+}
+
+if (!function_exists('my_works_php_ini_bytes')) {
+    function my_works_php_ini_bytes($setting)
+    {
+        $val = trim((string) ini_get($setting));
+        if ($val === '' || $val === '-1') {
+            return 0;
+        }
+        $last = strtolower($val[strlen($val) - 1]);
+        $num = (float) $val;
+        if ($last === 'g') {
+            return (int) round($num * 1073741824);
+        }
+        if ($last === 'm') {
+            return (int) round($num * 1048576);
+        }
+        if ($last === 'k') {
+            return (int) round($num * 1024);
+        }
+        return (int) round($num);
+    }
+}
+
+if (!function_exists('my_works_effective_upload_max_bytes')) {
+    /**
+     * Smallest of app cap (100 MB) and current PHP upload/post limits.
+     */
+    function my_works_effective_upload_max_bytes()
+    {
+        $app_bytes = my_works_upload_max_bytes();
+        $upload_bytes = my_works_php_ini_bytes('upload_max_filesize');
+        $post_bytes = my_works_php_ini_bytes('post_max_size');
+        $limits = array($app_bytes);
+        if ($upload_bytes > 0) {
+            $limits[] = $upload_bytes;
+        }
+        if ($post_bytes > 0) {
+            $limits[] = max(0, $post_bytes - 2097152);
+        }
+        return (int) min($limits);
+    }
+}
+
+if (!function_exists('my_works_effective_upload_max_kb')) {
+    function my_works_effective_upload_max_kb()
+    {
+        return max(1, (int) floor(my_works_effective_upload_max_bytes() / 1024));
+    }
+}
+
+if (!function_exists('my_works_upload_error_message')) {
+    function my_works_upload_error_message($error_code)
+    {
+        $upload_max = ini_get('upload_max_filesize');
+        $post_max = ini_get('post_max_size');
+        switch ((int) $error_code) {
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                return 'File is too large. Server limit is upload_max_filesize=' . $upload_max
+                    . ', post_max_size=' . $post_max . '.';
+            case UPLOAD_ERR_PARTIAL:
+                return 'Upload was interrupted. Please try again.';
+            case UPLOAD_ERR_NO_TMP_DIR:
+                return 'Server upload folder is missing. Contact your administrator.';
+            case UPLOAD_ERR_CANT_WRITE:
+                return 'Server could not save the file. Contact your administrator.';
+            case UPLOAD_ERR_EXTENSION:
+                return 'A server extension blocked this file type.';
+            default:
+                return 'Could not upload the attachment. Please try again.';
+        }
+    }
+}
+
+if (!function_exists('my_works_sanitize_details_html')) {
+    function my_works_sanitize_details_html($html)
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return null;
+        }
+        $allowed = '<p><br><strong><em><b><i><u><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre><span><div><del><sub><sup><table><thead><tbody><tr><th><td>';
+        $clean = strip_tags($html, $allowed);
+        return $clean !== '' ? $clean : null;
+    }
+}
+
+if (!function_exists('my_works_upload_field_has_files')) {
+    /**
+     * @param string $key $_FILES key (e.g. attachments, attachment)
+     */
+    function my_works_upload_field_has_files($key)
+    {
+        if (!isset($_FILES[$key]) || !isset($_FILES[$key]['name'])) {
+            return false;
+        }
+        $name = $_FILES[$key]['name'];
+        if (is_array($name)) {
+            foreach ($name as $n) {
+                if (trim((string) $n) !== '') {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return trim((string) $name) !== '';
+    }
+}
+
 if (!function_exists('my_works_handle_upload')) {
     /**
      * @param string $upload_dir Relative to FCPATH
@@ -115,23 +252,31 @@ if (!function_exists('my_works_handle_upload')) {
      */
     function my_works_handle_upload($upload_dir, $existing = null)
     {
-        if (empty($_FILES['attachment']['name'])) {
+        if (!my_works_upload_field_has_files('attachment')) {
             return array(null, null);
         }
         $CI =& get_instance();
+        if (isset($_FILES['attachment']['error']) && (int) $_FILES['attachment']['error'] !== UPLOAD_ERR_OK) {
+            $CI->session->set_flashdata('error', my_works_upload_error_message($_FILES['attachment']['error']));
+            return false;
+        }
         $dir = FCPATH . $upload_dir;
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
         $config = array(
             'upload_path'   => $dir,
-            'allowed_types' => 'gif|jpg|jpeg|png|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|csv',
-            'max_size'      => 10240,
+            'allowed_types' => my_works_upload_allowed_types(),
+            'max_size'      => my_works_upload_max_kb(),
             'encrypt_name'  => true,
         );
         $CI->upload->initialize($config);
         if (!$CI->upload->do_upload('attachment')) {
-            $CI->session->set_flashdata('error', strip_tags($CI->upload->display_errors('', '')));
+            $err = strip_tags($CI->upload->display_errors('', ''));
+            if ($err === '' || stripos($err, 'filetype') !== false) {
+                $err = 'This file type is not allowed or could not be verified. Supported: images, PDF, Office docs, video (mp4, webm, mov, mkv, m4v), audio, zip.';
+            }
+            $CI->session->set_flashdata('error', $err);
             return false;
         }
         $data = $CI->upload->data();
@@ -142,6 +287,124 @@ if (!function_exists('my_works_handle_upload')) {
             }
         }
         return array($data['orig_name'], $data['file_name']);
+    }
+}
+
+if (!function_exists('my_works_handle_uploads')) {
+    /**
+     * Upload one or more attachments (attachments[] or legacy attachment field).
+     *
+     * @param string $upload_dir Relative to FCPATH
+     * @return array|false Empty array if no files; false on error
+     */
+    function my_works_handle_uploads($upload_dir)
+    {
+        $CI =& get_instance();
+        $CI->load->helper('my_works_attachment');
+        $max_per = my_works_max_attachments_per_submit();
+        $results = array();
+
+        $has_multi = my_works_upload_field_has_files('attachments');
+        $has_legacy = my_works_upload_field_has_files('attachment');
+
+        if ($has_legacy && !$has_multi) {
+            $one = my_works_handle_upload($upload_dir);
+            if ($one === false) {
+                return false;
+            }
+            if ($one[0] !== null) {
+                $path = FCPATH . $upload_dir . $one[1];
+                $size = is_file($path) ? (int) filesize($path) : 0;
+                $results[] = array(
+                    'original' => $one[0],
+                    'stored'   => $one[1],
+                    'size'     => $size,
+                );
+            }
+            return $results;
+        }
+
+        if (!$has_multi) {
+            return array();
+        }
+
+        $files = $_FILES['attachments'];
+        $names = $files['name'];
+        if (!is_array($names)) {
+            $names = array($names);
+            $files = array(
+                'name'     => array($files['name']),
+                'type'     => array($files['type']),
+                'tmp_name' => array($files['tmp_name']),
+                'error'    => array($files['error']),
+                'size'     => array($files['size']),
+            );
+        }
+
+        $count = 0;
+        foreach ($names as $name) {
+            if (trim((string) $name) !== '') {
+                $count++;
+            }
+        }
+        if ($count < 1) {
+            return array();
+        }
+        if ($count > $max_per) {
+            $CI->session->set_flashdata('error', 'You can upload up to ' . $max_per . ' files at once.');
+            return false;
+        }
+
+        $dir = FCPATH . $upload_dir;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $config = array(
+            'upload_path'   => $dir,
+            'allowed_types' => my_works_upload_allowed_types(),
+            'max_size'      => my_works_upload_max_kb(),
+            'encrypt_name'  => true,
+        );
+
+        foreach ($names as $i => $name) {
+            if (trim((string) $name) === '') {
+                continue;
+            }
+            if ((int) $files['error'][$i] !== UPLOAD_ERR_OK) {
+                $CI->session->set_flashdata('error', my_works_upload_error_message($files['error'][$i]) . ' (' . $name . ')');
+                foreach ($results as $r) {
+                    my_works_delete_attachment_file($r['stored']);
+                }
+                return false;
+            }
+            $_FILES['mw_single_upload'] = array(
+                'name'     => $files['name'][$i],
+                'type'     => $files['type'][$i],
+                'tmp_name' => $files['tmp_name'][$i],
+                'error'    => $files['error'][$i],
+                'size'     => $files['size'][$i],
+            );
+            $CI->upload->initialize($config);
+            if (!$CI->upload->do_upload('mw_single_upload')) {
+                $err = strip_tags($CI->upload->display_errors('', ''));
+                if ($err === '' || stripos($err, 'filetype') !== false) {
+                    $err = 'This file type is not allowed or could not be verified. Supported: images, PDF, Office docs, video (mp4, webm, mov, mkv, m4v), audio, zip.';
+                }
+                $CI->session->set_flashdata('error', $err . ' (' . $name . ')');
+                foreach ($results as $r) {
+                    my_works_delete_attachment_file($r['stored']);
+                }
+                return false;
+            }
+            $data = $CI->upload->data();
+            $results[] = array(
+                'original' => $data['orig_name'],
+                'stored'   => $data['file_name'],
+                'size'     => isset($data['file_size']) ? (int) $data['file_size'] : 0,
+            );
+        }
+
+        return $results;
     }
 }
 
@@ -171,7 +434,12 @@ if (!function_exists('my_works_validate_payload')) {
             $CI->session->set_flashdata('error', 'Task title is required.');
             return false;
         }
-        $created_for = my_works_validate_created_for((int) $CI->input->post('created_for'), $can_view_all, $user_id, $role_id);
+        $posted_for = (int) $CI->input->post('created_for');
+        if ($posted_for <= 0) {
+            $CI->session->set_flashdata('error', 'Assigned to is required.');
+            return false;
+        }
+        $created_for = my_works_validate_created_for($posted_for, $can_view_all, $user_id, $role_id);
         if ($created_for === false) {
             return false;
         }
@@ -188,12 +456,18 @@ if (!function_exists('my_works_validate_payload')) {
             return false;
         }
         $due = trim((string) $CI->input->post('due_date'));
+        if ($due === '') {
+            $CI->session->set_flashdata('error', 'Due date is required.');
+            return false;
+        }
         $due_date = null;
-        if ($due !== '') {
-            $parts = explode('-', $due);
-            if (count($parts) === 3 && checkdate((int) $parts[1], (int) $parts[2], (int) $parts[0])) {
-                $due_date = $due;
-            }
+        $parts = explode('-', $due);
+        if (count($parts) === 3 && checkdate((int) $parts[1], (int) $parts[2], (int) $parts[0])) {
+            $due_date = $due;
+        }
+        if ($due_date === null) {
+            $CI->session->set_flashdata('error', 'Please enter a valid due date.');
+            return false;
         }
         $client_project = my_works_validate_client_project(
             $CI->db,
@@ -212,7 +486,7 @@ if (!function_exists('my_works_validate_payload')) {
         $closing_comment = trim((string) $CI->input->post('closing_comment'));
         return array(
             'title'           => $title,
-            'details'         => trim((string) $CI->input->post('details')),
+            'details'         => my_works_sanitize_details_html($CI->input->post('details')),
             'tag'             => my_works_normalize_tags($CI->input->post('tag')),
             'url'             => $url !== '' ? $url : null,
             'created_for'     => $created_for,
@@ -246,6 +520,60 @@ if (!function_exists('my_works_flash_form_old')) {
             'closing_comment' => $CI->input->post('closing_comment'),
             'is_urgent'       => $CI->input->post('is_urgent'),
             'is_important' => $CI->input->post('is_important'),
+        ));
+    }
+}
+
+if (!function_exists('my_works_validate_quick_payload')) {
+    /**
+     * Minimal payload for toolbar quick-add (title, details, assignee).
+     *
+     * @return array|false
+     */
+    function my_works_validate_quick_payload($can_view_all, $user_id, $role_id)
+    {
+        $CI =& get_instance();
+        $title = trim((string) $CI->input->post('title'));
+        if ($title === '') {
+            $CI->session->set_flashdata('error', 'Task title is required.');
+            return false;
+        }
+        if (strlen($title) > 255) {
+            $CI->session->set_flashdata('error', 'Task title must be 255 characters or fewer.');
+            return false;
+        }
+        $created_for = my_works_validate_created_for((int) $CI->input->post('created_for'), $can_view_all, $user_id, $role_id);
+        if ($created_for === false) {
+            return false;
+        }
+        $details = my_works_sanitize_details_html($CI->input->post('details'));
+
+        return array(
+            'title'       => $title,
+            'details'     => $details,
+            'created_for' => $created_for,
+            'status'      => 'new',
+            'is_urgent'   => 0,
+            'is_important'=> 0,
+            'tag'         => null,
+            'url'         => null,
+            'due_date'    => null,
+            'client_id'   => null,
+            'project_id'  => null,
+            'work_type'   => null,
+            'closing_comment' => null,
+        );
+    }
+}
+
+if (!function_exists('my_works_flash_quick_add_old')) {
+    function my_works_flash_quick_add_old()
+    {
+        $CI =& get_instance();
+        $CI->session->set_flashdata('mw_quick_add_old', array(
+            'title'       => $CI->input->post('title'),
+            'details'     => $CI->input->post('details'),
+            'created_for' => $CI->input->post('created_for'),
         ));
     }
 }

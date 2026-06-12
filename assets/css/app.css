@@ -26,6 +26,9 @@ body { background-color: #f5f7fb; }
 .table thead th { color: #6c757d; font-weight: 600; border-bottom-width: 1px; }
 .table td, .table th { vertical-align: middle; }
 .table-actions .btn { margin-right: .25rem; }
+.table-actions .d-inline-flex { gap: .25rem; }
+.table-actions .d-inline-flex .btn { margin-right: 0; }
+.table-actions .d-inline-flex form { display: inline-flex !important; margin: 0; }
 
 /* Footer spacing */
 main > .container { min-height: calc(100vh - 64px - 40px); }

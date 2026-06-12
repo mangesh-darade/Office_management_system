@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Projects']); ?>
+<?php $this->load->view('partials/import_errors'); ?>
 <div class="container-fluid py-3">
 <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>

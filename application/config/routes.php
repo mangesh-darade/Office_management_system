@@ -160,13 +160,17 @@ $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
 // My Works (personal / assigned work items)
 $route['my-works'] = 'my_works/index';
 $route['my-works/create'] = 'my_works/create';
+$route['my-works/quick-add'] = 'my_works/quick_add';
 $route['my-works/export'] = 'my_works/export';
 $route['my-works/update-status'] = 'my_works/update_status';
 $route['my-works/update-matrix'] = 'my_works/update_matrix';
 $route['my-works/(:num)/comment'] = 'my_works/add_comment/$1';
 $route['my-works/(:num)/edit'] = 'my_works/edit/$1';
 $route['my-works/(:num)/delete'] = 'my_works/delete/$1';
+$route['my-works/(:num)/attachment/(:num)/download'] = 'my_works/attachment_download/$1/$2';
+$route['my-works/(:num)/attachment/(:num)/preview'] = 'my_works/attachment_preview/$1/$2';
 $route['my-works/(:num)/download'] = 'my_works/download/$1';
+$route['my-works/(:num)/preview'] = 'my_works/preview/$1';
 $route['my-works/(:num)'] = 'my_works/show/$1';
 
 // Statuses Management
@@ -338,6 +342,7 @@ $route['requirements/version/(:num)'] = 'requirements/version/$1';
 $route['requirements/board'] = 'requirements/board';
 $route['requirements/calendar'] = 'requirements/calendar';
 $route['requirements/export'] = 'requirements/export';
+$route['requirements/import'] = 'requirements/import';
 
 // Announcements
 $route['announcements'] = 'announcements/index';

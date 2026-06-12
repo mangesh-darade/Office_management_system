@@ -12,6 +12,34 @@ if (!function_exists('my_works_sees_all_org_data')) {
     }
 }
 
+if (!function_exists('my_works_can_add')) {
+    /**
+     * Create / quick-add: full module, explicit add key, or list access (personal work tracker).
+     */
+    function my_works_can_add()
+    {
+        if (!function_exists('has_module_access')) {
+            return false;
+        }
+        return has_module_access('my_works')
+            || has_module_access('my_works_add')
+            || has_module_access('my_works_list');
+    }
+}
+
+if (!function_exists('my_works_require_add_access')) {
+    function my_works_require_add_access()
+    {
+        if (!my_works_can_add()) {
+            $CI =& get_instance();
+            $CI->session->set_flashdata('access_denied', 'You do not have permission to add work items.');
+            redirect('my-works');
+            exit;
+        }
+        return true;
+    }
+}
+
 if (!function_exists('my_works_user_in_personal_scope')) {
     /**
      * Whether a work row is visible to the given user under personal (non-admin) rules.
@@ -315,6 +343,176 @@ if (!function_exists('my_works_matrix_flags_from_quadrant')) {
         );
         $quadrant = (string) $quadrant;
         return isset($map[$quadrant]) ? $map[$quadrant] : null;
+    }
+}
+
+if (!function_exists('my_works_format_file_size')) {
+    function my_works_format_file_size($bytes)
+    {
+        $bytes = (int) $bytes;
+        if ($bytes < 1) {
+            return '';
+        }
+        $units = array('B', 'KB', 'MB', 'GB');
+        $i = 0;
+        $n = (float) $bytes;
+        while ($n >= 1024 && $i < count($units) - 1) {
+            $n /= 1024;
+            $i++;
+        }
+        if ($i === 0) {
+            return (int) $n . ' ' . $units[$i];
+        }
+        return number_format($n, 1) . ' ' . $units[$i];
+    }
+}
+
+if (!function_exists('my_works_attachment_extension')) {
+    function my_works_attachment_extension($filename)
+    {
+        $filename = strtolower(trim((string) $filename));
+        if ($filename === '' || strpos($filename, '.') === false) {
+            return '';
+        }
+        $parts = explode('.', $filename);
+        return strtolower((string) end($parts));
+    }
+}
+
+if (!function_exists('my_works_attachment_kind')) {
+    /**
+     * @return string video|image|audio|document|archive|file
+     */
+    function my_works_attachment_kind($original_name, $stored_name = '')
+    {
+        $ext = my_works_attachment_extension($original_name);
+        if ($ext === '' && $stored_name !== '') {
+            $ext = my_works_attachment_extension($stored_name);
+        }
+        if (in_array($ext, array('mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'wmv', 'flv', 'mpeg', 'mpg', '3gp'), true)) {
+            return 'video';
+        }
+        if (in_array($ext, array('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'), true)) {
+            return 'image';
+        }
+        if (in_array($ext, array('mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'), true)) {
+            return 'audio';
+        }
+        if (in_array($ext, array('pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv'), true)) {
+            return 'document';
+        }
+        if (in_array($ext, array('zip', 'rar', '7z', 'tar', 'gz'), true)) {
+            return 'archive';
+        }
+        return 'file';
+    }
+}
+
+if (!function_exists('my_works_attachment_mime_type')) {
+    function my_works_attachment_mime_type($filename)
+    {
+        $ext = my_works_attachment_extension($filename);
+        $map = array(
+            'mp4' => 'video/mp4', 'webm' => 'video/webm', 'mov' => 'video/quicktime',
+            'avi' => 'video/x-msvideo', 'mkv' => 'video/x-matroska', 'm4v' => 'video/x-m4v',
+            'wmv' => 'video/x-ms-wmv', 'mpeg' => 'video/mpeg', 'mpg' => 'video/mpeg', '3gp' => 'video/3gpp',
+            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif',
+            'webp' => 'image/webp', 'bmp' => 'image/bmp', 'svg' => 'image/svg+xml',
+            'mp3' => 'audio/mpeg', 'wav' => 'audio/wav', 'ogg' => 'audio/ogg', 'm4a' => 'audio/mp4',
+            'pdf' => 'application/pdf',
+        );
+        return isset($map[$ext]) ? $map[$ext] : 'application/octet-stream';
+    }
+}
+
+if (!function_exists('my_works_attachment_icon_class')) {
+    function my_works_attachment_icon_class($kind)
+    {
+        $icons = array(
+            'video'    => 'bi-file-play-fill',
+            'image'    => 'bi-file-image-fill',
+            'audio'    => 'bi-file-music-fill',
+            'document' => 'bi-file-earmark-text-fill',
+            'archive'  => 'bi-file-zip-fill',
+            'file'     => 'bi-file-earmark-fill',
+        );
+        return isset($icons[$kind]) ? $icons[$kind] : $icons['file'];
+    }
+}
+
+if (!function_exists('my_works_attachment_badge_label')) {
+    function my_works_attachment_badge_label($kind)
+    {
+        $labels = array(
+            'video' => 'Video', 'image' => 'Image', 'audio' => 'Audio',
+            'document' => 'Document', 'archive' => 'Archive', 'file' => 'File',
+        );
+        return isset($labels[$kind]) ? $labels[$kind] : 'File';
+    }
+}
+
+if (!function_exists('my_works_attachment_meta')) {
+    /**
+     * @param object $row Work row with attachment_original, attachment_stored
+     * @return array|null
+     */
+    function my_works_attachment_meta($row)
+    {
+        if (!$row || empty($row->id)) {
+            return null;
+        }
+        $CI =& get_instance();
+        if ($CI->db->table_exists('my_work_attachments')) {
+            $atts = my_works_attachments_for_work($CI->db, (int) $row->id);
+            if (!empty($atts)) {
+                return $atts[0];
+            }
+        }
+        if (empty($row->attachment_stored)) {
+            return null;
+        }
+        $name = !empty($row->attachment_original) ? (string) $row->attachment_original : (string) $row->attachment_stored;
+        $kind = my_works_attachment_kind($name, (string) $row->attachment_stored);
+        $size_label = '';
+        $stored = (string) $row->attachment_stored;
+        if ($stored !== '') {
+            $path = FCPATH . 'uploads/my_works/' . $stored;
+            if (is_file($path)) {
+                $bytes = (int) filesize($path);
+                if ($bytes > 0) {
+                    $size_label = my_works_format_file_size($bytes);
+                }
+            }
+        }
+        return array(
+            'name'         => $name,
+            'kind'         => $kind,
+            'icon'         => my_works_attachment_icon_class($kind),
+            'label'        => my_works_attachment_badge_label($kind),
+            'download_url' => site_url('my-works/' . (int) $row->id . '/download'),
+            'preview_url'  => site_url('my-works/' . (int) $row->id . '/preview'),
+            'can_preview'  => in_array($kind, array('video', 'image', 'audio'), true),
+            'is_video'     => ($kind === 'video'),
+            'size_label'   => $size_label,
+        );
+    }
+}
+
+if (!function_exists('my_works_render_details')) {
+    /**
+     * Safe HTML output for work item details (rich text from editor).
+     */
+    function my_works_render_details($details)
+    {
+        if ($details === null || trim((string) $details) === '') {
+            return '';
+        }
+        $details = (string) $details;
+        if (strpos($details, '<') === false) {
+            return nl2br(htmlspecialchars($details, ENT_QUOTES, 'UTF-8'));
+        }
+        $allowed = '<p><br><strong><em><b><i><u><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre><span><div><del><sub><sup><table><thead><tbody><tr><th><td>';
+        return strip_tags($details, $allowed);
     }
 }
 

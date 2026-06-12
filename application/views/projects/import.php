@@ -9,10 +9,15 @@
       <p class="text-muted mb-2">Upload a CSV with headers: <code>code, name, status, start_date, end_date</code></p>
       <div class="mb-3">
         <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url('assets/samples/projects_import_sample.csv'); ?>" download>
-          Download sample file
+          <i class="bi bi-download me-1"></i>Download sample file
         </a>
       </div>
-      <?php /* Flash error/success shown via global Bootstrap toast in partials/header.php */ ?>
+      <ul class="small text-muted mb-3">
+        <li><strong>name</strong> — required.</li>
+        <li><strong>status</strong> — planned, active, on_hold, completed, cancelled (default planned).</li>
+        <li>Duplicate <strong>code</strong> values are skipped with a row error.</li>
+      </ul>
+      <?php $this->load->view('partials/import_errors'); ?>
       <form method="post" enctype="multipart/form-data">
         <div class="row g-2 align-items-center">
           <div class="col-12 col-sm-8">

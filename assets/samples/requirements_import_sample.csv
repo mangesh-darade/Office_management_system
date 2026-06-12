@@ -1,0 +1,3 @@
+client_name,title,project_name,description,priority,status,requirement_type,received_date,expected_delivery_date
+Acme Corp,Export transaction history report,ElintOm Product Transaction History,Monthly CSV export for finance team,high,received,new_feature,2026-06-01,2026-07-15
+Acme Corp,Logo upload validation,,Show clear error when image exceeds size limit,medium,under_review,enhancement,2026-06-02,

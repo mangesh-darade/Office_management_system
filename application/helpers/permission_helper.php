@@ -120,9 +120,8 @@ if (!function_exists('require_module_access')) {
             } else {
                 // Use show_error which will trigger our custom 403 page
                 show_error('You do not have permission to access this page.', 403);
-                exit;
             }
-            return false;
+            exit;
         }
         
         return true;

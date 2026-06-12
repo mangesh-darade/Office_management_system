@@ -19,6 +19,25 @@ class Db extends CI_Controller {
         db_ensure_client_db_fields($this->db);
     }
 
+    /**
+     * Restrict user-supplied SQL file paths to .sql files inside the app root
+     * (prevents path traversal / arbitrary file read-write).
+     *
+     * @param string $path
+     * @return string Sanitized absolute path, or '' when invalid.
+     */
+    private function _safe_sql_path($path){
+        $path = trim((string)$path);
+        if ($path === '') { return ''; }
+        $real = @realpath($path);
+        if ($real === false || !is_file($real)) { return ''; }
+        if (strtolower(pathinfo($real, PATHINFO_EXTENSION)) !== 'sql') { return ''; }
+        $root = rtrim(str_replace('\\', '/', (string)@realpath(FCPATH)), '/');
+        $norm = str_replace('\\', '/', $real);
+        if ($root === '' || stripos($norm, $root . '/') !== 0) { return ''; }
+        return $real;
+    }
+
 
 
     // Security Helper: Verify CSRF (Manual implementation since global might be off)
@@ -41,7 +60,7 @@ class Db extends CI_Controller {
            // Soft-fail for now until frontend sends token, or auto-generate
         }
 
-        $file = (string)$this->input->post('file_path');
+        $file = $this->_safe_sql_path($this->input->post('file_path'));
         $dbName = trim((string)$this->input->post('database'));
         $client_id = (int)$this->input->post('client_id');
         
@@ -164,7 +183,7 @@ class Db extends CI_Controller {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
 
-        $file = (string)$this->input->post('file_path');
+        $file = $this->_safe_sql_path($this->input->post('file_path'));
         $dbName = trim((string)$this->input->post('database'));
         $client_id = (int)$this->input->post('client_id');
         $dry_run = (string)$this->input->post('dry_run') === '1';
@@ -336,7 +355,7 @@ class Db extends CI_Controller {
     // POST: file_path, database => compute missing tables/columns and propose SQL
     // AJAX: Scan file against DB and return differences
     public function compare_scan(){
-        $file = (string)$this->input->post('file_path');
+        $file = $this->_safe_sql_path($this->input->post('file_path'));
         $dbName = trim((string)$this->input->post('database'));
         $client_id = (int)$this->input->post('client_id');
         
@@ -454,7 +473,7 @@ class Db extends CI_Controller {
              header('Content-Type: application/json'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
 
-        $file = (string)$this->input->post('file_path');
+        $file = $this->_safe_sql_path($this->input->post('file_path'));
         $dbName = trim((string)$this->input->post('database'));
         $client_id = (int)$this->input->post('client_id');
         
@@ -561,7 +580,8 @@ class Db extends CI_Controller {
         // Determine default SQL file path dynamically
         $default_sql_path = '';
         $hint = (string)$this->input->get('sql_file_path');
-        if ($hint !== '' && @is_file($hint)) { $default_sql_path = $hint; }
+        $hint = $this->_safe_sql_path($hint);
+        if ($hint !== '') { $default_sql_path = $hint; }
         if ($default_sql_path === ''){
             $candidates = @glob(FCPATH.'*.sql');
             if (is_array($candidates) && count($candidates) > 0){
@@ -618,7 +638,8 @@ class Db extends CI_Controller {
         // Determine default SQL file path dynamically (same as compare)
         $default_sql_path = '';
         $hint = (string)$this->input->get('sql_file_path');
-        if ($hint !== '' && @is_file($hint)) { $default_sql_path = $hint; }
+        $hint = $this->_safe_sql_path($hint);
+        if ($hint !== '') { $default_sql_path = $hint; }
         if ($default_sql_path === ''){
             $candidates = @glob(FCPATH.'*.sql');
             if (is_array($candidates) && count($candidates) > 0){
@@ -672,7 +693,8 @@ class Db extends CI_Controller {
         // Determine default SQL file path dynamically (same as index)
         $default_sql_path = '';
         $hint = (string)$this->input->get('sql_file_path');
-        if ($hint !== '' && @is_file($hint)) { $default_sql_path = $hint; }
+        $hint = $this->_safe_sql_path($hint);
+        if ($hint !== '') { $default_sql_path = $hint; }
         if ($default_sql_path === ''){
             $candidates = @glob(FCPATH.'*.sql');
             if (is_array($candidates) && count($candidates) > 0){
@@ -912,7 +934,7 @@ class Db extends CI_Controller {
     }
 
     public function file_tables(){
-        $path = (string)$this->input->post('file_path');
+        $path = $this->_safe_sql_path($this->input->post('file_path'));
         $resp = ['database'=>'','tables'=>[]];
         if ($path === '' || !is_file($path)){
             header('Content-Type: application/json'); echo json_encode($resp); exit;
@@ -936,7 +958,7 @@ class Db extends CI_Controller {
     }
 
     public function append_to_sql_file(){
-        $path = (string)$this->input->post('file_path');
+        $path = $this->_safe_sql_path($this->input->post('file_path'));
         $db = trim((string)$this->input->post('database'));
         $table = trim((string)$this->input->post('table'));
         $sql = trim((string)$this->input->post('sql_text'));

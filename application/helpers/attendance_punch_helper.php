@@ -121,7 +121,7 @@ if (!function_exists('attendance_punch_merge_geo_fields')) {
         $lng,
         $location_name,
         $action,
-        callable $resolve_location_name = null
+        $resolve_location_name = null
     ) {
         if ($has_column('latitude')) { $data['latitude'] = $lat; }
         if ($has_column('longitude')) { $data['longitude'] = $lng; }
@@ -572,7 +572,7 @@ if (!function_exists('attendance_punch_resolve_date_column')) {
      * @param array|null $fallbacks
      * @return string
      */
-    function attendance_punch_resolve_date_column(callable $has_column, array $fallbacks = null)
+    function attendance_punch_resolve_date_column(callable $has_column, $fallbacks = null)
     {
         if ($fallbacks === null) {
             $fallbacks = array('date', 'attendance_date', 'created_at');
@@ -830,7 +830,7 @@ if (!function_exists('attendance_punch_merge_edit_geo_fields')) {
      * @param callable|null $geocode_fn function($lat,$lng): ?string
      * @return array<string,string>
      */
-    function attendance_punch_merge_edit_geo_fields(callable $has_column, $lat, $lng, callable $geocode_fn = null)
+    function attendance_punch_merge_edit_geo_fields(callable $has_column, $lat, $lng, $geocode_fn = null)
     {
         $data = array();
         if ($lat === null || $lng === null) {

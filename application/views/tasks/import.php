@@ -6,7 +6,20 @@
 
   <div class="card shadow-soft">
     <div class="card-body">
-      <p class="text-muted">Upload a CSV with headers: <code>project_id, title, description, assigned_to, status</code></p>
+      <p class="text-muted mb-2">Upload a CSV with headers: <code>project_name, title, description, assigned_to, status</code></p>
+      <div class="mb-3">
+        <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url('assets/samples/tasks_import_sample.csv'); ?>" download>
+          <i class="bi bi-download me-1"></i>Download sample file
+        </a>
+      </div>
+      <ul class="small text-muted mb-3">
+        <li><strong>project_name</strong> — exact project name from Projects list (or project code). Column <code>project</code> also works.</li>
+        <li><strong>title</strong> — required; rows without a title are skipped.</li>
+        <li><strong>description</strong> — optional text.</li>
+        <li><strong>assigned_to</strong> — user ID from Users; leave blank for unassigned.</li>
+        <li><strong>status</strong> — <code>pending</code>, <code>in_progress</code>, <code>completed</code>, or <code>blocked</code> (defaults to <code>pending</code>).</li>
+      </ul>
+      <?php $this->load->view('partials/import_errors'); ?>
       <?php if($this->session->flashdata('error')): ?>
         <div class="alert alert-danger py-2 mb-3"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
       <?php endif; ?>

@@ -13,7 +13,8 @@ class Coaching_payments extends CI_Controller {
 
     public function pay($installment_id)
     {
-        if (!(int) $this->session->userdata('user_id')) {
+        $user_id = (int) $this->session->userdata('user_id');
+        if (!$user_id) {
             redirect('auth/login');
             return;
         }
@@ -22,6 +23,16 @@ class Coaching_payments extends CI_Controller {
         if (!$row || $row->status === 'paid') {
             show_404();
             return;
+        }
+
+        // Only billing staff or the owning coaching client may view/pay an installment.
+        $role_id = (int) $this->session->userdata('role_id');
+        $is_billing_staff = ($role_id === 1 || has_module_access('coaching_billing'));
+        if (!$is_billing_staff) {
+            $client = $this->coaching->client_by_user($user_id);
+            if (!$client || (int) $client->id !== (int) $row->coaching_client_id) {
+                show_error('Forbidden', 403);
+            }
         }
 
         $settings = $this->coaching->payment_settings();
@@ -106,8 +117,19 @@ class Coaching_payments extends CI_Controller {
 
     public function confirm_manual($installment_id)
     {
+        // State-changing action: POST only (CSRF enforced by framework).
+        if ($this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+        $user_id = (int) $this->session->userdata('user_id');
+        if (!$user_id) {
+            redirect('auth/login');
+            return;
+        }
         $role_id = (int) $this->session->userdata('role_id');
-        if ($role_id !== 1 && $role_id !== ROLE_COACHING_CLIENT && !has_module_access('coaching_billing')) {
+        $is_billing_staff = ($role_id === 1 || has_module_access('coaching_billing'));
+        if (!$is_billing_staff && $role_id !== ROLE_COACHING_CLIENT) {
             show_error('Forbidden', 403);
         }
         $row = $this->coaching->installment_row((int) $installment_id);
@@ -115,7 +137,19 @@ class Coaching_payments extends CI_Controller {
             show_404();
             return;
         }
-        $this->coaching->mark_installment_paid((int) $installment_id, 'manual', 'MANUAL-' . time());
+        // Coaching clients may only confirm installments on their own invoices.
+        if (!$is_billing_staff) {
+            $client = $this->coaching->client_by_user($user_id);
+            if (!$client || (int) $client->id !== (int) $row->coaching_client_id) {
+                show_error('Forbidden', 403);
+            }
+        }
+        if ($row->status === 'paid') {
+            $this->session->set_flashdata('success', 'Installment is already paid.');
+            redirect($role_id === ROLE_COACHING_CLIENT ? 'coaching-portal' : 'coaching-billing/invoice/' . (int) $row->invoice_id);
+            return;
+        }
+        $this->coaching->mark_installment_paid((int) $installment_id, 'manual', 'MANUAL-' . $user_id . '-' . time());
         $this->session->set_flashdata('success', 'Payment recorded.');
         redirect($role_id === ROLE_COACHING_CLIENT ? 'coaching-portal' : 'coaching-billing/invoice/' . (int) $row->invoice_id);
     }

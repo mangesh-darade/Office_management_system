@@ -250,11 +250,10 @@ class Sendgrid extends CI_Controller {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($email_data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        // SSL Verification - Disabled for local development
-        // WARNING: In production, enable SSL verification for security
-        // Set to false only if you're in a local/dev environment without proper CA certificates
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        // SSL verification stays ON outside local development (prevents MITM on API traffic).
+        $ssl_verify = (ENVIRONMENT !== 'development');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $ssl_verify);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $ssl_verify ? 2 : 0);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         
         $response = curl_exec($ch);

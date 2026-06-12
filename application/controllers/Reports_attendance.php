@@ -62,9 +62,11 @@ class Reports_attendance extends Reports_base {
         $user_id = $user_id ? (int) $user_id : 0;
 
         if ($user_id > 0) {
+            $user_label = isset($labels[$user_id]) ? $labels[$user_id] : null;
             $this->_attendance_employee_detail(
                 $user_id, $period, $month, $date, $from, $to, $fields,
-                $userCol, $dateCol, $statusCol, $getName, $holidays, $totalWorkingDays
+                $userCol, $dateCol, $statusCol, $getName, $holidays, $totalWorkingDays,
+                $user_label
             );
             return;
         }
@@ -81,7 +83,8 @@ class Reports_attendance extends Reports_base {
      */
     private function _attendance_employee_detail(
         $user_id, $period, $month, $date, $from, $to, array $fields,
-        $userCol, $dateCol, $statusCol, callable $getName, $holidays, $totalWorkingDays
+        $userCol, $dateCol, $statusCol, callable $getName, $holidays, $totalWorkingDays,
+        $user_label = null
     ) {
         require_hierarchy_user_access($user_id, true);
         $fields = $this->db->list_fields('attendance');
@@ -288,8 +291,20 @@ class Reports_attendance extends Reports_base {
             $startTs = strtotime('+1 day', $startTs);
         }
 
+        $emp_code = '';
+        if ($employee && isset($employee->emp_code) && trim((string) $employee->emp_code) !== '') {
+            $emp_code = trim((string) $employee->emp_code);
+        }
+        $email = '';
+        if ($user_label && isset($user_label->email) && trim((string) $user_label->email) !== '') {
+            $email = trim((string) $user_label->email);
+        }
+
         $this->load->view('reports/attendance_employee_detail', array(
+            'user_id' => $user_id,
             'name' => $getName($user_id),
+            'email' => $email,
+            'emp_code' => $emp_code,
             'period' => $period,
             'month' => $month,
             'date' => $date,

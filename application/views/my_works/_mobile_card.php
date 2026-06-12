@@ -28,7 +28,7 @@
       <?php foreach (my_works_parse_tags(isset($r->tag) ? $r->tag : '') as $tg): ?>
         <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($tg); ?></span>
       <?php endforeach; ?>
-      <?php if (!empty($r->attachment_stored)): ?><span class="badge bg-light text-muted border"><i class="bi bi-paperclip"></i></span><?php endif; ?>
+      <?php $this->load->view('my_works/_attachment_badge', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
       <?php if (!empty($r->url)): ?><span class="badge bg-light text-primary border"><i class="bi bi-link-45deg"></i></span><?php endif; ?>
     </div>
     <?php if (!empty($r->work_type) || !empty($r->client_name) || !empty($r->project_name)): ?>
@@ -53,6 +53,11 @@
       <div class="small mt-1 <?php echo $overdue ? 'text-danger fw-semibold' : 'text-muted'; ?>">Due <?php echo htmlspecialchars($r->due_date); ?></div>
     <?php endif; ?>
   </a>
+  <?php if (!empty(my_works_row_attachments($r, isset($attachments_map) ? $attachments_map : null))): ?>
+    <div class="d-flex flex-wrap gap-1 mt-2 mw-mobile-att-actions">
+      <?php $this->load->view('my_works/_attachment_actions', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
+    </div>
+  <?php endif; ?>
   <?php if ($canStatus): ?>
     <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="mt-2 mw-quick-status">
       <?php $this->load->view('my_works/_csrf'); ?>

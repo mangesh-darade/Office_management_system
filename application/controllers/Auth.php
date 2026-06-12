@@ -57,7 +57,7 @@ class Auth extends CI_Controller {
         $password = (string)$this->input->post('password');
         $remember = $this->input->post('remember');
         $is_ajax = $this->input->is_ajax_request();
-        $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+        $ip = auth_client_ip();
 
         if ($identifier === '' || $password === '') {
             auth_respond_login_error($is_ajax, 'Please enter both email/phone and password');
@@ -235,6 +235,16 @@ class Auth extends CI_Controller {
             $this->_json(['ok'=>false,'error'=>'This email is already registered. Please login instead.']);
             return;
         }
+
+        // Rate limit OTP sends per email+IP (prevents email bombing).
+        $ip = auth_client_ip();
+        $otp_identifier = 'otp:' . strtolower($email);
+        $limit = auth_login_attempts_check($this->db, $otp_identifier, $ip, 5, 15);
+        if ($limit['locked']) {
+            $this->_json(['ok'=>false,'error'=>'Too many code requests. Please try again in ' . (int)$limit['minutes'] . ' minutes.']);
+            return;
+        }
+        auth_login_attempts_record_failed($this->db, $otp_identifier, $ip, 5, 15);
 
         $code = auth_generate_numeric_otp();
         $this->load->library('session');
@@ -660,6 +670,7 @@ class Auth extends CI_Controller {
             }
 
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
+            auth_login_attempts_clear($this->db, 'otp:' . strtolower($email), auth_client_ip());
             $this->session->set_flashdata('success', 'Account created successfully! You can now login with your credentials.');
             redirect('auth/login');
             return;

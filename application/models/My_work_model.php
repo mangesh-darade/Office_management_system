@@ -45,6 +45,9 @@ class My_work_model extends CI_Model
     public function delete($id)
     {
         $id = (int) $id;
+        if ($this->db->table_exists('my_work_attachments')) {
+            $this->db->where('work_id', $id)->delete('my_work_attachments');
+        }
         if ($this->db->table_exists('my_work_comments')) {
             $this->db->where('work_id', $id)->delete('my_work_comments');
         }
@@ -52,6 +55,74 @@ class My_work_model extends CI_Model
             $this->db->where('work_id', $id)->delete('my_work_activity');
         }
         $this->db->where('id', $id)->delete($this->table);
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function list_attachments($work_id)
+    {
+        $work_id = (int) $work_id;
+        if ($work_id < 1 || !$this->db->table_exists('my_work_attachments')) {
+            return array();
+        }
+        return $this->db->from('my_work_attachments')
+            ->where('work_id', $work_id)
+            ->order_by('sort_order', 'ASC')
+            ->order_by('id', 'ASC')
+            ->get()
+            ->result();
+    }
+
+    public function find_attachment($work_id, $attachment_id)
+    {
+        $work_id = (int) $work_id;
+        $attachment_id = (int) $attachment_id;
+        if ($work_id < 1 || $attachment_id < 1 || !$this->db->table_exists('my_work_attachments')) {
+            return null;
+        }
+        return $this->db->get_where('my_work_attachments', array(
+            'id'      => $attachment_id,
+            'work_id' => $work_id,
+        ))->row();
+    }
+
+    public function max_attachment_sort($work_id)
+    {
+        $work_id = (int) $work_id;
+        if ($work_id < 1 || !$this->db->table_exists('my_work_attachments')) {
+            return 0;
+        }
+        $row = $this->db->select_max('sort_order', 'max_sort')
+            ->from('my_work_attachments')
+            ->where('work_id', $work_id)
+            ->get()
+            ->row();
+        return ($row && isset($row->max_sort)) ? (int) $row->max_sort : 0;
+    }
+
+    public function insert_attachment($work_id, $original_name, $stored_name, $file_size = 0, $sort_order = 0)
+    {
+        if (!$this->db->table_exists('my_work_attachments')) {
+            return 0;
+        }
+        $this->db->insert('my_work_attachments', array(
+            'work_id'       => (int) $work_id,
+            'original_name' => (string) $original_name,
+            'stored_name'   => (string) $stored_name,
+            'file_size'     => (int) $file_size,
+            'sort_order'    => (int) $sort_order,
+            'created_at'    => date('Y-m-d H:i:s'),
+        ));
+        return (int) $this->db->insert_id();
+    }
+
+    public function delete_attachment($work_id, $attachment_id)
+    {
+        $work_id = (int) $work_id;
+        $attachment_id = (int) $attachment_id;
+        if ($work_id < 1 || $attachment_id < 1 || !$this->db->table_exists('my_work_attachments')) {
+            return false;
+        }
+        $this->db->where('id', $attachment_id)->where('work_id', $work_id)->delete('my_work_attachments');
         return $this->db->affected_rows() > 0;
     }
 

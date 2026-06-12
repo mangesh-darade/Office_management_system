@@ -221,8 +221,18 @@ if (!function_exists('my_works_list_view_data')) {
             $columns[$st][] = $row;
         }
         $matrix_columns = my_works_build_matrix_columns($rows, ($filters['status'] === ''));
+        $CI =& get_instance();
+        $CI->load->helper('my_works_attachment');
+        $work_ids = array();
+        foreach ($rows as $row) {
+            if (!empty($row->id)) {
+                $work_ids[] = (int) $row->id;
+            }
+        }
+        $attachments_map = my_works_attachments_bulk_map($db, $work_ids);
         return array(
             'rows'             => $rows,
+            'attachments_map'  => $attachments_map,
             'filters'          => $filters,
             'stats'            => $stats,
             'columns'          => $columns,
@@ -240,7 +250,7 @@ if (!function_exists('my_works_list_view_data')) {
             'can_export'       => function_exists('has_module_access') && (has_module_access('my_works_export') || has_module_access('my_works')),
             'scope'            => my_works_scope_context($can_view_all, array($user_id)),
             'view_mode'        => $view_mode,
-            'can_add'          => function_exists('has_module_access') && (has_module_access('my_works_add') || has_module_access('my_works')),
+            'can_add'          => function_exists('my_works_can_add') && my_works_can_add(),
             'can_quick_edit'   => function_exists('has_module_access') && (has_module_access('my_works_edit') || has_module_access('my_works')),
         );
     }

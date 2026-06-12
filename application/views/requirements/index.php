@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Requirements']); ?>
 <div class="container-fluid py-3">
+<?php $this->load->view('partials/import_errors'); ?>
 <?php
 ob_start();
 if(function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))):
@@ -8,6 +9,9 @@ if(function_exists('has_module_access') && (has_module_access('requirements_add'
 <?php endif; ?>
 <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('requirements/board'); ?>"><i class="bi bi-columns me-1"></i>Board</a>
 <a class="btn btn-outline-dark btn-sm" href="<?php echo site_url('requirements/calendar'); ?>"><i class="bi bi-calendar3 me-1"></i>Calendar</a>
+<?php if(function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))): ?>
+<a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('requirements/import'); ?>"><i class="bi bi-upload me-1"></i>Import</a>
+<?php endif; ?>
 <?php if(function_exists('has_module_access') && (has_module_access('requirements_export') || has_module_access('requirements') || is_admin_group())): ?>
 <a class="btn btn-success btn-sm" href="<?php echo site_url('requirements/export'); ?>"><i class="bi bi-download me-1"></i>Export</a>
 <?php endif;

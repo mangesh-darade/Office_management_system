@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "docs/user-guide/module_catalog.json"
 IMG = ROOT / "docs/user-guide/images"
 BASE = os.environ.get("OMS_BASE_URL", "http://localhost/Office_management_system/").rstrip("/") + "/"
+GUIDE_PROJECT_ID = os.environ.get("OMS_GUIDE_PROJECT_ID", "3").strip() or "3"
 
 EDIT_SELECTORS = [
     'a[href*="/edit"]',
@@ -63,9 +64,15 @@ def shot(page: Page, rel_image: str) -> bool:
         return False
 
 
+def resolve_route(route: str) -> str:
+    """Replace catalog placeholders (e.g. projects/{id}/members)."""
+    resolved = route.replace("{id}", GUIDE_PROJECT_ID)
+    return resolved.lstrip("/")
+
+
 def goto_route(page: Page, route: str) -> bool:
     try:
-        page.goto(BASE + route.lstrip("/"), wait_until="domcontentloaded", timeout=60000)
+        page.goto(BASE + resolve_route(route), wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(1800)
         if "login" in page.url.lower() and "auth/login" not in route:
             print(f"  WARN redirected to login for {route}")
@@ -137,6 +144,15 @@ def collect_jobs(catalog: dict) -> list[tuple[str, str, str | None]]:
 
 
 def main() -> int:
+    only_image = ""
+    args = [a for a in sys.argv[1:] if a]
+    if "--only" in args:
+        idx = args.index("--only")
+        if idx + 1 >= len(args):
+            print("Usage: capture_user_guide_screenshots.py [--only images/04-projects/project-members.png]")
+            return 2
+        only_image = args[idx + 1].replace("\\", "/")
+
     login_id = os.environ.get("OMS_TEST_LOGIN", "").strip()
     password = os.environ.get("OMS_TEST_PASSWORD", "").strip()
     if not login_id or not password:
@@ -145,6 +161,12 @@ def main() -> int:
 
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     jobs = collect_jobs(catalog)
+    if only_image:
+        jobs = [j for j in jobs if j[1].replace("\\", "/") == only_image]
+        if not jobs:
+            print(f"No catalog job for image: {only_image}")
+            return 2
+        print(f"Capturing only: {only_image}")
     ok = skip = 0
 
     with sync_playwright() as p:

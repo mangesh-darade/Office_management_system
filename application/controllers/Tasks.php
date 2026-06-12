@@ -61,7 +61,16 @@ class Tasks extends CI_Controller {
         if ($is_admin && $assignee_filter !== '') { $this->db->where('t.assigned_to', (int)$assignee_filter); }
         if ($status_filter !== '') { $this->db->where('t.status', $status_filter); }
         if ($priority_filter !== '' && schema_table_has_column($this->db, 'tasks', 'priority')) { $this->db->where('t.priority', $priority_filter); }
-        $this->db->order_by('t.id','DESC');
+        if (schema_table_has_column($this->db, 'tasks', 'priority')) {
+            $priority_order = "CASE t.priority
+                WHEN 'urgent' THEN 1
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 3
+                WHEN 'low' THEN 4
+                ELSE 5 END";
+            $this->db->order_by($priority_order, 'ASC', false);
+        }
+        $this->db->order_by('t.id', 'DESC');
         $tasks = $this->db->get()->result();
 
         // Dropdown data
@@ -1029,31 +1038,80 @@ class Tasks extends CI_Controller {
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
-            if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-                $this->session->set_flashdata('error', 'Please upload a valid CSV file');
+            $this->load->helper('csv_import');
+            $opened = csv_import_open('file');
+            if (!$opened['ok']) {
+                $this->session->set_flashdata('error', $opened['error']);
                 redirect('tasks/import');
                 return;
             }
-            $handle = fopen($_FILES['file']['tmp_name'], 'r');
-            if (!$handle) { $this->session->set_flashdata('error', 'Unable to read uploaded file'); redirect('tasks/import'); return; }
-            $header = fgetcsv($handle);
-            if (!$header) { fclose($handle); $this->session->set_flashdata('error', 'CSV is empty'); redirect('tasks/import'); return; }
-            $map = []; foreach ($header as $i=>$c) { $map[strtolower(trim($c))] = $i; }
-            $inserted = 0;
-            while (($row = fgetcsv($handle)) !== false) {
-                $data = [
-                    'project_id' => isset($map['project_id']) ? (int)(isset($row[$map['project_id']]) ? $row[$map['project_id']] : 0) : null,
-                    'title' => isset($map['title']) && isset($row[$map['title']]) ? $row[$map['title']] : null,
-                    'description' => isset($map['description']) && isset($row[$map['description']]) ? $row[$map['description']] : null,
-                    'assigned_to' => isset($map['assigned_to']) ? (int)(isset($row[$map['assigned_to']]) ? $row[$map['assigned_to']] : 0) : null,
-                    'status' => isset($map['status']) && isset($row[$map['status']]) ? $row[$map['status']] : 'pending',
-                    'created_by' => $user_id,
-                ];
-                if (!empty($data['title'])) { $this->db->insert('tasks', $data); $inserted++; }
+            $columns = csv_import_require_columns($opened['map'], array('title'), array(array('project_name', 'project', 'project_id')));
+            if (!$columns['ok']) {
+                fclose($opened['handle']);
+                $this->session->set_flashdata('error', $columns['error']);
+                redirect('tasks/import');
+                return;
             }
-            fclose($handle);
-            $this->session->set_flashdata('success', "Imported $inserted tasks");
-            redirect('tasks');
+            $inserted = 0;
+            $skipped = 0;
+            $row_errors = array();
+            $project_cache = array();
+            $line = 1;
+            $allowed_status = array('pending', 'in_progress', 'completed', 'blocked');
+            $prev_debug = $this->db->db_debug;
+            $this->db->db_debug = false;
+            while (($row = fgetcsv($opened['handle'])) !== false) {
+                $line++;
+                $title = csv_import_get($opened['map'], $row, 'title');
+                if ($title === '') {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'Missing task title.');
+                    continue;
+                }
+                $project_id = csv_import_resolve_project_id($this->db, $opened['map'], $row, $project_cache);
+                if ($project_id <= 0) {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'Unknown project name or code.');
+                    continue;
+                }
+                $status = csv_import_validate_enum(
+                    csv_import_get($opened['map'], $row, 'status', 'pending'),
+                    $allowed_status,
+                    'pending',
+                    $row_errors,
+                    $line,
+                    'status'
+                );
+                if ($status === false) {
+                    $skipped++;
+                    continue;
+                }
+                $assigned_to = null;
+                $assignee_raw = csv_import_get($opened['map'], $row, 'assigned_to', '');
+                if ($assignee_raw !== '') {
+                    $assigned_to = (int) $assignee_raw;
+                }
+                $data = array(
+                    'project_id' => $project_id,
+                    'title' => $title,
+                    'description' => csv_import_get($opened['map'], $row, 'description', null) ?: null,
+                    'assigned_to' => $assigned_to,
+                    'status' => $status,
+                    'created_by' => $user_id,
+                );
+                if ($this->db->insert('tasks', $data)) {
+                    $inserted++;
+                } else {
+                    $skipped++;
+                    $db_error = $this->db->error();
+                    $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+                    csv_import_add_row_error($row_errors, $line, $reason);
+                    log_message('error', 'Task import error: ' . $reason);
+                }
+            }
+            $this->db->db_debug = $prev_debug;
+            fclose($opened['handle']);
+            csv_import_finish($inserted, $skipped, $row_errors, 'tasks', 'tasks', 'tasks/import');
             return;
         }
         $this->load->view('tasks/import');
@@ -1063,10 +1121,17 @@ class Tasks extends CI_Controller {
     public function send_daily_summary()
     {
         if ($this->input->method() !== 'post') show_404();
-        
+
         $user_id = (int)$this->input->post('user_id');
         if (!$user_id) {
             return $this->output->set_status_header(400)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'User ID required']));
+        }
+
+        // Non-admins may only trigger their own summary (prevents task/PII leak by user_id).
+        $session_user_id = (int)$this->session->userdata('user_id');
+        $is_admin = ((int)$this->session->userdata('role_id') === 1) || (function_exists('is_admin_group') && is_admin_group());
+        if (!$is_admin && $user_id !== $session_user_id) {
+            return $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'You can only send your own summary']));
         }
         
         // Get user's tasks ordered by priority

@@ -227,21 +227,8 @@ class Projects extends CI_Controller {
                 return;
             }
             
-            // Check if user has access to this project
-            $user_id = (int)$this->session->userdata('user_id');
-            
-            // Admin and Manager can see all projects
-            $can_view_all = is_admin_group() || has_module_access('projects_view_all');
-            if (!$can_view_all) {
-                // Check if user is a member of this project
-                $is_member = $this->db->where('project_id', (int)$id)
-                                     ->where('user_id', $user_id)
-                                     ->get('project_members')
-                                     ->row();
-                if (!$is_member) {
-                    show_error('You do not have access to this project.', 403);
-                    return;
-                }
+            if (!$this->_user_can_access_project((int) $id)) {
+                return;
             }
         
             
@@ -469,54 +456,89 @@ class Projects extends CI_Controller {
     {
         require_module_access(['projects_import', 'projects'], true);
         if ($this->input->method() === 'post') {
-            if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
-                $this->session->set_flashdata('error', 'Please upload a valid CSV file');
+            $this->load->helper('csv_import');
+            $opened = csv_import_open('file');
+            if (!$opened['ok']) {
+                $this->session->set_flashdata('error', $opened['error']);
                 redirect('projects/import');
                 return;
             }
-            $handle = fopen($_FILES['file']['tmp_name'], 'r');
-            if (!$handle) { $this->session->set_flashdata('error', 'Unable to read uploaded file'); redirect('projects/import'); return; }
-            $header = fgetcsv($handle);
-            if (!$header) { fclose($handle); $this->session->set_flashdata('error', 'CSV is empty'); redirect('projects/import'); return; }
-            $map = []; foreach ($header as $i=>$c) { $map[strtolower(trim($c))] = $i; }
+            $columns = csv_import_require_columns($opened['map'], array('name'));
+            if (!$columns['ok']) {
+                fclose($opened['handle']);
+                $this->session->set_flashdata('error', $columns['error']);
+                redirect('projects/import');
+                return;
+            }
             $inserted = 0;
-            $errors = 0;
+            $skipped = 0;
+            $row_errors = array();
+            $line = 1;
+            $allowed_status = array('planned', 'active', 'on_hold', 'completed', 'cancelled');
             $prev_debug = $this->db->db_debug;
             $this->db->db_debug = false;
-            while (($row = fgetcsv($handle)) !== false) {
-                $data = [
-                    'code' => (isset($map['code']) && isset($row[$map['code']])) ? $row[$map['code']] : null,
-                    'name' => (isset($map['name']) && isset($row[$map['name']])) ? $row[$map['name']] : null,
-                    'status' => (isset($map['status']) && isset($row[$map['status']])) ? $row[$map['status']] : 'planned',
-                    'start_date' => (isset($map['start_date']) && isset($row[$map['start_date']])) ? $row[$map['start_date']] : null,
-                    'end_date' => (isset($map['end_date']) && isset($row[$map['end_date']])) ? $row[$map['end_date']] : null,
-                ];
-                if (!empty($data['name'])) {
-                    $ok = $this->db->insert('projects', $data);
-                    if ($ok) {
-                        $inserted++;
-                    } else {
-                        $errors++;
-                        $db_error = $this->db->error();
-                        if (!empty($db_error['message'])) {
-                            log_message('error', 'Project import error: '.$db_error['message']);
-                        }
-                    }
+            while (($row = fgetcsv($opened['handle'])) !== false) {
+                $line++;
+                $name = csv_import_get($opened['map'], $row, 'name');
+                if ($name === '') {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'Missing project name.');
+                    continue;
+                }
+                $status = csv_import_validate_enum(
+                    csv_import_get($opened['map'], $row, 'status', 'planned'),
+                    $allowed_status,
+                    'planned',
+                    $row_errors,
+                    $line,
+                    'status'
+                );
+                if ($status === false) {
+                    $skipped++;
+                    continue;
+                }
+                $data = array(
+                    'code' => csv_import_get($opened['map'], $row, 'code', null) ?: null,
+                    'name' => $name,
+                    'status' => $status,
+                    'start_date' => csv_import_get($opened['map'], $row, 'start_date', null) ?: null,
+                    'end_date' => csv_import_get($opened['map'], $row, 'end_date', null) ?: null,
+                );
+                if ($this->db->insert('projects', $data)) {
+                    $inserted++;
+                } else {
+                    $skipped++;
+                    $db_error = $this->db->error();
+                    $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+                    csv_import_add_row_error($row_errors, $line, $reason);
+                    log_message('error', 'Project import error: ' . $reason);
                 }
             }
             $this->db->db_debug = $prev_debug;
-            fclose($handle);
-            if ($errors > 0 && $inserted === 0) {
-                $this->session->set_flashdata('error', 'No projects were imported. Please check your CSV for duplicate codes or invalid data.');
-            } elseif ($errors > 0) {
-                $this->session->set_flashdata('success', "Imported $inserted projects. Some rows were skipped due to errors (for example, duplicate codes or invalid data).");
-            } else {
-                $this->session->set_flashdata('success', "Imported $inserted projects");
-            }
-            redirect('projects');
+            fclose($opened['handle']);
+            csv_import_finish($inserted, $skipped, $row_errors, 'projects', 'projects', 'projects/import');
             return;
         }
         $this->load->view('projects/import');
+    }
+
+    private function _user_can_access_project($project_id)
+    {
+        $project_id = (int) $project_id;
+        $user_id = (int) $this->session->userdata('user_id');
+        $can_view_all = is_admin_group() || has_module_access('projects_view_all');
+        if ($can_view_all) {
+            return true;
+        }
+        $is_member = $this->db->where('project_id', $project_id)
+            ->where('user_id', $user_id)
+            ->get('project_members')
+            ->row();
+        if (!$is_member) {
+            show_error('You do not have access to this project.', 403);
+            return false;
+        }
+        return true;
     }
 
     // GET /projects/{id}/members
@@ -527,18 +549,25 @@ class Projects extends CI_Controller {
         try {
             $project = $this->db->where('id', $project_id)->get('projects')->row();
             if (!$project) { show_404(); return; }
+            if (!$this->_user_can_access_project($project_id)) {
+                return;
+            }
 
-            // Fetch members
-            $this->load->model('Project_model');
             $members = $this->Project_model->get_project_members($project_id);
+            $member_user_ids = array();
+            foreach ($members as $member_row) {
+                $member_user_ids[] = (int) $member_row->user_id;
+            }
 
-            // Basic search for adding members
             $q = trim((string)$this->input->get('q'));
             $users = [];
             if ($q !== '') {
                 $this->db->select('id, email');
                 if (schema_table_has_column($this->db, 'users', 'name')) { $this->db->select('name'); }
                 $this->db->from('users');
+                if (!empty($member_user_ids)) {
+                    $this->db->where_not_in('id', $member_user_ids);
+                }
                 $this->db->group_start()
                          ->like('email', $q)
                          ->or_like('name', $q)
@@ -552,6 +581,7 @@ class Projects extends CI_Controller {
                 'members' => $members,
                 'users'   => $users,
                 'q'       => $q,
+                'member_roles' => $this->Project_model->member_role_options(),
             ]);
         } catch (Exception $e) {
             log_message('error', 'Manage members error: ' . $e->getMessage());
@@ -567,23 +597,23 @@ class Projects extends CI_Controller {
         try {
             $project_id = (int)$project_id;
             $user_id = (int)$this->input->post('user_id');
-            $role = trim((string)$this->input->post('role')) ?: 'member';
+            $role = $this->Project_model->sanitize_member_role($this->input->post('role'));
             
-            // Validation
             if (!$user_id) {
                 $this->session->set_flashdata('error', 'Please select a user.');
                 redirect('projects/'.$project_id.'/members');
                 return;
             }
             
-            // Verify project exists
             $project = $this->db->where('id', $project_id)->get('projects')->row();
             if (!$project) {
                 show_404();
                 return;
             }
+            if (!$this->_user_can_access_project($project_id)) {
+                return;
+            }
             
-            // Verify user exists
             $user = $this->db->where('id', $user_id)->get('users')->row();
             if (!$user) {
                 $this->session->set_flashdata('error', 'Selected user does not exist.');
@@ -591,29 +621,36 @@ class Projects extends CI_Controller {
                 return;
             }
             
-            // Check if user is already a member
-            $existing = $this->db->where('project_id', $project_id)
-                                 ->where('user_id', $user_id)
-                                 ->get('project_members')
-                                 ->row();
-            if ($existing) {
+            if ($this->Project_model->check_user_is_member($project_id, $user_id)) {
                 $this->session->set_flashdata('error', 'User is already a member of this project.');
                 redirect('projects/'.$project_id.'/members');
                 return;
             }
             
-            // Validate role
-            $allowed_roles = ['member', 'lead', 'viewer'];
-            if (!in_array($role, $allowed_roles, true)) {
-                $role = 'member';
-            }
-            
-            $this->load->model('Project_model');
             $ok = $this->Project_model->add_member($project_id, $user_id, $role);
             
             if ($ok) {
                 $this->load->helper('activity');
                 log_activity('projects', 'assigned', $project_id, 'Added member user#'.$user_id.' as '.$role);
+                $this->load->helper('notification');
+                create_notification(
+                    $user_id,
+                    'Added to Project',
+                    'You were added to "' . $project->name . '" as ' . ucfirst($role) . '.',
+                    'info',
+                    'projects',
+                    $project_id,
+                    site_url('projects/' . $project_id)
+                );
+                if (!function_exists('send_notification_with_settings')) {
+                    $this->load->helper('email_settings');
+                }
+                $email_data = (object) array(
+                    'project_id' => $project_id,
+                    'title' => $project->name,
+                    'role' => $role,
+                );
+                send_notification_with_settings('projects', 'member_added', $email_data, $user_id);
                 $success_msg = get_notification_message('projects', 'member_add', 'success');
                 $this->session->set_flashdata('success', $success_msg);
             } else {
@@ -635,7 +672,13 @@ class Projects extends CI_Controller {
         $project_id = (int)$project_id;
         $user_id    = (int)$user_id;
         try {
-            $this->load->model('Project_model');
+            if (!$this->db->where('id', $project_id)->get('projects')->row()) {
+                show_404();
+                return;
+            }
+            if (!$this->_user_can_access_project($project_id)) {
+                return;
+            }
             $ok = $this->Project_model->remove_member($project_id, $user_id);
             if ($ok) {
                 $this->load->helper('activity');
@@ -660,11 +703,19 @@ class Projects extends CI_Controller {
         $project_id = (int)$project_id;
         $user_id    = (int)$user_id;
         try {
-            $role = trim((string)$this->input->post('role')) ?: 'member';
-            // Sanitize role value
-            $allowed_roles = ['manager', 'lead', 'developer', 'tester', 'viewer', 'member'];
-            if (!in_array($role, $allowed_roles, true)) { $role = 'member'; }
-            $this->load->model('Project_model');
+            if (!$this->db->where('id', $project_id)->get('projects')->row()) {
+                show_404();
+                return;
+            }
+            if (!$this->_user_can_access_project($project_id)) {
+                return;
+            }
+            if (!$this->Project_model->check_user_is_member($project_id, $user_id)) {
+                $this->session->set_flashdata('error', 'User is not a member of this project.');
+                redirect('projects/' . $project_id . '/members');
+                return;
+            }
+            $role = $this->Project_model->sanitize_member_role($this->input->post('role'));
             $ok = $this->Project_model->update_member_role($project_id, $user_id, $role);
             if ($ok) {
                 $this->load->helper('activity');

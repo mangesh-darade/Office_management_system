@@ -292,7 +292,7 @@ class Ai_chat extends CI_Controller {
         }
         
         // 4. Check table access permissions (Existing Logic)
-        $this->load->helper('permission');
+        $this->load->helper(['permission', 'ai_sql_guard']);
         $role_id = (int)$this->session->userdata('role_id');
         
         // Map tables to modules for permission checking
@@ -341,6 +341,14 @@ class Ai_chat extends CI_Controller {
                 return ['error' => 'Access to system tables is blocked.'];
             }
         }
+
+        // Hard deny-list: secret-bearing tables and sensitive columns
+        // are blocked for every role, including admin.
+        $guard_error = ai_sql_guard_check($sql, $tables_in_query);
+        if ($guard_error !== null) {
+            ai_sql_audit_log($sql, 'blocked', $guard_error);
+            return ['error' => $guard_error];
+        }
         
         foreach ($tables_in_query as $table) {
             $module = isset($table_to_module_map[$table]) ? $table_to_module_map[$table] : null;
@@ -378,18 +386,28 @@ class Ai_chat extends CI_Controller {
 
         $this->load->library('ai_handler');
         if (!$this->ai_handler->is_safe_select_query($sql)) {
+            ai_sql_audit_log($sql, 'blocked', 'safety validation failed');
             return ['error' => 'Query failed safety validation.'];
         }
 
-        // Execute the query
-        $query = $this->db->query($sql);
+        // Execute on the least-privilege connection (SELECT-only MySQL user
+        // when AI_DB_RO_USER/AI_DB_RO_PASS env vars are configured).
+        $ai_db = $this->load->database('ai_readonly', TRUE);
+        if (!$ai_db || !$ai_db->conn_id) {
+            $ai_db = $this->db;
+        }
+        $query = $ai_db->query($sql);
         if (!$query) {
-            $db_error = $this->db->error();
+            $db_error = $ai_db->error();
             $error_msg = isset($db_error['message']) ? $db_error['message'] : 'Unknown database error';
+            ai_sql_audit_log($sql, 'blocked', 'db error: ' . $error_msg);
             return ['error' => 'Query failed: ' . $error_msg];
         }
-        
-        return $query->result_array();
+
+        $rows = ai_sql_scrub_result($query->result_array());
+        ai_sql_audit_log($sql, 'executed', count($rows) . ' rows');
+
+        return $rows;
     }
     
     /**

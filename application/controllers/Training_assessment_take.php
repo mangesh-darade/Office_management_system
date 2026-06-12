@@ -414,7 +414,7 @@ class Training_assessment_take extends CI_Controller
         $relDir = 'uploads/training_assessment/screenshots/' . (int) $au->id . '/';
         $absDir = FCPATH . $relDir;
         if (!is_dir($absDir)) {
-            @mkdir($absDir, 0777, true);
+            @mkdir($absDir, 0750, true);
         }
         if (!is_dir($absDir)) {
             echo json_encode(array('ok' => false, 'error' => 'Storage'));

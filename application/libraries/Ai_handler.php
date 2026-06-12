@@ -951,7 +951,15 @@ class Ai_handler {
             'expenses', 'payroll', 'chats', 'announcements', 'reminders', 'assets', 'requirements', 'timesheets'
         ];
         
+        // Never describe secret-bearing tables to the LLM (matches runtime deny-list).
+        $this->CI->load->helper('ai_sql_guard');
+        $denied_tables = function_exists('ai_sql_denied_tables') ? ai_sql_denied_tables() : array();
+        $denied_col_pattern = function_exists('ai_sql_denied_column_pattern') ? ai_sql_denied_column_pattern() : '';
+
         foreach ($tables as $table) {
+            if (in_array($table, $denied_tables, true)) {
+                continue;
+            }
             if (in_array($table, $whitelist)) {
                 // Check if user has permission to access this table's module
                 $module = isset($table_to_module_map[$table]) ? $table_to_module_map[$table] : null;
@@ -981,6 +989,11 @@ class Ai_handler {
                 
                 if ($has_access) {
                     $fields = $this->CI->db->list_fields($table);
+                    if ($denied_col_pattern !== '' && !empty($fields)) {
+                        $fields = array_values(array_filter($fields, function ($f) use ($denied_col_pattern) {
+                            return !preg_match($denied_col_pattern, (string) $f);
+                        }));
+                    }
                     if (!empty($fields)) {
                         $desc = isset($descriptions[$table]) ? " (" . $descriptions[$table] . ")" : "";
                         $schema[$table] = $desc . " Columns: " . implode(', ', $fields);

@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS project_members (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   project_id BIGINT UNSIGNED NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
-  role ENUM('member','lead','viewer') NOT NULL DEFAULT 'member',
+  role ENUM('member','lead','viewer','manager','developer','tester') NOT NULL DEFAULT 'member',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_project_user (project_id, user_id)

@@ -8,14 +8,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 if (!function_exists('db_ensure_client_db_fields')) {
     function db_ensure_client_db_fields($db)
     {
-        if (!$master_db->table_exists('clients')) {
+        if (!$db->table_exists('clients')) {
             return;
         }
-        if (!schema_table_has_column($master_db, 'clients', 'db_host')) {
-            $master_db->query('ALTER TABLE `clients` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`');
+        if (!schema_table_has_column($db, 'clients', 'db_host')) {
+            $db->query('ALTER TABLE `clients` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`');
         }
-        if (!schema_table_has_column($master_db, 'clients', 'db_port')) {
-            $master_db->query('ALTER TABLE `clients` ADD `db_port` varchar(10) DEFAULT NULL AFTER `db_host`');
+        if (!schema_table_has_column($db, 'clients', 'db_port')) {
+            $db->query('ALTER TABLE `clients` ADD `db_port` varchar(10) DEFAULT NULL AFTER `db_host`');
         }
     }
 }
@@ -42,7 +42,7 @@ if (!function_exists('db_verify_csrf')) {
 if (!function_exists('db_ensure_dm_manager_table')) {
     function db_ensure_dm_manager_table($db, $dm_table = 'dm_manager')
     {
-        $master_db->query("CREATE TABLE IF NOT EXISTS `dm_manager` (
+        $db->query("CREATE TABLE IF NOT EXISTS `dm_manager` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `project_id` INT NULL,
             `assign_id` INT NULL,
@@ -57,17 +57,17 @@ if (!function_exists('db_ensure_dm_manager_table')) {
         // Ensure optional metadata columns exist for revert support
         $tblParts = explode('.', $dm_table);
         $baseTbl = end($tblParts);
-        if (!schema_table_has_column($master_db, $baseTbl, 'file_path'))){
-            $master_db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `file_path` VARCHAR(500) NULL AFTER `squary`");
+        if (!schema_table_has_column($db, $baseTbl, 'file_path')) {
+            $db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `file_path` VARCHAR(500) NULL AFTER `squary`");
         }
-        if (!schema_table_has_column($master_db, $baseTbl, 'backup_path'))){
-            $master_db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `backup_path` VARCHAR(500) NULL AFTER `file_path`");
+        if (!schema_table_has_column($db, $baseTbl, 'backup_path')) {
+            $db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `backup_path` VARCHAR(500) NULL AFTER `file_path`");
         }
-        if (!schema_table_has_column($master_db, $baseTbl, 'database_name'))){
-            $master_db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `database_name` VARCHAR(191) NULL AFTER `backup_path`");
+        if (!schema_table_has_column($db, $baseTbl, 'database_name')) {
+            $db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `database_name` VARCHAR(191) NULL AFTER `backup_path`");
         }
-        if (!schema_table_has_column($master_db, $baseTbl, 'table_name'))){
-            $master_db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `table_name` VARCHAR(191) NULL AFTER `database_name`");
+        if (!schema_table_has_column($db, $baseTbl, 'table_name')) {
+            $db->query("ALTER TABLE `".$baseTbl."` ADD COLUMN `table_name` VARCHAR(191) NULL AFTER `database_name`");
         }
     }
 }
@@ -76,7 +76,7 @@ if (!function_exists('db_ensure_client_migrations_table')) {
     function db_ensure_client_migrations_table($db, $client_migrations_table = 'client_migrations')
     {
         $tbl = $client_migrations_table;
-        $master_db->query("CREATE TABLE IF NOT EXISTS `".$tbl."` (
+        $db->query("CREATE TABLE IF NOT EXISTS `".$tbl."` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `client_id` INT NULL,
             `client_name` VARCHAR(255) NOT NULL,
@@ -93,11 +93,11 @@ if (!function_exists('db_ensure_client_migrations_table')) {
             INDEX (`database_name`),
             INDEX (`action`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        if (!schema_table_has_column($master_db, $tbl, 'details'))){
-            $master_db->query("ALTER TABLE `".$tbl."` ADD COLUMN `details` LONGTEXT NULL AFTER `file_path`");
+        if (!schema_table_has_column($db, $tbl, 'details')) {
+            $db->query("ALTER TABLE `".$tbl."` ADD COLUMN `details` LONGTEXT NULL AFTER `file_path`");
         }
-        if (!schema_table_has_column($master_db, $tbl, 'run_by'))){
-            $master_db->query("ALTER TABLE `".$tbl."` ADD COLUMN `run_by` INT NULL AFTER `details`");
+        if (!schema_table_has_column($db, $tbl, 'run_by')) {
+            $db->query("ALTER TABLE `".$tbl."` ADD COLUMN `run_by` INT NULL AFTER `details`");
         }
     }
 }
@@ -105,7 +105,7 @@ if (!function_exists('db_ensure_client_migrations_table')) {
 if (!function_exists('db_log_client_migration')) {
     function db_log_client_migration($db, $session, $client_migrations_table, $client_id, $client_name, $dbName, $action, $tables, $columns, $file, $details = null)
     {
-        if (!$master_db->table_exists($client_migrations_table)) return;
+        if (!$db->table_exists($client_migrations_table)) return;
         if (is_array($details) || is_object($details)){
             $details = @json_encode($details);
         }
@@ -120,7 +120,7 @@ if (!function_exists('db_log_client_migration')) {
             'details' => ($details !== null && $details !== '') ? (string)$details : null,
             'run_by' => (int)$session->userdata('user_id'),
         ];
-        $master_db->insert($client_migrations_table, $data);
+        $db->insert($client_migrations_table, $data);
     }
 }
 

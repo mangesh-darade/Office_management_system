@@ -224,6 +224,7 @@ if (!function_exists('get_email_recipients')) {
                 break;
                 
             case 'self':
+            case 'new_member':
                 if ($related_user_id) {
                     $email = get_user_email_by_id($related_user_id);
                     if ($email) {

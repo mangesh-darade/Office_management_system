@@ -32,7 +32,14 @@ class Coaching_webhooks extends Coaching_Controller {
         $sig = $this->input->get_request_header('X-Razorpay-Signature', true);
         $rzp = coaching_razorpay();
 
-        if ($rzp->is_configured() && !$rzp->verify_webhook_signature($raw, (string) $sig)) {
+        // Never process payment events without a verified signature.
+        if (!$rzp->is_configured()) {
+            log_message('error', 'Coaching_webhooks: Razorpay webhook hit while integration not configured.');
+            $this->output->set_status_header(503);
+            echo json_encode(['error' => 'Gateway not configured']);
+            return;
+        }
+        if (!$rzp->verify_webhook_signature($raw, (string) $sig)) {
             $this->output->set_status_header(400);
             echo json_encode(['error' => 'Invalid signature']);
             return;
@@ -69,25 +76,28 @@ class Coaching_webhooks extends Coaching_Controller {
         $creds = get_whatsapp_credentials();
         $auth_token = isset($creds['auth_token']) ? (string) $creds['auth_token'] : '';
 
-        if ($auth_token !== '') {
-            $signature = (string) $this->input->get_request_header('X-Twilio-Signature', true);
-            $post_vars = $this->input->post(null, false);
-            if (!is_array($post_vars)) {
-                $post_vars = array();
-            }
+        // Fail closed: without an auth token we cannot verify the sender.
+        if ($auth_token === '') {
+            log_message('error', 'Coaching_webhooks: Twilio auth token not configured; rejecting whatsapp_inbound');
+            $this->output->set_status_header(503);
+            return;
+        }
 
-            if (!validate_twilio_webhook_signature(
-                $signature,
-                twilio_webhook_request_url(),
-                $post_vars,
-                $auth_token
-            )) {
-                log_message('error', 'Coaching_webhooks: invalid Twilio signature on whatsapp_inbound');
-                $this->output->set_status_header(403);
-                return;
-            }
-        } else {
-            log_message('debug', 'Coaching_webhooks: Twilio auth token not configured; skipping signature check');
+        $signature = (string) $this->input->get_request_header('X-Twilio-Signature', true);
+        $post_vars = $this->input->post(null, false);
+        if (!is_array($post_vars)) {
+            $post_vars = array();
+        }
+
+        if (!validate_twilio_webhook_signature(
+            $signature,
+            twilio_webhook_request_url(),
+            $post_vars,
+            $auth_token
+        )) {
+            log_message('error', 'Coaching_webhooks: invalid Twilio signature on whatsapp_inbound');
+            $this->output->set_status_header(403);
+            return;
         }
 
         $from = (string) $this->input->post('From');
