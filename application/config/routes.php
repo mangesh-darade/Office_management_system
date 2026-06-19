@@ -292,6 +292,15 @@ $route['settings/holidays/create'] = 'settings/holidays_create';
 $route['settings/holidays/(:num)/edit'] = 'settings/holidays_edit/$1';
 $route['settings/holidays/(:num)/delete'] = 'settings/holidays_delete/$1';
 
+// Subscription Builder catalog (Settings)
+$route['settings/subscription-builder'] = 'settings/subscription_builder_catalog';
+$route['settings/subscription-builder/create'] = 'settings/subscription_builder_create';
+$route['settings/subscription-builder/import'] = 'settings/subscription_builder_import';
+$route['settings/subscription-builder/sample-csv'] = 'settings/subscription_builder_sample_csv';
+$route['settings/subscription-builder/sample-xlsx'] = 'settings/subscription_builder_sample_xlsx';
+$route['settings/subscription-builder/(:num)/edit'] = 'settings/subscription_builder_edit/$1';
+$route['settings/subscription-builder/(:num)/delete'] = 'settings/subscription_builder_delete/$1';
+
 // API Integrations
 $route['api-integrations'] = 'api_integrations/index';
 $route['api-integrations/create'] = 'api_integrations/create';
@@ -343,6 +352,12 @@ $route['requirements/board'] = 'requirements/board';
 $route['requirements/calendar'] = 'requirements/calendar';
 $route['requirements/export'] = 'requirements/export';
 $route['requirements/import'] = 'requirements/import';
+
+// Subscription Builder
+$route['subscription-builder'] = 'subscription_builder/index';
+$route['subscription-builder/catalog'] = 'subscription_builder/catalog';
+$route['subscription-builder/quote-preview'] = 'subscription_builder/quote_preview';
+$route['subscription-builder/quote-pdf'] = 'subscription_builder/quote_pdf';
 
 // Announcements
 $route['announcements'] = 'announcements/index';

@@ -1,0 +1,872 @@
+Plan	Industry	Module	Feature	Details	Per Item Set Up Charges	Item Unit	Common Set Up Fees	Per Item Per Month Maintenances
+ Essential	Manufacturing	Users	Business Owner					
+ Essential	Manufacturing	Users	Groups Permissions as per requirements					
+ Essential	Manufacturing	People	Billers					
+ Essential	Manufacturing	People	Customers					
+ Essential	Manufacturing	People	Geo Location wise attendance system					
+ Essential	Manufacturing	People	Suppliers					
+ Essential	Manufacturing	People	Vendors					
+ Essential	Manufacturing	Single Location	Single Location			Location	22000	2000
+ Professional	Manufacturing	Multi Location 	Charges per location			Location	30000	3000
+ Professional	Manufacturing	Multi Location + Multi GST	Charges per location			Location	40000	4000
+ Essential	Manufacturing	Products	Barcode creation with Various Sizes & Symbology					
+ Essential	Manufacturing	Products	Batch Management					
+ Essential	Manufacturing	Products	Batchwise COA					
+ Essential	Manufacturing	Products	Bulk Product Import					
+ Essential	Manufacturing	Products	Catalog Management					
+ Essential	Manufacturing	Products	Category Level Price Wise Tax Slab					
+ Essential	Manufacturing	Products	Count Stock					
+ Essential	Manufacturing	Products	Custom  Fields 					
+ Essential	Manufacturing	Products	Customer Price Groups at product level					
+ Essential	Manufacturing	Products	Expiry Alert					
+ Essential	Manufacturing	Products	Inclusive / Exclusive Tax Options					
+ Essential	Manufacturing	Products	Inventory Management					
+ Essential	Manufacturing	Products	Locationwise Inventory Management					
+ Essential	Manufacturing	Products	Product Level Tax % Specification					
+ Essential	Manufacturing	Products	Product Types : Combo, Bundle, Loose, Raw Materials, Intermediate Product					
+ Essential	Manufacturing	Products	Promotional Prices					
+ Essential	Manufacturing	Products	Same Product in Multiple Categories					
+ Essential	Manufacturing	Products	Seasonability					
+ Essential	Manufacturing	Products	Shelf Life Management					
+ Essential	Manufacturing	Products	Stock Alerts					
+ Essential	Manufacturing	Products	Stock Check					
+ Essential	Manufacturing	Products	Stock Count					
+ Essential	Manufacturing	Products	Unlimited Products & Variants					
+ Essential	Manufacturing	Products	Variants wise MRP , Cost , Price 					
+ Essential	Manufacturing	Tax Management	Export Tally Compatible					
+ Essential	Manufacturing	Tax Management	GST Export 					
+ Essential	Manufacturing	Tax Management	Inclusive / Exclusive Tax methods					
+ Essential	Manufacturing	Tax Management	Multiple Tax Rate Groups					
+ Essential	Manufacturing	Tax Management	Product Level / Category Level Taxes					
+ Essential	Manufacturing	Payment Modes	Cash					
+ Essential	Manufacturing	Payment Modes	Cheque					
+ Essential	Manufacturing	Payment Modes	Credit Card					
+ Essential	Manufacturing	Payment Modes	Debit Card					
+ Essential	Manufacturing	Payment Modes	Deposit					
+ Essential	Manufacturing	Payment Modes	Gift Card					
+ Essential	Manufacturing	Payment Modes	UPI					
+ Essential	Manufacturing	Payment Gateways	CCAvenue				5000	0
+ Essential	Manufacturing	Payment Gateways	Paypal				5000	0
+ Essential	Manufacturing	Payment Gateways	Razorpay				5000	0
+ Enterprise	Manufacturing	CRM	Leads - Customized sales funnel Phases					1000
+ Enterprise	Manufacturing	CRM	Leads - Integration with Social Media Forms (FB, Meta)					
+ Enterprise	Manufacturing	CRM	Leads - Leads Management					
+ Enterprise	Manufacturing	CRM	Leads - Sleek Customer Conversion					
+ Essential	Manufacturing	CRM	Customer Groups / Tags					
+ Essential	Manufacturing	CRM	Customer Price Groups 					
+ Essential	Manufacturing	CRM	Monthly Ledger					
+ Essential	Manufacturing	CRM	Customized Whatsapp Flow		200	Workflow		
+ Enterprise	Manufacturing	Quotations	Quotation using BOM					200
+ Essential	Manufacturing	WhatsApp Integration	Invoice Receipt					
+ Essential	Manufacturing	WhatsApp Integration	Reminders to customers for due Payments					
+ Essential	Manufacturing	WhatsApp Integration	Set Up				10000	
+ Enterprise	Manufacturing	Sales / Billing	3p Orders					
+ Essential	Manufacturing	Sales / Billing	Bank Deposit Register Display 					
+ Essential	Manufacturing	Sales / Billing	Coupons					
+ Essential	Manufacturing	Sales / Billing	Discounts					
+ Enterprise	Manufacturing	Sales / Billing	eCommerce Sales					
+ Essential	Manufacturing	Sales / Billing	Exchange / Return Sale					
+ Essential	Manufacturing	Sales / Billing	Offers					
+ Essential	Manufacturing	Sales / Billing	Sale by Barcode Scan					
+ Essential	Manufacturing	Sales / Billing	Sales Import by CSV					
+ Essential	Manufacturing	Sales / Billing	Sales Incentive					
+ Essential	Manufacturing	Sales / Billing	Sales Transactions					
+ Essential	Manufacturing	Sales / Billing	Suspended Sales					
+ Essential	Manufacturing	Sales / Billing	Various Register Transactions					
+ Essential	Manufacturing	Sales / Billing	POS Orders					
+Enterprise	Manufacturing	Delivery	Delivery workflow Set UJp	Can Change as per Business Logic			2000	
+ Essential	Manufacturing	Challan	Challan Creation & Tracking					
+Enterprise	Manufacturing	Webshop	Developement eCommerce 				100000	
+Enterprise	Manufacturing	Webshop	CMS					1000
+Enterprise	Manufacturing	Webshop	Guest Orders					
+Enterprise	Manufacturing	Webshop	Product Availability					
+Enterprise	Manufacturing	Webshop	Registered User Management					
+Enterprise	Manufacturing	Webshop	Whatsapp Messages Workflows					
+Enterprise	Manufacturing	OmniChannel	3rd Party Aggregators					
+Enterprise	Manufacturing	OmniChannel	Amazon		5000	Product	5000	
+Enterprise	Manufacturing	OmniChannel	Integrate Existing Site 				10000	
+Enterprise	Manufacturing	OmniChannel	New Shopify Site				50000	
+Enterprise	Manufacturing	OmniChannel	Outlets, Dealers , B2C, Online					
+ Essential	Manufacturing	Purchase	Add Product on Purchase					
+ Essential	Manufacturing	Purchase	Good Received Notes					
+ Essential	Manufacturing	Purchase	Purchase by Barcode 					
+ Essential	Manufacturing	Purchase	Purchase using template CSV					
+Enterprise	Manufacturing	Inventory Management	3 P Orders					
+ Essential	Manufacturing	Inventory Management	Adjustments					
+Enterprise	Manufacturing	Inventory Management	Bill of Materials					
+Professional	Manufacturing	Inventory Management	Outlets / Franchises Sales					
+Enterprise	Manufacturing	Inventory Management	Production unit to Outlets / Franchises workflow					
+ Essential	Manufacturing	Inventory Management	Purchase					
+Enterprise	Manufacturing	Inventory Management	Raw Materials Management					1000
+ Essential	Manufacturing	Inventory Management	Retail Sale					
+ Essential	Manufacturing	Inventory Management	Return / Exchange					
+ Essential	Manufacturing	Inventory Management	Transfers					
+ Essential	Manufacturing	Inventory Management	Wholesale sale					
+Enterprise	Manufacturing	Bill Of Materials	RM Management					
+Enterprise	Manufacturing	Production Unit	Product Unit(s) Set up		1000	PU Location		500
+Enterprise	Manufacturing	Production Unit	BOM Management					
+Enterprise	Manufacturing	Production Unit	Dispatch					
+Enterprise	Manufacturing	Production Unit	Ingredients & waste mangement					
+Enterprise	Manufacturing	Production Unit	Ingredients Consumption Summary					
+Enterprise	Manufacturing	Production Unit	Ingredients Inventory Management					
+Enterprise	Manufacturing	Production Unit	Manager Dashboard					
+Enterprise	Manufacturing	Production Unit	Order Fulfilment (Full & Partial)					1000
+Enterprise	Manufacturing	Production Unit	Production Dashboard					
+Enterprise	Manufacturing	Production Unit	Production Unit Management					
+Enterprise	Manufacturing	Production Unit	Summarized Procurement Order Management					
+Enterprise	Manufacturing	Job Works	Job Works Set Up		1000	Job works		
+Enterprise	Manufacturing	Job Works	Job Works & Stages					
+ Essential	Manufacturing	Attendance	Capture Attendance using Face					
+ Essential	Manufacturing	Attendance	Check In, Check Out					
+Professional	Manufacturing	Attendance	Customer Sites Check Ins					
+Enterprise	Manufacturing	Field Force Management	Site Reports with Biometrics					1000
+ Essential	Manufacturing	Expenses	Expenses Maintainance					
+ Essential	Manufacturing	Expenses	Reports					
+ Essential	Manufacturing	Reports	Adjustment Reports					
+ Essential	Manufacturing	Reports	Best Seller 					
+ Essential	Manufacturing	Reports	Brands Report					
+ Essential	Manufacturing	Reports	Categories and Brand Chart details					
+ Essential	Manufacturing	Reports	Categories Report					
+ Essential	Manufacturing	Reports	Challans Report					
+ Essential	Manufacturing	Reports	Customer Ledgers					
+ Essential	Manufacturing	Reports	Customers Report					
+ Essential	Manufacturing	Reports	Customerwise Sale Report					
+ Essential	Manufacturing	Reports	Daily Purchases					
+ Essential	Manufacturing	Reports	Daily Sales					
+ Essential	Manufacturing	Reports	Deposit Ledgers					
+ Essential	Manufacturing	Reports	Deposit Recharge Report					
+ Essential	Manufacturing	Reports	Due Purchases Report					
+ Essential	Manufacturing	Reports	Due sales Report					
+ Essential	Manufacturing	Reports	Expenses Report					
+ Essential	Manufacturing	Reports	HSN Report					
+ Essential	Manufacturing	Reports	Monthly Purchases					
+ Essential	Manufacturing	Reports	Monthly Sales					
+ Essential	Manufacturing	Reports	Overview Chart					
+ Essential	Manufacturing	Reports	Payment  Summary 					
+ Essential	Manufacturing	Reports	Payment Chart Details					
+ Essential	Manufacturing	Reports	Payments Report					
+ Essential	Manufacturing	Reports	Product Expiry Alerts					
+ Essential	Manufacturing	Reports	Product Ledger					
+ Essential	Manufacturing	Reports	Product Quantity Alerts					
+ Essential	Manufacturing	Reports	Product varient purchase Report					
+ Essential	Manufacturing	Reports	Product varient stock Report					
+ Essential	Manufacturing	Reports	Products Combo Items					
+ Essential	Manufacturing	Reports	Products costing					
+ Essential	Manufacturing	Reports	Products profit and loss					
+ Essential	Manufacturing	Reports	Products Report					
+ Essential	Manufacturing	Reports	Products Transaction Report					
+ Essential	Manufacturing	Reports	Productwise Sale Report					
+ Essential	Manufacturing	Reports	Profit & Loss					
+ Essential	Manufacturing	Reports	Purchases Report					
+ Essential	Manufacturing	Reports	Purchases Report GST					
+ Essential	Manufacturing	Reports	Register Report					
+ Essential	Manufacturing	Reports	Sale Purchase Chart Details 					
+ Essential	Manufacturing	Reports	Sale Report					
+ Essential	Manufacturing	Reports	Sales extended Report					
+ Essential	Manufacturing	Reports	Sales GST Report					
+ Essential	Manufacturing	Reports	Sales person Report					
+ Essential	Manufacturing	Reports	Simple Tax / GST Reports					
+ Essential	Manufacturing	Reports	Staff Report					
+ Essential	Manufacturing	Reports	Suppliers Report					
+ Essential	Manufacturing	Reports	Tax Report					
+ Essential	Manufacturing	Reports	Transfer Reports 					
+ Essential	Manufacturing	Reports	Transfer Request Report					
+ Essential	Manufacturing	Reports	User Log Action 					
+ Essential	Manufacturing	Reports	Warehous Stock Chart					
+ Essential	Manufacturing	Reports	Warehouse Sales Report					
+Enterprise	Manufacturing	Businness Intelligence Reports	 Ingredient Consumption Forecast					1000
+Enterprise	Manufacturing	Businness Intelligence Reports	 Sales Vs Production					1000
+Enterprise	Manufacturing	Businness Intelligence Reports	Ingredient Usage					1000
+Enterprise	Manufacturing	Businness Intelligence Reports	Marketing Performance Dashboard					5000
+Enterprise	Manufacturing	Businness Intelligence Reports	Sales Dashboard					1000
+ Essential	Manufacturing	Additional Features	Custom  Fields 					
+ Essential	Manufacturing	Additional Features	Notifications					
+ Essential	Manufacturing	Additional Features	Printer Options					
+Enterprise	Manufacturing	Additional Features	SMS Configurations					
+ Essential	Clothing	Users	Business Owner					
+ Essential	Clothing	Users	Groups Permissions as per requirements					
+ Essential	Clothing	People	Billers					
+ Essential	Clothing	People	Customers					
+ Essential	Clothing	People	Geo Location wise attendance system					
+ Essential	Clothing	People	Suppliers					
+ Essential	Clothing	People	Vendors					
+ Essential	Clothing	Single Location	Single Location		1	Location	22000	2000
+ Professional	Clothing	Multi Location 	Charges per location		500	Location	30000	3000
+ Professional	Clothing	Multi Location + Multi GST	Charges per location		1000	Location	40000	4000
+ Essential	Clothing	Products	Barcode creation with Various Sizes & Symbology					
+ Essential	Clothing	Products	Batch Management					
+ Essential	Clothing	Products	Batchwise COA					
+ Essential	Clothing	Products	Bulk Product Import					
+ Essential	Clothing	Products	Catalog Management					
+ Essential	Clothing	Products	Category Level Price Wise Tax Slab					
+ Essential	Clothing	Products	Count Stock					
+ Essential	Clothing	Products	Custom  Fields 					
+ Essential	Clothing	Products	Customer Price Groups at product level					
+ Essential	Clothing	Products	Expiry Alert					
+ Essential	Clothing	Products	Inclusive / Exclusive Tax Options					
+ Essential	Clothing	Products	Inventory Management					
+ Essential	Clothing	Products	Locationwise Inventory Management					
+ Essential	Clothing	Products	Product Level Tax % Specification					
+ Essential	Clothing	Products	Product Types : Combo, Bundle, Loose, Raw Materials, Intermediate Product					
+ Essential	Clothing	Products	Promotional Prices					
+ Essential	Clothing	Products	Same Product in Multiple Categories					
+ Essential	Clothing	Products	Seasonability					
+ Essential	Clothing	Products	Shelf Life Management					
+ Essential	Clothing	Products	Stock Alerts					
+ Essential	Clothing	Products	Stock Check					
+ Essential	Clothing	Products	Stock Count					
+ Essential	Clothing	Products	Unlimited Products & Variants					
+ Essential	Clothing	Products	Variants wise MRP , Cost , Price 					
+ Essential	Clothing	Tax Management	Export Tally Compatible					
+ Essential	Clothing	Tax Management	GST Export 					
+ Essential	Clothing	Tax Management	Inclusive / Exclusive Tax methods					
+ Essential	Clothing	Tax Management	Multiple Tax Rate Groups					
+ Essential	Clothing	Tax Management	Product Level / Category Level Taxes					
+ Essential	Clothing	Payment Modes	Cash					
+ Essential	Clothing	Payment Modes	Cheque					
+ Essential	Clothing	Payment Modes	Credit Card					
+ Essential	Clothing	Payment Modes	Debit Card					
+ Essential	Clothing	Payment Modes	Deposit					
+ Essential	Clothing	Payment Modes	Gift Card					
+ Essential	Clothing	Payment Modes	UPI					
+ Essential	Clothing	Payment Gateways	CCAvenue				5000	0
+ Essential	Clothing	Payment Gateways	Paypal				5000	0
+ Essential	Clothing	Payment Gateways	Razorpay				5000	0
+ Enterprise	Clothing	CRM	Leads - Customized sales funnel Phases					1000
+ Enterprise	Clothing	CRM	Leads - Integration with Social Media Forms (FB, Meta)					
+ Enterprise	Clothing	CRM	Leads - Leads Management					
+ Enterprise	Clothing	CRM	Leads - Sleek Customer Conversion					
+ Essential	Clothing	CRM	Customer Groups / Tags					
+ Essential	Clothing	CRM	Customer Price Groups 					
+ Essential	Clothing	CRM	Monthly Ledger					
+ Essential	Clothing	CRM	Customized Whatsapp Flow		200	Workflow		
+ Enterprise	Clothing	Quotations	Quotation using BOM					200
+ Essential	Clothing	WhatsApp Integration	Invoice Receipt					
+ Essential	Clothing	WhatsApp Integration	Reminders to customers for due Payments					
+ Essential	Clothing	WhatsApp Integration	Set Up				10000	
+ Enterprise	Clothing	Sales / Billing	3p Orders					
+ Essential	Clothing	Sales / Billing	Bank Deposit Register Display 					
+ Essential	Clothing	Sales / Billing	Coupons					
+ Essential	Clothing	Sales / Billing	Discounts					
+ Enterprise	Clothing	Sales / Billing	eCommerce Sales					
+ Essential	Clothing	Sales / Billing	Exchange / Return Sale					
+ Essential	Clothing	Sales / Billing	Offers					
+ Essential	Clothing	Sales / Billing	Sale by Barcode Scan					
+ Essential	Clothing	Sales / Billing	Sales Import by CSV					
+ Essential	Clothing	Sales / Billing	Sales Incentive					
+ Essential	Clothing	Sales / Billing	Sales Transactions					
+ Essential	Clothing	Sales / Billing	Suspended Sales					
+ Essential	Clothing	Sales / Billing	Various Register Transactions					
+Enterprise	Clothing	Delivery	Delivery workflow Set UJp	Can Change as per Business Logic			2000	
+ Essential	Clothing	Challan	Challan Creation & Tracking					
+Enterprise	Clothing	Webshop	Developement eCommerce 				100000	
+Enterprise	Clothing	Webshop	CMS					1000
+Enterprise	Clothing	Webshop	Guest Orders					
+Enterprise	Clothing	Webshop	Product Availability					
+Enterprise	Clothing	Webshop	Registered User Management					
+Enterprise	Clothing	Webshop	Whatsapp Messages Workflows					
+Enterprise	Clothing	OmniChannel	3rd Party Aggregators					
+Enterprise	Clothing	OmniChannel	Amazon		5000	Product(s)		
+Enterprise	Clothing	OmniChannel	Integrate Existing Site 				10000	
+Enterprise	Clothing	OmniChannel	New Shopify Site				50000	
+Enterprise	Clothing	OmniChannel	Outlets, Dealers , B2C, Online					
+ Essential	Clothing	Purchase	Add Product on Purchase					
+ Essential	Clothing	Purchase	Good Received Notes					
+ Essential	Clothing	Purchase	Purchase by Barcode 					
+ Essential	Clothing	Purchase	Purchase using template CSV					
+Enterprise	Clothing	Inventory Management	3 P Orders					
+ Essential	Clothing	Inventory Management	Adjustments					
+Enterprise	Clothing	Inventory Management	Bill of Materials					
+Professional	Clothing	Inventory Management	Outlets / Franchises Sales					
+Enterprise	Clothing	Inventory Management	Production unit to Outlets / Franchises workflow					
+ Essential	Clothing	Inventory Management	Purchase					
+Enterprise	Clothing	Inventory Management	Raw Materials Management					1000
+ Essential	Clothing	Inventory Management	Retail Sale					
+ Essential	Clothing	Inventory Management	Return / Exchange					
+ Essential	Clothing	Inventory Management	Transfers					
+ Essential	Clothing	Inventory Management	Wholesale sale					
+Enterprise	Clothing	Bill Of Materials	RM Management					
+Enterprise	Clothing	Production Unit	Product Unit(s) Set up		1000	PU Location		1000
+Enterprise	Clothing	Production Unit	BOM Management					
+Enterprise	Clothing	Production Unit	Dispatch					
+Enterprise	Clothing	Production Unit	Ingredients & waste mangement					
+Enterprise	Clothing	Production Unit	Ingredients Consumption Summary					
+Enterprise	Clothing	Production Unit	Ingredients Inventory Management					
+Enterprise	Clothing	Production Unit	Manager Dashboard					
+Enterprise	Clothing	Production Unit	Order Fulfilment (Full & Partial)					1000
+Enterprise	Clothing	Production Unit	Production Dashboard					
+Enterprise	Clothing	Production Unit	Production Unit Management					
+Enterprise	Clothing	Production Unit	Summarized Procurement Order Management					
+Enterprise	Clothing	Job Works	Job Works Set Up		1000	Job works		
+Enterprise	Clothing	Job Works	Job Works & Stages					
+ Essential	Clothing	Attendance	Capture Attendance using Face					
+ Essential	Clothing	Attendance	Check In, Check Out					
+Professional	Clothing	Attendance	Customer Sites Check Ins					
+Enterprise	Clothing	Field Force Management	Site Reports with Biometrics					1000
+ Essential	Clothing	Expenses	Expenses Maintainance					
+ Essential	Clothing	Expenses	Reports					
+ Essential	Clothing	Reports	Adjustment Reports					
+ Essential	Clothing	Reports	Best Seller 					
+ Essential	Clothing	Reports	Brands Report					
+ Essential	Clothing	Reports	Categories and Brand Chart details					
+ Essential	Clothing	Reports	Categories Report					
+ Essential	Clothing	Reports	Challans Report					
+ Essential	Clothing	Reports	Customer Ledgers					
+ Essential	Clothing	Reports	Customers Report					
+ Essential	Clothing	Reports	Customerwise Sale Report					
+ Essential	Clothing	Reports	Daily Purchases					
+ Essential	Clothing	Reports	Daily Sales					
+ Essential	Clothing	Reports	Deposit Ledgers					
+ Essential	Clothing	Reports	Deposit Recharge Report					
+ Essential	Clothing	Reports	Due Purchases Report					
+ Essential	Clothing	Reports	Due sales Report					
+ Essential	Clothing	Reports	Expenses Report					
+ Essential	Clothing	Reports	HSN Report					
+ Essential	Clothing	Reports	Monthly Purchases					
+ Essential	Clothing	Reports	Monthly Sales					
+ Essential	Clothing	Reports	Overview Chart					
+ Essential	Clothing	Reports	Payment  Summary 					
+ Essential	Clothing	Reports	Payment Chart Details					
+ Essential	Clothing	Reports	Payments Report					
+ Essential	Clothing	Reports	Product Expiry Alerts					
+ Essential	Clothing	Reports	Product Ledger					
+ Essential	Clothing	Reports	Product Quantity Alerts					
+ Essential	Clothing	Reports	Product varient purchase Report					
+ Essential	Clothing	Reports	Product varient stock Report					
+ Essential	Clothing	Reports	Products Combo Items					
+ Essential	Clothing	Reports	Products costing					
+ Essential	Clothing	Reports	Products profit and loss					
+ Essential	Clothing	Reports	Products Report					
+ Essential	Clothing	Reports	Products Transaction Report					
+ Essential	Clothing	Reports	Productwise Sale Report					
+ Essential	Clothing	Reports	Profit & Loss					
+ Essential	Clothing	Reports	Purchases Report					
+ Essential	Clothing	Reports	Purchases Report GST					
+ Essential	Clothing	Reports	Register Report					
+ Essential	Clothing	Reports	Sale Purchase Chart Details 					
+ Essential	Clothing	Reports	Sale Report					
+ Essential	Clothing	Reports	Sales extended Report					
+ Essential	Clothing	Reports	Sales GST Report					
+ Essential	Clothing	Reports	Sales person Report					
+ Essential	Clothing	Reports	Simple Tax / GST Reports					
+ Essential	Clothing	Reports	Staff Report					
+ Essential	Clothing	Reports	Suppliers Report					
+ Essential	Clothing	Reports	Tax Report					
+ Essential	Clothing	Reports	Transfer Reports 					
+ Essential	Clothing	Reports	Transfer Request Report					
+ Essential	Clothing	Reports	User Log Action 					
+ Essential	Clothing	Reports	Warehous Stock Chart					
+ Essential	Clothing	Reports	Warehouse Sales Report					
+Enterprise	Clothing	Businness Intelligence Reports	Marketing Performance Dashboard					5000
+Enterprise	Clothing	Businness Intelligence Reports	Sales Dashboard					1000
+ Essential	Clothing	Additional Features	Custom  Fields 					
+ Essential	Clothing	Additional Features	Notifications					
+ Essential	Clothing	Additional Features	Printer Options					
+Enterprise	Clothing	Additional Features	SMS Configurations					
+ Essential	Clothing	Products	Colour & Size Variants					
+ Essential	Clothing	Products	Seasonability					
+ Essential	Food & Beverages	Users	Business Owner					
+ Essential	Food & Beverages	Users	Groups Permissions as per requirements					
+ Essential	Food & Beverages	People	Billers					
+ Essential	Food & Beverages	People	Customers					
+ Essential	Food & Beverages	People	Geo Location wise attendance system					
+ Essential	Food & Beverages	People	Suppliers					
+ Essential	Food & Beverages	People	Vendors					
+ Essential	Food & Beverages	Single Location	Single Location		1	Location	22000	2000
+ Professional	Food & Beverages	Multi Location 	Charges per location			Location	30000	3000
+ Professional	Food & Beverages	Multi Location + Multi GST	Charges per location			Location	40000	4000
+ Essential	Food & Beverages	Products	Barcode creation with Various Sizes & Symbology					
+ Essential	Food & Beverages	Products	Batch Management					
+ Essential	Food & Beverages	Products	Batchwise COA					
+ Essential	Food & Beverages	Products	Bulk Product Import					
+ Essential	Food & Beverages	Products	Catalog Management					
+ Essential	Food & Beverages	Products	Category Level Price Wise Tax Slab					
+ Essential	Food & Beverages	Products	Count Stock					
+ Essential	Food & Beverages	Products	Custom  Fields 					
+ Essential	Food & Beverages	Products	Customer Price Groups at product level					
+ Essential	Food & Beverages	Products	Expiry Alert					
+ Essential	Food & Beverages	Products	Inclusive / Exclusive Tax Options					
+ Essential	Food & Beverages	Products	Inventory Management					
+ Essential	Food & Beverages	Products	Locationwise Inventory Management					
+ Essential	Food & Beverages	Products	Product Level Tax % Specification					
+ Essential	Food & Beverages	Products	Product Types : Combo, Bundle, Loose, Raw Materials, Intermediate Product					
+ Essential	Food & Beverages	Products	Promotional Prices					
+ Essential	Food & Beverages	Products	Same Product in Multiple Categories					
+ Essential	Food & Beverages	Products	Seasonability					
+ Essential	Food & Beverages	Products	Shelf Life Management					
+ Essential	Food & Beverages	Products	Stock Alerts					
+ Essential	Food & Beverages	Products	Stock Check					
+ Essential	Food & Beverages	Products	Stock Count					
+ Essential	Food & Beverages	Products	Unlimited Products & Variants					
+ Essential	Food & Beverages	Products	Variants wise MRP , Cost , Price 					
+ Essential	Food & Beverages	Tax Management	Export Tally Compatible					
+ Essential	Food & Beverages	Tax Management	GST Export 					
+ Essential	Food & Beverages	Tax Management	Inclusive / Exclusive Tax methods					
+ Essential	Food & Beverages	Tax Management	Multiple Tax Rate Groups					
+ Essential	Food & Beverages	Tax Management	Product Level / Category Level Taxes					
+ Essential	Food & Beverages	Payment Modes	Cash					
+ Essential	Food & Beverages	Payment Modes	Cheque					
+ Essential	Food & Beverages	Payment Modes	Credit Card					
+ Essential	Food & Beverages	Payment Modes	Debit Card					
+ Essential	Food & Beverages	Payment Modes	Deposit					
+ Essential	Food & Beverages	Payment Modes	Gift Card					
+ Essential	Food & Beverages	Payment Modes	UPI					
+ Essential	Food & Beverages	Payment Gateways	CCAvenue				5000	0
+ Essential	Food & Beverages	Payment Gateways	Paypal				5000	0
+ Essential	Food & Beverages	Payment Gateways	Razorpay				5000	0
+ Enterprise	Food & Beverages	CRM	Leads - Customized sales funnel Phases					1000
+ Enterprise	Food & Beverages	CRM	Leads - Integration with Social Media Forms (FB, Meta)					
+ Enterprise	Food & Beverages	CRM	Leads - Leads Management					
+ Enterprise	Food & Beverages	CRM	Leads - Sleek Customer Conversion					
+ Essential	Food & Beverages	CRM	Customer Groups / Tags					
+ Essential	Food & Beverages	CRM	Customer Price Groups 					
+ Essential	Food & Beverages	CRM	Monthly Ledger					
+ Essential	Food & Beverages	CRM	Customized Whatsapp Flow		200	Workflow		
+ Enterprise	Food & Beverages	Quotations	Quotation using BOM					200
+ Essential	Food & Beverages	WhatsApp Integration	Invoice Receipt					
+ Essential	Food & Beverages	WhatsApp Integration	Reminders to customers for due Payments					
+ Essential	Food & Beverages	WhatsApp Integration	Set Up				10000	
+ Enterprise	Food & Beverages	Sales / Billing	3p Orders					
+ Essential	Food & Beverages	Sales / Billing	Bank Deposit Register Display 					
+ Essential	Food & Beverages	Sales / Billing	Coupons					
+ Essential	Food & Beverages	Sales / Billing	Discounts					
+ Enterprise	Food & Beverages	Sales / Billing	eCommerce Sales					
+ Essential	Food & Beverages	Sales / Billing	Exchange / Return Sale					
+ Essential	Food & Beverages	Sales / Billing	Offers					
+ Essential	Food & Beverages	Sales / Billing	Sale by Barcode Scan					
+ Essential	Food & Beverages	Sales / Billing	Sales Import by CSV					
+ Essential	Food & Beverages	Sales / Billing	Sales Incentive					
+ Essential	Food & Beverages	Sales / Billing	Sales Transactions					
+ Essential	Food & Beverages	Sales / Billing	Suspended Sales					
+ Essential	Food & Beverages	Sales / Billing	Various Register Transactions					
+Enterprise	Food & Beverages	Delivery	Delivery workflow Set UJp	Can Change as per Business Logic			2000	
+ Essential	Food & Beverages	Challan	Challan Creation & Tracking					
+Enterprise	Food & Beverages	Webshop	Developement eCommerce 				100000	
+Enterprise	Food & Beverages	Webshop	CMS					1000
+Enterprise	Food & Beverages	Webshop	Guest Orders					
+Enterprise	Food & Beverages	Webshop	Product Availability					
+Enterprise	Food & Beverages	Webshop	Registered User Management					
+Enterprise	Food & Beverages	Webshop	Whatsapp Messages Workflows					
+Enterprise	Food & Beverages	OmniChannel	3rd Party Aggregators					
+Enterprise	Food & Beverages	OmniChannel	Amazon		5000			
+Enterprise	Food & Beverages	OmniChannel	Integrate Existing Site 				10000	
+Enterprise	Food & Beverages	OmniChannel	New Shopify Site				50000	
+Enterprise	Food & Beverages	OmniChannel	Outlets, Dealers , B2C, Online					
+ Essential	Food & Beverages	Purchase	Add Product on Purchase					
+ Essential	Food & Beverages	Purchase	Good Received Notes					
+ Essential	Food & Beverages	Purchase	Purchase by Barcode 					
+ Essential	Food & Beverages	Purchase	Purchase using template CSV					
+Enterprise	Food & Beverages	Inventory Management	3 P Orders					
+ Essential	Food & Beverages	Inventory Management	Adjustments					
+Enterprise	Food & Beverages	Inventory Management	Bill of Materials					
+Professional	Food & Beverages	Inventory Management	Outlets / Franchises Sales					
+Enterprise	Food & Beverages	Inventory Management	Production unit to Outlets / Franchises workflow					
+ Essential	Food & Beverages	Inventory Management	Purchase					
+Enterprise	Food & Beverages	Inventory Management	Raw Materials Management					1000
+ Essential	Food & Beverages	Inventory Management	Retail Sale					
+ Essential	Food & Beverages	Inventory Management	Return / Exchange					
+ Essential	Food & Beverages	Inventory Management	Transfers					
+ Essential	Food & Beverages	Inventory Management	Wholesale sale					
+Enterprise	Food & Beverages	Bill Of Materials	RM Management					
+Enterprise	Food & Beverages	Production Unit	Product Unit(s) Set up		2000			1000
+Enterprise	Food & Beverages	Production Unit	BOM Management					
+Enterprise	Food & Beverages	Production Unit	Dispatch					
+Enterprise	Food & Beverages	Production Unit	Ingredients & waste mangement					
+Enterprise	Food & Beverages	Production Unit	Ingredients Consumption Summary					
+Enterprise	Food & Beverages	Production Unit	Ingredients Inventory Management					
+Enterprise	Food & Beverages	Production Unit	Manager Dashboard					
+Enterprise	Food & Beverages	Production Unit	Order Fulfilment (Full & Partial)					1000
+Enterprise	Food & Beverages	Production Unit	Production Dashboard					
+Enterprise	Food & Beverages	Production Unit	Production Unit Management					
+Enterprise	Food & Beverages	Production Unit	Summarized Procurement Order Management					
+Enterprise	Food & Beverages	Job Works	Job Works Set Up		1000	Job works		
+Enterprise	Food & Beverages	Job Works	Job Works & Stages					
+ Essential	Food & Beverages	Attendance	Capture Attendance using Face					
+ Essential	Food & Beverages	Attendance	Check In, Check Out					
+Professional	Food & Beverages	Attendance	Customer Sites Check Ins					
+Enterprise	Food & Beverages	Field Force Management	Site Reports with Biometrics					1000
+ Essential	Food & Beverages	Expenses	Expenses Maintainance					
+ Essential	Food & Beverages	Expenses	Reports					
+ Essential	Food & Beverages	Reports	Adjustment Reports					
+ Essential	Food & Beverages	Reports	Best Seller 					
+ Essential	Food & Beverages	Reports	Brands Report					
+ Essential	Food & Beverages	Reports	Categories and Brand Chart details					
+ Essential	Food & Beverages	Reports	Categories Report					
+ Essential	Food & Beverages	Reports	Challans Report					
+ Essential	Food & Beverages	Reports	Customer Ledgers					
+ Essential	Food & Beverages	Reports	Customers Report					
+ Essential	Food & Beverages	Reports	Customerwise Sale Report					
+ Essential	Food & Beverages	Reports	Daily Purchases					
+ Essential	Food & Beverages	Reports	Daily Sales					
+ Essential	Food & Beverages	Reports	Deposit Ledgers					
+ Essential	Food & Beverages	Reports	Deposit Recharge Report					
+ Essential	Food & Beverages	Reports	Due Purchases Report					
+ Essential	Food & Beverages	Reports	Due sales Report					
+ Essential	Food & Beverages	Reports	Expenses Report					
+ Essential	Food & Beverages	Reports	HSN Report					
+ Essential	Food & Beverages	Reports	Monthly Purchases					
+ Essential	Food & Beverages	Reports	Monthly Sales					
+ Essential	Food & Beverages	Reports	Overview Chart					
+ Essential	Food & Beverages	Reports	Payment  Summary 					
+ Essential	Food & Beverages	Reports	Payment Chart Details					
+ Essential	Food & Beverages	Reports	Payments Report					
+ Essential	Food & Beverages	Reports	Product Expiry Alerts					
+ Essential	Food & Beverages	Reports	Product Ledger					
+ Essential	Food & Beverages	Reports	Product Quantity Alerts					
+ Essential	Food & Beverages	Reports	Product varient purchase Report					
+ Essential	Food & Beverages	Reports	Product varient stock Report					
+ Essential	Food & Beverages	Reports	Products Combo Items					
+ Essential	Food & Beverages	Reports	Products costing					
+ Essential	Food & Beverages	Reports	Products profit and loss					
+ Essential	Food & Beverages	Reports	Products Report					
+ Essential	Food & Beverages	Reports	Products Transaction Report					
+ Essential	Food & Beverages	Reports	Productwise Sale Report					
+ Essential	Food & Beverages	Reports	Profit & Loss					
+ Essential	Food & Beverages	Reports	Purchases Report					
+ Essential	Food & Beverages	Reports	Purchases Report GST					
+ Essential	Food & Beverages	Reports	Register Report					
+ Essential	Food & Beverages	Reports	Sale Purchase Chart Details 					
+ Essential	Food & Beverages	Reports	Sale Report					
+ Essential	Food & Beverages	Reports	Sales extended Report					
+ Essential	Food & Beverages	Reports	Sales GST Report					
+ Essential	Food & Beverages	Reports	Sales person Report					
+ Essential	Food & Beverages	Reports	Simple Tax / GST Reports					
+ Essential	Food & Beverages	Reports	Staff Report					
+ Essential	Food & Beverages	Reports	Suppliers Report					
+ Essential	Food & Beverages	Reports	Tax Report					
+ Essential	Food & Beverages	Reports	Transfer Reports 					
+ Essential	Food & Beverages	Reports	Transfer Request Report					
+ Essential	Food & Beverages	Reports	User Log Action 					
+ Essential	Food & Beverages	Reports	Warehous Stock Chart					
+ Essential	Food & Beverages	Reports	Warehouse Sales Report					
+ Essential	Food & Beverages	Additional Features	Custom  Fields 					
+ Essential	Food & Beverages	Additional Features	Notifications					
+ Essential	Food & Beverages	Additional Features	Printer Options					
+Enterprise	Food & Beverages	Additional Features	SMS Configurations					
+Enterprise	Food & Beverages	Kitchen Management	KDS					
+Enterprise	Food & Beverages	OmniChannel	POS Orders	Take Away, Dine In, Delivery, Bulk Orders, Subscriptions				
+Enterprise	Food & Beverages 	OmniChannel	3rd Party Aggregators	Swiggy, Zommato, Talabat etc as per country				
+ Essential	Food & Beverages 	Businness Intelligence Reports	 Ingredient Consumption Forecast					1000
+ Essential	Food & Beverages 	Businness Intelligence Reports	 Sales Vs Production					1000
+ Essential	Food & Beverages 	Businness Intelligence Reports	Ingredient Usage					1000
+ Essential	Food & Beverages 	Businness Intelligence Reports	Marketing Performance Dashboard					5000
+ Essential	Food & Beverages 	Businness Intelligence Reports	Sales Dashboard					1000
+ Essential	Services & AMC	Users	Business Owner					
+ Essential	Services & AMC	Users	Groups Permissions as per requirements					
+ Essential	Services & AMC	People	Billers					
+ Essential	Services & AMC	People	Customers					
+ Essential	Services & AMC	People	Geo Location wise attendance system					
+ Essential	Services & AMC	People	Suppliers					
+ Essential	Services & AMC	People	Vendors					
+ Essential	Services & AMC	Single Location	Single Location		1	Location	22000	2000
+ Professional	Services & AMC	Multi Location 	Charges per location			Location	30000	3000
+ Professional	Services & AMC	Multi Location + Multi GST	Charges per location		1	Location	40000	4000
+ Essential	Services & AMC	Products	Barcode creation with Various Sizes & Symbology					
+ Essential	Services & AMC	Products	Batch Management					
+ Essential	Services & AMC	Products	Batchwise COA					
+ Essential	Services & AMC	Products	Bulk Product Import					
+ Essential	Services & AMC	Products	Catalog Management					
+ Essential	Services & AMC	Products	Category Level Price Wise Tax Slab					
+ Essential	Services & AMC	Products	Count Stock					
+ Essential	Services & AMC	Products	Custom  Fields 					
+ Essential	Services & AMC	Products	Customer Price Groups at product level					
+ Essential	Services & AMC	Products	Expiry Alert					
+ Essential	Services & AMC	Products	Inclusive / Exclusive Tax Options					
+ Essential	Services & AMC	Products	Inventory Management					
+ Essential	Services & AMC	Products	Locationwise Inventory Management					
+ Essential	Services & AMC	Products	Product Level Tax % Specification					
+ Essential	Services & AMC	Products	Product Types : Combo, Bundle, Loose, Raw Materials, Intermediate Product					
+ Essential	Services & AMC	Products	Promotional Prices					
+ Essential	Services & AMC	Products	Same Product in Multiple Categories					
+ Essential	Services & AMC	Products	Seasonability					
+ Essential	Services & AMC	Products	Shelf Life Management					
+ Essential	Services & AMC	Products	Stock Alerts					
+ Essential	Services & AMC	Products	Stock Check					
+ Essential	Services & AMC	Products	Stock Count					
+ Essential	Services & AMC	Products	Unlimited Products & Variants					
+ Essential	Services & AMC	Products	Variants wise MRP , Cost , Price 					
+ Essential	Services & AMC	Tax Management	Export Tally Compatible					
+ Essential	Services & AMC	Tax Management	GST Export 					
+ Essential	Services & AMC	Tax Management	Inclusive / Exclusive Tax methods					
+ Essential	Services & AMC	Tax Management	Multiple Tax Rate Groups					
+ Essential	Services & AMC	Tax Management	Product Level / Category Level Taxes					
+ Essential	Services & AMC	Payment Modes	Cash					
+ Essential	Services & AMC	Payment Modes	Cheque					
+ Essential	Services & AMC	Payment Modes	Credit Card					
+ Essential	Services & AMC	Payment Modes	Debit Card					
+ Essential	Services & AMC	Payment Modes	Deposit					
+ Essential	Services & AMC	Payment Modes	Gift Card					
+ Essential	Services & AMC	Payment Modes	UPI					
+ Essential	Services & AMC	Payment Gateways	CCAvenue				5000	0
+ Essential	Services & AMC	Payment Gateways	Paypal				5000	0
+ Essential	Services & AMC	Payment Gateways	Razorpay				5000	0
+ Enterprise	Services & AMC	CRM	Leads - Customized sales funnel Phases					1000
+ Enterprise	Services & AMC	CRM	Leads - Integration with Social Media Forms (FB, Meta)					
+ Enterprise	Services & AMC	CRM	Leads - Leads Management					
+ Enterprise	Services & AMC	CRM	Leads - Sleek Customer Conversion					
+ Essential	Services & AMC	CRM	Customer Groups / Tags					
+ Essential	Services & AMC	CRM	Customer Price Groups 					
+ Essential	Services & AMC	CRM	Monthly Ledger					
+ Essential	Services & AMC	CRM	Customized Whatsapp Flow		200	Workflow		
+ Enterprise	Services & AMC	Quotations	Quotation using BOM					200
+ Essential	Services & AMC	WhatsApp Integration	Invoice Receipt					
+ Essential	Services & AMC	WhatsApp Integration	Reminders to customers for due Payments					
+ Essential	Services & AMC	WhatsApp Integration	Set Up				10000	
+ Essential	Services & AMC	Sales / Billing	Bank Deposit Register Display 					
+ Essential	Services & AMC	Sales / Billing	Coupons					
+ Essential	Services & AMC	Sales / Billing	Discounts					
+ Essential	Services & AMC	Sales / Billing	Exchange / Return Sale					
+ Essential	Services & AMC	Sales / Billing	Offers					
+ Essential	Services & AMC	Sales / Billing	Sale by Barcode Scan					
+ Essential	Services & AMC	Sales / Billing	Sales Import by CSV					
+ Essential	Services & AMC	Sales / Billing	Sales Incentive					
+ Essential	Services & AMC	Sales / Billing	Sales Transactions					
+ Essential	Services & AMC	Sales / Billing	Suspended Sales					
+ Essential	Services & AMC	Sales / Billing	Various Register Transactions					
+Enterprise	Services & AMC	Delivery	Delivery workflow Set UJp	Can Change as per Business Logic			2000	
+ Essential	Services & AMC	Challan	Challan Creation & Tracking					
+Enterprise	Services & AMC	Webshop	Developement eCommerce 				100000	
+Enterprise	Services & AMC	Webshop	CMS					1000
+Enterprise	Services & AMC	Webshop	Guest Orders					
+Enterprise	Services & AMC	Webshop	Product Availability					
+Enterprise	Services & AMC	Webshop	Registered User Management					
+Enterprise	Services & AMC	Webshop	Whatsapp Messages Workflows					
+Enterprise	Services & AMC	OmniChannel	3rd Party Aggregators					
+Enterprise	Services & AMC	OmniChannel	Integrate Existing Site 				10000	
+Enterprise	Services & AMC	OmniChannel	New Shopify Site				50000	
+Enterprise	Services & AMC	OmniChannel	Outlets, Dealers , B2C, Online					
+ Essential	Services & AMC	Purchase	Add Product on Purchase					
+ Essential	Services & AMC	Purchase	Good Received Notes					
+ Essential	Services & AMC	Purchase	Purchase by Barcode 					
+ Essential	Services & AMC	Purchase	Purchase using template CSV					
+Enterprise	Services & AMC	Inventory Management	3 P Orders					
+ Essential	Services & AMC	Inventory Management	Adjustments					
+Enterprise	Services & AMC	Inventory Management	Bill of Materials					
+Professional	Services & AMC	Inventory Management	Outlets / Franchises Sales					
+Enterprise	Services & AMC	Inventory Management	Production unit to Outlets / Franchises workflow					
+ Essential	Services & AMC	Inventory Management	Purchase					
+Enterprise	Services & AMC	Inventory Management	Raw Materials Management					1000
+ Essential	Services & AMC	Inventory Management	Retail Sale					
+ Essential	Services & AMC	Inventory Management	Return / Exchange					
+ Essential	Services & AMC	Inventory Management	Transfers					
+ Essential	Services & AMC	Inventory Management	Wholesale sale					
+ Essential	Services & AMC	Attendance	Capture Attendance using Face					
+ Essential	Services & AMC	Attendance	Check In, Check Out					
+Professional	Services & AMC	Attendance	Customer Sites Check Ins					
+Enterprise	Services & AMC	Field Force Management	Site Reports with Biometrics					1000
+ Essential	Services & AMC	Expenses	Expenses Maintainance					
+ Essential	Services & AMC	Expenses	Reports					
+ Essential	Services & AMC	Reports	Adjustment Reports					
+ Essential	Services & AMC	Reports	Best Seller 					
+ Essential	Services & AMC	Reports	Brands Report					
+ Essential	Services & AMC	Reports	Categories and Brand Chart details					
+ Essential	Services & AMC	Reports	Categories Report					
+ Essential	Services & AMC	Reports	Challans Report					
+ Essential	Services & AMC	Reports	Customer Ledgers					
+ Essential	Services & AMC	Reports	Customers Report					
+ Essential	Services & AMC	Reports	Customerwise Sale Report					
+ Essential	Services & AMC	Reports	Daily Purchases					
+ Essential	Services & AMC	Reports	Daily Sales					
+ Essential	Services & AMC	Reports	Deposit Ledgers					
+ Essential	Services & AMC	Reports	Deposit Recharge Report					
+ Essential	Services & AMC	Reports	Due Purchases Report					
+ Essential	Services & AMC	Reports	Due sales Report					
+ Essential	Services & AMC	Reports	Expenses Report					
+ Essential	Services & AMC	Reports	HSN Report					
+ Essential	Services & AMC	Reports	Monthly Purchases					
+ Essential	Services & AMC	Reports	Monthly Sales					
+ Essential	Services & AMC	Reports	Overview Chart					
+ Essential	Services & AMC	Reports	Payment  Summary 					
+ Essential	Services & AMC	Reports	Payment Chart Details					
+ Essential	Services & AMC	Reports	Payments Report					
+ Essential	Services & AMC	Reports	Product Expiry Alerts					
+ Essential	Services & AMC	Reports	Product Ledger					
+ Essential	Services & AMC	Reports	Product Quantity Alerts					
+ Essential	Services & AMC	Reports	Product varient purchase Report					
+ Essential	Services & AMC	Reports	Product varient stock Report					
+ Essential	Services & AMC	Reports	Products Combo Items					
+ Essential	Services & AMC	Reports	Products costing					
+ Essential	Services & AMC	Reports	Products profit and loss					
+ Essential	Services & AMC	Reports	Products Report					
+ Essential	Services & AMC	Reports	Products Transaction Report					
+ Essential	Services & AMC	Reports	Productwise Sale Report					
+ Essential	Services & AMC	Reports	Profit & Loss					
+ Essential	Services & AMC	Reports	Purchases Report					
+ Essential	Services & AMC	Reports	Purchases Report GST					
+ Essential	Services & AMC	Reports	Register Report					
+ Essential	Services & AMC	Reports	Sale Purchase Chart Details 					
+ Essential	Services & AMC	Reports	Sale Report					
+ Essential	Services & AMC	Reports	Sales extended Report					
+ Essential	Services & AMC	Reports	Sales GST Report					
+ Essential	Services & AMC	Reports	Sales person Report					
+ Essential	Services & AMC	Reports	Simple Tax / GST Reports					
+ Essential	Services & AMC	Reports	Staff Report					
+ Essential	Services & AMC	Reports	Suppliers Report					
+ Essential	Services & AMC	Reports	Tax Report					
+ Essential	Services & AMC	Reports	Transfer Reports 					
+ Essential	Services & AMC	Reports	Transfer Request Report					
+ Essential	Services & AMC	Reports	User Log Action 					
+ Essential	Services & AMC	Reports	Warehous Stock Chart					
+ Essential	Services & AMC	Reports	Warehouse Sales Report					
+ Essential	Services & AMC	Additional Features	Custom  Fields 					
+ Essential	Services & AMC	Additional Features	Notifications					
+ Essential	Services & AMC	Additional Features	Printer Options					
+Enterprise	Services & AMC	Additional Features	SMS Configurations					
+Enterprise	Services & AMC	OmniChannel	POS Orders					
+ElintOm	Services & AMC	Site Addresses	Customerwise Site Address Maintenance					
+ElintOm	Services & AMC	AMC	AMC Creation & Maintenance					
+ElintOm	Services & AMC	Services	Site Reports with Biometrics					
+ElintOm	Services & AMC	Services						
+ Essential	Retail	Users	Business Owner					
+ Essential	Retail	Users	Groups Permissions as per requirements					
+ Essential	Retail	People	Billers					
+ Essential	Retail	People	Customers					
+ Essential	Retail	People	Geo Location wise attendance system					
+ Essential	Retail	People	Suppliers					
+ Essential	Retail	People	Vendors					
+ Essential	Retail	Single Location	Single Location		1	Location	22000	2000
+ Professional	Retail	Multi Location 	Charges per location		1	Location	30000	3000
+ Professional	Retail	Multi Location + Multi GST	Charges per location		1	Location	40000	4000
+ Essential	Retail	Products	Barcode creation with Various Sizes & Symbology					
+ Essential	Retail	Products	Batch Management					
+ Essential	Retail	Products	Batchwise COA					
+ Essential	Retail	Products	Bulk Product Import					
+ Essential	Retail	Products	Catalog Management					
+ Essential	Retail	Products	Category Level Price Wise Tax Slab					
+ Essential	Retail	Products	Count Stock					
+ Essential	Retail	Products	Custom  Fields 					
+ Essential	Retail	Products	Customer Price Groups at product level					
+ Essential	Retail	Products	Expiry Alert					
+ Essential	Retail	Products	Inclusive / Exclusive Tax Options					
+ Essential	Retail	Products	Inventory Management					
+ Essential	Retail	Products	Locationwise Inventory Management					
+ Essential	Retail	Products	Product Level Tax % Specification					
+ Essential	Retail	Products	Product Types : Combo, Bundle, Loose, Raw Materials, Intermediate Product					
+ Essential	Retail	Products	Promotional Prices					
+ Essential	Retail	Products	Same Product in Multiple Categories					
+ Essential	Retail	Products	Seasonability					
+ Essential	Retail	Products	Shelf Life Management					
+ Essential	Retail	Products	Stock Alerts					
+ Essential	Retail	Products	Stock Check					
+ Essential	Retail	Products	Stock Count					
+ Essential	Retail	Products	Unlimited Products & Variants					
+ Essential	Retail	Products	Variants wise MRP , Cost , Price 					
+ Essential	Retail	Tax Management	Export Tally Compatible					
+ Essential	Retail	Tax Management	GST Export 					
+ Essential	Retail	Tax Management	Inclusive / Exclusive Tax methods					
+ Essential	Retail	Tax Management	Multiple Tax Rate Groups					
+ Essential	Retail	Tax Management	Product Level / Category Level Taxes					
+ Essential	Retail	Payment Modes	Cash					
+ Essential	Retail	Payment Modes	Cheque					
+ Essential	Retail	Payment Modes	Credit Card					
+ Essential	Retail	Payment Modes	Debit Card					
+ Essential	Retail	Payment Modes	Deposit					
+ Essential	Retail	Payment Modes	Gift Card					
+ Essential	Retail	Payment Modes	UPI					
+ Essential	Retail	Payment Gateways	CCAvenue				5000	0
+ Essential	Retail	Payment Gateways	Paypal				5000	0
+ Essential	Retail	Payment Gateways	Razorpay				5000	0
+ Enterprise	Retail	CRM	Leads - Customized sales funnel Phases					1000
+ Enterprise	Retail	CRM	Leads - Integration with Social Media Forms (FB, Meta)					
+ Enterprise	Retail	CRM	Leads - Leads Management					
+ Enterprise	Retail	CRM	Leads - Sleek Customer Conversion					
+ Essential	Retail	CRM	Customer Groups / Tags					
+ Essential	Retail	CRM	Customer Price Groups 					
+ Essential	Retail	CRM	Monthly Ledger					
+ Essential	Retail	CRM	Customized Whatsapp Flow		200	Workflow		
+ Essential	Retail	WhatsApp Integration	Invoice Receipt					
+ Essential	Retail	WhatsApp Integration	Reminders to customers for due Payments					
+ Essential	Retail	WhatsApp Integration	Set Up Fee.., Charges of Messages as actual				10000	
+ Enterprise	Retail	Sales / Billing	3p Orders					
+ Essential	Retail	Sales / Billing	Bank Deposit Register Display 					
+ Essential	Retail	Sales / Billing	Coupons					
+ Essential	Retail	Sales / Billing	Discounts					
+ Enterprise	Retail	Sales / Billing	eCommerce Sales					
+ Essential	Retail	Sales / Billing	Exchange / Return Sale					
+ Essential	Retail	Sales / Billing	Offers					
+ Essential	Retail	Sales / Billing	Sale by Barcode Scan					
+ Essential	Retail	Sales / Billing	Sales Import by CSV					
+ Essential	Retail	Sales / Billing	Sales Incentive					
+ Essential	Retail	Sales / Billing	Sales Transactions					
+ Essential	Retail	Sales / Billing	Suspended Sales					
+ Essential	Retail	Sales / Billing	Various Register Transactions					
+Enterprise	Retail	Delivery	Delivery workflow Set UJp	Can Change as per Business Logic			2000	
+ Essential	Retail	Challan	Challan Creation & Tracking					
+Enterprise	Retail	Webshop	eCommerce Setup				20000	
+Enterprise	Retail	Webshop	Guest Orders					
+Enterprise	Retail	Webshop	Product Availability					
+Enterprise	Retail	Webshop	Registered User Management					
+Enterprise	Retail	Webshop	Whatsapp Messages Workflows					
+ Essential	Retail	Purchase	Add Product on Purchase					
+ Essential	Retail	Purchase	Good Received Notes					
+ Essential	Retail	Purchase	Purchase by Barcode 					
+ Essential	Retail	Purchase	Purchase using template CSV					
+Enterprise	Retail	Inventory Management	3 P Orders					
+ Essential	Retail	Inventory Management	Adjustments					
+Enterprise	Retail	Inventory Management	Bill of Materials					
+Professional	Retail	Inventory Management	Outlets / Franchises Sales					
+Enterprise	Retail	Inventory Management	Production unit to Outlets / Franchises workflow					
+ Essential	Retail	Inventory Management	Purchase					
+Enterprise	Retail	Inventory Management	Raw Materials Management					1000
+ Essential	Retail	Inventory Management	Retail Sale					
+ Essential	Retail	Inventory Management	Return / Exchange					
+ Essential	Retail	Inventory Management	Transfers					
+ Essential	Retail	Inventory Management	Wholesale sale					
+ Essential	Retail	Attendance	Capture Attendance using Face					
+ Essential	Retail	Attendance	Check In, Check Out					
+Professional	Retail	Attendance	Customer Sites Check Ins					
+Enterprise	Retail	Field Force Management	Site Reports with Biometrics					1000
+ Essential	Retail	Expenses	Expenses Maintainance					
+ Essential	Retail	Expenses	Reports					
+ Essential	Retail	Reports	Adjustment Reports					
+ Essential	Retail	Reports	Best Seller 					
+ Essential	Retail	Reports	Brands Report					
+ Essential	Retail	Reports	Categories and Brand Chart details					
+ Essential	Retail	Reports	Categories Report					
+ Essential	Retail	Reports	Challans Report					
+ Essential	Retail	Reports	Customer Ledgers					
+ Essential	Retail	Reports	Customers Report					
+ Essential	Retail	Reports	Customerwise Sale Report					
+ Essential	Retail	Reports	Daily Purchases					
+ Essential	Retail	Reports	Daily Sales					
+ Essential	Retail	Reports	Deposit Ledgers					
+ Essential	Retail	Reports	Deposit Recharge Report					
+ Essential	Retail	Reports	Due Purchases Report					
+ Essential	Retail	Reports	Due sales Report					
+ Essential	Retail	Reports	Expenses Report					
+ Essential	Retail	Reports	HSN Report					
+ Essential	Retail	Reports	Monthly Purchases					
+ Essential	Retail	Reports	Monthly Sales					
+ Essential	Retail	Reports	Overview Chart					
+ Essential	Retail	Reports	Payment  Summary 					
+ Essential	Retail	Reports	Payment Chart Details					
+ Essential	Retail	Reports	Payments Report					
+ Essential	Retail	Reports	Product Expiry Alerts					
+ Essential	Retail	Reports	Product Ledger					
+ Essential	Retail	Reports	Product Quantity Alerts					
+ Essential	Retail	Reports	Product varient purchase Report					
+ Essential	Retail	Reports	Product varient stock Report					
+ Essential	Retail	Reports	Products Combo Items					
+ Essential	Retail	Reports	Products costing					
+ Essential	Retail	Reports	Products profit and loss					
+ Essential	Retail	Reports	Products Report					
+ Essential	Retail	Reports	Products Transaction Report					
+ Essential	Retail	Reports	Productwise Sale Report					
+ Essential	Retail	Reports	Profit & Loss					
+ Essential	Retail	Reports	Purchases Report					
+ Essential	Retail	Reports	Purchases Report GST					
+ Essential	Retail	Reports	Register Report					
+ Essential	Retail	Reports	Sale Purchase Chart Details 					
+ Essential	Retail	Reports	Sale Report					
+ Essential	Retail	Reports	Sales extended Report					
+ Essential	Retail	Reports	Sales GST Report					
+ Essential	Retail	Reports	Sales person Report					
+ Essential	Retail	Reports	Simple Tax / GST Reports					
+ Essential	Retail	Reports	Staff Report					
+ Essential	Retail	Reports	Suppliers Report					
+ Essential	Retail	Reports	Tax Report					
+ Essential	Retail	Reports	Transfer Reports 					
+ Essential	Retail	Reports	Transfer Request Report					
+ Essential	Retail	Reports	User Log Action 					
+ Essential	Retail	Reports	Warehous Stock Chart					
+ Essential	Retail	Reports	Warehouse Sales Report					

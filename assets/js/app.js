@@ -1,6 +1,39 @@
 // App JS: toasts and small UX helpers
 (function(){
+  function initSidebarCollapse() {
+    var toggle = document.getElementById('sidebarCollapseToggle');
+    var shell = document.getElementById('sidebarShell');
+    if (!toggle || !shell) {
+      return;
+    }
+
+    var storageKey = 'oms_sidebar_collapsed';
+
+    function applyCollapsed(collapsed) {
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    }
+
+    var saved = false;
+    try {
+      saved = localStorage.getItem(storageKey) === '1';
+    } catch (e) {}
+    applyCollapsed(saved);
+
+    toggle.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      var collapsed = !document.body.classList.contains('sidebar-collapsed');
+      applyCollapsed(collapsed);
+      try {
+        localStorage.setItem(storageKey, collapsed ? '1' : '0');
+      } catch (e) {}
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
+    initSidebarCollapse();
+
     // Auto-show bootstrap toasts
     var toastEls = [].slice.call(document.querySelectorAll('.toast'))
     toastEls.forEach(function(el){

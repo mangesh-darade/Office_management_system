@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swasthe — U.S. Market Entry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #c9a227;
+      --gold-dark: #a67c00;
+      --gold-light: #f5e6b8;
+      --gold-pale: #fff9e5;
+      --navy: #0d1b2a;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --white: #ffffff;
+      --overlay: rgba(13, 27, 42, 0.55);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text);
+      background: #f8f9fa;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 3rem;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .logo span.dot { color: #e63946; }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .btn-gold {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--gold);
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      padding: 0.65rem 1.25rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-gold:hover { background: var(--gold-dark); }
+
+    /* ── Hero ── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 4rem 3rem;
+      align-items: center;
+    }
+
+    .hero h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2.75rem;
+      line-height: 1.2;
+      color: var(--navy);
+      margin-bottom: 1.25rem;
+    }
+
+    .hero h1 em { font-style: italic; }
+
+    .hero p {
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 2rem;
+      max-width: 480px;
+    }
+
+    .hero-graphic {
+      background: linear-gradient(135deg, #e8eef5 0%, #d4dce8 100%);
+      border-radius: 12px;
+      height: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-graphic svg { width: 80%; max-width: 340px; }
+
+    .hero-graphic .caption {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--navy);
+    }
+
+    /* ── Features bar ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.5rem 3rem 4rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .feature { text-align: left; }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--gold-pale);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+      color: var(--gold-dark);
+    }
+
+    .feature h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: var(--navy);
+    }
+
+    .feature p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1.5rem;
+    }
+
+    .modal {
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+      max-width: 920px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+      position: relative;
+      max-height: 95vh;
+      overflow-y: auto;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--muted);
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      z-index: 10;
+    }
+
+    .modal-close:hover { background: #f3f4f6; color: var(--text); }
+
+    /* ── Form column ── */
+    .modal-form {
+      padding: 2.5rem 2rem 2rem 2.5rem;
+    }
+
+    .modal-form h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.65rem;
+      color: var(--navy);
+      margin-bottom: 0.75rem;
+      line-height: 1.3;
+      padding-right: 2rem;
+    }
+
+    .modal-form .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+
+    .form-group { margin-bottom: 1.1rem; }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+
+    .input-row {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--white);
+    }
+
+    .input-row:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15); }
+
+    .country-select {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0 0.75rem;
+      border-right: 1px solid var(--border);
+      background: #fafafa;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      cursor: default;
+    }
+
+    .country-select .flag { font-size: 1.1rem; }
+
+    .input-row input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--text);
+    }
+
+    .input-row input::placeholder { color: #9ca3af; }
+
+    .input-with-icon {
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding-left: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .input-with-icon:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15); }
+
+    .input-with-icon .icon { color: #9ca3af; flex-shrink: 0; }
+
+    .input-with-icon input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 0.7rem 0.85rem 0.7rem 0;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--text);
+    }
+
+    .input-with-icon input::placeholder { color: #9ca3af; }
+
+    .privacy-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 1.25rem 0 1.5rem;
+    }
+
+    .privacy-note svg { flex-shrink: 0; margin-top: 1px; color: #9ca3af; }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--gold);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 0.9rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+    }
+
+    .btn-submit:hover { background: var(--gold-dark); }
+
+    /* ── Timeline column ── */
+    .modal-timeline {
+      background: #fafafa;
+      padding: 2.5rem 2rem 2rem 2.5rem;
+      border-left: 1px solid var(--border);
+    }
+
+    .modal-timeline h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.65rem;
+      color: var(--navy);
+      margin-bottom: 1.75rem;
+    }
+
+    .timeline { position: relative; padding-left: 0; }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 24px;
+      bottom: 80px;
+      width: 2px;
+      border-left: 2px dashed var(--gold);
+    }
+
+    .timeline-step {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+      position: relative;
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      background: var(--gold-pale);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gold-dark);
+      z-index: 1;
+    }
+
+    .step-content h3 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.35rem;
+    }
+
+    .step-content p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .growth-box {
+      background: var(--gold-pale);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      margin-top: 0.5rem;
+    }
+
+    .growth-box .shield-icon {
+      color: var(--gold-dark);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .growth-box strong {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--navy);
+      margin-bottom: 0.25rem;
+    }
+
+    .growth-box p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .site-header { flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+      .nav { display: none; }
+      .hero { grid-template-columns: 1fr; padding: 2rem 1.5rem; }
+      .hero h1 { font-size: 2rem; }
+      .features { grid-template-columns: 1fr 1fr; padding: 2rem 1.5rem; }
+      .modal { grid-template-columns: 1fr; }
+      .modal-timeline { border-left: none; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background page -->
+  <header class="site-header">
+    <a href="#" class="logo">swasth<span class="dot">e</span></a>
+    <nav>
+      <ul class="nav">
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Solutions</a></li>
+        <li><a href="#">Services</a></li>
+        <li><a href="#">Resources</a></li>
+        <li><a href="#">About Us</a></li>
+        <li><a href="#">Get Started</a></li>
+      </ul>
+    </nav>
+    <a href="#" class="btn-gold">Get a Free U.S. Market Entry Audit &rsaquo;</a>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Enter and Scale the U.S. Market <em>Without</em> Setting Up Local Operations.</h1>
+      <p>Swasthe helps global manufacturers and brands enter, operate, and scale in the U.S. market — without the cost and complexity of setting up local operations.</p>
+      <a href="#" class="btn-gold">Get a Free U.S. Market Entry Audit &rsaquo;</a>
+    </div>
+    <div class="hero-graphic">
+      <svg viewBox="0 0 360 200" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M60 160 L80 100 L100 120 L130 70 L160 90 L190 50 L220 80 L250 60 L280 90 L300 40 L320 70 L340 50" stroke="#c9a227" stroke-width="3" fill="none"/>
+        <rect x="270" y="30" width="12" height="40" fill="#c9a227" opacity="0.6" rx="2"/>
+        <rect x="288" y="20" width="12" height="50" fill="#c9a227" opacity="0.8" rx="2"/>
+        <rect x="306" y="10" width="12" height="60" fill="#c9a227" rx="2"/>
+        <path d="M30 170 C50 140, 80 130, 120 135 C160 140, 200 120, 250 125 C290 128, 320 115, 340 100" stroke="#0d1b2a" stroke-width="1.5" fill="rgba(13,27,42,0.08)"/>
+      </svg>
+      <span class="caption">U.S. Market Growth</span>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Compliance-Ready</h3>
+      <p>Built for U.S. regulations and marketplace policies.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      </div>
+      <h3>Marketplace Expertise</h3>
+      <p>Proven success on Amazon, Walmart, and beyond.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      </div>
+      <h3>Performance-Aligned Model</h3>
+      <p>We grow when you grow. Aligned with your outcomes.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
+      </div>
+      <h3>U.S. Growth Systems</h3>
+      <p>End-to-end systems to launch, scale, and sustain growth.</p>
+    </div>
+  </section>
+
+  <!-- Modal -->
+  <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <button class="modal-close" type="button" aria-label="Close">&times;</button>
+
+      <!-- Left: Form -->
+      <div class="modal-form">
+        <h2 id="modal-title">Let's Start Your U.S. Expansion Journey</h2>
+        <p class="subtitle">Share a few details and our team will reach out to learn more about your business and guide you toward a successful U.S. entry.</p>
+
+        <form action="#" method="post">
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <div class="input-row">
+              <div class="country-select">
+                <span class="flag">&#127482;&#127480;</span>
+                <span>+1</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              <input type="tel" id="phone" name="phone" placeholder="(201) 555-0123">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <div class="input-with-icon">
+              <span class="icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
+              </span>
+              <input type="email" id="email" name="email" placeholder="youremail@company.com">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="location">Location (City / State)</label>
+            <div class="input-with-icon">
+              <span class="icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </span>
+              <input type="text" id="location" name="location" placeholder="e.g., Austin, TX">
+            </div>
+          </div>
+
+          <div class="privacy-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Your information is secure and will only be used by our team to contact you.</span>
+          </div>
+
+          <button type="submit" class="btn-submit">Submit &amp; Connect with Our Team &rsaquo;</button>
+        </form>
+      </div>
+
+      <!-- Right: Timeline -->
+      <div class="modal-timeline">
+        <h2>What to Expect Next</h2>
+
+        <div class="timeline">
+          <div class="timeline-step">
+            <div class="step-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </div>
+            <div class="step-content">
+              <h3>1. We'll Reach Out</h3>
+              <p>A member of our team will contact you within 1 business day to learn more about your business and goals.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="step-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="step-content">
+              <h3>2. Understand Your Needs</h3>
+              <p>We'll ask a few key questions to understand your products, target market, and expansion objectives.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="step-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="step-content">
+              <h3>3. Schedule a Consultation</h3>
+              <p>We'll schedule a consultation call to discuss a tailored U.S. market entry strategy for your business.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="growth-box">
+          <span class="shield-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <div>
+            <strong>Your Growth Partner in the U.S.</strong>
+            <p>From market entry to scale, we're with you at every step.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

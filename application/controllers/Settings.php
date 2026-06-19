@@ -13,7 +13,7 @@ class Settings extends CI_Controller {
         $this->load->model('Type_model','module_types');
         
         // RBAC Audit: Centralized module access check
-        require_module_access(['settings', 'leave_types', 'holidays', 'types'], true);
+        require_module_access(['settings', 'leave_types', 'holidays', 'types', 'subscription_builder'], true);
         
         $this->ensure_leave_types_schema();
         $this->ensure_holidays_schema();
@@ -778,5 +778,255 @@ class Settings extends CI_Controller {
         }
         $this->session->set_flashdata('success', 'Type deleted successfully.');
         redirect('settings/types');
+    }
+
+    private function ensure_subscription_builder_schema()
+    {
+        $this->load->helper('subscription_builder_schema');
+        subscription_builder_schema_ensure($this->db);
+    }
+
+    private function load_subscription_builder_model()
+    {
+        $this->load->model('Subscription_builder_model', 'subscription_builder');
+        $this->ensure_subscription_builder_schema();
+    }
+
+    private function subscription_builder_filters_from_request()
+    {
+        return array(
+            'plan' => trim((string) $this->input->get('plan')),
+            'industry' => trim((string) $this->input->get('industry')),
+            'module' => trim((string) $this->input->get('module')),
+            'search' => trim((string) $this->input->get('q')),
+        );
+    }
+
+    private function subscription_builder_validate_payload()
+    {
+        $plan = trim((string) $this->input->post('plan'));
+        $industry = trim((string) $this->input->post('industry'));
+        $module = trim((string) $this->input->post('module'));
+        $feature = trim((string) $this->input->post('feature'));
+
+        if ($plan === '' || $industry === '' || $module === '' || $feature === '') {
+            return array('ok' => false, 'error' => 'Plan, industry, module, and feature are required.');
+        }
+
+        return array(
+            'ok' => true,
+            'data' => array(
+                'plan' => $plan,
+                'industry' => $industry,
+                'module' => $module,
+                'feature' => $feature,
+                'details' => trim((string) $this->input->post('details')),
+                'per_item_set_up_charges' => $this->input->post('per_item_set_up_charges'),
+                'item_unit' => trim((string) $this->input->post('item_unit')),
+                'common_set_up_fees' => $this->input->post('common_set_up_fees'),
+                'per_item_per_month_maintenances' => $this->input->post('per_item_per_month_maintenances'),
+            ),
+        );
+    }
+
+    // GET /settings/subscription-builder
+    public function subscription_builder_catalog()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $this->load_subscription_builder_model();
+
+        $filters = $this->subscription_builder_filters_from_request();
+        $page = max(1, (int) $this->input->get('page'));
+        $per_page = 50;
+        $total = $this->subscription_builder->count_filtered($filters);
+        $total_pages = max(1, (int) ceil($total / $per_page));
+        if ($page > $total_pages) {
+            $page = $total_pages;
+        }
+        $offset = ($page - 1) * $per_page;
+        $rows = $this->subscription_builder->get_paginated($filters, $per_page, $offset);
+
+        $this->load->view('settings/subscription_builder/index', array(
+            'rows' => $rows,
+            'filters' => $filters,
+            'plans' => $this->subscription_builder->get_distinct_plans(),
+            'industries' => $this->subscription_builder->get_distinct_industries(),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $per_page,
+            'total_pages' => $total_pages,
+        ));
+    }
+
+    // GET/POST /settings/subscription-builder/create
+    public function subscription_builder_create()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $this->load_subscription_builder_model();
+
+        if ($this->input->method() === 'post') {
+            $validated = $this->subscription_builder_validate_payload();
+            if (!$validated['ok']) {
+                $this->session->set_flashdata('error', $validated['error']);
+                redirect('settings/subscription-builder/create');
+                return;
+            }
+            $id = $this->subscription_builder->create($validated['data']);
+            if (!$id) {
+                $this->session->set_flashdata('error', 'Unable to save catalog row.');
+                redirect('settings/subscription-builder/create');
+                return;
+            }
+            $this->load->helper('activity');
+            log_activity('subscription_builder', 'created', $id, 'Catalog row: ' . $validated['data']['feature']);
+            $this->session->set_flashdata('success', 'Catalog row added successfully.');
+            redirect('settings/subscription-builder');
+            return;
+        }
+
+        $this->load->view('settings/subscription_builder/form', array(
+            'action' => 'create',
+            'row' => null,
+            'plans' => $this->subscription_builder->get_plan_order(),
+            'industries' => $this->subscription_builder->get_industry_order(),
+        ));
+    }
+
+    // GET/POST /settings/subscription-builder/{id}/edit
+    public function subscription_builder_edit($id)
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $this->load_subscription_builder_model();
+        $row = $this->subscription_builder->find((int) $id);
+        if (!$row) {
+            show_404();
+        }
+
+        if ($this->input->method() === 'post') {
+            $validated = $this->subscription_builder_validate_payload();
+            if (!$validated['ok']) {
+                $this->session->set_flashdata('error', $validated['error']);
+                redirect('settings/subscription-builder/' . (int) $id . '/edit');
+                return;
+            }
+            $this->subscription_builder->update((int) $id, $validated['data']);
+            $this->load->helper('activity');
+            log_activity('subscription_builder', 'updated', (int) $id, 'Catalog row: ' . $validated['data']['feature']);
+            $this->session->set_flashdata('success', 'Catalog row updated successfully.');
+            redirect('settings/subscription-builder');
+            return;
+        }
+
+        $this->load->view('settings/subscription_builder/form', array(
+            'action' => 'edit',
+            'row' => $row,
+            'plans' => $this->subscription_builder->get_plan_order(),
+            'industries' => $this->subscription_builder->get_industry_order(),
+        ));
+    }
+
+    // POST /settings/subscription-builder/{id}/delete
+    public function subscription_builder_delete($id)
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+        }
+        $this->load_subscription_builder_model();
+        $row = $this->subscription_builder->find((int) $id);
+        if (!$row) {
+            $this->session->set_flashdata('error', 'Catalog row not found.');
+            redirect('settings/subscription-builder');
+            return;
+        }
+        $this->subscription_builder->delete((int) $id);
+        $this->load->helper('activity');
+        log_activity('subscription_builder', 'deleted', (int) $id, 'Catalog row: ' . $row->feature);
+        $this->session->set_flashdata('success', 'Catalog row deleted successfully.');
+        redirect('settings/subscription-builder');
+    }
+
+    // POST /settings/subscription-builder/import
+    public function subscription_builder_import()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $this->load_subscription_builder_model();
+
+        if (empty($_FILES['import_file']['name'])) {
+            $this->session->set_flashdata('error', 'Please choose a file to import.');
+            redirect('settings/subscription-builder');
+            return;
+        }
+
+        $ext = strtolower(pathinfo($_FILES['import_file']['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, array('tsv', 'txt', 'csv', 'xlsx'), true)) {
+            $this->session->set_flashdata('error', 'Invalid file type. Upload .tsv, .txt, .csv, or .xlsx.');
+            redirect('settings/subscription-builder');
+            return;
+        }
+
+        $parsed = array();
+        if ($ext === 'xlsx') {
+            $this->load->helper('subscription_builder_import');
+            $grid = subscription_builder_parse_xlsx_file($_FILES['import_file']['tmp_name']);
+            if (empty($grid)) {
+                $this->session->set_flashdata('error', 'Unable to read Excel file. Use the sample XLSX format.');
+                redirect('settings/subscription-builder');
+                return;
+            }
+            $parsed = $this->subscription_builder->parse_import_grid($grid);
+        } else {
+            $content = file_get_contents($_FILES['import_file']['tmp_name']);
+            if ($content === false || trim($content) === '') {
+                $this->session->set_flashdata('error', 'Import file is empty.');
+                redirect('settings/subscription-builder');
+                return;
+            }
+            $parsed = $this->subscription_builder->parse_import_content($content);
+        }
+        if (empty($parsed)) {
+            $this->session->set_flashdata('error', 'No valid rows found in import file.');
+            redirect('settings/subscription-builder');
+            return;
+        }
+
+        $replace_all = $this->input->post('replace_all') ? true : false;
+        $inserted = $this->subscription_builder->import_parsed_rows($parsed, $replace_all);
+        $this->load->helper('activity');
+        log_activity('subscription_builder', 'imported', 0, 'Imported ' . $inserted . ' catalog rows' . ($replace_all ? ' (replaced all)' : ''));
+
+        $this->session->set_flashdata('success', $inserted . ' catalog row(s) imported successfully.');
+        redirect('settings/subscription-builder');
+    }
+
+    // GET /settings/subscription-builder/sample-csv
+    public function subscription_builder_sample_csv()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $path = FCPATH . 'database/subscription_builder_import_sample.csv';
+        if (!is_file($path)) {
+            show_404();
+        }
+        $this->output
+            ->set_content_type('text/csv')
+            ->set_header('Content-Disposition: attachment; filename="subscription_builder_import_sample.csv"')
+            ->set_output(file_get_contents($path));
+    }
+
+    // GET /settings/subscription-builder/sample-xlsx
+    public function subscription_builder_sample_xlsx()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $path = FCPATH . 'database/subscription_builder_import_sample.xlsx';
+        if (!is_file($path)) {
+            show_404();
+        }
+        $this->output
+            ->set_content_type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->set_header('Content-Disposition: attachment; filename="subscription_builder_import_sample.xlsx"')
+            ->set_output(file_get_contents($path));
     }
 }

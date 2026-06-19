@@ -545,6 +545,59 @@ if (!function_exists('seed_engagement_rewards_permissions_if_needed')) {
     }
 }
 
+if (!function_exists('seed_subscription_builder_permissions_if_needed')) {
+    /**
+     * Grant Subscription Builder to admin roles by default.
+     */
+    function seed_subscription_builder_permissions_if_needed()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions') || !$CI->db->table_exists('roles')) {
+            return;
+        }
+        $CI->load->helper('schema_columns');
+
+        $admin_role_ids = array();
+        if (schema_table_has_column($CI->db, 'roles', 'group_type')) {
+            $rows = $CI->db->select('id')->from('roles')->where('group_type', 'admin')->get()->result();
+            foreach ($rows as $r) {
+                $admin_role_ids[(int) $r->id] = true;
+            }
+        }
+        if (empty($admin_role_ids)) {
+            foreach (array(1, 2, 3) as $rid) {
+                $admin_role_ids[$rid] = true;
+            }
+        }
+
+        $keys = array('subscription_builder', 'subscription_builder_list');
+        foreach ($admin_role_ids as $role_id => $_) {
+            foreach ($keys as $module) {
+                $exists = $CI->db
+                    ->where('role_id', (int) $role_id)
+                    ->where('module', $module)
+                    ->limit(1)
+                    ->get('permissions')
+                    ->row();
+                if ($exists) {
+                    continue;
+                }
+                $CI->db->insert('permissions', array(
+                    'role_id'    => (int) $role_id,
+                    'module'     => $module,
+                    'can_access' => 1,
+                ));
+            }
+        }
+    }
+}
+
 if (!function_exists('seed_project_extensions_permissions_if_needed')) {
     /**
      * Grant Releases (admin) and Defects (all staff report, admin full) under Project menu.
@@ -720,6 +773,9 @@ if (!function_exists('get_controller_module_access_map')) {
             'clients' => [
                 'clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete',
                 'clients_view', 'clients_export',
+            ],
+            'subscription_builder' => [
+                'subscription_builder', 'subscription_builder_list',
             ],
             'payroll' => ['payroll', 'payroll_view', 'payroll_manage'],
             'expenses' => [

@@ -69,10 +69,21 @@ document.addEventListener('DOMContentLoaded', function() {
     sidebarApplyInitialOpen();
     sidebarClearParentActiveWhenChildActive();
 });
+(function() {
+    try {
+        if (localStorage.getItem('oms_sidebar_collapsed') === '1') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    } catch (e) {}
+})();
 </script>
-<aside class="d-none d-md-block col-md-3 col-lg-2 sidebar-left">
+<div class="sidebar-shell d-none d-md-block col-md-3 col-lg-2" id="sidebarShell">
+<aside class="sidebar-left h-100" id="appSidebar">
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
+      <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
+      <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>
@@ -735,6 +746,7 @@ document.addEventListener('DOMContentLoaded', function() {
         has_module_access('admin') ||
         has_module_access('statuses') ||
         has_module_access('types') ||
+        has_module_access('subscription_builder') ||
         has_module_access('approvals') ||
         has_module_access('lead_mapping') ||
         ((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (has_module_access('shifts') || has_module_access('shifts_manage'))))
@@ -745,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
         <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays'], true)) ? 'active' : ''; ?>" href="#">
+          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
             <i class="bi bi-gear me-2"></i>Settings
           </a>
           <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
@@ -765,6 +777,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('holidays') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('subscription_builder')): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false)?'active':''; ?>" href="<?php echo site_url('settings/subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder Catalog</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
@@ -801,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays'], true)))?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false))?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php $this->load->view('partials/sidebar_guide_nav', ['guide_nav_variant' => 'desktop']); ?>
       <hr class="my-2 border-secondary">
@@ -809,4 +824,8 @@ document.addEventListener('DOMContentLoaded', function() {
     </nav>
   </div>
 </aside>
+<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true" title="Collapse sidebar">
+  <i class="bi bi-chevron-left"></i>
+</button>
+</div>
 

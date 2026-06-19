@@ -1,0 +1,11 @@
+Plan,Industry,Module,Feature,Details,Per Item Set Up Charges,Item Unit,Common Set Up Fees,Per Item Per Month Maintenances
+Essential,Retail,Users,Business Owner,,,,
+Essential,Retail,People,Customers,,,,
+Essential,Retail,Products,Inventory Management,,,,
+Essential,Retail,Products,Barcode creation,,,,
+Essential,Retail,Single Location,Single Location,,,Location,22000,2000
+Professional,Retail,Multi Location,Charges per location,,,Location,30000,3000
+Professional,Retail,CRM,Lead Management,Basic CRM module,,,5000,500
+Enterprise,Retail,Webshop,Online Store,Optional e-commerce addon,,,15000,1500
+Essential,Food & Beverages,Users,Business Owner,,,,
+Essential,Food & Beverages,KOT,Kitchen Order Tickets,,,,

@@ -338,6 +338,8 @@ class Permissions extends CI_Controller {
                     'clients_delete'       => 'Delete Client',
                     'clients_view'         => 'View Client Detail',
                     'clients_export'       => 'Export Clients CSV',
+                    'subscription_builder'       => 'Subscription Builder (Full Access)',
+                    'subscription_builder_list'  => 'View Subscription Builder Catalog',
                     'payroll'              => 'Payroll (Full Access)',
                     'payroll_view'         => 'View Own Payslips',
                     'payroll_manage'       => 'Manage Salary Structures & Generate Payslips',

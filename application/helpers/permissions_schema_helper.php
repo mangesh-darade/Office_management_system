@@ -99,5 +99,8 @@ if (!function_exists('permissions_schema_ensure')) {
         if (function_exists('seed_project_extensions_permissions_if_needed')) {
             seed_project_extensions_permissions_if_needed();
         }
+        if (function_exists('seed_subscription_builder_permissions_if_needed')) {
+            seed_subscription_builder_permissions_if_needed();
+        }
     }
 }
