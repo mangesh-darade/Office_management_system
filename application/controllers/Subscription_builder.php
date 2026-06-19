@@ -83,9 +83,10 @@ class Subscription_builder extends CI_Controller
     public function quote_preview()
     {
         require_module_access(array('subscription_builder', 'subscription_builder_list'), true);
-        $quote = $this->parse_quote_post();
+        $quote = $this->parse_quote_request();
         if (empty($quote)) {
-            show_error('Invalid quotation data.', 400);
+            $this->session->set_flashdata('error', 'No quotation to preview. Open Subscription Builder, configure your quote, then click Preview Quotation.');
+            redirect('subscription-builder');
             return;
         }
         $this->load->helper('subscription_builder_quote');
@@ -96,9 +97,10 @@ class Subscription_builder extends CI_Controller
     public function quote_pdf()
     {
         require_module_access(array('subscription_builder', 'subscription_builder_list'), true);
-        $quote = $this->parse_quote_post();
+        $quote = $this->parse_quote_request();
         if (empty($quote)) {
-            show_error('Invalid quotation data.', 400);
+            $this->session->set_flashdata('error', 'No quotation data available. Build a quote on the Subscription Builder page first.');
+            redirect('subscription-builder');
             return;
         }
         $this->load->helper('subscription_builder_quote');
@@ -108,11 +110,22 @@ class Subscription_builder extends CI_Controller
         subscription_builder_quote_send_pdf($html, $filename);
     }
 
-    private function parse_quote_post()
+    private function parse_quote_request()
     {
-        $raw = $this->input->post('quote_json');
         $this->load->helper('subscription_builder_quote');
-        return subscription_builder_quote_parse_payload($raw);
+        $raw = $this->input->post('quote_json');
+        $quote = subscription_builder_quote_parse_payload($raw);
+        if (!empty($quote)) {
+            $this->session->set_userdata('subscription_builder_last_quote', json_encode($quote));
+            return $quote;
+        }
+
+        $stored = $this->session->userdata('subscription_builder_last_quote');
+        if ($stored) {
+            return subscription_builder_quote_parse_payload($stored);
+        }
+
+        return array();
     }
 
     private function json_response($payload, $status = 200)
