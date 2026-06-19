@@ -74,11 +74,10 @@ if (!function_exists('subscription_builder_quote_resolve_logo_path')) {
     function subscription_builder_quote_resolve_logo_path()
     {
         $candidates = array(
-            'uploads/settings/branding/sateri-digital-logo-quote-header-2x.png',
             'uploads/settings/branding/sateri-digital-logo-quote-header.png',
+            'uploads/settings/d0c4bd77a2b7606a41fca0a6bfda35e4.png',
             'uploads/settings/branding/sateri-digital-logo-transparent.png',
             'uploads/settings/branding/sateri-digital-logo-2000w.png',
-            'uploads/settings/branding/sateri-digital-logo-1024.png',
         );
         foreach ($candidates as $candidate) {
             $absolute = FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
@@ -177,7 +176,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $logo_uri = subscription_builder_quote_logo_data_uri(subscription_builder_quote_resolve_logo_path());
         $logo_html = '';
         if ($logo_uri !== '') {
-            $logo_html = '<img src="' . $logo_uri . '" alt="' . $company_name . '" class="sq-logo" />';
+            $logo_html = '<img src="' . $logo_uri . '" alt="' . $company_name . '" class="sq-logo" width="211" height="84" />';
         }
 
         $plan = htmlspecialchars((string) ($quote['plan_display'] ?? $quote['plan'] ?? ''), ENT_QUOTES, 'UTF-8');
@@ -186,7 +185,26 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $generated_date = date('d M Y');
         $generated_time = date('h:i A');
         $valid_until = date('d M Y', strtotime('+30 days'));
-        $site_url = htmlspecialchars(rtrim(base_url(), '/'), ENT_QUOTES, 'UTF-8');
+        $site_url = htmlspecialchars('https://sateridigital.com', ENT_QUOTES, 'UTF-8');
+        $site_url_link = '<a href="' . $site_url . '" class="sq-website-link" target="_blank" rel="noopener noreferrer">' . $site_url . '</a>';
+
+        $company_block = '<div class="sq-company-name">' . $company_name . '</div>'
+            . '<div class="sq-company-meta">'
+            . ($company_address !== '' ? $company_address . '<br>' : '')
+            . ($company_phone !== '' ? 'Phone: ' . $company_phone . ' &nbsp;|&nbsp; ' : '')
+            . ($company_email !== '' ? 'Email: ' . $company_email . '<br>' : '')
+            . 'Website: ' . $site_url_link
+            . '</div>';
+
+        if ($logo_html === '') {
+            $header_row = '<tr><td class="sq-header-cell" colspan="3">' . $company_block . '</td></tr>';
+        } else {
+            $header_row = '<tr>'
+                . '<td class="sq-logo-cell">' . $logo_html . '</td>'
+                . '<td class="sq-company-cell">' . $company_block . '</td>'
+                . '<td class="sq-header-spacer">&nbsp;</td>'
+                . '</tr>';
+        }
 
         $total_setup = subscription_builder_quote_money($quote['total_setup'] ?? 0);
         $total_monthly = subscription_builder_quote_money($quote['total_monthly'] ?? 0);
@@ -219,32 +237,6 @@ if (!function_exists('subscription_builder_quote_render_html')) {
             $print_btn = '<div class="sq-toolbar no-print">'
                 . '<button type="button" onclick="window.print()">Print / Save as PDF</button>'
                 . '</div>';
-        }
-
-        $logo_cell = '<td class="sq-logo-cell">' . $logo_html . '</td>';
-        $spacer_cell = '<td class="sq-header-spacer">&nbsp;</td>';
-        if ($logo_html === '') {
-            $header_row = '<tr><td colspan="3" class="sq-company-cell">'
-                . '<div class="sq-company-name">' . $company_name . '</div>'
-                . '<div class="sq-company-meta">'
-                . ($company_address !== '' ? $company_address . '<br>' : '')
-                . ($company_phone !== '' ? 'Phone: ' . $company_phone . ' &nbsp;|&nbsp; ' : '')
-                . ($company_email !== '' ? 'Email: ' . $company_email . '<br>' : '')
-                . 'Website: ' . $site_url
-                . '</div></td></tr>';
-        } else {
-            $header_row = '<tr>'
-                . $logo_cell
-                . '<td class="sq-company-cell">'
-                . '<div class="sq-company-name">' . $company_name . '</div>'
-                . '<div class="sq-company-meta">'
-                . ($company_address !== '' ? $company_address . '<br>' : '')
-                . ($company_phone !== '' ? 'Phone: ' . $company_phone . ' &nbsp;|&nbsp; ' : '')
-                . ($company_email !== '' ? 'Email: ' . $company_email . '<br>' : '')
-                . 'Website: ' . $site_url
-                . '</div></td>'
-                . $spacer_cell
-                . '</tr>';
         }
 
         return '<!DOCTYPE html>
@@ -292,56 +284,75 @@ if (!function_exists('subscription_builder_quote_render_html')) {
   .sq-header-band {
     background: var(--sq-brand);
     color: #fff;
-    padding: 18px 22px 16px;
+    padding: 10px 18px;
   }
   .sq-header-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
   }
   .sq-header-table td {
     vertical-align: middle;
     border: none;
     padding: 0;
   }
-  .sq-logo-cell {
-    width: 229px;
-    padding-right: 18px !important;
+  .sq-header-cell {
+    text-align: center;
     vertical-align: middle;
+    padding: 0;
+  }
+  .sq-logo-cell {
+    width: 211px;
+    vertical-align: middle;
+    text-align: left;
+    padding: 0;
   }
   .sq-header-spacer {
-    width: 229px;
-    padding-left: 18px !important;
+    width: 211px;
     vertical-align: middle;
+    padding: 0;
   }
   .sq-logo {
     display: block;
-    width: auto;
+    width: 211px;
     height: 84px;
     max-width: 211px;
     max-height: 84px;
+    margin: 0;
     object-fit: contain;
+    object-position: left center;
     background: transparent;
     padding: 0;
     border: 0;
     border-radius: 0;
-    image-rendering: -webkit-optimize-contrast;
   }
   .sq-company-cell {
     text-align: center;
     vertical-align: middle;
+    padding: 0 8px;
   }
   .sq-company-name {
     font-size: 18px;
     font-weight: 700;
     letter-spacing: 0.4px;
-    margin: 0 0 4px;
+    margin: 0 0 2px;
     text-align: center;
+    line-height: 1.2;
   }
   .sq-company-meta {
     font-size: 10px;
     opacity: 0.95;
-    line-height: 1.5;
+    line-height: 1.35;
     text-align: center;
+    margin: 0;
+  }
+  .sq-header-band a.sq-website-link {
+    color: #fff;
+    text-decoration: underline;
+  }
+  .sq-footer a.sq-website-link {
+    color: var(--sq-brand);
+    text-decoration: underline;
   }
   .sq-title-bar {
     background: var(--sq-brand-light);
@@ -634,7 +645,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
 
   <div class="sq-footer">
     <strong>' . $company_name . '</strong> &mdash; Subscription Builder Quotation<br>
-    ' . $site_url . ' &nbsp;|&nbsp; ' . $company_email . ' &nbsp;|&nbsp; ' . $company_phone . '
+    ' . $site_url_link . ' &nbsp;|&nbsp; ' . $company_email . ' &nbsp;|&nbsp; ' . $company_phone . '
   </div>
 </div>
 </body>
