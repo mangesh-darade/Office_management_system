@@ -66,15 +66,18 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
       </div>
     </section>
 
-    <section class="sb-section sb-section-addons">
-      <div class="sb-section-head sb-addons-head justify-content-between flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
+    <section class="sb-section sb-section-addons" id="sb-addons-section">
+      <div class="sb-section-head sb-section-head-toggle-wrap">
+        <button type="button" class="sb-section-head-toggle" id="sb-addons-toggle" aria-expanded="true" aria-controls="sb-addons-body">
           <span class="sb-step">4</span>
-          <h2 class="sb-section-title mb-0">Chargeable Add-ons</h2>
-        </div>
-        <input type="search" id="sb-addon-search" class="form-control form-control-sm sb-search-input" placeholder="Search module or feature…">
+          <span class="sb-section-chevron" aria-hidden="true"><i class="bi bi-chevron-down"></i></span>
+          <span class="sb-section-title mb-0">Chargeable Add-ons</span>
+        </button>
       </div>
-      <div id="sb-addons-wrap" class="sb-addons-body">
+      <div id="sb-addons-body" class="sb-addons-body sb-section-body">
+        <div class="sb-addons-toolbar">
+          <input type="search" id="sb-addon-search" class="form-control form-control-sm sb-search-input" placeholder="Search module or feature…">
+        </div>
         <div class="table-responsive sb-addons-table-wrap sb-scroll-area">
           <table class="table table-sm sb-addons-table mb-0">
             <colgroup>
@@ -103,7 +106,7 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
                 <th class="text-end">Total Mo.</th>
               </tr>
             </thead>
-            <tbody id="sb-addons-body">
+            <tbody id="sb-addons-rows">
               <tr><td colspan="10" class="text-center text-muted py-3">Select plan and industry to load add-ons.</td></tr>
             </tbody>
           </table>

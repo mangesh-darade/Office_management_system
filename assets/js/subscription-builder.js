@@ -12,7 +12,8 @@
     includedExpanded: false,
     includedSectionOpen: true,
     planSectionOpen: true,
-    industrySectionOpen: true
+    industrySectionOpen: true,
+    addonsSectionOpen: true
   };
 
   var planDescriptions = {
@@ -30,7 +31,7 @@
     'Services & AMC': 'bi-tools'
   };
 
-  var INCLUDED_PREVIEW_ROWS = 3;
+  var INCLUDED_PREVIEW_ROWS = 2;
   var INCLUDED_COLS = 6;
   var INCLUDED_PREVIEW_COUNT = INCLUDED_PREVIEW_ROWS * INCLUDED_COLS;
 
@@ -65,7 +66,7 @@
   }
 
   function setLoading(on) {
-    $('#sb-included-wrap, #sb-addons-wrap').closest('.sb-section-scroll, .sb-section-addons').toggleClass('opacity-50', on);
+    $('#sb-included-wrap, #sb-addons-body').closest('.sb-section-scroll, .sb-section-addons').toggleClass('opacity-50', on);
     $('#sb-loading').toggleClass('d-none', !on);
   }
 
@@ -144,6 +145,21 @@
       updateIncludedViewAllButton(state.catalog.included_count || 0);
     } else {
       $('#sb-included-view-all').toggleClass('d-none', !state.includedSectionOpen);
+    }
+  }
+
+  function updateAddonsSectionCollapse() {
+    setSectionCollapsed('#sb-addons-section', '#sb-addons-toggle', '#sb-addons-body', state.addonsSectionOpen);
+  }
+
+  function isDesktopLayout() {
+    return window.matchMedia('(min-width: 1200px)').matches;
+  }
+
+  function applyDesktopSectionDefaults() {
+    if (isDesktopLayout()) {
+      state.planSectionOpen = false;
+      state.industrySectionOpen = false;
     }
   }
 
@@ -243,7 +259,7 @@
   function renderAddons() {
     var list = filteredChargeable();
     if (!list.length) {
-      $('#sb-addons-body').html('<tr><td colspan="10" class="text-center text-muted py-4">No chargeable add-ons for this plan and industry.</td></tr>');
+      $('#sb-addons-rows').html('<tr><td colspan="10" class="text-center text-muted py-4">No chargeable add-ons for this plan and industry.</td></tr>');
       return;
     }
 
@@ -280,7 +296,7 @@
       html += '<td class="text-end sb-money sb-line-monthly">' + formatMoney(line.monthly) + '</td>';
       html += '</tr>';
     });
-    $('#sb-addons-body').html(html);
+    $('#sb-addons-rows').html(html);
   }
 
   function renderSummary() {
@@ -473,6 +489,11 @@
       updateIncludedSectionCollapse();
     });
 
+    $('#sb-addons-toggle').on('click', function () {
+      state.addonsSectionOpen = !state.addonsSectionOpen;
+      updateAddonsSectionCollapse();
+    });
+
     $(document).on('click', '.sb-qty-minus', function () {
       var id = $(this).data('id');
       var val = Math.max(0, (parseInt(state.qty[id], 10) || 0) - 1);
@@ -526,9 +547,11 @@
     renderPlans();
     renderIndustries();
     bindEvents();
+    applyDesktopSectionDefaults();
     updatePlanSectionCollapse();
     updateIndustrySectionCollapse();
     updateIncludedSectionCollapse();
+    updateAddonsSectionCollapse();
     loadCatalog();
   });
 })(jQuery);
