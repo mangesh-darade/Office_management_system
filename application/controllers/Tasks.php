@@ -5,7 +5,7 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns','validation']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
         
@@ -120,6 +120,8 @@ class Tasks extends CI_Controller {
     {
         // Check create permission specifically
         require_module_access(['tasks_add', 'tasks'], true);
+
+        $this->_ensure_reference_url_column();
         
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
@@ -170,6 +172,13 @@ class Tasks extends CI_Controller {
             if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
                 $data['project_ids'] = $project_ids_json;
             }
+            $reference_url = normalize_optional_url($this->input->post('reference_url'));
+            if ($reference_url === false) {
+                $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
+                redirect('tasks/create');
+                return;
+            }
+            $data['reference_url'] = $reference_url;
             // If a requirement is selected, override the title with the requirement's title if title is empty
             if ($requirement_id && empty($data['title'])) {
                 $reqTitleRow = $this->db->select('title')->from('requirements')->where('id', (int)$requirement_id)->get()->row();
@@ -385,7 +394,7 @@ class Tasks extends CI_Controller {
         $html .= '<div class="col-md-8">';
         
         // Task title and status
-        $html .= '<h4 class="mb-3">' . htmlspecialchars($task->title) . '</h4>';
+        $html .= '<h4 class="mb-3">' . esc_view($task->title) . '</h4>';
         $html .= '<div class="d-flex gap-2 mb-3">';
         $status_labels = ['pending' => 'Pending', 'in_progress' => 'In Progress', 'completed' => 'Completed', 'blocked' => 'Blocked'];
         $status_colors = ['pending' => 'secondary', 'in_progress' => 'info', 'completed' => 'success', 'blocked' => 'danger'];
@@ -439,14 +448,14 @@ class Tasks extends CI_Controller {
         // Project
         if (!empty($task->project_name)) {
             $html .= '<div class="mb-3">';
-            $html .= '<small class="text-muted">Project:</small><br><strong>' . htmlspecialchars($task->project_name) . '</strong>';
+            $html .= '<small class="text-muted">Project:</small><br><strong>' . esc_view($task->project_name) . '</strong>';
             $html .= '</div>';
         }
         
         // Requirement
         if (!empty($task->requirement_title)) {
             $html .= '<div class="mb-3">';
-            $html .= '<small class="text-muted">Requirement:</small><br><strong>' . htmlspecialchars($task->requirement_title) . '</strong>';
+            $html .= '<small class="text-muted">Requirement:</small><br><strong>' . esc_view($task->requirement_title) . '</strong>';
             $html .= '</div>';
         }
         
@@ -454,7 +463,7 @@ class Tasks extends CI_Controller {
         $assignee = $assigneeName($task);
         if (!empty($assignee)) {
             $html .= '<div class="mb-3">';
-            $html .= '<small class="text-muted">Assigned to:</small><br><strong>' . htmlspecialchars($assignee) . '</strong>';
+            $html .= '<small class="text-muted">Assigned to:</small><br><strong>' . esc_view($assignee) . '</strong>';
             $html .= '</div>';
         }
         
@@ -462,7 +471,7 @@ class Tasks extends CI_Controller {
         $creator = $creatorName($task);
         if (!empty($creator)) {
             $html .= '<div class="mb-3">';
-            $html .= '<small class="text-muted">Created by:</small><br><strong>' . htmlspecialchars($creator) . '</strong>';
+            $html .= '<small class="text-muted">Created by:</small><br><strong>' . esc_view($creator) . '</strong>';
             $html .= '</div>';
         }
         
@@ -549,6 +558,8 @@ class Tasks extends CI_Controller {
     {
         // Check edit permission specifically
         require_module_access(['tasks_edit', 'tasks'], true);
+
+        $this->_ensure_reference_url_column();
         
         // Initialize variables
         $requirements = [];
@@ -602,6 +613,13 @@ class Tasks extends CI_Controller {
             if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
                 $data['project_ids'] = $project_ids_json;
             }
+            $reference_url = normalize_optional_url($this->input->post('reference_url'));
+            if ($reference_url === false) {
+                $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
+                redirect('tasks/'.$id.'/edit');
+                return;
+            }
+            $data['reference_url'] = $reference_url;
             // Only set updated_by if the column exists in tasks table
             if (schema_table_has_column($this->db, 'tasks', 'updated_by')) {
                 $data['updated_by'] = $user_id;
@@ -1300,5 +1318,16 @@ class Tasks extends CI_Controller {
         $tasks = $this->db->get()->result();
                           
         $this->output->set_output(json_encode($tasks));
+    }
+
+    private function _ensure_reference_url_column()
+    {
+        if (!$this->db->table_exists('tasks')) {
+            return;
+        }
+        $fields = $this->db->list_fields('tasks');
+        if (!in_array('reference_url', $fields, true)) {
+            $this->db->query("ALTER TABLE `tasks` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL");
+        }
     }
 }

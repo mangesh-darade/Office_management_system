@@ -74,25 +74,25 @@
 
         <div class="btn-group btn-group-sm mw-view-toggle" role="group" aria-label="View mode">
 
-          <a class="btn <?php echo $toolbar_mode === 'overview' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($overviewUrl); ?>" title="My Work Overview">
+          <a class="btn <?php echo $toolbar_mode === 'overview' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo esc_view($overviewUrl); ?>" title="My Work Overview">
 
             <i class="bi bi-grid-1x2 me-1"></i><span class="d-none d-sm-inline">Overview</span>
 
           </a>
 
-          <a class="btn <?php echo $toolbar_mode === 'list' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($listUrl); ?>">
+          <a class="btn <?php echo $toolbar_mode === 'list' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo esc_view($listUrl); ?>">
 
             <i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">List</span>
 
           </a>
 
-          <a class="btn <?php echo $toolbar_mode === 'board' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($boardUrl); ?>">
+          <a class="btn <?php echo $toolbar_mode === 'board' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo esc_view($boardUrl); ?>">
 
             <i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Board</span>
 
           </a>
 
-          <a class="btn <?php echo $toolbar_mode === 'matrix' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo htmlspecialchars($matrixUrl); ?>" title="Eisenhower priority matrix">
+          <a class="btn <?php echo $toolbar_mode === 'matrix' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo esc_view($matrixUrl); ?>" title="Eisenhower priority matrix">
 
             <i class="bi bi-grid-3x3-gap me-1"></i><span class="d-none d-sm-inline">Matrix</span>
 
@@ -104,7 +104,7 @@
 
         <div class="mw-toolbar-cta">
 
-          <a class="btn btn-sm mw-btn-quick-add" href="<?php echo htmlspecialchars($quickAddUrl, ENT_QUOTES, 'UTF-8'); ?>" title="Quick add — full screen with rich text and attachments">
+          <a class="btn btn-sm mw-btn-quick-add" href="<?php echo esc_view($quickAddUrl); ?>" title="Quick add — full screen with rich text and attachments">
 
             <i class="bi bi-lightning-charge-fill me-1"></i><span class="d-none d-sm-inline">Quick add</span><span class="d-inline d-sm-none">Quick</span>
 

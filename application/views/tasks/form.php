@@ -47,8 +47,8 @@
                  <?php if (!empty($projects)): ?>
                    <?php foreach ($projects as $p): ?>
                      <option value="<?php echo (int)$p->id; ?>" <?php echo in_array((int)$p->id, $curProjIds) ? 'selected' : ''; ?>>
-                       <?php echo htmlspecialchars($p->name ?: 'Project #' . $p->id); ?>
-                       <?php if (isset($p->code) && $p->code): ?> (<?php echo htmlspecialchars($p->code); ?>)<?php endif; ?>
+                       <?php echo esc_view($p->name ?: 'Project #' . $p->id); ?>
+                       <?php if (isset($p->code) && $p->code): ?> (<?php echo esc_view($p->code); ?>)<?php endif; ?>
                      </option>
                    <?php endforeach; ?>
                  <?php endif; ?>
@@ -65,7 +65,7 @@
          </div>
         <div class="col-md-8">
           <label class="form-label">Title <span class="text-danger">*</span></label>
-          <input required type="text" name="title" class="form-control" value="<?php echo isset($task) ? htmlspecialchars($task->title) : ''; ?>" placeholder="Enter task title" id="task-title-input">
+          <input required type="text" name="title" class="form-control" value="<?php echo isset($task) ? esc_view($task->title) : ''; ?>" placeholder="Enter task title" id="task-title-input">
         </div>
         <?php if (isset($requirements) && is_array($requirements) && count($requirements) > 0): ?>
         <div class="col-md-12" id="requirement-container">
@@ -85,10 +85,10 @@
             <?php foreach ($requirements as $r): ?>
               <option value="<?php echo (int)$r->id; ?>" 
                       data-project-id="<?php echo isset($r->project_id)?(int)$r->project_id:0; ?>" 
-                      data-title="<?php echo htmlspecialchars($r->title); ?>"
+                      data-title="<?php echo esc_view($r->title); ?>"
                       <?php echo $curReq===(int)$r->id?'selected':''; ?>>
-                <?php echo htmlspecialchars($r->title); ?> 
-                <?php if (isset($r->req_number)): ?>(<?php echo htmlspecialchars($r->req_number); ?>)<?php endif; ?>
+                <?php echo esc_view($r->title); ?> 
+                <?php if (isset($r->req_number)): ?>(<?php echo esc_view($r->req_number); ?>)<?php endif; ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -102,7 +102,7 @@
           <label class="form-label">
             <i class="bi bi-file-text me-1"></i>Description
           </label>
-          <textarea id="task-description" name="description" rows="10" class="form-control" placeholder="Enter task description..."><?php echo isset($task) ? htmlspecialchars($task->description) : ''; ?></textarea>
+          <textarea id="task-description" name="description" rows="10" class="form-control" placeholder="Enter task description..."><?php echo isset($task) ? esc_view($task->description) : ''; ?></textarea>
           <div class="form-text">
             <i class="bi bi-info-circle me-1"></i>
             Use the toolbar above to format text: <strong>Bold</strong>, <em>Italic</em>, <u>Underline</u>, colors, fonts, and more.
@@ -141,7 +141,7 @@
                 $label = $label ? $label.' ('.$u->email.')' : $u->email;
               ?>
               <option value="<?php echo (int)$u->id; ?>" <?php echo $curUser===(int)$u->id?'selected':''; ?>>
-                <?php echo htmlspecialchars($label); ?>
+                <?php echo esc_view($label); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -170,7 +170,7 @@
                 $selected = ($current_status === $st->code) ? 'selected' : '';
                 $icon = $st->icon ? '<i class="bi bi-'.$st->icon.'"></i> ' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($st->code); ?>" <?php echo $selected; ?>><?php echo $icon.htmlspecialchars($st->name); ?></option>
+              <option value="<?php echo esc_view($st->code); ?>" <?php echo $selected; ?>><?php echo $icon.esc_view($st->name); ?></option>
             <?php 
               endforeach; 
             else: 
@@ -179,7 +179,7 @@
               foreach ($fallback_statuses as $code => $name):
                 $selected = ($current_status === $code) ? 'selected' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($name); ?></option>
+              <option value="<?php echo esc_view($code); ?>" <?php echo $selected; ?>><?php echo esc_view($name); ?></option>
             <?php 
               endforeach; 
             endif; 
@@ -197,6 +197,11 @@
             <i class="bi bi-calendar-check me-1"></i>Due Date
           </label>
           <input type="date" name="due_date" class="form-control" value="<?php echo isset($task) && isset($task->due_date) && $task->due_date ? date('Y-m-d', strtotime($task->due_date)) : ''; ?>">
+        </div>
+        <div class="col-md-12">
+          <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
+          <input type="url" name="reference_url" class="form-control" value="<?php echo isset($task) && !empty($task->reference_url) ? esc_view($task->reference_url) : ''; ?>" placeholder="https://example.com/task-details">
+          <div class="form-text">Optional. Paste any web link related to this task.</div>
         </div>
       </div>
       <div class="mt-4 d-flex gap-2">

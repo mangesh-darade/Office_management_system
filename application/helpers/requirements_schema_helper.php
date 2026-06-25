@@ -44,6 +44,7 @@ if (!function_exists('requirements_schema_ensure')) {
         if ($db->table_exists('requirements')){
             $fields = $db->list_fields('requirements');
             if (!in_array('owner_id', $fields, true)) { $db->query("ALTER TABLE `requirements` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
+            if (!in_array('reference_url', $fields, true)) { $db->query("ALTER TABLE `requirements` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL"); }
         }
         if (!$db->table_exists('requirement_attachments')){
             $sql2 = "CREATE TABLE `requirement_attachments` (
@@ -101,6 +102,7 @@ if (!function_exists('requirements_schema_ensure')) {
         if ($db->table_exists('requirement_versions')){
             $vfields = $db->list_fields('requirement_versions');
             if (!in_array('owner_id', $vfields, true)) { $db->query("ALTER TABLE `requirement_versions` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
+            if (!in_array('reference_url', $vfields, true)) { $db->query("ALTER TABLE `requirement_versions` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL"); }
         }
     }
 }

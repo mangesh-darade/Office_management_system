@@ -25,7 +25,7 @@ if ($guide_variant === 'mobile'): ?>
       <a class="nav-link sidebar-link small <?php echo ($guide_nav_active && $guide_sub === '') ? 'active' : ''; ?>" href="<?php echo site_url('guide'); ?>"><i class="bi bi-grid me-2"></i>All Modules</a>
       <?php foreach ($guide_modules as $gm): ?>
       <a class="nav-link sidebar-link small <?php echo ($guide_nav_active && $guide_sub === $gm['slug']) ? 'active' : ''; ?>" href="<?php echo site_url('guide/' . $gm['slug']); ?>">
-        <i class="bi <?php echo htmlspecialchars($gm['icon'], ENT_QUOTES, 'UTF-8'); ?> me-2"></i><?php echo htmlspecialchars($gm['id'] . '. ' . $gm['title'], ENT_QUOTES, 'UTF-8'); ?>
+        <i class="bi <?php echo esc_view($gm['icon']); ?> me-2"></i><?php echo esc_view($gm['id'] . '. ' . $gm['title']); ?>
       </a>
       <?php endforeach; ?>
     </div>
@@ -46,7 +46,7 @@ if ($guide_variant === 'mobile'): ?>
       <a class="submenu-link <?php echo ($guide_nav_active && $guide_sub === '') ? 'active' : ''; ?>" href="<?php echo site_url('guide'); ?>"><i class="bi bi-grid me-1"></i>All Modules</a>
       <?php foreach ($guide_modules as $gm): ?>
       <a class="submenu-link <?php echo ($guide_nav_active && $guide_sub === $gm['slug']) ? 'active' : ''; ?>" href="<?php echo site_url('guide/' . $gm['slug']); ?>">
-        <i class="bi <?php echo htmlspecialchars($gm['icon'], ENT_QUOTES, 'UTF-8'); ?> me-1"></i><?php echo htmlspecialchars($gm['id'] . '. ' . $gm['title'], ENT_QUOTES, 'UTF-8'); ?>
+        <i class="bi <?php echo esc_view($gm['icon']); ?> me-1"></i><?php echo esc_view($gm['id'] . '. ' . $gm['title']); ?>
       </a>
       <?php endforeach; ?>
     </div>

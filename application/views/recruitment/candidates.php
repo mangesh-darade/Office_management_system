@@ -20,7 +20,7 @@
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show">
-      <i class="bi bi-check-circle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <i class="bi bi-check-circle-fill me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -35,7 +35,7 @@
             <option value="">— All Jobs —</option>
             <?php foreach ($jobs as $j): ?>
               <option value="<?php echo $j->id; ?>" <?php echo ($job_id == $j->id) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($j->title); ?>
+                <?php echo esc_view($j->title); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -88,13 +88,13 @@
               ?>
               <tr>
                 <td>
-                  <div class="fw-semibold"><?php echo htmlspecialchars($c->first_name . ' ' . $c->last_name); ?></div>
+                  <div class="fw-semibold"><?php echo esc_view($c->first_name . ' ' . $c->last_name); ?></div>
                   <?php if ($c->phone): ?>
-                    <small class="text-muted"><?php echo htmlspecialchars($c->phone); ?></small>
+                    <small class="text-muted"><?php echo esc_view($c->phone); ?></small>
                   <?php endif; ?>
                 </td>
-                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars($c->job_title ? $c->job_title : '—'); ?></td>
-                <td class="d-none d-sm-table-cell"><?php echo htmlspecialchars($c->email); ?></td>
+                <td class="d-none d-md-table-cell"><?php echo esc_view($c->job_title ? $c->job_title : '—'); ?></td>
+                <td class="d-none d-sm-table-cell"><?php echo esc_view($c->email); ?></td>
                 <td><span class="badge bg-<?php echo $badge; ?>"><?php echo ucfirst($c->status); ?></span></td>
                 <td class="d-none d-md-table-cell"><?php echo date('d M Y', strtotime($c->created_at)); ?></td>
                 <td class="text-end">

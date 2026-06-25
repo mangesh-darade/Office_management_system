@@ -14,10 +14,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-sm">
@@ -41,8 +41,8 @@
           <?php if (isset($rows) && is_array($rows) && count($rows)): ?>
             <?php foreach ($rows as $row): ?>
               <tr>
-                <td><?php echo htmlspecialchars($row->holiday_date); ?></td>
-                <td><?php echo htmlspecialchars($row->name); ?></td>
+                <td><?php echo esc_view($row->holiday_date); ?></td>
+                <td><?php echo esc_view($row->name); ?></td>
                 <td>
                   <?php if ($row->status === 'active'): ?>
                     <span class="badge bg-success">Active</span>

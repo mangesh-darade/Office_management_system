@@ -85,7 +85,7 @@ class Subscription_builder extends CI_Controller
         require_module_access(array('subscription_builder', 'subscription_builder_list'), true);
         $quote = $this->parse_quote_request();
         if (empty($quote)) {
-            $this->session->set_flashdata('error', 'No quotation to preview. Open Subscription Builder, configure your quote, then click Preview Quotation.');
+            $this->session->set_flashdata('error', 'No proposal to preview. Open Subscription Builder, configure your proposal, then click Preview Proposal.');
             redirect('subscription-builder');
             return;
         }
@@ -99,14 +99,32 @@ class Subscription_builder extends CI_Controller
         require_module_access(array('subscription_builder', 'subscription_builder_list'), true);
         $quote = $this->parse_quote_request();
         if (empty($quote)) {
-            $this->session->set_flashdata('error', 'No quotation data available. Build a quote on the Subscription Builder page first.');
+            $this->session->set_flashdata('error', 'No proposal data available. Build a proposal on the Subscription Builder page first.');
             redirect('subscription-builder');
             return;
         }
         $this->load->helper('subscription_builder_quote');
         $html = subscription_builder_quote_render_html($quote, false);
-        $slug = preg_replace('/[^a-z0-9]+/i', '_', (string) ($quote['plan'] ?? 'quote'));
-        $filename = 'subscription_quote_' . strtolower($slug) . '_' . date('Y-m-d') . '.pdf';
+        $slug = preg_replace('/[^a-z0-9]+/i', '_', (string) ($quote['plan'] ?? 'proposal'));
+        $filename = 'elintom_proposal_' . strtolower($slug) . '_' . date('Y-m-d_His') . '.pdf';
+        $document_path = subscription_builder_quote_save_pdf($html, $filename);
+
+        if ($document_path !== '') {
+            $this->load->helper('elintom_proposals_schema');
+            elintom_proposals_schema_ensure($this->db);
+            $this->load->model('Elintom_proposals_model', 'elintom_proposals');
+            $proposal_id = $this->elintom_proposals->create(array(
+                'client_name' => $quote['client_name'] ?? '',
+                'client_business' => $quote['client_business'] ?? '',
+                'document_path' => $document_path,
+                'created_by' => (int) $this->session->userdata('user_id'),
+            ));
+            if ($proposal_id) {
+                $this->load->helper('activity');
+                log_activity('elintom_proposals', 'created', $proposal_id, 'Proposal saved for ' . trim((string) ($quote['client_name'] ?? 'client')));
+            }
+        }
+
         subscription_builder_quote_send_pdf($html, $filename);
     }
 

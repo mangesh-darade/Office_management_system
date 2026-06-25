@@ -13,13 +13,13 @@
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show">
-      <i class="bi bi-check-circle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <i class="bi bi-check-circle-fill me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show">
-      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -36,7 +36,7 @@
       <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0">
           <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
-            <span class="fw-semibold">Period: <?php echo htmlspecialchars($a->period); ?></span>
+            <span class="fw-semibold">Period: <?php echo esc_view($a->period); ?></span>
             <?php
               $badge = ['draft' => 'secondary', 'submitted' => 'info', 'approved' => 'success'];
               $b = isset($badge[$a->status]) ? $badge[$a->status] : 'secondary';
@@ -53,10 +53,10 @@
                 (<?php echo (int)$a->rating; ?>/5)
               </dd>
               <dt class="col-5 text-muted">KPI Score</dt>
-              <dd class="col-7"><?php echo htmlspecialchars($a->kpi_score); ?></dd>
+              <dd class="col-7"><?php echo esc_view($a->kpi_score); ?></dd>
               <?php if ($a->comments): ?>
               <dt class="col-5 text-muted">Manager Notes</dt>
-              <dd class="col-7"><?php echo htmlspecialchars($a->comments); ?></dd>
+              <dd class="col-7"><?php echo esc_view($a->comments); ?></dd>
               <?php endif; ?>
             </dl>
 
@@ -67,7 +67,7 @@
                   <i class="bi bi-star<?php echo ($i <= (int)$a->self_rating) ? '-fill text-warning' : ' text-muted'; ?>"></i>
                 <?php endfor; ?>
                 <?php if ($a->self_comments): ?>
-                  <br><em><?php echo htmlspecialchars($a->self_comments); ?></em>
+                  <br><em><?php echo esc_view($a->self_comments); ?></em>
                 <?php endif; ?>
               </div>
             <?php else: ?>

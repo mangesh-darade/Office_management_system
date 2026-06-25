@@ -73,12 +73,12 @@
 
 <?php if($this->session->flashdata('success')): ?>
   <div class="alert alert-success fade show" role="alert">
-    <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <i class="bi bi-check-circle me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
   </div>
 <?php endif; ?>
 <?php if($this->session->flashdata('error')): ?>
   <div class="alert alert-danger fade show" role="alert">
-    <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <i class="bi bi-exclamation-triangle me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
   </div>
 <?php endif; ?>
 
@@ -109,7 +109,7 @@
               <?php if (!empty($user->avatar) && file_exists('./' . $user->avatar)): ?>
                 <img src="<?php echo base_url($user->avatar); ?>" alt="Profile Avatar" id="avatarPreview">
               <?php else: ?>
-                <div class="avatar-placeholder"><?php echo htmlspecialchars($initial); ?></div>
+                <div class="avatar-placeholder"><?php echo esc_view($initial); ?></div>
               <?php endif; ?>
             </div>
             <div>
@@ -158,17 +158,17 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Display Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars(isset($user->name) ? $user->name : ''); ?>" required placeholder="Enter your display name">
+          <input type="text" name="name" class="form-control" value="<?php echo esc_view(isset($user->name) ? $user->name : ''); ?>" required placeholder="Enter your display name">
         </div>
         
         <div class="col-md-6">
           <label class="form-label">Email Address <span class="text-danger">*</span></label>
-          <input type="email" name="email" class="form-control" value="<?php echo htmlspecialchars(isset($user->email) ? $user->email : ''); ?>" required placeholder="your.email@example.com">
+          <input type="email" name="email" class="form-control" value="<?php echo esc_view(isset($user->email) ? $user->email : ''); ?>" required placeholder="your.email@example.com">
         </div>
         
         <div class="col-md-6">
           <label class="form-label">Phone Number</label>
-          <input type="tel" name="phone" class="form-control" value="<?php echo htmlspecialchars(isset($user->phone) ? $user->phone : (isset($employee->phone) ? $employee->phone : '')); ?>" placeholder="+1 (555) 123-4567" maxlength="10" pattern="[0-9]{10}" title="Please enter exactly 10 digits">
+          <input type="tel" name="phone" class="form-control" value="<?php echo esc_view(isset($user->phone) ? $user->phone : (isset($employee->phone) ? $employee->phone : '')); ?>" placeholder="+1 (555) 123-4567" maxlength="10" pattern="[0-9]{10}" title="Please enter exactly 10 digits">
           <div class="form-text">Enter 10-digit mobile number without country code</div>
         </div>
         
@@ -200,32 +200,32 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">First Name</label>
-          <input type="text" name="first_name" class="form-control" value="<?php echo htmlspecialchars(isset($employee->first_name) ? $employee->first_name : ''); ?>" placeholder="Enter first name">
+          <input type="text" name="first_name" class="form-control" value="<?php echo esc_view(isset($employee->first_name) ? $employee->first_name : ''); ?>" placeholder="Enter first name">
         </div>
         
         <div class="col-md-6">
           <label class="form-label">Last Name</label>
-          <input type="text" name="last_name" class="form-control" value="<?php echo htmlspecialchars(isset($employee->last_name) ? $employee->last_name : ''); ?>" placeholder="Enter last name">
+          <input type="text" name="last_name" class="form-control" value="<?php echo esc_view(isset($employee->last_name) ? $employee->last_name : ''); ?>" placeholder="Enter last name">
         </div>
         
         <div class="col-md-6">
           <label class="form-label">Department</label>
-          <input type="text" name="department" class="form-control" value="<?php echo htmlspecialchars(isset($employee->department) ? $employee->department : ''); ?>" placeholder="e.g., Engineering, Marketing">
+          <input type="text" name="department" class="form-control" value="<?php echo esc_view(isset($employee->department) ? $employee->department : ''); ?>" placeholder="e.g., Engineering, Marketing">
         </div>
         
         <div class="col-md-6">
           <label class="form-label">Designation</label>
-          <input type="text" name="designation" class="form-control" value="<?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : ''); ?>" placeholder="e.g., Senior Developer">
+          <input type="text" name="designation" class="form-control" value="<?php echo esc_view(isset($employee->designation) ? $employee->designation : ''); ?>" placeholder="e.g., Senior Developer">
         </div>
         
         <div class="col-12">
           <label class="form-label">Address</label>
-          <textarea name="address" class="form-control" rows="2" placeholder="Enter your address"><?php echo htmlspecialchars(isset($employee->address) ? $employee->address : ''); ?></textarea>
+          <textarea name="address" class="form-control" rows="2" placeholder="Enter your address"><?php echo esc_view(isset($employee->address) ? $employee->address : ''); ?></textarea>
         </div>
         
         <div class="col-12">
           <label class="form-label">Bio</label>
-          <textarea name="bio" class="form-control" rows="3" placeholder="Tell us about yourself..."><?php echo htmlspecialchars(isset($employee->bio) ? $employee->bio : ''); ?></textarea>
+          <textarea name="bio" class="form-control" rows="3" placeholder="Tell us about yourself..."><?php echo esc_view(isset($employee->bio) ? $employee->bio : ''); ?></textarea>
           <div class="form-text">Brief description about yourself (visible to team members)</div>
         </div>
       </div>

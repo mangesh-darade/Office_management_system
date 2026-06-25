@@ -37,7 +37,7 @@ class MY_Security extends CI_Security {
             . '<style>body{font-family:system-ui,sans-serif;background:#f5f7fa;margin:0;padding:2rem;display:flex;align-items:center;justify-content:center;min-height:100vh}'
             . '.box{max-width:520px;background:#fff;border-radius:12px;padding:2rem;box-shadow:0 4px 16px rgba(0,0,0,.08)}'
             . 'h1{margin:0 0 1rem;font-size:1.35rem}p{color:#4b5563;line-height:1.6}a{color:#2563eb}</style></head><body>'
-            . '<div class="box"><h1>Upload too large</h1><p>' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p>'
+            . '<div class="box"><h1>Upload too large</h1><p>' . htmlspecialchars((string)($message ?? ''), ENT_QUOTES, 'UTF-8') . '</p>'
             . '<p><a href="javascript:history.back()">&larr; Go back</a></p></div></body></html>';
         exit;
     }

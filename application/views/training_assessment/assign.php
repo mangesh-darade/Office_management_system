@@ -12,7 +12,7 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <div class="container py-4">
   <h1 class="h4 mb-3">Assign assessment</h1>
-  <p class="text-muted"><?php echo htmlspecialchars($assessment->title); ?></p>
+  <p class="text-muted"><?php echo esc_view($assessment->title); ?></p>
 
   <?php if ($qCount < 1): ?>
     <div class="alert alert-danger">
@@ -22,10 +22,10 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
   <?php endif; ?>
 
   <?php if ($flashSuccess): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($flashSuccess); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($flashSuccess); ?></div>
   <?php endif; ?>
   <?php if ($flashError): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($flashError); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($flashError); ?></div>
   <?php endif; ?>
 
   <?php if (!empty($lastLink)): ?>
@@ -35,7 +35,7 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
     </div>
     <div class="card-body">
       <?php if ($lastEmailStatus === 'sent' && !empty($lastEmailTo)): ?>
-        <p class="small text-success mb-2"><i class="bi bi-envelope-check me-1"></i>Email sent to <strong><?php echo htmlspecialchars($lastEmailTo); ?></strong></p>
+        <p class="small text-success mb-2"><i class="bi bi-envelope-check me-1"></i>Email sent to <strong><?php echo esc_view($lastEmailTo); ?></strong></p>
       <?php elseif ($lastEmailStatus === 'skipped'): ?>
         <p class="small text-warning mb-2"><i class="bi bi-envelope-exclamation me-1"></i>SMTP not configured — send this link manually or set up email in Settings.</p>
       <?php elseif ($lastEmailStatus === 'failed'): ?>
@@ -44,14 +44,14 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
         <p class="small text-warning mb-2"><i class="bi bi-person-exclamation me-1"></i>No email on file — share the link below with the assignee.</p>
       <?php endif; ?>
       <p class="mb-2">
-        <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars($lastLink); ?>" target="_blank" rel="noopener">
+        <a class="btn btn-sm btn-outline-primary" href="<?php echo esc_view($lastLink); ?>" target="_blank" rel="noopener">
           <i class="bi bi-box-arrow-up-right me-1"></i>Open assessment
         </a>
       </p>
       <label class="form-label small text-muted mb-1">Copy link</label>
       <div class="input-group input-group-sm">
-        <input type="text" class="form-control font-monospace small ta-copy-src" readonly value="<?php echo htmlspecialchars($lastLink); ?>" id="ta-last-link-input">
-        <button type="button" class="btn btn-outline-secondary ta-copy-btn" data-ta-copy-target="ta-last-link-input" data-ta-copy-text="<?php echo htmlspecialchars($lastLink, ENT_QUOTES, 'UTF-8'); ?>" title="Copy to clipboard" aria-label="Copy assessment link">
+        <input type="text" class="form-control font-monospace small ta-copy-src" readonly value="<?php echo esc_view($lastLink); ?>" id="ta-last-link-input">
+        <button type="button" class="btn btn-outline-secondary ta-copy-btn" data-ta-copy-target="ta-last-link-input" data-ta-copy-text="<?php echo esc_view($lastLink); ?>" title="Copy to clipboard" aria-label="Copy assessment link">
           <i class="bi bi-clipboard"></i> Copy
         </button>
       </div>
@@ -105,7 +105,7 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
                   }
                   $line = $disp . ($em !== '' ? ' — ' . $em : '');
               ?>
-                <option value="<?php echo $uid; ?>"><?php echo htmlspecialchars($line); ?></option>
+                <option value="<?php echo $uid; ?>"><?php echo esc_view($line); ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -151,7 +151,7 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
               <select name="department" class="form-select" required <?php echo $qCount < 1 ? 'disabled' : ''; ?>>
                 <option value="">— Select —</option>
                 <?php foreach ($departments as $d): ?>
-                  <option value="<?php echo htmlspecialchars($d); ?>"><?php echo htmlspecialchars($d); ?></option>
+                  <option value="<?php echo esc_view($d); ?>"><?php echo esc_view($d); ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
@@ -198,19 +198,19 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
           <?php
             $takeUrl = site_url('training-assessment/take/' . rawurlencode($as->access_token));
             if (!empty($as->user_id)) {
-              $who = htmlspecialchars(trim($as->user_name . ' — ' . $as->user_email));
+              $who = esc_view(trim($as->user_name . ' — ' . $as->user_email));
             } else {
-              $who = htmlspecialchars(trim($as->candidate_name . ' — ' . $as->candidate_email)) . ' <span class="badge bg-secondary">Candidate</span>';
+              $who = esc_view(trim($as->candidate_name . ' — ' . $as->candidate_email)) . ' <span class="badge bg-secondary">Candidate</span>';
             }
           ?>
           <tr>
             <td><?php echo $who; ?></td>
-            <td class="small text-muted"><?php echo htmlspecialchars($as->assigned_at); ?></td>
+            <td class="small text-muted"><?php echo esc_view($as->assigned_at); ?></td>
             <td class="small">
-              <a href="<?php echo htmlspecialchars($takeUrl); ?>" target="_blank" rel="noopener" class="text-break"><?php echo htmlspecialchars($takeUrl); ?></a>
+              <a href="<?php echo esc_view($takeUrl); ?>" target="_blank" rel="noopener" class="text-break"><?php echo esc_view($takeUrl); ?></a>
             </td>
             <td class="text-end text-nowrap">
-              <button type="button" class="btn btn-outline-secondary btn-sm ta-copy-btn" data-ta-copy-text="<?php echo htmlspecialchars($takeUrl, ENT_QUOTES, 'UTF-8'); ?>" title="Copy link" aria-label="Copy link">
+              <button type="button" class="btn btn-outline-secondary btn-sm ta-copy-btn" data-ta-copy-text="<?php echo esc_view($takeUrl); ?>" title="Copy link" aria-label="Copy link">
                 <i class="bi bi-clipboard"></i>
               </button>
             </td>

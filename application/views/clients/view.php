@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Client Details']); ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Client: <?php echo htmlspecialchars($client->company_name); ?></h1>
+  <h1 class="h4 mb-0">Client: <?php echo esc_view($client->company_name); ?></h1>
   <div class="d-flex gap-2">
     <a class="btn btn-light btn-sm" href="<?php echo site_url('clients'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
     <?php if(function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
@@ -8,7 +8,7 @@
     <?php endif; ?>
     <?php if(function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'))): ?>
     <button type="button" class="btn btn-danger btn-sm"
-            onclick="confirmDeleteClient(<?php echo (int)$client->id; ?>, '<?php echo htmlspecialchars(addslashes($client->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
+            onclick="confirmDeleteClient(<?php echo (int)$client->id; ?>, '<?php echo esc_view(addslashes($client->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
       <i class="bi bi-trash me-1"></i>Delete
     </button>
     <?php endif; ?>
@@ -22,62 +22,62 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="small text-muted">Client Code</div>
-            <div><?php echo htmlspecialchars($client->client_code); ?></div>
+            <div><?php echo esc_view($client->client_code); ?></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Status</div>
-            <div><span class="badge bg-light text-dark border"><?php echo htmlspecialchars(isset($client->status)?$client->status:'active'); ?></span></div>
+            <div><span class="badge bg-light text-dark border"><?php echo esc_view(isset($client->status)?$client->status:'active'); ?></span></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Contact Person</div>
-            <div><?php echo htmlspecialchars(isset($client->contact_person)?$client->contact_person:''); ?></div>
+            <div><?php echo esc_view(isset($client->contact_person)?$client->contact_person:''); ?></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Email</div>
-            <div><?php echo htmlspecialchars(isset($client->email)?$client->email:''); ?></div>
+            <div><?php echo esc_view(isset($client->email)?$client->email:''); ?></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Phone</div>
-            <div><?php echo htmlspecialchars(isset($client->phone)?$client->phone:''); ?></div>
+            <div><?php echo esc_view(isset($client->phone)?$client->phone:''); ?></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Alternate Phone</div>
-            <div><?php echo htmlspecialchars(isset($client->alternate_phone)?$client->alternate_phone:''); ?></div>
+            <div><?php echo esc_view(isset($client->alternate_phone)?$client->alternate_phone:''); ?></div>
           </div>
           <div class="col-md-12">
             <div class="small text-muted">Address</div>
-            <div><?php echo nl2br(htmlspecialchars(isset($client->address)?$client->address:'')); ?></div>
+            <div><?php echo nl2br(esc_view(isset($client->address)?$client->address:'')); ?></div>
           </div>
           <div class="col-md-4">
             <div class="small text-muted">City</div>
-            <div><?php echo htmlspecialchars(isset($client->city)?$client->city:''); ?></div>
+            <div><?php echo esc_view(isset($client->city)?$client->city:''); ?></div>
           </div>
           <div class="col-md-4">
             <div class="small text-muted">State</div>
-            <div><?php echo htmlspecialchars(isset($client->state)?$client->state:''); ?></div>
+            <div><?php echo esc_view(isset($client->state)?$client->state:''); ?></div>
           </div>
           <div class="col-md-4">
             <div class="small text-muted">Country</div>
-            <div><?php echo htmlspecialchars(isset($client->country)?$client->country:''); ?></div>
+            <div><?php echo esc_view(isset($client->country)?$client->country:''); ?></div>
           </div>
           <div class="col-md-4">
             <div class="small text-muted">GSTIN</div>
-            <div><?php echo htmlspecialchars(isset($client->gstin)?$client->gstin:''); ?></div>
+            <div><?php echo esc_view(isset($client->gstin)?$client->gstin:''); ?></div>
           </div>
           <div class="col-md-4">
             <div class="small text-muted">PAN</div>
-            <div><?php echo htmlspecialchars(isset($client->pan_number)?$client->pan_number:''); ?></div>
+            <div><?php echo esc_view(isset($client->pan_number)?$client->pan_number:''); ?></div>
           </div>
           <div class="col-md-4">
             <div class="small text-muted">Industry</div>
-            <div><?php echo htmlspecialchars(isset($client->industry)?$client->industry:''); ?></div>
+            <div><?php echo esc_view(isset($client->industry)?$client->industry:''); ?></div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Website</div>
             <div>
               <?php if (!empty($client->website)): ?>
-                <a href="<?php echo htmlspecialchars($client->website); ?>" target="_blank" rel="noopener">
-                  <?php echo htmlspecialchars($client->website); ?>
+                <a href="<?php echo esc_view($client->website); ?>" target="_blank" rel="noopener">
+                  <?php echo esc_view($client->website); ?>
                 </a>
               <?php else: ?>
                 <span class="text-muted">-</span>
@@ -88,8 +88,8 @@
             <div class="small text-muted">Demo URL</div>
             <div>
               <?php if (!empty($client->demo_url)): ?>
-                <a href="<?php echo htmlspecialchars($client->demo_url); ?>" target="_blank" rel="noopener">
-                  <?php echo htmlspecialchars($client->demo_url); ?>
+                <a href="<?php echo esc_view($client->demo_url); ?>" target="_blank" rel="noopener">
+                  <?php echo esc_view($client->demo_url); ?>
                 </a>
               <?php else: ?>
                 <span class="text-muted">-</span>
@@ -100,8 +100,8 @@
             <div class="small text-muted">POS URL</div>
             <div>
               <?php if (!empty($client->pos_url)): ?>
-                <a href="<?php echo htmlspecialchars($client->pos_url); ?>" target="_blank" rel="noopener">
-                  <?php echo htmlspecialchars($client->pos_url); ?>
+                <a href="<?php echo esc_view($client->pos_url); ?>" target="_blank" rel="noopener">
+                  <?php echo esc_view($client->pos_url); ?>
                 </a>
               <?php else: ?>
                 <span class="text-muted">-</span>
@@ -110,7 +110,7 @@
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Onboarding Date</div>
-            <div><?php echo htmlspecialchars(isset($client->onboarding_date)?$client->onboarding_date:''); ?></div>
+            <div><?php echo esc_view(isset($client->onboarding_date)?$client->onboarding_date:''); ?></div>
           </div>
           <?php if (!empty($client->logo)): ?>
           <div class="col-md-6">
@@ -120,10 +120,10 @@
                       class="btn p-0 border-0 bg-transparent js-client-logo-trigger"
                       data-bs-toggle="modal"
                       data-bs-target="#clientLogoModal"
-                      data-logo-url="<?php echo htmlspecialchars(base_url($client->logo)); ?>"
-                      data-client-name="<?php echo htmlspecialchars($client->company_name); ?>">
+                      data-logo-url="<?php echo esc_view(base_url($client->logo)); ?>"
+                      data-client-name="<?php echo esc_view($client->company_name); ?>">
                 <div style="width:64px;height:64px;border:1px solid #dee2e6;border-radius:4px;display:flex;align-items:center;justify-content:center;background:#fff;">
-                  <img src="<?php echo htmlspecialchars(base_url($client->logo)); ?>" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;">
+                  <img src="<?php echo esc_view(base_url($client->logo)); ?>" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;">
                 </div>
               </button>
             </div>
@@ -131,7 +131,7 @@
           <?php endif; ?>
           <div class="col-md-12">
             <div class="small text-muted">Notes</div>
-            <div><?php echo nl2br(htmlspecialchars(isset($client->notes)?$client->notes:'')); ?></div>
+            <div><?php echo nl2br(esc_view(isset($client->notes)?$client->notes:'')); ?></div>
           </div>
         </div>
       </div>
@@ -157,10 +157,10 @@
             <tbody>
               <?php foreach ($contacts as $ct): ?>
               <tr>
-                <td><?php echo htmlspecialchars($ct->contact_name); ?></td>
-                <td><?php echo htmlspecialchars(isset($ct->designation)?$ct->designation:''); ?></td>
-                <td><?php echo htmlspecialchars(isset($ct->email)?$ct->email:''); ?></td>
-                <td><?php echo htmlspecialchars(isset($ct->phone)?$ct->phone:''); ?></td>
+                <td><?php echo esc_view($ct->contact_name); ?></td>
+                <td><?php echo esc_view(isset($ct->designation)?$ct->designation:''); ?></td>
+                <td><?php echo esc_view(isset($ct->email)?$ct->email:''); ?></td>
+                <td><?php echo esc_view(isset($ct->phone)?$ct->phone:''); ?></td>
                 <td><?php echo ((int)$ct->is_primary) ? 'Yes' : 'No'; ?></td>
               </tr>
               <?php endforeach; ?>
@@ -177,11 +177,11 @@
         <h5 class="mb-0">Meta</h5>
       </div>
       <div class="card-body small text-muted">
-        <div>Created At: <?php echo htmlspecialchars(isset($client->created_at)?$client->created_at:''); ?></div>
-        <div>Updated At: <?php echo htmlspecialchars(isset($client->updated_at)?$client->updated_at:''); ?></div>
-        <div>DB Name: <?php echo htmlspecialchars(isset($client->db_name)?$client->db_name:''); ?></div>
-        <div>DB Username: <?php echo htmlspecialchars(isset($client->db_username)?$client->db_username:''); ?></div>
-        <div>DB Password: <?php echo htmlspecialchars(isset($client->db_password)?$client->db_password:''); ?></div>
+        <div>Created At: <?php echo esc_view(isset($client->created_at)?$client->created_at:''); ?></div>
+        <div>Updated At: <?php echo esc_view(isset($client->updated_at)?$client->updated_at:''); ?></div>
+        <div>DB Name: <?php echo esc_view(isset($client->db_name)?$client->db_name:''); ?></div>
+        <div>DB Username: <?php echo esc_view(isset($client->db_username)?$client->db_username:''); ?></div>
+        <div>DB Password: <?php echo esc_view(isset($client->db_password)?$client->db_password:''); ?></div>
       </div>
     </div>
   </div>

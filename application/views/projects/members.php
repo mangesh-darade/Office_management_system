@@ -1,7 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'Project Members']); ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h1 class="h4 mb-0">Members: <?php echo htmlspecialchars($project->name); ?><?php if (!empty($project->code)) echo ' ('.htmlspecialchars($project->code).')'; ?></h1>
+    <h1 class="h4 mb-0">Members: <?php echo esc_view($project->name); ?><?php if (!empty($project->code)) echo ' ('.esc_view($project->code).')'; ?></h1>
     <div class="text-muted small">Project ID: <?php echo (int)$project->id; ?></div>
   </div>
   <div class="d-flex gap-2">
@@ -31,12 +31,12 @@
               <?php else: foreach ($members as $m): ?>
                 <tr>
                   <td>
-                    <div class="fw-semibold"><?php echo htmlspecialchars($m->email); ?></div>
-                    <?php if (!empty($m->name)): ?><div class="text-muted small"><?php echo htmlspecialchars($m->name); ?></div><?php endif; ?>
+                    <div class="fw-semibold"><?php echo esc_view($m->email); ?></div>
+                    <?php if (!empty($m->name)): ?><div class="text-muted small"><?php echo esc_view($m->name); ?></div><?php endif; ?>
                   </td>
                   <td>
                     <?php $role = $m->role ?: 'member'; ?>
-                    <span class="badge bg-light text-dark border"><?php echo htmlspecialchars(ucfirst($role)); ?></span>
+                    <span class="badge bg-light text-dark border"><?php echo esc_view(ucfirst($role)); ?></span>
                   </td>
                   <td>
                     <div class="d-flex gap-2">
@@ -71,7 +71,7 @@
         <h2 class="h6">Add Member</h2>
         <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || is_admin_group())): ?>
         <form method="get" class="d-flex gap-2 mb-3">
-          <input type="text" class="form-control" name="q" placeholder="Search users by email or name" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" />
+          <input type="text" class="form-control" name="q" placeholder="Search users by email or name" value="<?php echo esc_view(isset($q) ? $q : ''); ?>" />
           <button class="btn btn-outline-secondary">Search</button>
         </form>
         <?php if (!empty($users)): ?>
@@ -88,8 +88,8 @@
                 <?php foreach ($users as $u): ?>
                   <tr>
                     <td>
-                      <div class="fw-semibold"><?php echo htmlspecialchars($u->email); ?></div>
-                      <?php if (!empty($u->name)): ?><div class="text-muted small"><?php echo htmlspecialchars($u->name); ?></div><?php endif; ?>
+                      <div class="fw-semibold"><?php echo esc_view($u->email); ?></div>
+                      <?php if (!empty($u->name)): ?><div class="text-muted small"><?php echo esc_view($u->name); ?></div><?php endif; ?>
                     </td>
                     <td>
                       <form method="post" action="<?php echo site_url('projects/'.$project->id.'/add-member'); ?>" class="d-flex gap-2">

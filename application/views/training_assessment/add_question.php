@@ -1,7 +1,7 @@
 <?php $this->load->view('partials/header', array('title' => isset($question) && $question ? 'Edit question' : 'Add question')); ?>
 <div class="container py-4">
   <h1 class="h4 mb-3"><?php echo isset($question) && $question ? 'Edit question' : 'Add question'; ?></h1>
-  <p class="text-muted small">Assessment: <strong><?php echo htmlspecialchars($assessment->title); ?></strong></p>
+  <p class="text-muted small">Assessment: <strong><?php echo esc_view($assessment->title); ?></strong></p>
 
   <?php echo form_open('training-assessment/question/save'); ?>
   <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
@@ -27,12 +27,12 @@
       </div>
       <div class="mb-3">
         <label class="form-label">Question text</label>
-        <textarea name="question_text" class="form-control" rows="4" required><?php echo isset($question) && $question ? htmlspecialchars($question->question_text) : ''; ?></textarea>
+        <textarea name="question_text" class="form-control" rows="4" required><?php echo isset($question) && $question ? esc_view($question->question_text) : ''; ?></textarea>
       </div>
       <div class="mb-3">
         <label class="form-label">Points</label>
         <input type="number" name="points" class="form-control" step="0.01" min="0.01" required
-          value="<?php echo isset($question) && $question ? htmlspecialchars($question->points) : '1'; ?>">
+          value="<?php echo isset($question) && $question ? esc_view($question->points) : '1'; ?>">
       </div>
 
       <div id="block-mcq" class="qblock">
@@ -56,19 +56,19 @@
             <input class="form-check-input mt-0 correct-radio" type="checkbox" name="correct_indexes[]" value="<?php echo $i; ?>" <?php echo isset($correctMap[$i]) ? 'checked' : ''; ?>>
           </div>
           <input type="text" name="option_text[]" class="form-control" placeholder="Option <?php echo $i + 1; ?>"
-            value="<?php echo $o ? htmlspecialchars($o->option_text) : ''; ?>">
+            value="<?php echo $o ? esc_view($o->option_text) : ''; ?>">
         </div>
         <?php endfor; ?>
       </div>
 
       <div id="block-text" class="qblock" style="display:none">
         <label class="form-label">Model answer (optional — improves auto-scoring)</label>
-        <textarea name="model_answer" class="form-control" rows="3" placeholder="Keywords or sample answer"><?php echo (isset($question) && $question && $question->question_type === 'text') ? htmlspecialchars($question->model_answer) : ''; ?></textarea>
+        <textarea name="model_answer" class="form-control" rows="3" placeholder="Keywords or sample answer"><?php echo (isset($question) && $question && $question->question_type === 'text') ? esc_view($question->model_answer) : ''; ?></textarea>
         <div class="row g-2 mt-1">
           <div class="col-md-6">
             <label class="form-label">Keyword pass threshold (%)</label>
             <input type="number" name="text_keyword_pass_percent" class="form-control" min="1" max="100" step="0.01"
-              value="<?php echo (isset($question) && $question && isset($question->text_keyword_pass_percent)) ? htmlspecialchars($question->text_keyword_pass_percent) : '50'; ?>">
+              value="<?php echo (isset($question) && $question && isset($question->text_keyword_pass_percent)) ? esc_view($question->text_keyword_pass_percent) : '50'; ?>">
           </div>
         </div>
         <p class="small text-warning mb-0 mt-2"><i class="bi bi-info-circle me-1"></i>Use comma/new-line separated keywords for keyword scoring. If only one line is provided, similarity scoring is used.</p>
@@ -86,7 +86,7 @@
         <div class="mb-2">
           <label class="form-label">Expected output (trimmed compare for auto-score)</label>
           <input type="text" name="coding_expected_output" class="form-control"
-            value="<?php echo (isset($question) && $question && $question->question_type === 'coding') ? htmlspecialchars($question->coding_expected_output) : ''; ?>"
+            value="<?php echo (isset($question) && $question && $question->question_type === 'coding') ? esc_view($question->coding_expected_output) : ''; ?>"
             placeholder="e.g. olleh">
         </div>
       </div>

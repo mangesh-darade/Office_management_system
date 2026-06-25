@@ -53,14 +53,14 @@ $creatorName = $getDisplayName((object)[
   <div>
     <div class="d-flex align-items-center gap-3 mb-2">
       <h1 class="h2 mb-0">Task #<?php echo (int)$task->id; ?></h1>
-      <span class="badge bg-<?php echo $getStatusColor($task->status); ?> fs-6"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $task->status))); ?></span>
+      <span class="badge bg-<?php echo $getStatusColor($task->status); ?> fs-6"><?php echo esc_view(ucwords(str_replace('_', ' ', $task->status))); ?></span>
       <?php if (isset($task->priority) && $task->priority): ?>
         <span class="badge bg-<?php echo $getPriorityColor($task->priority); ?> fs-6">Priority: <?php echo ucfirst($task->priority); ?></span>
       <?php endif; ?>
     </div>
     <p class="text-muted mb-0">
       Created <?php echo isset($task->created_at) ? date('M j, Y', strtotime($task->created_at)) : ''; ?>
-      <?php if ($creatorName): ?>by <?php echo htmlspecialchars($creatorName); ?><?php endif; ?>
+      <?php if ($creatorName): ?>by <?php echo esc_view($creatorName); ?><?php endif; ?>
     </p>
   </div>
   <div class="d-flex gap-2">
@@ -107,12 +107,12 @@ $creatorName = $getDisplayName((object)[
   <div class="card-body">
     <div class="row align-items-center">
       <div class="col-md-8">
-        <h5 class="mb-1"><?php echo htmlspecialchars($task->title); ?></h5>
+        <h5 class="mb-1"><?php echo esc_view($task->title); ?></h5>
         <div class="d-flex flex-wrap align-items-center gap-3 flex-column flex-md-row">
           <?php if (!empty($task->project_name)): ?>
             <div class="d-flex align-items-center gap-2 text-muted">
               <i class="bi bi-folder text-primary"></i>
-              <span><strong>Project:</strong> <?php echo htmlspecialchars($task->project_name); ?></span>
+              <span><strong>Project:</strong> <?php echo esc_view($task->project_name); ?></span>
             </div>
           <?php endif; ?>
           <?php if (isset($task->requirement_id) && $task->requirement_id): ?>
@@ -120,10 +120,10 @@ $creatorName = $getDisplayName((object)[
               <i class="bi bi-link-45deg text-info"></i>
               <span><strong>Requirement:</strong> 
                 <a href="<?php echo site_url('requirements/view/'.(int)$task->requirement_id); ?>" class="text-decoration-none">
-                  <?php echo htmlspecialchars(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
+                  <?php echo esc_view(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
                 </a>
                 <?php if (isset($task->requirement_title)): ?>
-                  <span class="text-muted small">- <?php echo htmlspecialchars(mb_substr($task->requirement_title, 0, 50)); ?><?php echo mb_strlen($task->requirement_title) > 50 ? '...' : ''; ?></span>
+                  <span class="text-muted small">- <?php echo esc_view(mb_substr($task->requirement_title, 0, 50)); ?><?php echo mb_strlen($task->requirement_title) > 50 ? '...' : ''; ?></span>
                 <?php endif; ?>
               </span>
             </div>
@@ -195,9 +195,9 @@ $creatorName = $getDisplayName((object)[
               <div class="d-flex align-items-center gap-2">
                 <?php if ($assigneeName): ?>
                   <div class="avatar avatar-bg" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.75rem; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-                    <?php echo htmlspecialchars($getInitials($assigneeName)); ?>
+                    <?php echo esc_view($getInitials($assigneeName)); ?>
                   </div>
-                  <span><?php echo htmlspecialchars($assigneeName); ?></span>
+                  <span><?php echo esc_view($assigneeName); ?></span>
                 <?php else: ?>
                   <span class="text-muted">Unassigned</span>
                 <?php endif; ?>
@@ -208,7 +208,7 @@ $creatorName = $getDisplayName((object)[
             <div class="mb-3">
               <label class="text-muted small">Status</label>
               <div>
-                <span class="badge bg-<?php echo $getStatusColor($task->status); ?>"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $task->status))); ?></span>
+                <span class="badge bg-<?php echo $getStatusColor($task->status); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $task->status))); ?></span>
               </div>
             </div>
           </div>
@@ -254,7 +254,7 @@ $creatorName = $getDisplayName((object)[
               <label class="text-muted small">Project</label>
               <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-folder text-primary"></i>
-                <span><?php echo htmlspecialchars($task->project_name); ?></span>
+                <span><?php echo esc_view($task->project_name); ?></span>
               </div>
             </div>
           <?php endif; ?>
@@ -265,10 +265,10 @@ $creatorName = $getDisplayName((object)[
               <div class="d-flex align-items-center gap-2 flex-wrap">
                 <i class="bi bi-link-45deg text-info"></i>
                 <a href="<?php echo site_url('requirements/view/'.(int)$task->requirement_id); ?>" class="text-decoration-none">
-                  <?php echo htmlspecialchars(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
+                  <?php echo esc_view(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
                 </a>
                 <?php if (isset($task->requirement_status)): ?>
-                  <span class="badge bg-secondary small"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $task->requirement_status))); ?></span>
+                  <span class="badge bg-secondary small"><?php echo esc_view(ucwords(str_replace('_', ' ', $task->requirement_status))); ?></span>
                 <?php endif; ?>
               </div>
             </div>
@@ -298,6 +298,18 @@ $creatorName = $getDisplayName((object)[
               </div>
             </div>
           <?php endif; ?>
+
+          <?php if (!empty($task->reference_url)): ?>
+            <div>
+              <label class="text-muted small">URL / Link</label>
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-link-45deg text-primary"></i>
+                <a href="<?php echo esc_view($task->reference_url); ?>" target="_blank" rel="noopener noreferrer" class="text-break">
+                  <?php echo esc_view($task->reference_url); ?>
+                </a>
+              </div>
+            </div>
+          <?php endif; ?>
           
           <?php if (isset($task->priority) && $task->priority): ?>
             <div>
@@ -313,9 +325,9 @@ $creatorName = $getDisplayName((object)[
             <div class="d-flex align-items-center gap-2">
               <?php if ($creatorName): ?>
                 <div class="avatar avatar-bg" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.7rem; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-                  <?php echo htmlspecialchars($getInitials($creatorName)); ?>
+                  <?php echo esc_view($getInitials($creatorName)); ?>
                 </div>
-                <span><?php echo htmlspecialchars($creatorName); ?></span>
+                <span><?php echo esc_view($creatorName); ?></span>
               <?php else: ?>
                 <span class="text-muted">Unknown</span>
               <?php endif; ?>
@@ -341,13 +353,13 @@ $creatorName = $getDisplayName((object)[
         <!-- Flash Messages -->
         <?php if ($this->session->flashdata('error')): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+            <?php echo esc_view($this->session->flashdata('error')); ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         <?php endif; ?>
         <?php if ($this->session->flashdata('success')): ?>
           <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+            <?php echo esc_view($this->session->flashdata('success')); ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         <?php endif; ?>

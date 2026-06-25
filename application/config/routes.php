@@ -359,6 +359,10 @@ $route['subscription-builder/catalog'] = 'subscription_builder/catalog';
 $route['subscription-builder/quote-preview'] = 'subscription_builder/quote_preview';
 $route['subscription-builder/quote-pdf'] = 'subscription_builder/quote_pdf';
 
+// ElintOm Proposals
+$route['elintom-proposals'] = 'elintom_proposals/index';
+$route['elintom-proposals/(:num)/download'] = 'elintom_proposals/download/$1';
+
 // Announcements
 $route['announcements'] = 'announcements/index';
 $route['announcements/create'] = 'announcements/create';

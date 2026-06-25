@@ -10,19 +10,19 @@
                 <table class="table table-bordered">
                     <tr>
                         <th style="width:30%">Employee</th>
-                        <td><?php echo htmlspecialchars($appraisal->first_name . ' ' . $appraisal->last_name); ?></td>
+                        <td><?php echo esc_view($appraisal->first_name . ' ' . $appraisal->last_name); ?></td>
                     </tr>
                     <tr>
                         <th>Manager</th>
-                        <td><?php echo htmlspecialchars($appraisal->manager_name); ?></td>
+                        <td><?php echo esc_view($appraisal->manager_name); ?></td>
                     </tr>
                     <tr>
                         <th>Period</th>
-                        <td><?php echo htmlspecialchars($appraisal->period); ?></td>
+                        <td><?php echo esc_view($appraisal->period); ?></td>
                     </tr>
                     <tr>
                         <th>KPI Score</th>
-                        <td><?php echo htmlspecialchars($appraisal->kpi_score); ?></td>
+                        <td><?php echo esc_view($appraisal->kpi_score); ?></td>
                     </tr>
                     <tr>
                         <th>Rating</th>
@@ -34,7 +34,7 @@
                     </tr>
                     <tr>
                         <th>Comments</th>
-                        <td><?php echo nl2br(htmlspecialchars($appraisal->comments)); ?></td>
+                        <td><?php echo nl2br(esc_view($appraisal->comments)); ?></td>
                     </tr>
                     <tr>
                         <th>Created</th>

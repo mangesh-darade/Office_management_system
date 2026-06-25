@@ -3,7 +3,7 @@
   <div>
     <h1 class="h5 mb-0">Conversation #<?php echo (int)$conversation->id; ?>
       <?php if ($conversation->type === 'group'): ?>
-        <small class="text-muted">— <?php echo htmlspecialchars($conversation->title ?: 'Group'); ?></small>
+        <small class="text-muted">— <?php echo esc_view($conversation->title ?: 'Group'); ?></small>
       <?php endif; ?>
     </h1>
     <div class="small text-muted">Participants:
@@ -12,7 +12,7 @@
         if (isset($p->name) && $p->name !== '') { $n = $p->name.' ('.$p->email.')'; }
         if (isset($p->full_name) && $p->full_name !== '') { $n = $p->full_name.' ('.$p->email.')'; }
       ?>
-        <span class="badge bg-light text-dark me-1 mb-1"> <?php echo htmlspecialchars($n); ?> </span>
+        <span class="badge bg-light text-dark me-1 mb-1"> <?php echo esc_view($n); ?> </span>
       <?php endforeach; ?>
     </div>
   </div>
@@ -39,10 +39,10 @@
             $time = !empty($m->created_at) ? date('Y-m-d H:i', strtotime($m->created_at)) : '';
           ?>
           <div class="mb-3 <?php echo $isMe ? 'text-end' : '';?>">
-            <div class="small text-muted mb-1"><?php echo htmlspecialchars($name); ?> · <?php echo htmlspecialchars($time); ?></div>
+            <div class="small text-muted mb-1"><?php echo esc_view($name); ?> · <?php echo esc_view($time); ?></div>
             <?php if (!empty($m->body)): ?>
               <div class="d-inline-block px-3 py-2 rounded <?php echo $isMe ? 'bg-primary text-white' : 'bg-light border'; ?>" style="max-width: 85%; text-align: left;">
-                <?php echo htmlspecialchars($m->body); ?>
+                <?php echo esc_view($m->body); ?>
               </div>
             <?php endif; ?>
             <?php if (!empty($m->attachment_path)): ?>

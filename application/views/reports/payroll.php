@@ -23,15 +23,15 @@
       <form method="get" action="<?php echo site_url('reports/payroll'); ?>" class="row g-2 align-items-end">
         <div class="col-12 col-md-3">
           <label class="form-label small fw-bold text-uppercase text-muted mb-1">Month</label>
-          <input type="month" name="month" class="form-control form-control-sm" value="<?php echo htmlspecialchars($month); ?>">
+          <input type="month" name="month" class="form-control form-control-sm" value="<?php echo esc_view($month); ?>">
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label small fw-bold text-uppercase text-muted mb-1">Department</label>
           <select name="department" class="form-select form-select-sm">
             <option value="">— All Departments —</option>
             <?php foreach ($departments as $d): ?>
-              <option value="<?php echo htmlspecialchars($d); ?>" <?php echo ($department === $d) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($d); ?>
+              <option value="<?php echo esc_view($d); ?>" <?php echo ($department === $d) ? 'selected' : ''; ?>>
+                <?php echo esc_view($d); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -96,11 +96,11 @@
               <?php foreach ($payslips as $p): ?>
               <tr>
                 <td>
-                  <div class="fw-semibold"><?php echo htmlspecialchars($p->employee_name ? $p->employee_name : '—'); ?></div>
-                  <small class="text-muted"><?php echo htmlspecialchars($p->employee_email ? $p->employee_email : ''); ?></small>
+                  <div class="fw-semibold"><?php echo esc_view($p->employee_name ? $p->employee_name : '—'); ?></div>
+                  <small class="text-muted"><?php echo esc_view($p->employee_email ? $p->employee_email : ''); ?></small>
                 </td>
-                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars(isset($p->department) ? $p->department : '—'); ?></td>
-                <td class="d-none d-sm-table-cell"><?php echo htmlspecialchars(isset($p->pay_period) ? $p->pay_period : $month); ?></td>
+                <td class="d-none d-md-table-cell"><?php echo esc_view(isset($p->department) ? $p->department : '—'); ?></td>
+                <td class="d-none d-sm-table-cell"><?php echo esc_view(isset($p->pay_period) ? $p->pay_period : $month); ?></td>
                 <td class="text-end"><?php echo number_format(isset($p->gross_salary) ? $p->gross_salary : 0, 2); ?></td>
                 <td class="text-end d-none d-md-table-cell text-danger"><?php echo number_format(isset($p->total_deductions) ? $p->total_deductions : 0, 2); ?></td>
                 <td class="text-end fw-bold text-success"><?php echo number_format(isset($p->net_salary) ? $p->net_salary : 0, 2); ?></td>

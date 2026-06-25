@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0d6efd">
-  <title><?php echo isset($title) ? htmlspecialchars($title) : 'Office Management'; ?></title>
+  <title><?php echo isset($title) ? esc_view($title) : 'Office Management'; ?></title>
   <?php if (!empty($meta_robots)): ?>
-  <meta name="robots" content="<?php echo htmlspecialchars((string) $meta_robots, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta name="robots" content="<?php echo esc_view((string) $meta_robots, ENT_QUOTES, 'UTF-8'); ?>">
   <?php endif; ?>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -30,7 +30,7 @@
   <?php
     if (isset($extra_css) && is_array($extra_css)) {
         foreach ($extra_css as $cssFile) {
-            echo '<link href="'.htmlspecialchars(base_url($cssFile), ENT_QUOTES, 'UTF-8').'" rel="stylesheet">' . PHP_EOL;
+            echo '<link href="'.esc_view(base_url($cssFile), ENT_QUOTES, 'UTF-8').'" rel="stylesheet">' . PHP_EOL;
         }
     }
     $coaching_uri = '';
@@ -38,7 +38,7 @@
         $coaching_uri = strtolower((string) $this->uri->segment(1));
     }
     if ($coaching_uri === 'coaching' || strpos($coaching_uri, 'coaching-') === 0) {
-        echo '<link href="' . htmlspecialchars(base_url('assets/css/coaching.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
+        echo '<link href="' . esc_view(base_url('assets/css/coaching.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
     }
   ?>
   <!-- jQuery must be loaded early so that inline view scripts relying on it (e.g., chats/app.php) can use $.ajax and delegated events -->
@@ -179,7 +179,7 @@
           <div class="dropdown">
             <a class="d-flex align-items-center text-decoration-none" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <img src="<?php echo $avatar; ?>" alt="Profile" class="rounded-circle me-2" width="32" height="32">
-              <span class="d-none d-sm-inline small fw-semibold navbar-text"><?php echo htmlspecialchars($this->session->userdata('email')); ?></span>
+              <span class="d-none d-sm-inline small fw-semibold navbar-text"><?php echo esc_view($this->session->userdata('email')); ?></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
               <li><a class="dropdown-item" href="<?php echo site_url('profile'); ?>"><i class="bi bi-person me-2"></i>Profile</a></li>
@@ -218,6 +218,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       ?>
       <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='elintom-proposals'?'active':''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
       <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
@@ -948,7 +951,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
     <div class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
-          <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+          <?php echo esc_view($this->session->flashdata('success')); ?>
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
@@ -958,7 +961,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
     <div class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
-          <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+          <?php echo esc_view($this->session->flashdata('error')); ?>
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>

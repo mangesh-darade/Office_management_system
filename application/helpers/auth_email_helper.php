@@ -63,7 +63,7 @@ if (!function_exists('auth_send_otp_email')) {
      */
     function auth_send_otp_email($CI, $to, $subject, $code, $ttl_minutes)
     {
-        $safe_code = htmlspecialchars((string) $code, ENT_QUOTES, 'UTF-8');
+        $safe_code = esc_view((string) $code, ENT_QUOTES, 'UTF-8');
         $message = '<p>Your verification code is <strong>' . $safe_code . '</strong>.</p>';
         $message .= '<p>It will expire in ' . (int) $ttl_minutes . ' minutes.</p>';
 

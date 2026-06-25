@@ -29,7 +29,7 @@ $this->load->view('partials/header', ['title' => $title]);
             <div class="mb-3">
               <label class="form-label fw-semibold">Job Title <span class="text-danger">*</span></label>
               <input type="text" name="title" class="form-control" required
-                     value="<?php echo $job ? htmlspecialchars($job->title) : ''; ?>"
+                     value="<?php echo $job ? esc_view($job->title) : ''; ?>"
                      placeholder="e.g. Senior Software Engineer">
             </div>
 
@@ -37,7 +37,7 @@ $this->load->view('partials/header', ['title' => $title]);
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Department</label>
                 <input type="text" name="department" class="form-control"
-                       value="<?php echo $job ? htmlspecialchars($job->department ? $job->department : '') : ''; ?>"
+                       value="<?php echo $job ? esc_view($job->department ? $job->department : '') : ''; ?>"
                        placeholder="e.g. Engineering, Sales">
               </div>
               <div class="col-md-3">
@@ -71,7 +71,7 @@ $this->load->view('partials/header', ['title' => $title]);
             <div class="mb-4">
               <label class="form-label fw-semibold">Job Description</label>
               <textarea name="description" class="form-control" rows="8"
-                        placeholder="Describe the role, responsibilities, and requirements..."><?php echo $job ? htmlspecialchars($job->description ? $job->description : '') : ''; ?></textarea>
+                        placeholder="Describe the role, responsibilities, and requirements..."><?php echo $job ? esc_view($job->description ? $job->description : '') : ''; ?></textarea>
             </div>
 
             <div class="d-flex gap-2">

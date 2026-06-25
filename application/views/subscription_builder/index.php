@@ -6,7 +6,7 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
   'title' => 'Subscription Builder',
   'extra_css' => ['assets/css/subscription-builder.css'],
 ]); ?>
-<div class="container-fluid sb-page px-2 px-md-3 py-2">
+<div class="container-fluid sb-page px-2 px-md-3 py-1">
 
 <?php if ((int) $total_rows === 0): ?>
 <div class="alert alert-info py-2 mb-2 small">
@@ -54,11 +54,14 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
           <span class="sb-step">3</span>
           <span class="sb-section-chevron sb-included-chevron" aria-hidden="true"><i class="bi bi-chevron-down"></i></span>
           <span class="sb-included-head-text">
-            <span class="sb-section-title d-block" id="sb-included-title">Included in ElintOm Essential</span>
-            <span class="sb-included-subtitle d-block">No extra charges</span>
+            <span class="sb-section-title mb-0" id="sb-included-title">Included in ElintOm Essential</span>
+            <span class="sb-included-meta">
+              <span class="sb-included-subtitle">No extra charges</span>
+              <span class="sb-included-count-badge d-none" id="sb-included-count-badge"></span>
+            </span>
           </span>
         </button>
-        <button type="button" class="btn btn-link sb-included-view-all p-0" id="sb-included-view-all">View all</button>
+        <button type="button" class="btn btn-link sb-included-view-all p-0 d-none" id="sb-included-view-all" aria-label="View all included features">View all</button>
       </div>
       <div id="sb-included-body" class="sb-included-body">
         <div id="sb-loading" class="sb-loading d-none"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
@@ -119,25 +122,73 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
   <aside class="sb-summary-col">
     <div class="sb-summary-card h-100 d-flex flex-column">
       <div class="sb-summary-header">
-        <h2>QUOTE SUMMARY</h2>
+        <h2>PROPOSAL SUMMARY</h2>
         <div class="sb-summary-context">
           <span id="sb-summary-industry">—</span> · <span id="sb-summary-plan">—</span>
+        </div>
+      </div>
+      <div class="sb-summary-client-fields px-2 pt-2">
+        <div class="mb-2">
+          <label class="form-label small mb-1" for="sb-client-name">Client Name</label>
+          <input type="text" class="form-control form-control-sm" id="sb-client-name" placeholder="Client full name">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small mb-1" for="sb-client-business">Client Business Name</label>
+          <input type="text" class="form-control form-control-sm" id="sb-client-business" placeholder="Business / company name">
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small mb-1" for="sb-discount-percent">Discount (%)</label>
+            <input type="number" class="form-control form-control-sm" id="sb-discount-percent" min="0" max="100" step="0.01" value="0">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1" for="sb-gst-percent">GST (%)</label>
+            <select class="form-select form-select-sm" id="sb-gst-percent">
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="18" selected>18%</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="sb-summary-body sb-scroll-area flex-grow-1">
         <div class="sb-summary-block">
           <div class="sb-summary-block-title">Setup Charges (One Time)</div>
           <div id="sb-setup-lines"></div>
+          <div class="sb-summary-line">
+            <span>Subtotal</span>
+            <span id="sb-subtotal-setup">₹ 0</span>
+          </div>
+          <div class="sb-summary-line text-muted small">
+            <span>Discount</span>
+            <span id="sb-discount-setup">₹ 0</span>
+          </div>
+          <div class="sb-summary-line text-muted small">
+            <span>GST</span>
+            <span id="sb-gst-setup">₹ 0</span>
+          </div>
           <div class="sb-summary-line sb-summary-total">
-            <span>Total Setup</span>
+            <span>Net Setup</span>
             <span id="sb-total-setup">₹ 0</span>
           </div>
         </div>
         <div class="sb-summary-block">
           <div class="sb-summary-block-title">Monthly Charges</div>
           <div id="sb-monthly-lines"></div>
+          <div class="sb-summary-line">
+            <span>Subtotal</span>
+            <span id="sb-subtotal-monthly">₹ 0</span>
+          </div>
+          <div class="sb-summary-line text-muted small">
+            <span>Discount</span>
+            <span id="sb-discount-monthly">₹ 0</span>
+          </div>
+          <div class="sb-summary-line text-muted small">
+            <span>GST</span>
+            <span id="sb-gst-monthly">₹ 0</span>
+          </div>
           <div class="sb-summary-line sb-summary-total">
-            <span>Total Monthly</span>
+            <span>Net Monthly</span>
             <span id="sb-total-monthly">₹ 0</span>
           </div>
         </div>
@@ -149,14 +200,19 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
           <div class="label">Net Monthly Payable</div>
           <div class="amount" id="sb-net-monthly">₹ 0</div>
         </div>
-        <p class="sb-summary-note mb-0">All prices are exclusive of applicable taxes.</p>
+        <p class="sb-summary-note mb-0">Discount applied on subtotal; GST calculated after discount.</p>
       </div>
       <div class="sb-summary-footer d-grid gap-2">
+        <?php if (function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
+        <a href="<?php echo site_url('elintom-proposals'); ?>" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-file-earmark-text me-1"></i>View Saved Proposals
+        </a>
+        <?php endif; ?>
         <button type="button" class="btn btn-outline-primary btn-sm" id="sb-preview-quote">
-          <i class="bi bi-eye me-1"></i>Preview Quotation
+          <i class="bi bi-eye me-1"></i>Preview Proposal
         </button>
         <button type="button" class="btn btn-success btn-sm" id="sb-download-quote">
-          <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+          <i class="bi bi-file-earmark-pdf me-1"></i>Download Proposal PDF
         </button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="sb-clear-all">Clear All</button>
       </div>

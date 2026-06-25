@@ -21,7 +21,7 @@
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show py-2 mx-3 mt-2 mb-0" role="alert">
-      <?php echo htmlspecialchars((string) $this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
+      <?php echo esc_view((string) $this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
   <?php endif; ?>
@@ -36,11 +36,11 @@
         <input type="hidden" name="view" value="overview">
         <?php foreach ($baseQuery as $qk => $qv): ?>
           <?php if ($qk === 'q' || $qk === 'view') { continue; } ?>
-          <input type="hidden" name="<?php echo htmlspecialchars($qk, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo htmlspecialchars((string) $qv, ENT_QUOTES, 'UTF-8'); ?>">
+          <input type="hidden" name="<?php echo esc_view($qk); ?>" value="<?php echo esc_view((string) $qv, ENT_QUOTES, 'UTF-8'); ?>">
         <?php endforeach; ?>
         <div class="mw-dash-search-wrap">
           <i class="bi bi-search"></i>
-          <input type="search" name="q" class="mw-dash-search-input" placeholder="Search tasks, projects, clients…" value="<?php echo htmlspecialchars(isset($filters['q']) ? (string) $filters['q'] : '', ENT_QUOTES, 'UTF-8'); ?>">
+          <input type="search" name="q" class="mw-dash-search-input" placeholder="Search tasks, projects, clients…" value="<?php echo esc_view(isset($filters['q']) ? (string) $filters['q'] : '', ENT_QUOTES, 'UTF-8'); ?>">
         </div>
       </form>
     </div>
@@ -52,7 +52,7 @@
       <?php endif; ?>
       <div class="mw-dash-date-pill">
         <i class="bi bi-calendar3"></i>
-        <span><?php echo htmlspecialchars(my_works_dashboard_week_range_label(), ENT_QUOTES, 'UTF-8'); ?></span>
+        <span><?php echo esc_view(my_works_dashboard_week_range_label(), ENT_QUOTES, 'UTF-8'); ?></span>
       </div>
     </div>
   </header>
@@ -68,7 +68,7 @@
     <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-filter-form" id="mwDashFilterForm">
       <input type="hidden" name="view" value="overview">
       <?php if (!empty($filters['q'])): ?>
-        <input type="hidden" name="q" value="<?php echo htmlspecialchars((string) $filters['q'], ENT_QUOTES, 'UTF-8'); ?>">
+        <input type="hidden" name="q" value="<?php echo esc_view((string) $filters['q'], ENT_QUOTES, 'UTF-8'); ?>">
       <?php endif; ?>
       <label class="mw-dash-filter-label">
         Assigned To:
@@ -76,7 +76,7 @@
           <option value="0">All Users</option>
           <?php foreach ((array) $users as $u): ?>
             <option value="<?php echo (int) $u->id; ?>" <?php echo $filterAssignee === (int) $u->id ? 'selected' : ''; ?>>
-              <?php echo htmlspecialchars(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
+              <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
             </option>
           <?php endforeach; ?>
         </select>
@@ -87,7 +87,7 @@
           <option value="0">All Projects</option>
           <?php foreach ((array) $projects as $p): ?>
             <option value="<?php echo (int) $p->id; ?>" <?php echo $filterProjectId === (int) $p->id ? 'selected' : ''; ?>>
-              <?php echo htmlspecialchars($p->name ? (string) $p->name : ('Project #' . (int) $p->id), ENT_QUOTES, 'UTF-8'); ?>
+              <?php echo esc_view($p->name ? (string) $p->name : ('Project #' . (int) $p->id), ENT_QUOTES, 'UTF-8'); ?>
             </option>
           <?php endforeach; ?>
         </select>
@@ -97,8 +97,8 @@
       <?php $this->load->helper('my_works_status'); ?>
       <?php foreach (my_works_status_records() as $st): ?>
         <span class="mw-dash-legend-item">
-          <span class="mw-dash-status-dot mw-dash-dot-<?php echo htmlspecialchars(my_works_status_dashboard_dot_class($st->code), ENT_QUOTES, 'UTF-8'); ?>" style="background-color:<?php echo htmlspecialchars(my_works_status_hex_color($st->code), ENT_QUOTES, 'UTF-8'); ?>;"></span>
-          <?php echo htmlspecialchars((string) $st->name, ENT_QUOTES, 'UTF-8'); ?>
+          <span class="mw-dash-status-dot mw-dash-dot-<?php echo esc_view(my_works_status_dashboard_dot_class($st->code), ENT_QUOTES, 'UTF-8'); ?>" style="background-color:<?php echo esc_view(my_works_status_hex_color($st->code), ENT_QUOTES, 'UTF-8'); ?>;"></span>
+          <?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?>
         </span>
       <?php endforeach; ?>
       <?php if (function_exists('has_module_access') && has_module_access('statuses')): ?>

@@ -10,7 +10,7 @@
 <div class="card shadow-soft mb-3">
   <div class="card-body">
     <label class="form-label">SQL File Path (physical file)</label>
-    <input class="form-control" id="clientSqlPath" value="<?php echo isset($sql_file_default)?htmlspecialchars($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
+    <input class="form-control" id="clientSqlPath" value="<?php echo isset($sql_file_default)?esc_view($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
     <div class="small text-muted mt-1">
       Set the master SQL file path once, then use the table below to open DB Compare for each client.
     </div>
@@ -44,43 +44,43 @@
           <?php foreach ($clients as $cl): ?>
           <tr>
             <td><input type="checkbox" class="form-check-input js-client-select" value="<?php echo (int)$cl->id; ?>"
-                       data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                       data-pos-url="<?php echo htmlspecialchars(isset($cl->pos_url)?$cl->pos_url:''); ?>"
-                       data-name="<?php echo htmlspecialchars($cl->company_name); ?>" /></td>
-            <td><?php echo htmlspecialchars($cl->company_name); ?></td>
+                       data-db-name="<?php echo esc_view(isset($cl->db_name)?$cl->db_name:''); ?>"
+                       data-pos-url="<?php echo esc_view(isset($cl->pos_url)?$cl->pos_url:''); ?>"
+                       data-name="<?php echo esc_view($cl->company_name); ?>" /></td>
+            <td><?php echo esc_view($cl->company_name); ?></td>
             <td>
               <?php if (!empty($cl->pos_url)): ?>
                 <div style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                  <a href="<?php echo htmlspecialchars($cl->pos_url); ?>" target="_blank" rel="noopener" title="<?php echo htmlspecialchars($cl->pos_url); ?>">
-                    <?php echo htmlspecialchars($cl->pos_url); ?>
+                  <a href="<?php echo esc_view($cl->pos_url); ?>" target="_blank" rel="noopener" title="<?php echo esc_view($cl->pos_url); ?>">
+                    <?php echo esc_view($cl->pos_url); ?>
                   </a>
                 </div>
               <?php else: ?>
                 <span class="text-muted">-</span>
               <?php endif; ?>
             </td>
-            <td><?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?></td>
+            <td><?php echo esc_view(isset($cl->db_name)?$cl->db_name:''); ?></td>
             <td class="text-end">
               <div class="btn-group btn-group-sm" role="group">
                 <button type="button"
                         class="btn btn-outline-primary js-client-compare"
                         data-client-id="<?php echo (int)$cl->id; ?>"
-                        data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                        data-name="<?php echo htmlspecialchars($cl->company_name); ?>">
+                        data-db-name="<?php echo esc_view(isset($cl->db_name)?$cl->db_name:''); ?>"
+                        data-name="<?php echo esc_view($cl->company_name); ?>">
                   Compare
                 </button>
                 <button type="button"
                         class="btn btn-outline-success js-client-migrate"
                         data-client-id="<?php echo (int)$cl->id; ?>"
-                        data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                        data-name="<?php echo htmlspecialchars($cl->company_name); ?>">
+                        data-db-name="<?php echo esc_view(isset($cl->db_name)?$cl->db_name:''); ?>"
+                        data-name="<?php echo esc_view($cl->company_name); ?>">
                   Migrate
                 </button>
                 <button type="button"
                         class="btn btn-outline-danger js-client-revert"
                         data-client-id="<?php echo (int)$cl->id; ?>"
-                        data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                        data-name="<?php echo htmlspecialchars($cl->company_name); ?>">
+                        data-db-name="<?php echo esc_view(isset($cl->db_name)?$cl->db_name:''); ?>"
+                        data-name="<?php echo esc_view($cl->company_name); ?>">
                   Revert
                 </button>
               </div>

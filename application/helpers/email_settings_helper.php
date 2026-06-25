@@ -450,8 +450,8 @@ if (!function_exists('generate_module_email_template')) {
                 $label = ucfirst(str_replace('_', ' ', $key));
                 $display_value = strlen($value) > 200 ? substr($value, 0, 200) . '...' : $value;
                 $html .= '<div class="mb-2">
-                    <span class="label">' . htmlspecialchars($label) . ':</span> 
-                    ' . htmlspecialchars($display_value) . '
+                    <span class="label">' . esc_view($label) . ':</span> 
+                    ' . esc_view($display_value) . '
                 </div>';
             }
         }

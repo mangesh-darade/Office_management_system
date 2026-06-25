@@ -100,6 +100,32 @@ if (!function_exists('validate_date')) {
 }
 
 /**
+ * Normalize optional URL: empty → null, prepend https:// when missing, validate format.
+ *
+ * @param string $url
+ * @return string|null|false null if empty, false if invalid, normalized URL otherwise
+ */
+if (!function_exists('normalize_optional_url')) {
+    function normalize_optional_url($url)
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return null;
+        }
+        if (!preg_match('#^https?://#i', $url)) {
+            $url = 'https://' . $url;
+        }
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+        if (strlen($url) > 500) {
+            return false;
+        }
+        return $url;
+    }
+}
+
+/**
  * Validate employee data
  * 
  * @param array $data

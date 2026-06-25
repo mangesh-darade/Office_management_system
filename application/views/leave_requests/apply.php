@@ -5,10 +5,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft">
@@ -20,8 +20,8 @@
           <select class="form-select" name="type_id" id="type_id" required>
             <option value="">Select</option>
             <?php foreach ($types as $t): $tid=(int)$t->id; ?>
-              <option value="<?php echo $tid; ?>" data-balance="<?php echo isset($balances[$tid]) ? (float)$balances[$tid] : 0; ?>" data-name="<?php echo htmlspecialchars(strtolower($t->name)); ?>">
-                <?php echo htmlspecialchars($t->name); ?>
+              <option value="<?php echo $tid; ?>" data-balance="<?php echo isset($balances[$tid]) ? (float)$balances[$tid] : 0; ?>" data-name="<?php echo esc_view(strtolower($t->name)); ?>">
+                <?php echo esc_view($t->name); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -38,11 +38,11 @@
         </div>
         <div class="col-md-3 range-only">
           <label class="form-label">Start Date</label>
-          <input type="date" class="form-control" name="start_date" id="start_date" value="<?php echo isset($today_date) ? htmlspecialchars($today_date) : date('Y-m-d'); ?>" required />
+          <input type="date" class="form-control" name="start_date" id="start_date" value="<?php echo isset($today_date) ? esc_view($today_date) : date('Y-m-d'); ?>" required />
         </div>
         <div class="col-md-3 range-only">
           <label class="form-label">End Date</label>
-          <input type="date" class="form-control" name="end_date" id="end_date" value="<?php echo isset($today_date) ? htmlspecialchars($today_date) : date('Y-m-d'); ?>" required />
+          <input type="date" class="form-control" name="end_date" id="end_date" value="<?php echo isset($today_date) ? esc_view($today_date) : date('Y-m-d'); ?>" required />
         </div>
         <div class="col-md-6 specific-only d-none">
           <label class="form-label">Specific Dates</label>
@@ -74,7 +74,7 @@
                 <option value="">Select Lead</option>
                 <?php foreach ($leads as $lead): ?>
                   <option value="<?php echo (int)$lead->id; ?>">
-                    <?php echo htmlspecialchars(!empty($lead->name) ? $lead->name : $lead->email); ?>
+                    <?php echo esc_view(!empty($lead->name) ? $lead->name : $lead->email); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
@@ -85,7 +85,7 @@
                 <option value="">Select Manager</option>
                 <?php foreach ($admins as $admin): ?>
                   <option value="<?php echo (int)$admin->id; ?>">
-                    <?php echo htmlspecialchars(!empty($admin->name) ? $admin->name : $admin->email); ?>
+                    <?php echo esc_view(!empty($admin->name) ? $admin->name : $admin->email); ?>
                   </option>
                 <?php endforeach; ?>
               </select>

@@ -18,10 +18,10 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
 </div>
 <?php if (!has_module_access('db')) { echo '<div class="alert alert-danger">Forbidden</div>'; $this->load->view('partials/footer'); return; } ?>
 <?php if ($error): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($error); ?></div>
 <?php endif; ?>
 <?php if ($info): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($info); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($info); ?></div>
 <?php endif; ?>
 <style>
   /* Compact SQL preview cells */
@@ -47,7 +47,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
     <div class="row g-2 align-items-end">
       <div class="col-lg-6">
         <label class="form-label">SQL File Path</label>
-        <input class="form-control" id="sqlFilePath" value="<?php echo isset($sql_file_default)?htmlspecialchars($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
+        <input class="form-control" id="sqlFilePath" value="<?php echo isset($sql_file_default)?esc_view($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
       </div>
       <div class="col-lg-2">
         <button class="btn btn-outline-primary w-100" id="btnLoadFile">Load</button>
@@ -81,7 +81,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
         <select class="form-select" id="sfProjectId">
           <option value="">-- Select --</option>
           <?php foreach ($projects as $p): ?>
-            <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
+            <option value="<?php echo (int)$p->id; ?>"><?php echo esc_view($p->name); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -91,7 +91,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
           <option value="">-- Select --</option>
           <?php foreach (($assignees?:[]) as $u): ?>
             <?php $label = !empty($u->emp_name) ? $u->emp_name : (!empty($u->full_name)?$u->full_name:(!empty($u->name)?$u->name:$u->email)); ?>
-            <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+            <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($label); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -127,7 +127,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
           <select class="form-select" name="project_id" id="projectSelectTop">
             <option value="">-- Select --</option>
             <?php foreach ($projects as $p): ?>
-              <option value="<?php echo (int)$p->id; ?>" <?php if(isset($p->db_name)&&$p->db_name){ echo 'data-dbname="'.htmlspecialchars($p->db_name).'"'; } ?>><?php echo htmlspecialchars($p->name); ?></option>
+              <option value="<?php echo (int)$p->id; ?>" <?php if(isset($p->db_name)&&$p->db_name){ echo 'data-dbname="'.esc_view($p->db_name).'"'; } ?>><?php echo esc_view($p->name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -137,7 +137,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
             <option value="">-- Select --</option>
             <?php foreach (($assignees?:[]) as $u): ?>
               <?php $label = !empty($u->emp_name) ? $u->emp_name : (!empty($u->full_name)?$u->full_name:(!empty($u->name)?$u->name:$u->email)); ?>
-              <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -176,7 +176,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
         <select class="form-select" name="q_project_id">
           <option value="">-- Any --</option>
           <?php foreach ($projects as $p): ?>
-            <option value="<?php echo (int)$p->id; ?>" <?php echo (!empty($filter_project_id) && (int)$filter_project_id===(int)$p->id)?'selected':''; ?>><?php echo htmlspecialchars($p->name); ?></option>
+            <option value="<?php echo (int)$p->id; ?>" <?php echo (!empty($filter_project_id) && (int)$filter_project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -186,13 +186,13 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
           <option value="">-- Any --</option>
           <?php foreach (($assignees?:[]) as $u): ?>
             <?php $label = !empty($u->emp_name) ? $u->emp_name : (!empty($u->full_name)?$u->full_name:(!empty($u->name)?$u->name:$u->email)); ?>
-            <option value="<?php echo (int)$u->id; ?>" <?php echo (!empty($filter_assigned_to) && (int)$filter_assigned_to===(int)$u->id)?'selected':''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <option value="<?php echo (int)$u->id; ?>" <?php echo (!empty($filter_assigned_to) && (int)$filter_assigned_to===(int)$u->id)?'selected':''; ?>><?php echo esc_view($label); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-3">
         <label class="form-label">Filter Version</label>
-        <input class="form-control" name="q_version" value="<?php echo htmlspecialchars(isset($filter_version)?$filter_version:''); ?>" placeholder="e.g. 18.02" />
+        <input class="form-control" name="q_version" value="<?php echo esc_view(isset($filter_version)?$filter_version:''); ?>" placeholder="e.g. 18.02" />
       </div>
       <div class="col-md-3 text-end">
         <button class="btn btn-outline-primary">Apply Filters</button>
@@ -273,7 +273,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
               <select class="form-select" name="project_id" id="editProject">
                 <option value="">-- None --</option>
                 <?php foreach ($projects as $p): ?>
-                  <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
+                  <option value="<?php echo (int)$p->id; ?>"><?php echo esc_view($p->name); ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
@@ -283,7 +283,7 @@ $this->load->view('partials/header', ['title' => 'DB Manager']);
                 <option value="">-- None --</option>
                 <?php foreach (($assignees?:[]) as $u): ?>
                   <?php $label = !empty($u->emp_name) ? $u->emp_name : (!empty($u->full_name)?$u->full_name:(!empty($u->name)?$u->name:$u->email)); ?>
-                  <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+                  <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($label); ?></option>
                 <?php endforeach; ?>
               </select>
             </div>

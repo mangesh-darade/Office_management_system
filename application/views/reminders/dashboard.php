@@ -97,10 +97,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <!-- Quick Stats -->
@@ -258,14 +258,14 @@ $stats['scheduled'] = $scheduled_count;
                     ?>
                   </div>
                   <div>
-                    <div class="fw-semibold"><?php echo htmlspecialchars($label); ?></div>
-                    <small class="text-muted"><?php echo htmlspecialchars(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:'')); ?></small>
+                    <div class="fw-semibold"><?php echo esc_view($label); ?></div>
+                    <small class="text-muted"><?php echo esc_view(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:'')); ?></small>
                   </div>
                 </div>
               </td>
               <td>
-                <div class="fw-semibold"><?php echo htmlspecialchars(isset($r->subject)?$r->subject:'No Subject'); ?></div>
-                <small class="text-muted"><?php echo htmlspecialchars(substr(isset($r->body)?$r->body:'', 0, 50) . '...'); ?></small>
+                <div class="fw-semibold"><?php echo esc_view(isset($r->subject)?$r->subject:'No Subject'); ?></div>
+                <small class="text-muted"><?php echo esc_view(substr(isset($r->body)?$r->body:'', 0, 50) . '...'); ?></small>
               </td>
               <td>
                 <?php

@@ -40,7 +40,7 @@
     <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Total Trainings</div><div class="val"><?php echo (int)$totalRows; ?></div></div></div>
     <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Completed</div><div class="val text-success"><?php echo (int)$completed; ?></div></div></div>
     <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Pending</div><div class="val text-warning"><?php echo (int)$pending; ?></div></div></div>
-    <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Average Score</div><div class="val text-primary"><?php echo htmlspecialchars(number_format($avgScore,1)); ?>%</div></div></div>
+    <div class="col-md-3"><div class="ta-report-kpi p-3"><div class="lbl">Average Score</div><div class="val text-primary"><?php echo esc_view(number_format($avgScore,1)); ?>%</div></div></div>
   </div>
 
   <div class="row g-3 mb-3">
@@ -68,7 +68,7 @@
         <option value="0">All</option>
         <?php foreach ($assessments as $as): ?>
           <option value="<?php echo (int)$as->id; ?>" <?php echo ((int)$filter_assessment_id === (int)$as->id) ? 'selected' : ''; ?>>
-            <?php echo htmlspecialchars($as->title); ?>
+            <?php echo esc_view($as->title); ?>
           </option>
         <?php endforeach; ?>
       </select>
@@ -89,7 +89,7 @@
         <?php foreach ($employees as $e): ?>
           <?php if (empty($e->user_id)) { continue; } ?>
           <option value="<?php echo (int)$e->user_id; ?>" <?php echo ((int)$filter_employee === (int)$e->user_id) ? 'selected' : ''; ?>>
-            <?php echo htmlspecialchars(trim($e->first_name . ' ' . $e->last_name)); ?>
+            <?php echo esc_view(trim($e->first_name . ' ' . $e->last_name)); ?>
           </option>
         <?php endforeach; ?>
       </select>
@@ -97,11 +97,11 @@
     </div>
     <div class="col-lg-2 col-md-6">
       <label class="form-label small text-muted mb-0">From</label>
-      <input type="date" name="date_from" class="form-control form-control-sm" value="<?php echo htmlspecialchars((string)$filter_from); ?>">
+      <input type="date" name="date_from" class="form-control form-control-sm" value="<?php echo esc_view((string)$filter_from); ?>">
     </div>
     <div class="col-lg-2 col-md-6">
       <label class="form-label small text-muted mb-0">To</label>
-      <input type="date" name="date_to" class="form-control form-control-sm" value="<?php echo htmlspecialchars((string)$filter_to); ?>">
+      <input type="date" name="date_to" class="form-control form-control-sm" value="<?php echo esc_view((string)$filter_to); ?>">
     </div>
     <div class="col-lg-12 col-md-6 d-flex gap-2 flex-wrap">
       <button type="submit" class="btn btn-primary btn-sm">Filter</button>
@@ -114,7 +114,7 @@
           'assignee_type' => isset($filter_assignee_type) ? $filter_assignee_type : 'all',
         )));
       ?>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
       <?php
         $qBankUrl = site_url('training-assessment/office-export/questions?' . http_build_query(array(
           'assessment_id' => isset($filter_assessment_id) ? (int)$filter_assessment_id : 0,
@@ -125,8 +125,8 @@
           'date_to' => isset($filter_to) ? $filter_to : '',
         )));
       ?>
-      <a class="btn btn-outline-primary btn-sm" href="<?php echo htmlspecialchars($qBankUrl); ?>" title="Topic, question, answers, type (LMS topic when linked)"><i class="bi bi-journal-text me-1"></i>Question bank CSV</a>
-      <a class="btn btn-outline-primary btn-sm" href="<?php echo htmlspecialchars($attemptDetailUrl); ?>" title="Per-question rows for completed attempts"><i class="bi bi-list-check me-1"></i>Attempt detail CSV</a>
+      <a class="btn btn-outline-primary btn-sm" href="<?php echo esc_view($qBankUrl); ?>" title="Topic, question, answers, type (LMS topic when linked)"><i class="bi bi-journal-text me-1"></i>Question bank CSV</a>
+      <a class="btn btn-outline-primary btn-sm" href="<?php echo esc_view($attemptDetailUrl); ?>" title="Per-question rows for completed attempts"><i class="bi bi-list-check me-1"></i>Attempt detail CSV</a>
     </div>
   </form>
 
@@ -148,30 +148,30 @@
         <?php else: ?>
         <?php foreach ($rows as $r): ?>
         <tr>
-          <td><?php echo htmlspecialchars($r->assessment_title); ?></td>
+          <td><?php echo esc_view($r->assessment_title); ?></td>
           <td>
             <?php
             if (!empty($r->user_id)) {
               $disp = isset($r->user_name) ? trim((string) $r->user_name) : '';
               if ($disp !== '') {
-                echo '<div class="fw-semibold">' . htmlspecialchars($disp) . '</div>';
+                echo '<div class="fw-semibold">' . esc_view($disp) . '</div>';
                 $em = isset($r->user_email) ? trim((string) $r->user_email) : '';
                 if ($em !== '' && strcasecmp($disp, $em) !== 0) {
-                  echo '<div class="small text-muted">' . htmlspecialchars($em) . '</div>';
+                  echo '<div class="small text-muted">' . esc_view($em) . '</div>';
                 }
               } elseif (!empty($r->user_email)) {
-                echo htmlspecialchars($r->user_email);
+                echo esc_view($r->user_email);
               } else {
                 echo '<span class="text-muted">User #' . (int) $r->user_id . '</span>';
               }
             } elseif (!empty($r->candidate_name)) {
-              echo htmlspecialchars($r->candidate_name) . ' <span class="text-muted">(candidate)</span>';
+              echo esc_view($r->candidate_name) . ' <span class="text-muted">(candidate)</span>';
             } else {
               echo '—';
             }
             ?>
           </td>
-          <td><?php echo $r->score_percent !== null ? htmlspecialchars(number_format((float)$r->score_percent, 1)) : '—'; ?></td>
+          <td><?php echo $r->score_percent !== null ? esc_view(number_format((float)$r->score_percent, 1)) : '—'; ?></td>
           <td>
             <?php if ($r->passed === null): ?>
               <span class="badge bg-secondary">Pending</span>
@@ -181,10 +181,10 @@
               <span class="badge bg-danger">Fail</span>
             <?php endif; ?>
           </td>
-          <td><?php echo $r->submitted_at ? htmlspecialchars($r->submitted_at) : '—'; ?></td>
+          <td><?php echo $r->submitted_at ? esc_view($r->submitted_at) : '—'; ?></td>
           <td class="text-end text-nowrap">
             <?php if (!empty($r->completed_at) && !empty($r->access_token)): ?>
-            <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars(training_assessment_signed_result_url($r->access_token, $r)); ?>">Result</a>
+            <a class="btn btn-sm btn-outline-primary" href="<?php echo esc_view(training_assessment_signed_result_url($r->access_token, $r)); ?>">Result</a>
             <?php elseif (!empty($r->access_token) && empty($r->completed_at)): ?>
             <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training-assessment/take/' . rawurlencode($r->access_token)); ?>">Open</a>
             <?php elseif (!empty($r->id) && $scopeAll): ?>

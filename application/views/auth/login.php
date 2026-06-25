@@ -254,7 +254,7 @@
           '<img src="'.base_url('uploads/'.$settings['company_logo']).'" alt="Logo" style="max-width: 50px; max-height: 50px;">' : 
           '<i class="bi bi-building"></i>'; ?>
       </div>
-      <h2><?php echo isset($settings['company_name']) ? htmlspecialchars($settings['company_name']) : get_company_name(); ?></h2>
+      <h2><?php echo isset($settings['company_name']) ? esc_view($settings['company_name']) : get_company_name(); ?></h2>
       <p>Sign in to continue to your account</p>
     </div>
 
@@ -301,10 +301,10 @@
 (function(){
   // Show flash messages as toasts on page load
   <?php if($this->session->flashdata('success')): ?>
-    showToast('success', '<?php echo htmlspecialchars($this->session->flashdata('success')); ?>');
+    showToast('success', '<?php echo esc_view($this->session->flashdata('success')); ?>');
   <?php endif; ?>
   <?php if($this->session->flashdata('error')): ?>
-    showToast('error', '<?php echo htmlspecialchars($this->session->flashdata('error')); ?>');
+    showToast('error', '<?php echo esc_view($this->session->flashdata('error')); ?>');
   <?php endif; ?>
 
   // Toast helper function

@@ -11,18 +11,18 @@
                     <label>Employee</label>
                     <select name="employee_id" class="form-control" disabled>
                         <?php foreach($employees as $e): ?>
-                        <option value="<?php echo $e->id; ?>" <?php echo ((int)$e->id === (int)$appraisal->employee_id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($e->first_name . ' ' . $e->last_name . ' (' . $e->department . ')'); ?></option>
+                        <option value="<?php echo $e->id; ?>" <?php echo ((int)$e->id === (int)$appraisal->employee_id) ? 'selected' : ''; ?>><?php echo esc_view($e->first_name . ' ' . $e->last_name . ' (' . $e->department . ')'); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <small class="text-muted">Employee cannot be changed after creation.</small>
                 </div>
                 <div class="mb-3">
                     <label>Review Period (e.g. Q1 2024)</label>
-                    <input type="text" name="period" class="form-control" required value="<?php echo htmlspecialchars($appraisal->period); ?>">
+                    <input type="text" name="period" class="form-control" required value="<?php echo esc_view($appraisal->period); ?>">
                 </div>
                 <div class="mb-3">
                     <label>KPI Score (0-100)</label>
-                    <input type="number" step="0.1" name="kpi_score" class="form-control" required value="<?php echo htmlspecialchars($appraisal->kpi_score); ?>">
+                    <input type="number" step="0.1" name="kpi_score" class="form-control" required value="<?php echo esc_view($appraisal->kpi_score); ?>">
                 </div>
                 <div class="mb-3">
                     <label>Manager Rating</label>
@@ -44,7 +44,7 @@
                 </div>
                 <div class="mb-3">
                     <label>Comments</label>
-                    <textarea name="comments" rows="4" class="form-control"><?php echo htmlspecialchars($appraisal->comments); ?></textarea>
+                    <textarea name="comments" rows="4" class="form-control"><?php echo esc_view($appraisal->comments); ?></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Update Appraisal</button>
                 <a href="<?php echo site_url('performance'); ?>" class="btn btn-secondary">Cancel</a>

@@ -12,15 +12,15 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('warning')): ?>
   <div class="alert alert-warning">
-    <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('warning')); ?>
+    <i class="bi bi-exclamation-triangle me-2"></i><?php echo esc_view($this->session->flashdata('warning')); ?>
   </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
@@ -79,15 +79,15 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Company Name</label>
-              <input class="form-control" name="company_name" value="<?php echo htmlspecialchars(isset($settings['company_name']) ? $settings['company_name'] : ''); ?>" required />
+              <input class="form-control" name="company_name" value="<?php echo esc_view(isset($settings['company_name']) ? $settings['company_name'] : ''); ?>" required />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Company Email</label>
-              <input type="email" class="form-control" name="company_email" value="<?php echo htmlspecialchars(isset($settings['company_email']) ? $settings['company_email'] : ''); ?>" />
+              <input type="email" class="form-control" name="company_email" value="<?php echo esc_view(isset($settings['company_email']) ? $settings['company_email'] : ''); ?>" />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Phone</label>
-              <input type="tel" class="form-control" name="company_phone" value="<?php echo htmlspecialchars(isset($settings['company_phone']) ? $settings['company_phone'] : ''); ?>" pattern="[0-9+\-\s()]+" />
+              <input type="tel" class="form-control" name="company_phone" value="<?php echo esc_view(isset($settings['company_phone']) ? $settings['company_phone'] : ''); ?>" pattern="[0-9+\-\s()]+" />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Timezone</label>
@@ -111,7 +111,7 @@
             </div>
             <div class="col-md-12">
               <label class="form-label fw-semibold">Address</label>
-              <textarea class="form-control" name="company_address" rows="3"><?php echo htmlspecialchars(isset($settings['company_address']) ? $settings['company_address'] : ''); ?></textarea>
+              <textarea class="form-control" name="company_address" rows="3"><?php echo esc_view(isset($settings['company_address']) ? $settings['company_address'] : ''); ?></textarea>
             </div>
           </div>
           <div class="d-flex gap-2">
@@ -177,20 +177,20 @@
           <div class="row g-3">
             <div class="col-md-4">
               <label class="form-label fw-semibold">Office Start Time</label>
-              <input type="time" class="form-control" name="attendance_start_time" value="<?php echo htmlspecialchars(isset($settings['attendance_start_time']) ? $settings['attendance_start_time'] : '09:30'); ?>" required />
+              <input type="time" class="form-control" name="attendance_start_time" value="<?php echo esc_view(isset($settings['attendance_start_time']) ? $settings['attendance_start_time'] : '09:30'); ?>" required />
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Office End Time</label>
-              <input type="time" class="form-control" name="attendance_end_time" value="<?php echo htmlspecialchars(isset($settings['attendance_end_time']) ? $settings['attendance_end_time'] : '18:30'); ?>" required />
+              <input type="time" class="form-control" name="attendance_end_time" value="<?php echo esc_view(isset($settings['attendance_end_time']) ? $settings['attendance_end_time'] : '18:30'); ?>" required />
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Grace Period (minutes)</label>
-              <input type="number" class="form-control" name="attendance_grace_minutes" value="<?php echo htmlspecialchars(isset($settings['attendance_grace_minutes']) ? $settings['attendance_grace_minutes'] : '15'); ?>" min="0" max="60" />
+              <input type="number" class="form-control" name="attendance_grace_minutes" value="<?php echo esc_view(isset($settings['attendance_grace_minutes']) ? $settings['attendance_grace_minutes'] : '15'); ?>" min="0" max="60" />
               <div class="form-text">Minutes allowed after start time</div>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Standard Working Hours</label>
-              <input type="number" class="form-control" name="attendance_standard_working_hours" value="<?php echo htmlspecialchars(isset($settings['attendance_standard_working_hours']) ? $settings['attendance_standard_working_hours'] : (isset($settings['standard_working_hours']) ? $settings['standard_working_hours'] : '8')); ?>" step="0.5" min="1" max="24" />
+              <input type="number" class="form-control" name="attendance_standard_working_hours" value="<?php echo esc_view(isset($settings['attendance_standard_working_hours']) ? $settings['attendance_standard_working_hours'] : (isset($settings['standard_working_hours']) ? $settings['standard_working_hours'] : '8')); ?>" step="0.5" min="1" max="24" />
               <div class="form-text">Standard working hours per day (for overtime calculation)</div>
             </div>
             <div class="col-md-4">
@@ -289,17 +289,17 @@
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Max Consecutive Days</label>
-              <input type="number" class="form-control" name="leave_max_consecutive" value="<?php echo htmlspecialchars(isset($settings['leave_max_consecutive']) ? $settings['leave_max_consecutive'] : '14'); ?>" min="1" max="365" />
+              <input type="number" class="form-control" name="leave_max_consecutive" value="<?php echo esc_view(isset($settings['leave_max_consecutive']) ? $settings['leave_max_consecutive'] : '14'); ?>" min="1" max="365" />
               <div class="form-text">Maximum days allowed at once</div>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Minimum Gap Between Leaves</label>
-              <input type="number" class="form-control" name="leave_min_gap" value="<?php echo htmlspecialchars(isset($settings['leave_min_gap']) ? $settings['leave_min_gap'] : '1'); ?>" min="0" max="30" />
+              <input type="number" class="form-control" name="leave_min_gap" value="<?php echo esc_view(isset($settings['leave_min_gap']) ? $settings['leave_min_gap'] : '1'); ?>" min="0" max="30" />
               <div class="form-text">Days required between two leaves</div>
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Default Annual Leave Days</label>
-              <input type="number" class="form-control" step="0.5" min="0" name="leave_default_days" value="<?php echo htmlspecialchars(isset($settings['leave_default_days']) ? $settings['leave_default_days'] : '0'); ?>" />
+              <input type="number" class="form-control" step="0.5" min="0" name="leave_default_days" value="<?php echo esc_view(isset($settings['leave_default_days']) ? $settings['leave_default_days'] : '0'); ?>" />
               <div class="form-text">Leave days per year for new employees</div>
             </div>
             <div class="col-md-4">
@@ -310,7 +310,7 @@
                   <?php foreach ($all_users as $user): ?>
                     <?php $selected = (isset($settings['leave_hr_user_id']) && $settings['leave_hr_user_id'] == $user->id) ? 'selected' : ''; ?>
                     <option value="<?php echo (int)$user->id; ?>" <?php echo $selected; ?>>
-                      <?php echo htmlspecialchars(!empty($user->name) ? $user->name : $user->email); ?>
+                      <?php echo esc_view(!empty($user->name) ? $user->name : $user->email); ?>
                     </option>
                   <?php endforeach; ?>
                 <?php endif; ?>
@@ -372,12 +372,12 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">SMTP User</label>
-              <input type="email" class="form-control" name="email_smtp_user" value="<?php echo htmlspecialchars(isset($settings['email_smtp_user']) ? $settings['email_smtp_user'] : ''); ?>" placeholder="email@example.com" />
+              <input type="email" class="form-control" name="email_smtp_user" value="<?php echo esc_view(isset($settings['email_smtp_user']) ? $settings['email_smtp_user'] : ''); ?>" placeholder="email@example.com" />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">SMTP Password</label>
               <div class="input-group">
-                <input type="password" class="form-control" name="email_smtp_pass" value="<?php echo htmlspecialchars(isset($settings['email_smtp_pass']) ? $settings['email_smtp_pass'] : ''); ?>" id="smtpPass" />
+                <input type="password" class="form-control" name="email_smtp_pass" value="<?php echo esc_view(isset($settings['email_smtp_pass']) ? $settings['email_smtp_pass'] : ''); ?>" id="smtpPass" />
                 <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('smtpPass')">
                   <i class="bi bi-eye" id="smtpPassIcon"></i>
                 </button>
@@ -385,7 +385,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">SMTP Host</label>
-              <input class="form-control" name="email_smtp_host" value="<?php echo htmlspecialchars(isset($settings['email_smtp_host']) ? $settings['email_smtp_host'] : 'smtp.gmail.com'); ?>" required />
+              <input class="form-control" name="email_smtp_host" value="<?php echo esc_view(isset($settings['email_smtp_host']) ? $settings['email_smtp_host'] : 'smtp.gmail.com'); ?>" required />
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">SMTP Port</label>
@@ -490,8 +490,8 @@
               <div class="accordion-item">
                 <h2 class="accordion-header" id="heading<?php echo $module_index; ?>">
                   <button class="accordion-button <?php echo $module_index === 1 ? '' : 'collapsed'; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?php echo $module_index; ?>" aria-expanded="<?php echo $module_index === 1 ? 'true' : 'false'; ?>" aria-controls="collapse<?php echo $module_index; ?>">
-                    <i class="bi <?php echo htmlspecialchars($module_info['icon']); ?> me-2"></i>
-                    <?php echo htmlspecialchars($module_info['label']); ?>
+                    <i class="bi <?php echo esc_view($module_info['icon']); ?> me-2"></i>
+                    <?php echo esc_view($module_info['label']); ?>
                     <span class="badge bg-secondary ms-2"><?php echo count($module_info['actions']); ?> actions</span>
                   </button>
                 </h2>
@@ -521,23 +521,23 @@
                             <tr>
                               <td>
                                 <strong><?php echo ucfirst(str_replace('_', ' ', $action)); ?></strong>
-                                <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="tooltip" title="Reset to default" onclick="resetNotificationMessage('<?php echo $success_key; ?>', '<?php echo htmlspecialchars(addslashes($default_success)); ?>'); resetNotificationMessage('<?php echo $error_key; ?>', '<?php echo htmlspecialchars(addslashes($default_error)); ?>');">
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="tooltip" title="Reset to default" onclick="resetNotificationMessage('<?php echo $success_key; ?>', '<?php echo esc_view(addslashes($default_success)); ?>'); resetNotificationMessage('<?php echo $error_key; ?>', '<?php echo esc_view(addslashes($default_error)); ?>');">
                                   <i class="bi bi-arrow-counterclockwise text-secondary"></i>
                                 </button>
                               </td>
                               <td>
                                 <input type="text" class="form-control form-control-sm" 
-                                       name="<?php echo htmlspecialchars($success_key); ?>" 
-                                       value="<?php echo htmlspecialchars($current_success); ?>"
-                                       placeholder="<?php echo htmlspecialchars($default_success); ?>"
-                                       data-default="<?php echo htmlspecialchars($default_success); ?>">
+                                       name="<?php echo esc_view($success_key); ?>" 
+                                       value="<?php echo esc_view($current_success); ?>"
+                                       placeholder="<?php echo esc_view($default_success); ?>"
+                                       data-default="<?php echo esc_view($default_success); ?>">
                               </td>
                               <td>
                                 <input type="text" class="form-control form-control-sm" 
-                                       name="<?php echo htmlspecialchars($error_key); ?>" 
-                                       value="<?php echo htmlspecialchars($current_error); ?>"
-                                       placeholder="<?php echo htmlspecialchars($default_error); ?>"
-                                       data-default="<?php echo htmlspecialchars($default_error); ?>">
+                                       name="<?php echo esc_view($error_key); ?>" 
+                                       value="<?php echo esc_view($current_error); ?>"
+                                       placeholder="<?php echo esc_view($default_error); ?>"
+                                       data-default="<?php echo esc_view($default_error); ?>">
                               </td>
                             </tr>
                           <?php endforeach; ?>
@@ -606,14 +606,14 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold">Currency</label>
                 <input type="text" class="form-control" name="system_currency" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_currency']) ? $settings['system_currency'] : 'USD'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_currency']) ? $settings['system_currency'] : 'USD'); ?>" 
                        placeholder="USD" maxlength="3" style="text-transform:uppercase;">
                 <div class="form-text">ISO currency code (e.g., USD, INR, EUR, GBP)</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Currency Symbol</label>
                 <input type="text" class="form-control" name="system_currency_symbol" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_currency_symbol']) ? $settings['system_currency_symbol'] : '$'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_currency_symbol']) ? $settings['system_currency_symbol'] : '$'); ?>" 
                        placeholder="$" maxlength="5">
                 <div class="form-text">Symbol displayed with currency amounts</div>
               </div>
@@ -649,35 +649,35 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold">Employee Code Prefix</label>
                 <input type="text" class="form-control" name="system_employee_code_prefix" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_employee_code_prefix']) ? $settings['system_employee_code_prefix'] : 'EMP'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_employee_code_prefix']) ? $settings['system_employee_code_prefix'] : 'EMP'); ?>" 
                        placeholder="EMP" maxlength="10">
                 <div class="form-text">Prefix for auto-generated employee codes (e.g., EMP001, DEV001)</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Employee Code Length</label>
                 <input type="number" class="form-control" name="system_employee_code_length" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_employee_code_length']) ? $settings['system_employee_code_length'] : '3'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_employee_code_length']) ? $settings['system_employee_code_length'] : '3'); ?>" 
                        min="2" max="6">
                 <div class="form-text">Number of digits in employee code (e.g., 3 = EMP001, 4 = EMP0001)</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Default Probation Period (days)</label>
                 <input type="number" class="form-control" name="system_probation_period_days" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_probation_period_days']) ? $settings['system_probation_period_days'] : '90'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_probation_period_days']) ? $settings['system_probation_period_days'] : '90'); ?>" 
                        min="0" max="365">
                 <div class="form-text">Default probation period for new employees</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Notice Period (days)</label>
                 <input type="number" class="form-control" name="system_notice_period_days" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_notice_period_days']) ? $settings['system_notice_period_days'] : '30'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_notice_period_days']) ? $settings['system_notice_period_days'] : '30'); ?>" 
                        min="0" max="180">
                 <div class="form-text">Standard notice period for employee resignation</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Working Days Per Week</label>
                 <input type="number" class="form-control" name="system_working_days_per_week" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_working_days_per_week']) ? $settings['system_working_days_per_week'] : '5'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_working_days_per_week']) ? $settings['system_working_days_per_week'] : '5'); ?>" 
                        min="1" max="7" step="0.5">
                 <div class="form-text">Average working days per week for calculations</div>
               </div>
@@ -714,7 +714,7 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold">Global Maintenance Message</label>
                 <textarea class="form-control" name="system_maintenance_message" rows="3" 
-                          placeholder="The system is currently under maintenance. Please try again later."><?php echo htmlspecialchars(isset($settings['system_maintenance_message']) ? $settings['system_maintenance_message'] : 'The system is currently under maintenance. Please try again later.'); ?></textarea>
+                          placeholder="The system is currently under maintenance. Please try again later."><?php echo esc_view(isset($settings['system_maintenance_message']) ? $settings['system_maintenance_message'] : 'The system is currently under maintenance. Please try again later.'); ?></textarea>
                 <div class="form-text">Default message shown to non-admin users when no module-specific message is set</div>
               </div>
               <div class="mb-3">
@@ -759,7 +759,7 @@
                     <div class="accordion-item">
                       <h2 class="accordion-header" id="headingMaintenance<?php echo ucfirst($module_key); ?>">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaintenance<?php echo ucfirst($module_key); ?>" aria-expanded="false">
-                          <i class="bi bi-box me-2"></i> <?php echo htmlspecialchars($module_label); ?>
+                          <i class="bi bi-box me-2"></i> <?php echo esc_view($module_label); ?>
                         </button>
                       </h2>
                       <div id="collapseMaintenance<?php echo ucfirst($module_key); ?>" class="accordion-collapse collapse" aria-labelledby="headingMaintenance<?php echo ucfirst($module_key); ?>" data-bs-parent="#moduleMaintenanceAccordion">
@@ -770,15 +770,15 @@
                                      <?php echo $module_enabled ? 'checked' : ''; ?> 
                                      id="<?php echo $module_maintenance_enabled_key; ?>">
                               <label class="form-check-label" for="<?php echo $module_maintenance_enabled_key; ?>">
-                                Enable Maintenance for <?php echo htmlspecialchars($module_label); ?>
+                                Enable Maintenance for <?php echo esc_view($module_label); ?>
                               </label>
                             </div>
                             <div class="form-text">When enabled, this module will be unavailable to non-admin users</div>
                           </div>
                           <div class="mb-3">
-                            <label class="form-label fw-semibold">Maintenance Message for <?php echo htmlspecialchars($module_label); ?></label>
+                            <label class="form-label fw-semibold">Maintenance Message for <?php echo esc_view($module_label); ?></label>
                             <textarea class="form-control" name="<?php echo $module_maintenance_message_key; ?>" rows="2" 
-                                      placeholder="The <?php echo htmlspecialchars($module_label); ?> module is currently under maintenance. Please try again later."><?php echo htmlspecialchars($module_message); ?></textarea>
+                                      placeholder="The <?php echo esc_view($module_label); ?> module is currently under maintenance. Please try again later."><?php echo esc_view($module_message); ?></textarea>
                             <div class="form-text">Leave empty to use global maintenance message</div>
                           </div>
                         </div>
@@ -790,7 +790,7 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold">Log Retention Period (days)</label>
                 <input type="number" class="form-control" name="system_log_retention_days" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_log_retention_days']) ? $settings['system_log_retention_days'] : '90'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_log_retention_days']) ? $settings['system_log_retention_days'] : '90'); ?>" 
                        min="7" max="365">
                 <div class="form-text">How long to keep activity and audit logs (7-365 days)</div>
               </div>
@@ -827,28 +827,28 @@
               <div class="mb-3">
                 <label class="form-label fw-semibold">Default Office Location Name</label>
                 <input type="text" class="form-control" name="system_default_office_location" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_default_office_location']) ? $settings['system_default_office_location'] : ''); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_default_office_location']) ? $settings['system_default_office_location'] : ''); ?>" 
                        placeholder="Head Office">
                 <div class="form-text">Default location name for attendance</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Office Latitude</label>
                 <input type="text" class="form-control" name="system_office_latitude" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_office_latitude']) ? $settings['system_office_latitude'] : ''); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_office_latitude']) ? $settings['system_office_latitude'] : ''); ?>" 
                        placeholder="28.6139">
                 <div class="form-text">Office location latitude for attendance validation</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Office Longitude</label>
                 <input type="text" class="form-control" name="system_office_longitude" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_office_longitude']) ? $settings['system_office_longitude'] : ''); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_office_longitude']) ? $settings['system_office_longitude'] : ''); ?>" 
                        placeholder="77.2090">
                 <div class="form-text">Office location longitude for attendance validation</div>
               </div>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Allowed Radius (meters)</label>
                 <input type="number" class="form-control" name="system_attendance_radius_meters" 
-                       value="<?php echo htmlspecialchars(isset($settings['system_attendance_radius_meters']) ? $settings['system_attendance_radius_meters'] : '100'); ?>" 
+                       value="<?php echo esc_view(isset($settings['system_attendance_radius_meters']) ? $settings['system_attendance_radius_meters'] : '100'); ?>" 
                        min="10" max="5000" step="10">
                 <div class="form-text">Maximum distance from office to mark attendance (10-5000 meters)</div>
               </div>
@@ -978,7 +978,7 @@
                         </div>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">Key</span>
-                            <input type="password" class="form-control" name="ai_gemini_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_gemini_api_key']) ? $settings['ai_gemini_api_key'] : ''); ?>" id="geminiKey">
+                            <input type="password" class="form-control" name="ai_gemini_api_key" value="<?php echo esc_view(isset($settings['ai_gemini_api_key']) ? $settings['ai_gemini_api_key'] : ''); ?>" id="geminiKey">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('geminiKey')"><i class="bi bi-eye"></i></button>
                         </div>
                         <small class="text-muted d-block mt-1">Status: Primary Provider</small>
@@ -999,7 +999,7 @@
                         </div>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">Key</span>
-                            <input type="password" class="form-control" name="ai_openrouter_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_openrouter_api_key']) ? $settings['ai_openrouter_api_key'] : ''); ?>" id="openrouterKey">
+                            <input type="password" class="form-control" name="ai_openrouter_api_key" value="<?php echo esc_view(isset($settings['ai_openrouter_api_key']) ? $settings['ai_openrouter_api_key'] : ''); ?>" id="openrouterKey">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('openrouterKey')"><i class="bi bi-eye"></i></button>
                         </div>
                         <small class="text-muted d-block mt-1">Status: Fallback Provider</small>
@@ -1020,7 +1020,7 @@
                         </div>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">Key</span>
-                            <input type="password" class="form-control" name="ai_huggingface_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_huggingface_api_key']) ? $settings['ai_huggingface_api_key'] : ''); ?>" id="hfKey">
+                            <input type="password" class="form-control" name="ai_huggingface_api_key" value="<?php echo esc_view(isset($settings['ai_huggingface_api_key']) ? $settings['ai_huggingface_api_key'] : ''); ?>" id="hfKey">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('hfKey')"><i class="bi bi-eye"></i></button>
                         </div>
                         <small class="text-muted d-block mt-1">Status: Backup Provider</small>
@@ -1041,12 +1041,12 @@
                         </div>
                         <div class="input-group input-group-sm mb-2">
                             <span class="input-group-text">Key</span>
-                            <input type="password" class="form-control" name="ai_azure_speech_key" value="<?php echo htmlspecialchars(isset($settings['ai_azure_speech_key']) ? $settings['ai_azure_speech_key'] : ''); ?>" id="azureKey">
+                            <input type="password" class="form-control" name="ai_azure_speech_key" value="<?php echo esc_view(isset($settings['ai_azure_speech_key']) ? $settings['ai_azure_speech_key'] : ''); ?>" id="azureKey">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('azureKey')"><i class="bi bi-eye"></i></button>
                         </div>
                         <div class="input-group input-group-sm">
                              <span class="input-group-text">Region</span>
-                            <input type="text" class="form-control" name="ai_azure_speech_region" value="<?php echo htmlspecialchars(isset($settings['ai_azure_speech_region']) ? $settings['ai_azure_speech_region'] : 'eastus'); ?>" placeholder="e.g. eastus">
+                            <input type="text" class="form-control" name="ai_azure_speech_region" value="<?php echo esc_view(isset($settings['ai_azure_speech_region']) ? $settings['ai_azure_speech_region'] : 'eastus'); ?>" placeholder="e.g. eastus">
                         </div>
                      </div>
                   </div>
@@ -1065,7 +1065,7 @@
                         </div>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">Key</span>
-                            <input type="password" class="form-control" name="ai_openai_api_key" value="<?php echo htmlspecialchars(isset($settings['ai_openai_api_key']) ? $settings['ai_openai_api_key'] : ''); ?>" id="openaiKey" placeholder="sk-...">
+                            <input type="password" class="form-control" name="ai_openai_api_key" value="<?php echo esc_view(isset($settings['ai_openai_api_key']) ? $settings['ai_openai_api_key'] : ''); ?>" id="openaiKey" placeholder="sk-...">
                             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('openaiKey')"><i class="bi bi-eye"></i></button>
                         </div>
                         <small class="text-muted d-block mt-1">Status: Premium Provider</small>
@@ -1092,12 +1092,12 @@
                     ?>
                     <div class="row g-2 align-items-center custom-provider-row" id="provider_row_<?php echo $index; ?>">
                         <div class="col-md-4">
-                            <input type="text" class="form-control form-control-sm" name="ai_custom_providers[<?php echo $index; ?>][name]" value="<?php echo htmlspecialchars(isset($provider['name']) ? $provider['name'] : ''); ?>" placeholder="Provider Name (e.g. Anthropic)" required>
+                            <input type="text" class="form-control form-control-sm" name="ai_custom_providers[<?php echo $index; ?>][name]" value="<?php echo esc_view(isset($provider['name']) ? $provider['name'] : ''); ?>" placeholder="Provider Name (e.g. Anthropic)" required>
                         </div>
                         <div class="col-md-5">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text"><i class="bi bi-key"></i></span>
-                                <input type="password" class="form-control" name="ai_custom_providers[<?php echo $index; ?>][key]" value="<?php echo htmlspecialchars(isset($provider['key']) ? $provider['key'] : ''); ?>" placeholder="API Key" id="customKey_<?php echo $index; ?>">
+                                <input type="password" class="form-control" name="ai_custom_providers[<?php echo $index; ?>][key]" value="<?php echo esc_view(isset($provider['key']) ? $provider['key'] : ''); ?>" placeholder="API Key" id="customKey_<?php echo $index; ?>">
                                 <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('customKey_<?php echo $index; ?>')"><i class="bi bi-eye"></i></button>
                             </div>
                         </div>
@@ -1149,11 +1149,11 @@
                         <div class="row g-3">
                            <div class="col-md-3">
                               <label class="form-label fw-semibold small">Min Length</label>
-                              <input type="number" class="form-control form-control-sm" name="security_min_password_length" value="<?php echo htmlspecialchars(isset($settings['security_min_password_length']) ? $settings['security_min_password_length'] : '8'); ?>" min="6" max="32">
+                              <input type="number" class="form-control form-control-sm" name="security_min_password_length" value="<?php echo esc_view(isset($settings['security_min_password_length']) ? $settings['security_min_password_length'] : '8'); ?>" min="6" max="32">
                            </div>
                            <div class="col-md-3">
                                <label class="form-label fw-semibold small">Expiry (Days)</label>
-                               <input type="number" class="form-control form-control-sm" name="security_password_expiry" value="<?php echo htmlspecialchars(isset($settings['security_password_expiry']) ? $settings['security_password_expiry'] : '90'); ?>" min="0" max="365">
+                               <input type="number" class="form-control form-control-sm" name="security_password_expiry" value="<?php echo esc_view(isset($settings['security_password_expiry']) ? $settings['security_password_expiry'] : '90'); ?>" min="0" max="365">
                            </div>
                            <div class="col-md-6 d-flex align-items-center justify-content-between flex-wrap gap-2">
                                <div class="form-check form-switch">
@@ -1200,11 +1200,11 @@
                               <div class="row g-2">
                                  <div class="col-md-6">
                                      <label class="form-label small fw-bold">Timeout (Min)</label>
-                                     <input type="number" class="form-control form-control-sm" name="security_session_timeout" value="<?php echo htmlspecialchars(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '60'); ?>">
+                                     <input type="number" class="form-control form-control-sm" name="security_session_timeout" value="<?php echo esc_view(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '60'); ?>">
                                  </div>
                                  <div class="col-md-6">
                                      <label class="form-label small fw-bold">Lockout (Min)</label>
-                                     <input type="number" class="form-control form-control-sm" name="security_lockout_duration" value="<?php echo htmlspecialchars(isset($settings['security_lockout_duration']) ? $settings['security_lockout_duration'] : '15'); ?>">
+                                     <input type="number" class="form-control form-control-sm" name="security_lockout_duration" value="<?php echo esc_view(isset($settings['security_lockout_duration']) ? $settings['security_lockout_duration'] : '15'); ?>">
                                  </div>
                                  <div class="col-md-12">
                                      <div class="form-check form-switch mb-1">
@@ -1277,7 +1277,7 @@
                                          <label class="form-check-label small fw-bold" for="ip_whitelist">Enable IP Whitelist</label>
                                      </div>
                                 </div>
-                                <textarea class="form-control form-control-sm mb-2" name="security_allowed_ips" rows="3" placeholder="192.168.1.1 (One per line)"><?php echo htmlspecialchars(isset($settings['security_allowed_ips']) ? $settings['security_allowed_ips'] : ''); ?></textarea>
+                                <textarea class="form-control form-control-sm mb-2" name="security_allowed_ips" rows="3" placeholder="192.168.1.1 (One per line)"><?php echo esc_view(isset($settings['security_allowed_ips']) ? $settings['security_allowed_ips'] : ''); ?></textarea>
                                 <div class="text-end">
                                      <button type="submit" class="btn btn-sm btn-danger">Save IP Rules</button>
                                 </div>
@@ -1303,7 +1303,7 @@
                                 </div>
                                 <div class="input-group input-group-sm mb-3">
                                    <span class="input-group-text">Retention (Days)</span>
-                                   <input type="number" class="form-control" name="security_log_retention" value="<?php echo htmlspecialchars(isset($settings['security_log_retention']) ? $settings['security_log_retention'] : '90'); ?>" min="30" max="365">
+                                   <input type="number" class="form-control" name="security_log_retention" value="<?php echo esc_view(isset($settings['security_log_retention']) ? $settings['security_log_retention'] : '90'); ?>" min="30" max="365">
                                 </div>
                                 <div class="text-end">
                                      <button type="submit" class="btn btn-sm btn-info text-white">Save Audit</button>

@@ -71,24 +71,24 @@ if (!function_exists('coaching_email_session_confirmation')) {
         }
         $rc = coaching_session_email_recipients($session);
         $when = date('l, d M Y \a\t h:i A', strtotime($session->scheduled_at));
-        $link = $session->meeting_link ? '<p><a href="' . htmlspecialchars($session->meeting_link) . '">Join meeting</a></p>' : '';
-        $body = '<p>Your coaching session <strong>' . htmlspecialchars($session->title) . '</strong> is scheduled for <strong>' . $when . '</strong>.</p>' . $link;
+        $link = $session->meeting_link ? '<p><a href="' . esc_view($session->meeting_link) . '">Join meeting</a></p>' : '';
+        $body = '<p>Your coaching session <strong>' . esc_view($session->title) . '</strong> is scheduled for <strong>' . $when . '</strong>.</p>' . $link;
         if ($session->notes_client) {
-            $body .= '<p>' . nl2br(htmlspecialchars($session->notes_client)) . '</p>';
+            $body .= '<p>' . nl2br(esc_view($session->notes_client)) . '</p>';
         }
         $sent = false;
         if ($rc['client_email']) {
             $sent = coaching_send_mail(
                 $rc['client_email'],
                 'Session confirmed: ' . $session->title,
-                '<p>Hi ' . htmlspecialchars($rc['client_name']) . ',</p>' . $body
+                '<p>Hi ' . esc_view($rc['client_name']) . ',</p>' . $body
             ) || $sent;
         }
         if ($rc['coach_email']) {
             $sent = coaching_send_mail(
                 $rc['coach_email'],
                 'Session scheduled with ' . $rc['client_name'],
-                '<p>Hi ' . htmlspecialchars($rc['coach_name']) . ',</p><p>Session with <strong>' . htmlspecialchars($rc['client_name']) . '</strong> on <strong>' . $when . '</strong>.</p>' . $link
+                '<p>Hi ' . esc_view($rc['coach_name']) . ',</p><p>Session with <strong>' . esc_view($rc['client_name']) . '</strong> on <strong>' . $when . '</strong>.</p>' . $link
             ) || $sent;
         }
         return $sent;
@@ -111,16 +111,16 @@ if (!function_exists('coaching_email_session_reminder')) {
         $when = date('l, d M Y \a\t h:i A', strtotime($session->scheduled_at));
         $label = $type === '1h' ? 'in 1 hour' : 'tomorrow';
         $subject = 'Reminder: ' . $session->title . ' ' . $label;
-        $body = '<p>This is a reminder that your session <strong>' . htmlspecialchars($session->title) . '</strong> is ' . $label . ' (<strong>' . $when . '</strong>).</p>';
+        $body = '<p>This is a reminder that your session <strong>' . esc_view($session->title) . '</strong> is ' . $label . ' (<strong>' . $when . '</strong>).</p>';
         if ($session->meeting_link) {
-            $body .= '<p><a href="' . htmlspecialchars($session->meeting_link) . '">Join meeting</a></p>';
+            $body .= '<p><a href="' . esc_view($session->meeting_link) . '">Join meeting</a></p>';
         }
         $sent = false;
         if ($rc['client_email']) {
-            $sent = coaching_send_mail($rc['client_email'], $subject, '<p>Hi ' . htmlspecialchars($rc['client_name']) . ',</p>' . $body) || $sent;
+            $sent = coaching_send_mail($rc['client_email'], $subject, '<p>Hi ' . esc_view($rc['client_name']) . ',</p>' . $body) || $sent;
         }
         if ($rc['coach_email']) {
-            $sent = coaching_send_mail($rc['coach_email'], $subject, '<p>Hi ' . htmlspecialchars($rc['coach_name']) . ',</p>' . $body) || $sent;
+            $sent = coaching_send_mail($rc['coach_email'], $subject, '<p>Hi ' . esc_view($rc['coach_name']) . ',</p>' . $body) || $sent;
         }
         return $sent;
     }

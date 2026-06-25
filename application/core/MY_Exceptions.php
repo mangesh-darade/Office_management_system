@@ -151,7 +151,7 @@ class MY_Exceptions extends CI_Exceptions {
                 <span>←</span>
                 Go Back
             </a>
-            <a href="' . htmlspecialchars($dashboard_url) . '" class="btn btn-primary">
+            <a href="' . htmlspecialchars((string)($dashboard_url ?? ''), ENT_QUOTES, 'UTF-8') . '" class="btn btn-primary">
                 <span>🏠</span>
                 Go to Dashboard
             </a>

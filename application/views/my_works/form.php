@@ -66,7 +66,7 @@
 
     <div class="min-w-0">
 
-      <h1 class="h4 mb-0 fw-bold text-dark mw-form-page-title"><?php echo htmlspecialchars($title); ?></h1>
+      <h1 class="h4 mb-0 fw-bold text-dark mw-form-page-title"><?php echo esc_view($title); ?></h1>
 
       <p class="text-muted small mb-0 d-none d-sm-block"><?php echo $isEdit ? 'Update details, assignment, or priority' : 'Capture what needs to be done and who owns it'; ?></p>
 
@@ -74,7 +74,7 @@
 
     <div class="d-flex flex-shrink-0 gap-2 mw-form-page-actions">
       <?php if (!$isEdit && function_exists('my_works_can_add') && my_works_can_add()): ?>
-        <a class="btn btn-sm mw-btn-quick-add d-none d-sm-inline-flex" href="<?php echo htmlspecialchars(site_url('my-works/quick-add') . '?redirect=' . rawurlencode('my-works/create'), ENT_QUOTES, 'UTF-8'); ?>" title="Quick add with rich text and attachments">
+        <a class="btn btn-sm mw-btn-quick-add d-none d-sm-inline-flex" href="<?php echo esc_view(site_url('my-works/quick-add') . '?redirect=' . rawurlencode('my-works/create'), ENT_QUOTES, 'UTF-8'); ?>" title="Quick add with rich text and attachments">
           <i class="bi bi-lightning-charge-fill me-1"></i>Quick add
         </a>
       <?php endif; ?>
@@ -89,7 +89,7 @@
 
   <?php if ($this->session->flashdata('error')): ?>
 
-    <div class="alert alert-danger py-2"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger py-2"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 
   <?php endif; ?>
 
@@ -135,7 +135,7 @@
 
               <label class="form-label fw-semibold" for="mw-form-title">Task title <span class="text-danger">*</span></label>
 
-              <input type="text" name="title" id="mw-form-title" class="form-control" required maxlength="255" value="<?php echo htmlspecialchars((string) $field('title')); ?>" placeholder="e.g. Follow up with client on proposal" autofocus>
+              <input type="text" name="title" id="mw-form-title" class="form-control" required maxlength="255" value="<?php echo esc_view((string) $field('title')); ?>" placeholder="e.g. Follow up with client on proposal" autofocus>
 
             </div>
 
@@ -149,7 +149,7 @@
 
                   <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $u->id === $curFor ? 'selected' : ''; ?>>
 
-                    <?php echo htmlspecialchars(my_works_user_label($u->name, $u->email, $u->id)); ?>
+                    <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id)); ?>
 
                   </option>
 
@@ -207,7 +207,7 @@
 
               <label class="form-label fw-semibold">Due date <span class="text-danger">*</span></label>
 
-              <input type="date" name="due_date" class="form-control" required value="<?php echo htmlspecialchars((string) $field('due_date')); ?>">
+              <input type="date" name="due_date" class="form-control" required value="<?php echo esc_view((string) $field('due_date')); ?>">
 
             </div>
 
@@ -237,11 +237,11 @@
 
                 <?php if (!empty($statusRecords)): ?>
                   <?php foreach ($statusRecords as $st): ?>
-                    <option value="<?php echo htmlspecialchars((string) $st->code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $status === (string) $st->code ? 'selected' : ''; ?>><?php echo htmlspecialchars((string) $st->name, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <option value="<?php echo esc_view((string) $st->code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $status === (string) $st->code ? 'selected' : ''; ?>><?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?></option>
                   <?php endforeach; ?>
                 <?php else: ?>
                   <?php foreach ($statusLabels as $k => $lbl): ?>
-                    <option value="<?php echo $k; ?>" <?php echo $status === $k ? 'selected' : ''; ?>><?php echo htmlspecialchars($lbl); ?></option>
+                    <option value="<?php echo $k; ?>" <?php echo $status === $k ? 'selected' : ''; ?>><?php echo esc_view($lbl); ?></option>
                   <?php endforeach; ?>
                 <?php endif; ?>
 
@@ -277,7 +277,7 @@
 
               <label class="form-label fw-semibold">Description</label>
 
-              <textarea id="mw-form-details" name="details" class="form-control" rows="8" placeholder="Notes, steps, background, or context for the assignee…"><?php echo htmlspecialchars((string) $field('details')); ?></textarea>
+              <textarea id="mw-form-details" name="details" class="form-control" rows="8" placeholder="Notes, steps, background, or context for the assignee…"><?php echo esc_view((string) $field('details')); ?></textarea>
 
               <div class="form-text">Use the toolbar for bold, italic, underline, lists, links, and more.</div>
 
@@ -319,7 +319,7 @@
 
                   <option value="<?php echo (int) $c->id; ?>" <?php echo $curClient === (int) $c->id ? 'selected' : ''; ?>>
 
-                    <?php echo htmlspecialchars($c->company_name); ?>
+                    <?php echo esc_view($c->company_name); ?>
 
                   </option>
 
@@ -347,7 +347,7 @@
 
                           <?php echo $curProject === (int) $p->id ? 'selected' : ''; ?>>
 
-                    <?php echo htmlspecialchars($p->name ? $p->name : ('Project #' . (int) $p->id)); ?>
+                    <?php echo esc_view($p->name ? $p->name : ('Project #' . (int) $p->id)); ?>
 
                   </option>
 
@@ -367,13 +367,13 @@
 
               <label class="form-label fw-semibold">Tags</label>
 
-              <input type="text" name="tag" class="form-control" maxlength="255" list="mw-form-tags" value="<?php echo htmlspecialchars((string) $field('tag')); ?>" placeholder="follow-up, demo, urgent">
+              <input type="text" name="tag" class="form-control" maxlength="255" list="mw-form-tags" value="<?php echo esc_view((string) $field('tag')); ?>" placeholder="follow-up, demo, urgent">
 
               <datalist id="mw-form-tags">
 
                 <?php foreach ($tags as $t): ?>
 
-                  <option value="<?php echo htmlspecialchars($t); ?>">
+                  <option value="<?php echo esc_view($t); ?>">
 
                 <?php endforeach; ?>
 
@@ -391,7 +391,7 @@
 
                 <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
 
-                <input type="text" name="url" class="form-control" value="<?php echo htmlspecialchars((string) $field('url')); ?>" placeholder="https://example.com">
+                <input type="text" name="url" class="form-control" value="<?php echo esc_view((string) $field('url')); ?>" placeholder="https://example.com">
 
               </div>
 
@@ -420,7 +420,7 @@
 
               <label class="form-label fw-semibold">Closing comment</label>
 
-              <textarea name="closing_comment" class="form-control" rows="2" placeholder="Wrap-up notes when closing or completing this item…"><?php echo htmlspecialchars((string) $field('closing_comment')); ?></textarea>
+              <textarea name="closing_comment" class="form-control" rows="2" placeholder="Wrap-up notes when closing or completing this item…"><?php echo esc_view((string) $field('closing_comment')); ?></textarea>
 
             </div>
 

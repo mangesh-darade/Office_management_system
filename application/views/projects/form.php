@@ -33,11 +33,11 @@
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Code</label>
-          <input type="text" name="code" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->code) : ''; ?>" placeholder="PRJ-001">
+          <input type="text" name="code" class="form-control" value="<?php echo isset($project) ? esc_view($project->code ?? '') : ''; ?>" placeholder="PRJ-001">
         </div>
         <div class="col-md-8">
           <label class="form-label">Name <span class="text-danger">*</span></label>
-          <input required type="text" name="name" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->name) : ''; ?>" placeholder="Website Redesign">
+          <input required type="text" name="name" class="form-control" value="<?php echo isset($project) ? esc_view($project->name ?? '') : ''; ?>" placeholder="Website Redesign">
         </div>
         <?php if (!empty($project_types) && function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'project_type')): ?>
         <div class="col-md-4">
@@ -61,7 +61,7 @@
               foreach ($statuses as $st): 
                 $selected = ($current_status === $st->code) ? 'selected' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($st->code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($st->name); ?></option>
+              <option value="<?php echo esc_view($st->code); ?>" <?php echo $selected; ?>><?php echo esc_view($st->name); ?></option>
             <?php 
               endforeach; 
             else: 
@@ -70,7 +70,7 @@
               foreach ($fallback_statuses as $code => $name):
                 $selected = ($current_status === $code) ? 'selected' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($name); ?></option>
+              <option value="<?php echo esc_view($code); ?>" <?php echo $selected; ?>><?php echo esc_view($name); ?></option>
             <?php 
               endforeach; 
             endif; 
@@ -79,14 +79,19 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Start Date</label>
-          <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->start_date) : ''; ?>">
+          <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo isset($project) ? esc_view($project->start_date ?? '') : ''; ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">End Date</label>
-          <input type="date" name="end_date" id="end_date" class="form-control" value="<?php echo isset($project) ? htmlspecialchars($project->end_date) : ''; ?>">
+          <input type="date" name="end_date" id="end_date" class="form-control" value="<?php echo isset($project) ? esc_view($project->end_date ?? '') : ''; ?>">
           <div class="form-text text-danger" id="date-error" style="display: none;">
             <small>End date must be on or after start date</small>
           </div>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
+          <input type="url" name="reference_url" class="form-control" value="<?php echo isset($project) && !empty($project->reference_url) ? esc_view($project->reference_url) : ''; ?>" placeholder="https://example.com/docs">
+          <div class="form-text">Optional. Paste any web link (e.g. spec doc, Figma, Jira).</div>
         </div>
       </div>
       <div class="mt-4 d-flex gap-2">

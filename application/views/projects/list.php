@@ -36,9 +36,9 @@
           <?php if(!empty($projects)) foreach($projects as $p): ?>
             <tr>
               <td><?php echo (int)$p->id; ?></td>
-              <td><?php echo htmlspecialchars($p->code); ?></td>
-              <td><?php echo htmlspecialchars($p->name); ?></td>
-              <td><span class="badge bg-secondary"><?php echo htmlspecialchars($p->status); ?></span></td>
+              <td><?php echo esc_view($p->code); ?></td>
+              <td><?php echo esc_view($p->name); ?></td>
+              <td><span class="badge bg-secondary"><?php echo esc_view($p->status); ?></span></td>
               <td class="text-end">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('projects/'.$p->id); ?>"><i class="bi bi-eye"></i></a>
                 <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects'))): ?>

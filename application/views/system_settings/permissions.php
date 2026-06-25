@@ -51,7 +51,7 @@
                     <td class="fw-semibold align-middle">
                       <div class="d-flex align-items-center">
                         <span class="badge bg-<?php echo get_role_color($role->id); ?> me-2">
-                          <?php echo htmlspecialchars($role->name); ?>
+                          <?php echo esc_view($role->name); ?>
                         </span>
                       </div>
                     </td>

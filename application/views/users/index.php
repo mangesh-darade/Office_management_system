@@ -29,7 +29,7 @@
                 <span class="input-group-text bg-light border-end-0">
                   <i class="bi bi-search text-muted"></i>
                 </span>
-                <input type="text" name="q" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" 
+                <input type="text" name="q" value="<?php echo esc_view(isset($q) ? $q : ''); ?>" 
                        class="form-control border-start-0" placeholder="Search by name, email...">
               </div>
             </div>
@@ -95,9 +95,9 @@
                     <div class="d-flex align-items-center">
                       <div class="avatar-wrapper me-3">
                         <?php if (!empty($r->avatar)): ?>
-                          <img src="<?php echo base_url('uploads/avatars/'.htmlspecialchars($r->avatar)); ?>" 
+                          <img src="<?php echo base_url('uploads/avatars/'.esc_view($r->avatar)); ?>" 
                                class="rounded-circle avatar-md border border-2 border-light-subtle" 
-                               alt="<?php echo htmlspecialchars(isset($r->name) ? $r->name : 'User'); ?>">
+                               alt="<?php echo esc_view(isset($r->name) ? $r->name : 'User'); ?>">
                         <?php else: ?>
                           <div class="avatar-md rounded-circle bg-primary bg-gradient d-flex align-items-center justify-content-center text-white fw-bold">
                             <?php echo strtoupper(substr(isset($r->name) ? $r->name : 'U', 0, 2)); ?>
@@ -105,7 +105,7 @@
                         <?php endif; ?>
                       </div>
                       <div>
-                        <div class="fw-semibold text-dark"><?php echo htmlspecialchars(isset($r->name) ? $r->name : 'Unknown'); ?></div>
+                        <div class="fw-semibold text-dark"><?php echo esc_view(isset($r->name) ? $r->name : 'Unknown'); ?></div>
                       </div>
                     </div>
                   </td>
@@ -113,12 +113,12 @@
                     <div class="contact-info">
                       <div class="d-flex align-items-center mb-1">
                         <i class="bi bi-envelope-fill text-muted me-2 small"></i>
-                        <span class="small"><?php echo htmlspecialchars(isset($r->email) ? $r->email : ''); ?></span>
+                        <span class="small"><?php echo esc_view(isset($r->email) ? $r->email : ''); ?></span>
                       </div>
                       <?php if (!empty($r->phone)): ?>
                       <div class="d-flex align-items-center">
                         <i class="bi bi-telephone-fill text-muted me-2 small"></i>
-                        <span class="small"><?php echo htmlspecialchars($r->phone); ?></span>
+                        <span class="small"><?php echo esc_view($r->phone); ?></span>
                       </div>
                       <?php endif; ?>
                     </div>
@@ -170,7 +170,7 @@
                     ?>
                     <span class="badge bg-<?php echo $roleColor; ?> bg-opacity-10 text-<?php echo $roleColor; ?> border border-<?php echo $roleColor; ?> bg-opacity-25">
                       <i class="bi <?php echo $roleIcon; ?> me-1"></i>
-                      <?php echo htmlspecialchars($displayName); ?>
+                      <?php echo esc_view($displayName); ?>
                     </span>
                   </td>
                   <td>
@@ -198,7 +198,7 @@
                       $faceDate = isset($r->face_registered_date) ? $r->face_registered_date : null;
                     ?>
                     <?php if ($faceRegistered): ?>
-                      <span class="badge bg-success" title="<?php echo $faceDate ? 'Registered on: ' . htmlspecialchars($faceDate) : 'Face registered'; ?>">
+                      <span class="badge bg-success" title="<?php echo $faceDate ? 'Registered on: ' . esc_view($faceDate) : 'Face registered'; ?>">
                         <i class="bi bi-check-circle-fill"></i> Yes
                       </span>
                     <?php else: ?>

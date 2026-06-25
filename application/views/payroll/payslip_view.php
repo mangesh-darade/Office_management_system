@@ -267,7 +267,7 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-receipt text-primary me-2"></i>Payslip</h4>
-      <p class="text-muted mb-0 small">Payslip for <?php echo htmlspecialchars($empName ?: 'Employee'); ?> &mdash; <?php echo htmlspecialchars($formattedPeriod); ?></p>
+      <p class="text-muted mb-0 small">Payslip for <?php echo esc_view($empName ?: 'Employee'); ?> &mdash; <?php echo esc_view($formattedPeriod); ?></p>
     </div>
     <div class="d-flex gap-2 mt-2 mt-sm-0">
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
@@ -284,13 +284,13 @@
       <tr>
         <td style="vertical-align:middle;">
           <?php if ($companyLogo): ?>
-            <img src="<?php echo htmlspecialchars($companyLogo); ?>" alt="Logo" class="ps-company-logo" />
+            <img src="<?php echo esc_view($companyLogo); ?>" alt="Logo" class="ps-company-logo" />
           <?php endif; ?>
-          <div class="ps-company-name"><?php echo htmlspecialchars($companyName); ?></div>
+          <div class="ps-company-name"><?php echo esc_view($companyName); ?></div>
         </td>
         <td style="vertical-align:middle; text-align:right;">
           <?php if ($companyAddress !== ''): ?>
-            <div class="ps-company-addr"><?php echo nl2br(htmlspecialchars($companyAddress)); ?></div>
+            <div class="ps-company-addr"><?php echo nl2br(esc_view($companyAddress)); ?></div>
           <?php endif; ?>
         </td>
       </tr>
@@ -299,7 +299,7 @@
 
   <!-- ===== MONTH TITLE BAR ===== -->
   <div class="ps-month-bar">
-    PAY SLIP FOR THE MONTH OF &nbsp;<?php echo htmlspecialchars($formattedPeriod); ?>
+    PAY SLIP FOR THE MONTH OF &nbsp;<?php echo esc_view($formattedPeriod); ?>
   </div>
 
   <div class="ps-body">
@@ -312,23 +312,23 @@
             <table class="ps-info-table">
               <tr>
                 <th>Name</th>
-                <td><?php echo htmlspecialchars($empName ?: '-'); ?></td>
+                <td><?php echo esc_view($empName ?: '-'); ?></td>
               </tr>
               <tr>
                 <th>Employee Code</th>
-                <td><?php echo htmlspecialchars($empCode !== '' ? $empCode : '-'); ?></td>
+                <td><?php echo esc_view($empCode !== '' ? $empCode : '-'); ?></td>
               </tr>
               <tr>
                 <th>Designation</th>
-                <td><?php echo htmlspecialchars($designation !== '' ? $designation : '-'); ?></td>
+                <td><?php echo esc_view($designation !== '' ? $designation : '-'); ?></td>
               </tr>
               <tr>
                 <th>Location</th>
-                <td><?php echo htmlspecialchars($location !== '' ? $location : '-'); ?></td>
+                <td><?php echo esc_view($location !== '' ? $location : '-'); ?></td>
               </tr>
               <tr>
                 <th>Date of Joining</th>
-                <td><?php echo htmlspecialchars($doj !== '' ? $doj : '-'); ?></td>
+                <td><?php echo esc_view($doj !== '' ? $doj : '-'); ?></td>
               </tr>
             </table>
           </td>
@@ -336,23 +336,23 @@
             <table class="ps-info-table">
               <tr>
                 <th>Pay Mode</th>
-                <td><?php echo htmlspecialchars($payMode !== '' ? $payMode : '-'); ?></td>
+                <td><?php echo esc_view($payMode !== '' ? $payMode : '-'); ?></td>
               </tr>
               <tr>
                 <th>Bank Name</th>
-                <td><?php echo htmlspecialchars($bankName !== '' ? $bankName : '-'); ?></td>
+                <td><?php echo esc_view($bankName !== '' ? $bankName : '-'); ?></td>
               </tr>
               <tr>
                 <th>Bank A/C No</th>
-                <td><?php echo htmlspecialchars($bankAcNo !== '' ? $bankAcNo : '-'); ?></td>
+                <td><?php echo esc_view($bankAcNo !== '' ? $bankAcNo : '-'); ?></td>
               </tr>
               <tr>
                 <th>PAN No</th>
-                <td><?php echo htmlspecialchars($panNo !== '' ? $panNo : '-'); ?></td>
+                <td><?php echo esc_view($panNo !== '' ? $panNo : '-'); ?></td>
               </tr>
               <tr>
                 <th>Department</th>
-                <td><?php echo htmlspecialchars($department !== '' ? $department : '-'); ?></td>
+                <td><?php echo esc_view($department !== '' ? $department : '-'); ?></td>
               </tr>
             </table>
           </td>
@@ -457,14 +457,14 @@
   <!-- ===== REMARKS (if any) ===== -->
   <?php if (!empty($row->remarks)): ?>
   <div class="ps-remarks">
-    <strong>Remarks:</strong> <?php echo nl2br(htmlspecialchars($row->remarks)); ?>
+    <strong>Remarks:</strong> <?php echo nl2br(esc_view($row->remarks)); ?>
   </div>
   <?php endif; ?>
 
   <!-- ===== EMPLOYEE ADDRESS (if any) ===== -->
   <?php if ($empAddress !== ''): ?>
   <div class="ps-remarks">
-    <strong>Employee Address:</strong> <?php echo nl2br(htmlspecialchars($empAddress)); ?>
+    <strong>Employee Address:</strong> <?php echo nl2br(esc_view($empAddress)); ?>
   </div>
   <?php endif; ?>
 

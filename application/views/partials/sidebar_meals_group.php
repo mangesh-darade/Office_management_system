@@ -29,7 +29,7 @@ if ($variant === 'mobile'):
   <div class="ps-3">
     <?php foreach ($meal_screens as $screen): ?>
     <a class="nav-link sidebar-link small <?php echo $meal_active_key === $screen['key'] ? 'active' : ''; ?>" href="<?php echo site_url($screen['href']); ?>">
-      <i class="bi <?php echo htmlspecialchars($screen['icon']); ?> me-2"></i><?php echo htmlspecialchars($screen['label']); ?>
+      <i class="bi <?php echo esc_view($screen['icon']); ?> me-2"></i><?php echo esc_view($screen['label']); ?>
     </a>
     <?php endforeach; ?>
   </div>
@@ -48,7 +48,7 @@ if ($variant === 'mobile'):
     <div class="submenu-list">
       <?php foreach ($meal_screens as $screen): ?>
       <a class="submenu-link <?php echo $meal_active_key === $screen['key'] ? 'active' : ''; ?>" href="<?php echo site_url($screen['href']); ?>">
-        <i class="bi <?php echo htmlspecialchars($screen['icon']); ?> me-1"></i><?php echo htmlspecialchars($screen['label']); ?>
+        <i class="bi <?php echo esc_view($screen['icon']); ?> me-1"></i><?php echo esc_view($screen['label']); ?>
       </a>
       <?php endforeach; ?>
     </div>

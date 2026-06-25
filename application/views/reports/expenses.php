@@ -23,11 +23,11 @@
       <form method="get" action="<?php echo site_url('reports/expenses'); ?>" class="row g-2 align-items-end">
         <div class="col-6 col-md-2">
           <label class="form-label small fw-bold text-uppercase text-muted mb-1">From</label>
-          <input type="date" name="date_from" class="form-control form-control-sm" value="<?php echo htmlspecialchars($date_from); ?>">
+          <input type="date" name="date_from" class="form-control form-control-sm" value="<?php echo esc_view($date_from); ?>">
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small fw-bold text-uppercase text-muted mb-1">To</label>
-          <input type="date" name="date_to" class="form-control form-control-sm" value="<?php echo htmlspecialchars($date_to); ?>">
+          <input type="date" name="date_to" class="form-control form-control-sm" value="<?php echo esc_view($date_to); ?>">
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small fw-bold text-uppercase text-muted mb-1">Status</label>
@@ -44,7 +44,7 @@
             <option value="">— All —</option>
             <?php foreach ($categories as $c): ?>
               <option value="<?php echo $c->id; ?>" <?php echo ($category == $c->id) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($c->name); ?>
+                <?php echo esc_view($c->name); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -96,7 +96,7 @@
             <?php arsort($by_category); ?>
             <?php foreach ($by_category as $cat => $amt): ?>
             <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-              <span class="small"><?php echo htmlspecialchars($cat); ?></span>
+              <span class="small"><?php echo esc_view($cat); ?></span>
               <span class="fw-semibold"><?php echo number_format($amt, 2); ?></span>
             </li>
             <?php endforeach; ?>
@@ -136,10 +136,10 @@
                   <tr>
                     <td style="white-space:nowrap;"><?php echo isset($e->expense_date) ? date('d M Y', strtotime($e->expense_date)) : '—'; ?></td>
                     <td>
-                      <div class="fw-semibold small"><?php echo htmlspecialchars($e->employee_name ? $e->employee_name : '—'); ?></div>
+                      <div class="fw-semibold small"><?php echo esc_view($e->employee_name ? $e->employee_name : '—'); ?></div>
                     </td>
-                    <td class="d-none d-md-table-cell small"><?php echo htmlspecialchars($e->category_name ? $e->category_name : '—'); ?></td>
-                    <td class="d-none d-sm-table-cell small text-muted"><?php echo htmlspecialchars(isset($e->description) ? substr($e->description, 0, 40) : ''); ?></td>
+                    <td class="d-none d-md-table-cell small"><?php echo esc_view($e->category_name ? $e->category_name : '—'); ?></td>
+                    <td class="d-none d-sm-table-cell small text-muted"><?php echo esc_view(isset($e->description) ? substr($e->description, 0, 40) : ''); ?></td>
                     <td class="text-end fw-semibold"><?php echo number_format(isset($e->amount) ? $e->amount : 0, 2); ?></td>
                     <td><span class="badge bg-<?php echo $badge; ?>"><?php echo ucfirst($st); ?></span></td>
                     <td class="text-end">

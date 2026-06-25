@@ -18,11 +18,11 @@
     <div class="row g-3">
       <div class="col-md-6">
         <div class="text-muted small">Name</div>
-        <div class="fw-semibold fs-5"><?php echo htmlspecialchars($status->name); ?></div>
+        <div class="fw-semibold fs-5"><?php echo esc_view($status->name); ?></div>
       </div>
       <div class="col-md-6">
         <div class="text-muted small">Code</div>
-        <div><code class="fs-5"><?php echo htmlspecialchars($status->code); ?></code></div>
+        <div><code class="fs-5"><?php echo esc_view($status->code); ?></code></div>
       </div>
       <div class="col-md-6">
         <div class="text-muted small">Type</div>
@@ -31,8 +31,8 @@
       <div class="col-md-6">
         <div class="text-muted small">Color</div>
         <div>
-          <span class="badge fs-6" style="background-color: <?php echo htmlspecialchars($status->color); ?>; color: #fff;">
-            <?php echo htmlspecialchars($status->color); ?>
+          <span class="badge fs-6" style="background-color: <?php echo esc_view($status->color); ?>; color: #fff;">
+            <?php echo esc_view($status->color); ?>
           </span>
         </div>
       </div>
@@ -40,7 +40,7 @@
         <div class="text-muted small">Icon</div>
         <div>
           <?php if ($status->icon): ?>
-            <i class="bi bi-<?php echo htmlspecialchars($status->icon); ?>"></i> <?php echo htmlspecialchars($status->icon); ?>
+            <i class="bi bi-<?php echo esc_view($status->icon); ?>"></i> <?php echo esc_view($status->icon); ?>
           <?php else: ?>
             <span class="text-muted">None</span>
           <?php endif; ?>
@@ -63,7 +63,7 @@
       <?php if ($status->description): ?>
         <div class="col-md-12">
           <div class="text-muted small">Description</div>
-          <div><?php echo nl2br(htmlspecialchars($status->description)); ?></div>
+          <div><?php echo nl2br(esc_view($status->description)); ?></div>
         </div>
       <?php endif; ?>
       <div class="col-md-6">

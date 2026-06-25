@@ -129,14 +129,14 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show d-flex align-items-center py-2 mb-3" role="alert">
       <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-      <span><?php echo htmlspecialchars($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></span>
+      <span><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></span>
       <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center py-2 mb-3" role="alert">
       <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-      <span><?php echo htmlspecialchars($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></span>
+      <span><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></span>
       <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -191,16 +191,16 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
               <tr>
                 <?php foreach($admin_roles as $rid => $rname): ?>
                   <th class="text-center col-admin role-col" data-role-col="<?php echo (int)$rid; ?>" data-group="admin" style="min-width:90px;">
-                    <div><?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div><?php echo esc_view($rname); ?></div>
                     <div class="mt-1">
                       <button type="button" class="btn btn-col-toggle btn-outline-success"
                         onclick="toggleCol('col_<?php echo (int)$rid; ?>', true)"
-                        title="Select all for <?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?>">
+                        title="Select all for <?php echo esc_view($rname); ?>">
                         <i class="bi bi-check-all"></i>
                       </button>
                       <button type="button" class="btn btn-col-toggle btn-outline-danger"
                         onclick="toggleCol('col_<?php echo (int)$rid; ?>', false)"
-                        title="Deselect all for <?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?>">
+                        title="Deselect all for <?php echo esc_view($rname); ?>">
                         <i class="bi bi-x"></i>
                       </button>
                     </div>
@@ -208,16 +208,16 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
                 <?php endforeach; ?>
                 <?php foreach($user_roles as $rid => $rname): ?>
                   <th class="text-center col-user role-col" data-role-col="<?php echo (int)$rid; ?>" data-group="user" style="min-width:90px;">
-                    <div><?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?></div>
+                    <div><?php echo esc_view($rname); ?></div>
                     <div class="mt-1">
                       <button type="button" class="btn btn-col-toggle btn-outline-success"
                         onclick="toggleCol('col_<?php echo (int)$rid; ?>', true)"
-                        title="Select all for <?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?>">
+                        title="Select all for <?php echo esc_view($rname); ?>">
                         <i class="bi bi-check-all"></i>
                       </button>
                       <button type="button" class="btn btn-col-toggle btn-outline-danger"
                         onclick="toggleCol('col_<?php echo (int)$rid; ?>', false)"
-                        title="Deselect all for <?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?>">
+                        title="Deselect all for <?php echo esc_view($rname); ?>">
                         <i class="bi bi-x"></i>
                       </button>
                     </div>
@@ -238,8 +238,8 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
                         <span class="btn btn-sm section-toggle-btn me-1" aria-hidden="true">
                           <i class="bi bi-chevron-down section-chevron"></i>
                         </span>
-                        <i class="<?php echo htmlspecialchars($menu_data['icon'], ENT_QUOTES, 'UTF-8'); ?> me-2 text-primary"></i>
-                        <span><?php echo htmlspecialchars($menu_name, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <i class="<?php echo esc_view($menu_data['icon']); ?> me-2 text-primary"></i>
+                        <span><?php echo esc_view($menu_name); ?></span>
                         <span class="badge bg-secondary ms-2 section-count-badge"><?php echo count($menu_data['modules']); ?></span>
                       </div>
                       <div class="d-flex gap-1 section-actions">
@@ -264,22 +264,22 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
                   $searchLabel = strtolower($label . ' ' . $key . ' ' . $tag);
                 ?>
                   <tr class="perm-row section-collapsed section_<?php echo $section_slug; ?>"
-                      data-label="<?php echo htmlspecialchars($searchLabel, ENT_QUOTES, 'UTF-8'); ?>">
+                      data-label="<?php echo esc_view($searchLabel); ?>">
                     <td class="ps-4 perm-sticky-module">
                       <div class="fw-semibold d-flex align-items-center flex-wrap gap-1">
-                        <span><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span><?php echo esc_view($label); ?></span>
                         <?php if ($tag !== ''): ?>
-                          <span class="badge perm-tag <?php echo htmlspecialchars(permissions_module_tag_class($tag), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($tag, ENT_QUOTES, 'UTF-8'); ?></span>
+                          <span class="badge perm-tag <?php echo esc_view(permissions_module_tag_class($tag), ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($tag); ?></span>
                         <?php endif; ?>
                       </div>
-                      <div class="module-key"><?php echo htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?></div>
+                      <div class="module-key"><?php echo esc_view($key); ?></div>
                     </td>
                     <?php foreach($admin_roles as $rid => $rname): ?>
                       <?php $checked = isset($existing[$rid][$key]) ? ((int)$existing[$rid][$key] === 1) : false; ?>
                       <td class="text-center col-admin role-col" data-role-col="<?php echo (int)$rid; ?>" data-group="admin">
                         <input class="form-check-input col_<?php echo (int)$rid; ?>"
                                type="checkbox"
-                               name="perms[<?php echo (int)$rid; ?>][<?php echo htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?>]"
+                               name="perms[<?php echo (int)$rid; ?>][<?php echo esc_view($key); ?>]"
                                value="1"
                                <?php echo $checked ? 'checked' : ''; ?>>
                       </td>
@@ -289,7 +289,7 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
                       <td class="text-center col-user role-col" data-role-col="<?php echo (int)$rid; ?>" data-group="user">
                         <input class="form-check-input col_<?php echo (int)$rid; ?>"
                                type="checkbox"
-                               name="perms[<?php echo (int)$rid; ?>][<?php echo htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?>]"
+                               name="perms[<?php echo (int)$rid; ?>][<?php echo esc_view($key); ?>]"
                                value="1"
                                <?php echo $checked ? 'checked' : ''; ?>>
                       </td>

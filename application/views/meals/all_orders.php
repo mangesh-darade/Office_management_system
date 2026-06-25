@@ -25,7 +25,7 @@ $this->load->view('meals/_nav', ['active_sub' => 'all_orders']);
 <form method="get" class="row g-2 align-items-end mb-3">
   <div class="col-auto">
     <label class="form-label small mb-0">Date</label>
-    <input type="date" name="date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($date); ?>">
+    <input type="date" name="date" class="form-control form-control-sm" value="<?php echo esc_view($date); ?>">
   </div>
   <div class="col-auto">
     <div class="form-check mt-4">
@@ -74,9 +74,9 @@ $this->load->view('meals/_nav', ['active_sub' => 'all_orders']);
 <?php if ($cal): ?>
 <div class="alert alert-info py-2 small mb-3">
   <?php echo date('l, d M Y', strtotime($date)); ?> —
-  <?php if ($hasBfDay): ?>Breakfast<?php echo $cal->breakfast_note ? ': ' . htmlspecialchars($cal->breakfast_note) : ''; ?>. <?php else: ?>No breakfast scheduled. <?php endif; ?>
-  <?php if ($hasLuDay): ?>Lunch<?php echo $cal->lunch_note ? ': ' . htmlspecialchars($cal->lunch_note) : ''; ?>.<?php else: ?>No lunch scheduled.<?php endif; ?>
-  Cut-offs: breakfast <?php echo htmlspecialchars($bfCut); ?>, lunch <?php echo htmlspecialchars($luCut); ?>.
+  <?php if ($hasBfDay): ?>Breakfast<?php echo $cal->breakfast_note ? ': ' . esc_view($cal->breakfast_note) : ''; ?>. <?php else: ?>No breakfast scheduled. <?php endif; ?>
+  <?php if ($hasLuDay): ?>Lunch<?php echo $cal->lunch_note ? ': ' . esc_view($cal->lunch_note) : ''; ?>.<?php else: ?>No lunch scheduled.<?php endif; ?>
+  Cut-offs: breakfast <?php echo esc_view($bfCut); ?>, lunch <?php echo esc_view($luCut); ?>.
 </div>
 <?php else: ?>
 <div class="alert alert-secondary py-2 small mb-3">No meal calendar entry for this date.</div>
@@ -107,10 +107,10 @@ $this->load->view('meals/_nav', ['active_sub' => 'all_orders']);
         $hasOrder = $bf > 0 || $ltMain !== '' || $ltAdd !== '';
       ?>
         <tr class="<?php echo $hasOrder ? '' : 'text-muted'; ?>">
-          <td><?php echo htmlspecialchars($row->user_name); ?></td>
+          <td><?php echo esc_view($row->user_name); ?></td>
           <td>
             <?php if ($bf > 0): ?>
-              <span class="badge bg-warning text-dark"><?php echo htmlspecialchars(meal_order_breakfast_display($row)); ?></span>
+              <span class="badge bg-warning text-dark"><?php echo esc_view(meal_order_breakfast_display($row)); ?></span>
               <?php if ($bfLocked && !empty($row->breakfast_locked_at)): ?><i class="bi bi-lock-fill small ms-1" title="Locked"></i><?php endif; ?>
             <?php else: ?>
               <span class="text-muted">—</span>
@@ -118,7 +118,7 @@ $this->load->view('meals/_nav', ['active_sub' => 'all_orders']);
           </td>
           <td>
             <?php if ($ltMain !== '' || $ltAdd !== ''): ?>
-              <span class="badge bg-primary"><?php echo htmlspecialchars(meal_order_lunch_display($row)); ?></span>
+              <span class="badge bg-primary"><?php echo esc_view(meal_order_lunch_display($row)); ?></span>
               <?php if ($luLocked && !empty($row->lunch_locked_at)): ?><i class="bi bi-lock-fill small ms-1" title="Locked"></i><?php endif; ?>
             <?php else: ?>
               <span class="text-muted">—</span>

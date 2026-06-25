@@ -10,10 +10,10 @@
   </div>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -37,18 +37,18 @@
           <?php else: foreach ($rows as $s): ?>
           <tr>
             <td><?php echo (int)$s->id; ?></td>
-            <td><?php echo htmlspecialchars($s->name); ?></td>
-            <td><?php echo htmlspecialchars($s->audience); ?></td>
+            <td><?php echo esc_view($s->name); ?></td>
+            <td><?php echo esc_view($s->audience); ?></td>
             <td>
               <?php
               if (isset($s->schedule_type) && $s->schedule_type === 'once'){
                 if (!empty($s->one_time_at)){
-                  echo htmlspecialchars(date('Y-m-d', strtotime($s->one_time_at)));
+                  echo esc_view(date('Y-m-d', strtotime($s->one_time_at)));
                 } else {
                   echo '-';
                 }
               } else {
-                echo htmlspecialchars($s->weekdays);
+                echo esc_view($s->weekdays);
               }
               ?>
             </td>
@@ -56,16 +56,16 @@
               <?php
               if (isset($s->schedule_type) && $s->schedule_type === 'once'){
                 if (!empty($s->one_time_at)){
-                  echo htmlspecialchars(date('H:i', strtotime($s->one_time_at)));
+                  echo esc_view(date('H:i', strtotime($s->one_time_at)));
                 } else {
-                  echo htmlspecialchars($s->send_time);
+                  echo esc_view($s->send_time);
                 }
               } else {
-                echo htmlspecialchars($s->send_time);
+                echo esc_view($s->send_time);
               }
               ?>
             </td>
-            <td class="small"><?php echo htmlspecialchars($s->subject); ?></td>
+            <td class="small"><?php echo esc_view($s->subject); ?></td>
             <td><?php echo ((int)$s->active) ? 'Yes' : 'No'; ?></td>
             <td>
               <?php if($can_manage_reminders): ?>

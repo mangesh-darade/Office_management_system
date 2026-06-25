@@ -4,14 +4,14 @@
   <div class="col-12">
     <?php if($this->session->flashdata('success')): ?>
       <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+        <i class="bi bi-check-circle me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     <?php endif; ?>
     
     <?php if($this->session->flashdata('error')): ?>
       <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+        <i class="bi bi-exclamation-triangle me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     <?php endif; ?>
@@ -74,13 +74,13 @@
             <select name="employee_id" id="employee-select" class="form-select" required>
               <option value="">-- Select Employee --</option>
               <?php foreach ($employees as $emp): ?>
-                <option value="<?php echo $emp->id; ?>" data-phone="<?php echo htmlspecialchars($emp->phone); ?>">
+                <option value="<?php echo $emp->id; ?>" data-phone="<?php echo esc_view($emp->phone); ?>">
                   <?php 
                     $first_name = isset($emp->first_name) ? $emp->first_name : '';
                     $last_name = isset($emp->last_name) ? $emp->last_name : '';
-                    echo htmlspecialchars(trim($first_name . ' ' . $last_name)); 
+                    echo esc_view(trim($first_name . ' ' . $last_name)); 
                   ?>
-                  (<?php echo htmlspecialchars($emp->emp_code); ?>) - <?php echo htmlspecialchars($emp->phone); ?>
+                  (<?php echo esc_view($emp->emp_code); ?>) - <?php echo esc_view($emp->phone); ?>
                 </option>
               <?php endforeach; ?>
             </select>
@@ -140,7 +140,7 @@
                       <?php 
                         $first_name = isset($emp->first_name) ? $emp->first_name : '';
                         $last_name = isset($emp->last_name) ? $emp->last_name : '';
-                        echo htmlspecialchars(trim($first_name . ' ' . $last_name)); 
+                        echo esc_view(trim($first_name . ' ' . $last_name)); 
                       ?>
                     </option>
                   <?php endforeach; ?>
@@ -175,7 +175,7 @@
                       <?php 
                         $first_name = isset($emp->first_name) ? $emp->first_name : '';
                         $last_name = isset($emp->last_name) ? $emp->last_name : '';
-                        echo htmlspecialchars(trim($first_name . ' ' . $last_name)); 
+                        echo esc_view(trim($first_name . ' ' . $last_name)); 
                       ?>
                     </option>
                   <?php endforeach; ?>

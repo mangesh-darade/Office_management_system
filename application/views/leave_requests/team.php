@@ -9,10 +9,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft mb-3">
@@ -30,11 +30,11 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">From</label>
-        <input type="date" class="form-control" name="from" value="<?php echo htmlspecialchars(isset($filters['from']) ? $filters['from'] : ''); ?>" />
+        <input type="date" class="form-control" name="from" value="<?php echo esc_view(isset($filters['from']) ? $filters['from'] : ''); ?>" />
       </div>
       <div class="col-md-3">
         <label class="form-label">To</label>
-        <input type="date" class="form-control" name="to" value="<?php echo htmlspecialchars(isset($filters['to']) ? $filters['to'] : ''); ?>" />
+        <input type="date" class="form-control" name="to" value="<?php echo esc_view(isset($filters['to']) ? $filters['to'] : ''); ?>" />
       </div>
       <div class="col-md-3 align-self-end">
         <button class="btn btn-outline-secondary">Filter</button>
@@ -64,20 +64,20 @@
           <?php if (empty($rows)): ?>
             <tr><td colspan="9" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
-            <tr class="leave-row-clickable" data-user-id="<?php echo (int)$r->user_id; ?>" data-user-email="<?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?>" style="cursor: pointer;">
+            <tr class="leave-row-clickable" data-user-id="<?php echo (int)$r->user_id; ?>" data-user-email="<?php echo esc_view(isset($r->user_email) ? $r->user_email : ''); ?>" style="cursor: pointer;">
               <td>
                 <?php 
                   // Show employee name (user_name or first_name + last_name) with email
                   $emp_name = '';
                   if (!empty($r->user_name)) {
-                    $emp_name = htmlspecialchars($r->user_name);
+                    $emp_name = esc_view($r->user_name);
                   } elseif (!empty($r->emp_first_name)) {
-                    $emp_name = htmlspecialchars(trim($r->emp_first_name . ' ' . (!empty($r->emp_last_name) ? $r->emp_last_name : '')));
+                    $emp_name = esc_view(trim($r->emp_first_name . ' ' . (!empty($r->emp_last_name) ? $r->emp_last_name : '')));
                   }
                   if (!empty($emp_name)) {
-                    echo $emp_name . '<br><small class="text-muted">' . htmlspecialchars(isset($r->user_email) ? $r->user_email : '') . '</small>';
+                    echo $emp_name . '<br><small class="text-muted">' . esc_view(isset($r->user_email) ? $r->user_email : '') . '</small>';
                   } else {
-                    echo htmlspecialchars(isset($r->user_email) ? $r->user_email : 'N/A');
+                    echo esc_view(isset($r->user_email) ? $r->user_email : 'N/A');
                   }
                 ?>
               </td>
@@ -87,12 +87,12 @@
                   if (!empty($r->lead_name) || !empty($r->lead_email)) {
                     $lead_display = '';
                     if (!empty($r->lead_name)) {
-                      $lead_display = htmlspecialchars($r->lead_name);
+                      $lead_display = esc_view($r->lead_name);
                       if (!empty($r->lead_email)) {
-                        $lead_display .= '<br><small class="text-muted">' . htmlspecialchars($r->lead_email) . '</small>';
+                        $lead_display .= '<br><small class="text-muted">' . esc_view($r->lead_email) . '</small>';
                       }
                     } else {
-                      $lead_display = htmlspecialchars($r->lead_email);
+                      $lead_display = esc_view($r->lead_email);
                     }
                     echo $lead_display;
                   } else {
@@ -100,15 +100,15 @@
                   }
                 ?>
               </td>
-              <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
+              <td><?php echo esc_view(isset($r->type_name) ? $r->type_name : ''); ?></td>
               <td>
                 <?php
                   $sd = isset($r->start_date) ? (string)$r->start_date : '';
                   $ed = isset($r->end_date) ? (string)$r->end_date : '';
                   if ($sd !== '' && $sd === $ed) {
-                    echo htmlspecialchars($sd);
+                    echo esc_view($sd);
                   } else {
-                    echo htmlspecialchars($sd.' to '.$ed);
+                    echo esc_view($sd.' to '.$ed);
                   }
                 ?>
               </td>
@@ -121,12 +121,12 @@
                   if ($daysVal === 0.5) {
                     $daysText .= ' (Half Day)';
                   }
-                  echo htmlspecialchars($daysText);
+                  echo esc_view($daysText);
                 ?>
               </td>
-              <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->status))); ?></span></td>
-              <td><?php echo htmlspecialchars(isset($r->created_at) ? $r->created_at : ''); ?></td>
-              <td class="text-truncate" style="max-width:min(280px, 50vw);"><?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?></td>
+              <td><span class="badge bg-info text-dark"><?php echo esc_view(ucfirst(str_replace('_',' ', $r->status))); ?></span></td>
+              <td><?php echo esc_view(isset($r->created_at) ? $r->created_at : ''); ?></td>
+              <td class="text-truncate" style="max-width:min(280px, 50vw);"><?php echo esc_view(isset($r->reason) ? $r->reason : ''); ?></td>
               <td>
                 <div class="d-flex flex-column gap-2" onclick="event.stopPropagation();">
                   <!-- Approve/Reject actions for managers - Single comment box -->
@@ -138,7 +138,7 @@
                     $reject_disabled = $is_final ? 'disabled' : '';
                   ?>
                   <div class="mb-2">
-                    <input type="text" class="form-control form-control-sm mb-1" name="comments" id="comments_<?php echo $r->id; ?>" placeholder="Enter comments (optional)" value="<?php echo htmlspecialchars(isset($r->latest_remarks) ? $r->latest_remarks : ''); ?>" />
+                    <input type="text" class="form-control form-control-sm mb-1" name="comments" id="comments_<?php echo $r->id; ?>" placeholder="Enter comments (optional)" value="<?php echo esc_view(isset($r->latest_remarks) ? $r->latest_remarks : ''); ?>" />
                     <div class="d-flex gap-1 align-items-center">
                       <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
                       <form method="post" action="<?php echo site_url('leave/approve/'.(int)$r->id); ?>" class="d-inline">

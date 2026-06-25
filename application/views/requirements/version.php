@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Requirement Version']); ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Requirement Version: <?php echo htmlspecialchars(isset($req->req_number)?$req->req_number:'#'.(int)$req->id); ?> - v<?php echo (int)$ver->version_no; ?></h1>
+  <h1 class="h4 mb-0">Requirement Version: <?php echo esc_view(isset($req->req_number)?$req->req_number:'#'.(int)$req->id); ?> - v<?php echo (int)$ver->version_no; ?></h1>
   <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements/view/'.(int)$req->id); ?>">Back</a>
 </div>
 
@@ -9,13 +9,13 @@
     <div class="card shadow-soft">
       <div class="card-header"><strong>Metadata</strong></div>
       <div class="card-body small">
-        <div><span class="text-muted">Client:</span> <?php echo htmlspecialchars(isset($req->client_name)?$req->client_name:''); ?></div>
+        <div><span class="text-muted">Client:</span> <?php echo esc_view(isset($req->client_name)?$req->client_name:''); ?></div>
         <div><span class="text-muted">Version:</span> <?php echo (int)$ver->version_no; ?></div>
-        <div><span class="text-muted">Created At:</span> <?php echo htmlspecialchars(isset($ver->created_at)?$ver->created_at:''); ?></div>
-        <div><span class="text-muted">Status:</span> <?php echo htmlspecialchars(isset($ver->status)?$ver->status:''); ?></div>
-        <div><span class="text-muted">Priority:</span> <?php echo htmlspecialchars(isset($ver->priority)?$ver->priority:''); ?></div>
-        <div><span class="text-muted">Expected:</span> <?php echo htmlspecialchars(isset($ver->expected_delivery_date)?$ver->expected_delivery_date:''); ?></div>
-        <div><span class="text-muted">Budget:</span> <?php echo htmlspecialchars(isset($ver->budget_estimate)?$ver->budget_estimate:''); ?></div>
+        <div><span class="text-muted">Created At:</span> <?php echo esc_view(isset($ver->created_at)?$ver->created_at:''); ?></div>
+        <div><span class="text-muted">Status:</span> <?php echo esc_view(isset($ver->status)?$ver->status:''); ?></div>
+        <div><span class="text-muted">Priority:</span> <?php echo esc_view(isset($ver->priority)?$ver->priority:''); ?></div>
+        <div><span class="text-muted">Expected:</span> <?php echo esc_view(isset($ver->expected_delivery_date)?$ver->expected_delivery_date:''); ?></div>
+        <div><span class="text-muted">Budget:</span> <?php echo esc_view(isset($ver->budget_estimate)?$ver->budget_estimate:''); ?></div>
       </div>
     </div>
   </div>
@@ -56,9 +56,9 @@
                   if ($old === $cur) { continue; }
               ?>
               <tr>
-                <td><?php echo htmlspecialchars($label); ?></td>
-                <td class="text-muted"><?php echo htmlspecialchars($old); ?></td>
-                <td><strong><?php echo htmlspecialchars($cur); ?></strong></td>
+                <td><?php echo esc_view($label); ?></td>
+                <td class="text-muted"><?php echo esc_view($old); ?></td>
+                <td><strong><?php echo esc_view($cur); ?></strong></td>
               </tr>
               <?php endforeach; ?>
               <?php

@@ -240,11 +240,11 @@ if (!function_exists('user_guide_media_url')) {
 if (!function_exists('user_guide_render_media_figure')) {
     function user_guide_render_media_figure($alt, $src)
     {
-        $alt = htmlspecialchars((string) $alt, ENT_QUOTES, 'UTF-8');
+        $alt = esc_view((string) $alt, ENT_QUOTES, 'UTF-8');
         if (strpos($src, 'http') !== 0) {
             $src = user_guide_media_url($src);
         }
-        $src_esc = htmlspecialchars($src, ENT_QUOTES, 'UTF-8');
+        $src_esc = esc_view($src);
         $ext = strtolower(pathinfo(parse_url($src, PHP_URL_PATH) ?: $src, PATHINFO_EXTENSION));
 
         if (in_array($ext, ['webm', 'mp4', 'mov', 'ogg'], true)) {
@@ -307,7 +307,7 @@ if (!function_exists('user_guide_markdown_to_html')) {
                 }
             }
 
-            $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+            $text = esc_view($text);
             $text = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $text);
             $text = preg_replace('/`([^`]+)`/', '<code>$1</code>', $text);
             $text = preg_replace_callback('/\[([^\]]+)\]\(([^)]+)\)/', function ($m) use ($CI, $file_map) {
@@ -321,7 +321,7 @@ if (!function_exists('user_guide_markdown_to_html')) {
                 } elseif (strpos($href, 'http') !== 0 && strpos($href, '#') !== 0 && strpos($href, 'mailto:') !== 0) {
                     $href = site_url(ltrim($href, '/'));
                 }
-                return '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">' . $label . '</a>';
+                return '<a href="' . esc_view($href) . '">' . $label . '</a>';
             }, $text);
             return $text;
         };

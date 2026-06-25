@@ -19,10 +19,10 @@
   </div>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -86,12 +86,12 @@
           <?php if (empty($rows)): ?>
           <tr><td colspan="9" class="text-center text-muted">No reminders queued.</td></tr>
           <?php else: foreach ($rows as $r): ?>
-          <tr data-status="<?php echo htmlspecialchars(isset($r->status)?$r->status:''); ?>" data-type="<?php echo htmlspecialchars(isset($r->type)?$r->type:''); ?>" data-text="<?php
+          <tr data-status="<?php echo esc_view(isset($r->status)?$r->status:''); ?>" data-type="<?php echo esc_view(isset($r->type)?$r->type:''); ?>" data-text="<?php
               $label=''; if (isset($r->full_label) && $r->full_label!=='') { $label=$r->full_label; }
               else if (isset($r->full_name) && $r->full_name!=='') { $label=$r->full_name; }
               else if (isset($r->name) && $r->name!=='') { $label=$r->name; }
               $txt = trim(($label).' '.(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:''))).' '.(isset($r->subject)?$r->subject:'');
-              echo htmlspecialchars(strtolower($txt)); ?>">
+              echo esc_view(strtolower($txt)); ?>">
             <td>
               <?php $st = isset($r->status)?$r->status:'queued'; if ($st!=='sent'): ?>
               <input type="checkbox" name="ids[]" value="<?php echo (int)$r->id; ?>">
@@ -104,10 +104,10 @@
                 if (isset($r->full_label) && $r->full_label!=='') { $label = $r->full_label; }
                 else if (isset($r->full_name) && $r->full_name!=='') { $label = $r->full_name; }
                 else if (isset($r->name) && $r->name!=='') { $label = $r->name; }
-                echo htmlspecialchars($label);
+                echo esc_view($label);
               ?>
             </td>
-            <td><?php echo htmlspecialchars(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:'')); ?></td>
+            <td><?php echo esc_view(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:'')); ?></td>
             <td>
               <?php
                 $t = isset($r->type)?$r->type:'';
@@ -120,20 +120,20 @@
                 else if ($t==='schedule') { $cls='bg-secondary'; $label='schedule'; }
               ?>
               <?php if ($label !== ''): ?>
-                <span class="badge text-dark <?php echo $cls; ?> border"><?php echo htmlspecialchars($label); ?></span>
+                <span class="badge text-dark <?php echo $cls; ?> border"><?php echo esc_view($label); ?></span>
               <?php else: ?>
                 <span class="text-muted">&mdash;</span>
               <?php endif; ?>
             </td>
-            <td class="small"><?php echo htmlspecialchars(isset($r->subject)?$r->subject:''); ?></td>
+            <td class="small"><?php echo esc_view(isset($r->subject)?$r->subject:''); ?></td>
             <td>
               <?php $st = isset($r->status)?$r->status:'queued'; $scls='bg-light';
                 if ($st==='sent') $scls='bg-success'; else if ($st==='error') $scls='bg-danger'; else $scls='bg-secondary';
               ?>
-              <span class="badge text-white <?php echo $scls; ?>"><?php echo htmlspecialchars($st); ?></span>
+              <span class="badge text-white <?php echo $scls; ?>"><?php echo esc_view($st); ?></span>
             </td>
-            <td><?php echo htmlspecialchars(isset($r->send_at)?$r->send_at:''); ?></td>
-            <td><?php echo htmlspecialchars(isset($r->sent_at)?$r->sent_at:''); ?></td>
+            <td><?php echo esc_view(isset($r->send_at)?$r->send_at:''); ?></td>
+            <td><?php echo esc_view(isset($r->sent_at)?$r->sent_at:''); ?></td>
             <td>
               <?php if($can_manage_reminders): ?>
               <form method="post" action="<?php echo site_url('reminders/delete/'.(int)$r->id); ?>" class="d-inline" onsubmit="return confirm('Delete this reminder?');">

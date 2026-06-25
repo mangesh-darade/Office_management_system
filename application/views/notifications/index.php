@@ -75,7 +75,7 @@
               <div class="flex-grow-1">
                 <div class="d-flex w-100 justify-content-between">
                   <h6 class="mb-1 <?php echo !$notification->is_read ? 'fw-bold' : ''; ?>">
-                    <?php echo htmlspecialchars($notification->title); ?>
+                    <?php echo esc_view($notification->title); ?>
                   </h6>
                   <small class="text-muted">
                     <?php
@@ -92,7 +92,7 @@
                     ?>
                   </small>
                 </div>
-                <p class="mb-1"><?php echo htmlspecialchars($notification->message); ?></p>
+                <p class="mb-1"><?php echo esc_view($notification->message); ?></p>
                 
                 <?php if ($notification->module): ?>
                   <small class="text-muted">
@@ -103,7 +103,7 @@
                 <!-- Actions -->
                 <div class="mt-2">
                   <?php if ($notification->action_url): ?>
-                    <a href="<?php echo htmlspecialchars($notification->action_url, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-primary">
+                    <a href="<?php echo esc_view($notification->action_url); ?>" class="btn btn-sm btn-outline-primary">
                       <i class="bi bi-arrow-right me-1"></i>View
                     </a>
                   <?php endif; ?>

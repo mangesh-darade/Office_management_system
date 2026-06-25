@@ -14,10 +14,10 @@
 <tbody>
 <?php if (empty($rows)): ?><tr><td colspan="5" class="text-muted">No leads yet.</td></tr><?php else: foreach ($rows as $r): ?>
 <tr>
-<td><?php echo htmlspecialchars($r->full_name); ?></td>
-<td><?php echo htmlspecialchars($r->phone); ?></td>
-<td><?php echo htmlspecialchars($r->source); ?></td>
-<td><?php echo htmlspecialchars($r->status); ?></td>
+<td><?php echo esc_view($r->full_name); ?></td>
+<td><?php echo esc_view($r->phone); ?></td>
+<td><?php echo esc_view($r->source); ?></td>
+<td><?php echo esc_view($r->status); ?></td>
 <td>
 <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('coaching-leads/edit/'.$r->id); ?>">Edit</a>
 <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('coaching-leads/convert/'.$r->id); ?>" onclick="return confirm('Convert to client?');">Convert</a>

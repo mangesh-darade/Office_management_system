@@ -11,10 +11,10 @@ $smtp_from = get_system_from_email();
 <div class="row justify-content-center">
   <div class="col-12 col-md-8 col-lg-6">
     <?php if($this->session->flashdata('success')): ?>
-      <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+      <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
     <?php endif; ?>
     <?php if($this->session->flashdata('error')): ?>
-      <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+      <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
     <?php endif; ?>
 
     <div class="card shadow-sm">
@@ -26,7 +26,7 @@ $smtp_from = get_system_from_email();
         <form method="post" action="<?php echo site_url('mail/send'); ?>" enctype="multipart/form-data">
           <div class="mb-3">
             <label class="form-label">To</label>
-            <input type="email" class="form-control" name="to" placeholder="recipient@example.com" value="<?php echo htmlspecialchars($this->session->userdata('email') ?: ''); ?>" required>
+            <input type="email" class="form-control" name="to" placeholder="recipient@example.com" value="<?php echo esc_view($this->session->userdata('email') ?: ''); ?>" required>
           </div>
           <div class="row g-3">
             <div class="col-md-6">
@@ -56,7 +56,7 @@ $smtp_from = get_system_from_email();
         </form>
       </div>
       <div class="card-footer small text-muted">
-        From: <code><?php echo htmlspecialchars($smtp_from ?: 'not-configured'); ?></code> via SMTP. Configure in <code>Settings &rarr; Email</code>.
+        From: <code><?php echo esc_view($smtp_from ?: 'not-configured'); ?></code> via SMTP. Configure in <code>Settings &rarr; Email</code>.
       </div>
     </div>
   </div>

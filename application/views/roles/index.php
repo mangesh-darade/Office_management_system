@@ -45,7 +45,7 @@
                   <?php $groupType = isset($r->group_type) ? strtolower((string)$r->group_type) : 'user'; ?>
                   <tr>
                     <td>#<?php echo $i++; ?></td>
-                    <td><?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?></td>
+                    <td><?php echo esc_view(isset($r->name) ? $r->name : ''); ?></td>
                     <?php if (schema_table_has_column($this->db, 'roles', 'group_type')): ?>
                     <td>
                       <?php
@@ -76,7 +76,7 @@
                                 data-bs-toggle="modal"
                                 data-bs-target="#roleEditModal"
                                 data-id="<?php echo (int)$r->id; ?>"
-                                data-name="<?php echo htmlspecialchars(isset($r->name) ? $r->name : ''); ?>"
+                                data-name="<?php echo esc_view(isset($r->name) ? $r->name : ''); ?>"
                                 data-group="<?php echo $groupType; ?>">
                           <i class="bi bi-pencil"></i>
                         </button>

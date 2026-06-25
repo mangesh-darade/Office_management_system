@@ -15,7 +15,7 @@
         <select name="user_id" id="user_id" class="form-select" data-mandatory="true" required>
           <option value="">-- Select user --</option>
           <?php if (!empty($users)) : foreach ($users as $u): ?>
-            <option value="<?php echo (int)$u['id']; ?>"><?php echo htmlspecialchars($u['label']); ?> (ID: <?php echo (int)$u['id']; ?>)</option>
+            <option value="<?php echo (int)$u['id']; ?>"><?php echo esc_view($u['label']); ?> (ID: <?php echo (int)$u['id']; ?>)</option>
           <?php endforeach; endif; ?>
         </select>
       </div>
@@ -23,27 +23,27 @@
       <div class="col-12 col-md-6">
         <label class="form-label" for="emp_code">Employee Code</label>
         <?php if ($action === 'create'): ?>
-        <input type="text" name="emp_code" id="emp_code" class="form-control" value="<?php echo htmlspecialchars(isset($generated_emp_code) ? $generated_emp_code : ''); ?>">
+        <input type="text" name="emp_code" id="emp_code" class="form-control" value="<?php echo esc_view(isset($generated_emp_code) ? $generated_emp_code : ''); ?>">
         <small class="form-text text-muted">Employee Code is auto-generated. You can edit it if needed.</small>
         <?php else: ?>
-        <input type="text" name="emp_code" id="emp_code" class="form-control" value="<?php echo htmlspecialchars(isset($employee->emp_code) ? $employee->emp_code : ''); ?>">
+        <input type="text" name="emp_code" id="emp_code" class="form-control" value="<?php echo esc_view(isset($employee->emp_code) ? $employee->emp_code : ''); ?>">
         <?php endif; ?>
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="first_name">First Name <span class="text-danger">*</span></label>
-        <input type="text" name="first_name" id="first_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="100" required value="<?php echo htmlspecialchars(isset($employee->first_name) ? $employee->first_name : ''); ?>">
+        <input type="text" name="first_name" id="first_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="100" required value="<?php echo esc_view(isset($employee->first_name) ? $employee->first_name : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="last_name">Last Name <span class="text-danger">*</span></label>
-        <input type="text" name="last_name" id="last_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="100" required value="<?php echo htmlspecialchars(isset($employee->last_name) ? $employee->last_name : ''); ?>">
+        <input type="text" name="last_name" id="last_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="100" required value="<?php echo esc_view(isset($employee->last_name) ? $employee->last_name : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="dob">Date of Birth <span class="text-danger">*</span></label>
-        <input type="date" name="dob" id="dob" class="form-control" data-mandatory="true" required value="<?php echo htmlspecialchars(isset($employee->dob) ? $employee->dob : ''); ?>">
+        <input type="date" name="dob" id="dob" class="form-control" data-mandatory="true" required value="<?php echo esc_view(isset($employee->dob) ? $employee->dob : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="personal_email">Personal Email</label>
-        <input type="email" name="personal_email" id="personal_email" class="form-control" value="<?php echo htmlspecialchars(isset($employee->personal_email) ? $employee->personal_email : ''); ?>">
+        <input type="email" name="personal_email" id="personal_email" class="form-control" value="<?php echo esc_view(isset($employee->personal_email) ? $employee->personal_email : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="department_id">Department <span class="text-danger">*</span></label>
@@ -62,10 +62,10 @@
                 $sel = 'selected';
               }
             ?>
-            <option value="<?php echo (int)$d->id; ?>" <?php echo $sel; ?>><?php echo htmlspecialchars($d->dept_name); ?></option>
+            <option value="<?php echo (int)$d->id; ?>" <?php echo $sel; ?>><?php echo esc_view($d->dept_name); ?></option>
           <?php endforeach; endif; ?>
         </select>
-        <input type="hidden" name="department" value="<?php echo htmlspecialchars(isset($employee->department) ? $employee->department : ''); ?>">
+        <input type="hidden" name="department" value="<?php echo esc_view(isset($employee->department) ? $employee->department : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="designation_id">Designation <span class="text-danger">*</span></label>
@@ -85,11 +85,11 @@
               }
             ?>
             <option value="<?php echo (int)$dg->id; ?>" data-department-id="<?php echo isset($dg->department_id) ? (int)$dg->department_id : 0; ?>" <?php echo $sel; ?>>
-              <?php echo htmlspecialchars($dg->designation_name); ?>
+              <?php echo esc_view($dg->designation_name); ?>
             </option>
           <?php endforeach; endif; ?>
         </select>
-        <input type="hidden" name="designation" value="<?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : ''); ?>">
+        <input type="hidden" name="designation" value="<?php echo esc_view(isset($employee->designation) ? $employee->designation : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="reporting_to">Reporting To <span class="text-danger">*</span></label>
@@ -97,7 +97,7 @@
           <option value="">-- None --</option>
           <?php $rt = isset($employee->reporting_to) ? (int)$employee->reporting_to : 0; ?>
           <?php if (!empty($users)) : foreach ($users as $u): ?>
-            <option value="<?php echo (int)$u['id']; ?>" <?php echo ($rt === (int)$u['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($u['label']); ?> (ID: <?php echo (int)$u['id']; ?>)</option>
+            <option value="<?php echo (int)$u['id']; ?>" <?php echo ($rt === (int)$u['id']) ? 'selected' : ''; ?>><?php echo esc_view($u['label']); ?> (ID: <?php echo (int)$u['id']; ?>)</option>
           <?php endforeach; endif; ?>
         </select>
       </div>
@@ -122,7 +122,7 @@
             else {
                 foreach ($shifts as $s) {
                     $sel = ($currentShift === (int)$s->id) ? 'selected' : '';
-                    echo '<option value="'.(int)$s->id.'" '.$sel.'>'.htmlspecialchars($s->name) . ' (' . date('h:i A', strtotime($s->start_time)) . ' - ' . date('h:i A', strtotime($s->end_time)) . ')</option>';
+                    echo '<option value="'.(int)$s->id.'" '.$sel.'>'.esc_view($s->name) . ' (' . date('h:i A', strtotime($s->start_time)) . ' - ' . date('h:i A', strtotime($s->end_time)) . ')</option>';
                 }
             } 
           ?>
@@ -130,59 +130,59 @@
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="join_date">Join Date <span class="text-danger">*</span></label>
-        <input type="date" name="join_date" id="join_date" class="form-control" data-mandatory="true" required value="<?php echo htmlspecialchars(isset($employee->join_date) ? $employee->join_date : ''); ?>">
+        <input type="date" name="join_date" id="join_date" class="form-control" data-mandatory="true" required value="<?php echo esc_view(isset($employee->join_date) ? $employee->join_date : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="location">Location</label>
-        <input type="text" name="location" id="location" class="form-control" value="<?php echo htmlspecialchars(isset($employee->location) ? $employee->location : ''); ?>">
+        <input type="text" name="location" id="location" class="form-control" value="<?php echo esc_view(isset($employee->location) ? $employee->location : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="phone">Phone</label>
-        <input type="text" name="phone" id="phone" class="form-control" value="<?php echo htmlspecialchars(isset($employee->phone) ? $employee->phone : ''); ?>">
+        <input type="text" name="phone" id="phone" class="form-control" value="<?php echo esc_view(isset($employee->phone) ? $employee->phone : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="address">Address</label>
-        <textarea name="address" id="address" class="form-control" rows="2"><?php echo htmlspecialchars(isset($employee->address) ? $employee->address : ''); ?></textarea>
+        <textarea name="address" id="address" class="form-control" rows="2"><?php echo esc_view(isset($employee->address) ? $employee->address : ''); ?></textarea>
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="city">City</label>
-        <input type="text" name="city" id="city" class="form-control" value="<?php echo htmlspecialchars(isset($employee->city) ? $employee->city : ''); ?>">
+        <input type="text" name="city" id="city" class="form-control" value="<?php echo esc_view(isset($employee->city) ? $employee->city : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="state">State</label>
-        <input type="text" name="state" id="state" class="form-control" value="<?php echo htmlspecialchars(isset($employee->state) ? $employee->state : ''); ?>">
+        <input type="text" name="state" id="state" class="form-control" value="<?php echo esc_view(isset($employee->state) ? $employee->state : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="country">Country</label>
-        <input type="text" name="country" id="country" class="form-control" value="<?php echo htmlspecialchars(isset($employee->country) ? $employee->country : 'India'); ?>">
+        <input type="text" name="country" id="country" class="form-control" value="<?php echo esc_view(isset($employee->country) ? $employee->country : 'India'); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="zipcode">Pincode</label>
-        <input type="text" name="zipcode" id="zipcode" class="form-control" value="<?php echo htmlspecialchars(isset($employee->zipcode) ? $employee->zipcode : ''); ?>">
+        <input type="text" name="zipcode" id="zipcode" class="form-control" value="<?php echo esc_view(isset($employee->zipcode) ? $employee->zipcode : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="bank_name">Bank Name</label>
-        <input type="text" name="bank_name" id="bank_name" class="form-control" value="<?php echo htmlspecialchars(isset($employee->bank_name) ? $employee->bank_name : ''); ?>">
+        <input type="text" name="bank_name" id="bank_name" class="form-control" value="<?php echo esc_view(isset($employee->bank_name) ? $employee->bank_name : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="bank_ac_no">Bank A/C No</label>
-        <input type="text" name="bank_ac_no" id="bank_ac_no" class="form-control" value="<?php echo htmlspecialchars(isset($employee->bank_ac_no) ? $employee->bank_ac_no : ''); ?>">
+        <input type="text" name="bank_ac_no" id="bank_ac_no" class="form-control" value="<?php echo esc_view(isset($employee->bank_ac_no) ? $employee->bank_ac_no : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="pan_no">PAN No</label>
-        <input type="text" name="pan_no" id="pan_no" class="form-control" value="<?php echo htmlspecialchars(isset($employee->pan_no) ? $employee->pan_no : ''); ?>">
+        <input type="text" name="pan_no" id="pan_no" class="form-control" value="<?php echo esc_view(isset($employee->pan_no) ? $employee->pan_no : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label" for="salary_ctc">Salary (CTC)</label>
-        <input type="number" step="0.01" name="salary_ctc" id="salary_ctc" class="form-control" value="<?php echo htmlspecialchars(isset($employee->salary_ctc) ? $employee->salary_ctc : ''); ?>">
+        <input type="number" step="0.01" name="salary_ctc" id="salary_ctc" class="form-control" value="<?php echo esc_view(isset($employee->salary_ctc) ? $employee->salary_ctc : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label">Emergency Contact Name</label>
-        <input type="text" name="emergency_contact_name" class="form-control" value="<?php echo htmlspecialchars(isset($employee->emergency_contact_name) ? $employee->emergency_contact_name : ''); ?>">
+        <input type="text" name="emergency_contact_name" class="form-control" value="<?php echo esc_view(isset($employee->emergency_contact_name) ? $employee->emergency_contact_name : ''); ?>">
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label">Emergency Contact Phone</label>
-        <input type="text" name="emergency_contact_phone" class="form-control" value="<?php echo htmlspecialchars(isset($employee->emergency_contact_phone) ? $employee->emergency_contact_phone : ''); ?>">
+        <input type="text" name="emergency_contact_phone" class="form-control" value="<?php echo esc_view(isset($employee->emergency_contact_phone) ? $employee->emergency_contact_phone : ''); ?>">
       </div>
     </div>
     <div class="mt-4 d-flex flex-column flex-sm-row gap-2">

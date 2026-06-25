@@ -188,7 +188,7 @@
                         <option value="">All Employees</option>
                         <?php foreach($users as $u): ?>
                             <option value="<?php echo $u->id; ?>" <?php echo ($filters['user_id'] == $u->id) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($u->name ?: $u->email); ?>
+                                <?php echo esc_view($u->name ?: $u->email); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -207,11 +207,11 @@
 
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-calendar-event me-1"></i>From</label>
-                    <input type="date" class="form-control form-control-sm" name="date_from" value="<?php echo htmlspecialchars(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>" onchange="document.getElementById('filterPeriod').value='';">
+                    <input type="date" class="form-control form-control-sm" name="date_from" value="<?php echo esc_view(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>" onchange="document.getElementById('filterPeriod').value='';">
                 </div>
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-calendar-event me-1"></i>To</label>
-                    <input type="date" class="form-control form-control-sm" name="date_to" value="<?php echo htmlspecialchars(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>" onchange="document.getElementById('filterPeriod').value='';">
+                    <input type="date" class="form-control form-control-sm" name="date_to" value="<?php echo esc_view(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>" onchange="document.getElementById('filterPeriod').value='';">
                 </div>
                 <div class="col-6 col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-primary btn-sm px-3"><i class="bi bi-funnel me-1"></i>Apply</button>
@@ -252,7 +252,7 @@
                             $plain_desc = strip_tags($r->description);
                             if (strlen($plain_desc) > 80) { $plain_desc = substr($plain_desc, 0, 80) . '...'; }
                         ?>
-                            <tr onclick="viewActivity(this)" data-date="<?php echo date('D, M d, Y', strtotime($r->work_date)); ?>" data-user="<?php echo htmlspecialchars($r->user_name ?: $r->user_email ?: 'Unknown'); ?>" data-activity="<?php echo htmlspecialchars($r->activity_title); ?>" data-task="<?php echo htmlspecialchars($r->task_title); ?>">
+                            <tr onclick="viewActivity(this)" data-date="<?php echo date('D, M d, Y', strtotime($r->work_date)); ?>" data-user="<?php echo esc_view($r->user_name ?: $r->user_email ?: 'Unknown'); ?>" data-activity="<?php echo esc_view($r->activity_title); ?>" data-task="<?php echo esc_view($r->task_title); ?>">
                                 <td class="text-muted small"><?php echo $idx; ?></td>
                                 <td>
                                     <div class="fw-semibold" style="font-size:0.85rem;"><?php echo date('M d', strtotime($r->work_date)); ?></div>
@@ -262,22 +262,22 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <div class="user-avatar text-white" style="background:<?php echo $bg_color; ?>;"><?php echo $initial; ?></div>
                                         <div>
-                                            <div class="fw-semibold" style="font-size:0.85rem;"><?php echo htmlspecialchars($r->user_name ?: 'Unknown'); ?></div>
-                                            <div class="text-muted" style="font-size:0.7rem;"><?php echo htmlspecialchars($r->user_email); ?></div>
+                                            <div class="fw-semibold" style="font-size:0.85rem;"><?php echo esc_view($r->user_name ?: 'Unknown'); ?></div>
+                                            <div class="text-muted" style="font-size:0.7rem;"><?php echo esc_view($r->user_email); ?></div>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
                                     <?php if (!empty($r->activity_title)): ?>
-                                        <span class="activity-badge bg-primary bg-opacity-10 text-primary"><i class="bi bi-journal-text"></i><?php echo htmlspecialchars($r->activity_title); ?></span>
+                                        <span class="activity-badge bg-primary bg-opacity-10 text-primary"><i class="bi bi-journal-text"></i><?php echo esc_view($r->activity_title); ?></span>
                                     <?php elseif (!empty($r->task_title)): ?>
-                                        <span class="activity-badge bg-info bg-opacity-10 text-info"><i class="bi bi-check2-circle"></i><?php echo htmlspecialchars($r->task_title); ?></span>
+                                        <span class="activity-badge bg-info bg-opacity-10 text-info"><i class="bi bi-check2-circle"></i><?php echo esc_view($r->task_title); ?></span>
                                     <?php else: ?>
                                         <span class="text-muted small fst-italic">General</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="desc-preview"><?php echo htmlspecialchars($plain_desc); ?></div>
+                                    <div class="desc-preview"><?php echo esc_view($plain_desc); ?></div>
                                     <div class="d-none full-description"><?php echo $r->description; ?></div>
                                 </td>
                             </tr>

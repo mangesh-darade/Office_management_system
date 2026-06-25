@@ -8,10 +8,10 @@
   </div>
 
   <?php if($this->session->flashdata('success')): ?>
-    <div class="alert alert-success fade show" role="alert"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success fade show" role="alert"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger fade show" role="alert"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger fade show" role="alert"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
 
   <div class="card shadow-sm fade-in">
@@ -35,30 +35,30 @@
         ?>
         <div class="col-12 col-md-6 col-lg-3">
           <label class="form-label">Date</label>
-          <div class="form-control-plaintext"><?php echo htmlspecialchars($dateVal); ?></div>
+          <div class="form-control-plaintext"><?php echo esc_view($dateVal); ?></div>
         </div>
         <div class="col-6 col-md-3 col-lg-3">
           <label class="form-label">Check In</label>
-          <div class="form-control-plaintext"><?php echo htmlspecialchars($inDisp); ?></div>
+          <div class="form-control-plaintext"><?php echo esc_view($inDisp); ?></div>
         </div>
         <div class="col-6 col-md-3 col-lg-3">
           <label class="form-label">Check Out</label>
-          <div class="form-control-plaintext"><?php echo htmlspecialchars($outDisp); ?></div>
+          <div class="form-control-plaintext"><?php echo esc_view($outDisp); ?></div>
         </div>
         <div class="col-12 col-md-6 col-lg-3">
           <label class="form-label">Location</label>
-          <div class="form-control-plaintext"><?php echo htmlspecialchars((isset($att->location_name) && $att->location_name !== '') ? $att->location_name : 'Not captured'); ?></div>
+          <div class="form-control-plaintext"><?php echo esc_view((isset($att->location_name) && $att->location_name !== '') ? $att->location_name : 'Not captured'); ?></div>
         </div>
         <div class="col-12">
           <label for="notes" class="form-label">Notes</label>
-          <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Any notes..."><?php echo htmlspecialchars(isset($att->notes) ? $att->notes : ''); ?></textarea>
+          <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Any notes..."><?php echo esc_view(isset($att->notes) ? $att->notes : ''); ?></textarea>
         </div>
         <div class="col-12">
           <label for="attachment" class="form-label">Attachment</label>
           <?php if(isset($att->attachment_path) && !empty($att->attachment_path)): ?>
             <div class="mb-2">
               <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url($att->attachment_path); ?>" target="_blank" title="View current file"><i class="bi bi-paperclip"></i> View Current File</a>
-              <span class="text-muted small ms-2"><?php echo htmlspecialchars(basename($att->attachment_path)); ?></span>
+              <span class="text-muted small ms-2"><?php echo esc_view(basename($att->attachment_path)); ?></span>
             </div>
           <?php endif; ?>
           <input type="file" name="attachment" id="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">

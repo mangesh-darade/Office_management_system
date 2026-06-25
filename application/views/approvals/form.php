@@ -21,7 +21,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Flow Name</label>
-                        <input type="text" name="name" class="form-control" value="<?php echo isset($flow) ? htmlspecialchars($flow->name) : ''; ?>" required placeholder="e.g. Standard Leave Approval">
+                        <input type="text" name="name" class="form-control" value="<?php echo isset($flow) ? esc_view($flow->name) : ''; ?>" required placeholder="e.g. Standard Leave Approval">
                     </div>
 
                     <div class="mb-3 form-check">

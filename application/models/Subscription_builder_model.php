@@ -5,7 +5,7 @@ class Subscription_builder_model extends CI_Model
 {
     private $table = 'subscription_builder';
 
-    private $plan_order = array('Essential', 'Professional', 'Enterprise', 'ElintOm');
+    private $plan_order = array('Essential', 'Business', 'Professional', 'Enterprise');
 
     private $industry_order = array(
         'Retail',
@@ -25,6 +25,42 @@ class Subscription_builder_model extends CI_Model
         return $this->plan_order;
     }
 
+    public function get_plans_in_hierarchy($plan)
+    {
+        $plan = $this->normalize_plan_label($plan);
+        $index = false;
+        foreach ($this->plan_order as $i => $label) {
+            if (strcasecmp($label, $plan) === 0) {
+                $index = $i;
+                break;
+            }
+        }
+        if ($index === false) {
+            return array($plan);
+        }
+        return array_slice($this->plan_order, 0, $index + 1);
+    }
+
+    public function get_plan_rank($plan)
+    {
+        $plan = $this->normalize_plan_label($plan);
+        foreach ($this->plan_order as $i => $label) {
+            if (strcasecmp($label, $plan) === 0) {
+                return $i;
+            }
+        }
+        return -1;
+    }
+
+    public function normalize_plan_label($plan)
+    {
+        $plan = trim((string) $plan);
+        if (strcasecmp($plan, 'ElintOm') === 0) {
+            return 'Enterprise';
+        }
+        return $plan;
+    }
+
     public function get_industry_order()
     {
         return $this->industry_order;
@@ -41,8 +77,9 @@ class Subscription_builder_model extends CI_Model
         $rows = $this->db->get()->result();
         $found = array();
         foreach ($rows as $row) {
-            $found[] = trim((string) $row->plan);
+            $found[] = $this->normalize_plan_label(trim((string) $row->plan));
         }
+        $found = array_values(array_unique($found));
         return $this->sort_by_order($found, $this->plan_order);
     }
 
@@ -60,6 +97,32 @@ class Subscription_builder_model extends CI_Model
             $found[] = trim((string) $row->industry);
         }
         return $this->sort_by_order($found, $this->industry_order);
+    }
+
+    public function get_items_for_plan_hierarchy($plan, $industry)
+    {
+        if (!$this->table_exists()) {
+            return array();
+        }
+
+        $plans = $this->get_plans_in_hierarchy($plan);
+        $legacy_plans = array();
+        foreach ($plans as $tier_plan) {
+            if (strcasecmp($tier_plan, 'Enterprise') === 0) {
+                $legacy_plans[] = 'ElintOm';
+            }
+        }
+        $plans = array_values(array_unique(array_merge($plans, $legacy_plans)));
+        $industry = trim((string) $industry);
+
+        $this->db->from($this->table);
+        $this->db->where_in('plan', $plans);
+        if ($industry !== '') {
+            $this->db->where('industry', $industry);
+        }
+        $this->db->order_by('module', 'ASC');
+        $this->db->order_by('feature', 'ASC');
+        return $this->db->get()->result();
     }
 
     public function get_items($filters = array())
@@ -99,10 +162,8 @@ class Subscription_builder_model extends CI_Model
     {
         $plan = trim((string) $plan);
         $industry = trim((string) $industry);
-        $rows = $this->get_items(array(
-            'plan' => $plan,
-            'industry' => $industry,
-        ));
+        $rows = $this->get_items_for_plan_hierarchy($plan, $industry);
+        $rows = $this->dedupe_hierarchy_rows($rows, $plan);
 
         $included = array();
         $chargeable = array();
@@ -444,6 +505,38 @@ class Subscription_builder_model extends CI_Model
             return 0.0;
         }
         return (float) $value;
+    }
+
+    private function dedupe_hierarchy_rows($rows, $selected_plan)
+    {
+        $by_key = array();
+        foreach ($rows as $row) {
+            $module = strtolower(trim((string) $row->module));
+            $feature = strtolower(trim((string) $row->feature));
+            $key = $module . '|' . $feature;
+            $rank = $this->get_plan_rank($row->plan);
+            if (!isset($by_key[$key]) || $rank > $by_key[$key]['rank']) {
+                $by_key[$key] = array(
+                    'row' => $row,
+                    'rank' => $rank,
+                );
+            }
+        }
+
+        $deduped = array();
+        foreach ($by_key as $entry) {
+            $deduped[] = $entry['row'];
+        }
+
+        usort($deduped, function ($a, $b) {
+            $module_cmp = strcasecmp((string) $a->module, (string) $b->module);
+            if ($module_cmp !== 0) {
+                return $module_cmp;
+            }
+            return strcasecmp((string) $a->feature, (string) $b->feature);
+        });
+
+        return $deduped;
     }
 
     private function sort_by_order($items, $order)

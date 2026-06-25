@@ -13,10 +13,10 @@ $this->load->view('partials/oms_page_head', [
 ]); ?>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft">
@@ -42,17 +42,17 @@ $this->load->view('partials/oms_page_head', [
           <?php else: $i=1; foreach ($rows as $r): ?>
             <tr>
               <td><?php echo $i++; ?></td>
-              <td><?php echo htmlspecialchars($r->name); ?></td>
-              <td><?php echo htmlspecialchars(isset($r->category)?$r->category:''); ?></td>
-              <td><?php echo htmlspecialchars(trim((isset($r->brand)?$r->brand:'').' '.(isset($r->model)?$r->model:''))); ?></td>
-              <td><?php echo htmlspecialchars(trim((isset($r->serial_no)?$r->serial_no:'').' '.(isset($r->asset_tag)?'['.$r->asset_tag.']':''))); ?></td>
-              <td><?php echo htmlspecialchars(trim((isset($r->ram)?$r->ram:'').' '.(isset($r->hdd)?$r->hdd:''))); ?></td>
+              <td><?php echo esc_view($r->name); ?></td>
+              <td><?php echo esc_view(isset($r->category)?$r->category:''); ?></td>
+              <td><?php echo esc_view(trim((isset($r->brand)?$r->brand:'').' '.(isset($r->model)?$r->model:''))); ?></td>
+              <td><?php echo esc_view(trim((isset($r->serial_no)?$r->serial_no:'').' '.(isset($r->asset_tag)?'['.$r->asset_tag.']':''))); ?></td>
+              <td><?php echo esc_view(trim((isset($r->ram)?$r->ram:'').' '.(isset($r->hdd)?$r->hdd:''))); ?></td>
               <td>
                 <?php $st = isset($r->status)?$r->status:'in_stock'; ?>
-                <span class="badge bg-<?php echo $st==='assigned'?'warning':'secondary'; ?> text-dark"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $st))); ?></span>
+                <span class="badge bg-<?php echo $st==='assigned'?'warning':'secondary'; ?> text-dark"><?php echo esc_view(ucfirst(str_replace('_',' ', $st))); ?></span>
               </td>
               <td>
-                <?php echo isset($r->email) && $r->email ? htmlspecialchars($r->email) : '<span class="text-muted">Unassigned</span>'; ?>
+                <?php echo isset($r->email) && $r->email ? esc_view($r->email) : '<span class="text-muted">Unassigned</span>'; ?>
               </td>
               <td>
                 <div class="btn-group btn-group-sm" role="group">

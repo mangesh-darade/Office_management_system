@@ -38,7 +38,7 @@
                                 <i class="bi bi-envelope"></i> Recipient Email <span class="text-danger">*</span>
                             </label>
                             <input type="email" class="form-control" id="email" name="email" 
-                                   value="<?= htmlspecialchars($reminder->email) ?>" required <?= $status === 'sent' ? 'disabled' : '' ?>>
+                                   value="<?= esc_view($reminder->email) ?>" required <?= $status === 'sent' ? 'disabled' : '' ?>>
                         </div>
 
                         <div class="mb-3">
@@ -46,14 +46,14 @@
                                 <i class="bi bi-chat-left-text"></i> Subject <span class="text-danger">*</span>
                             </label>
                             <input type="text" class="form-control" id="subject" name="subject" 
-                                   value="<?= htmlspecialchars($reminder->subject) ?>" required <?= $status === 'sent' ? 'disabled' : '' ?>>
+                                   value="<?= esc_view($reminder->subject) ?>" required <?= $status === 'sent' ? 'disabled' : '' ?>>
                         </div>
 
                         <div class="mb-3">
                             <label for="body" class="form-label fw-semibold">
                                 <i class="bi bi-card-text"></i> Message
                             </label>
-                            <textarea class="form-control" id="body" name="body" rows="8" <?= $status === 'sent' ? 'disabled' : '' ?>><?= htmlspecialchars($reminder->body) ?></textarea>
+                            <textarea class="form-control" id="body" name="body" rows="8" <?= $status === 'sent' ? 'disabled' : '' ?>><?= esc_view($reminder->body) ?></textarea>
                         </div>
 
                         <div class="row">
@@ -63,7 +63,7 @@
                                         <i class="bi bi-envelope-arrow-right"></i> From Email
                                     </label>
                                     <input type="email" class="form-control" id="from_email" name="from_email" 
-                                           value="<?= htmlspecialchars(isset($reminder->from_email) ? $reminder->from_email : '') ?>" <?= $status === 'sent' ? 'disabled' : '' ?>>
+                                           value="<?= esc_view(isset($reminder->from_email) ? $reminder->from_email : '') ?>" <?= $status === 'sent' ? 'disabled' : '' ?>>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -72,7 +72,7 @@
                                         <i class="bi bi-person-badge"></i> From Name
                                     </label>
                                     <input type="text" class="form-control" id="from_name" name="from_name" 
-                                           value="<?= htmlspecialchars(isset($reminder->from_name) ? $reminder->from_name : '') ?>" <?= $status === 'sent' ? 'disabled' : '' ?>>
+                                           value="<?= esc_view(isset($reminder->from_name) ? $reminder->from_name : '') ?>" <?= $status === 'sent' ? 'disabled' : '' ?>>
                                 </div>
                             </div>
                         </div>
@@ -93,7 +93,7 @@
                                 }
                             ?>
                             <input type="datetime-local" class="form-control" id="send_at" name="send_at" 
-                                   value="<?= htmlspecialchars($sendAtValue) ?>" <?= $status === 'sent' ? 'disabled' : '' ?>>
+                                   value="<?= esc_view($sendAtValue) ?>" <?= $status === 'sent' ? 'disabled' : '' ?>>
                             <small class="form-text text-muted">Leave empty to clear scheduling and send on next queue run. Time is interpreted using server time.</small>
                         </div>
 
@@ -115,7 +115,7 @@
                                     <i class="bi bi-check-circle"></i> Update Reminder
                                 </button>
                                 <a href="<?= site_url('reminders/send-now/'.$reminder->id) ?>" class="btn btn-success" 
-                                   onclick="return confirm('Send this reminder now to <?= htmlspecialchars($reminder->email) ?>?')">
+                                   onclick="return confirm('Send this reminder now to <?= esc_view($reminder->email) ?>?')">
                                     <i class="bi bi-send"></i> Send Now
                                 </a>
                                 <a href="<?= site_url('reminders/dashboard') ?>" class="btn btn-outline-secondary">Cancel</a>

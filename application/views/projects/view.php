@@ -6,10 +6,10 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-1">
                 <li class="breadcrumb-item"><a href="<?php echo site_url('projects'); ?>">Projects</a></li>
-                <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($project->code); ?></li>
+                <li class="breadcrumb-item active" aria-current="page"><?php echo esc_view($project->code); ?></li>
             </ol>
         </nav>
-        <h1 class="h3 mb-0"><?php echo htmlspecialchars($project->name); ?></h1>
+        <h1 class="h3 mb-0"><?php echo esc_view($project->name); ?></h1>
     </div>
     <div class="d-flex gap-2">
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects'); ?>">Back</a>
@@ -81,11 +81,17 @@
                 <div class="mt-3">
                     <div class="mb-2">
                         <span class="badge bg-<?php echo ($project->status==='completed'?'success':($project->status==='active'?'primary':'secondary')); ?> w-100 py-2 text-uppercase">
-                            <?php echo htmlspecialchars($project->status); ?>
+                            <?php echo esc_view($project->status); ?>
                         </span>
                     </div>
                     <div class="small text-muted mb-1"><i class="bi bi-calendar-event me-2"></i>Start: <?php echo $project->start_date ? date('M j, Y', strtotime($project->start_date)) : '-'; ?></div>
                     <div class="small text-muted"><i class="bi bi-calendar-check me-2"></i>End: <?php echo $project->end_date ? date('M j, Y', strtotime($project->end_date)) : '-'; ?></div>
+                    <?php if (!empty($project->reference_url)): ?>
+                    <div class="small text-muted mt-2">
+                      <i class="bi bi-link-45deg me-2"></i>
+                      <a href="<?php echo esc_view($project->reference_url); ?>" target="_blank" rel="noopener noreferrer">Open link</a>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -99,7 +105,7 @@
                     <div class="d-flex align-items-center mb-2">
                         <div class="avatar-group">
                             <?php $count = 0; foreach($members as $m): if($count > 3) break; ?>
-                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center border border-white" title="<?php echo htmlspecialchars($m->name ?: $m->email); ?>" style="width: 32px; height: 32px; font-size: 12px; margin-left: -10px;">
+                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center border border-white" title="<?php echo esc_view($m->name ?: $m->email); ?>" style="width: 32px; height: 32px; font-size: 12px; margin-left: -10px;">
                                 <?php echo strtoupper(substr($m->name ?: $m->email, 0, 1)); ?>
                             </div>
                             <?php $count++; endforeach; ?>
@@ -160,7 +166,7 @@
                         <tr>
                             <td><a href="<?php echo site_url('tasks/'.$t->id); ?>" class="text-decoration-none">#<?php echo $t->id; ?></a></td>
                             <td>
-                                <a href="<?php echo site_url('tasks/'.$t->id); ?>" class="fw-medium text-dark text-decoration-none"><?php echo htmlspecialchars($t->title); ?></a>
+                                <a href="<?php echo site_url('tasks/'.$t->id); ?>" class="fw-medium text-dark text-decoration-none"><?php echo esc_view($t->title); ?></a>
                                 <?php if(!empty($t->requirement_id)): ?><br><small class="text-muted"><i class="bi bi-link-45deg"></i> Req #<?php echo $t->requirement_id; ?></small><?php endif; ?>
                             </td>
                             <td>
@@ -184,7 +190,7 @@
                                     <div class="avatar-xs bg-light rounded-circle text-center me-2" style="width:24px;height:24px;line-height:24px;font-size:10px;">
                                         <?php echo strtoupper(substr($t->assignee_name ?: $t->assignee_email, 0, 1)); ?>
                                     </div>
-                                    <span class="small"><?php echo htmlspecialchars($t->assignee_name ?: explode('@', $t->assignee_email)[0]); ?></span>
+                                    <span class="small"><?php echo esc_view($t->assignee_name ?: (isset($t->assignee_email) && $t->assignee_email !== '' ? explode('@', (string) $t->assignee_email)[0] : '—')); ?></span>
                                 </div>
                                 <?php else: ?><span class="text-muted small">-</span><?php endif; ?>
                             </td>
@@ -234,9 +240,9 @@
                         <?php else: foreach($requirements as $r): ?>
                         <tr>
                             <td>#<?php echo $r->id; ?></td>
-                            <td class="fw-bold"><?php echo htmlspecialchars($r->req_number); ?></td>
-                            <td><?php echo htmlspecialchars($r->title); ?></td>
-                            <td><span class="badge bg-secondary"><?php echo htmlspecialchars($r->status); ?></span></td>
+                            <td class="fw-bold"><?php echo esc_view($r->req_number); ?></td>
+                            <td><?php echo esc_view($r->title); ?></td>
+                            <td><span class="badge bg-secondary"><?php echo esc_view($r->status); ?></span></td>
                             <td class="text-end"><a href="<?php echo site_url('requirements/view/'.$r->id); ?>" class="btn btn-sm btn-light">View</a></td>
                         </tr>
                         <?php endforeach; endif; ?>

@@ -540,12 +540,12 @@
     
     <div class="form-group" id="date-filter-group" style="display: <?php echo (isset($period) && $period !== 'monthly') ? 'flex' : 'none'; ?>;">
       <label class="form-label" id="date-label"><?php echo (isset($period) && $period === 'daily') ? 'Date' : 'Week Start Date'; ?></label>
-      <input type="date" name="date" value="<?php echo isset($date) ? htmlspecialchars($date) : date('Y-m-d'); ?>" class="form-control">
+      <input type="date" name="date" value="<?php echo isset($date) ? esc_view($date) : date('Y-m-d'); ?>" class="form-control">
     </div>
     
     <div class="form-group" id="month-filter-group" style="display: <?php echo (!isset($period) || $period === 'monthly') ? 'flex' : 'none'; ?>;">
       <label class="form-label">Month</label>
-      <input type="month" name="month" value="<?php echo isset($month) ? htmlspecialchars($month) : date('Y-m'); ?>" class="form-control">
+      <input type="month" name="month" value="<?php echo isset($month) ? esc_view($month) : date('Y-m'); ?>" class="form-control">
     </div>
     
     <div class="form-group">
@@ -559,21 +559,21 @@
   <?php if (isset($from) && isset($to)): ?>
   <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--att-emp-border); font-size: 0.85rem; color: var(--att-emp-text-sec);">
     <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
-      <div><strong>Period:</strong> <?php echo htmlspecialchars($from); ?> to <?php echo htmlspecialchars($to); ?></div>
+      <div><strong>Period:</strong> <?php echo esc_view($from); ?> to <?php echo esc_view($to); ?></div>
       <?php if (isset($total_working_days)): ?>
         <div><strong>Working Days:</strong> <?php echo $total_working_days; ?></div>
       <?php endif; ?>
       <?php if (isset($office_start_time)): ?>
-        <div><strong>Office Start:</strong> <?php echo htmlspecialchars($office_start_time); ?></div>
+        <div><strong>Office Start:</strong> <?php echo esc_view($office_start_time); ?></div>
       <?php endif; ?>
       <?php if (isset($office_end_time)): ?>
-        <div><strong>Office End:</strong> <?php echo htmlspecialchars($office_end_time); ?></div>
+        <div><strong>Office End:</strong> <?php echo esc_view($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($grace_minutes)): ?>
         <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
       <?php endif; ?>
       <?php if (isset($office_start_time) && isset($office_end_time) && isset($grace_minutes)): ?>
-        <div><strong>On Time Rule:</strong> Check-in by <?php echo htmlspecialchars(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo htmlspecialchars($office_end_time); ?></div>
+        <div><strong>On Time Rule:</strong> Check-in by <?php echo esc_view(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo esc_view($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($standard_working_hours)): ?>
         <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>
@@ -584,7 +584,7 @@
           <?php 
             $hNames = [];
             foreach($holidays as $h) {
-                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: var(--att-emp-text-sec); font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
+                $hNames[] = esc_view($h->name) . ' <span style="color: var(--att-emp-text-sec); font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
             }
             echo implode(', ', $hNames);
           ?>
@@ -699,65 +699,65 @@
                        (isset($r->extra_hours_decimal) && (float)$r->extra_hours_decimal > 0);
             if (!$hasData) continue;
           ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars($r->name)); ?>" data-index="<?php echo $index; ?>" data-user-id="<?php echo $r->user_id; ?>">
+            <tr data-searchable="<?php echo strtolower(esc_view($r->name)); ?>" data-index="<?php echo $index; ?>" data-user-id="<?php echo $r->user_id; ?>">
               <td style="text-align: center;">
                 <input type="checkbox" class="employee-checkbox" value="<?php echo $r->user_id; ?>" onchange="updateExportButtons()" style="width: 18px; height: 18px; cursor: pointer;">
               </td>
               <td>
                 <div class="employee-cell">
                   <div class="employee-avatar">
-                    <?php echo strtoupper(substr(htmlspecialchars($r->name), 0, 1)); ?>
+                    <?php echo strtoupper(substr(esc_view($r->name), 0, 1)); ?>
                   </div>
                   <div class="employee-info">
-                    <div class="employee-name"><?php echo htmlspecialchars($r->name); ?></div>
+                    <div class="employee-name"><?php echo esc_view($r->name); ?></div>
                     <div class="employee-id">ID: <?php echo $r->user_id; ?></div>
                   </div>
                 </div>
               </td>
               <td class="status-cell present">
-                <div><?php echo htmlspecialchars($r->present_days); ?></div>
+                <div><?php echo esc_view($r->present_days); ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: <?php echo min(100, ($r->present_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
               <td class="status-cell wfh">
-                <div><?php echo htmlspecialchars($r->wfh_days); ?></div>
+                <div><?php echo esc_view($r->wfh_days); ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill wfh" style="width: <?php echo min(100, ($r->wfh_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
               <td class="status-cell absent">
-                <div><?php echo htmlspecialchars($r->absent_days); ?></div>
+                <div><?php echo esc_view($r->absent_days); ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill absent" style="width: <?php echo min(100, ($r->absent_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
               <td class="status-cell" style="color: var(--att-emp-success);">
-                <div><?php echo isset($r->on_time_days) ? htmlspecialchars($r->on_time_days) : '0'; ?></div>
+                <div><?php echo isset($r->on_time_days) ? esc_view($r->on_time_days) : '0'; ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: <?php echo min(100, (isset($r->on_time_days) ? (float)$r->on_time_days : 0) / 30 * 100); ?>%; background: var(--att-emp-success);"></div>
                 </div>
               </td>
               <td class="status-cell" style="color: #d97706;">
-                <div><?php echo htmlspecialchars($r->late_days); ?></div>
+                <div><?php echo esc_view($r->late_days); ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: <?php echo min(100, ($r->late_days / 30) * 100); ?>%; background: #d97706;"></div>
                 </div>
               </td>
               <td class="status-cell leave">
-                <div><?php echo htmlspecialchars($r->leave_days); ?></div>
+                <div><?php echo esc_view($r->leave_days); ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill leave" style="width: <?php echo min(100, ($r->leave_days / 30) * 100); ?>%"></div>
                 </div>
               </td>
               <td class="status-cell" style="color: #d97706;">
-                <div><?php echo isset($r->late_hours) ? htmlspecialchars($r->late_hours) : '00:00'; ?></div>
+                <div><?php echo isset($r->late_hours) ? esc_view($r->late_hours) : '00:00'; ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: <?php echo min(100, (isset($r->late_hours_decimal) ? (float)$r->late_hours_decimal : 0) * 10); ?>%; background: #d97706;"></div>
                 </div>
               </td>
               <td class="status-cell" style="color: var(--att-emp-success);">
-                <div><?php echo isset($r->extra_hours) ? htmlspecialchars($r->extra_hours) : '00:00'; ?></div>
+                <div><?php echo isset($r->extra_hours) ? esc_view($r->extra_hours) : '00:00'; ?></div>
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: <?php echo min(100, (isset($r->extra_hours_decimal) ? (float)$r->extra_hours_decimal : 0) * 5); ?>%; background: var(--att-emp-success);"></div>
                 </div>

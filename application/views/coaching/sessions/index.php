@@ -16,10 +16,10 @@
 <?php if (empty($rows)): ?><tr><td colspan="6" class="text-muted">No sessions scheduled.</td></tr><?php else: foreach ($rows as $r): ?>
 <tr>
 <td><?php echo date('d M Y H:i', strtotime($r->scheduled_at)); ?></td>
-<td><?php echo htmlspecialchars($r->client_name); ?></td>
-<td><?php echo htmlspecialchars($r->coach_name); ?></td>
-<td><?php echo htmlspecialchars($r->title); ?></td>
-<td><?php echo htmlspecialchars($r->status); ?></td>
+<td><?php echo esc_view($r->client_name); ?></td>
+<td><?php echo esc_view($r->coach_name); ?></td>
+<td><?php echo esc_view($r->title); ?></td>
+<td><?php echo esc_view($r->status); ?></td>
 <td><a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('coaching-sessions/edit/'.$r->id); ?>">Edit</a></td>
 </tr>
 <?php endforeach; endif; ?>

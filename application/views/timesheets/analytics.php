@@ -16,18 +16,18 @@
       <form method="get" class="row g-2 align-items-end">
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">From</label>
-          <input type="date" name="start_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($start_date); ?>">
+          <input type="date" name="start_date" class="form-control form-control-sm" value="<?php echo esc_view($start_date); ?>">
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">To</label>
-          <input type="date" name="end_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($end_date); ?>">
+          <input type="date" name="end_date" class="form-control form-control-sm" value="<?php echo esc_view($end_date); ?>">
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label small mb-0">Project</label>
           <select name="project_id" class="form-select form-select-sm">
             <option value="">All projects</option>
             <?php foreach ($projects as $p): ?>
-              <option value="<?php echo (int) $p->id; ?>" <?php echo (int) $selected_project === (int) $p->id ? 'selected' : ''; ?>><?php echo htmlspecialchars($p->name); ?></option>
+              <option value="<?php echo (int) $p->id; ?>" <?php echo (int) $selected_project === (int) $p->id ? 'selected' : ''; ?>><?php echo esc_view($p->name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -36,7 +36,7 @@
           <select name="user_id" class="form-select form-select-sm">
             <option value="">All users</option>
             <?php foreach ($users as $u): ?>
-              <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $selected_user === (int) $u->id ? 'selected' : ''; ?>><?php echo htmlspecialchars($u->email); ?></option>
+              <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $selected_user === (int) $u->id ? 'selected' : ''; ?>><?php echo esc_view($u->email); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -57,7 +57,7 @@
             <tbody>
               <?php if (!empty($project_analytics)): foreach ($project_analytics as $r): ?>
                 <tr>
-                  <td><?php echo htmlspecialchars($r->project_name ? $r->project_name : ('#' . $r->project_id)); ?></td>
+                  <td><?php echo esc_view($r->project_name ? $r->project_name : ('#' . $r->project_id)); ?></td>
                   <td><?php echo number_format((float) $r->total_hours, 2); ?></td>
                   <td><?php echo number_format((float) $r->billable_hours, 2); ?></td>
                   <td><?php echo (int) $r->user_count; ?></td>
@@ -77,7 +77,7 @@
             <tbody>
               <?php if (!empty($user_analytics)): foreach ($user_analytics as $r): ?>
                 <tr>
-                  <td><?php echo htmlspecialchars($r->user_email); ?></td>
+                  <td><?php echo esc_view($r->user_email); ?></td>
                   <td><?php echo number_format((float) $r->total_hours, 2); ?></td>
                   <td><?php echo (int) $r->project_count; ?></td>
                   <td><?php echo (int) $r->entry_count; ?></td>
@@ -97,9 +97,9 @@
             <tbody>
               <?php if (!empty($task_tracking)): foreach ($task_tracking as $r): ?>
                 <tr>
-                  <td><?php echo htmlspecialchars($r->task_title ? $r->task_title : ('Task #' . $r->task_id)); ?></td>
-                  <td><?php echo htmlspecialchars($r->project_name ? $r->project_name : '—'); ?></td>
-                  <td><?php echo htmlspecialchars($r->user_email); ?></td>
+                  <td><?php echo esc_view($r->task_title ? $r->task_title : ('Task #' . $r->task_id)); ?></td>
+                  <td><?php echo esc_view($r->project_name ? $r->project_name : '—'); ?></td>
+                  <td><?php echo esc_view($r->user_email); ?></td>
                   <td><?php echo number_format((float) $r->total_hours, 2); ?></td>
                   <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('timesheets/task-tracking/' . (int) $r->task_id . '?start_date=' . urlencode($start_date) . '&end_date=' . urlencode($end_date)); ?>">Detail</a></td>
                 </tr>

@@ -4,14 +4,14 @@
     <ol class="breadcrumb small mb-0">
       <li class="breadcrumb-item"><a href="<?php echo site_url('training-lms-admin'); ?>">LMS Admin</a></li>
       <li class="breadcrumb-item"><a href="<?php echo site_url('training-lms-admin/topics/' . (int) $topic->module_id); ?>">Topics</a></li>
-      <li class="breadcrumb-item active"><?php echo htmlspecialchars($topic->name); ?></li>
+      <li class="breadcrumb-item active"><?php echo esc_view($topic->name); ?></li>
     </ol>
   </nav>
   <h1 class="h4 mb-1">Assignment submissions</h1>
-  <p class="text-muted small mb-3"><?php echo htmlspecialchars($assignment->name); ?></p>
+  <p class="text-muted small mb-3"><?php echo esc_view($assignment->name); ?></p>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
 
   <div class="table-responsive card shadow-sm border-0">
@@ -33,10 +33,10 @@
           <?php foreach ($submissions as $s): ?>
             <tr>
               <td class="small">
-                <?php echo htmlspecialchars(trim($s->user_name . ' / ' . $s->user_email)); ?>
+                <?php echo esc_view(trim($s->user_name . ' / ' . $s->user_email)); ?>
               </td>
-              <td class="small"><?php echo htmlspecialchars($s->original_filename); ?></td>
-              <td class="small"><?php echo htmlspecialchars($s->submitted_at); ?></td>
+              <td class="small"><?php echo esc_view($s->original_filename); ?></td>
+              <td class="small"><?php echo esc_view($s->submitted_at); ?></td>
               <td>
                 <?php
                 $st = $s->status;
@@ -49,7 +49,7 @@
                 }
                 ?>
               </td>
-              <td><?php echo $s->score !== null ? htmlspecialchars($s->score) : '—'; ?></td>
+              <td><?php echo $s->score !== null ? esc_view($s->score) : '—'; ?></td>
               <td>
                 <a class="btn btn-sm btn-outline-secondary mb-1" href="<?php echo site_url('training-lms-admin/download/' . (int) $s->id); ?>">Download</a>
                 <?php if (!empty($can_review_submissions)): ?>
@@ -65,10 +65,10 @@
                     </select>
                   </div>
                   <div class="col-12">
-                    <input type="text" name="score" class="form-control form-control-sm" placeholder="Score" value="<?php echo $s->score !== null ? htmlspecialchars($s->score) : ''; ?>">
+                    <input type="text" name="score" class="form-control form-control-sm" placeholder="Score" value="<?php echo $s->score !== null ? esc_view($s->score) : ''; ?>">
                   </div>
                   <div class="col-12">
-                    <textarea name="feedback" class="form-control form-control-sm" rows="2" placeholder="Feedback"><?php echo htmlspecialchars((string) $s->feedback); ?></textarea>
+                    <textarea name="feedback" class="form-control form-control-sm" rows="2" placeholder="Feedback"><?php echo esc_view((string) $s->feedback); ?></textarea>
                   </div>
                   <div class="col-12">
                     <button type="submit" class="btn btn-primary btn-sm w-100">Save</button>

@@ -106,7 +106,50 @@ if (!function_exists('subscription_builder_quote_reference')) {
         if ($plan === '') {
             $plan = 'PLAN';
         }
-        return 'SB-' . date('Ymd') . '-' . $plan . '-' . substr(md5(json_encode($quote)), 0, 6);
+        return 'EP-' . date('Ymd') . '-' . $plan . '-' . substr(md5(json_encode($quote)), 0, 6);
+    }
+}
+
+if (!function_exists('subscription_builder_quote_compute_financials')) {
+    function subscription_builder_quote_compute_financials($quote)
+    {
+        $setup_subtotal = (float) ($quote['total_setup'] ?? 0);
+        $monthly_subtotal = (float) ($quote['total_monthly'] ?? 0);
+        $discount_percent = (float) ($quote['discount_percent'] ?? 0);
+        if ($discount_percent < 0) {
+            $discount_percent = 0;
+        }
+        if ($discount_percent > 100) {
+            $discount_percent = 100;
+        }
+        $gst_percent = (float) ($quote['gst_percent'] ?? 0);
+        if (!in_array($gst_percent, array(0, 5, 18), true)) {
+            $gst_percent = 0;
+        }
+
+        $discount_setup = round($setup_subtotal * $discount_percent / 100, 2);
+        $discount_monthly = round($monthly_subtotal * $discount_percent / 100, 2);
+        $setup_after_discount = round($setup_subtotal - $discount_setup, 2);
+        $monthly_after_discount = round($monthly_subtotal - $discount_monthly, 2);
+        $gst_setup = round($setup_after_discount * $gst_percent / 100, 2);
+        $gst_monthly = round($monthly_after_discount * $gst_percent / 100, 2);
+        $net_setup = round($setup_after_discount + $gst_setup, 2);
+        $net_monthly = round($monthly_after_discount + $gst_monthly, 2);
+
+        return array(
+            'setup_subtotal' => $setup_subtotal,
+            'monthly_subtotal' => $monthly_subtotal,
+            'discount_percent' => $discount_percent,
+            'discount_setup' => $discount_setup,
+            'discount_monthly' => $discount_monthly,
+            'setup_after_discount' => $setup_after_discount,
+            'monthly_after_discount' => $monthly_after_discount,
+            'gst_percent' => $gst_percent,
+            'gst_setup' => $gst_setup,
+            'gst_monthly' => $gst_monthly,
+            'net_setup' => $net_setup,
+            'net_monthly' => $net_monthly,
+        );
     }
 }
 
@@ -139,8 +182,8 @@ if (!function_exists('subscription_builder_quote_render_line_rows')) {
         $index = 0;
         foreach ((array) $lines as $line) {
             $index++;
-            $module = htmlspecialchars((string) ($line['module'] ?? '—'), ENT_QUOTES, 'UTF-8');
-            $label = htmlspecialchars((string) ($line['label'] ?? ''), ENT_QUOTES, 'UTF-8');
+            $module = esc_view((string) ($line['module'] ?? '—'), ENT_QUOTES, 'UTF-8');
+            $label = esc_view((string) ($line['label'] ?? ''), ENT_QUOTES, 'UTF-8');
             $qty = (int) ($line['qty'] ?? 0);
             $qty_display = $qty > 0 ? (string) $qty : '—';
             $amount = subscription_builder_quote_money($line['amount'] ?? 0);
@@ -154,7 +197,7 @@ if (!function_exists('subscription_builder_quote_render_line_rows')) {
         }
 
         if ($rows === '') {
-            $rows = '<tr><td colspan="5" class="empty-row">No ' . htmlspecialchars($type_label, ENT_QUOTES, 'UTF-8') . ' selected</td></tr>';
+            $rows = '<tr><td colspan="5" class="empty-row">No ' . esc_view($type_label) . ' selected</td></tr>';
         }
 
         return $rows;
@@ -167,11 +210,11 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $CI =& get_instance();
         $CI->load->helper('company');
 
-        $company_name = htmlspecialchars(get_company_name(), ENT_QUOTES, 'UTF-8');
-        $company_email = htmlspecialchars(get_company_email(), ENT_QUOTES, 'UTF-8');
-        $company_phone = htmlspecialchars(get_company_phone(), ENT_QUOTES, 'UTF-8');
+        $company_name = esc_view(get_company_name(), ENT_QUOTES, 'UTF-8');
+        $company_email = esc_view(get_company_email(), ENT_QUOTES, 'UTF-8');
+        $company_phone = esc_view(get_company_phone(), ENT_QUOTES, 'UTF-8');
         $company_address_raw = trim(get_company_address());
-        $company_address = nl2br(htmlspecialchars($company_address_raw, ENT_QUOTES, 'UTF-8'));
+        $company_address = nl2br(esc_view($company_address_raw));
 
         $logo_uri = subscription_builder_quote_logo_data_uri(subscription_builder_quote_resolve_logo_path());
         $logo_html = '';
@@ -179,13 +222,15 @@ if (!function_exists('subscription_builder_quote_render_html')) {
             $logo_html = '<img src="' . $logo_uri . '" alt="' . $company_name . '" class="sq-logo" width="211" height="84" />';
         }
 
-        $plan = htmlspecialchars((string) ($quote['plan_display'] ?? $quote['plan'] ?? ''), ENT_QUOTES, 'UTF-8');
-        $industry = htmlspecialchars((string) ($quote['industry'] ?? ''), ENT_QUOTES, 'UTF-8');
-        $quote_ref = htmlspecialchars(subscription_builder_quote_reference($quote), ENT_QUOTES, 'UTF-8');
+        $plan = esc_view((string) ($quote['plan_display'] ?? $quote['plan'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $industry = esc_view((string) ($quote['industry'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $client_name = esc_view(trim((string) ($quote['client_name'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $client_business = esc_view(trim((string) ($quote['client_business'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $quote_ref = esc_view(subscription_builder_quote_reference($quote), ENT_QUOTES, 'UTF-8');
         $generated_date = date('d M Y');
         $generated_time = date('h:i A');
         $valid_until = date('d M Y', strtotime('+30 days'));
-        $site_url = htmlspecialchars('https://sateridigital.com', ENT_QUOTES, 'UTF-8');
+        $site_url = esc_view('https://sateridigital.com');
         $site_url_link = '<a href="' . $site_url . '" class="sq-website-link" target="_blank" rel="noopener noreferrer">' . $site_url . '</a>';
 
         $company_block = '<div class="sq-company-name">' . $company_name . '</div>'
@@ -206,11 +251,43 @@ if (!function_exists('subscription_builder_quote_render_html')) {
                 . '</tr>';
         }
 
-        $total_setup = subscription_builder_quote_money($quote['total_setup'] ?? 0);
-        $total_monthly = subscription_builder_quote_money($quote['total_monthly'] ?? 0);
+        $financials = subscription_builder_quote_compute_financials($quote);
+        $total_setup = subscription_builder_quote_money($financials['net_setup']);
+        $total_monthly = subscription_builder_quote_money($financials['net_monthly']);
+        $setup_subtotal_display = subscription_builder_quote_money($financials['setup_subtotal']);
+        $monthly_subtotal_display = subscription_builder_quote_money($financials['monthly_subtotal']);
+        $discount_setup_display = subscription_builder_quote_money($financials['discount_setup']);
+        $discount_monthly_display = subscription_builder_quote_money($financials['discount_monthly']);
+        $gst_setup_display = subscription_builder_quote_money($financials['gst_setup']);
+        $gst_monthly_display = subscription_builder_quote_money($financials['gst_monthly']);
+        $discount_percent_display = rtrim(rtrim(number_format($financials['discount_percent'], 2, '.', ''), '0'), '.');
+        $gst_percent_display = rtrim(rtrim(number_format($financials['gst_percent'], 0, '.', ''), '0'), '.');
+
+        $client_meta = '';
+        if ($client_name !== '' || $client_business !== '') {
+            $client_meta = '<tr>'
+                . '<td>'
+                . '<div class="sq-meta-label">Client Name</div>'
+                . '<div class="sq-meta-value">' . ($client_name !== '' ? $client_name : '—') . '</div>'
+                . '</td>'
+                . '<td>'
+                . '<div class="sq-meta-label">Client Business</div>'
+                . '<div class="sq-meta-value">' . ($client_business !== '' ? $client_business : '—') . '</div>'
+                . '</td>'
+                . '</tr>';
+        }
 
         $setup_rows = subscription_builder_quote_render_line_rows($quote['setup_lines'] ?? array(), 'setup charges');
         $monthly_rows = subscription_builder_quote_render_line_rows($quote['monthly_lines'] ?? array(), 'monthly charges');
+
+        $financial_summary_html = '<div class="sq-section">'
+            . '<div class="sq-section-title">Financial Summary</div>'
+            . '<table class="sq-charges-table">'
+            . '<thead><tr><th>Type</th><th class="col-amt">Subtotal</th><th class="col-amt">Discount (' . $discount_percent_display . '%)</th><th class="col-amt">GST (' . $gst_percent_display . '%)</th><th class="col-amt">Net Payable</th></tr></thead>'
+            . '<tbody>'
+            . '<tr><td>One-Time Setup</td><td class="col-amt">' . $setup_subtotal_display . '</td><td class="col-amt">-' . $discount_setup_display . '</td><td class="col-amt">' . $gst_setup_display . '</td><td class="col-amt">' . $total_setup . '</td></tr>'
+            . '<tr><td>Monthly Recurring</td><td class="col-amt">' . $monthly_subtotal_display . '</td><td class="col-amt">-' . $discount_monthly_display . '</td><td class="col-amt">' . $gst_monthly_display . '</td><td class="col-amt">' . $total_monthly . '</td></tr>'
+            . '</tbody></table></div>';
 
         $included_groups = subscription_builder_quote_group_included($quote['included'] ?? array());
         $included_html = '';
@@ -218,13 +295,13 @@ if (!function_exists('subscription_builder_quote_render_html')) {
             $included_html .= '<div class="sq-section">'
                 . '<div class="sq-section-title">Included in ' . $plan . ' <span class="sq-badge">No extra charges</span></div>';
             foreach ($included_groups as $module => $features) {
-                $mod_esc = htmlspecialchars($module, ENT_QUOTES, 'UTF-8');
+                $mod_esc = esc_view($module);
                 $included_html .= '<div class="sq-included-group">'
                     . '<div class="sq-included-module">' . $mod_esc . '</div>'
                     . '<table class="sq-included-table"><tr><td>';
                 $chips = '';
                 foreach ($features as $feature) {
-                    $feat_esc = htmlspecialchars($feature, ENT_QUOTES, 'UTF-8');
+                    $feat_esc = esc_view($feature);
                     $chips .= '<span class="sq-chip">' . $feat_esc . '</span>';
                 }
                 $included_html .= $chips . '</td></tr></table></div>';
@@ -243,7 +320,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Subscription Quotation — ' . $plan . '</title>
+<title>ElintOm Proposal — ' . $plan . '</title>
 <style>
   @page { margin: 14mm 12mm; }
   * { box-sizing: border-box; }
@@ -558,13 +635,13 @@ if (!function_exists('subscription_builder_quote_render_html')) {
     </table>
   </div>
 
-  <div class="sq-title-bar">Subscription Quotation</div>
+  <div class="sq-title-bar">ElintOm Proposal</div>
 
   <div class="sq-body">
     <table class="sq-meta-table">
       <tr>
         <td>
-          <div class="sq-meta-label">Quote Reference</div>
+          <div class="sq-meta-label">Proposal Reference</div>
           <div class="sq-meta-value">' . $quote_ref . '</div>
           <div class="sq-meta-sub">Generated: ' . $generated_date . ' at ' . $generated_time . '</div>
         </td>
@@ -574,6 +651,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
           <div class="sq-meta-sub">Subject to acceptance within validity period</div>
         </td>
       </tr>
+      ' . $client_meta . '
       <tr>
         <td>
           <div class="sq-meta-label">Subscription Plan</div>
@@ -632,24 +710,67 @@ if (!function_exists('subscription_builder_quote_render_html')) {
       </table>
     </div>
 
+    ' . $financial_summary_html . '
+
     <div class="sq-notes">
       <strong>Terms &amp; Notes</strong>
       <ul>
-        <li>All prices are exclusive of applicable taxes (GST and other levies as per law).</li>
+        <li>Net payable amounts include GST at ' . $gst_percent_display . '% where applicable.</li>
+        <li>Discount of ' . $discount_percent_display . '% applied on subtotals before GST.</li>
         <li>Included features are part of the selected plan and carry no additional charge unless upgraded.</li>
         <li>Setup charges are payable once; monthly charges are recurring as per billing cycle.</li>
-        <li>This quotation is computer-generated and valid until ' . htmlspecialchars($valid_until, ENT_QUOTES, 'UTF-8') . ' unless revised.</li>
+        <li>This proposal is computer-generated and valid until ' . esc_view($valid_until) . ' unless revised.</li>
       </ul>
     </div>
   </div>
 
   <div class="sq-footer">
-    <strong>' . $company_name . '</strong> &mdash; Subscription Builder Quotation<br>
+    <strong>' . $company_name . '</strong> &mdash; ElintOm Proposal<br>
     ' . $site_url_link . ' &nbsp;|&nbsp; ' . $company_email . ' &nbsp;|&nbsp; ' . $company_phone . '
   </div>
 </div>
 </body>
 </html>';
+    }
+}
+
+if (!function_exists('subscription_builder_quote_save_pdf')) {
+    function subscription_builder_quote_save_pdf($html, $filename)
+    {
+        $upload_dir = FCPATH . 'uploads/elintom_proposals/';
+        if (!is_dir($upload_dir)) {
+            @mkdir($upload_dir, 0755, true);
+        }
+
+        $safe_name = preg_replace('/[^a-z0-9._-]+/i', '_', (string) $filename);
+        if ($safe_name === '') {
+            $safe_name = 'elintom_proposal_' . date('Ymd_His') . '.pdf';
+        }
+        if (!preg_match('/\.pdf$/i', $safe_name)) {
+            $safe_name .= '.pdf';
+        }
+
+        $absolute_path = $upload_dir . $safe_name;
+        $relative_path = 'uploads/elintom_proposals/' . $safe_name;
+
+        if (class_exists('\\Dompdf\\Dompdf')) {
+            $dompdf = new \Dompdf\Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            if (@file_put_contents($absolute_path, $dompdf->output()) !== false) {
+                return $relative_path;
+            }
+            return '';
+        }
+
+        $html_name = preg_replace('/\.pdf$/i', '.html', $safe_name);
+        $html_path = $upload_dir . $html_name;
+        if (@file_put_contents($html_path, $html) !== false) {
+            return 'uploads/elintom_proposals/' . $html_name;
+        }
+
+        return '';
     }
 }
 

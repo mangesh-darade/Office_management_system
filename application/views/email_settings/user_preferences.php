@@ -27,8 +27,8 @@
           <?php foreach ($grouped_settings as $module => $settings): ?>
             <div class="module-section mb-4">
               <div class="d-flex align-items-center mb-3">
-                <h6 class="mb-0 me-2"><?php echo htmlspecialchars($modules[$module]['name']); ?></h6>
-                <span class="badge bg-secondary"><?php echo htmlspecialchars($modules[$module]['description']); ?></span>
+                <h6 class="mb-0 me-2"><?php echo esc_view($modules[$module]['name']); ?></h6>
+                <span class="badge bg-secondary"><?php echo esc_view($modules[$module]['description']); ?></span>
               </div>
               
               <div class="row">
@@ -38,13 +38,13 @@
                       <div class="form-check form-switch">
                         <input type="checkbox" 
                                class="form-check-input" 
-                               name="preferences[<?php echo htmlspecialchars($module); ?>][<?php echo htmlspecialchars($setting->event_type); ?>]" 
+                               name="preferences[<?php echo esc_view($module); ?>][<?php echo esc_view($setting->event_type); ?>]" 
                                value="1" 
                                id="pref_<?php echo $setting->id; ?>"
                                <?php echo (isset($user_preferences[$module][$setting->event_type]) && $user_preferences[$module][$setting->event_type]) ? 'checked' : ''; ?>>
                         <label class="form-check-label" for="pref_<?php echo $setting->id; ?>">
-                          <div class="fw-semibold"><?php echo htmlspecialchars($modules[$module]['events'][$setting->event_type]); ?></div>
-                          <small class="text-muted"><?php echo htmlspecialchars($setting->event_type); ?></small>
+                          <div class="fw-semibold"><?php echo esc_view($modules[$module]['events'][$setting->event_type]); ?></div>
+                          <small class="text-muted"><?php echo esc_view($setting->event_type); ?></small>
                         </label>
                       </div>
                     </div>

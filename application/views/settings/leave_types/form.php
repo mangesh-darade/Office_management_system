@@ -4,7 +4,7 @@
 <?php if($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -12,7 +12,7 @@
 <?php if($this->session->flashdata('success')): ?>
   <div class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="bi bi-check-circle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <?php echo esc_view($this->session->flashdata('success')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -34,7 +34,7 @@
           <label class="form-label fw-semibold">Leave Type Name <span class="text-danger">*</span></label>
           <input class="form-control" 
                  name="name" 
-                 value="<?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?>" 
+                 value="<?php echo esc_view(isset($row->name) ? $row->name : ''); ?>" 
                  placeholder="e.g., Annual Leave, Sick Leave, Casual Leave"
                  required 
                  autofocus />
@@ -58,7 +58,7 @@
           <textarea class="form-control" 
                     name="description" 
                     rows="3" 
-                    placeholder="Brief description of this leave type..."><?php echo htmlspecialchars(isset($row->description) ? $row->description : ''); ?></textarea>
+                    placeholder="Brief description of this leave type..."><?php echo esc_view(isset($row->description) ? $row->description : ''); ?></textarea>
           <div class="form-text">Optional description explaining when this leave type should be used</div>
         </div>
         

@@ -216,7 +216,7 @@ class Roles extends CI_Controller {
         }
 
         if ($inUse) {
-            $roleName = isset($role->name) ? htmlspecialchars($role->name) : 'This role';
+            $roleName = isset($role->name) ? esc_view($role->name) : 'This role';
             
             // Format user names for display
             $maxDisplay = 5; // Show first 5 names

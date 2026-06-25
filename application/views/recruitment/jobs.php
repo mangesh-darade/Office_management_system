@@ -27,13 +27,13 @@
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show">
-      <i class="bi bi-check-circle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <i class="bi bi-check-circle-fill me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show">
-      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -75,12 +75,12 @@
               <?php foreach($jobs as $job): ?>
               <tr>
                 <td>
-                  <div class="fw-semibold"><?php echo htmlspecialchars($job->title); ?></div>
+                  <div class="fw-semibold"><?php echo esc_view($job->title); ?></div>
                   <?php if (!empty($job->experience_level)): ?>
-                    <small class="text-muted"><?php echo htmlspecialchars($job->experience_level); ?></small>
+                    <small class="text-muted"><?php echo esc_view($job->experience_level); ?></small>
                   <?php endif; ?>
                 </td>
-                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars($job->department ? $job->department : '—'); ?></td>
+                <td class="d-none d-md-table-cell"><?php echo esc_view($job->department ? $job->department : '—'); ?></td>
                 <td class="d-none d-sm-table-cell"><?php echo (int)$job->positions; ?></td>
                 <td>
                   <?php

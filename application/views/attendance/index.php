@@ -1,4 +1,4 @@
-﻿<?php 
+<?php 
   // Get current user role for filtering
   $user_id = (int)$this->session->userdata('user_id');
   $role_id = (int)$this->session->userdata('role_id');
@@ -41,7 +41,7 @@
     <div class="att-hero-top">
       <div>
         <h1 class="att-hero-title">Attendance Summary</h1>
-        <p class="att-hero-subtitle">Overview for <?php echo htmlspecialchars($summary_scope); ?>.</p>
+        <p class="att-hero-subtitle">Overview for <?php echo esc_view($summary_scope); ?>.</p>
         <?php if ($employee_count > 0): ?>
           <span class="att-hero-count"><?php echo $employee_count; ?> employees</span>
         <?php endif; ?>
@@ -110,19 +110,19 @@
         $avatar_letter = strtoupper(substr($display_name, 0, 1));
         $last_attendance_date = isset($r->last_attendance_date) ? $r->last_attendance_date : '';
         $attendance_count = isset($r->attendance_count) ? (int) $r->attendance_count : 0;
-        $name_js = htmlspecialchars($display_name, ENT_QUOTES, 'UTF-8');
+        $name_js = esc_view($display_name);
       ?>
       <div class="att-mobile-card" data-user-id="<?php echo (int) $r->user_id; ?>" onclick="handleRowClick(event, <?php echo (int) $r->user_id; ?>, '<?php echo $name_js; ?>')">
         <div class="att-mobile-card-top<?php echo $canExport ? ' has-select' : ''; ?>">
           <?php if ($canExport): ?>
-          <input type="checkbox" class="row-checkbox" value="<?php echo (int) $r->user_id; ?>" onchange="syncRowCheckbox(this); updateSelection()" onclick="event.stopPropagation();" aria-label="Select <?php echo htmlspecialchars($display_name); ?>">
+          <input type="checkbox" class="row-checkbox" value="<?php echo (int) $r->user_id; ?>" onchange="syncRowCheckbox(this); updateSelection()" onclick="event.stopPropagation();" aria-label="Select <?php echo esc_view($display_name); ?>">
           <?php endif; ?>
           <div class="att-user">
-            <div class="att-user-avatar"><?php echo htmlspecialchars($avatar_letter); ?></div>
+            <div class="att-user-avatar"><?php echo esc_view($avatar_letter); ?></div>
             <div class="min-width-0">
-              <p class="att-user-name"><?php echo htmlspecialchars($display_name); ?></p>
+              <p class="att-user-name"><?php echo esc_view($display_name); ?></p>
               <?php if ($email !== '' && $display_name !== $email): ?>
-                <p class="att-user-email"><?php echo htmlspecialchars($email); ?></p>
+                <p class="att-user-email"><?php echo esc_view($email); ?></p>
               <?php endif; ?>
             </div>
           </div>
@@ -134,7 +134,7 @@
           <div class="att-mobile-meta-item">
             <span class="att-mobile-meta-label">Last attendance</span>
             <?php if ($last_attendance_date): ?>
-              <span class="att-date-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
+              <span class="att-date-badge"><?php echo esc_view($last_attendance_date); ?></span>
             <?php else: ?>
               <span class="text-muted">None</span>
             <?php endif; ?>
@@ -182,7 +182,7 @@
             $avatar_letter = strtoupper(substr($display_name, 0, 1));
             $last_attendance_date = isset($r->last_attendance_date) ? $r->last_attendance_date : '';
             $attendance_count = isset($r->attendance_count) ? (int) $r->attendance_count : 0;
-            $name_js = htmlspecialchars($display_name, ENT_QUOTES, 'UTF-8');
+            $name_js = esc_view($display_name);
           ?>
           <tr data-user-id="<?php echo (int) $r->user_id; ?>" onclick="handleRowClick(event, <?php echo (int) $r->user_id; ?>, '<?php echo $name_js; ?>')" style="cursor: pointer;">
             <?php if ($canExport): ?>
@@ -192,18 +192,18 @@
             <?php endif; ?>
             <td>
               <div class="att-user">
-                <div class="att-user-avatar"><?php echo htmlspecialchars($avatar_letter); ?></div>
+                <div class="att-user-avatar"><?php echo esc_view($avatar_letter); ?></div>
                 <div class="min-width-0">
-                  <p class="att-user-name"><?php echo htmlspecialchars($display_name); ?></p>
+                  <p class="att-user-name"><?php echo esc_view($display_name); ?></p>
                   <?php if ($email !== '' && $display_name !== $email): ?>
-                    <p class="att-user-email"><?php echo htmlspecialchars($email); ?></p>
+                    <p class="att-user-email"><?php echo esc_view($email); ?></p>
                   <?php endif; ?>
                 </div>
               </div>
             </td>
             <td>
               <?php if ($last_attendance_date): ?>
-                <span class="att-date-badge"><?php echo htmlspecialchars($last_attendance_date); ?></span>
+                <span class="att-date-badge"><?php echo esc_view($last_attendance_date); ?></span>
               <?php else: ?>
                 <span class="text-muted">&mdash;</span>
               <?php endif; ?>

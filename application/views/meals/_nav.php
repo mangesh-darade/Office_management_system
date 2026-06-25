@@ -27,8 +27,8 @@ if (empty($meal_tabs)) {
   <ul class="nav nav-pills oms-meals-subnav flex-nowrap">
     <?php foreach ($meal_tabs as $tab): ?>
     <li class="nav-item">
-      <a class="nav-link <?php echo $active_sub === $tab['key'] ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tab['href']); ?>">
-        <i class="bi <?php echo htmlspecialchars($tab['icon']); ?> me-1"></i><?php echo htmlspecialchars($tab['label']); ?>
+      <a class="nav-link <?php echo $active_sub === $tab['key'] ? 'active' : ''; ?>" href="<?php echo esc_view($tab['href']); ?>">
+        <i class="bi <?php echo esc_view($tab['icon']); ?> me-1"></i><?php echo esc_view($tab['label']); ?>
       </a>
     </li>
     <?php endforeach; ?>

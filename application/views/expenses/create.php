@@ -20,7 +20,7 @@
                     <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
                     <?php if($this->session->flashdata('error')): ?>
-                        <div class="alert alert-danger mb-4"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+                        <div class="alert alert-danger mb-4"><?php echo esc_view($this->session->flashdata('error')); ?></div>
                     <?php endif; ?>
                     
                     <?php echo form_open_multipart('expenses/create', ['class' => 'needs-validation', 'novalidate' => '']); ?>
@@ -39,7 +39,7 @@
                                 <option value="<?php echo $cat->id; ?>" 
                                         data-limit="<?php echo $cat->budget_limit; ?>"
                                         data-receipt="<?php echo $cat->requires_receipt; ?>">
-                                    <?php echo htmlspecialchars($cat->name); ?>
+                                    <?php echo esc_view($cat->name); ?>
                                 </option>
                                 <?php endforeach; ?>
                             </select>

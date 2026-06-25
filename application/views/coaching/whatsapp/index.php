@@ -11,7 +11,7 @@
     <button class="btn btn-sm btn-primary">Add enquiry</button>
   <?php echo form_close(); ?>
   <hr><table class="table table-sm"><thead><tr><th>Phone</th><th>Status</th><th>Message</th></tr></thead><tbody>
-  <?php foreach ($enquiries as $e): ?><tr><td><?php echo htmlspecialchars($e->phone); ?></td><td><?php echo htmlspecialchars($e->status); ?></td><td class="small"><?php echo htmlspecialchars(mb_substr($e->message,0,80)); ?></td></tr><?php endforeach; ?>
+  <?php foreach ($enquiries as $e): ?><tr><td><?php echo esc_view($e->phone); ?></td><td><?php echo esc_view($e->status); ?></td><td class="small"><?php echo esc_view(mb_substr($e->message,0,80)); ?></td></tr><?php endforeach; ?>
   </tbody></table></div></div>
 </div>
 <div class="col-md-6">

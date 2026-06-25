@@ -31,13 +31,13 @@ if ($maxBfPlates > 3) { $maxBfPlates = 3; }
 $providerContact = meal_provider_contact($settings);
 $providerContactTel = meal_provider_contact_tel_href($providerContact);
 ?>
-<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div><?php endif; ?>
-<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
 <div id="meal-save-toast" class="alert py-2 shadow-soft d-none mb-3" role="status"></div>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
-  <span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-sunrise me-1"></i>Breakfast locks after <?php echo htmlspecialchars($bfCut); ?></span>
-  <span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-egg-fried me-1"></i>Lunch locks after <?php echo htmlspecialchars($luCut); ?></span>
+  <span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-sunrise me-1"></i>Breakfast locks after <?php echo esc_view($bfCut); ?></span>
+  <span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-egg-fried me-1"></i>Lunch locks after <?php echo esc_view($luCut); ?></span>
 </div>
 
 <?php if (!$hasAnyScheduled): ?>
@@ -53,7 +53,7 @@ $providerContactTel = meal_provider_contact_tel_href($providerContact);
 </div>
 <?php endif; ?>
 
-<div id="meal-orders-panel" data-save-url="<?php echo htmlspecialchars(site_url('meals/save_order')); ?>" data-request-url="<?php echo htmlspecialchars(site_url('meals/submit_request')); ?>" data-meal-date="<?php echo htmlspecialchars($today); ?>">
+<div id="meal-orders-panel" data-save-url="<?php echo esc_view(site_url('meals/save_order')); ?>" data-request-url="<?php echo esc_view(site_url('meals/submit_request')); ?>" data-meal-date="<?php echo esc_view($today); ?>">
 <input type="hidden" id="meal_csrf_token" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
 <div class="row g-3">
 <?php
@@ -87,9 +87,9 @@ while ($cursor <= $end):
         <div class="mt-2 pt-2 border-top small fw-normal">
           <i class="bi bi-telephone-outbound me-1 text-primary"></i>
           <?php if ($providerContactTel !== ''): ?>
-          <a href="<?php echo htmlspecialchars($providerContactTel, ENT_QUOTES, 'UTF-8'); ?>" class="text-decoration-none">Contact us: <?php echo htmlspecialchars($providerContact, ENT_QUOTES, 'UTF-8'); ?></a>
+          <a href="<?php echo esc_view($providerContactTel); ?>" class="text-decoration-none">Contact us: <?php echo esc_view($providerContact); ?></a>
           <?php else: ?>
-          <span class="text-muted">Contact us: <?php echo htmlspecialchars($providerContact, ENT_QUOTES, 'UTF-8'); ?></span>
+          <span class="text-muted">Contact us: <?php echo esc_view($providerContact); ?></span>
           <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -100,7 +100,7 @@ while ($cursor <= $end):
           <div class="meal-flag-box <?php echo !$hasBf ? 'is-unavailable' : ''; ?>">
             <div class="meal-flag-title"><i class="bi bi-sunrise text-warning me-1"></i>Breakfast</div>
             <?php if ($hasBf): ?>
-              <div class="meal-flag-menu"><?php echo !empty($cal->breakfast_note) ? htmlspecialchars($cal->breakfast_note) : '—'; ?></div>
+              <div class="meal-flag-menu"><?php echo !empty($cal->breakfast_note) ? esc_view($cal->breakfast_note) : '—'; ?></div>
               <div class="small text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Available</div>
             <?php else: ?>
               <div class="small text-muted"><i class="bi bi-x-circle me-1"></i>Not available</div>
@@ -109,7 +109,7 @@ while ($cursor <= $end):
           <div class="meal-flag-box <?php echo !$hasLu ? 'is-unavailable' : ''; ?>">
             <div class="meal-flag-title"><i class="bi bi-egg-fried text-primary me-1"></i>Lunch</div>
             <?php if ($hasLu): ?>
-              <div class="meal-flag-menu"><?php echo !empty($cal->lunch_note) ? htmlspecialchars($cal->lunch_note) : '—'; ?></div>
+              <div class="meal-flag-menu"><?php echo !empty($cal->lunch_note) ? esc_view($cal->lunch_note) : '—'; ?></div>
               <div class="small text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Available</div>
             <?php else: ?>
               <div class="small text-muted"><i class="bi bi-x-circle me-1"></i>Not available</div>
@@ -125,13 +125,13 @@ while ($cursor <= $end):
           <div class="meal-flag-box <?php echo !$hasBf ? 'is-unavailable' : (!$bfEdit ? 'is-locked' : ''); ?>">
             <div class="meal-flag-title"><i class="bi bi-sunrise text-warning me-1"></i>Breakfast</div>
             <?php if ($hasBf): ?>
-              <div class="meal-flag-menu"><?php echo !empty($cal->breakfast_note) ? htmlspecialchars($cal->breakfast_note) : '—'; ?></div>
+              <div class="meal-flag-menu"><?php echo !empty($cal->breakfast_note) ? esc_view($cal->breakfast_note) : '—'; ?></div>
               <?php if (!$bfEdit): ?>
               <div class="meal-order-locked small">
-                <span class="text-secondary"><i class="bi bi-lock-fill me-1"></i>Locked (after <?php echo htmlspecialchars($bfCut); ?>)</span>
+                <span class="text-secondary"><i class="bi bi-lock-fill me-1"></i>Locked (after <?php echo esc_view($bfCut); ?>)</span>
                 <div class="fw-semibold mt-1">
                   <?php if ($bfPlates > 0 || $bfAdditional > 0): ?>
-                    <i class="bi bi-check2-circle text-success me-1"></i><?php echo htmlspecialchars(meal_format_breakfast_order_line($bfPlates, $bfAdditional)); ?>
+                    <i class="bi bi-check2-circle text-success me-1"></i><?php echo esc_view(meal_format_breakfast_order_line($bfPlates, $bfAdditional)); ?>
                   <?php else: ?>
                     <span class="text-muted">No breakfast order</span>
                   <?php endif; ?>
@@ -169,7 +169,7 @@ while ($cursor <= $end):
                 </div>
               </div>
               <input type="hidden" id="bf_hidden_<?php echo $d; ?>" value="<?php echo $wantBf ? max(1, (int)$bfPlates) : 0; ?>">
-              <div class="meal-flag-cutoff">Editable until <?php echo htmlspecialchars($bfCut); ?></div>
+              <div class="meal-flag-cutoff">Editable until <?php echo esc_view($bfCut); ?></div>
               <?php endif; ?>
             <?php else: ?>
               <div class="meal-flag-menu text-muted">Not served</div>
@@ -180,13 +180,13 @@ while ($cursor <= $end):
           <div class="meal-flag-box <?php echo !$hasLu ? 'is-unavailable' : (!$luEdit ? 'is-locked' : ''); ?>" id="lunch_box_<?php echo $d; ?>">
             <div class="meal-flag-title"><i class="bi bi-egg-fried text-primary me-1"></i>Lunch</div>
             <?php if ($hasLu): ?>
-              <div class="meal-flag-menu"><?php echo !empty($cal->lunch_note) ? htmlspecialchars($cal->lunch_note) : '—'; ?></div>
+              <div class="meal-flag-menu"><?php echo !empty($cal->lunch_note) ? esc_view($cal->lunch_note) : '—'; ?></div>
               <?php if (!$luEdit): ?>
               <div class="meal-order-locked small">
-                <span class="text-secondary"><i class="bi bi-lock-fill me-1"></i>Locked (after <?php echo htmlspecialchars($luCut); ?>)</span>
+                <span class="text-secondary"><i class="bi bi-lock-fill me-1"></i>Locked (after <?php echo esc_view($luCut); ?>)</span>
                 <div class="fw-semibold mt-1">
                   <?php if ($luTiffin !== '' || $luAdditional !== ''): ?>
-                    <i class="bi bi-check2-circle text-success me-1"></i><?php echo htmlspecialchars(meal_format_lunch_order_line($luTiffin, $luAdditional)); ?>
+                    <i class="bi bi-check2-circle text-success me-1"></i><?php echo esc_view(meal_format_lunch_order_line($luTiffin, $luAdditional)); ?>
                   <?php else: ?>
                     <span class="text-muted">No lunch order</span>
                   <?php endif; ?>
@@ -197,7 +197,7 @@ while ($cursor <= $end):
                   <?php endif; ?>
                 </div>
               </div>
-              <input type="hidden" id="lu_hidden_<?php echo $d; ?>" value="<?php echo htmlspecialchars($luTiffin); ?>">
+              <input type="hidden" id="lu_hidden_<?php echo $d; ?>" value="<?php echo esc_view($luTiffin); ?>">
               <?php if ($d === $today): ?>
               <?php $this->load->view('meals/_change_request', array(
                 'meal_type' => 'lunch',
@@ -223,8 +223,8 @@ while ($cursor <= $end):
                   <label class="btn btn-outline-primary btn-sm" for="lu_<?php echo $d; ?>_full">Full tiffin</label>
                 </div>
               </div>
-              <input type="hidden" id="lu_hidden_<?php echo $d; ?>" value="<?php echo htmlspecialchars($wantLu ? ($luTiffin !== '' ? $luTiffin : 'half') : ''); ?>">
-              <div class="meal-flag-cutoff mt-1">Editable until <?php echo htmlspecialchars($luCut); ?></div>
+              <input type="hidden" id="lu_hidden_<?php echo $d; ?>" value="<?php echo esc_view($wantLu ? ($luTiffin !== '' ? $luTiffin : 'half') : ''); ?>">
+              <div class="meal-flag-cutoff mt-1">Editable until <?php echo esc_view($luCut); ?></div>
               <?php endif; ?>
             <?php else: ?>
               <div class="meal-flag-menu text-muted">Not served</div>

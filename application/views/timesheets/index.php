@@ -33,7 +33,7 @@
   <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('timesheets?week='.$prev_week); ?>" title="Previous week"><i class="bi bi-chevron-left"></i></a>
     <form class="d-flex gap-1 align-items-center" method="get">
-      <input type="date" class="form-control form-control-sm" style="min-width:140px" name="week" value="<?php echo htmlspecialchars($week_start); ?>" />
+      <input type="date" class="form-control form-control-sm" style="min-width:140px" name="week" value="<?php echo esc_view($week_start); ?>" />
       <button class="btn btn-primary btn-sm"><i class="bi bi-arrow-right"></i></button>
     </form>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('timesheets?week='.$next_week); ?>" title="Next week"><i class="bi bi-chevron-right"></i></a>
@@ -41,10 +41,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger d-flex align-items-center"><i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger d-flex align-items-center"><i class="bi bi-exclamation-triangle me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success d-flex align-items-center"><i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success d-flex align-items-center"><i class="bi bi-check-circle me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <!-- Summary Cards -->
@@ -61,7 +61,7 @@
     <div class="card shadow-sm border-0">
       <div class="card-body py-3 text-center">
         <div class="text-muted small text-uppercase fw-semibold">Status</div>
-        <div class="mt-1"><span class="badge <?php echo $s[0]; ?>"><i class="bi <?php echo $s[1]; ?> me-1"></i><?php echo ucfirst(htmlspecialchars($timesheet->status)); ?></span></div>
+        <div class="mt-1"><span class="badge <?php echo $s[0]; ?>"><i class="bi <?php echo $s[1]; ?> me-1"></i><?php echo ucfirst(esc_view($timesheet->status)); ?></span></div>
       </div>
     </div>
   </div>
@@ -141,10 +141,10 @@
                   </tr>
                   <?php endif; ?>
                   <tr>
-                    <td class="text-nowrap small"><?php echo htmlspecialchars($e->work_date); ?></td>
-                    <td class="small"><?php echo htmlspecialchars($proj_name); ?></td>
-                    <td class="small" style="max-width:140px;" title="<?php echo htmlspecialchars($task_name); ?>">
-                      <span class="d-inline-block text-truncate" style="max-width:140px;"><?php echo htmlspecialchars($task_name); ?></span>
+                    <td class="text-nowrap small"><?php echo esc_view($e->work_date); ?></td>
+                    <td class="small"><?php echo esc_view($proj_name); ?></td>
+                    <td class="small" style="max-width:140px;" title="<?php echo esc_view($task_name); ?>">
+                      <span class="d-inline-block text-truncate" style="max-width:140px;"><?php echo esc_view($task_name); ?></span>
                     </td>
                     <td class="text-end fw-semibold"><?php echo number_format((float)$e->hours, 2); ?></td>
                     <td>
@@ -155,12 +155,12 @@
                       <?php endif; ?>
                     </td>
                     <td style="max-width:200px;">
-                      <span class="d-inline-block text-truncate small" style="max-width:200px;" title="<?php echo htmlspecialchars($e->description); ?>"><?php echo htmlspecialchars($e->description); ?></span>
+                      <span class="d-inline-block text-truncate small" style="max-width:200px;" title="<?php echo esc_view($e->description); ?>"><?php echo esc_view($e->description); ?></span>
                     </td>
                     <?php if (!$is_locked): ?>
                     <td class="text-end">
                       <form action="<?php echo site_url('timesheets/delete_entry/'.(int)$e->id); ?>" method="post" class="d-inline" onsubmit="return confirm('Delete this entry?');">
-                        <input type="hidden" name="week_start" value="<?php echo htmlspecialchars($week_start); ?>" />
+                        <input type="hidden" name="week_start" value="<?php echo esc_view($week_start); ?>" />
                         <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Delete"><i class="bi bi-trash3"></i></button>
                       </form>
                     </td>
@@ -188,22 +188,22 @@
       <div class="card-header bg-white fw-semibold"><i class="bi bi-plus-circle me-1"></i>Add Entry</div>
       <div class="card-body">
         <?php if ($is_locked): ?>
-          <div class="alert alert-info small mb-0"><i class="bi bi-lock me-1"></i>This timesheet is <strong><?php echo htmlspecialchars($timesheet->status); ?></strong>. You cannot add or modify entries.</div>
+          <div class="alert alert-info small mb-0"><i class="bi bi-lock me-1"></i>This timesheet is <strong><?php echo esc_view($timesheet->status); ?></strong>. You cannot add or modify entries.</div>
         <?php else: ?>
         <form method="post" action="<?php echo site_url('timesheets'); ?>?week=<?php echo urlencode($week_start); ?>">
           <div class="mb-2">
             <label class="form-label small fw-semibold">Date</label>
             <input type="date" class="form-control form-control-sm" name="work_date" required
-                   min="<?php echo htmlspecialchars($week_start); ?>"
-                   max="<?php echo htmlspecialchars($week_end); ?>"
-                   value="<?php echo htmlspecialchars(date('Y-m-d')); ?>" />
+                   min="<?php echo esc_view($week_start); ?>"
+                   max="<?php echo esc_view($week_end); ?>"
+                   value="<?php echo esc_view(date('Y-m-d')); ?>" />
           </div>
           <div class="mb-2">
             <label class="form-label small fw-semibold">Project</label>
             <select class="form-select form-select-sm" name="project_id" id="project_id">
               <option value="">-- Select Project --</option>
               <?php foreach ($projects as $p): ?>
-                <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
+                <option value="<?php echo (int)$p->id; ?>"><?php echo esc_view($p->name); ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -240,7 +240,7 @@
         <?php if ($timesheet->status === 'draft'): ?>
           <p class="text-muted small mb-2">When all entries are logged, submit your timesheet for manager approval.</p>
           <form method="post" action="<?php echo site_url('timesheets/submit'); ?>">
-            <input type="hidden" name="week_start" value="<?php echo htmlspecialchars($week_start); ?>" />
+            <input type="hidden" name="week_start" value="<?php echo esc_view($week_start); ?>" />
             <button class="btn btn-success btn-sm w-100" <?php echo empty($entries) ? 'disabled' : ''; ?>><i class="bi bi-check2-circle me-1"></i>Submit for Approval</button>
           </form>
         <?php elseif ($timesheet->status === 'submitted'): ?>
@@ -248,18 +248,18 @@
         <?php elseif ($timesheet->status === 'approved'): ?>
           <div class="alert alert-success small mb-0"><i class="bi bi-check-circle me-1"></i>This timesheet has been approved.
             <?php if (!empty($timesheet->comments)): ?>
-              <hr class="my-1"><strong>Comments:</strong> <?php echo htmlspecialchars($timesheet->comments); ?>
+              <hr class="my-1"><strong>Comments:</strong> <?php echo esc_view($timesheet->comments); ?>
             <?php endif; ?>
           </div>
         <?php elseif ($timesheet->status === 'rejected'): ?>
           <div class="alert alert-danger small mb-2"><i class="bi bi-x-circle me-1"></i>This timesheet was rejected.
             <?php if (!empty($timesheet->comments)): ?>
-              <hr class="my-1"><strong>Reason:</strong> <?php echo htmlspecialchars($timesheet->comments); ?>
+              <hr class="my-1"><strong>Reason:</strong> <?php echo esc_view($timesheet->comments); ?>
             <?php endif; ?>
           </div>
           <p class="text-muted small mb-2">Make changes and resubmit.</p>
           <form method="post" action="<?php echo site_url('timesheets/submit'); ?>">
-            <input type="hidden" name="week_start" value="<?php echo htmlspecialchars($week_start); ?>" />
+            <input type="hidden" name="week_start" value="<?php echo esc_view($week_start); ?>" />
             <button class="btn btn-success btn-sm w-100"><i class="bi bi-arrow-repeat me-1"></i>Resubmit</button>
           </form>
         <?php endif; ?>

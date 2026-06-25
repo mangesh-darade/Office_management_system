@@ -5,7 +5,7 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger py-2"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger py-2"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-sm border-0">
@@ -14,11 +14,11 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" class="form-control" required value="<?php echo isset($type) ? htmlspecialchars($type->name) : ''; ?>" placeholder="e.g. Partner">
+          <input type="text" name="name" class="form-control" required value="<?php echo isset($type) ? esc_view($type->name) : ''; ?>" placeholder="e.g. Partner">
         </div>
         <div class="col-md-6">
           <label class="form-label">Code <span class="text-danger">*</span></label>
-          <input type="text" name="code" class="form-control" required value="<?php echo isset($type) ? htmlspecialchars($type->code) : ''; ?>" placeholder="e.g. partner">
+          <input type="text" name="code" class="form-control" required value="<?php echo isset($type) ? esc_view($type->code) : ''; ?>" placeholder="e.g. partner">
           <div class="form-text">Lowercase with underscores (e.g. srujan_client)</div>
         </div>
         <div class="col-md-6">
@@ -26,7 +26,7 @@
           <select name="module" class="form-select" required>
             <option value="">— Select module —</option>
             <?php foreach ($modules as $key => $label): ?>
-              <option value="<?php echo htmlspecialchars($key); ?>" <?php echo (isset($type) && $type->module === $key) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo esc_view($key); ?>" <?php echo (isset($type) && $type->module === $key) ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -42,7 +42,7 @@
         </div>
         <div class="col-12">
           <label class="form-label">Description</label>
-          <textarea name="description" class="form-control" rows="3"><?php echo isset($type) && $type->description ? htmlspecialchars($type->description) : ''; ?></textarea>
+          <textarea name="description" class="form-control" rows="3"><?php echo isset($type) && $type->description ? esc_view($type->description) : ''; ?></textarea>
         </div>
         <div class="col-12">
           <button type="submit" class="btn btn-primary"><?php echo $action === 'edit' ? 'Save changes' : 'Create type'; ?></button>

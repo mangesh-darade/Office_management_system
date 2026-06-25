@@ -10,10 +10,10 @@
   </div>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
 
   <div class="table-responsive card shadow-sm border-0">
@@ -32,9 +32,9 @@
         <?php else: ?>
           <?php foreach ($modules as $m): ?>
             <tr>
-              <td><strong><?php echo htmlspecialchars($m->title); ?></strong></td>
+              <td><strong><?php echo esc_view($m->title); ?></strong></td>
               <td><?php echo (int) $m->topic_count; ?></td>
-              <td><span class="badge bg-<?php echo $m->status === 'active' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($m->status); ?></span></td>
+              <td><span class="badge bg-<?php echo $m->status === 'active' ? 'success' : 'secondary'; ?>"><?php echo esc_view($m->status); ?></span></td>
               <td class="text-end text-nowrap">
                 <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('training-lms-admin/topics/' . (int) $m->id); ?>">Topics</a>
                 <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training-lms-admin/module/edit/' . (int) $m->id); ?>">Edit</a>

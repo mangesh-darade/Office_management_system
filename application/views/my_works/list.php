@@ -25,7 +25,7 @@
 
     <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
 
-      <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <?php echo esc_view($this->session->flashdata('success')); ?>
 
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
 
@@ -37,7 +37,7 @@
 
     <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
 
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
 
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
 
@@ -160,7 +160,7 @@
 
                     <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-work-title">
 
-                      <?php echo htmlspecialchars($r->title); ?>
+                      <?php echo esc_view($r->title); ?>
 
                     </a>
 
@@ -170,13 +170,13 @@
 
                       <?php foreach (my_works_parse_tags(isset($r->tag) ? $r->tag : '') as $tg): ?>
 
-                        <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($tg); ?></span>
+                        <span class="badge bg-light text-dark border"><?php echo esc_view($tg); ?></span>
 
                       <?php endforeach; ?>
 
                       <?php $this->load->view('my_works/_attachment_badge', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
 
-                      <?php if (!empty($r->url)): ?><a href="<?php echo htmlspecialchars($r->url); ?>" target="_blank" rel="noopener" class="text-primary" title="Open link" onclick="event.stopPropagation();"><i class="bi bi-link-45deg"></i></a><?php endif; ?>
+                      <?php if (!empty($r->url)): ?><a href="<?php echo esc_view($r->url); ?>" target="_blank" rel="noopener" class="text-primary" title="Open link" onclick="event.stopPropagation();"><i class="bi bi-link-45deg"></i></a><?php endif; ?>
 
                     </div>
 
@@ -184,9 +184,9 @@
 
                       <?php $cc = (string) $r->closing_comment; ?>
 
-                      <div class="mw-work-meta text-truncate" style="max-width:16rem;" title="<?php echo htmlspecialchars($cc); ?>">
+                      <div class="mw-work-meta text-truncate" style="max-width:16rem;" title="<?php echo esc_view($cc); ?>">
 
-                        <i class="bi bi-chat-left-text me-1"></i><?php echo htmlspecialchars(strlen($cc) > 50 ? substr($cc, 0, 50) . '…' : $cc); ?>
+                        <i class="bi bi-chat-left-text me-1"></i><?php echo esc_view(strlen($cc) > 50 ? substr($cc, 0, 50) . '…' : $cc); ?>
 
                       </div>
 
@@ -198,15 +198,15 @@
 
                     <div class="mw-assignee">
 
-                      <span class="mw-assignee-avatar" title="<?php echo htmlspecialchars($forLabel); ?>"><?php echo htmlspecialchars($initials); ?></span>
+                      <span class="mw-assignee-avatar" title="<?php echo esc_view($forLabel); ?>"><?php echo esc_view($initials); ?></span>
 
-                      <span class="small"><?php echo htmlspecialchars($forLabel); ?></span>
+                      <span class="small"><?php echo esc_view($forLabel); ?></span>
 
                     </div>
 
                   </td>
 
-                  <td data-order="<?php echo htmlspecialchars($r->status); ?>">
+                  <td data-order="<?php echo esc_view($r->status); ?>">
 
                     <?php if ($canStatus): ?>
 
@@ -216,13 +216,13 @@
 
                         <input type="hidden" name="id" value="<?php echo (int) $r->id; ?>">
 
-                        <input type="hidden" name="redirect" value="<?php echo htmlspecialchars(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>">
+                        <input type="hidden" name="redirect" value="<?php echo esc_view(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>">
 
                         <select name="status" class="form-select form-select-sm mw-status-select" onchange="this.form.submit()">
 
                           <?php foreach ($statusLabels as $k => $lbl): ?>
 
-                            <option value="<?php echo $k; ?>" <?php echo $r->status === $k ? 'selected' : ''; ?>><?php echo htmlspecialchars($lbl); ?></option>
+                            <option value="<?php echo $k; ?>" <?php echo $r->status === $k ? 'selected' : ''; ?>><?php echo esc_view($lbl); ?></option>
 
                           <?php endforeach; ?>
 
@@ -232,13 +232,13 @@
 
                     <?php else: ?>
 
-                      <span class="badge bg-<?php echo $stColor; ?>"><?php echo htmlspecialchars($stLabel); ?></span>
+                      <span class="badge bg-<?php echo $stColor; ?>"><?php echo esc_view($stLabel); ?></span>
 
                     <?php endif; ?>
 
                   </td>
 
-                  <td class="small text-muted" data-order="<?php echo (int) $updatedOrder; ?>" title="<?php echo $r->updated_at ? htmlspecialchars($r->updated_at) : ''; ?>"><?php echo my_works_format_when($r->updated_at); ?></td>
+                  <td class="small text-muted" data-order="<?php echo (int) $updatedOrder; ?>" title="<?php echo $r->updated_at ? esc_view($r->updated_at) : ''; ?>"><?php echo my_works_format_when($r->updated_at); ?></td>
 
                   <td data-order="<?php echo (int) $priorityOrder; ?>">
                     <?php if ((int) $r->is_urgent === 1): ?><span class="badge bg-danger">Urgent</span><?php endif; ?>
@@ -261,7 +261,7 @@
                               data-bs-toggle="modal"
                               data-bs-target="#mwListCommentModal"
                               data-work-id="<?php echo (int) $r->id; ?>"
-                              data-work-title="<?php echo htmlspecialchars($r->title, ENT_QUOTES, 'UTF-8'); ?>"
+                              data-work-title="<?php echo esc_view($r->title); ?>"
                               title="Add comment">
                         <i class="bi bi-chat-dots"></i>
                       </button>

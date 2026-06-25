@@ -9,13 +9,13 @@ $extra_actions = isset($extra_actions) ? $extra_actions : '';
 <div class="col-12">
 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
 <div>
-<h5 class="mb-0 fw-bold"><?php echo htmlspecialchars($title); ?></h5>
-<?php if ($subtitle !== ''): ?><p class="text-muted mb-0 small"><?php echo htmlspecialchars($subtitle); ?></p><?php endif; ?>
+<h5 class="mb-0 fw-bold"><?php echo esc_view($title); ?></h5>
+<?php if ($subtitle !== ''): ?><p class="text-muted mb-0 small"><?php echo esc_view($subtitle); ?></p><?php endif; ?>
 </div>
 <div class="d-flex flex-wrap gap-2">
 <?php echo $extra_actions; ?>
 <?php if ($create_url !== ''): ?>
-<a href="<?php echo site_url($create_url); ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i><?php echo htmlspecialchars($create_label); ?></a>
+<a href="<?php echo site_url($create_url); ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i><?php echo esc_view($create_label); ?></a>
 <?php endif; ?>
 </div>
 </div>

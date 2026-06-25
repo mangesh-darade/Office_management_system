@@ -9,8 +9,8 @@
         <p>Are you sure you want to delete this user?</p>
         <ul>
           <li><strong>ID:</strong> #<?php echo (int)$row->id; ?></li>
-          <li><strong>Name:</strong> <?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?></li>
-          <li><strong>Email:</strong> <?php echo htmlspecialchars(isset($row->email) ? $row->email : ''); ?></li>
+          <li><strong>Name:</strong> <?php echo esc_view(isset($row->name) ? $row->name : ''); ?></li>
+          <li><strong>Email:</strong> <?php echo esc_view(isset($row->email) ? $row->email : ''); ?></li>
         </ul>
         <div class="d-flex gap-2 mt-3">
           <form method="post" action="<?php echo site_url('users/destroy/'.(int)$row->id); ?>" class="d-inline">

@@ -18,21 +18,21 @@
       <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
           <?php if ($this->session->flashdata('error')): ?>
-            <div class="alert alert-danger mb-4"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+            <div class="alert alert-danger mb-4"><?php echo esc_view($this->session->flashdata('error')); ?></div>
           <?php endif; ?>
 
           <?php echo form_open_multipart('expenses/edit/' . (int) $expense->id); ?>
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Expense Date</label>
-              <input type="date" name="expense_date" class="form-control" required value="<?php echo htmlspecialchars($expense->expense_date); ?>">
+              <input type="date" name="expense_date" class="form-control" required value="<?php echo esc_view($expense->expense_date); ?>">
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Category</label>
               <select name="category_id" class="form-select" required id="categorySelect">
                 <?php foreach ($categories as $cat): ?>
-                  <option value="<?php echo (int) $cat->id; ?>" data-limit="<?php echo htmlspecialchars($cat->budget_limit); ?>" data-receipt="<?php echo (int) $cat->requires_receipt; ?>" <?php echo (int) $expense->category_id === (int) $cat->id ? 'selected' : ''; ?>>
-                    <?php echo htmlspecialchars($cat->name); ?>
+                  <option value="<?php echo (int) $cat->id; ?>" data-limit="<?php echo esc_view($cat->budget_limit); ?>" data-receipt="<?php echo (int) $cat->requires_receipt; ?>" <?php echo (int) $expense->category_id === (int) $cat->id ? 'selected' : ''; ?>>
+                    <?php echo esc_view($cat->name); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
@@ -41,12 +41,12 @@
               <label class="form-label fw-semibold">Amount</label>
               <div class="input-group">
                 <span class="input-group-text">$</span>
-                <input type="number" name="amount" class="form-control" step="0.01" required min="0.01" value="<?php echo htmlspecialchars($expense->amount); ?>">
+                <input type="number" name="amount" class="form-control" step="0.01" required min="0.01" value="<?php echo esc_view($expense->amount); ?>">
               </div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Description</label>
-              <textarea name="description" class="form-control" rows="3" required><?php echo htmlspecialchars($expense->description); ?></textarea>
+              <textarea name="description" class="form-control" rows="3" required><?php echo esc_view($expense->description); ?></textarea>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Receipt / Document</label>

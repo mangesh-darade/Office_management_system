@@ -28,8 +28,8 @@
           <?php foreach ($grouped_settings as $module => $settings): ?>
             <div class="module-section mb-4">
               <div class="d-flex align-items-center mb-3">
-                <h6 class="mb-0 me-2"><?php echo htmlspecialchars($modules[$module]['name']); ?></h6>
-                <span class="badge bg-secondary"><?php echo htmlspecialchars($modules[$module]['description']); ?></span>
+                <h6 class="mb-0 me-2"><?php echo esc_view($modules[$module]['name']); ?></h6>
+                <span class="badge bg-secondary"><?php echo esc_view($modules[$module]['description']); ?></span>
               </div>
               
               <div class="table-responsive">
@@ -46,8 +46,8 @@
                     <?php foreach ($settings as $setting): ?>
                       <tr>
                         <td>
-                          <div class="fw-semibold"><?php echo htmlspecialchars($modules[$module]['events'][$setting->event_type]); ?></div>
-                          <small class="text-muted"><?php echo htmlspecialchars($setting->event_type); ?></small>
+                          <div class="fw-semibold"><?php echo esc_view($modules[$module]['events'][$setting->event_type]); ?></div>
+                          <small class="text-muted"><?php echo esc_view($setting->event_type); ?></small>
                         </td>
                         <td>
                           <div class="form-check form-switch">
@@ -78,8 +78,8 @@
                           </a>
                           <button type="button" 
                                   class="btn btn-sm btn-outline-info test-email-btn"
-                                  data-module="<?php echo htmlspecialchars($module); ?>"
-                                  data-event="<?php echo htmlspecialchars($setting->event_type); ?>">
+                                  data-module="<?php echo esc_view($module); ?>"
+                                  data-event="<?php echo esc_view($setting->event_type); ?>">
                             <i class="bi bi-send"></i>
                           </button>
                         </td>
@@ -93,7 +93,7 @@
                               <input type="text" 
                                      class="form-control form-control-sm" 
                                      name="settings[<?php echo $setting->id; ?>][custom_recipients]" 
-                                     value="<?php echo htmlspecialchars($setting->custom_recipients); ?>"
+                                     value="<?php echo esc_view($setting->custom_recipients); ?>"
                                      placeholder="email1@example.com, email2@example.com">
                             </div>
                           </td>

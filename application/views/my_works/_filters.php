@@ -49,7 +49,7 @@
 
 <?php if (!empty($can_export)): ?>
 <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2">
-  <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
+  <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
 </div>
 <?php endif; ?>
 
@@ -69,7 +69,7 @@
   <div class="collapse" id="mwFilterBody">
     <div class="card-body">
       <form method="get" action="<?php echo site_url('my-works'); ?>" class="row g-3 align-items-end">
-        <input type="hidden" name="view" value="<?php echo htmlspecialchars(isset($view_mode) ? $view_mode : 'list'); ?>">
+        <input type="hidden" name="view" value="<?php echo esc_view(isset($view_mode) ? $view_mode : 'list'); ?>">
         <div class="col-12">
           <div class="mw-filter-section-title"><i class="bi bi-building me-1"></i>Client &amp; project</div>
         </div>
@@ -79,7 +79,7 @@
             <option value="0">All clients</option>
             <?php foreach ((array) $clients as $c): ?>
               <option value="<?php echo (int) $c->id; ?>" <?php echo $filterClientId === (int) $c->id ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($c->company_name); ?>
+                <?php echo esc_view($c->company_name); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -92,7 +92,7 @@
               <option value="<?php echo (int) $p->id; ?>"
                       data-client-id="<?php echo (!empty($projects_have_client) && isset($p->client_id)) ? (int) $p->client_id : 0; ?>"
                       <?php echo $filterProjectId === (int) $p->id ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($p->name ? $p->name : ('Project #' . (int) $p->id)); ?>
+                <?php echo esc_view($p->name ? $p->name : ('Project #' . (int) $p->id)); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -112,7 +112,7 @@
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label">Search</label>
-          <input type="search" name="q" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filters['q']); ?>" placeholder="Title, details, tag">
+          <input type="search" name="q" class="form-control form-control-sm" value="<?php echo esc_view($filters['q']); ?>" placeholder="Title, details, tag">
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label">Status</label>
@@ -125,10 +125,10 @@
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label">Tag</label>
-          <input type="text" name="tag" class="form-control form-control-sm" list="mw-tag-list" value="<?php echo htmlspecialchars($filters['tag']); ?>" placeholder="Tag">
+          <input type="text" name="tag" class="form-control form-control-sm" list="mw-tag-list" value="<?php echo esc_view($filters['tag']); ?>" placeholder="Tag">
           <datalist id="mw-tag-list">
             <?php foreach ((array) $tags as $t): ?>
-              <option value="<?php echo htmlspecialchars($t); ?>">
+              <option value="<?php echo esc_view($t); ?>">
             <?php endforeach; ?>
           </datalist>
         </div>
@@ -147,7 +147,7 @@
             <option value="0">Anyone</option>
             <?php foreach ((array) $users as $u): ?>
               <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $filters['created_for'] === (int) $u->id ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars(my_works_user_label($u->name, $u->email, $u->id)); ?>
+                <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id)); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -158,7 +158,7 @@
             <option value="0">Anyone</option>
             <?php foreach ((array) $users as $u): ?>
               <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $filters['created_by'] === (int) $u->id ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars(my_works_user_label($u->name, $u->email, $u->id)); ?>
+                <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id)); ?>
               </option>
             <?php endforeach; ?>
           </select>

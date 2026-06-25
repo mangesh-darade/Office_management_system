@@ -70,7 +70,7 @@
                             <input class="form-control" list="taskOptions" name="activity_title" id="activityTitleInput" placeholder="search or type new activity..." autocomplete="off">
                             <datalist id="taskOptions">
                                 <?php foreach($tasks as $t): ?>
-                                    <option data-id="<?php echo $t->id; ?>" value="<?php echo htmlspecialchars($t->title); ?>"></option>
+                                    <option data-id="<?php echo $t->id; ?>" value="<?php echo esc_view($t->title); ?>"></option>
                                 <?php endforeach; ?>
                             </datalist>
                             <input type="hidden" name="task_id" id="taskIdInput">
@@ -133,12 +133,12 @@
 
             <?php if($this->session->flashdata('success')): ?>
                 <div class="alert alert-success shadow-sm border-0 d-flex align-items-center">
-                    <i class="bi bi-check-circle-fill me-2 fs-5"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+                    <i class="bi bi-check-circle-fill me-2 fs-5"></i><?php echo esc_view($this->session->flashdata('success')); ?>
                 </div>
             <?php endif; ?>
             <?php if($this->session->flashdata('error')): ?>
                 <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i><?php echo esc_view($this->session->flashdata('error')); ?>
                 </div>
             <?php endif; ?>
 
@@ -163,9 +163,9 @@
                                             <i class="bi bi-clock me-1"></i><?php echo date('h:i A', strtotime($log->created_at)); ?>
                                         </div>
                                         <?php if($log->activity_title): ?>
-                                             <span class="fw-bold text-dark me-2"><?php echo htmlspecialchars($log->activity_title); ?></span>
+                                             <span class="fw-bold text-dark me-2"><?php echo esc_view($log->activity_title); ?></span>
                                         <?php elseif($log->task_title): ?>
-                                            <span class="fw-bold text-dark me-2"><?php echo htmlspecialchars($log->task_title); ?></span>
+                                            <span class="fw-bold text-dark me-2"><?php echo esc_view($log->task_title); ?></span>
                                         <?php else: ?>
                                             <span class="text-muted small fst-italic">General Update</span>
                                         <?php endif; ?>

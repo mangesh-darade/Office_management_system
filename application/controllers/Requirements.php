@@ -5,7 +5,7 @@ class Requirements extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','hierarchy_filter','schema_columns','types']);
+        $this->load->helper(['url','form','permission','hierarchy_filter','schema_columns','types','validation']);
         $this->load->model('Type_model', 'module_types');
         $this->load->library(['session','upload']);
         
@@ -74,6 +74,13 @@ class Requirements extends CI_Controller {
                 redirect('requirements/create');
                 return;
             }
+
+            $reference_url = normalize_optional_url($this->input->post('reference_url'));
+            if ($reference_url === false) {
+                $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
+                redirect('requirements/create');
+                return;
+            }
             
             $data = [
                 'req_number' => $this->generate_req_number(),
@@ -91,6 +98,7 @@ class Requirements extends CI_Controller {
                 'created_by' => (int)$this->session->userdata('user_id'),
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
+                'reference_url' => $reference_url,
             ];
             $id = $this->requirements->create_requirement($data);
             // create initial version 1
@@ -250,6 +258,13 @@ class Requirements extends CI_Controller {
                 redirect('requirements/edit/'.$id);
                 return;
             }
+
+            $reference_url = normalize_optional_url($this->input->post('reference_url'));
+            if ($reference_url === false) {
+                $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
+                redirect('requirements/edit/'.$id);
+                return;
+            }
             
             $data = [
                 'client_id' => (int)$this->input->post('client_id'),
@@ -264,6 +279,7 @@ class Requirements extends CI_Controller {
                 'owner_id' => $this->input->post('owner_id') !== '' ? (int)$this->input->post('owner_id') : null,
                 'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
                 'updated_at' => date('Y-m-d H:i:s'),
+                'reference_url' => $reference_url,
             ];
             // Check if status changed
             $old_status = $row->status;

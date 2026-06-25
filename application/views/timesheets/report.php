@@ -13,7 +13,7 @@
   <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div>
       <h4 class="mb-1 fw-bold"><i class="bi bi-bar-chart-line text-primary me-2"></i>Monthly Hours Report</h4>
-      <p class="text-muted small mb-0"><?php echo htmlspecialchars($monthLabel . ' ' . $year); ?> &mdash; Hours logged by each team member</p>
+      <p class="text-muted small mb-0"><?php echo esc_view($monthLabel . ' ' . $year); ?> &mdash; Hours logged by each team member</p>
     </div>
     <a class="btn btn-outline-secondary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('timesheets'); ?>"><i class="bi bi-arrow-left me-1"></i>Back to Timesheet</a>
   </div>
@@ -71,7 +71,7 @@
       <div class="card shadow-sm border-0">
         <div class="card-body py-3 text-center">
           <div class="text-muted small text-uppercase fw-semibold">Month</div>
-          <div class="fw-bold mt-1"><?php echo htmlspecialchars($monthLabel . ' ' . $year); ?></div>
+          <div class="fw-bold mt-1"><?php echo esc_view($monthLabel . ' ' . $year); ?></div>
         </div>
       </div>
     </div>
@@ -96,7 +96,7 @@
                 <div class="empty-state py-4">
                   <div class="empty-icon mx-auto"><i class="bi bi-bar-chart"></i></div>
                   <h6 class="fw-semibold">No data for this month</h6>
-                  <p class="text-muted small mb-0">No timesheet entries found for <?php echo htmlspecialchars($monthLabel . ' ' . $year); ?></p>
+                  <p class="text-muted small mb-0">No timesheet entries found for <?php echo esc_view($monthLabel . ' ' . $year); ?></p>
                 </div>
               </td></tr>
             <?php else: ?>
@@ -105,7 +105,7 @@
               ?>
               <tr>
                 <td class="text-muted small"><?php echo $rank; ?></td>
-                <td class="fw-semibold"><?php echo htmlspecialchars($r->email); ?></td>
+                <td class="fw-semibold"><?php echo esc_view($r->email); ?></td>
                 <td class="text-end fw-bold"><?php echo number_format((float)$r->hours, 2); ?></td>
                 <td>
                   <div class="d-flex align-items-center gap-2">

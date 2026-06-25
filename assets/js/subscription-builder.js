@@ -13,14 +13,18 @@
     includedSectionOpen: true,
     planSectionOpen: true,
     industrySectionOpen: true,
-    addonsSectionOpen: true
+    addonsSectionOpen: true,
+    clientName: '',
+    clientBusiness: '',
+    discountPercent: 0,
+    gstPercent: 18
   };
 
   var planDescriptions = {
     Essential: 'Core POS, inventory, billing, and reports for single-location businesses.',
-    Professional: 'Multi-location, GST, and franchise-ready operations.',
-    Enterprise: 'Advanced CRM, production, webshop, and omni-channel capabilities.',
-    ElintOm: 'Specialized modules for services, AMC, and site management.'
+    Business: 'Essential features plus business operations for growing teams.',
+    Professional: 'Essential and Business features with multi-location and GST readiness.',
+    Enterprise: 'Full stack — includes Essential, Business, and Professional capabilities.'
   };
 
   var industryIcons = {
@@ -90,12 +94,25 @@
     return n;
   }
 
+  function updateIncludedCountBadge(total) {
+    var $badge = $('#sb-included-count-badge');
+    if (!$badge.length) {
+      return;
+    }
+    if (!total) {
+      $badge.addClass('d-none').text('');
+      return;
+    }
+    $badge.removeClass('d-none').text(total + ' feature' + (total === 1 ? '' : 's'));
+  }
+
   function updateIncludedViewAllButton(total) {
     var $btn = $('#sb-included-view-all');
     var $section = $('#sb-included-section');
     if (!$btn.length) {
       return;
     }
+    updateIncludedCountBadge(total);
     if (!state.includedSectionOpen || total <= INCLUDED_PREVIEW_COUNT) {
       $btn.addClass('d-none');
       if (total <= INCLUDED_PREVIEW_COUNT) {
@@ -111,7 +128,7 @@
       $btn.text('View all (' + total + ')');
       $section.removeClass('sb-included-list-expanded');
     }
-    $btn.attr('title', includedSelectedCount() + ' / ' + total + ' selected');
+    $btn.attr('title', includedSelectedCount() + ' of ' + total + ' selected');
     $('.sb-main').toggleClass('sb-main-included-list-expanded', !!(state.includedExpanded && state.includedSectionOpen));
   }
 
@@ -130,26 +147,42 @@
 
   function updatePlanSectionCollapse() {
     setSectionCollapsed('#sb-plan-section', '#sb-plan-toggle', '#sb-plan-body', state.planSectionOpen);
+    updateAddonsLayoutState();
   }
 
   function updateIndustrySectionCollapse() {
     setSectionCollapsed('#sb-industry-section', '#sb-industry-toggle', '#sb-industry-body', state.industrySectionOpen);
+    updateAddonsLayoutState();
   }
 
   function updateIncludedSectionCollapse() {
     setSectionCollapsed('#sb-included-section', '#sb-included-toggle', '#sb-included-body', state.includedSectionOpen, 'sb-included-collapsed');
     if (!state.includedSectionOpen) {
+      state.includedExpanded = false;
       $('.sb-main').removeClass('sb-main-included-list-expanded');
+      $('#sb-included-section').removeClass('sb-included-list-expanded');
     }
     if (state.catalog) {
       updateIncludedViewAllButton(state.catalog.included_count || 0);
     } else {
       $('#sb-included-view-all').toggleClass('d-none', !state.includedSectionOpen);
     }
+    updateAddonsLayoutState();
   }
 
   function updateAddonsSectionCollapse() {
     setSectionCollapsed('#sb-addons-section', '#sb-addons-toggle', '#sb-addons-body', state.addonsSectionOpen);
+    updateAddonsLayoutState();
+  }
+
+  function updateAddonsLayoutState() {
+    var desktop = isDesktopLayout();
+    var compactUpper = desktop && !state.planSectionOpen && !state.industrySectionOpen;
+    var allUpperCollapsed = compactUpper && !state.includedSectionOpen;
+    var addonsOpen = state.addonsSectionOpen;
+    $('.sb-main')
+      .toggleClass('sb-main-compact-upper', compactUpper && addonsOpen)
+      .toggleClass('sb-main-upper-collapsed', allUpperCollapsed && addonsOpen);
   }
 
   function isDesktopLayout() {
@@ -160,15 +193,12 @@
     if (isDesktopLayout()) {
       state.planSectionOpen = false;
       state.industrySectionOpen = false;
+      state.includedSectionOpen = false;
     }
   }
 
   function planDisplayName(plan) {
-    var p = String(plan || '').trim();
-    if (/^elintom$/i.test(p)) {
-      return 'ElintOm';
-    }
-    return 'ElintOm ' + p;
+    return 'ElintOm ' + String(plan || '').trim();
   }
 
   function renderPlans() {
@@ -210,6 +240,7 @@
     var keys = Object.keys(modules).sort();
     if (!keys.length) {
       $('#sb-included-wrap').html('<div class="sb-empty">No included features for this plan and industry.</div>');
+      updateIncludedCountBadge(0);
       updateIncludedViewAllButton(0);
       return;
     }
@@ -220,6 +251,8 @@
         allItems.push(item);
       });
     });
+
+    updateIncludedCountBadge(allItems.length);
 
     var visibleItems = allItems;
     if (!state.includedExpanded && allItems.length > INCLUDED_PREVIEW_COUNT) {
@@ -299,8 +332,47 @@
     $('#sb-addons-rows').html(html);
   }
 
+  function buildFinancialSummary(totals) {
+    var discountPct = parseFloat(state.discountPercent) || 0;
+    if (discountPct < 0) {
+      discountPct = 0;
+    }
+    if (discountPct > 100) {
+      discountPct = 100;
+    }
+    var gstPct = parseFloat(state.gstPercent) || 0;
+    if ([0, 5, 18].indexOf(gstPct) === -1) {
+      gstPct = 0;
+    }
+
+    var setupSubtotal = totals.totalSetup;
+    var monthlySubtotal = totals.totalMonthly;
+    var discountSetup = Math.round(setupSubtotal * discountPct) / 100;
+    var discountMonthly = Math.round(monthlySubtotal * discountPct) / 100;
+    var setupAfterDiscount = setupSubtotal - discountSetup;
+    var monthlyAfterDiscount = monthlySubtotal - discountMonthly;
+    var gstSetup = Math.round(setupAfterDiscount * gstPct) / 100;
+    var gstMonthly = Math.round(monthlyAfterDiscount * gstPct) / 100;
+    var netSetup = setupAfterDiscount + gstSetup;
+    var netMonthly = monthlyAfterDiscount + gstMonthly;
+
+    return {
+      setupSubtotal: setupSubtotal,
+      monthlySubtotal: monthlySubtotal,
+      discountPercent: discountPct,
+      discountSetup: discountSetup,
+      discountMonthly: discountMonthly,
+      gstPercent: gstPct,
+      gstSetup: gstSetup,
+      gstMonthly: gstMonthly,
+      netSetup: netSetup,
+      netMonthly: netMonthly
+    };
+  }
+
   function renderSummary() {
     var totals = buildQuoteTotals();
+    var financials = buildFinancialSummary(totals);
     $('#sb-summary-plan').text(planDisplayName(state.plan));
     $('#sb-summary-industry').text(state.industry);
 
@@ -315,10 +387,16 @@
 
     $('#sb-setup-lines').html(linesHtml(totals.setupLines));
     $('#sb-monthly-lines').html(linesHtml(totals.monthlyLines));
-    $('#sb-total-setup').text(formatMoney(totals.totalSetup));
-    $('#sb-total-monthly').text(formatMoney(totals.totalMonthly));
-    $('#sb-net-setup').text(formatMoney(totals.totalSetup));
-    $('#sb-net-monthly').text(formatMoney(totals.totalMonthly));
+    $('#sb-subtotal-setup').text(formatMoney(financials.setupSubtotal));
+    $('#sb-subtotal-monthly').text(formatMoney(financials.monthlySubtotal));
+    $('#sb-discount-setup').text('-' + formatMoney(financials.discountSetup));
+    $('#sb-discount-monthly').text('-' + formatMoney(financials.discountMonthly));
+    $('#sb-gst-setup').text(formatMoney(financials.gstSetup));
+    $('#sb-gst-monthly').text(formatMoney(financials.gstMonthly));
+    $('#sb-total-setup').text(formatMoney(financials.netSetup));
+    $('#sb-total-monthly').text(formatMoney(financials.netMonthly));
+    $('#sb-net-setup').text(formatMoney(financials.netSetup));
+    $('#sb-net-monthly').text(formatMoney(financials.netMonthly));
   }
 
   function buildQuoteTotals() {
@@ -354,6 +432,7 @@
 
   function buildQuotePayload() {
     var totals = buildQuoteTotals();
+    var financials = buildFinancialSummary(totals);
     var included = [];
     var modules = (state.catalog && state.catalog.included_by_module) ? state.catalog.included_by_module : {};
     Object.keys(modules).forEach(function (mod) {
@@ -368,10 +447,16 @@
       plan: state.plan,
       plan_display: planDisplayName(state.plan),
       industry: state.industry,
+      client_name: state.clientName,
+      client_business: state.clientBusiness,
+      discount_percent: financials.discountPercent,
+      gst_percent: financials.gstPercent,
       setup_lines: totals.setupLines,
       monthly_lines: totals.monthlyLines,
       total_setup: totals.totalSetup,
       total_monthly: totals.totalMonthly,
+      net_setup: financials.netSetup,
+      net_monthly: financials.netMonthly,
       included: included
     };
   }
@@ -541,6 +626,24 @@
     $('#sb-download-quote').on('click', function () {
       submitQuoteForm(cfg.downloadQuoteUrl, '_self');
     });
+
+    $('#sb-client-name').on('input', function () {
+      state.clientName = $(this).val();
+    });
+
+    $('#sb-client-business').on('input', function () {
+      state.clientBusiness = $(this).val();
+    });
+
+    $('#sb-discount-percent, #sb-gst-percent').on('change input', function () {
+      state.discountPercent = parseFloat($('#sb-discount-percent').val()) || 0;
+      state.gstPercent = parseFloat($('#sb-gst-percent').val()) || 0;
+      renderSummary();
+    });
+
+    $(window).on('resize.sbLayout', function () {
+      updateAddonsLayoutState();
+    });
   }
 
   $(function () {
@@ -552,6 +655,7 @@
     updateIndustrySectionCollapse();
     updateIncludedSectionCollapse();
     updateAddonsSectionCollapse();
+    updateAddonsLayoutState();
     loadCatalog();
   });
 })(jQuery);

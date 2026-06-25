@@ -3,7 +3,7 @@
 <div class="container-fluid py-4">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
-      <h1 class="h4 mb-0"><?php echo htmlspecialchars($assessment->title); ?></h1>
+      <h1 class="h4 mb-0"><?php echo esc_view($assessment->title); ?></h1>
       <p class="text-muted small mb-0">Drag rows to reorder. Manage MCQ, text, and coding items.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
@@ -17,10 +17,10 @@
   </div>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
 
   <?php if ($ta_can_question_import): ?>
@@ -63,16 +63,16 @@
           <tr data-qid="<?php echo (int)$q->id; ?>">
             <td class="text-muted ta-drag-handle" style="cursor:grab" aria-hidden="true"><i class="bi bi-grip-vertical"></i></td>
             <td><?php echo (int)$q->sort_order ?: ($i + 1); ?></td>
-            <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars(strtoupper($q->question_type)); ?></span></td>
+            <td><span class="badge bg-info text-dark"><?php echo esc_view(strtoupper($q->question_type)); ?></span></td>
             <td><?php
               $snippet = strip_tags($q->question_text);
               if (function_exists('mb_strimwidth')) {
-                echo htmlspecialchars(mb_strimwidth($snippet, 0, 120, '…'));
+                echo esc_view(mb_strimwidth($snippet, 0, 120, '…'));
               } else {
-                echo htmlspecialchars(strlen($snippet) > 120 ? substr($snippet, 0, 117) . '…' : $snippet);
+                echo esc_view(strlen($snippet) > 120 ? substr($snippet, 0, 117) . '…' : $snippet);
               }
             ?></td>
-            <td><?php echo htmlspecialchars(number_format((float)$q->points, 2)); ?></td>
+            <td><?php echo esc_view(number_format((float)$q->points, 2)); ?></td>
             <td class="text-end text-nowrap">
               <a class="btn btn-sm btn-outline-warning" href="<?php echo site_url('training-assessment/question/edit/' . (int)$q->id); ?>" aria-label="Edit question"><i class="bi bi-pencil me-1"></i>Edit</a>
               <?php echo form_open('training-assessment/question/duplicate/' . (int)$q->id, array('class' => 'd-inline')); ?>

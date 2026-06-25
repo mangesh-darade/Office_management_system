@@ -25,8 +25,8 @@
           <select name="period" class="form-select form-select-sm">
             <option value="">— All Periods —</option>
             <?php foreach ($periods as $p): ?>
-              <option value="<?php echo htmlspecialchars($p); ?>" <?php echo ($period === $p) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($p); ?>
+              <option value="<?php echo esc_view($p); ?>" <?php echo ($period === $p) ? 'selected' : ''; ?>>
+                <?php echo esc_view($p); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -36,8 +36,8 @@
           <select name="department" class="form-select form-select-sm">
             <option value="">— All Departments —</option>
             <?php foreach ($departments as $d): ?>
-              <option value="<?php echo htmlspecialchars($d); ?>" <?php echo ($department === $d) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($d); ?>
+              <option value="<?php echo esc_view($d); ?>" <?php echo ($department === $d) ? 'selected' : ''; ?>>
+                <?php echo esc_view($d); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -125,12 +125,12 @@
                 $st = isset($a->status) ? $a->status : 'draft';
               ?>
               <tr>
-                <td class="fw-semibold"><?php echo htmlspecialchars($emp_name); ?></td>
-                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars(isset($a->department) ? $a->department : '—'); ?></td>
-                <td><?php echo htmlspecialchars(isset($a->period) ? $a->period : '—'); ?></td>
+                <td class="fw-semibold"><?php echo esc_view($emp_name); ?></td>
+                <td class="d-none d-md-table-cell"><?php echo esc_view(isset($a->department) ? $a->department : '—'); ?></td>
+                <td><?php echo esc_view(isset($a->period) ? $a->period : '—'); ?></td>
                 <td class="text-end"><?php echo isset($a->kpi_score) ? number_format((float) $a->kpi_score, 2) : '—'; ?></td>
                 <td class="text-end d-none d-sm-table-cell"><?php echo isset($a->rating) && $a->rating !== null ? (int) $a->rating : '—'; ?></td>
-                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars(isset($a->manager_name) ? $a->manager_name : '—'); ?></td>
+                <td class="d-none d-md-table-cell"><?php echo esc_view(isset($a->manager_name) ? $a->manager_name : '—'); ?></td>
                 <td>
                   <span class="badge bg-<?php echo $st === 'approved' ? 'success' : ($st === 'submitted' ? 'info' : 'secondary'); ?>">
                     <?php echo ucfirst($st); ?>

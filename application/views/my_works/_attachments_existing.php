@@ -9,27 +9,27 @@
   <div class="small text-muted text-uppercase fw-semibold mb-2">Current attachments</div>
   <?php foreach ($attachments as $att): ?>
     <div class="mw-existing-att-item d-flex flex-wrap align-items-center gap-2 py-2 border-bottom">
-      <i class="bi <?php echo htmlspecialchars($att['icon'], ENT_QUOTES, 'UTF-8'); ?> text-muted"></i>
+      <i class="bi <?php echo esc_view($att['icon']); ?> text-muted"></i>
       <div class="flex-grow-1 min-w-0">
-        <div class="text-truncate small fw-medium" title="<?php echo htmlspecialchars($att['name'], ENT_QUOTES, 'UTF-8'); ?>">
-          <?php echo htmlspecialchars($att['name'], ENT_QUOTES, 'UTF-8'); ?>
+        <div class="text-truncate small fw-medium" title="<?php echo esc_view($att['name']); ?>">
+          <?php echo esc_view($att['name']); ?>
         </div>
         <?php if (!empty($att['size_label'])): ?>
-          <div class="text-muted" style="font-size:0.72rem;"><?php echo htmlspecialchars($att['size_label'], ENT_QUOTES, 'UTF-8'); ?></div>
+          <div class="text-muted" style="font-size:0.72rem;"><?php echo esc_view($att['size_label']); ?></div>
         <?php endif; ?>
       </div>
       <div class="btn-group btn-group-sm">
         <?php if ($att['can_preview']): ?>
           <button type="button"
                   class="btn btn-outline-primary mw-media-play-btn"
-                  data-preview-url="<?php echo htmlspecialchars($att['preview_url'], ENT_QUOTES, 'UTF-8'); ?>"
-                  data-media-kind="<?php echo htmlspecialchars($att['kind'], ENT_QUOTES, 'UTF-8'); ?>"
-                  data-media-title="<?php echo htmlspecialchars($att['name'], ENT_QUOTES, 'UTF-8'); ?>"
+                  data-preview-url="<?php echo esc_view($att['preview_url']); ?>"
+                  data-media-kind="<?php echo esc_view($att['kind']); ?>"
+                  data-media-title="<?php echo esc_view($att['name']); ?>"
                   title="Preview">
             <i class="bi bi-<?php echo $att['is_video'] ? 'play-fill' : ($att['kind'] === 'image' ? 'image' : 'volume-up-fill'); ?>"></i>
           </button>
         <?php endif; ?>
-        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($att['download_url'], ENT_QUOTES, 'UTF-8'); ?>" title="Download">
+        <a class="btn btn-outline-secondary" href="<?php echo esc_view($att['download_url']); ?>" title="Download">
           <i class="bi bi-download"></i>
         </a>
       </div>

@@ -3,22 +3,22 @@
   <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb small mb-0">
       <li class="breadcrumb-item"><a href="<?php echo site_url('training'); ?>">Module</a></li>
-      <li class="breadcrumb-item"><a href="<?php echo site_url('training/module/' . (int) $topic->module_id); ?>"><?php echo htmlspecialchars($topic->module_title); ?></a></li>
-      <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($topic->name); ?></li>
+      <li class="breadcrumb-item"><a href="<?php echo site_url('training/module/' . (int) $topic->module_id); ?>"><?php echo esc_view($topic->module_title); ?></a></li>
+      <li class="breadcrumb-item active" aria-current="page"><?php echo esc_view($topic->name); ?></li>
     </ol>
   </nav>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
 
   <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.72rem;">Topic</div>
-  <h1 class="h4 mb-2"><?php echo htmlspecialchars($topic->name); ?></h1>
+  <h1 class="h4 mb-2"><?php echo esc_view($topic->name); ?></h1>
   <p class="text-muted small mb-3">
-    <span class="me-3"><i class="bi bi-clock me-1"></i><?php echo htmlspecialchars(number_format((float) $topic->duration_hours, 1)); ?> hours</span>
+    <span class="me-3"><i class="bi bi-clock me-1"></i><?php echo esc_view(number_format((float) $topic->duration_hours, 1)); ?> hours</span>
   </p>
 
   <?php if ((int) $topic->has_assessment === 1): ?>
@@ -26,10 +26,10 @@
     <h2 class="h6 text-uppercase text-muted mb-2">Assessment</h2>
     <div class="d-flex flex-wrap gap-2 align-items-center">
       <?php if ($assessment_row): ?>
-        <span class="small text-muted me-2"><strong><?php echo htmlspecialchars($assessment_row->title); ?></strong></span>
+        <span class="small text-muted me-2"><strong><?php echo esc_view($assessment_row->title); ?></strong></span>
         <?php if (!empty($my_assessment_assignment) && !empty($my_assessment_assignment->completed_at)): ?>
           <?php $mau = $my_assessment_assignment; ?>
-          <a class="btn btn-success btn-sm" href="<?php echo htmlspecialchars(!empty($mau->result_url) ? $mau->result_url : site_url('training-assessment/result-token/' . rawurlencode($mau->access_token))); ?>"><i class="bi bi-check-circle me-1"></i>Assessment result</a>
+          <a class="btn btn-success btn-sm" href="<?php echo esc_view(!empty($mau->result_url) ? $mau->result_url : site_url('training-assessment/result-token/' . rawurlencode($mau->access_token))); ?>"><i class="bi bi-check-circle me-1"></i>Assessment result</a>
         <?php else: ?>
           <a class="btn btn-primary btn-sm" href="<?php echo site_url('training/start-assessment/' . (int) $topic->id); ?>"><i class="bi bi-play-fill me-1"></i><?php echo !empty($my_assessment_assignment) ? 'Resume assessment' : 'Start assessment'; ?></a>
         <?php endif; ?>
@@ -66,13 +66,13 @@
   <?php if (!empty($topic->description)): ?>
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-header bg-white fw-semibold">Description</div>
-      <div class="card-body"><?php echo nl2br(htmlspecialchars($topic->description)); ?></div>
+      <div class="card-body"><?php echo nl2br(esc_view($topic->description)); ?></div>
     </div>
   <?php endif; ?>
   <?php if (!empty($topic->prerequisites)): ?>
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-header bg-white fw-semibold">Prerequisites</div>
-      <div class="card-body"><?php echo nl2br(htmlspecialchars($topic->prerequisites)); ?></div>
+      <div class="card-body"><?php echo nl2br(esc_view($topic->prerequisites)); ?></div>
     </div>
   <?php endif; ?>
 
@@ -80,11 +80,11 @@
     <div id="lms-assignment-submit" class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white">
         <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.7rem;">Assignment</div>
-        <div class="fw-semibold"><?php echo htmlspecialchars($assignment->name); ?></div>
+        <div class="fw-semibold"><?php echo esc_view($assignment->name); ?></div>
       </div>
       <div class="card-body">
         <?php if (!empty($assignment->details)): ?>
-          <div class="mb-3"><?php echo nl2br(htmlspecialchars($assignment->details)); ?></div>
+          <div class="mb-3"><?php echo nl2br(esc_view($assignment->details)); ?></div>
         <?php endif; ?>
         <?php if (!empty($submission_quota)): ?>
           <?php
@@ -138,12 +138,12 @@
             <?php foreach ($my_submissions as $s): ?>
               <tr>
                 <td>
-                  <?php echo htmlspecialchars($s->original_filename); ?>
+                  <?php echo esc_view($s->original_filename); ?>
                   <?php if (!empty($s->feedback)): ?>
-                    <div class="small text-muted mt-1"><strong>Feedback:</strong> <?php echo nl2br(htmlspecialchars($s->feedback)); ?></div>
+                    <div class="small text-muted mt-1"><strong>Feedback:</strong> <?php echo nl2br(esc_view($s->feedback)); ?></div>
                   <?php endif; ?>
                 </td>
-                <td class="small"><?php echo htmlspecialchars($s->submitted_at); ?></td>
+                <td class="small"><?php echo esc_view($s->submitted_at); ?></td>
                 <td>
                   <?php
                   $st = $s->status;
@@ -156,7 +156,7 @@
                   }
                   ?>
                 </td>
-                <td><?php echo $s->score !== null ? htmlspecialchars($s->score) : '—'; ?></td>
+                <td><?php echo $s->score !== null ? esc_view($s->score) : '—'; ?></td>
                 <td class="text-end">
                   <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training/download/' . (int) $s->id); ?>">Download</a>
                 </td>

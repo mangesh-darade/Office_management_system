@@ -165,7 +165,7 @@ $viewerEmail = (string) $this->session->userdata('email');
       </div>
       <div class="lms-sub-profile" aria-label="Signed in user">
         <i class="bi bi-person-circle"></i>
-        <span><?php echo htmlspecialchars($viewerEmail !== '' ? $viewerEmail : 'User'); ?></span>
+        <span><?php echo esc_view($viewerEmail !== '' ? $viewerEmail : 'User'); ?></span>
       </div>
     </div>
 
@@ -255,30 +255,30 @@ $viewerEmail = (string) $this->session->userdata('email');
                 $submittedAt = isset($r->submitted_at) ? (string) $r->submitted_at : '';
               ?>
               <tr class="lms-row"
-                  data-status="<?php echo htmlspecialchars($st); ?>"
-                  data-submitted="<?php echo htmlspecialchars($submittedAt); ?>"
-                  data-search="<?php echo htmlspecialchars(strtolower(trim((string)$r->topic_name . ' ' . (string)$r->module_name . ' ' . (string)$r->assignment_name . ' ' . (string)$r->submitted_by_name . ' ' . (string)$r->submitted_by_email))); ?>">
+                  data-status="<?php echo esc_view($st); ?>"
+                  data-submitted="<?php echo esc_view($submittedAt); ?>"
+                  data-search="<?php echo esc_view(strtolower(trim((string)$r->topic_name . ' ' . (string)$r->module_name . ' ' . (string)$r->assignment_name . ' ' . (string)$r->submitted_by_name . ' ' . (string)$r->submitted_by_email))); ?>">
                 <td>
-                  <div class="fw-semibold"><?php echo htmlspecialchars((string) $r->topic_name); ?></div>
-                  <div class="text-muted small"><?php echo htmlspecialchars((string) $r->module_name); ?></div>
+                  <div class="fw-semibold"><?php echo esc_view((string) $r->topic_name); ?></div>
+                  <div class="text-muted small"><?php echo esc_view((string) $r->module_name); ?></div>
                 </td>
-                <td><?php echo htmlspecialchars((string) $r->assignment_name); ?></td>
+                <td><?php echo esc_view((string) $r->assignment_name); ?></td>
                 <td>
-                  <div><?php echo htmlspecialchars(trim((string) $r->submitted_by_name)); ?></div>
-                  <div class="text-muted small"><?php echo htmlspecialchars((string) $r->submitted_by_email); ?></div>
+                  <div><?php echo esc_view(trim((string) $r->submitted_by_name)); ?></div>
+                  <div class="text-muted small"><?php echo esc_view((string) $r->submitted_by_email); ?></div>
                 </td>
-                <td class="text-nowrap"><?php echo $submittedAt !== '' ? htmlspecialchars($submittedAt) : '—'; ?></td>
+                <td class="text-nowrap"><?php echo $submittedAt !== '' ? esc_view($submittedAt) : '—'; ?></td>
                 <td>
                   <?php if (!empty($r->attachment_filename) && isset($r->submission_id)): ?>
                     <a href="<?php echo site_url('training-lms-admin/download/' . (int) $r->submission_id); ?>" data-bs-toggle="tooltip" data-bs-title="Download attachment">
-                      <i class="bi bi-paperclip me-1"></i><?php echo htmlspecialchars((string) $r->attachment_filename); ?>
+                      <i class="bi bi-paperclip me-1"></i><?php echo esc_view((string) $r->attachment_filename); ?>
                     </a>
                   <?php else: ?>
                     —
                   <?php endif; ?>
                 </td>
-                <td><?php echo ($r->assignment_score !== null && $r->assignment_score !== '') ? htmlspecialchars((string) $r->assignment_score) : '—'; ?></td>
-                <td><?php echo !empty($r->assessed_by_name) ? htmlspecialchars((string) $r->assessed_by_name) : '—'; ?></td>
+                <td><?php echo ($r->assignment_score !== null && $r->assignment_score !== '') ? esc_view((string) $r->assignment_score) : '—'; ?></td>
+                <td><?php echo !empty($r->assessed_by_name) ? esc_view((string) $r->assessed_by_name) : '—'; ?></td>
                 <td>
                   <?php if ($st === 'submitted'): ?>
                     <span class="badge lms-badge-submitted">Submitted</span>
@@ -287,7 +287,7 @@ $viewerEmail = (string) $this->session->userdata('email');
                   <?php elseif ($st === 'assessed'): ?>
                     <span class="badge lms-badge-assessed">Assessed</span>
                   <?php else: ?>
-                    <span class="badge bg-secondary"><?php echo htmlspecialchars((string) $st); ?></span>
+                    <span class="badge bg-secondary"><?php echo esc_view((string) $st); ?></span>
                   <?php endif; ?>
                 </td>
                 <td class="text-end">

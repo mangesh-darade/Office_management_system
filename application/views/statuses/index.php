@@ -12,13 +12,13 @@
 
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success alert-dismissible fade show" role="alert">
-    <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <?php echo esc_view($this->session->flashdata('success')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -32,7 +32,7 @@
         <select name="type" class="form-select" onchange="this.form.submit()">
           <option value="">All Types</option>
           <?php foreach ($types as $type): ?>
-            <option value="<?php echo htmlspecialchars($type); ?>" <?php echo (isset($selected_type) && $selected_type === $type) ? 'selected' : ''; ?>>
+            <option value="<?php echo esc_view($type); ?>" <?php echo (isset($selected_type) && $selected_type === $type) ? 'selected' : ''; ?>>
               <?php echo ucfirst($type); ?>
             </option>
           <?php endforeach; ?>
@@ -66,18 +66,18 @@
             <?php foreach ($statuses as $status): ?>
               <tr>
                 <td>
-                  <strong><?php echo htmlspecialchars($status->name); ?></strong>
+                  <strong><?php echo esc_view($status->name); ?></strong>
                   <?php if ($status->description): ?>
-                    <br><small class="text-muted"><?php echo htmlspecialchars(mb_substr($status->description, 0, 50)); ?>...</small>
+                    <br><small class="text-muted"><?php echo esc_view(mb_substr($status->description, 0, 50)); ?>...</small>
                   <?php endif; ?>
                 </td>
-                <td><code><?php echo htmlspecialchars($status->code); ?></code></td>
+                <td><code><?php echo esc_view($status->code); ?></code></td>
                 <td>
                   <span class="badge bg-secondary"><?php echo ucfirst($status->type); ?></span>
                 </td>
                 <td>
-                  <span class="badge" style="background-color: <?php echo htmlspecialchars($status->color); ?>; color: #fff;">
-                    <?php echo htmlspecialchars($status->color); ?>
+                  <span class="badge" style="background-color: <?php echo esc_view($status->color); ?>; color: #fff;">
+                    <?php echo esc_view($status->color); ?>
                   </span>
                 </td>
                 <td><?php echo (int)$status->display_order; ?></td>

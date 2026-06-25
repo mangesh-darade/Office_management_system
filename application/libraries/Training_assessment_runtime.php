@@ -270,9 +270,9 @@ class Training_assessment_runtime
         $from = get_system_from_email();
         $fromName = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
         $subject = 'Assessment invitation: ' . $assessmentTitle;
-        $safeName = htmlspecialchars($recipientName, ENT_QUOTES, 'UTF-8');
-        $safeTitle = htmlspecialchars($assessmentTitle, ENT_QUOTES, 'UTF-8');
-        $safeLink = htmlspecialchars($linkUrl, ENT_QUOTES, 'UTF-8');
+        $safeName = esc_view($recipientName);
+        $safeTitle = esc_view($assessmentTitle);
+        $safeLink = esc_view($linkUrl);
         $html = '<p>Hello ' . $safeName . ',</p>'
             . '<p>You have been invited to complete this assessment:</p>'
             . '<p><strong>' . $safeTitle . '</strong></p>'

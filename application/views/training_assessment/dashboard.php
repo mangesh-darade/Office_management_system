@@ -65,10 +65,10 @@ $ta_can_status_filter = isset($ta_can_status_filter) ? (bool) $ta_can_status_fil
   </div>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
   <?php if (!empty($dashboard_scope_limited)): ?>
     <div class="alert alert-info small py-2 mb-3">You see assessments <strong>assigned to your account</strong> only. Users with full Training &amp; Assessment admin access see the whole catalogue.</div>
@@ -106,7 +106,7 @@ $ta_can_status_filter = isset($ta_can_status_filter) ? (bool) $ta_can_status_fil
       <div class="row g-2 align-items-end">
         <div class="col-md-<?php echo $ta_can_status_filter ? '4' : '6'; ?>">
           <label class="form-label small text-muted mb-0">Search title or description</label>
-          <input type="search" name="q" class="form-control form-control-sm" placeholder="Search…" value="<?php echo htmlspecialchars((string)$filter_q); ?>">
+          <input type="search" name="q" class="form-control form-control-sm" placeholder="Search…" value="<?php echo esc_view((string)$filter_q); ?>">
         </div>
         <?php if ($ta_can_status_filter): ?>
         <div class="col-md-3">
@@ -167,19 +167,19 @@ $ta_can_status_filter = isset($ta_can_status_filter) ? (bool) $ta_can_status_fil
             ?>
             <tr class="<?php echo $qc === 0 ? 'table-warning' : ''; ?>">
               <td>
-                <strong><?php echo htmlspecialchars($a->title); ?></strong>
+                <strong><?php echo esc_view($a->title); ?></strong>
                 <?php if ($qc === 0): ?>
                   <div class="small text-danger"><i class="bi bi-exclamation-triangle me-1"></i>No questions — add questions before assigning.</div>
                 <?php endif; ?>
                 <?php if (!empty($a->description)): ?>
-                  <div class="small text-muted text-truncate" style="max-width:360px"><?php echo htmlspecialchars($a->description); ?></div>
+                  <div class="small text-muted text-truncate" style="max-width:360px"><?php echo esc_view($a->description); ?></div>
                 <?php endif; ?>
                 <div class="small text-muted d-md-none mt-1">
                   <span class="me-2"><?php echo $qc; ?> Q</span>
                   <span class="me-2"><?php echo $asg; ?> asg</span>
                   <span class="me-2"><?php echo $done; ?> done</span>
                   <span class="me-2"><?php echo (int)$a->time_limit_minutes; ?> min</span>
-                  <span><?php echo htmlspecialchars(number_format((float)$a->passing_marks, 0)); ?>% pass</span>
+                  <span><?php echo esc_view(number_format((float)$a->passing_marks, 0)); ?>% pass</span>
                 </div>
               </td>
               <td class="d-none d-md-table-cell"><?php echo $qc; ?></td>
@@ -187,10 +187,10 @@ $ta_can_status_filter = isset($ta_can_status_filter) ? (bool) $ta_can_status_fil
               <td class="d-none d-lg-table-cell"><?php echo $done; ?></td>
               <td class="d-none d-lg-table-cell"><?php echo $pend; ?></td>
               <td class="d-none d-xl-table-cell"><?php echo (int)$a->time_limit_minutes; ?> min</td>
-              <td class="d-none d-xl-table-cell"><?php echo htmlspecialchars(number_format((float)$a->passing_marks, 1)); ?>%</td>
-              <td><span class="badge bg-<?php echo $a->status === 'active' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($a->status); ?></span></td>
+              <td class="d-none d-xl-table-cell"><?php echo esc_view(number_format((float)$a->passing_marks, 1)); ?>%</td>
+              <td><span class="badge bg-<?php echo $a->status === 'active' ? 'success' : 'secondary'; ?>"><?php echo esc_view($a->status); ?></span></td>
               <td class="text-end ta-col-actions py-2">
-                <?php $taTitleEsc = htmlspecialchars($a->title, ENT_QUOTES, 'UTF-8'); ?>
+                <?php $taTitleEsc = esc_view($a->title); ?>
                 <?php if ($ta_can_create || $ta_can_manage_core): ?>
                 <div class="d-inline-flex flex-nowrap align-items-center justify-content-end ta-assessment-actions" role="group" aria-label="Actions for <?php echo $taTitleEsc; ?>">
                   <?php if ($ta_can_create): ?>

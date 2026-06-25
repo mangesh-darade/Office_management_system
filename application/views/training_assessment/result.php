@@ -71,9 +71,9 @@ $scorePct = $result ? (float)$result->score_percent : 0;
 <div class="container py-4">
   <div class="ta-result-wrap lms-soft-wrap">
   <?php if ($this->session->flashdata('ta_submit_notice')): ?>
-    <div class="alert alert-info"><?php echo htmlspecialchars($this->session->flashdata('ta_submit_notice')); ?></div>
+    <div class="alert alert-info"><?php echo esc_view($this->session->flashdata('ta_submit_notice')); ?></div>
   <?php endif; ?>
-  <h2 class="h5 mb-3">Result: <?php echo htmlspecialchars($au->assessment_title); ?></h2>
+  <h2 class="h5 mb-3">Result: <?php echo esc_view($au->assessment_title); ?></h2>
   <?php if (!$result): ?>
     <div class="alert alert-warning">No result record found.</div>
   <?php else: ?>
@@ -82,7 +82,7 @@ $scorePct = $result ? (float)$result->score_percent : 0;
         <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
             <div class="label">Score</div>
-            <div class="value"><?php echo htmlspecialchars(number_format((float)$result->score_percent, 1)); ?>%</div>
+            <div class="value"><?php echo esc_view(number_format((float)$result->score_percent, 1)); ?>%</div>
           </div>
         </div>
       </div>
@@ -90,7 +90,7 @@ $scorePct = $result ? (float)$result->score_percent : 0;
         <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
             <div class="label">Total marks</div>
-            <div class="value"><?php echo htmlspecialchars($result->earned_points); ?> / <?php echo htmlspecialchars($result->total_points); ?></div>
+            <div class="value"><?php echo esc_view($result->earned_points); ?> / <?php echo esc_view($result->total_points); ?></div>
           </div>
         </div>
       </div>
@@ -112,9 +112,9 @@ $scorePct = $result ? (float)$result->score_percent : 0;
         <div class="card ta-soft-card h-100 ta-kpi">
           <div class="card-body text-center">
             <div class="label">Learner</div>
-            <div class="small fw-semibold ta-kpi-learner-name"><?php echo htmlspecialchars($name); ?></div>
+            <div class="small fw-semibold ta-kpi-learner-name"><?php echo esc_view($name); ?></div>
             <?php if ($isCand && !empty($au->candidate_email)): ?>
-              <div class="small text-muted d-none d-sm-block"><?php echo htmlspecialchars($au->candidate_email); ?></div>
+              <div class="small text-muted d-none d-sm-block"><?php echo esc_view($au->candidate_email); ?></div>
             <?php endif; ?>
           </div>
         </div>
@@ -124,13 +124,13 @@ $scorePct = $result ? (float)$result->score_percent : 0;
       <div class="progress" style="height:8px; border-radius:999px;">
         <div class="progress-bar bg-primary" role="progressbar" style="width:<?php echo max(0, min(100, $scorePct)); ?>%"></div>
       </div>
-      <div class="small text-muted mt-1">Overall score progress: <?php echo htmlspecialchars(number_format($scorePct, 1)); ?>%</div>
+      <div class="small text-muted mt-1">Overall score progress: <?php echo esc_view(number_format($scorePct, 1)); ?>%</div>
     </div>
 
     <?php if ($showRetake): ?>
       <?php echo form_open('training-assessment/retake-assessment', array('class' => 'mb-4', 'onsubmit' => 'return confirm("Start a new attempt? Your previous answers will be cleared.");')); ?>
       <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-      <input type="hidden" name="access_token" value="<?php echo htmlspecialchars($au->access_token); ?>">
+      <input type="hidden" name="access_token" value="<?php echo esc_view($au->access_token); ?>">
       <button type="submit" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat me-1"></i>Retake assessment</button>
       <?php echo form_close(); ?>
     <?php endif; ?>
@@ -176,7 +176,7 @@ $scorePct = $result ? (float)$result->score_percent : 0;
               } elseif (strlen($sn) > 200) {
                 $sn = substr($sn, 0, 197) . '…';
               }
-              echo nl2br(htmlspecialchars($sn));
+              echo nl2br(esc_view($sn));
             ?>
             <?php if (!empty($d->ta_option_rows) && is_array($d->ta_option_rows)): ?>
               <div class="mt-2 small">
@@ -184,7 +184,7 @@ $scorePct = $result ? (float)$result->score_percent : 0;
                   <?php $optLabel = chr(65 + $optIndex); ?>
                   <span class="me-3 d-inline-block">
                     <strong><?php echo $optLabel; ?>)</strong>
-                    <?php echo htmlspecialchars(isset($opt['text']) ? $opt['text'] : ''); ?>
+                    <?php echo esc_view(isset($opt['text']) ? $opt['text'] : ''); ?>
                     <?php if ($showCorrect && !empty($opt['is_selected'])): ?><span class="badge bg-primary-subtle text-primary-emphasis">Selected</span><?php endif; ?>
                     <?php if ($showCorrect && !empty($opt['is_correct'])): ?><span class="badge bg-success-subtle text-success-emphasis">Correct</span><?php endif; ?>
                   </span>
@@ -192,18 +192,18 @@ $scorePct = $result ? (float)$result->score_percent : 0;
               </div>
             <?php endif; ?>
             </td>
-            <td><span class="badge bg-secondary"><?php echo htmlspecialchars(strtoupper($d->question_type)); ?></span></td>
+            <td><span class="badge bg-secondary"><?php echo esc_view(strtoupper($d->question_type)); ?></span></td>
             <td class="small">
               <?php if ((string)$d->question_type === 'mcq'): ?>
-                <?php echo htmlspecialchars(isset($d->ta_selected_summary) ? $d->ta_selected_summary : '—'); ?>
+                <?php echo esc_view(isset($d->ta_selected_summary) ? $d->ta_selected_summary : '—'); ?>
               <?php else: ?>
                 —
               <?php endif; ?>
             </td>
             <?php if ($showCorrect): ?>
-            <td class="small"><?php echo isset($d->ta_correct_summary) ? nl2br(htmlspecialchars($d->ta_correct_summary)) : '—'; ?></td>
+            <td class="small"><?php echo isset($d->ta_correct_summary) ? nl2br(esc_view($d->ta_correct_summary)) : '—'; ?></td>
             <?php endif; ?>
-            <td><?php echo htmlspecialchars($d->points_earned); ?> / <?php echo htmlspecialchars($d->question_points); ?></td>
+            <td><?php echo esc_view($d->points_earned); ?> / <?php echo esc_view($d->question_points); ?></td>
             <td>
               <?php if ((int)$d->is_graded_correct === 1): ?>
                 <span class="ta-ok" aria-label="Correct"><i class="bi bi-check-circle-fill"></i> Correct</span>
@@ -221,31 +221,31 @@ $scorePct = $result ? (float)$result->score_percent : 0;
     <div class="ta-q-mobile mt-3">
       <?php foreach ($details as $d): ?>
       <div class="ta-q-card p-3 mb-2">
-        <div class="fw-semibold mb-1"><?php echo nl2br(htmlspecialchars(strip_tags($d->question_text))); ?></div>
+        <div class="fw-semibold mb-1"><?php echo nl2br(esc_view(strip_tags($d->question_text))); ?></div>
         <?php if (!empty($d->ta_option_rows) && is_array($d->ta_option_rows)): ?>
         <div class="small mb-1">
           <?php $optIndex = 0; foreach ($d->ta_option_rows as $opt): ?>
             <?php $optLabel = chr(65 + $optIndex); ?>
             <span class="me-2 d-inline-block">
-              <strong><?php echo $optLabel; ?>)</strong> <?php echo htmlspecialchars(isset($opt['text']) ? $opt['text'] : ''); ?>
+              <strong><?php echo $optLabel; ?>)</strong> <?php echo esc_view(isset($opt['text']) ? $opt['text'] : ''); ?>
               <?php if ($showCorrect && !empty($opt['is_selected'])): ?><span class="badge bg-primary-subtle text-primary-emphasis">Selected</span><?php endif; ?>
               <?php if ($showCorrect && !empty($opt['is_correct'])): ?><span class="badge bg-success-subtle text-success-emphasis">Correct</span><?php endif; ?>
             </span>
           <?php $optIndex++; endforeach; ?>
         </div>
         <?php endif; ?>
-        <div class="small text-muted mb-1">Type: <?php echo htmlspecialchars(strtoupper($d->question_type)); ?></div>
+        <div class="small text-muted mb-1">Type: <?php echo esc_view(strtoupper($d->question_type)); ?></div>
         <div class="small"><strong>Selected option(s):</strong>
           <?php if ((string)$d->question_type === 'mcq'): ?>
-            <?php echo htmlspecialchars(isset($d->ta_selected_summary) ? $d->ta_selected_summary : '—'); ?>
+            <?php echo esc_view(isset($d->ta_selected_summary) ? $d->ta_selected_summary : '—'); ?>
           <?php else: ?>
             —
           <?php endif; ?>
         </div>
         <?php if ($showCorrect): ?>
-        <div class="small"><strong>Correct:</strong> <?php echo isset($d->ta_correct_summary) ? nl2br(htmlspecialchars($d->ta_correct_summary)) : '—'; ?></div>
+        <div class="small"><strong>Correct:</strong> <?php echo isset($d->ta_correct_summary) ? nl2br(esc_view($d->ta_correct_summary)) : '—'; ?></div>
         <?php endif; ?>
-        <div class="small"><strong>Points:</strong> <?php echo htmlspecialchars($d->points_earned); ?> / <?php echo htmlspecialchars($d->question_points); ?></div>
+        <div class="small"><strong>Points:</strong> <?php echo esc_view($d->points_earned); ?> / <?php echo esc_view($d->question_points); ?></div>
         <div class="small mt-1">
           <?php if ((int)$d->is_graded_correct === 1): ?>
             <span class="ta-ok"><i class="bi bi-check-circle-fill"></i> Correct</span>

@@ -22,7 +22,7 @@
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -30,7 +30,7 @@
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="bi bi-check-circle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <?php echo esc_view($this->session->flashdata('success')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -70,10 +70,10 @@
               <tr class="<?php echo (isset($r->status) && $r->status === 'inactive') ? 'table-warning' : ''; ?>">
                 <td><?php echo (int)$r->id; ?></td>
                 <td>
-                  <strong><?php echo htmlspecialchars($r->name); ?></strong>
+                  <strong><?php echo esc_view($r->name); ?></strong>
                 </td>
                 <td>
-                  <?php echo !empty($r->description) ? htmlspecialchars($r->description) : '<span class="text-muted">—</span>'; ?>
+                  <?php echo !empty($r->description) ? esc_view($r->description) : '<span class="text-muted">—</span>'; ?>
                 </td>
                 <td>
                   <span class="badge bg-info"><?php echo number_format((float)$r->annual_quota, 1); ?> days</span>
@@ -87,7 +87,7 @@
                 </td>
                 <td>
                   <span class="badge bg-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'danger' : 'success'; ?>">
-                    <?php echo htmlspecialchars(isset($r->status) ? ucfirst($r->status) : 'Active'); ?>
+                    <?php echo esc_view(isset($r->status) ? ucfirst($r->status) : 'Active'); ?>
                   </span>
                 </td>
                 <td>

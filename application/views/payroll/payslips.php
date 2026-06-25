@@ -27,14 +27,14 @@
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
       <i class="bi bi-exclamation-triangle me-2"></i>
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
       <i class="bi bi-check-circle me-2"></i>
-      <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <?php echo esc_view($this->session->flashdata('success')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -145,7 +145,7 @@
             <option value="">All Employees</option>
             <?php foreach ($users as $u): ?>
               <option value="<?php echo (int)$u['id']; ?>" <?php echo (!empty($filters['user_id']) && (int)$filters['user_id']===(int)$u['id'])?'selected':''; ?>>
-                <?php echo htmlspecialchars($u['label']); ?>
+                <?php echo esc_view($u['label']); ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -273,7 +273,7 @@
                 </td>
               </tr>
             <?php else: $i=1; foreach ($rows as $r): ?>
-              <tr data-id="<?php echo (int)$r->id; ?>" data-period="<?php echo htmlspecialchars($r->period); ?>" data-user="<?php echo htmlspecialchars($r->name); ?>">
+              <tr data-id="<?php echo (int)$r->id; ?>" data-period="<?php echo esc_view($r->period); ?>" data-user="<?php echo esc_view($r->name); ?>">
                 <td>
                   <input type="checkbox" class="form-check-input payslip-checkbox" name="ids[]" value="<?php echo (int)$r->id; ?>">
                 </td>
@@ -286,8 +286,8 @@
                       </span>
                     </div>
                     <div>
-                      <div class="fw-medium"><?php echo htmlspecialchars(isset($r->name)?$r->name:'Unknown'); ?></div>
-                      <div class="text-muted small"><?php echo htmlspecialchars(isset($r->email)?$r->email:''); ?></div>
+                      <div class="fw-medium"><?php echo esc_view(isset($r->name)?$r->name:'Unknown'); ?></div>
+                      <div class="text-muted small"><?php echo esc_view(isset($r->email)?$r->email:''); ?></div>
                     </div>
                   </div>
                 </td>

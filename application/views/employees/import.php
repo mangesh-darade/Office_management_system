@@ -14,7 +14,7 @@
       </div>
       <?php $this->load->view('partials/import_errors'); ?>
       <?php if($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger py-2 mb-3"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+        <div class="alert alert-danger py-2 mb-3"><?php echo esc_view($this->session->flashdata('error')); ?></div>
       <?php endif; ?>
       <form method="post" enctype="multipart/form-data">
         <div class="row g-2 align-items-center">

@@ -18,7 +18,7 @@
 </div>
 
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="row">
@@ -31,12 +31,12 @@
         <form method="post" action="<?php echo site_url('announcements/save_template'); ?>">
           <div class="mb-3">
             <label class="form-label">Email Subject</label>
-            <input type="text" class="form-control" name="subject" value="<?php echo htmlspecialchars(isset($templates->subject) ? $templates->subject : '📢 New Announcement: {title}'); ?>" required />
+            <input type="text" class="form-control" name="subject" value="<?php echo esc_view(isset($templates->subject) ? $templates->subject : '📢 New Announcement: {title}'); ?>" required />
           </div>
           
           <div class="mb-3">
             <label class="form-label">Email Body</label>
-            <textarea class="form-control" name="body" rows="12" required><?php echo htmlspecialchars(isset($templates->body) ? $templates->body : 'Hello {name},
+            <textarea class="form-control" name="body" rows="12" required><?php echo esc_view(isset($templates->body) ? $templates->body : 'Hello {name},
 
 A new announcement has been published:
 

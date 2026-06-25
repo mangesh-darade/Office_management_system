@@ -4,10 +4,10 @@
   <a class="btn btn-light btn-sm" href="<?php echo site_url('clients/view/'.(int)$client->id); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -15,67 +15,67 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label" for="company_name">Company Name <span class="text-danger">*</span></label>
-          <input type="text" name="company_name" id="company_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="255" required value="<?php echo htmlspecialchars(isset($client->company_name)?$client->company_name:''); ?>">
+          <input type="text" name="company_name" id="company_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="255" required value="<?php echo esc_view(isset($client->company_name)?$client->company_name:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label" for="contact_person">Contact Person <span class="text-danger">*</span></label>
-          <input type="text" name="contact_person" id="contact_person" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="200" required value="<?php echo htmlspecialchars(isset($client->contact_person)?$client->contact_person:''); ?>">
+          <input type="text" name="contact_person" id="contact_person" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="200" required value="<?php echo esc_view(isset($client->contact_person)?$client->contact_person:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label" for="email">Email</label>
-          <input type="email" name="email" id="email" class="form-control" value="<?php echo htmlspecialchars(isset($client->email)?$client->email:''); ?>">
+          <input type="email" name="email" id="email" class="form-control" value="<?php echo esc_view(isset($client->email)?$client->email:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label" for="phone">Phone <span class="text-danger">*</span></label>
-          <input type="text" name="phone" id="phone" class="form-control" data-mandatory="true" data-min-length="10" data-max-length="20" data-pattern="^[0-9+\s\-\(\)]+$" required value="<?php echo htmlspecialchars(isset($client->phone)?$client->phone:''); ?>">
+          <input type="text" name="phone" id="phone" class="form-control" data-mandatory="true" data-min-length="10" data-max-length="20" data-pattern="^[0-9+\s\-\(\)]+$" required value="<?php echo esc_view(isset($client->phone)?$client->phone:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label">Alternate Phone</label>
-          <input type="text" name="alternate_phone" class="form-control" value="<?php echo htmlspecialchars(isset($client->alternate_phone)?$client->alternate_phone:''); ?>">
+          <input type="text" name="alternate_phone" class="form-control" value="<?php echo esc_view(isset($client->alternate_phone)?$client->alternate_phone:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label">Website</label>
-          <input type="text" name="website" class="form-control" value="<?php echo htmlspecialchars(isset($client->website)?$client->website:''); ?>">
+          <input type="text" name="website" class="form-control" value="<?php echo esc_view(isset($client->website)?$client->website:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label">Demo URL</label>
-          <input type="text" name="demo_url" class="form-control" value="<?php echo htmlspecialchars(isset($client->demo_url)?$client->demo_url:''); ?>">
+          <input type="text" name="demo_url" class="form-control" value="<?php echo esc_view(isset($client->demo_url)?$client->demo_url:''); ?>">
         </div>
         <div class="col-md-6">
           <label class="form-label">POS URL</label>
-          <input type="text" name="pos_url" class="form-control" value="<?php echo htmlspecialchars(isset($client->pos_url)?$client->pos_url:''); ?>">
+          <input type="text" name="pos_url" class="form-control" value="<?php echo esc_view(isset($client->pos_url)?$client->pos_url:''); ?>">
         </div>
         <div class="col-md-12">
           <label class="form-label">Address</label>
-          <textarea name="address" rows="2" class="form-control"><?php echo htmlspecialchars(isset($client->address)?$client->address:''); ?></textarea>
+          <textarea name="address" rows="2" class="form-control"><?php echo esc_view(isset($client->address)?$client->address:''); ?></textarea>
         </div>
         <div class="col-md-3">
           <label class="form-label">City</label>
-          <input type="text" name="city" class="form-control" value="<?php echo htmlspecialchars(isset($client->city)?$client->city:''); ?>">
+          <input type="text" name="city" class="form-control" value="<?php echo esc_view(isset($client->city)?$client->city:''); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">State</label>
-          <input type="text" name="state" class="form-control" value="<?php echo htmlspecialchars(isset($client->state)?$client->state:''); ?>">
+          <input type="text" name="state" class="form-control" value="<?php echo esc_view(isset($client->state)?$client->state:''); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">Country</label>
-          <input type="text" name="country" class="form-control" value="<?php echo htmlspecialchars(isset($client->country)?$client->country:''); ?>">
+          <input type="text" name="country" class="form-control" value="<?php echo esc_view(isset($client->country)?$client->country:''); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">Zip</label>
-          <input type="text" name="zip_code" class="form-control" value="<?php echo htmlspecialchars(isset($client->zip_code)?$client->zip_code:''); ?>">
+          <input type="text" name="zip_code" class="form-control" value="<?php echo esc_view(isset($client->zip_code)?$client->zip_code:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">GSTIN</label>
-          <input type="text" name="gstin" class="form-control" value="<?php echo htmlspecialchars(isset($client->gstin)?$client->gstin:''); ?>">
+          <input type="text" name="gstin" class="form-control" value="<?php echo esc_view(isset($client->gstin)?$client->gstin:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">PAN</label>
-          <input type="text" name="pan_number" class="form-control" value="<?php echo htmlspecialchars(isset($client->pan_number)?$client->pan_number:''); ?>">
+          <input type="text" name="pan_number" class="form-control" value="<?php echo esc_view(isset($client->pan_number)?$client->pan_number:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">Industry</label>
-          <input type="text" name="industry" class="form-control" value="<?php echo htmlspecialchars(isset($client->industry)?$client->industry:''); ?>">
+          <input type="text" name="industry" class="form-control" value="<?php echo esc_view(isset($client->industry)?$client->industry:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">Type</label>
@@ -102,28 +102,28 @@
             <option value="">-- Select --</option>
             <?php if (isset($managers) && is_array($managers)) foreach ($managers as $m): ?>
               <?php $label = isset($m->full_name) && $m->full_name !== '' ? $m->full_name : (isset($m->name) && $m->name !== '' ? $m->name : $m->email); ?>
-              <option value="<?php echo (int)$m->id; ?>" <?php echo isset($client->account_manager_id) && (int)$client->account_manager_id === (int)$m->id ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>" <?php echo isset($client->account_manager_id) && (int)$client->account_manager_id === (int)$m->id ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Onboarding Date</label>
-          <input type="date" name="onboarding_date" class="form-control" value="<?php echo htmlspecialchars(isset($client->onboarding_date)?$client->onboarding_date:''); ?>">
+          <input type="date" name="onboarding_date" class="form-control" value="<?php echo esc_view(isset($client->onboarding_date)?$client->onboarding_date:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">Logo</label>
           <input type="file" name="logo" class="form-control">
           <?php if (!empty($client->logo)): ?>
-            <div class="small text-muted mt-1">Current: <?php echo htmlspecialchars($client->logo); ?></div>
+            <div class="small text-muted mt-1">Current: <?php echo esc_view($client->logo); ?></div>
           <?php endif; ?>
         </div>
         <div class="col-md-4">
           <label class="form-label">DB Name</label>
-          <input type="text" name="db_name" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_name)?$client->db_name:''); ?>">
+          <input type="text" name="db_name" class="form-control" value="<?php echo esc_view(isset($client->db_name)?$client->db_name:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">DB Username</label>
-          <input type="text" name="db_username" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_username)?$client->db_username:''); ?>">
+          <input type="text" name="db_username" class="form-control" value="<?php echo esc_view(isset($client->db_username)?$client->db_username:''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">DB Password</label>
@@ -131,16 +131,16 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">DB Host</label>
-          <input type="text" name="db_host" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_host)?$client->db_host:''); ?>" placeholder="Live MySQL hostname (cPanel Remote MySQL)">
+          <input type="text" name="db_host" class="form-control" value="<?php echo esc_view(isset($client->db_host)?$client->db_host:''); ?>" placeholder="Live MySQL hostname (cPanel Remote MySQL)">
           <div class="form-text">Not <code>localhost</code> when connecting from WAMP. Copy from cPanel → Remote MySQL.</div>
         </div>
         <div class="col-md-2">
           <label class="form-label">DB Port</label>
-          <input type="text" name="db_port" class="form-control" value="<?php echo htmlspecialchars(isset($client->db_port)?$client->db_port:''); ?>" placeholder="3306">
+          <input type="text" name="db_port" class="form-control" value="<?php echo esc_view(isset($client->db_port)?$client->db_port:''); ?>" placeholder="3306">
         </div>
         <div class="col-md-12">
           <label class="form-label">Notes</label>
-          <textarea name="notes" rows="3" class="form-control"><?php echo htmlspecialchars(isset($client->notes)?$client->notes:''); ?></textarea>
+          <textarea name="notes" rows="3" class="form-control"><?php echo esc_view(isset($client->notes)?$client->notes:''); ?></textarea>
         </div>
       </div>
       <div>

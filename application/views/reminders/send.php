@@ -4,10 +4,10 @@
   <a class="btn btn-light btn-sm" href="<?php echo site_url('reminders'); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -24,7 +24,7 @@
                 else if (isset($u->name) && $u->name!=='') { $label = $u->name; }
                 else if (isset($u->email)) { $label = $u->email; }
               ?>
-              <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?> (<?php echo htmlspecialchars(isset($u->email)?$u->email:''); ?>)</option>
+              <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($label); ?> (<?php echo esc_view(isset($u->email)?$u->email:''); ?>)</option>
             <?php endforeach; ?>
           </select>
         </div>

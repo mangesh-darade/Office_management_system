@@ -591,7 +591,7 @@ class Users extends CI_Controller {
         
         // Get additional user information
         $data['user'] = $user;
-        $data['title'] = 'View User: ' . htmlspecialchars($user->name);
+        $data['title'] = 'View User: ' . esc_view($user->name);
         $data['roles'] = $this->roles();
         
         // Get employee information if exists

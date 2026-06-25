@@ -6,7 +6,7 @@
       <h4 class="mb-1 fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Activity Log</h4>
       <p class="text-muted mb-0 small">Update your work activity entry</p>
     </div>
-    <a href="<?php echo site_url('daily-activity?date=' . htmlspecialchars($log->work_date)); ?>" class="btn btn-outline-secondary btn-sm">
+    <a href="<?php echo site_url('daily-activity?date=' . esc_view($log->work_date)); ?>" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Back
     </a>
   </div>
@@ -14,7 +14,7 @@
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show">
       <i class="bi bi-exclamation-triangle-fill me-2"></i>
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -29,14 +29,14 @@
             <div class="mb-3">
               <label class="form-label fw-semibold">Work Date <span class="text-danger">*</span></label>
               <input type="date" name="work_date" class="form-control"
-                     value="<?php echo htmlspecialchars($log->work_date); ?>" required
+                     value="<?php echo esc_view($log->work_date); ?>" required
                      max="<?php echo date('Y-m-d'); ?>">
             </div>
 
             <div class="mb-3">
               <label class="form-label fw-semibold">Activity Title</label>
               <input type="text" name="activity_title" class="form-control"
-                     value="<?php echo htmlspecialchars($log->activity_title ? $log->activity_title : ''); ?>"
+                     value="<?php echo esc_view($log->activity_title ? $log->activity_title : ''); ?>"
                      placeholder="Brief title for this activity">
             </div>
 
@@ -47,7 +47,7 @@
                 <?php foreach ($tasks as $t): ?>
                   <option value="<?php echo (int)$t->id; ?>"
                     <?php echo ((int)$log->task_id === (int)$t->id) ? 'selected' : ''; ?>>
-                    #<?php echo (int)$t->id; ?> — <?php echo htmlspecialchars($t->title); ?>
+                    #<?php echo (int)$t->id; ?> — <?php echo esc_view($t->title); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
@@ -56,7 +56,7 @@
             <div class="mb-4">
               <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
               <textarea name="description" id="description" class="form-control" rows="6"
-                        placeholder="Describe what you worked on..." required><?php echo htmlspecialchars(strip_tags($log->description)); ?></textarea>
+                        placeholder="Describe what you worked on..." required><?php echo esc_view(strip_tags($log->description)); ?></textarea>
               <div class="form-text">Plain text description of your work activity.</div>
             </div>
 
@@ -64,7 +64,7 @@
               <button type="submit" class="btn btn-primary px-4">
                 <i class="bi bi-check-lg me-1"></i>Save Changes
               </button>
-              <a href="<?php echo site_url('daily-activity?date=' . htmlspecialchars($log->work_date)); ?>" class="btn btn-outline-secondary">
+              <a href="<?php echo site_url('daily-activity?date=' . esc_view($log->work_date)); ?>" class="btn btn-outline-secondary">
                 Cancel
               </a>
             </div>

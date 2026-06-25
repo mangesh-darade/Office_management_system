@@ -15,9 +15,9 @@
           <div class="text-muted small">No items.</div>
         <?php else: foreach ($columns[$st] as $r): ?>
           <div class="border rounded p-2 mb-2 bg-light">
-            <div class="small text-muted"><?php echo htmlspecialchars(isset($r->req_number)?$r->req_number:'#'.(int)$r->id); ?></div>
-            <div><a href="<?php echo site_url('requirements/view/'.(int)$r->id); ?>"><?php echo htmlspecialchars($r->title); ?></a></div>
-            <div class="small text-muted"><?php echo htmlspecialchars(isset($r->client_name)?$r->client_name:''); ?></div>
+            <div class="small text-muted"><?php echo esc_view(isset($r->req_number)?$r->req_number:'#'.(int)$r->id); ?></div>
+            <div><a href="<?php echo site_url('requirements/view/'.(int)$r->id); ?>"><?php echo esc_view($r->title); ?></a></div>
+            <div class="small text-muted"><?php echo esc_view(isset($r->client_name)?$r->client_name:''); ?></div>
           </div>
         <?php endforeach; endif; ?>
       </div>

@@ -112,8 +112,8 @@ if (!function_exists('attendance_export_send_pdf')) {
 
         foreach ($records as $record) {
             $html .= '<tr>
-                <td>' . htmlspecialchars($record->user_name ?: 'Unknown') . '</td>
-                <td>' . htmlspecialchars($record->email ?: '') . '</td>
+                <td>' . esc_view($record->user_name ?: 'Unknown') . '</td>
+                <td>' . esc_view($record->email ?: '') . '</td>
                 <td>' . $record->attendance_count . '</td>
                 <td>' . ($record->first_attendance_date ?: '—') . '</td>
                 <td>' . ($record->last_attendance_date ?: '—') . '</td>

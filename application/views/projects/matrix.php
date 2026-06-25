@@ -18,14 +18,14 @@
       <form method="get" class="row g-2 align-items-end">
         <div class="col-12 col-md-4">
           <label class="form-label small mb-0">Search</label>
-          <input type="text" name="search" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filters['search']); ?>" placeholder="Project name or code">
+          <input type="text" name="search" class="form-control form-control-sm" value="<?php echo esc_view($filters['search']); ?>" placeholder="Project name or code">
         </div>
         <div class="col-6 col-md-3">
           <label class="form-label small mb-0">Status</label>
           <select name="status" class="form-select form-select-sm">
             <option value="">All statuses</option>
             <?php if (!empty($status_rows)) foreach ($status_rows as $s): ?>
-              <option value="<?php echo htmlspecialchars($s->code); ?>" <?php echo ($filters['status'] === (string) $s->code) ? 'selected' : ''; ?>><?php echo htmlspecialchars($s->name); ?></option>
+              <option value="<?php echo esc_view($s->code); ?>" <?php echo ($filters['status'] === (string) $s->code) ? 'selected' : ''; ?>><?php echo esc_view($s->name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -35,7 +35,7 @@
           <select name="client_id" class="form-select form-select-sm">
             <option value="0">All clients</option>
             <?php foreach ($clients as $c): ?>
-              <option value="<?php echo (int) $c->id; ?>" <?php echo (int) $filters['client_id'] === (int) $c->id ? 'selected' : ''; ?>><?php echo htmlspecialchars($c->company_name); ?></option>
+              <option value="<?php echo (int) $c->id; ?>" <?php echo (int) $filters['client_id'] === (int) $c->id ? 'selected' : ''; ?>><?php echo esc_view($c->company_name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

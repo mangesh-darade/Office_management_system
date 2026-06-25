@@ -30,10 +30,10 @@
               <input type="text" id="dmUserSearch" class="form-control mb-2" placeholder="Type to search...">
               <select name="email" class="form-select" id="dmUserSelect" size="5" required>
                 <?php foreach ($users as $u): ?>
-                  <option value="<?php echo htmlspecialchars($u->email); ?>">
+                  <option value="<?php echo esc_view($u->email); ?>">
                     <?php
                       $display = isset($u->full_name) && $u->full_name ? $u->full_name : (isset($u->name) && $u->name ? $u->name : $u->email);
-                      echo htmlspecialchars($display . ' <' . $u->email . '>');
+                      echo esc_view($display . ' <' . $u->email . '>');
                     ?>
                   </option>
                 <?php endforeach; ?>
@@ -58,7 +58,7 @@
                   <option value="<?php echo (int)$u->id; ?>">
                     <?php
                       $display = isset($u->full_name) && $u->full_name ? $u->full_name : (isset($u->name) && $u->name ? $u->name : $u->email);
-                      echo htmlspecialchars($display . ' <' . $u->email . '>');
+                      echo esc_view($display . ' <' . $u->email . '>');
                     ?>
                   </option>
                 <?php endforeach; ?>
@@ -133,20 +133,20 @@
             <button type="button"
                     class="list-group-item list-group-item-action d-flex align-items-center convo-item"
                     data-id="<?php echo (int)$c->id; ?>"
-                    data-type="<?php echo htmlspecialchars($c->type); ?>"
-                    data-title="<?php echo htmlspecialchars($c->title ? $c->title : ''); ?>"
-                    data-members="<?php echo htmlspecialchars($c->members ? $c->members : ''); ?>"
-                    data-label="<?php echo htmlspecialchars(strtolower($label)); ?>">
-              <span class="avatar flex-shrink-0"><?php echo htmlspecialchars($initial); ?></span>
+                    data-type="<?php echo esc_view($c->type); ?>"
+                    data-title="<?php echo esc_view($c->title ? $c->title : ''); ?>"
+                    data-members="<?php echo esc_view($c->members ? $c->members : ''); ?>"
+                    data-label="<?php echo esc_view(strtolower($label)); ?>">
+              <span class="avatar flex-shrink-0"><?php echo esc_view($initial); ?></span>
               <div class="flex-grow-1 overflow-hidden">
                 <div class="d-flex align-items-center justify-content-between">
-                  <div class="fw-semibold text-truncate" style="max-width:140px;"><?php echo htmlspecialchars($label); ?></div>
+                  <div class="fw-semibold text-truncate" style="max-width:140px;"><?php echo esc_view($label); ?></div>
                   <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                    <span class="badge type-badge" data-type="<?php echo htmlspecialchars($c->type === 'group' ? 'group' : 'dm'); ?>"><?php echo htmlspecialchars(strtoupper($c->type)); ?></span>
+                    <span class="badge type-badge" data-type="<?php echo esc_view($c->type === 'group' ? 'group' : 'dm'); ?>"><?php echo esc_view(strtoupper($c->type)); ?></span>
                     <span class="badge rounded-pill bg-danger unread-badge d-none" data-cid="<?php echo (int)$c->id; ?>">0</span>
                   </div>
                 </div>
-                <div class="subtitle text-truncate"><?php echo $preview ? htmlspecialchars($preview) : '<span class="text-muted fst-italic">No messages yet</span>'; ?></div>
+                <div class="subtitle text-truncate"><?php echo $preview ? esc_view($preview) : '<span class="text-muted fst-italic">No messages yet</span>'; ?></div>
               </div>
             </button>
           <?php endforeach; ?>
@@ -219,7 +219,7 @@
               <?php
                 $quick_emojis = ['👍','❤️','😂','😮','😢','😡','🎉','👏','🔥','✅','❌','🙏'];
                 foreach ($quick_emojis as $em): ?>
-                <button type="button" class="btn btn-sm p-1 quick-emoji-btn" data-emoji="<?php echo htmlspecialchars($em); ?>"
+                <button type="button" class="btn btn-sm p-1 quick-emoji-btn" data-emoji="<?php echo esc_view($em); ?>"
                         style="font-size:1.3rem;line-height:1;"><?php echo $em; ?></button>
               <?php endforeach; ?>
             </div>

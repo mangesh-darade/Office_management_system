@@ -28,7 +28,7 @@
 
       <li class="breadcrumb-item"><a href="<?php echo site_url('my-works'); ?>">My Works</a></li>
 
-      <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars(mb_strlen($item->title) > 40 ? mb_substr($item->title, 0, 40) . '…' : $item->title); ?></li>
+      <li class="breadcrumb-item active" aria-current="page"><?php echo esc_view(mb_strlen($item->title) > 40 ? mb_substr($item->title, 0, 40) . '…' : $item->title); ?></li>
 
     </ol>
 
@@ -42,13 +42,13 @@
 
       <div class="flex-grow-1">
 
-        <h1 class="mw-detail-title mb-2"><?php echo htmlspecialchars($item->title); ?></h1>
+        <h1 class="mw-detail-title mb-2"><?php echo esc_view($item->title); ?></h1>
 
         <div class="d-flex flex-wrap gap-2 align-items-center">
 
-          <span class="badge bg-<?php echo $itemStatusColor; ?> px-3 py-2"><?php echo htmlspecialchars($itemStatusLabel); ?></span>
+          <span class="badge bg-<?php echo $itemStatusColor; ?> px-3 py-2"><?php echo esc_view($itemStatusLabel); ?></span>
 
-          <?php if (!empty($item->work_type)): ?><span class="badge bg-info text-dark"><?php echo htmlspecialchars(my_works_type_label($item->work_type)); ?></span><?php endif; ?>
+          <?php if (!empty($item->work_type)): ?><span class="badge bg-info text-dark"><?php echo esc_view(my_works_type_label($item->work_type)); ?></span><?php endif; ?>
 
           <?php if ((int) $item->is_urgent === 1): ?><span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Urgent</span><?php endif; ?>
 
@@ -58,7 +58,7 @@
 
           <?php foreach ($tagList as $tg): ?>
 
-            <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($tg); ?></span>
+            <span class="badge bg-light text-dark border"><?php echo esc_view($tg); ?></span>
 
           <?php endforeach; ?>
 
@@ -100,7 +100,7 @@
 
     <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
 
-      <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <?php echo esc_view($this->session->flashdata('success')); ?>
 
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
 
@@ -112,7 +112,7 @@
 
     <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
 
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
 
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
 
@@ -136,7 +136,7 @@
 
           <?php if ($item->status === $k): ?>
 
-            <span class="active-status btn btn-sm btn-<?php echo isset($statusColors[$k]) ? $statusColors[$k] : 'secondary'; ?>"><?php echo htmlspecialchars($lbl); ?></span>
+            <span class="active-status btn btn-sm btn-<?php echo isset($statusColors[$k]) ? $statusColors[$k] : 'secondary'; ?>"><?php echo esc_view($lbl); ?></span>
 
           <?php else: ?>
 
@@ -148,7 +148,7 @@
 
               <input type="hidden" name="status" value="<?php echo $k; ?>">
 
-              <button type="submit" class="btn btn-sm btn-outline-<?php echo isset($statusColors[$k]) ? $statusColors[$k] : 'secondary'; ?>"><?php echo htmlspecialchars($lbl); ?></button>
+              <button type="submit" class="btn btn-sm btn-outline-<?php echo isset($statusColors[$k]) ? $statusColors[$k] : 'secondary'; ?>"><?php echo esc_view($lbl); ?></button>
 
             </form>
 
@@ -198,7 +198,7 @@
 
             <hr class="my-3">
 
-            <a href="<?php echo htmlspecialchars($item->url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open link</a>
+            <a href="<?php echo esc_view($item->url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open link</a>
 
           <?php endif; ?>
 
@@ -210,7 +210,7 @@
 
             <div class="small text-muted text-uppercase fw-bold mb-1">Closing comment</div>
 
-            <div class="p-3 bg-light rounded border"><?php echo nl2br(htmlspecialchars($item->closing_comment)); ?></div>
+            <div class="p-3 bg-light rounded border"><?php echo nl2br(esc_view($item->closing_comment)); ?></div>
 
           <?php endif; ?>
 
@@ -261,13 +261,13 @@
 
                   <div class="d-flex justify-content-between small text-muted mb-1">
 
-                    <strong class="text-dark"><?php echo htmlspecialchars(my_works_user_label($c->user_name, $c->user_email, $c->user_id)); ?></strong>
+                    <strong class="text-dark"><?php echo esc_view(my_works_user_label($c->user_name, $c->user_email, $c->user_id)); ?></strong>
 
-                    <span title="<?php echo htmlspecialchars($c->created_at); ?>"><?php echo my_works_format_when($c->created_at); ?></span>
+                    <span title="<?php echo esc_view($c->created_at); ?>"><?php echo my_works_format_when($c->created_at); ?></span>
 
                   </div>
 
-                  <div><?php echo nl2br(htmlspecialchars($c->comment)); ?></div>
+                  <div><?php echo nl2br(esc_view($c->comment)); ?></div>
 
                 </div>
 
@@ -311,15 +311,15 @@
 
               <li class="d-flex gap-2 py-2 border-bottom">
 
-                <span class="text-muted flex-shrink-0" title="<?php echo htmlspecialchars($a->created_at); ?>"><?php echo my_works_format_when($a->created_at); ?></span>
+                <span class="text-muted flex-shrink-0" title="<?php echo esc_view($a->created_at); ?>"><?php echo my_works_format_when($a->created_at); ?></span>
 
                 <span>
 
-                  <strong><?php echo htmlspecialchars(my_works_user_label($a->user_name, $a->user_email, $a->user_id)); ?></strong>
+                  <strong><?php echo esc_view(my_works_user_label($a->user_name, $a->user_email, $a->user_id)); ?></strong>
 
-                  — <?php echo htmlspecialchars($a->action); ?>
+                  — <?php echo esc_view($a->action); ?>
 
-                  <?php if (!empty($a->detail)): ?><span class="text-muted">(<?php echo htmlspecialchars($a->detail); ?>)</span><?php endif; ?>
+                  <?php if (!empty($a->detail)): ?><span class="text-muted">(<?php echo esc_view($a->detail); ?>)</span><?php endif; ?>
 
                 </span>
 
@@ -357,7 +357,7 @@
 
               <div class="info-label">Created by</div>
 
-              <div class="info-value"><?php echo htmlspecialchars($creatorLabel); ?><?php if (!empty($is_creator)): ?> <span class="badge bg-light text-dark border">You</span><?php endif; ?></div>
+              <div class="info-value"><?php echo esc_view($creatorLabel); ?><?php if (!empty($is_creator)): ?> <span class="badge bg-light text-dark border">You</span><?php endif; ?></div>
 
             </div>
 
@@ -371,7 +371,7 @@
 
               <div class="info-label">Assignee</div>
 
-              <div class="info-value"><?php echo htmlspecialchars($assigneeLabel); ?><?php if (!empty($is_assignee)): ?> <span class="badge bg-primary">You</span><?php endif; ?></div>
+              <div class="info-value"><?php echo esc_view($assigneeLabel); ?><?php if (!empty($is_assignee)): ?> <span class="badge bg-primary">You</span><?php endif; ?></div>
 
             </div>
 
@@ -387,7 +387,7 @@
 
               <div class="info-label">Due date</div>
 
-              <div class="info-value <?php echo $isOverdue ? 'text-danger' : ''; ?>"><?php echo htmlspecialchars($item->due_date); ?><?php if ($isOverdue): ?> <span class="badge bg-danger-subtle text-danger border">Overdue</span><?php endif; ?></div>
+              <div class="info-value <?php echo $isOverdue ? 'text-danger' : ''; ?>"><?php echo esc_view($item->due_date); ?><?php if ($isOverdue): ?> <span class="badge bg-danger-subtle text-danger border">Overdue</span><?php endif; ?></div>
 
             </div>
 
@@ -405,7 +405,7 @@
 
               <div class="info-label">Type</div>
 
-              <div class="info-value"><?php echo htmlspecialchars(my_works_type_label($item->work_type)); ?></div>
+              <div class="info-value"><?php echo esc_view(my_works_type_label($item->work_type)); ?></div>
 
             </div>
 
@@ -423,7 +423,7 @@
 
               <div class="info-label">Client</div>
 
-              <div class="info-value"><?php echo htmlspecialchars($client_label); ?></div>
+              <div class="info-value"><?php echo esc_view($client_label); ?></div>
 
             </div>
 
@@ -441,7 +441,7 @@
 
               <div class="info-label">Project</div>
 
-              <div class="info-value"><?php echo htmlspecialchars($project_label); ?></div>
+              <div class="info-value"><?php echo esc_view($project_label); ?></div>
 
             </div>
 
@@ -459,7 +459,7 @@
 
               <div class="info-label">URL</div>
 
-              <div class="info-value"><a href="<?php echo htmlspecialchars($item->url); ?>" target="_blank" rel="noopener" class="text-break"><?php echo htmlspecialchars($item->url); ?></a></div>
+              <div class="info-value"><a href="<?php echo esc_view($item->url); ?>" target="_blank" rel="noopener" class="text-break"><?php echo esc_view($item->url); ?></a></div>
 
             </div>
 
@@ -475,7 +475,7 @@
 
               <div class="info-label">Created</div>
 
-              <div class="info-value" title="<?php echo $item->created_at ? htmlspecialchars($item->created_at) : ''; ?>"><?php echo my_works_format_when($item->created_at); ?></div>
+              <div class="info-value" title="<?php echo $item->created_at ? esc_view($item->created_at) : ''; ?>"><?php echo my_works_format_when($item->created_at); ?></div>
 
             </div>
 
@@ -489,7 +489,7 @@
 
               <div class="info-label">Updated</div>
 
-              <div class="info-value" title="<?php echo $item->updated_at ? htmlspecialchars($item->updated_at) : ''; ?>"><?php echo my_works_format_when($item->updated_at); ?></div>
+              <div class="info-value" title="<?php echo $item->updated_at ? esc_view($item->updated_at) : ''; ?>"><?php echo my_works_format_when($item->updated_at); ?></div>
 
             </div>
 
@@ -505,7 +505,7 @@
 
               <div class="info-label">Closed</div>
 
-              <div class="info-value" title="<?php echo htmlspecialchars($item->closed_at); ?>"><?php echo my_works_format_when($item->closed_at); ?></div>
+              <div class="info-value" title="<?php echo esc_view($item->closed_at); ?>"><?php echo my_works_format_when($item->closed_at); ?></div>
 
             </div>
 

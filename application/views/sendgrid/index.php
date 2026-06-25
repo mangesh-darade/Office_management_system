@@ -4,14 +4,14 @@
   <div class="col-12 col-md-10 col-lg-8">
     <?php if($this->session->flashdata('success')): ?>
       <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+        <i class="bi bi-check-circle me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     <?php endif; ?>
     
     <?php if($this->session->flashdata('error')): ?>
       <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+        <i class="bi bi-exclamation-triangle me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     <?php endif; ?>
@@ -28,7 +28,7 @@
               <span class="me-2">API Key Status:</span>
               <?php if ($api_key_configured): ?>
                 <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Configured</span>
-                <small class="text-muted ms-2"><?php echo htmlspecialchars($api_key_preview); ?></small>
+                <small class="text-muted ms-2"><?php echo esc_view($api_key_preview); ?></small>
               <?php else: ?>
                 <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Not Configured</span>
               <?php endif; ?>
@@ -38,15 +38,15 @@
             <div>
               <strong>From Email:</strong> 
               <?php if (empty($from_email) || $from_email === 'noreply@example.com'): ?>
-                <code class="text-danger"><?php echo htmlspecialchars($from_email ?: 'Not Set'); ?></code>
+                <code class="text-danger"><?php echo esc_view($from_email ?: 'Not Set'); ?></code>
                 <span class="badge bg-danger ms-2">Not Verified</span>
               <?php else: ?>
-                <code><?php echo htmlspecialchars($from_email); ?></code>
+                <code><?php echo esc_view($from_email); ?></code>
                 <span class="badge bg-warning ms-2">Verify in SendGrid</span>
               <?php endif; ?>
             </div>
             <div class="mt-1">
-              <strong>From Name:</strong> <?php echo htmlspecialchars($from_name); ?>
+              <strong>From Name:</strong> <?php echo esc_view($from_name); ?>
             </div>
           </div>
         </div>
@@ -108,7 +108,7 @@
             <label class="form-label">To <span class="text-danger">*</span></label>
             <input type="email" class="form-control" name="to" 
                    placeholder="recipient@example.com" 
-                   value="<?php echo htmlspecialchars($this->session->userdata('email') ?: ''); ?>" 
+                   value="<?php echo esc_view($this->session->userdata('email') ?: ''); ?>" 
                    required>
           </div>
           
@@ -165,8 +165,8 @@
       <div class="card-footer small text-muted">
         <div class="row">
           <div class="col-md-6">
-            <strong>From:</strong> <code><?php echo htmlspecialchars($from_email); ?></code> 
-            (<?php echo htmlspecialchars($from_name); ?>)
+            <strong>From:</strong> <code><?php echo esc_view($from_email); ?></code> 
+            (<?php echo esc_view($from_name); ?>)
           </div>
           <div class="col-md-6 text-end">
             <strong>Method:</strong> SendGrid REST API v3

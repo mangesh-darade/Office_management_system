@@ -49,12 +49,12 @@
                 <?php else: ?>
                 <?php foreach($appraisals as $p): ?>
                 <tr>
-                    <td><?php echo htmlspecialchars($p->first_name . ' ' . $p->last_name); ?></td>
-                    <td><?php echo htmlspecialchars($p->manager_name); ?></td>
-                    <td><?php echo htmlspecialchars($p->period); ?></td>
+                    <td><?php echo esc_view($p->first_name . ' ' . $p->last_name); ?></td>
+                    <td><?php echo esc_view($p->manager_name); ?></td>
+                    <td><?php echo esc_view($p->period); ?></td>
                     <td><?php echo (int)$p->rating; ?>/5</td>
-                    <td><?php echo htmlspecialchars($p->kpi_score); ?></td>
-                    <td><span class="badge bg-<?php echo ($p->status==='approved'?'success':($p->status==='submitted'?'info':'secondary')); ?>"><?php echo htmlspecialchars(ucfirst($p->status), ENT_QUOTES, 'UTF-8'); ?></span></td>
+                    <td><?php echo esc_view($p->kpi_score); ?></td>
+                    <td><span class="badge bg-<?php echo ($p->status==='approved'?'success':($p->status==='submitted'?'info':'secondary')); ?>"><?php echo esc_view(ucfirst($p->status), ENT_QUOTES, 'UTF-8'); ?></span></td>
                     <td><?php echo date('d M Y', strtotime($p->created_at)); ?></td>
                     <td>
                         <?php if(function_exists('has_module_access') && (has_module_access('performance_view') || has_module_access('performance'))): ?>

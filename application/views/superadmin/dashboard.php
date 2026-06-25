@@ -137,8 +137,8 @@ $this->load->view('partials/header', ['title' => 'Superadmin Dashboard']);
                                 <i class="bi bi-person text-secondary"></i>
                             </div>
                             <div class="flex-grow-1 min-w-0">
-                                <div class="fw-semibold text-truncate"><?php echo !empty($u->name) ? htmlspecialchars($u->name) : 'User #'.$u->id; ?></div>
-                                <div class="text-muted small text-truncate"><?php echo htmlspecialchars($u->email); ?></div>
+                                <div class="fw-semibold text-truncate"><?php echo !empty($u->name) ? esc_view($u->name) : 'User #'.$u->id; ?></div>
+                                <div class="text-muted small text-truncate"><?php echo esc_view($u->email); ?></div>
                             </div>
                             <div class="text-muted small ms-2" style="font-size:0.7rem">
                                 <?php echo date('M d', strtotime($u->created_at)); ?>

@@ -131,16 +131,16 @@ if (!function_exists('attendance_notify_late_employee_email')) {
     {
         $body = '<html><body>';
         $body .= '<h3 style="color: #dc3545;">Late Mark Notification</h3>';
-        $body .= '<p>Hello ' . htmlspecialchars($user_name) . ',</p>';
-        $body .= '<p>Your attendance check-in has been recorded at <strong>' . htmlspecialchars($dateTime) . '</strong>.</p>';
+        $body .= '<p>Hello ' . esc_view($user_name) . ',</p>';
+        $body .= '<p>Your attendance check-in has been recorded at <strong>' . esc_view($dateTime) . '</strong>.</p>';
         $body .= '<p style="color: #dc3545; font-weight: bold;">You are marked LATE.</p>';
         $body .= '<p><strong>Late Time:</strong></p><ul>';
         $body .= '<li>Hours: ' . $late_info['hours'] . '</li>';
         $body .= '<li>Minutes: ' . $late_info['minutes'] . '</li>';
         $body .= '<li>Seconds: ' . $late_info['seconds'] . '</li>';
         $body .= '</ul>';
-        $body .= '<p><strong>Total Late Time:</strong> ' . htmlspecialchars($late_info['formatted']) . '</p>';
-        $body .= '<p>Expected start time: ' . htmlspecialchars($late_info['expected_time']) . '</p>';
+        $body .= '<p><strong>Total Late Time:</strong> ' . esc_view($late_info['formatted']) . '</p>';
+        $body .= '<p>Expected start time: ' . esc_view($late_info['expected_time']) . '</p>';
         $body .= '<p>Thank you.</p></body></html>';
 
         return array(
@@ -164,8 +164,8 @@ if (!function_exists('attendance_notify_regular_punch_email')) {
         $subject = $isOut ? 'Attendance checkout recorded' : 'Attendance check-in recorded';
         $body = '<html><body>';
         $body .= '<h3>Attendance ' . ($isOut ? 'Check-out' : 'Check-in') . ' Recorded</h3>';
-        $body .= '<p>Hello ' . htmlspecialchars($user_name) . ',</p>';
-        $body .= '<p>Your attendance ' . ($isOut ? 'checkout' : 'check-in') . ' has been recorded at <strong>' . htmlspecialchars($dateTime) . '</strong>.</p>';
+        $body .= '<p>Hello ' . esc_view($user_name) . ',</p>';
+        $body .= '<p>Your attendance ' . ($isOut ? 'checkout' : 'check-in') . ' has been recorded at <strong>' . esc_view($dateTime) . '</strong>.</p>';
         if (!$isOut && $late_mark_enabled && $late_info && isset($late_info['is_late']) && $late_info['is_late'] === false) {
             $body .= '<p style="color: #28a745; font-weight: bold;">You are on time. Good job!</p>';
         }
@@ -238,20 +238,20 @@ if (!function_exists('attendance_notify_late_manager_email')) {
     {
         $body = '<html><body>';
         $body .= '<h3 style="color: #dc3545;">Late Mark Notification</h3>';
-        $body .= '<p><strong>Employee:</strong> ' . htmlspecialchars($user_name) . '</p>';
-        $body .= '<p><strong>Check-in Time:</strong> ' . htmlspecialchars($checkin_time) . '</p>';
+        $body .= '<p><strong>Employee:</strong> ' . esc_view($user_name) . '</p>';
+        $body .= '<p><strong>Check-in Time:</strong> ' . esc_view($checkin_time) . '</p>';
         $body .= '<p style="color: #dc3545; font-weight: bold;">Employee is marked LATE.</p>';
         $body .= '<p><strong>Late Time Details:</strong></p><ul>';
         $body .= '<li>Hours: ' . $late_info['hours'] . '</li>';
         $body .= '<li>Minutes: ' . $late_info['minutes'] . '</li>';
         $body .= '<li>Seconds: ' . $late_info['seconds'] . '</li>';
         $body .= '</ul>';
-        $body .= '<p><strong>Total Late Time:</strong> ' . htmlspecialchars($late_info['formatted']) . '</p>';
-        $body .= '<p><strong>Expected Check-in Time:</strong> ' . htmlspecialchars($late_info['expected_time']) . '</p>';
+        $body .= '<p><strong>Total Late Time:</strong> ' . esc_view($late_info['formatted']) . '</p>';
+        $body .= '<p><strong>Expected Check-in Time:</strong> ' . esc_view($late_info['expected_time']) . '</p>';
         $body .= '<p>Thank you.</p></body></html>';
 
         return array(
-            'subject' => 'Late Mark - ' . htmlspecialchars($user_name) . ' - ' . date('Y-m-d', strtotime($checkin_time)),
+            'subject' => 'Late Mark - ' . esc_view($user_name) . ' - ' . date('Y-m-d', strtotime($checkin_time)),
             'body'    => $body,
         );
     }

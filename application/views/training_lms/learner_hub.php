@@ -67,7 +67,7 @@ $this->load->view('partials/header', array(
               <?php foreach ($modules as $m): ?>
                 <div class="tl-card p-3 mb-2">
                   <div class="d-flex justify-content-between align-items-center">
-                    <div class="fw-semibold"><?php echo htmlspecialchars($m->title); ?></div>
+                    <div class="fw-semibold"><?php echo esc_view($m->title); ?></div>
                     <a class="btn btn-sm btn-primary w-100 w-md-auto" href="<?php echo site_url('training/module/' . (int) $m->id); ?>">Start / Continue</a>
                   </div>
                   <?php
@@ -97,10 +97,10 @@ $this->load->view('partials/header', array(
             <ul class="list-group list-group-flush">
               <?php foreach ($assessment_assignments as $a): ?>
                 <li class="list-group-item small">
-                  <strong><?php echo htmlspecialchars($a->title); ?></strong>
+                  <strong><?php echo esc_view($a->title); ?></strong>
                   <?php if (!empty($a->completed_at)): ?>
                     <span class="badge bg-success ms-1">Done</span>
-                    <a class="btn btn-sm btn-outline-primary float-end" href="<?php echo htmlspecialchars(!empty($a->result_url) ? $a->result_url : site_url('training-assessment/result-token/' . rawurlencode($a->access_token))); ?>">Result</a>
+                    <a class="btn btn-sm btn-outline-primary float-end" href="<?php echo esc_view(!empty($a->result_url) ? $a->result_url : site_url('training-assessment/result-token/' . rawurlencode($a->access_token))); ?>">Result</a>
                   <?php else: ?>
                     <a class="btn btn-sm btn-primary float-end" href="<?php echo site_url('training-assessment/take/' . rawurlencode($a->access_token)); ?>">Start</a>
                   <?php endif; ?>
@@ -120,8 +120,8 @@ $this->load->view('partials/header', array(
               <?php foreach ($my_submissions as $s): ?>
                 <li class="list-group-item small d-flex justify-content-between align-items-start">
                   <div>
-                    <div><?php echo htmlspecialchars($s->original_filename); ?></div>
-                    <div class="text-muted"><?php echo htmlspecialchars($s->module_title); ?> — <?php echo htmlspecialchars($s->topic_name); ?></div>
+                    <div><?php echo esc_view($s->original_filename); ?></div>
+                    <div class="text-muted"><?php echo esc_view($s->module_title); ?> — <?php echo esc_view($s->topic_name); ?></div>
                   </div>
                   <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('training/download/' . (int) $s->id); ?>">Get</a>
                 </li>

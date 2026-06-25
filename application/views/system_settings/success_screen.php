@@ -49,7 +49,7 @@
                 <input type="number" 
                        class="form-control" 
                        name="settings[success_screen_duration]" 
-                       value="<?php echo htmlspecialchars(isset($ui_settings['success_screen_duration']) ? $ui_settings['success_screen_duration'] : '3'); ?>"
+                       value="<?php echo esc_view(isset($ui_settings['success_screen_duration']) ? $ui_settings['success_screen_duration'] : '3'); ?>"
                        min="1" 
                        max="10">
                 <div class="form-text">How long to show the success screen before redirecting</div>
@@ -70,7 +70,7 @@
                              <?php echo in_array($key, $enabled_modules) ? 'checked' : ''; ?>>
                       <label class="form-check-label" for="module_<?php echo $key; ?>">
                         <i class="bi bi-<?php echo get_module_icon($key); ?> me-1"></i>
-                        <?php echo htmlspecialchars($name); ?>
+                        <?php echo esc_view($name); ?>
                       </label>
                     </div>
                   <?php endforeach; ?>
@@ -130,7 +130,7 @@
                 <?php if (isset($all_modules[$module])): ?>
                   <span class="badge bg-primary">
                     <i class="bi bi-<?php echo get_module_icon($module); ?> me-1"></i>
-                    <?php echo htmlspecialchars($all_modules[$module]); ?>
+                    <?php echo esc_view($all_modules[$module]); ?>
                   </span>
                 <?php endif; ?>
               <?php endforeach; ?>

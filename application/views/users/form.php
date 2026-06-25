@@ -3,13 +3,13 @@
   <div class="col-12">
     <div class="card mb-3 border-0 shadow-sm">
       <div class="card-body d-flex justify-content-between align-items-center">
-        <h1 class="h5 mb-0"><?php echo htmlspecialchars(isset($title) ? $title : 'User'); ?></h1>
+        <h1 class="h5 mb-0"><?php echo esc_view(isset($title) ? $title : 'User'); ?></h1>
         <a href="<?php echo site_url('users'); ?>" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
       </div>
     </div>
 
     <?php if ($this->session->flashdata('error')): ?>
-      <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
+      <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
 
     <div class="card shadow-soft border-0">
@@ -25,7 +25,7 @@
             <div class="col-md-4">
               <label class="form-label">Name <span class="text-danger">*</span></label>
               <input type="text" name="name" class="form-control <?php echo form_error('name') ? 'is-invalid' : ''; ?>"
-                     value="<?php echo htmlspecialchars(set_value('name', isset($row->name) ? $row->name : '')); ?>" required>
+                     value="<?php echo esc_view(set_value('name', isset($row->name) ? $row->name : '')); ?>" required>
               <?php if (form_error('name')): ?><div class="invalid-feedback"><?php echo form_error('name'); ?></div><?php endif; ?>
             </div>
             <?php if (!$is_edit): ?>
@@ -34,7 +34,7 @@
               <div class="input-group <?php echo form_error('email') ? 'is-invalid' : ''; ?>">
                 <input type="email" name="email" id="userEmail"
                        class="form-control <?php echo form_error('email') ? 'is-invalid' : ''; ?>"
-                       value="<?php echo htmlspecialchars(set_value('email', isset($row->email) ? $row->email : '')); ?>"
+                       value="<?php echo esc_view(set_value('email', isset($row->email) ? $row->email : '')); ?>"
                        placeholder="you@example.com" required>
                 <button class="btn btn-outline-secondary" type="button" id="btnSendCode">Send code</button>
               </div>
@@ -50,7 +50,7 @@
               <label class="form-label">Email <span class="text-danger">*</span></label>
               <input type="email" name="email"
                      class="form-control <?php echo form_error('email') ? 'is-invalid' : ''; ?>"
-                     value="<?php echo htmlspecialchars(set_value('email', isset($row->email) ? $row->email : '')); ?>" required>
+                     value="<?php echo esc_view(set_value('email', isset($row->email) ? $row->email : '')); ?>" required>
               <?php if (form_error('email')): ?><div class="invalid-feedback"><?php echo form_error('email'); ?></div><?php endif; ?>
             </div>
             <?php endif; ?>
@@ -76,7 +76,7 @@
               ?>
               <select name="role_id" class="form-select <?php echo form_error('role_id') ? 'is-invalid' : ''; ?>" required>
                 <?php foreach ($roleOptions as $id => $name): ?>
-                  <option value="<?php echo (int)$id; ?>" <?php echo $rid===(int)$id?'selected':''; ?>><?php echo htmlspecialchars($name); ?></option>
+                  <option value="<?php echo (int)$id; ?>" <?php echo $rid===(int)$id?'selected':''; ?>><?php echo esc_view($name); ?></option>
                 <?php endforeach; ?>
               </select>
               <?php if (form_error('role_id')): ?><div class="invalid-feedback"><?php echo form_error('role_id'); ?></div><?php endif; ?>
@@ -89,7 +89,7 @@
                 <?php if(isset($shifts) && !empty($shifts)): ?>
                   <?php foreach($shifts as $shift): ?>
                     <option value="<?php echo $shift->id; ?>" <?php echo (isset($current_shift_id) && $current_shift_id == $shift->id) ? 'selected' : ''; ?>>
-                      <?php echo htmlspecialchars($shift->name); ?> (<?php echo date('H:i', strtotime($shift->start_time)) . ' - ' . date('H:i', strtotime($shift->end_time)); ?>)
+                      <?php echo esc_view($shift->name); ?> (<?php echo date('H:i', strtotime($shift->start_time)) . ' - ' . date('H:i', strtotime($shift->end_time)); ?>)
                     </option>
                   <?php endforeach; ?>
                 <?php endif; ?>
@@ -116,7 +116,7 @@
 
             <div class="col-md-4">
               <label class="form-label">Phone</label>
-              <input type="tel" name="phone" id="userPhone" class="form-control" value="<?php echo htmlspecialchars(isset($row->phone) ? $row->phone : ''); ?>" pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number (optional)">
+              <input type="tel" name="phone" id="userPhone" class="form-control" value="<?php echo esc_view(isset($row->phone) ? $row->phone : ''); ?>" pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Enter 10-digit mobile number (optional)">
               <div class="form-text" id="phoneHelp"></div>
             </div>
 

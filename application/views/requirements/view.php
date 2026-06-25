@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Requirement Details']); ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Requirement: <?php echo htmlspecialchars(isset($req->req_number)?$req->req_number:'#'.(int)$req->id); ?></h1>
+  <h1 class="h4 mb-0">Requirement: <?php echo esc_view(isset($req->req_number)?$req->req_number:'#'.(int)$req->id); ?></h1>
   <div class="d-flex gap-2">
     <a class="btn btn-primary btn-sm" href="<?php echo site_url('requirements/edit/'.(int)$req->id); ?>">Edit</a>
     <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements'); ?>">Back</a>
@@ -11,13 +11,13 @@
   <div class="col-lg-8">
     <div class="card shadow-soft mb-3">
       <div class="card-body">
-        <h5 class="mb-1"><?php echo htmlspecialchars($req->title); ?></h5>
+        <h5 class="mb-1"><?php echo esc_view($req->title); ?></h5>
         <div class="mb-2 text-muted small">
-          <span class="me-3">Client: <?php echo htmlspecialchars(isset($req->client_name)?$req->client_name:''); ?></span>
-          <span class="me-3">Status: <span class="badge bg-light text-dark border"><?php echo htmlspecialchars(isset($req->status)?$req->status:'received'); ?></span></span>
-          <span class="me-3">Priority: <span class="badge bg-secondary"><?php echo htmlspecialchars(isset($req->priority)?$req->priority:'medium'); ?></span></span>
+          <span class="me-3">Client: <?php echo esc_view(isset($req->client_name)?$req->client_name:''); ?></span>
+          <span class="me-3">Status: <span class="badge bg-light text-dark border"><?php echo esc_view(isset($req->status)?$req->status:'received'); ?></span></span>
+          <span class="me-3">Priority: <span class="badge bg-secondary"><?php echo esc_view(isset($req->priority)?$req->priority:'medium'); ?></span></span>
           <?php if (!empty($req->requirement_type)): ?>
-          <span>Type: <span class="badge bg-info text-dark"><?php echo htmlspecialchars(function_exists('module_type_label') ? module_type_label($req->requirement_type, 'requirements') : $req->requirement_type); ?></span></span>
+          <span>Type: <span class="badge bg-info text-dark"><?php echo esc_view(function_exists('module_type_label') ? module_type_label($req->requirement_type, 'requirements') : $req->requirement_type); ?></span></span>
           <?php endif; ?>
         </div>
         <?php if (isset($req->description) && $req->description !== ''): ?>
@@ -30,12 +30,22 @@
         <div class="row mt-3 small">
           <div class="col-md-6">
             <div class="text-muted">Expected Delivery</div>
-            <div><?php echo htmlspecialchars(isset($req->expected_delivery_date)?$req->expected_delivery_date:''); ?></div>
+            <div><?php echo esc_view(isset($req->expected_delivery_date)?$req->expected_delivery_date:''); ?></div>
           </div>
           <div class="col-md-6">
             <div class="text-muted">Owner</div>
-            <div><?php echo htmlspecialchars(isset($req->owner_name)?$req->owner_name:'Unassigned'); ?></div>
+            <div><?php echo esc_view(isset($req->owner_name)?$req->owner_name:'Unassigned'); ?></div>
           </div>
+          <?php if (!empty($req->reference_url)): ?>
+          <div class="col-md-12 mt-2">
+            <div class="text-muted">URL / Link</div>
+            <div>
+              <a href="<?php echo esc_view($req->reference_url); ?>" target="_blank" rel="noopener noreferrer">
+                <?php echo esc_view($req->reference_url); ?>
+              </a>
+            </div>
+          </div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -51,7 +61,7 @@
           <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="<?php echo base_url($a->file_path); ?>" download>
             <div>
               <i class="bi bi-file-earmark me-2"></i>
-              <strong><?php echo htmlspecialchars(isset($a->original_name)?$a->original_name:$a->file_name); ?></strong>
+              <strong><?php echo esc_view(isset($a->original_name)?$a->original_name:$a->file_name); ?></strong>
               <?php if (isset($a->file_size)): ?><small class="text-muted"> (<?php echo (int)$a->file_size; ?> KB)</small><?php endif; ?>
             </div>
             <i class="bi bi-download"></i>
@@ -103,21 +113,21 @@
               <?php foreach ($linked_tasks as $lt): ?>
               <tr>
                 <td>#<?php echo (int)$lt->id; ?></td>
-                <td><?php echo htmlspecialchars($lt->title); ?></td>
-                <td><?php echo htmlspecialchars(isset($lt->project_name) ? $lt->project_name : ''); ?></td>
+                <td><?php echo esc_view($lt->title); ?></td>
+                <td><?php echo esc_view(isset($lt->project_name) ? $lt->project_name : ''); ?></td>
                 <td>
                   <?php 
                   $statusColors = ['pending' => 'warning', 'in_progress' => 'info', 'completed' => 'success', 'blocked' => 'danger'];
                   $statusColor = isset($statusColors[$lt->status]) ? $statusColors[$lt->status] : 'secondary';
                   ?>
-                  <span class="badge bg-<?php echo $statusColor; ?>"><?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $lt->status))); ?></span>
+                  <span class="badge bg-<?php echo $statusColor; ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $lt->status))); ?></span>
                 </td>
                 <td>
                   <?php 
                   $priorityColors = ['low' => 'success', 'medium' => 'warning', 'high' => 'danger', 'urgent' => 'danger'];
                   $priorityColor = isset($priorityColors[$lt->priority]) ? $priorityColors[$lt->priority] : 'secondary';
                   ?>
-                  <span class="badge bg-<?php echo $priorityColor; ?>"><?php echo htmlspecialchars(ucfirst($lt->priority)); ?></span>
+                  <span class="badge bg-<?php echo $priorityColor; ?>"><?php echo esc_view(ucfirst($lt->priority)); ?></span>
                 </td>
                 <td>
                   <?php if (isset($lt->due_date) && $lt->due_date): ?>
@@ -172,7 +182,7 @@
           <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
             <option value="" <?php echo $curType === '' ? 'selected' : ''; ?>>All</option>
             <?php if (isset($requirement_types) && is_array($requirement_types)): foreach ($requirement_types as $code => $label): ?>
-              <option value="<?php echo htmlspecialchars($code); ?>" <?php echo ($curType === (string) $code) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo esc_view($code); ?>" <?php echo ($curType === (string) $code) ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; endif; ?>
           </select>
         </form>
@@ -198,11 +208,11 @@
               <?php foreach ($versions as $v): ?>
               <tr>
                 <td><?php echo (int)$v->version_no; ?></td>
-                <td><?php echo htmlspecialchars(isset($v->title)?$v->title:''); ?></td>
-                <td><?php echo htmlspecialchars(isset($v->status)?$v->status:''); ?></td>
-                <td><?php echo htmlspecialchars(isset($v->priority)?$v->priority:''); ?></td>
-                <td><?php echo htmlspecialchars(isset($v->created_at)?$v->created_at:''); ?></td>
-                <td><?php echo htmlspecialchars(isset($v->created_by)?$v->created_by:''); ?></td>
+                <td><?php echo esc_view(isset($v->title)?$v->title:''); ?></td>
+                <td><?php echo esc_view(isset($v->status)?$v->status:''); ?></td>
+                <td><?php echo esc_view(isset($v->priority)?$v->priority:''); ?></td>
+                <td><?php echo esc_view(isset($v->created_at)?$v->created_at:''); ?></td>
+                <td><?php echo esc_view(isset($v->created_by)?$v->created_by:''); ?></td>
                 <td><a class="btn btn-light btn-sm" href="<?php echo site_url('requirements/version/'.(int)$v->id); ?>">View</a></td>
               </tr>
               <?php endforeach; ?>
@@ -217,9 +227,9 @@
     <div class="card shadow-soft">
       <div class="card-header"><h6 class="mb-0">Meta</h6></div>
       <div class="card-body small text-muted">
-        <div>Received: <?php echo htmlspecialchars(isset($req->received_date)?$req->received_date:''); ?></div>
-        <div>Created: <?php echo htmlspecialchars(isset($req->created_at)?$req->created_at:''); ?></div>
-        <div>Updated: <?php echo htmlspecialchars(isset($req->updated_at)?$req->updated_at:''); ?></div>
+        <div>Received: <?php echo esc_view(isset($req->received_date)?$req->received_date:''); ?></div>
+        <div>Created: <?php echo esc_view(isset($req->created_at)?$req->created_at:''); ?></div>
+        <div>Updated: <?php echo esc_view(isset($req->updated_at)?$req->updated_at:''); ?></div>
       </div>
     </div>
   </div>
@@ -239,13 +249,13 @@
         <!-- Flash Messages -->
         <?php if ($this->session->flashdata('error')): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+            <?php echo esc_view($this->session->flashdata('error')); ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         <?php endif; ?>
         <?php if ($this->session->flashdata('success')): ?>
           <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+            <?php echo esc_view($this->session->flashdata('success')); ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         <?php endif; ?>

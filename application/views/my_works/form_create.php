@@ -39,7 +39,7 @@
   </div>
 
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger py-2"><?php echo htmlspecialchars((string) $this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
+    <div class="alert alert-danger py-2"><?php echo esc_view((string) $this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
   <?php endif; ?>
 
   <?php if (!empty($scope) && !empty($scope['message'])): ?>
@@ -64,14 +64,14 @@
             <div class="mw-create-row mw-create-row-3">
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-title">Title <span class="text-danger">*</span></label>
-                <input type="text" name="title" id="mw-form-title" class="form-control mw-create-control" required maxlength="255" value="<?php echo htmlspecialchars((string) $field('title'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="e.g. Follow up with client on proposal" autofocus>
+                <input type="text" name="title" id="mw-form-title" class="form-control mw-create-control" required maxlength="255" value="<?php echo esc_view((string) $field('title'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="e.g. Follow up with client on proposal" autofocus>
               </div>
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-created-for">Assigned to <span class="text-danger">*</span></label>
                 <select name="created_for" id="mw-form-created-for" class="form-select mw-create-control" required>
                   <?php foreach ((array) $users as $u): ?>
                     <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $u->id === $curFor ? 'selected' : ''; ?>>
-                      <?php echo htmlspecialchars(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
+                      <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
@@ -90,7 +90,7 @@
             <div class="mw-create-row mw-create-row-3">
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-due-date">Due date <span class="text-danger">*</span></label>
-                <input type="date" name="due_date" id="mw-form-due-date" class="form-control mw-create-control" required value="<?php echo htmlspecialchars((string) $field('due_date'), ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="date" name="due_date" id="mw-form-due-date" class="form-control mw-create-control" required value="<?php echo esc_view((string) $field('due_date'), ENT_QUOTES, 'UTF-8'); ?>">
               </div>
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-client-select">Client</label>
@@ -98,7 +98,7 @@
                   <option value="0">— Select client —</option>
                   <?php foreach ($clients as $c): ?>
                     <option value="<?php echo (int) $c->id; ?>" <?php echo $curClient === (int) $c->id ? 'selected' : ''; ?>>
-                      <?php echo htmlspecialchars($c->company_name, ENT_QUOTES, 'UTF-8'); ?>
+                      <?php echo esc_view($c->company_name); ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
@@ -111,7 +111,7 @@
                     <option value="<?php echo (int) $p->id; ?>"
                             data-client-id="<?php echo ($projects_have_client && isset($p->client_id)) ? (int) $p->client_id : 0; ?>"
                             <?php echo $curProject === (int) $p->id ? 'selected' : ''; ?>>
-                      <?php echo htmlspecialchars($p->name ? $p->name : ('Project #' . (int) $p->id), ENT_QUOTES, 'UTF-8'); ?>
+                      <?php echo esc_view($p->name ? $p->name : ('Project #' . (int) $p->id), ENT_QUOTES, 'UTF-8'); ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
@@ -121,10 +121,10 @@
             <div class="mw-create-row mw-create-row-3">
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-tag">Tag</label>
-                <input type="text" name="tag" id="mw-form-tag" class="form-control mw-create-control" maxlength="255" list="mw-form-tags" value="<?php echo htmlspecialchars((string) $field('tag'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="follow-up, demo">
+                <input type="text" name="tag" id="mw-form-tag" class="form-control mw-create-control" maxlength="255" list="mw-form-tags" value="<?php echo esc_view((string) $field('tag'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="follow-up, demo">
                 <datalist id="mw-form-tags">
                   <?php foreach ($tags as $t): ?>
-                    <option value="<?php echo htmlspecialchars($t, ENT_QUOTES, 'UTF-8'); ?>">
+                    <option value="<?php echo esc_view($t); ?>">
                   <?php endforeach; ?>
                 </datalist>
               </div>
@@ -132,7 +132,7 @@
                 <label class="form-label mw-create-label" for="mw-form-url">Ref URL</label>
                 <div class="input-group mw-ref-url-group">
                   <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-                  <input type="text" name="url" id="mw-form-url" class="form-control mw-create-control" value="<?php echo htmlspecialchars((string) $field('url'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="https://example.com">
+                  <input type="text" name="url" id="mw-form-url" class="form-control mw-create-control" value="<?php echo esc_view((string) $field('url'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="https://example.com">
                 </div>
               </div>
               <div class="mw-create-field">
@@ -147,7 +147,7 @@
 
             <div class="mw-create-field mw-create-field--full">
               <label class="form-label mw-create-label" for="mw-form-details">Description</label>
-              <textarea id="mw-form-details" name="details" class="form-control" rows="6" placeholder="Notes, steps, background, or context…"><?php echo htmlspecialchars((string) $field('details'), ENT_QUOTES, 'UTF-8'); ?></textarea>
+              <textarea id="mw-form-details" name="details" class="form-control" rows="6" placeholder="Notes, steps, background, or context…"><?php echo esc_view((string) $field('details'), ENT_QUOTES, 'UTF-8'); ?></textarea>
             </div>
           </div>
         </div>

@@ -223,7 +223,7 @@ if (!function_exists('generate_task_email_template')) {
             <div class="task-details">
                 <div class="task-title">
                     <span class="priority-indicator priority-' . $task->priority . '">[' . strtoupper($task->priority) . ']</span>
-                    ' . htmlspecialchars($task->title) . '
+                    ' . esc_view($task->title) . '
                 </div>
                 
                 <div class="task-meta">
@@ -258,7 +258,7 @@ if (!function_exists('generate_task_email_template')) {
         if (!empty($task->project_name)) {
             $html .= '<div class="section">
                 <div class="label">Project:</div>
-                <div>' . htmlspecialchars($task->project_name) . '</div>
+                <div>' . esc_view($task->project_name) . '</div>
             </div>';
         }
         
@@ -389,7 +389,7 @@ if (!function_exists('generate_multiple_tasks_email_template')) {
             $html .= '<div class="task-item ' . $task->priority . '">
                 <div class="task-title">
                     <span class="priority-indicator priority-' . $task->priority . '">[' . strtoupper($task->priority) . ']</span>
-                    ' . htmlspecialchars($task->title) . '
+                    ' . esc_view($task->title) . '
                 </div>
                 
                 <div class="task-meta">
@@ -402,7 +402,7 @@ if (!function_exists('generate_multiple_tasks_email_template')) {
                     
             if (!empty($task->project_name)) {
                 $html .= '<span class="badge" style="background-color: #6c757d;">
-                    ' . htmlspecialchars($task->project_name) . '
+                    ' . esc_view($task->project_name) . '
                 </span>';
             }
             

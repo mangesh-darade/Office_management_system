@@ -62,17 +62,17 @@ class Coaching_automation {
                 }
 
                 $subject = 'Stale coaching goal: ' . $g->title;
-                $body = '<p>Goal <strong>' . htmlspecialchars($g->title) . '</strong> for '
-                    . htmlspecialchars($client ? $client->full_name : 'client')
+                $body = '<p>Goal <strong>' . esc_view($g->title) . '</strong> for '
+                    . esc_view($client ? $client->full_name : 'client')
                     . ' has had no update in ' . (int) $days . ' days.</p>';
                 $action = $rule->action_type ? $rule->action_type : 'log_reminder';
 
                 if ($action === 'email_coach' && $coach_email) {
-                    if (coaching_send_mail($coach_email, $subject, '<p>Hi ' . htmlspecialchars($coach_name) . ',</p>' . $body)) {
+                    if (coaching_send_mail($coach_email, $subject, '<p>Hi ' . esc_view($coach_name) . ',</p>' . $body)) {
                         $actions++;
                     }
                 } elseif ($action === 'email_client' && $client && $client->email) {
-                    if (coaching_send_mail($client->email, $subject, '<p>Hi ' . htmlspecialchars($client->full_name) . ',</p>' . $body)) {
+                    if (coaching_send_mail($client->email, $subject, '<p>Hi ' . esc_view($client->full_name) . ',</p>' . $body)) {
                         $actions++;
                     }
                 } else {

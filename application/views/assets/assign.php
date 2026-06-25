@@ -7,12 +7,12 @@
 <div class="card shadow-soft mb-3">
   <div class="card-body">
     <div class="row g-2 small">
-      <div class="col-md-4"><strong>Name:</strong> <?php echo htmlspecialchars($row->name); ?></div>
-      <div class="col-md-4"><strong>Tag:</strong> <?php echo htmlspecialchars(isset($row->asset_tag)?$row->asset_tag:''); ?></div>
-      <div class="col-md-4"><strong>Status:</strong> <?php echo htmlspecialchars(isset($row->status)?$row->status:''); ?></div>
+      <div class="col-md-4"><strong>Name:</strong> <?php echo esc_view($row->name); ?></div>
+      <div class="col-md-4"><strong>Tag:</strong> <?php echo esc_view(isset($row->asset_tag)?$row->asset_tag:''); ?></div>
+      <div class="col-md-4"><strong>Status:</strong> <?php echo esc_view(isset($row->status)?$row->status:''); ?></div>
       <?php if ($current): ?>
       <div class="col-md-12 text-muted">
-        Currently assigned to user ID <?php echo (int)$current->user_id; ?> since <?php echo htmlspecialchars($current->allocated_on); ?>
+        Currently assigned to user ID <?php echo (int)$current->user_id; ?> since <?php echo esc_view($current->allocated_on); ?>
       </div>
       <?php endif; ?>
     </div>
@@ -28,7 +28,7 @@
           <select name="user_id" class="form-select" required>
             <option value="">Select user</option>
             <?php foreach ($users as $u): ?>
-              <option value="<?php echo (int)$u['id']; ?>"><?php echo htmlspecialchars($u['label']); ?></option>
+              <option value="<?php echo (int)$u['id']; ?>"><?php echo esc_view($u['label']); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

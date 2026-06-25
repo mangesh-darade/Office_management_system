@@ -22,11 +22,11 @@ $providerUrl = site_url('meals/provider');
         <span class="announcement-item__meta">Today &amp; tomorrow schedule</span>
       </div>
       <?php if ($can_order): ?>
-      <a class="btn btn-danger btn-sm announcement-item__action" href="<?php echo htmlspecialchars($mealsUrl); ?>">
+      <a class="btn btn-danger btn-sm announcement-item__action" href="<?php echo esc_view($mealsUrl); ?>">
         <i class="bi bi-arrow-right-circle me-1"></i><span>Order meals</span>
       </a>
       <?php elseif ($can_provider): ?>
-      <a class="btn btn-outline-danger btn-sm announcement-item__action" href="<?php echo htmlspecialchars($providerUrl); ?>">
+      <a class="btn btn-outline-danger btn-sm announcement-item__action" href="<?php echo esc_view($providerUrl); ?>">
         <i class="bi bi-truck me-1"></i><span>Provider</span>
       </a>
       <?php endif; ?>
@@ -39,8 +39,8 @@ $providerUrl = site_url('meals/provider');
       <div class="col-12 col-sm-6">
         <div class="meal-dashboard-day h-100<?php echo $isToday ? ' is-today' : ' is-tomorrow'; ?>">
           <div class="meal-dashboard-day-head">
-            <span class="meal-dashboard-day-label"><?php echo htmlspecialchars($c['day_label']); ?></span>
-            <span class="meal-dashboard-day-date"><?php echo htmlspecialchars($c['date_display']); ?></span>
+            <span class="meal-dashboard-day-label"><?php echo esc_view($c['day_label']); ?></span>
+            <span class="meal-dashboard-day-date"><?php echo esc_view($c['date_display']); ?></span>
           </div>
           <?php if (!$c['has_any']): ?>
             <div class="meal-dashboard-none"><i class="bi bi-x-circle me-1"></i>No meals scheduled</div>
@@ -52,9 +52,9 @@ $providerUrl = site_url('meals/provider');
                 <div>
                   <strong>Breakfast</strong>
                   <?php if ($c['breakfast_note'] !== ''): ?>
-                    <span class="meal-dashboard-meal-note d-block"><?php echo htmlspecialchars($c['breakfast_note']); ?></span>
+                    <span class="meal-dashboard-meal-note d-block"><?php echo esc_view($c['breakfast_note']); ?></span>
                   <?php endif; ?>
-                  <span class="meal-dashboard-meal-cutoff">Order by <?php echo htmlspecialchars($c['bf_cutoff']); ?></span>
+                  <span class="meal-dashboard-meal-cutoff">Order by <?php echo esc_view($c['bf_cutoff']); ?></span>
                 </div>
               </div>
             </div>
@@ -66,9 +66,9 @@ $providerUrl = site_url('meals/provider');
                 <div>
                   <strong>Lunch</strong>
                   <?php if ($c['lunch_note'] !== ''): ?>
-                    <span class="meal-dashboard-meal-note d-block"><?php echo htmlspecialchars($c['lunch_note']); ?></span>
+                    <span class="meal-dashboard-meal-note d-block"><?php echo esc_view($c['lunch_note']); ?></span>
                   <?php endif; ?>
-                  <span class="meal-dashboard-meal-cutoff">Order by <?php echo htmlspecialchars($c['lu_cutoff']); ?></span>
+                  <span class="meal-dashboard-meal-cutoff">Order by <?php echo esc_view($c['lu_cutoff']); ?></span>
                 </div>
               </div>
             </div>

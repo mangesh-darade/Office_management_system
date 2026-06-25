@@ -210,7 +210,7 @@ class AuthHook {
                     // If view fails, try fallback with header/footer
                     try {
                         $CI->load->view('partials/header', ['title' => 'System Under Maintenance']);
-                        echo '<div class="container mt-5"><div class="alert alert-warning text-center"><h4><i class="bi bi-gear-fill me-2"></i>System Under Maintenance</h4><p class="mb-0">' . htmlspecialchars($maintenance_message) . '</p></div></div>';
+                        echo '<div class="container mt-5"><div class="alert alert-warning text-center"><h4><i class="bi bi-gear-fill me-2"></i>System Under Maintenance</h4><p class="mb-0">' . htmlspecialchars((string)($maintenance_message ?? ''), ENT_QUOTES, 'UTF-8') . '</p></div></div>';
                         $CI->load->view('partials/footer');
                         exit(0);
                     } catch (Exception $e2) {
@@ -219,7 +219,7 @@ class AuthHook {
                             header('Content-Type: text/html; charset=utf-8');
                             http_response_code(503);
                         }
-                        echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Maintenance</title><style>body{margin:0;padding:50px;font-family:Arial;text-align:center;background:#f0f0f0}h1{color:#667eea}p{font-size:1.2rem}</style></head><body><h1>🔧 System Under Maintenance</h1><p>' . htmlspecialchars($maintenance_message) . '</p></body></html>';
+                        echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Maintenance</title><style>body{margin:0;padding:50px;font-family:Arial;text-align:center;background:#f0f0f0}h1{color:#667eea}p{font-size:1.2rem}</style></head><body><h1>🔧 System Under Maintenance</h1><p>' . htmlspecialchars((string)($maintenance_message ?? ''), ENT_QUOTES, 'UTF-8') . '</p></body></html>';
                         exit(0);
                     }
                 }

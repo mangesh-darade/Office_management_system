@@ -39,13 +39,13 @@
 
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success alert-dismissible fade show py-2 mx-3 mt-2 mb-0" role="alert">
-    <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <?php echo esc_view($this->session->flashdata('success')); ?>
     <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show py-2 mx-3 mt-2 mb-0" role="alert">
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -94,9 +94,9 @@
             ?>
             <div class="mw-mockup-chat-row <?php echo $rowClass; ?>">
               <div class="mw-mockup-bubble <?php echo $bubbleClass; ?>">
-                <?php echo htmlspecialchars((string) $item['text'], ENT_QUOTES, 'UTF-8'); ?>
+                <?php echo esc_view((string) $item['text'], ENT_QUOTES, 'UTF-8'); ?>
                 <a href="#" class="mw-mockup-chat-link" data-work-id="<?php echo (int) $item['work_id']; ?>">
-                  <?php echo htmlspecialchars((string) $item['work_title'], ENT_QUOTES, 'UTF-8'); ?>
+                  <?php echo esc_view((string) $item['work_title'], ENT_QUOTES, 'UTF-8'); ?>
                 </a>
               </div>
             </div>
@@ -127,10 +127,10 @@
           <?php foreach ($filters as $fk => $fv): ?>
             <?php if ($fk === 'current_user_id' || $fk === 'q') { continue; } ?>
             <?php if ($fv !== '' && $fv !== 0 && $fv !== '0'): ?>
-              <input type="hidden" name="<?php echo htmlspecialchars($fk); ?>" value="<?php echo htmlspecialchars((string) $fv); ?>">
+              <input type="hidden" name="<?php echo esc_view($fk); ?>" value="<?php echo esc_view((string) $fv); ?>">
             <?php endif; ?>
           <?php endforeach; ?>
-          <input type="search" name="q" id="mwOverviewSearch" class="mw-mockup-search-input" placeholder="Search work items…" value="<?php echo htmlspecialchars(isset($filters['q']) ? $filters['q'] : ''); ?>">
+          <input type="search" name="q" id="mwOverviewSearch" class="mw-mockup-search-input" placeholder="Search work items…" value="<?php echo esc_view(isset($filters['q']) ? $filters['q'] : ''); ?>">
         </form>
       </div>
       <div class="mw-mockup-search-results" id="mwOverviewResults">
@@ -159,14 +159,14 @@
             ?>
             <article class="mw-mockup-doc-card<?php echo $wid === $first_id ? ' is-active' : ''; ?>" data-work-id="<?php echo $wid; ?>" tabindex="0" role="button">
               <div class="mw-mockup-doc-top">
-                <h3 class="mw-mockup-doc-title"><?php echo htmlspecialchars((string) $r->title, ENT_QUOTES, 'UTF-8'); ?></h3>
-                <span class="mw-mockup-quality mw-mockup-quality-<?php echo htmlspecialchars($priorityClass); ?>"><?php echo htmlspecialchars($priority); ?></span>
+                <h3 class="mw-mockup-doc-title"><?php echo esc_view((string) $r->title, ENT_QUOTES, 'UTF-8'); ?></h3>
+                <span class="mw-mockup-quality mw-mockup-quality-<?php echo esc_view($priorityClass); ?>"><?php echo esc_view($priority); ?></span>
               </div>
               <div class="mw-mockup-doc-meta">
-                <span>Status <?php echo htmlspecialchars($stLabel); ?></span>
-                <?php if ($year !== ''): ?><span class="mw-mockup-doc-dot">•</span><span><?php echo htmlspecialchars($year); ?></span><?php endif; ?>
+                <span>Status <?php echo esc_view($stLabel); ?></span>
+                <?php if ($year !== ''): ?><span class="mw-mockup-doc-dot">•</span><span><?php echo esc_view($year); ?></span><?php endif; ?>
                 <span class="mw-mockup-doc-dot">•</span>
-                <span class="mw-mockup-doc-type"><i class="bi <?php echo $typeIcon; ?>"></i> <?php echo htmlspecialchars($typeLabel); ?></span>
+                <span class="mw-mockup-doc-type"><i class="bi <?php echo $typeIcon; ?>"></i> <?php echo esc_view($typeLabel); ?></span>
               </div>
             </article>
           <?php endforeach; ?>
@@ -192,7 +192,7 @@
           <a href="#" class="mw-mockup-export-btn mw-overview-action-edit" title="Edit"><i class="bi bi-pencil-square"></i><span>Edit</span></a>
         <?php endif; ?>
         <?php if (!empty($can_export)): ?>
-          <a class="mw-mockup-export-btn" href="<?php echo htmlspecialchars($exportUrl); ?>" title="Export CSV"><i class="bi bi-filetype-csv"></i><span>CSV</span></a>
+          <a class="mw-mockup-export-btn" href="<?php echo esc_view($exportUrl); ?>" title="Export CSV"><i class="bi bi-filetype-csv"></i><span>CSV</span></a>
         <?php endif; ?>
         <a href="#" class="mw-mockup-export-btn mw-overview-action-link" style="display:none;" target="_blank" rel="noopener" title="Open link"><i class="bi bi-link-45deg"></i><span>Link</span></a>
       </footer>
@@ -240,7 +240,7 @@
                 $attLabel = (string) $att->stored_name;
               }
             ?>
-            <div class="mw-mockup-thumb-file" title="<?php echo htmlspecialchars($attLabel, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-file-earmark-text"></i></div>
+            <div class="mw-mockup-thumb-file" title="<?php echo esc_view($attLabel); ?>"><i class="bi bi-file-earmark-text"></i></div>
           <?php endforeach; ?>
         <?php endif; ?>
       </div>

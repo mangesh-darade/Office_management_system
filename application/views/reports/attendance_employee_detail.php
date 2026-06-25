@@ -441,7 +441,7 @@ $back_url = site_url('reports/attendance-employee') . '?' . http_build_query($ba
     <p class="text-muted small mb-0">Detailed attendance log for individual employee</p>
   </div>
   <div class="d-flex gap-2 mt-2 mt-sm-0">
-    <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($back_url); ?>"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
   </div>
 </div>
 
@@ -450,15 +450,15 @@ $display_name = !empty($name) ? $name : ('User #' . (int) (isset($user_id) ? $us
 $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
 ?>
 <div class="employee-banner">
-  <div class="employee-avatar"><?php echo htmlspecialchars($avatar_initial, ENT_QUOTES, 'UTF-8'); ?></div>
+  <div class="employee-avatar"><?php echo esc_view($avatar_initial); ?></div>
   <div>
-    <div class="employee-name"><?php echo htmlspecialchars($display_name, ENT_QUOTES, 'UTF-8'); ?></div>
+    <div class="employee-name"><?php echo esc_view($display_name); ?></div>
     <div class="employee-meta">
       <?php if (!empty($email)): ?>
-        <span><i class="bi bi-envelope"></i><?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?></span>
+        <span><i class="bi bi-envelope"></i><?php echo esc_view($email); ?></span>
       <?php endif; ?>
       <?php if (!empty($emp_code)): ?>
-        <span><i class="bi bi-person-badge"></i><?php echo htmlspecialchars($emp_code, ENT_QUOTES, 'UTF-8'); ?></span>
+        <span><i class="bi bi-person-badge"></i><?php echo esc_view($emp_code); ?></span>
       <?php endif; ?>
       <?php if (!empty($user_id)): ?>
         <span><i class="bi bi-hash"></i>User ID <?php echo (int) $user_id; ?></span>
@@ -476,11 +476,11 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
     <div class="stat-value">
       <?php 
         if (isset($period) && $period === 'daily') {
-          echo isset($date) ? htmlspecialchars($date) : date('Y-m-d');
+          echo isset($date) ? esc_view($date) : date('Y-m-d');
         } elseif (isset($period) && $period === 'weekly') {
-          echo isset($from) && isset($to) ? htmlspecialchars($from . ' to ' . $to) : 'This Week';
+          echo isset($from) && isset($to) ? esc_view($from . ' to ' . $to) : 'This Week';
         } else {
-          echo isset($month) ? htmlspecialchars($month) : date('Y-m');
+          echo isset($month) ? esc_view($month) : date('Y-m');
         }
       ?>
     </div>
@@ -590,11 +590,11 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
     </div>
     <div class="form-group" id="date-filter-group" style="display: <?php echo (isset($period) && $period !== 'monthly') ? 'flex' : 'none'; ?>;">
       <label class="form-label" id="date-label"><?php echo (isset($period) && $period === 'daily') ? 'Date' : 'Week Start Date'; ?></label>
-      <input type="date" name="date" value="<?php echo isset($date) ? htmlspecialchars($date) : date('Y-m-d'); ?>" class="form-control">
+      <input type="date" name="date" value="<?php echo isset($date) ? esc_view($date) : date('Y-m-d'); ?>" class="form-control">
     </div>
     <div class="form-group" id="month-filter-group" style="display: <?php echo (!isset($period) || $period === 'monthly') ? 'flex' : 'none'; ?>;">
       <label class="form-label">Month</label>
-      <input type="month" name="month" value="<?php echo isset($month) ? htmlspecialchars($month) : date('Y-m'); ?>" class="form-control">
+      <input type="month" name="month" value="<?php echo isset($month) ? esc_view($month) : date('Y-m'); ?>" class="form-control">
     </div>
     
     <div class="form-group">
@@ -624,18 +624,18 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
   <?php if (isset($from) && isset($to)): ?>
   <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; font-size: 0.85rem; color: #64748b;">
     <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
-      <div><strong>Period:</strong> <?php echo htmlspecialchars($from); ?> to <?php echo htmlspecialchars($to); ?></div>
+      <div><strong>Period:</strong> <?php echo esc_view($from); ?> to <?php echo esc_view($to); ?></div>
       <?php if (isset($office_start_time)): ?>
-        <div><strong>Office Start:</strong> <?php echo htmlspecialchars($office_start_time); ?></div>
+        <div><strong>Office Start:</strong> <?php echo esc_view($office_start_time); ?></div>
       <?php endif; ?>
       <?php if (isset($office_end_time)): ?>
-        <div><strong>Office End:</strong> <?php echo htmlspecialchars($office_end_time); ?></div>
+        <div><strong>Office End:</strong> <?php echo esc_view($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($grace_minutes)): ?>
         <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
       <?php endif; ?>
       <?php if (isset($office_start_time) && isset($office_end_time) && isset($grace_minutes)): ?>
-        <div><strong>On Time Rule:</strong> Check-in by <?php echo htmlspecialchars(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo htmlspecialchars($office_end_time); ?></div>
+        <div><strong>On Time Rule:</strong> Check-in by <?php echo esc_view(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo esc_view($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($standard_working_hours)): ?>
         <div><strong>Standard Hours:</strong> <?php echo $standard_working_hours; ?>h/day</div>
@@ -646,7 +646,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
           <?php 
             $hNames = [];
             foreach($holidays as $h) {
-                $hNames[] = htmlspecialchars($h->name) . ' <span style="color: #64748b; font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
+                $hNames[] = esc_view($h->name) . ' <span style="color: #64748b; font-size: 0.8rem;">(' . date('M j', strtotime($h->holiday_date)) . ')</span>';
             }
             echo implode(', ', $hNames);
           ?>
@@ -710,8 +710,8 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
             }
             if (!$hasData) continue;
           ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave . ' ' . (isset($d->check_in_time) ? $d->check_in_time : '') . ' ' . (isset($d->check_out_time) ? $d->check_out_time : '') . ' ' . (isset($d->check_in_location) ? $d->check_in_location : '') . ' ' . (isset($d->check_out_location) ? $d->check_out_location : '') . ' ' . (isset($d->worked_hours) ? $d->worked_hours : '') . ' ' . (isset($d->extra_hours) ? $d->extra_hours : '') . ' ' . (isset($d->notes) ? $d->notes : ''))); ?>" data-index="<?php echo $index; ?>">
-              <td class="date-cell"><?php echo htmlspecialchars($d->date); ?></td>
+            <tr data-searchable="<?php echo strtolower(esc_view($d->date . ' ' . $d->status . ' ' . (isset($d->late) ? $d->late : '') . ' ' . $d->leave . ' ' . (isset($d->check_in_time) ? $d->check_in_time : '') . ' ' . (isset($d->check_out_time) ? $d->check_out_time : '') . ' ' . (isset($d->check_in_location) ? $d->check_in_location : '') . ' ' . (isset($d->check_out_location) ? $d->check_out_location : '') . ' ' . (isset($d->worked_hours) ? $d->worked_hours : '') . ' ' . (isset($d->extra_hours) ? $d->extra_hours : '') . ' ' . (isset($d->notes) ? $d->notes : ''))); ?>" data-index="<?php echo $index; ?>">
+              <td class="date-cell"><?php echo esc_view($d->date); ?></td>
               <td>
                 <?php
                   $leaveText = isset($d->leave) ? trim($d->leave) : '';
@@ -725,9 +725,9 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                   $isWFH = (normalize_attendance_status_key($statusRaw) === 'work_from_home');
                 ?>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <span class="att-det-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
-                    <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
-                    <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
+                  <span class="att-det-status-badge <?php echo esc_view($badge['class']); ?>">
+                    <i class="bi <?php echo esc_view($badge['icon']); ?>"></i>
+                    <?php echo esc_view($badge['label']); ?>
                   </span>
                   <?php 
                     if ($hasLeave): 
@@ -742,7 +742,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                 <?php 
                   $checkInTime = isset($d->check_in_time) ? $d->check_in_time : '—';
                   if ($checkInTime !== '—' && $checkInTime !== '') {
-                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkInTime) . '</span>';
+                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock"></i>' . esc_view($checkInTime) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }
@@ -752,7 +752,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                 <?php 
                   $checkOutTime = isset($d->check_out_time) ? $d->check_out_time : '—';
                   if ($checkOutTime !== '—' && $checkOutTime !== '') {
-                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock"></i>' . htmlspecialchars($checkOutTime) . '</span>';
+                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock"></i>' . esc_view($checkOutTime) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }
@@ -762,7 +762,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                 <?php 
                   $checkInLoc = isset($d->check_in_location) ? $d->check_in_location : '—';
                   if ($checkInLoc !== '—' && $checkInLoc !== '') {
-                    echo '<span class="att-det-status-badge" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;" title="' . htmlspecialchars($checkInLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkInLoc) > 30 ? substr($checkInLoc, 0, 30) . '...' : $checkInLoc) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;" title="' . esc_view($checkInLoc) . '"><i class="bi bi-geo-alt"></i>' . esc_view(strlen($checkInLoc) > 30 ? substr($checkInLoc, 0, 30) . '...' : $checkInLoc) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }
@@ -772,7 +772,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                 <?php 
                   $checkOutLoc = isset($d->check_out_location) ? $d->check_out_location : '—';
                   if ($checkOutLoc !== '—' && $checkOutLoc !== '') {
-                    echo '<span class="att-det-status-badge" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;" title="' . htmlspecialchars($checkOutLoc) . '"><i class="bi bi-geo-alt"></i>' . htmlspecialchars(strlen($checkOutLoc) > 30 ? substr($checkOutLoc, 0, 30) . '...' : $checkOutLoc) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(6, 182, 212, 0.1); color: #06b6d4;" title="' . esc_view($checkOutLoc) . '"><i class="bi bi-geo-alt"></i>' . esc_view(strlen($checkOutLoc) > 30 ? substr($checkOutLoc, 0, 30) . '...' : $checkOutLoc) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }
@@ -796,9 +796,9 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                       $badgeClass = 'late';
                       $icon = 'bi-exclamation-triangle';
                       $lateMins = isset($d->late_minutes) ? $d->late_minutes : 0;
-                      $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
+                      $displayText = '<strong>' . esc_view($checkInTime) . '</strong>';
                       if ($graceTime !== '') {
-                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . htmlspecialchars($graceTime) . '</small>';
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . esc_view($graceTime) . '</small>';
                       }
                       if ($lateMins > 0) {
                         $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Late: ' . $lateMins . ' min</small>';
@@ -806,17 +806,17 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                     } elseif ($lateStatus === 'on_time') {
                       $badgeClass = 'ontime';
                       $icon = 'bi-check-circle';
-                      $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
+                      $displayText = '<strong>' . esc_view($checkInTime) . '</strong>';
                       if ($graceTime !== '') {
-                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . htmlspecialchars($graceTime) . '</small>';
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . esc_view($graceTime) . '</small>';
                       }
                       $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">On Time</small>';
                     } else {
                       $badgeClass = 'ontime';
                       $icon = 'bi-clock';
-                      $displayText = '<strong>' . htmlspecialchars($checkInTime) . '</strong>';
+                      $displayText = '<strong>' . esc_view($checkInTime) . '</strong>';
                       if ($graceTime !== '') {
-                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . htmlspecialchars($graceTime) . '</small>';
+                        $displayText .= '<br><small style="font-size: 0.75rem; opacity: 0.8;">Grace: ' . esc_view($graceTime) . '</small>';
                       }
                     }
                     
@@ -832,7 +832,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                     $minutes = floor(($workedSeconds % 3600) / 60);
                     $seconds = $workedSeconds % 60;
                     $display = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock-history"></i>' . htmlspecialchars($display) . '</span>';
+                    echo '<span class="att-det-status-badge ontime"><i class="bi bi-clock-history"></i>' . esc_view($display) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }
@@ -846,7 +846,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                     $minutes = floor(($extraSeconds % 3600) / 60);
                     $seconds = $extraSeconds % 60;
                     $display = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-                    echo '<span class="att-det-status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . htmlspecialchars($display) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . esc_view($display) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }
@@ -858,7 +858,7 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                   if ($notes === '' || $notes === '—') {
                     echo '<span class="att-det-status-badge">—</span>';
                   } else {
-                    echo '<span class="att-det-status-badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; text-align: left; max-width: 200px; white-space: normal; word-wrap: break-word;" title="' . htmlspecialchars($notes) . '"><i class="bi bi-chat-text"></i>' . htmlspecialchars(strlen($notes) > 50 ? substr($notes, 0, 50) . '...' : $notes) . '</span>';
+                    echo '<span class="att-det-status-badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; text-align: left; max-width: 200px; white-space: normal; word-wrap: break-word;" title="' . esc_view($notes) . '"><i class="bi bi-chat-text"></i>' . esc_view(strlen($notes) > 50 ? substr($notes, 0, 50) . '...' : $notes) . '</span>';
                   }
                 ?>
               </td>

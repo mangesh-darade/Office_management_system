@@ -43,7 +43,7 @@
                                 <div class="avatar-sm rounded-circle bg-light border d-flex align-items-center justify-content-center me-2" style="width:36px;height:36px;">
                                     <?php echo strtoupper(substr($expense->username, 0, 1)); ?>
                                 </div>
-                                <span class="fw-medium"><?php echo htmlspecialchars($expense->username); ?></span>
+                                <span class="fw-medium"><?php echo esc_view($expense->username); ?></span>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -55,7 +55,7 @@
                     <div class="row g-4 mb-4">
                         <div class="col-md-6">
                             <span class="text-muted small d-block mb-1">Category</span>
-                            <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($expense->category_name); ?></span>
+                            <span class="badge bg-light text-dark border"><?php echo esc_view($expense->category_name); ?></span>
                         </div>
                         <div class="col-md-6">
                             <span class="text-muted small d-block mb-1">Amount</span>
@@ -66,21 +66,21 @@
                     <div class="mb-4">
                         <span class="text-muted small d-block mb-1">Description</span>
                         <div class="p-3 bg-light rounded border-0">
-                            <?php echo nl2br(htmlspecialchars($expense->description)); ?>
+                            <?php echo nl2br(esc_view($expense->description)); ?>
                         </div>
                     </div>
 
                     <?php if($expense->rejection_reason): ?>
                     <div class="alert alert-danger bg-danger bg-opacity-10 border-danger text-danger">
                         <strong>Rejection Reason:</strong><br>
-                        <?php echo nl2br(htmlspecialchars($expense->rejection_reason)); ?>
+                        <?php echo nl2br(esc_view($expense->rejection_reason)); ?>
                     </div>
                     <?php endif; ?>
 
                     <?php if($expense->reimbursement_reference): ?>
                     <div class="alert alert-success bg-success bg-opacity-10 border-success text-success">
                         <i class="bi bi-check-circle-fill me-2"></i>
-                        <strong>Reimbursed:</strong> <?php echo htmlspecialchars($expense->reimbursement_reference); ?>
+                        <strong>Reimbursed:</strong> <?php echo esc_view($expense->reimbursement_reference); ?>
                         <div class="small mt-1">
                             <?php if($expense->reimbursed_at) echo 'On ' . date('M d, Y', strtotime($expense->reimbursed_at)); ?>
                         </div>

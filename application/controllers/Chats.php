@@ -111,7 +111,7 @@ class Chats extends CI_Controller {
         $user_id = (int)$this->session->userdata('user_id');
         if (!$this->Chat_model->is_participant($conversation_id, $user_id)) { $this->_json(['ok'=>false,'error'=>'forbidden']); return; }
         $body = trim((string)$this->input->post('body'));
-        $body = htmlspecialchars($body, ENT_QUOTES, 'UTF-8');
+        $body = esc_view($body);
         $attachment_path = null;
         if ($body === '' && empty($_FILES['attachment']['name'])) {
             $this->_json(['ok'=>false,'error'=>'Message body or attachment is required.']);
@@ -356,7 +356,7 @@ class Chats extends CI_Controller {
             $this->_json(['ok'=>false,'error'=>'forbidden']); return;
         }
 
-        $new_body = htmlspecialchars($new_body, ENT_QUOTES, 'UTF-8');
+        $new_body = esc_view($new_body);
         $this->Chat_model->edit_message($message_id, $new_body);
         $updated = $this->Chat_model->get_message_by_id($message_id);
         $this->_json(['ok'=>true,'message'=>$updated]);

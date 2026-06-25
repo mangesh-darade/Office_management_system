@@ -5,10 +5,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft">
@@ -20,7 +20,7 @@
           <select name="user_id" class="form-select" required>
             <option value="">Select employee</option>
             <?php foreach ($users as $u): ?>
-              <option value="<?php echo (int)$u['id']; ?>"><?php echo htmlspecialchars($u['label']); ?></option>
+              <option value="<?php echo (int)$u['id']; ?>"><?php echo esc_view($u['label']); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

@@ -84,7 +84,7 @@
                                 <?php foreach($by_category as $c): ?>
                                 <tr>
                                     <td>
-                                        <span class="fw-medium text-dark"><?php echo htmlspecialchars($c->name); ?></span>
+                                        <span class="fw-medium text-dark"><?php echo esc_view($c->name); ?></span>
                                         <div class="small text-muted"><?php echo $c->count; ?> claims</div>
                                     </td>
                                     <td class="text-end fw-bold"><?php echo number_format($c->total, 2); ?></td>
@@ -120,7 +120,7 @@
                                             <div class="avatar-xs rounded-circle bg-light d-flex align-items-center justify-content-center me-2" style="width:24px;height:24px;font-size:10px;">
                                                 <?php echo strtoupper(substr($u->username, 0, 1)); ?>
                                             </div>
-                                            <span><?php echo htmlspecialchars($u->username); ?></span>
+                                            <span><?php echo esc_view($u->username); ?></span>
                                         </div>
                                         <div class="small text-muted ps-4 ms-1"><?php echo $u->count; ?> claims</div>
                                     </td>

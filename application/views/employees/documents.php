@@ -5,10 +5,10 @@
         <div class="text-uppercase text-muted small mb-1">Employee Documents</div>
         <h1 class="h5 mb-1">
           #<?php echo (int)$employee->id; ?>
-          <?php echo htmlspecialchars(trim((isset($employee->first_name) ? $employee->first_name : '').' '.(isset($employee->last_name) ? $employee->last_name : ''))); ?>
+          <?php echo esc_view(trim((isset($employee->first_name) ? $employee->first_name : '').' '.(isset($employee->last_name) ? $employee->last_name : ''))); ?>
         </h1>
         <?php if (!empty($employee->email)) : ?>
-          <div class="text-muted small"><?php echo htmlspecialchars($employee->email); ?></div>
+          <div class="text-muted small"><?php echo esc_view($employee->email); ?></div>
         <?php endif; ?>
       </div>
       <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end">
@@ -17,10 +17,10 @@
     </div>
   </div>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <div class="row g-3">
     <div class="col-md-4">
@@ -60,12 +60,12 @@
             <?php if (!empty($documents)): foreach ($documents as $d): ?>
               <tr>
                 <td><?php echo (int)$d->id; ?></td>
-                <td><?php echo htmlspecialchars(isset($d->doc_type) ? $d->doc_type : ''); ?></td>
+                <td><?php echo esc_view(isset($d->doc_type) ? $d->doc_type : ''); ?></td>
                 <td>
                   <a href="<?php echo site_url('employees/documents/'.(int)$d->id.'/download'); ?>">
                     <?php
                       $label = isset($d->original_name) && $d->original_name !== '' ? $d->original_name : (isset($d->file_path) ? basename($d->file_path) : '');
-                      echo htmlspecialchars($label);
+                      echo esc_view($label);
                     ?>
                   </a>
                 </td>
@@ -77,7 +77,7 @@
                     }
                   ?>
                 </td>
-                <td><?php echo htmlspecialchars(isset($d->uploaded_at) ? $d->uploaded_at : ''); ?></td>
+                <td><?php echo esc_view(isset($d->uploaded_at) ? $d->uploaded_at : ''); ?></td>
                 <td class="text-end">
                   <?php $roleId = (int)$this->session->userdata('role_id'); ?>
                   <?php if (in_array($roleId, [1,2], true)): ?>

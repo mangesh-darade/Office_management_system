@@ -658,7 +658,7 @@ class Auth extends CI_Controller {
                     $this->email->to($email);
                     $this->email->subject('Verify your email address');
                     $link = site_url('auth/verify?token='.$verifyToken);
-                    $message = '<p>Hello'.($full_name ? ' '.htmlspecialchars($full_name, ENT_QUOTES, 'UTF-8') : '').',</p>';
+                    $message = '<p>Hello'.($full_name ? ' '.esc_view($full_name) : '').',</p>';
                     $message .= '<p>Please verify your email address by clicking the link below:</p>';
                     $message .= '<p><a href="'.$link.'">'.$link.'</a></p>';
                     $message .= '<p>If you did not request this account, you can ignore this email.</p>';

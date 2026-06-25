@@ -19,7 +19,7 @@
         <div class="col-md-3">
           <label class="form-label">Search</label>
           <input type="text" name="search" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['search']) ? $filters['search'] : ''); ?>" placeholder="Title or Req #">
+                 value="<?php echo esc_view(isset($filters['search']) ? $filters['search'] : ''); ?>" placeholder="Title or Req #">
         </div>
         <div class="col-md-2">
           <label class="form-label">Status</label>
@@ -44,7 +44,7 @@
           <select name="client_id" class="form-select form-select-sm">
             <option value="">All Clients</option>
             <?php foreach($filter_options['clients'] as $client): ?>
-              <option value="<?php echo $client->id; ?>" <?php echo (isset($filters['client_id']) && $filters['client_id'] == $client->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($client->company_name); ?></option>
+              <option value="<?php echo $client->id; ?>" <?php echo (isset($filters['client_id']) && $filters['client_id'] == $client->id) ? 'selected' : ''; ?>><?php echo esc_view($client->company_name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -53,19 +53,19 @@
           <select name="project_id" class="form-select form-select-sm">
             <option value="">All Projects</option>
             <?php foreach($filter_options['projects'] as $project): ?>
-              <option value="<?php echo $project->id; ?>" <?php echo (isset($filters['project_id']) && $filters['project_id'] == $project->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($project->name); ?></option>
+              <option value="<?php echo $project->id; ?>" <?php echo (isset($filters['project_id']) && $filters['project_id'] == $project->id) ? 'selected' : ''; ?>><?php echo esc_view($project->name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-2">
           <label class="form-label">Date From</label>
           <input type="date" name="date_from" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">Date To</label>
           <input type="date" name="date_to" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">&nbsp;</label>
@@ -175,15 +175,15 @@
                 <tr>
                   <td><span class="badge bg-secondary"><?php echo (int)$r->id; ?></span></td>
                   <td>
-                    <div class="fw-semibold text-truncate" title="<?php echo htmlspecialchars($r->title); ?>"><?php echo htmlspecialchars($r->title); ?></div>
-                    <div class="small text-muted"><?php echo htmlspecialchars(function_exists('module_type_label') ? module_type_label($r->requirement_type, 'requirements') : ucfirst(str_replace('_', ' ', $r->requirement_type))); ?></div>
+                    <div class="fw-semibold text-truncate" title="<?php echo esc_view($r->title); ?>"><?php echo esc_view($r->title); ?></div>
+                    <div class="small text-muted"><?php echo esc_view(function_exists('module_type_label') ? module_type_label($r->requirement_type, 'requirements') : ucfirst(str_replace('_', ' ', $r->requirement_type))); ?></div>
                     <?php if ($r->budget_estimate): ?>
                       <div class="small text-success">₹<?php echo number_format($r->budget_estimate, 2); ?></div>
                     <?php endif; ?>
                   </td>
-                  <td><?php echo htmlspecialchars($r->client_name ?: '—'); ?></td>
-                  <td><?php echo htmlspecialchars($r->project_name ?: '—'); ?></td>
-                  <td><?php echo htmlspecialchars($r->owner ?: '—'); ?></td>
+                  <td><?php echo esc_view($r->client_name ?: '—'); ?></td>
+                  <td><?php echo esc_view($r->project_name ?: '—'); ?></td>
+                  <td><?php echo esc_view($r->owner ?: '—'); ?></td>
                   <td><?php $this->load->view('partials/priority_badge', ['priority' => $r->priority]); ?></td>
                   <td><?php $this->load->view('partials/status_badge', ['status' => $r->req_status]); ?></td>
                   <td>

@@ -51,7 +51,7 @@
         toastEl.setAttribute('aria-atomic', 'true');
         toastEl.setAttribute('data-bs-autohide', 'true');
         toastEl.setAttribute('data-bs-delay', '3000');
-        toastEl.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-check-circle-fill me-2"></i><strong>Success!</strong> <?php echo htmlspecialchars($this->session->flashdata('success')); ?></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+        toastEl.innerHTML = '<div class="d-flex"><div class="toast-body"><i class="bi bi-check-circle-fill me-2"></i><strong>Success!</strong> <?php echo esc_view($this->session->flashdata('success')); ?></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
         document.querySelector('.toast-container').appendChild(toastEl);
         var toast = new bootstrap.Toast(toastEl);
         toast.show();
@@ -72,7 +72,7 @@
         toastEl.setAttribute('aria-atomic', 'true');
         toastEl.setAttribute('data-bs-autohide', 'true');
         toastEl.setAttribute('data-bs-delay', '5000');
-        var errorMsg = '<?php echo htmlspecialchars($this->session->flashdata('error')); ?>';
+        var errorMsg = '<?php echo esc_view($this->session->flashdata('error')); ?>';
         var tipHtml = '';
         <?php if(strpos($this->session->flashdata('error'), 'Face verification') !== false): ?>
           tipHtml = '<div class="mt-2 small"><i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Make sure you\'re in good lighting and facing the camera directly.</div>';
@@ -115,9 +115,9 @@
               toastEl.setAttribute('data-bs-delay', '5000');
               var msg = '';
               <?php if($attendance_status['has_checkin'] && $attendance_status['has_checkout']): ?>
-                msg = '<i class="bi bi-info-circle-fill me-2"></i><strong>Today\'s Attendance Status:</strong><div class="mt-2"><div><i class="bi bi-check-circle"></i> Check-in: <strong><?php echo htmlspecialchars($attendance_status['checkin_time']); ?></strong></div><div><i class="bi bi-check-circle"></i> Check-out: <strong><?php echo htmlspecialchars($attendance_status['checkout_time']); ?></strong></div><div class="mt-2 small">You have already completed attendance for today.</div></div>';
+                msg = '<i class="bi bi-info-circle-fill me-2"></i><strong>Today\'s Attendance Status:</strong><div class="mt-2"><div><i class="bi bi-check-circle"></i> Check-in: <strong><?php echo esc_view($attendance_status['checkin_time']); ?></strong></div><div><i class="bi bi-check-circle"></i> Check-out: <strong><?php echo esc_view($attendance_status['checkout_time']); ?></strong></div><div class="mt-2 small">You have already completed attendance for today.</div></div>';
               <?php elseif($attendance_status['has_checkin']): ?>
-                msg = '<i class="bi bi-info-circle-fill me-2"></i><strong>Today\'s Attendance Status:</strong><div class="mt-2"><div><i class="bi bi-check-circle"></i> Check-in: <strong><?php echo htmlspecialchars($attendance_status['checkin_time']); ?></strong></div><div class="mt-2 small">You have already checked in today. You can now check out.</div></div>';
+                msg = '<i class="bi bi-info-circle-fill me-2"></i><strong>Today\'s Attendance Status:</strong><div class="mt-2"><div><i class="bi bi-check-circle"></i> Check-in: <strong><?php echo esc_view($attendance_status['checkin_time']); ?></strong></div><div class="mt-2 small">You have already checked in today. You can now check out.</div></div>';
               <?php endif; ?>
               toastEl.innerHTML = '<div class="d-flex"><div class="toast-body">' + msg + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
               var container = document.querySelector('.toast-container');
@@ -166,12 +166,12 @@
               <strong>Attendance complete for today.</strong>
               <?php if ($st_in_label !== '' || $st_out_label !== ''): ?>
                 <div class="small mt-1">
-                  <?php if ($st_in_label !== ''): ?>In <?php echo htmlspecialchars($st_in_label); ?><?php endif; ?>
-                  <?php if ($st_out_label !== ''): ?><?php echo $st_in_label !== '' ? ' · ' : ''; ?>Out <?php echo htmlspecialchars($st_out_label); ?><?php endif; ?>
+                  <?php if ($st_in_label !== ''): ?>In <?php echo esc_view($st_in_label); ?><?php endif; ?>
+                  <?php if ($st_out_label !== ''): ?><?php echo $st_in_label !== '' ? ' · ' : ''; ?>Out <?php echo esc_view($st_out_label); ?><?php endif; ?>
                 </div>
               <?php endif; ?>
             <?php elseif ($st_in): ?>
-              <strong>You're checked in<?php echo $st_in_label !== '' ? ' at ' . htmlspecialchars($st_in_label) : ''; ?>.</strong>
+              <strong>You're checked in<?php echo $st_in_label !== '' ? ' at ' . esc_view($st_in_label) : ''; ?>.</strong>
               <div class="small mt-1">Select <strong>Check OUT</strong> below when you finish for the day.</div>
             <?php else: ?>
               <strong>Ready to start your day.</strong>
@@ -218,7 +218,7 @@
               <div>
                 <strong>Today is a company holiday.</strong>
                 <?php if (!empty($holiday_name)): ?>
-                  <span class="ms-1"><?php echo htmlspecialchars($holiday_name); ?></span>
+                  <span class="ms-1"><?php echo esc_view($holiday_name); ?></span>
                 <?php endif; ?>
                 <div class="small text-muted">Attendance marking is disabled on company holidays.</div>
               </div>

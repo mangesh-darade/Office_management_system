@@ -25,7 +25,7 @@
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
-      <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
+      <i class="bi bi-check-circle me-2"></i><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -48,8 +48,8 @@
                 <div class="lead-map-card h-100 p-3 bg-white">
                   <div class="d-flex align-items-start justify-content-between mb-2">
                     <div>
-                      <h6 class="mb-1 fw-bold"><?php echo htmlspecialchars($leadName, ENT_QUOTES, 'UTF-8'); ?></h6>
-                      <div class="text-muted small"><?php echo htmlspecialchars((string)$lead->email, ENT_QUOTES, 'UTF-8'); ?></div>
+                      <h6 class="mb-1 fw-bold"><?php echo esc_view($leadName); ?></h6>
+                      <div class="text-muted small"><?php echo esc_view((string)$lead->email, ENT_QUOTES, 'UTF-8'); ?></div>
                     </div>
                     <span class="badge badge-soft"><?php echo (int)count($selected); ?> mapped</span>
                   </div>
@@ -79,7 +79,7 @@
                         $userName = trim((string)$u->name) !== '' ? (string)$u->name : ('User #' . (int)$u->id);
                       ?>
                       <option value="<?php echo (int)$u->id; ?>" <?php echo in_array((int)$u->id, $selected, true) ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($userName . ' (' . (string)$u->email . ')', ENT_QUOTES, 'UTF-8'); ?>
+                        <?php echo esc_view($userName . ' (' . (string)$u->email . ')', ENT_QUOTES, 'UTF-8'); ?>
                       </option>
                     <?php endforeach; ?>
                   </select>

@@ -65,7 +65,7 @@ class Install extends CI_Controller {
         echo '<p class="text-muted">Executed statements: <strong>' . (int)$executed . '</strong></p>';
         if ($errors) {
             echo '<div class="alert alert-danger"><strong>Errors:</strong><ul class="mb-0">';
-            foreach ($errors as $err) echo '<li><code>' . htmlspecialchars($err) . '</code></li>';
+            foreach ($errors as $err) echo '<li><code>' . esc_view($err) . '</code></li>';
             echo '</ul></div>';
         } else {
             echo '<div class="alert alert-success">All statements executed successfully.</div>';

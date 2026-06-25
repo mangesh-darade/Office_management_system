@@ -84,6 +84,9 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
       <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='elintom-proposals'?'active':''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
+      <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>

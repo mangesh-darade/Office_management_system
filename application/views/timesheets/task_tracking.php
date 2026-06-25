@@ -5,7 +5,7 @@
       <h4 class="mb-1 fw-bold"><i class="bi bi-stopwatch text-primary me-2"></i>Task Time Tracking</h4>
       <p class="text-muted small mb-0">
         <?php if (!empty($task)): ?>
-          <?php echo htmlspecialchars($task->title); ?> (#<?php echo (int) $task->id; ?>)
+          <?php echo esc_view($task->title); ?> (#<?php echo (int) $task->id; ?>)
         <?php else: ?>
           Task #<?php echo (int) $this->uri->segment(3); ?>
         <?php endif; ?>
@@ -19,11 +19,11 @@
       <form method="get" class="row g-2 align-items-end">
         <div class="col-6 col-md-3">
           <label class="form-label small mb-0">From</label>
-          <input type="date" name="start_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($start_date); ?>">
+          <input type="date" name="start_date" class="form-control form-control-sm" value="<?php echo esc_view($start_date); ?>">
         </div>
         <div class="col-6 col-md-3">
           <label class="form-label small mb-0">To</label>
-          <input type="date" name="end_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($end_date); ?>">
+          <input type="date" name="end_date" class="form-control form-control-sm" value="<?php echo esc_view($end_date); ?>">
         </div>
         <div class="col-12 col-md-2">
           <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
@@ -48,8 +48,8 @@
           <?php if (!empty($tracking)): ?>
             <?php $sum = 0; foreach ($tracking as $r): $sum += (float) $r->total_hours; ?>
               <tr>
-                <td><?php echo htmlspecialchars($r->user_email); ?></td>
-                <td><?php echo htmlspecialchars($r->project_name ? $r->project_name : '—'); ?></td>
+                <td><?php echo esc_view($r->user_email); ?></td>
+                <td><?php echo esc_view($r->project_name ? $r->project_name : '—'); ?></td>
                 <td class="fw-semibold"><?php echo number_format((float) $r->total_hours, 2); ?></td>
                 <td><?php echo number_format((float) $r->billable_hours, 2); ?></td>
                 <td><?php echo (int) $r->entry_count; ?></td>

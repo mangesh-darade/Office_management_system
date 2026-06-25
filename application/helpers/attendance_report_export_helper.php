@@ -218,7 +218,7 @@ if (!function_exists('attendance_report_employee_summary_pdf_html')) {
     <h1>Employee Attendance Report</h1>
     <div class="header-info">
         <p><strong>Period:</strong> ' . ucfirst($period) . '</p>
-        <p><strong>Date Range:</strong> ' . htmlspecialchars($from) . ' to ' . htmlspecialchars($to) . '</p>
+        <p><strong>Date Range:</strong> ' . esc_view($from) . ' to ' . esc_view($to) . '</p>
         <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
     </div>
     <table>
@@ -241,7 +241,7 @@ if (!function_exists('attendance_report_employee_summary_pdf_html')) {
         
         foreach ($users as $user) {
             $uid = (int)$user->id;
-            $name = isset($user->name) ? htmlspecialchars($user->name) : 'Unknown';
+            $name = isset($user->name) ? esc_view($user->name) : 'Unknown';
             $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
 
             $lateDays  = isset($data['late']) ? (float)$data['late'] : 0.0;
@@ -329,9 +329,9 @@ if (!function_exists('attendance_report_export_period')) {
             
             foreach ($exportData as $row) {
                 $html .= '<tr>';
-                $html .= '<td>' . htmlspecialchars($row->name) . '</td>';
-                $html .= '<td>' . htmlspecialchars($row->bucket) . '</td>';
-                $html .= '<td>' . htmlspecialchars($row->status) . '</td>';
+                $html .= '<td>' . esc_view($row->name) . '</td>';
+                $html .= '<td>' . esc_view($row->bucket) . '</td>';
+                $html .= '<td>' . esc_view($row->status) . '</td>';
                 $html .= '<td>' . $row->cnt . '</td>';
                 $html .= '</tr>';
             }
@@ -497,8 +497,8 @@ if (!function_exists('attendance_report_export_employee_detail_excel')) {
             </style></head><body>';
             
             $html .= '<h3>Employee Attendance Detail Report</h3>';
-            $html .= '<p><strong>User:</strong> ' . htmlspecialchars($userName) . '<br>';
-            $html .= '<strong>Period:</strong> ' . htmlspecialchars($period) . '<br>';
+            $html .= '<p><strong>User:</strong> ' . esc_view($userName) . '<br>';
+            $html .= '<strong>Period:</strong> ' . esc_view($period) . '<br>';
             $html .= '<strong>Present:</strong> ' . $stats['present'] . ' | <strong>Late:</strong> ' . $stats['late'] . ' | <strong>On Time:</strong> ' . $stats['on_time'] . ' | <strong>Absent:</strong> ' . $stats['absent'] . ' | <strong>WFH:</strong> ' . $stats['wfh'] . ' | <strong>Leave:</strong> ' . $stats['leave'] . '<br>';
             $html .= '<strong>Total Worked:</strong> ' . sprintf('%02d:%02d:%02d', floor($stats['total_worked_secs']/3600), floor(($stats['total_worked_secs']%3600)/60), $stats['total_worked_secs']%60) . ' | <strong>Total Extra:</strong> ' . sprintf('%02d:%02d:%02d', floor($stats['total_extra_secs']/3600), floor(($stats['total_extra_secs']%3600)/60), $stats['total_extra_secs']%60) . '</p>';
 
@@ -529,17 +529,17 @@ if (!function_exists('attendance_report_export_employee_detail_excel')) {
                 $lateStyle = $isLate ? ' style="color: red; font-weight: bold;"' : '';
                 
                 $html .= '<tr>
-                    <td' . $lateStyle . '>' . htmlspecialchars($day->date) . '</td>
-                    <td>' . htmlspecialchars($day->status) . '</td>
-                    <td>' . htmlspecialchars($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
-                    <td>' . htmlspecialchars($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
-                    <td>' . htmlspecialchars($day->check_in_location !== '—' ? $day->check_in_location : '') . '</td>
-                    <td>' . htmlspecialchars($day->check_out_location !== '—' ? $day->check_out_location : '') . '</td>
-                    <td' . $lateStyle . '>' . htmlspecialchars($day->late !== '—' ? $day->late : '') . '</td>
+                    <td' . $lateStyle . '>' . esc_view($day->date) . '</td>
+                    <td>' . esc_view($day->status) . '</td>
+                    <td>' . esc_view($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
+                    <td>' . esc_view($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
+                    <td>' . esc_view($day->check_in_location !== '—' ? $day->check_in_location : '') . '</td>
+                    <td>' . esc_view($day->check_out_location !== '—' ? $day->check_out_location : '') . '</td>
+                    <td' . $lateStyle . '>' . esc_view($day->late !== '—' ? $day->late : '') . '</td>
                     <td>' . ($ws > 0 ? sprintf('%02d:%02d:%02d', floor($ws/3600), floor(($ws%3600)/60), $ws%60) : '') . '</td>
                     <td>' . ($es > 0 ? sprintf('%02d:%02d:%02d', floor($es/3600), floor(($es%3600)/60), $es%60) : '') . '</td>
-                    <td>' . htmlspecialchars($day->leave !== '—' ? $day->leave : '') . '</td>
-                    <td>' . htmlspecialchars($day->notes !== '—' ? $day->notes : '') . '</td>
+                    <td>' . esc_view($day->leave !== '—' ? $day->leave : '') . '</td>
+                    <td>' . esc_view($day->notes !== '—' ? $day->notes : '') . '</td>
                 </tr>';
             }
             $html .= '</tbody></table></body></html>';
@@ -588,9 +588,9 @@ if (!function_exists('attendance_report_export_employee_detail_pdf')) {
 <body>
     <h1>Employee Attendance Detail Report</h1>
     <div class="header-info">
-        <p><strong>Employee:</strong> ' . htmlspecialchars($userName) . ' (ID: ' . $user_id . ')</p>
-        <p><strong>Period:</strong> ' . ucfirst($period) . ' - ' . htmlspecialchars($periodLabel) . '</p>
-        <p><strong>Date Range:</strong> ' . htmlspecialchars($from) . ' to ' . htmlspecialchars($to) . '</p>
+        <p><strong>Employee:</strong> ' . esc_view($userName) . ' (ID: ' . $user_id . ')</p>
+        <p><strong>Period:</strong> ' . ucfirst($period) . ' - ' . esc_view($periodLabel) . '</p>
+        <p><strong>Date Range:</strong> ' . esc_view($from) . ' to ' . esc_view($to) . '</p>
         <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
     </div>';
             // Calculate stats
@@ -651,17 +651,17 @@ if (!function_exists('attendance_report_export_employee_detail_pdf')) {
                 $lateStyle = $isLate ? ' style="color: red; font-weight: bold;"' : '';
                 
                 $html .= '<tr>
-                    <td' . $lateStyle . '>' . htmlspecialchars($day->date) . '</td>
-                    <td>' . htmlspecialchars($day->status) . '</td>
-                    <td>' . htmlspecialchars($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
-                    <td>' . htmlspecialchars($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
-                    <td>' . htmlspecialchars($day->check_in_location !== '—' ? (strlen($day->check_in_location) > 30 ? substr($day->check_in_location, 0, 30) . '...' : $day->check_in_location) : '') . '</td>
-                    <td>' . htmlspecialchars($day->check_out_location !== '—' ? (strlen($day->check_out_location) > 30 ? substr($day->check_out_location, 0, 30) . '...' : $day->check_out_location) : '') . '</td>
-                    <td' . $lateStyle . '>' . htmlspecialchars($day->late !== '—' ? $day->late : '') . '</td>
+                    <td' . $lateStyle . '>' . esc_view($day->date) . '</td>
+                    <td>' . esc_view($day->status) . '</td>
+                    <td>' . esc_view($day->check_in_time !== '—' ? $day->check_in_time : '') . '</td>
+                    <td>' . esc_view($day->check_out_time !== '—' ? $day->check_out_time : '') . '</td>
+                    <td>' . esc_view($day->check_in_location !== '—' ? (strlen($day->check_in_location) > 30 ? substr($day->check_in_location, 0, 30) . '...' : $day->check_in_location) : '') . '</td>
+                    <td>' . esc_view($day->check_out_location !== '—' ? (strlen($day->check_out_location) > 30 ? substr($day->check_out_location, 0, 30) . '...' : $day->check_out_location) : '') . '</td>
+                    <td' . $lateStyle . '>' . esc_view($day->late !== '—' ? $day->late : '') . '</td>
                     <td>' . ($ws > 0 ? sprintf('%02d:%02d:%02d', floor($ws/3600), floor(($ws%3600)/60), $ws%60) : '') . '</td>
                     <td>' . ($es > 0 ? sprintf('%02d:%02d:%02d', floor($es/3600), floor(($es%3600)/60), $es%60) : '') . '</td>
-                    <td>' . htmlspecialchars($day->leave !== '—' ? $day->leave : '') . '</td>
-                    <td>' . htmlspecialchars($day->notes !== '—' ? (strlen($day->notes) > 50 ? substr($day->notes, 0, 50) . '...' : $day->notes) : '') . '</td>
+                    <td>' . esc_view($day->leave !== '—' ? $day->leave : '') . '</td>
+                    <td>' . esc_view($day->notes !== '—' ? (strlen($day->notes) > 50 ? substr($day->notes, 0, 50) . '...' : $day->notes) : '') . '</td>
                 </tr>';
             }
             

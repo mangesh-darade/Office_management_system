@@ -6,14 +6,14 @@
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="bi bi-check-circle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <?php echo esc_view($this->session->flashdata('success')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -23,11 +23,11 @@
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Code</label>
-          <input type="text" name="designation_code" class="form-control" value="<?php echo htmlspecialchars(isset($row) && isset($row->designation_code) ? $row->designation_code : ''); ?>" required>
+          <input type="text" name="designation_code" class="form-control" value="<?php echo esc_view(isset($row) && isset($row->designation_code) ? $row->designation_code : ''); ?>" required>
         </div>
         <div class="col-md-8">
           <label class="form-label">Name</label>
-          <input type="text" name="designation_name" class="form-control" value="<?php echo htmlspecialchars(isset($row) && isset($row->designation_name) ? $row->designation_name : ''); ?>" required>
+          <input type="text" name="designation_name" class="form-control" value="<?php echo esc_view(isset($row) && isset($row->designation_name) ? $row->designation_name : ''); ?>" required>
         </div>
         <div class="col-md-6">
           <label class="form-label">Department</label>
@@ -36,13 +36,13 @@
             <?php if (isset($departments) && is_array($departments)):
               $currentDept = (isset($row) && isset($row->department_id)) ? (int)$row->department_id : 0;
               foreach ($departments as $d): ?>
-                <option value="<?php echo (int)$d->id; ?>" <?php echo ($currentDept === (int)$d->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($d->dept_name); ?></option>
+                <option value="<?php echo (int)$d->id; ?>" <?php echo ($currentDept === (int)$d->id) ? 'selected' : ''; ?>><?php echo esc_view($d->dept_name); ?></option>
             <?php endforeach; endif; ?>
           </select>
         </div>
         <div class="col-md-3">
           <label class="form-label">Level</label>
-          <input type="number" name="level" min="1" class="form-control" value="<?php echo htmlspecialchars((string)(isset($row) && isset($row->level) ? (int)$row->level : 1)); ?>">
+          <input type="number" name="level" min="1" class="form-control" value="<?php echo esc_view((string)(isset($row) && isset($row->level) ? (int)$row->level : 1)); ?>">
         </div>
       </div>
       <div class="mt-4">

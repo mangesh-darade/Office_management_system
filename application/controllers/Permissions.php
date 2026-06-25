@@ -340,6 +340,8 @@ class Permissions extends CI_Controller {
                     'clients_export'       => 'Export Clients CSV',
                     'subscription_builder'       => 'Subscription Builder (Full Access)',
                     'subscription_builder_list'  => 'View Subscription Builder Catalog',
+                    'elintom_proposals'          => 'ElintOm Proposals (Full Access)',
+                    'elintom_proposals_list'     => 'View ElintOm Proposals',
                     'payroll'              => 'Payroll (Full Access)',
                     'payroll_view'         => 'View Own Payslips',
                     'payroll_manage'       => 'Manage Salary Structures & Generate Payslips',

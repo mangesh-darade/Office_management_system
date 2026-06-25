@@ -19,7 +19,7 @@
     <div class="row g-3 align-items-end">
       <div class="col-12 col-xl-5">
         <label class="form-label">SQL File Path</label>
-        <input class="form-control" id="cmpFilePath" value="<?php echo isset($sql_file_default)?htmlspecialchars($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
+        <input class="form-control" id="cmpFilePath" value="<?php echo isset($sql_file_default)?esc_view($sql_file_default):''; ?>" placeholder="C:\\path\\to\\dump.sql" />
       </div>
       <?php if (isset($clients) && is_array($clients) && !empty($clients)): ?>
       <div class="col-12 col-md-4 col-xl-4">
@@ -28,11 +28,11 @@
           <option value="">-- Select client --</option>
           <?php foreach ($clients as $cl): ?>
             <option value="<?php echo (int)$cl->id; ?>"
-                    data-pos-url="<?php echo htmlspecialchars(isset($cl->pos_url)?$cl->pos_url:''); ?>"
-                    data-db-name="<?php echo htmlspecialchars(isset($cl->db_name)?$cl->db_name:''); ?>"
-                    data-db-user="<?php echo htmlspecialchars(isset($cl->db_username)?$cl->db_username:''); ?>"
-                    data-db-pass="<?php echo htmlspecialchars(isset($cl->db_password)?$cl->db_password:''); ?>">
-              <?php echo htmlspecialchars($cl->company_name); ?>
+                    data-pos-url="<?php echo esc_view(isset($cl->pos_url)?$cl->pos_url:''); ?>"
+                    data-db-name="<?php echo esc_view(isset($cl->db_name)?$cl->db_name:''); ?>"
+                    data-db-user="<?php echo esc_view(isset($cl->db_username)?$cl->db_username:''); ?>"
+                    data-db-pass="<?php echo esc_view(isset($cl->db_password)?$cl->db_password:''); ?>">
+              <?php echo esc_view($cl->company_name); ?>
             </option>
           <?php endforeach; ?>
         </select>

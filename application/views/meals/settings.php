@@ -8,8 +8,8 @@ $this->load->view('partials/oms_page_head', [
 ]);
 $this->load->view('meals/_nav', ['active_sub' => 'settings']);
 ?>
-<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div><?php endif; ?>
-<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
 
 <form method="post" id="meal-settings-form">
 <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
@@ -22,12 +22,12 @@ $this->load->view('meals/_nav', ['active_sub' => 'settings']);
       <div class="card-body">
         <div class="mb-3">
           <label class="form-label">Breakfast cut-off</label>
-          <input type="time" name="breakfast_cutoff" class="form-control" value="<?php echo htmlspecialchars(substr($settings['breakfast_cutoff'], 0, 5)); ?>" required>
+          <input type="time" name="breakfast_cutoff" class="form-control" value="<?php echo esc_view(substr($settings['breakfast_cutoff'], 0, 5)); ?>" required>
           <div class="form-text">Default <strong>08:30</strong> — after this, breakfast plates lock each day.</div>
         </div>
         <div class="mb-3">
           <label class="form-label">Lunch cut-off</label>
-          <input type="time" name="lunch_cutoff" class="form-control" value="<?php echo htmlspecialchars(substr($settings['lunch_cutoff'], 0, 5)); ?>" required>
+          <input type="time" name="lunch_cutoff" class="form-control" value="<?php echo esc_view(substr($settings['lunch_cutoff'], 0, 5)); ?>" required>
           <div class="form-text">Default <strong>11:00</strong> — after this, lunch tiffin choice locks each day.</div>
         </div>
         <div class="mb-3">
@@ -40,7 +40,7 @@ $this->load->view('meals/_nav', ['active_sub' => 'settings']);
         </div>
         <div class="mb-0 pt-3 border-top">
           <label class="form-label" for="provider_contact"><i class="bi bi-telephone me-1"></i>Provider contact number</label>
-          <input type="text" name="provider_contact" id="provider_contact" class="form-control" maxlength="50" placeholder="e.g. +91 98765 43210" value="<?php echo htmlspecialchars(isset($settings['provider_contact']) ? (string) $settings['provider_contact'] : '', ENT_QUOTES, 'UTF-8'); ?>">
+          <input type="text" name="provider_contact" id="provider_contact" class="form-control" maxlength="50" placeholder="e.g. +91 98765 43210" value="<?php echo esc_view(isset($settings['provider_contact']) ? (string) $settings['provider_contact'] : '', ENT_QUOTES, 'UTF-8'); ?>">
           <div class="form-text">Shown on <strong>My Orders</strong> under today&apos;s date as <em>Contact us</em> for help after meals lock.</div>
         </div>
       </div>
@@ -94,11 +94,11 @@ $this->load->view('meals/_nav', ['active_sub' => 'settings']);
             $hasLu = $row && (int)$row->has_lunch === 1;
           ?>
             <tr>
-              <td class="fw-semibold"><?php echo htmlspecialchars($label); ?></td>
+              <td class="fw-semibold"><?php echo esc_view($label); ?></td>
               <td class="text-center"><input type="checkbox" name="week_menu[<?php echo $dow; ?>][has_breakfast]" value="1" <?php echo $hasBf ? 'checked' : ''; ?>></td>
-              <td><input type="text" class="form-control form-control-sm" name="week_menu[<?php echo $dow; ?>][breakfast_menu]" value="<?php echo $row ? htmlspecialchars((string)$row->breakfast_menu) : ''; ?>" placeholder="e.g. Poha, Tea"></td>
+              <td><input type="text" class="form-control form-control-sm" name="week_menu[<?php echo $dow; ?>][breakfast_menu]" value="<?php echo $row ? esc_view((string)$row->breakfast_menu) : ''; ?>" placeholder="e.g. Poha, Tea"></td>
               <td class="text-center"><input type="checkbox" name="week_menu[<?php echo $dow; ?>][has_lunch]" value="1" <?php echo $hasLu ? 'checked' : ''; ?>></td>
-              <td><input type="text" class="form-control form-control-sm" name="week_menu[<?php echo $dow; ?>][lunch_menu]" value="<?php echo $row ? htmlspecialchars((string)$row->lunch_menu) : ''; ?>" placeholder="e.g. Dal, Rice"></td>
+              <td><input type="text" class="form-control form-control-sm" name="week_menu[<?php echo $dow; ?>][lunch_menu]" value="<?php echo $row ? esc_view((string)$row->lunch_menu) : ''; ?>" placeholder="e.g. Dal, Rice"></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
@@ -123,7 +123,7 @@ $this->load->view('meals/_nav', ['active_sub' => 'settings']);
       <input type="hidden" name="action" value="apply_week">
       <div class="col-auto">
         <label class="form-label">Week starting (Monday)</label>
-        <input type="date" name="week_start" class="form-control" value="<?php echo htmlspecialchars($default_week_start); ?>" required>
+        <input type="date" name="week_start" class="form-control" value="<?php echo esc_view($default_week_start); ?>" required>
       </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-outline-primary" onclick="return confirm('Apply weekly menu to this calendar week? Existing dates will be updated.');"><i class="bi bi-arrow-repeat me-1"></i>Apply to calendar</button>

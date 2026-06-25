@@ -4,10 +4,10 @@
   <a class="btn btn-light btn-sm" href="<?php echo site_url('clients'); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -93,7 +93,7 @@
             <option value="">-- Select --</option>
             <?php if (isset($managers) && is_array($managers)) foreach ($managers as $m): ?>
               <?php $label = isset($m->full_name) && $m->full_name !== '' ? $m->full_name : (isset($m->name) && $m->name !== '' ? $m->name : $m->email); ?>
-              <option value="<?php echo (int)$m->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>"><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

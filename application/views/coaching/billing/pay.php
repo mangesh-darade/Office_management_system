@@ -11,10 +11,10 @@
   <div class="card shadow">
     <div class="card-body">
       <h1 class="h5 mb-1">Pay ₹<?php echo number_format((float) $installment->amount, 2); ?></h1>
-      <p class="text-muted small mb-3">Installment #<?php echo (int) $installment->installment_no; ?> · Due <?php echo htmlspecialchars($installment->due_date); ?></p>
+      <p class="text-muted small mb-3">Installment #<?php echo (int) $installment->installment_no; ?> · Due <?php echo esc_view($installment->due_date); ?></p>
 
       <?php if (!empty($razorpay_error)): ?>
-        <div class="alert alert-danger small"><?php echo htmlspecialchars($razorpay_error); ?></div>
+        <div class="alert alert-danger small"><?php echo esc_view($razorpay_error); ?></div>
         <form method="post" action="<?php echo site_url('coaching-payments/confirm-manual/' . (int) $installment->id); ?>" class="d-inline">
           <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
           <button type="submit" class="btn btn-outline-primary">Record manual payment</button>

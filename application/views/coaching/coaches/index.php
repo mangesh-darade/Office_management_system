@@ -14,12 +14,12 @@
 <tbody>
 <?php if (empty($rows)): ?><tr><td colspan="7" class="text-muted">No coaches yet.</td></tr><?php else: foreach ($rows as $r): ?>
 <tr>
-<td><?php echo htmlspecialchars($r->name ? $r->name : ''); ?></td>
-<td><?php echo htmlspecialchars($r->email ? $r->email : ''); ?></td>
-<td><?php echo htmlspecialchars($r->title ? $r->title : ''); ?></td>
+<td><?php echo esc_view($r->name ? $r->name : ''); ?></td>
+<td><?php echo esc_view($r->email ? $r->email : ''); ?></td>
+<td><?php echo esc_view($r->title ? $r->title : ''); ?></td>
 <td>₹<?php echo number_format((float) $r->hourly_rate, 2); ?></td>
 <td><?php echo number_format((float) $r->commission_pct, 1); ?>%</td>
-<td><?php echo htmlspecialchars($r->status); ?></td>
+<td><?php echo esc_view($r->status); ?></td>
 <td><a href="<?php echo site_url('coaching-coaches/edit/'.$r->id); ?>" class="btn btn-sm btn-outline-primary">Edit</a></td>
 </tr>
 <?php endforeach; endif; ?>

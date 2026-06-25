@@ -28,11 +28,11 @@ $this->load->view('partials/header', [
         <div class="card-body">
           <div class="d-flex align-items-center gap-3 mb-2">
             <span class="guide-module-icon rounded-circle d-inline-flex align-items-center justify-content-center">
-              <i class="bi <?php echo htmlspecialchars($mod['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
+              <i class="bi <?php echo esc_view($mod['icon']); ?>"></i>
             </span>
             <div>
-              <div class="text-muted small">Module <?php echo htmlspecialchars($mod['id'], ENT_QUOTES, 'UTF-8'); ?></div>
-              <h2 class="h6 mb-0 text-dark"><?php echo htmlspecialchars($mod['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
+              <div class="text-muted small">Module <?php echo esc_view($mod['id']); ?></div>
+              <h2 class="h6 mb-0 text-dark"><?php echo esc_view($mod['title']); ?></h2>
             </div>
           </div>
           <p class="small text-muted mb-0">Step-by-step instructions with screenshots.</p>

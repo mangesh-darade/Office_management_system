@@ -12,7 +12,7 @@ $stage_h = 'min(78vh, calc(100vh - 200px))';
     <div>
       <a href="<?php echo site_url('external-training'); ?>" class="btn btn-sm btn-outline-secondary">&larr; Back to list</a>
     </div>
-    <h1 class="h5 mb-0 text-truncate flex-grow-1 text-md-end" style="max-width: 100%;"><?php echo htmlspecialchars($row->name); ?></h1>
+    <h1 class="h5 mb-0 text-truncate flex-grow-1 text-md-end" style="max-width: 100%;"><?php echo esc_view($row->name); ?></h1>
   </div>
 
   <?php if (!empty($player) && $player === 'video'): ?>
@@ -33,19 +33,19 @@ $stage_h = 'min(78vh, calc(100vh - 200px))';
              disablepictureinpicture
              playsinline
              preload="metadata"
-             src="<?php echo htmlspecialchars($embed_url, ENT_QUOTES, 'UTF-8'); ?>"
-             title="<?php echo htmlspecialchars($row->name, ENT_QUOTES, 'UTF-8'); ?>">
+             src="<?php echo esc_view($embed_url); ?>"
+             title="<?php echo esc_view($row->name); ?>">
         <p class="text-white p-3">Your browser cannot play this video format inline.</p>
       </video>
     <?php elseif (!empty($player) && $player === 'iframe' && $embed_url !== ''): ?>
       <iframe id="et-watch-iframe"
         class="position-absolute top-0 start-0 w-100 h-100"
         style="border: 0;"
-        src="<?php echo htmlspecialchars($embed_url, ENT_QUOTES, 'UTF-8'); ?>"
+        src="<?php echo esc_view($embed_url); ?>"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"
         allowfullscreen
         referrerpolicy="strict-origin-when-cross-origin"
-        title="<?php echo htmlspecialchars($row->name, ENT_QUOTES, 'UTF-8'); ?>"></iframe>
+        title="<?php echo esc_view($row->name); ?>"></iframe>
     <?php else: ?>
       <div class="et-embed-root position-absolute top-0 start-0 w-100 h-100 overflow-auto">
         <?php echo $row->embed_code; ?>

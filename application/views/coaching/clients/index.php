@@ -23,9 +23,9 @@ $show_crm = coaching_crm_available();
 <tr><td colspan="<?php echo $show_crm ? 7 : 6; ?>" class="text-muted">No clients.</td></tr>
 <?php else: foreach ($rows as $r): ?>
 <tr>
-<td><?php echo htmlspecialchars($r->full_name); ?></td>
-<td><?php echo htmlspecialchars($r->email ? $r->email : ''); ?></td>
-<td><?php echo htmlspecialchars($r->phone ? $r->phone : ''); ?></td>
+<td><?php echo esc_view($r->full_name); ?></td>
+<td><?php echo esc_view($r->email ? $r->email : ''); ?></td>
+<td><?php echo esc_view($r->phone ? $r->phone : ''); ?></td>
 <?php if ($show_crm): ?>
 <td><?php
 if (!empty($r->crm_client_id)) {
@@ -36,13 +36,13 @@ if (!empty($r->crm_client_id)) {
     if ($crm_label === '') {
         $crm_label = '#' . (int) $r->crm_client_id;
     }
-    echo '<a href="' . site_url('clients/view/' . (int) $r->crm_client_id) . '">' . htmlspecialchars($crm_label) . '</a>';
+    echo '<a href="' . site_url('clients/view/' . (int) $r->crm_client_id) . '">' . esc_view($crm_label) . '</a>';
 } else {
     echo '—';
 }
 ?></td>
 <?php endif; ?>
-<td><?php echo htmlspecialchars($r->coach_name ? $r->coach_name : '—'); ?></td>
+<td><?php echo esc_view($r->coach_name ? $r->coach_name : '—'); ?></td>
 <td><?php echo $r->portal_enabled ? 'Yes' : 'No'; ?></td>
 <td><a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('coaching-clients/view/'.$r->id); ?>">View</a></td>
 </tr>

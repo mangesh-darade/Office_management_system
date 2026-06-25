@@ -14,7 +14,7 @@ $this->load->view('partials/header', [
           <a href="<?php echo site_url('guide'); ?>" class="list-group-item list-group-item-action small">All Modules</a>
           <?php foreach ($modules as $mod): ?>
           <a href="<?php echo site_url('guide/' . $mod['slug']); ?>" class="list-group-item list-group-item-action small <?php echo ($mod['slug'] === $module['slug']) ? 'active' : ''; ?>">
-            <?php echo htmlspecialchars($mod['id'] . '. ' . $mod['title'], ENT_QUOTES, 'UTF-8'); ?>
+            <?php echo esc_view($mod['id'] . '. ' . $mod['title']); ?>
           </a>
           <?php endforeach; ?>
         </div>
@@ -23,8 +23,8 @@ $this->load->view('partials/header', [
     <div class="col-lg-9">
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
         <div>
-          <div class="text-muted small">Module <?php echo htmlspecialchars($module['id'], ENT_QUOTES, 'UTF-8'); ?></div>
-          <h1 class="h4 mb-0"><?php echo htmlspecialchars($module['title'], ENT_QUOTES, 'UTF-8'); ?></h1>
+          <div class="text-muted small">Module <?php echo esc_view($module['id']); ?></div>
+          <h1 class="h4 mb-0"><?php echo esc_view($module['title']); ?></h1>
         </div>
         <div class="d-flex gap-2">
           <a href="<?php echo site_url('guide'); ?>" class="btn btn-outline-secondary btn-sm"><i class="bi bi-grid me-1"></i>All</a>
@@ -47,12 +47,12 @@ $this->load->view('partials/header', [
       <div class="d-flex justify-content-between mt-4 gap-2 flex-wrap">
         <?php if ($prev): ?>
         <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('guide/' . $prev['slug']); ?>">
-          <i class="bi bi-arrow-left me-1"></i><?php echo htmlspecialchars($prev['title'], ENT_QUOTES, 'UTF-8'); ?>
+          <i class="bi bi-arrow-left me-1"></i><?php echo esc_view($prev['title']); ?>
         </a>
         <?php else: ?><span></span><?php endif; ?>
         <?php if ($next): ?>
         <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('guide/' . $next['slug']); ?>">
-          <?php echo htmlspecialchars($next['title'], ENT_QUOTES, 'UTF-8'); ?><i class="bi bi-arrow-right ms-1"></i>
+          <?php echo esc_view($next['title']); ?><i class="bi bi-arrow-right ms-1"></i>
         </a>
         <?php endif; ?>
       </div>

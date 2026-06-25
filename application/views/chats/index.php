@@ -39,7 +39,7 @@
               <label class="form-label">Participants</label>
               <select class="form-select" name="participants[]" multiple required>
                 <?php foreach ($users as $u): $label = $u->email; if (!empty($u->full_name)) { $label = $u->full_name.' ('.$u->email.')'; } else if (!empty($u->name)) { $label = $u->name.' ('.$u->email.')'; } ?>
-                  <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+                  <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($label); ?></option>
                 <?php endforeach; ?>
               </select>
               <small class="text-muted">Hold Ctrl/Cmd to select multiple users.</small>
@@ -72,20 +72,20 @@
           <?php if (!empty($conversations)) foreach ($conversations as $c): ?>
             <tr>
               <td><?php echo (int)$c->id; ?></td>
-              <td><span class="badge bg-secondary"><?php echo htmlspecialchars(strtoupper($c->type)); ?></span></td>
+              <td><span class="badge bg-secondary"><?php echo esc_view(strtoupper($c->type)); ?></span></td>
               <td>
                 <?php if ($c->type === 'group'): ?>
-                  <strong><?php echo htmlspecialchars($c->title ?: 'Untitled Group'); ?></strong>
+                  <strong><?php echo esc_view($c->title ?: 'Untitled Group'); ?></strong>
                 <?php else: ?>
                   <?php
                     $my_email = $this->session->userdata('email');
                     $peer_emails = array_filter(array_map('trim', explode(',', $c->members)), function($e) use ($my_email) { return $e !== $my_email; });
                     $dm_label = !empty($peer_emails) ? implode(', ', $peer_emails) : 'Direct Message';
                   ?>
-                  <span><?php echo htmlspecialchars($dm_label); ?></span>
+                  <span><?php echo esc_view($dm_label); ?></span>
                 <?php endif; ?>
               </td>
-              <td class="text-muted small"><?php echo htmlspecialchars($c->created_at); ?></td>
+              <td class="text-muted small"><?php echo esc_view($c->created_at); ?></td>
               <td class="text-end">
                 <a class="btn btn-light btn-sm" title="Open" href="<?php echo site_url('chats/app?open='.(int)$c->id); ?>"><i class="bi bi-arrow-right"></i></a>
               </td>

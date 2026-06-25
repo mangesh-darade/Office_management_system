@@ -6,7 +6,7 @@ $row = isset($row) ? $row : null;
 <?php $this->load->view('partials/header', ['title' => $page_title]); ?>
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">
-    <i class="bi bi-calendar-event me-2"></i><?php echo htmlspecialchars($page_title); ?>
+    <i class="bi bi-calendar-event me-2"></i><?php echo esc_view($page_title); ?>
   </h1>
   <a href="<?php echo site_url('settings/holidays'); ?>" class="btn btn-outline-secondary btn-sm">
     <i class="bi bi-arrow-left"></i> Back to Holiday List
@@ -14,16 +14,16 @@ $row = isset($row) ? $row : null;
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-sm">
   <div class="card-header bg-light">
     <h5 class="card-title mb-0">
-      <i class="bi bi-pencil-square me-2"></i><?php echo htmlspecialchars($page_title); ?>
+      <i class="bi bi-pencil-square me-2"></i><?php echo esc_view($page_title); ?>
     </h5>
   </div>
   <div class="card-body">
@@ -32,13 +32,13 @@ $row = isset($row) ? $row : null;
         <div class="col-md-4">
           <label class="form-label fw-semibold">Holiday Date</label>
           <input type="date" class="form-control" name="holiday_date"
-                 value="<?php echo htmlspecialchars(isset($row->holiday_date) ? $row->holiday_date : date('Y-m-d')); ?>"
+                 value="<?php echo esc_view(isset($row->holiday_date) ? $row->holiday_date : date('Y-m-d')); ?>"
                  required />
         </div>
         <div class="col-md-6">
           <label class="form-label fw-semibold">Holiday Name</label>
           <input type="text" class="form-control" name="name"
-                 value="<?php echo htmlspecialchars(isset($row->name) ? $row->name : ''); ?>"
+                 value="<?php echo esc_view(isset($row->name) ? $row->name : ''); ?>"
                  placeholder="e.g., New Year, Independence Day" required />
         </div>
         <div class="col-md-2">

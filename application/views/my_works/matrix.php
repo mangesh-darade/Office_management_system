@@ -11,7 +11,7 @@
   )); ?>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success py-2"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success py-2"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
 
   <?php $this->load->view('my_works/_scope_banner', array('scope' => isset($scope) ? $scope : array())); ?>

@@ -4,14 +4,14 @@
 <?php if ($this->session->flashdata('success')): ?>
 <div class="alert alert-success alert-dismissible fade show d-flex align-items-center py-2 mb-3">
   <i class="bi bi-check-circle-fill me-2"></i>
-  <span><?php echo htmlspecialchars($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></span>
+  <span><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></span>
   <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
 </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('error')): ?>
 <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center py-2 mb-3">
   <i class="bi bi-exclamation-triangle-fill me-2"></i>
-  <span><?php echo htmlspecialchars($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></span>
+  <span><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></span>
   <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
 </div>
 <?php endif; ?>
@@ -50,13 +50,13 @@
         <select name="client_type" class="form-select">
           <option value="">All</option>
           <?php if (isset($client_types) && is_array($client_types)): foreach ($client_types as $code => $label): ?>
-            <option value="<?php echo htmlspecialchars($code); ?>" <?php echo $ct === (string) $code ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <option value="<?php echo esc_view($code); ?>" <?php echo $ct === (string) $code ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
           <?php endforeach; endif; ?>
         </select>
       </div>
       <div class="col-md-4">
         <label class="form-label">Search</label>
-        <input type="text" name="q" value="<?php echo htmlspecialchars(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Company, code, contact, email...">
+        <input type="text" name="q" value="<?php echo esc_view(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Company, code, contact, email...">
       </div>
       <div class="col-md-2">
         <button class="btn btn-outline-primary w-100" type="submit">Filter</button>
@@ -92,9 +92,9 @@
                         class="btn p-0 border-0 bg-transparent js-client-logo-trigger"
                         data-bs-toggle="modal"
                         data-bs-target="#clientLogoModal"
-                        data-logo-url="<?php echo htmlspecialchars(base_url($c->logo)); ?>"
-                        data-client-name="<?php echo htmlspecialchars($c->company_name); ?>">
-                  <img src="<?php echo htmlspecialchars(base_url($c->logo)); ?>" alt="Logo"
+                        data-logo-url="<?php echo esc_view(base_url($c->logo)); ?>"
+                        data-client-name="<?php echo esc_view($c->company_name); ?>">
+                  <img src="<?php echo esc_view(base_url($c->logo)); ?>" alt="Logo"
                        style="width:40px;height:40px;object-fit:contain;border:1px solid #dee2e6;border-radius:4px;">
                 </button>
               <?php else: ?>
@@ -104,20 +104,20 @@
               <?php endif; ?>
             </td>
             <td>
-              <div class="fw-semibold"><?php echo htmlspecialchars($c->company_name); ?></div>
-              <div class="small text-muted d-md-none"><?php echo htmlspecialchars($c->client_code); ?></div>
+              <div class="fw-semibold"><?php echo esc_view($c->company_name); ?></div>
+              <div class="small text-muted d-md-none"><?php echo esc_view($c->client_code); ?></div>
             </td>
-            <td class="d-none d-md-table-cell small text-muted"><?php echo htmlspecialchars($c->client_code); ?></td>
-            <td class="d-none d-sm-table-cell"><?php echo htmlspecialchars(isset($c->contact_person)?$c->contact_person:''); ?></td>
-            <td class="d-none d-sm-table-cell"><?php echo htmlspecialchars(isset($c->phone)?$c->phone:''); ?></td>
+            <td class="d-none d-md-table-cell small text-muted"><?php echo esc_view($c->client_code); ?></td>
+            <td class="d-none d-sm-table-cell"><?php echo esc_view(isset($c->contact_person)?$c->contact_person:''); ?></td>
+            <td class="d-none d-sm-table-cell"><?php echo esc_view(isset($c->phone)?$c->phone:''); ?></td>
             <td class="d-none d-lg-table-cell small">
               <?php if (!empty($c->demo_url)): ?>
-                <a href="<?php echo htmlspecialchars($c->demo_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo htmlspecialchars($c->demo_url); ?>">
+                <a href="<?php echo esc_view($c->demo_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo esc_view($c->demo_url); ?>">
                   <i class="bi bi-box-arrow-up-right me-1"></i>Demo
                 </a>
               <?php endif; ?>
               <?php if (!empty($c->pos_url)): ?>
-                <a href="<?php echo htmlspecialchars($c->pos_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo htmlspecialchars($c->pos_url); ?>">
+                <a href="<?php echo esc_view($c->pos_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo esc_view($c->pos_url); ?>">
                   <i class="bi bi-box-arrow-up-right me-1"></i>POS
                 </a>
               <?php endif; ?>
@@ -131,7 +131,7 @@
                 $badge = $st === 'active' ? 'success' : ($st === 'inactive' ? 'secondary' : 'danger');
               ?>
               <span class="badge bg-<?php echo $badge; ?>-subtle text-<?php echo $badge; ?>-emphasis border border-<?php echo $badge; ?>-subtle">
-                <?php echo htmlspecialchars(ucfirst($st)); ?>
+                <?php echo esc_view(ucfirst($st)); ?>
               </span>
             </td>
             <td class="text-end">
@@ -146,7 +146,7 @@
                 <?php endif; ?>
                 <?php if(function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'))): ?>
                 <button type="button" class="btn btn-outline-danger btn-sm" title="Delete"
-                        onclick="confirmDeleteClient(<?php echo (int)$c->id; ?>, '<?php echo htmlspecialchars(addslashes($c->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
+                        onclick="confirmDeleteClient(<?php echo (int)$c->id; ?>, '<?php echo esc_view(addslashes($c->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
                   <i class="bi bi-trash"></i>
                 </button>
                 <?php endif; ?>

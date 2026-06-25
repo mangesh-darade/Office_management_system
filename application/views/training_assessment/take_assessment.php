@@ -70,7 +70,7 @@ $proctoringEnabled = !empty($proctoring_enabled);
     <div class="col-lg-9 col-xl-10 order-lg-2 order-1" id="ta-main-col">
       <div id="ta-timer-panel" class="alert alert-primary d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 py-2 shadow-sm border" role="timer" aria-label="Assessment timer">
         <div><i class="bi bi-clock me-2" aria-hidden="true"></i><strong>Time remaining:</strong> <span id="ta-timer" class="fs-5 font-monospace" aria-live="polite" aria-atomic="true">--:--</span></div>
-        <div class="small text-md-end"><?php echo htmlspecialchars($au->assessment_title); ?></div>
+        <div class="small text-md-end"><?php echo esc_view($au->assessment_title); ?></div>
       </div>
       <div id="ta-time-hints" class="mb-2"></div>
       <div class="alert alert-secondary py-2 d-flex flex-wrap align-items-center gap-2 mb-2 <?php echo $proctoringEnabled ? '' : 'd-none'; ?>" id="ta-proctor-panel">
@@ -107,7 +107,7 @@ $proctoringEnabled = !empty($proctoring_enabled);
       </div>
       <?php echo form_open('training-assessment/submit-assessment', array('id' => 'ta-finish-form', 'class' => 'd-none')); ?>
       <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-      <input type="hidden" name="access_token" value="<?php echo htmlspecialchars($token); ?>">
+      <input type="hidden" name="access_token" value="<?php echo esc_view($token); ?>">
       <input type="hidden" name="submission_trigger" id="ta-submit-reason" value="manual">
       <?php echo form_close(); ?>
     </div>

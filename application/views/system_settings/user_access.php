@@ -56,11 +56,11 @@
                           <?php echo strtoupper(substr($user->full_name ?: $user->email, 0, 2)); ?>
                         </div>
                         <div>
-                          <div class="fw-semibold"><?php echo htmlspecialchars($user->full_name ?: 'N/A'); ?></div>
-                          <small class="text-muted"><?php echo htmlspecialchars($user->email); ?></small>
+                          <div class="fw-semibold"><?php echo esc_view($user->full_name ?: 'N/A'); ?></div>
+                          <small class="text-muted"><?php echo esc_view($user->email); ?></small>
                           <br>
                           <span class="badge bg-<?php echo get_role_color($user->role_id); ?> me-1">
-                            <?php echo htmlspecialchars($user->role_name); ?>
+                            <?php echo esc_view($user->role_name); ?>
                           </span>
                         </div>
                       </div>

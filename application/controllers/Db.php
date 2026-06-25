@@ -775,20 +775,20 @@ class Db extends CI_Controller {
             $title = isset($r->title) ? (string)$r->title : '';
             $sql = isset($r->squary) ? (string)$r->squary : '';
             if (function_exists('mb_strimwidth')) {
-                $snippet = htmlspecialchars(mb_strimwidth($sql, 0, 300, '…', 'UTF-8'));
+                $snippet = esc_view(mb_strimwidth($sql, 0, 300, '…', 'UTF-8'));
             } else {
-                $snippet = htmlspecialchars(strlen($sql) > 300 ? substr($sql, 0, 300).'…' : $sql);
+                $snippet = esc_view(strlen($sql) > 300 ? substr($sql, 0, 300).'…' : $sql);
             }
-            $sqlEsc = htmlspecialchars($sql, ENT_QUOTES, 'UTF-8');
-            $titleEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
-            $verEsc = htmlspecialchars($ver, ENT_QUOTES, 'UTF-8');
+            $sqlEsc = esc_view($sql);
+            $titleEsc = esc_view($title);
+            $verEsc = esc_view($ver);
             $assigned = isset($r->assign_id) ? (int)$r->assign_id : 0;
             $row = [];
             $row[] = '<input type="checkbox" class="rowSel" value="'.$id.'">';
             $row[] = $id;
-            $row[] = htmlspecialchars($pname);
-            $row[] = htmlspecialchars($ver);
-            $row[] = htmlspecialchars($title);
+            $row[] = esc_view($pname);
+            $row[] = esc_view($ver);
+            $row[] = esc_view($title);
             $row[] = '<pre class="sql-cell">'.$snippet.'</pre>';
             $actions = '<div class="btn-group btn-group-sm" role="group">'
                 .'<button type="button" class="btn btn-outline-secondary btn-show" title="Show" aria-label="Show" data-id="'.$id.'" data-title="'.$titleEsc.'" data-version="'.$verEsc.'" data-project="'.$pid.'" data-sql="'.$sqlEsc.'"><i class="bi bi-eye"></i></button>'

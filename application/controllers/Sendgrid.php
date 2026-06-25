@@ -101,7 +101,7 @@ class Sendgrid extends CI_Controller {
             $cc_emails = $this->_split_emails($cc);
             foreach ($cc_emails as $em) {
                 if (!$this->_is_valid_email($em)) {
-                    $this->session->set_flashdata('error', 'Invalid CC address: ' . htmlspecialchars($em));
+                    $this->session->set_flashdata('error', 'Invalid CC address: ' . esc_view($em));
                     redirect('sendgrid');
                     return;
                 }
@@ -113,7 +113,7 @@ class Sendgrid extends CI_Controller {
             $bcc_emails = $this->_split_emails($bcc);
             foreach ($bcc_emails as $em) {
                 if (!$this->_is_valid_email($em)) {
-                    $this->session->set_flashdata('error', 'Invalid BCC address: ' . htmlspecialchars($em));
+                    $this->session->set_flashdata('error', 'Invalid BCC address: ' . esc_view($em));
                     redirect('sendgrid');
                     return;
                 }

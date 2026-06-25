@@ -5,10 +5,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft">
@@ -17,7 +17,7 @@
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Title</label>
-          <input class="form-control" name="title" value="<?php echo htmlspecialchars(isset($row->title)?$row->title:''); ?>" required />
+          <input class="form-control" name="title" value="<?php echo esc_view(isset($row->title)?$row->title:''); ?>" required />
         </div>
         <div class="col-md-4">
           <label class="form-label">Priority</label>
@@ -30,19 +30,19 @@
         </div>
         <div class="col-md-12">
           <label class="form-label">Content</label>
-          <textarea class="form-control" name="content" rows="6" required><?php echo htmlspecialchars(isset($row->content)?$row->content:''); ?></textarea>
+          <textarea class="form-control" name="content" rows="6" required><?php echo esc_view(isset($row->content)?$row->content:''); ?></textarea>
         </div>
         <div class="col-md-4">
           <label class="form-label">Target Roles (all/admin/manager/lead/staff)</label>
-          <input class="form-control" name="target_roles" value="<?php echo htmlspecialchars(isset($row->target_roles)?$row->target_roles:'all'); ?>" />
+          <input class="form-control" name="target_roles" value="<?php echo esc_view(isset($row->target_roles)?$row->target_roles:'all'); ?>" />
         </div>
         <div class="col-md-3">
           <label class="form-label">Start Date</label>
-          <input type="date" class="form-control" name="start_date" value="<?php echo htmlspecialchars(isset($row->start_date)?$row->start_date:''); ?>" />
+          <input type="date" class="form-control" name="start_date" value="<?php echo esc_view(isset($row->start_date)?$row->start_date:''); ?>" />
         </div>
         <div class="col-md-3">
           <label class="form-label">End Date</label>
-          <input type="date" class="form-control" name="end_date" value="<?php echo htmlspecialchars(isset($row->end_date)?$row->end_date:''); ?>" />
+          <input type="date" class="form-control" name="end_date" value="<?php echo esc_view(isset($row->end_date)?$row->end_date:''); ?>" />
         </div>
         <div class="col-md-2">
           <label class="form-label">Status</label>

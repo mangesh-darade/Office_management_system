@@ -4,10 +4,10 @@
   <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements/view/'.(int)$row->id); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -17,7 +17,7 @@
           <label class="form-label">Client <span class="text-danger">*</span></label>
           <select name="client_id" class="form-select" required>
             <?php if (isset($clients) && is_array($clients)) foreach ($clients as $c): ?>
-              <option value="<?php echo (int)$c->id; ?>" <?php echo ((int)$row->client_id===(int)$c->id)?'selected':''; ?>><?php echo htmlspecialchars($c->company_name); ?></option>
+              <option value="<?php echo (int)$c->id; ?>" <?php echo ((int)$row->client_id===(int)$c->id)?'selected':''; ?>><?php echo esc_view($c->company_name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -26,13 +26,13 @@
           <select name="project_id" class="form-select">
             <option value="">-- None --</option>
             <?php if (isset($projects) && is_array($projects)) foreach ($projects as $p): ?>
-              <option value="<?php echo (int)$p->id; ?>" <?php echo ((int)$row->project_id===(int)$p->id)?'selected':''; ?>><?php echo htmlspecialchars($p->name); ?></option>
+              <option value="<?php echo (int)$p->id; ?>" <?php echo ((int)$row->project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-8">
           <label class="form-label">Title <span class="text-danger">*</span></label>
-          <input type="text" name="title" class="form-control" value="<?php echo htmlspecialchars($row->title); ?>" required>
+          <input type="text" name="title" class="form-control" value="<?php echo esc_view($row->title); ?>" required>
         </div>
         <div class="col-md-4">
           <label class="form-label">Type</label>
@@ -46,13 +46,18 @@
         </div>
         <div class="col-md-12">
           <label class="form-label">Description</label>
-          <textarea name="description" id="description" rows="6" class="form-control"><?php echo htmlspecialchars($row->description); ?></textarea>
+          <textarea name="description" id="description" rows="6" class="form-control"><?php echo esc_view($row->description); ?></textarea>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
+          <input type="url" name="reference_url" class="form-control" value="<?php echo !empty($row->reference_url) ? esc_view($row->reference_url) : ''; ?>" placeholder="https://example.com/requirement-spec">
+          <div class="form-text">Optional. Paste any web link related to this requirement.</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">Priority</label>
           <select name="priority" class="form-select">
             <?php $priorities = array('low','medium','high','critical'); foreach ($priorities as $pr): ?>
-              <option value="<?php echo htmlspecialchars($pr); ?>" <?php echo ($row->priority===$pr)?'selected':''; ?>><?php echo ucfirst($pr); ?></option>
+              <option value="<?php echo esc_view($pr); ?>" <?php echo ($row->priority===$pr)?'selected':''; ?>><?php echo ucfirst($pr); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -64,7 +69,7 @@
               foreach ($statuses as $st): 
                 $selected = ($row->status === $st->code) ? 'selected' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($st->code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($st->name); ?></option>
+              <option value="<?php echo esc_view($st->code); ?>" <?php echo $selected; ?>><?php echo esc_view($st->name); ?></option>
             <?php 
               endforeach; 
             else: 
@@ -73,7 +78,7 @@
               foreach ($fallback_statuses as $st):
                 $selected = ($row->status === $st) ? 'selected' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $selected; ?>><?php echo ucfirst(str_replace('_',' ',$st)); ?></option>
+              <option value="<?php echo esc_view($st); ?>" <?php echo $selected; ?>><?php echo ucfirst(str_replace('_',' ',$st)); ?></option>
             <?php 
               endforeach; 
             endif; 
@@ -82,11 +87,11 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Received Date</label>
-          <input type="date" name="received_date" id="received_date" class="form-control" value="<?php echo htmlspecialchars(isset($row->received_date)?$row->received_date:''); ?>">
+          <input type="date" name="received_date" id="received_date" class="form-control" value="<?php echo esc_view(isset($row->received_date)?$row->received_date:''); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">Expected Delivery</label>
-          <input type="date" name="expected_delivery_date" id="expected_delivery_date" class="form-control" value="<?php echo htmlspecialchars(isset($row->expected_delivery_date)?$row->expected_delivery_date:''); ?>">
+          <input type="date" name="expected_delivery_date" id="expected_delivery_date" class="form-control" value="<?php echo esc_view(isset($row->expected_delivery_date)?$row->expected_delivery_date:''); ?>">
           <div class="form-text text-danger" id="date-error" style="display: none;">
             <small>Expected delivery date must be on or after received date</small>
           </div>
@@ -102,7 +107,7 @@
                 else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
                 else if (isset($m->email)) { $label = $m->email; }
               ?>
-              <option value="<?php echo (int)$m->id; ?>" <?php echo ((int)$row->owner_id===(int)$m->id)?'selected':''; ?>><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>" <?php echo ((int)$row->owner_id===(int)$m->id)?'selected':''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -119,7 +124,7 @@
               else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
               else if (isset($m->email)) { $label = $m->email; }
             ?>
-              <option value="<?php echo (int)$m->id; ?>" <?php echo $curAssigned===(int)$m->id?'selected':''; ?>><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>" <?php echo $curAssigned===(int)$m->id?'selected':''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

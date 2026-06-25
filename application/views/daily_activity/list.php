@@ -14,10 +14,10 @@
   ]); ?>
 
     <?php if ($this->session->flashdata('success')): ?>
-        <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+        <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
     <?php endif; ?>
     <?php if ($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+        <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
     <?php endif; ?>
 
     <!-- Filter Card -->
@@ -31,7 +31,7 @@
                         <option value="">-- All Employees --</option>
                         <?php foreach($users as $u): ?>
                             <option value="<?php echo $u->id; ?>" <?php echo (isset($filters['user_id']) && $filters['user_id'] == $u->id) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($u->name ?: $u->email); ?>
+                                <?php echo esc_view($u->name ?: $u->email); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -50,11 +50,11 @@
                 
                 <div class="col-6 <?php echo ($is_admin) ? 'col-md-2' : 'col-md-3'; ?>">
                     <label class="form-label small fw-bold text-uppercase text-muted mb-1">Date From</label>
-                    <input type="date" class="form-control form-control-sm" name="date_from" id="dateFrom" value="<?php echo isset($filters['date_from']) ? htmlspecialchars($filters['date_from']) : ''; ?>" onchange="document.getElementById('filterPeriod').value='';">
+                    <input type="date" class="form-control form-control-sm" name="date_from" id="dateFrom" value="<?php echo isset($filters['date_from']) ? esc_view($filters['date_from']) : ''; ?>" onchange="document.getElementById('filterPeriod').value='';">
                 </div>
                 <div class="col-6 <?php echo ($is_admin) ? 'col-md-2' : 'col-md-3'; ?>">
                      <label class="form-label small fw-bold text-uppercase text-muted mb-1">Date To</label>
-                    <input type="date" class="form-control form-control-sm" name="date_to" id="dateTo" value="<?php echo isset($filters['date_to']) ? htmlspecialchars($filters['date_to']) : ''; ?>" onchange="document.getElementById('filterPeriod').value='';">
+                    <input type="date" class="form-control form-control-sm" name="date_to" id="dateTo" value="<?php echo isset($filters['date_to']) ? esc_view($filters['date_to']) : ''; ?>" onchange="document.getElementById('filterPeriod').value='';">
                 </div>
                 
                 <div class="col-6 <?php echo ($is_admin) ? 'col-md-3' : 'col-md-3'; ?> d-flex gap-1 align-items-end">
@@ -92,16 +92,16 @@
                                                 <?php echo strtoupper(substr($log->user_name ?: $log->user_email, 0, 1)); ?>
                                             </div>
                                             <div>
-                                                <div class="fw-bold"><?php echo htmlspecialchars($log->user_name ?: 'Unknown'); ?></div>
-                                                <div class="small text-muted"><?php echo htmlspecialchars($log->user_email); ?></div>
+                                                <div class="fw-bold"><?php echo esc_view($log->user_name ?: 'Unknown'); ?></div>
+                                                <div class="small text-muted"><?php echo esc_view($log->user_email); ?></div>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
                                         <?php if ($log->activity_title): ?>
-                                            <span class="fw-bold activity-title-text"><?php echo htmlspecialchars($log->activity_title); ?></span>
+                                            <span class="fw-bold activity-title-text"><?php echo esc_view($log->activity_title); ?></span>
                                         <?php elseif ($log->task_title): ?>
-                                            <span class="badge bg-info text-dark task-title-text"><?php echo htmlspecialchars($log->task_title); ?></span>
+                                            <span class="badge bg-info text-dark task-title-text"><?php echo esc_view($log->task_title); ?></span>
                                         <?php else: ?>
                                             <span class="text-muted small">-</span>
                                         <?php endif; ?>

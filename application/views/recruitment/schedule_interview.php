@@ -3,7 +3,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h3>Schedule Interview for <?php echo htmlspecialchars($candidate->first_name); ?></h3>
+                <h3>Schedule Interview for <?php echo esc_view($candidate->first_name); ?></h3>
             </div>
             <div class="card-body">
                 <?php echo form_open('recruitment/schedule_interview/'.$candidate->id); ?>
@@ -11,7 +11,7 @@
                     <label>Interviewer</label>
                     <select name="interviewer_id" class="form-control">
                         <?php foreach($interviewers as $u): ?>
-                        <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($u->name); ?></option>
+                        <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($u->name); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>

@@ -28,11 +28,11 @@
         <?php else: ?>
           <?php foreach ($rows as $r): ?>
             <tr>
-              <td><?php echo htmlspecialchars($r->module_title); ?></td>
-              <td><?php echo htmlspecialchars($r->topic_name); ?></td>
-              <td><?php echo htmlspecialchars($r->assignment_name); ?></td>
-              <td class="small"><?php echo htmlspecialchars($r->original_filename); ?></td>
-              <td class="small"><?php echo htmlspecialchars($r->submitted_at); ?></td>
+              <td><?php echo esc_view($r->module_title); ?></td>
+              <td><?php echo esc_view($r->topic_name); ?></td>
+              <td><?php echo esc_view($r->assignment_name); ?></td>
+              <td class="small"><?php echo esc_view($r->original_filename); ?></td>
+              <td class="small"><?php echo esc_view($r->submitted_at); ?></td>
               <td>
                 <?php
                 $st = $r->status;
@@ -45,7 +45,7 @@
                 }
                 ?>
               </td>
-              <td><?php echo $r->score !== null ? htmlspecialchars($r->score) : '—'; ?></td>
+              <td><?php echo $r->score !== null ? esc_view($r->score) : '—'; ?></td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('training/download/' . (int) $r->id); ?>">Download</a>
               </td>

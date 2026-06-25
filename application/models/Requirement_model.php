@@ -137,6 +137,9 @@ class Requirement_model extends CI_Model {
             'created_by' => isset($data['created_by']) ? $data['created_by'] : null,
             'created_at' => isset($data['created_at']) ? $data['created_at'] : date('Y-m-d H:i:s'),
         ];
+        if (schema_table_has_column($this->db, 'requirement_versions', 'reference_url')) {
+            $row['reference_url'] = isset($data['reference_url']) ? $data['reference_url'] : null;
+        }
         return $this->db->insert('requirement_versions', $row);
     }
 

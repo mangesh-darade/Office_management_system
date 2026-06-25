@@ -28,7 +28,7 @@ $back_url = site_url($redirect_path);
         <span class="mw-toolbar-icon"><i class="bi bi-lightning-charge-fill"></i></span>
         Quick add work item
       </h1>
-      <a class="btn btn-outline-secondary btn-sm flex-shrink-0" href="<?php echo htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8'); ?>" title="Back to My Works">
+      <a class="btn btn-outline-secondary btn-sm flex-shrink-0" href="<?php echo esc_view($back_url); ?>" title="Back to My Works">
         <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back</span>
       </a>
     </div>
@@ -36,7 +36,7 @@ $back_url = site_url($redirect_path);
 
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
   <?php endif; ?>
@@ -45,7 +45,7 @@ $back_url = site_url($redirect_path);
     <div class="card-body p-3">
       <form method="post" enctype="multipart/form-data" action="<?php echo site_url('my-works/quick-add'); ?>" id="mw-quick-add-form" class="mw-upload-form" data-tinymce-id="mw-qa-details">
         <?php $this->load->view('my_works/_csrf'); ?>
-        <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect_path, ENT_QUOTES, 'UTF-8'); ?>">
+        <input type="hidden" name="redirect" value="<?php echo esc_view($redirect_path); ?>">
 
         <div class="row g-3">
           <div class="col-12 col-lg-8">
@@ -61,13 +61,13 @@ $back_url = site_url($redirect_path);
               <div class="mb-3">
                 <label class="form-label fw-semibold" for="mw-qa-title">Title <span class="text-danger">*</span></label>
                 <input type="text" class="form-control form-control-md-lg" id="mw-qa-title" name="title" required maxlength="255"
-                       value="<?php echo htmlspecialchars((string) $field('title'), ENT_QUOTES, 'UTF-8'); ?>"
+                       value="<?php echo esc_view((string) $field('title'), ENT_QUOTES, 'UTF-8'); ?>"
                        placeholder="What needs to be done?" autofocus>
               </div>
 
               <div class="mb-0">
                 <label class="form-label fw-semibold" for="mw-qa-details">Description</label>
-                <textarea id="mw-qa-details" name="details" class="form-control" rows="8" placeholder="Add notes with bold, italic, underline, lists, and links…"><?php echo htmlspecialchars((string) $field('details'), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                <textarea id="mw-qa-details" name="details" class="form-control" rows="8" placeholder="Add notes with bold, italic, underline, lists, and links…"><?php echo esc_view((string) $field('details'), ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <div class="form-text d-none d-md-block">Use the toolbar for bold, italic, underline, colors, alignment, and lists.</div>
               </div>
             </div>
@@ -86,7 +86,7 @@ $back_url = site_url($redirect_path);
               <select class="form-select" id="mw-qa-created-for" name="created_for" required>
                 <?php foreach ((array) $users as $u): ?>
                   <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $u->id === $curFor ? 'selected' : ''; ?>>
-                    <?php echo htmlspecialchars(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
+                    <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
@@ -114,7 +114,7 @@ $back_url = site_url($redirect_path);
             <i class="bi bi-check-lg me-1"></i>Add work item
           </button>
           <div class="mw-quick-add-secondary-actions d-flex flex-row gap-2 ms-sm-auto">
-            <a class="btn btn-outline-secondary mw-quick-add-cancel" href="<?php echo htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8'); ?>">Cancel</a>
+            <a class="btn btn-outline-secondary mw-quick-add-cancel" href="<?php echo esc_view($back_url); ?>">Cancel</a>
             <a class="btn btn-outline-secondary mw-quick-add-full-form" href="<?php echo site_url('my-works/create'); ?>">
               <i class="bi bi-sliders me-1"></i><span class="d-none d-lg-inline">Full form (client, project, tags…)</span><span class="d-lg-none">Full form</span>
             </a>

@@ -10,7 +10,7 @@ $this->load->view('partials/oms_page_head', [
 ]);
 $this->load->view('meals/_nav', ['active_sub' => 'calendar']);
 ?>
-<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('meals/calendar?month='.$prev); ?>">&larr; <?php echo date('M Y', strtotime($prev.'-01')); ?></a>
@@ -40,9 +40,9 @@ while ($c <= $end):
 <tr class="<?php echo $isWeekend ? 'table-secondary' : ''; ?>">
   <td class="fw-semibold"><?php echo date('D, d M', $c); ?></td>
   <td class="text-center"><input type="checkbox" name="days[<?php echo $d; ?>][has_breakfast]" value="1" <?php echo $hasBf ? 'checked' : ''; ?>></td>
-  <td><input type="text" class="form-control form-control-sm" name="days[<?php echo $d; ?>][breakfast_note]" value="<?php echo $row ? htmlspecialchars((string)$row->breakfast_note) : ''; ?>" placeholder="e.g. Poha, Tea"></td>
+  <td><input type="text" class="form-control form-control-sm" name="days[<?php echo $d; ?>][breakfast_note]" value="<?php echo $row ? esc_view((string)$row->breakfast_note) : ''; ?>" placeholder="e.g. Poha, Tea"></td>
   <td class="text-center"><input type="checkbox" name="days[<?php echo $d; ?>][has_lunch]" value="1" <?php echo $hasLu ? 'checked' : ''; ?>></td>
-  <td><input type="text" class="form-control form-control-sm" name="days[<?php echo $d; ?>][lunch_note]" value="<?php echo $row ? htmlspecialchars((string)$row->lunch_note) : ''; ?>" placeholder="e.g. Dal, Rice"></td>
+  <td><input type="text" class="form-control form-control-sm" name="days[<?php echo $d; ?>][lunch_note]" value="<?php echo $row ? esc_view((string)$row->lunch_note) : ''; ?>" placeholder="e.g. Dal, Rice"></td>
 </tr>
 <?php $c = strtotime('+1 day', $c); endwhile; ?>
 </tbody>

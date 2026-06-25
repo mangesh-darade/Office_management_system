@@ -6,7 +6,7 @@ $this->load->view('partials/oms_page_head', ['title' => 'Company Events', 'icon'
 ?>
 <div class="card shadow-soft"><div class="list-group list-group-flush">
 <?php if (empty($rows)): ?><div class="list-group-item text-muted">No events scheduled.</div><?php else: foreach ($rows as $r): ?>
-<div class="list-group-item"><div class="fw-semibold"><?php echo htmlspecialchars($r->title); ?></div><div class="small text-muted"><?php echo htmlspecialchars($r->start_at); ?> <?php echo $r->location?'· '.htmlspecialchars($r->location):''; ?></div></div>
+<div class="list-group-item"><div class="fw-semibold"><?php echo esc_view($r->title); ?></div><div class="small text-muted"><?php echo esc_view($r->start_at); ?> <?php echo $r->location?'· '.esc_view($r->location):''; ?></div></div>
 <?php endforeach; endif; ?>
 </div></div></div>
 <?php $this->load->view('partials/footer'); ?>

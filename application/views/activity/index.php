@@ -11,17 +11,17 @@ function format_activity_value($value) {
     return $value ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-secondary">No</span>';
   }
   if (is_array($value)) {
-    return '<code style="font-size:0.75rem;">' . htmlspecialchars(json_encode($value, JSON_PRETTY_PRINT)) . '</code>';
+    return '<code style="font-size:0.75rem;">' . esc_view(json_encode($value, JSON_PRETTY_PRINT)) . '</code>';
   }
   if (is_object($value)) {
-    return '<code style="font-size:0.75rem;">' . htmlspecialchars(json_encode($value, JSON_PRETTY_PRINT)) . '</code>';
+    return '<code style="font-size:0.75rem;">' . esc_view(json_encode($value, JSON_PRETTY_PRINT)) . '</code>';
   }
   // Format dates if they look like dates
   if (preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$value)) {
-    return '<span class="text-info">' . htmlspecialchars((string)$value) . '</span>';
+    return '<span class="text-info">' . esc_view((string)$value) . '</span>';
   }
   // Default: show as-is
-  return htmlspecialchars((string)$value);
+  return esc_view((string)$value);
 }
 $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
 <style>
@@ -80,7 +80,7 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
         <select class="form-select" name="user_id">
           <option value="">All</option>
           <?php foreach ($users as $u): ?>
-            <option value="<?php echo (int)$u->id; ?>" <?php echo (!empty($filters['user_id']) && (int)$filters['user_id']===(int)$u->id)?'selected':''; ?>><?php echo htmlspecialchars(isset($u->display_name) ? $u->display_name : $u->email); ?></option>
+            <option value="<?php echo (int)$u->id; ?>" <?php echo (!empty($filters['user_id']) && (int)$filters['user_id']===(int)$u->id)?'selected':''; ?>><?php echo esc_view(isset($u->display_name) ? $u->display_name : $u->email); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -89,7 +89,7 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
         <select class="form-select" name="module">
           <option value="">All</option>
           <?php foreach ($modules as $m): ?>
-            <option value="<?php echo htmlspecialchars($m); ?>" <?php echo (!empty($filters['module']) && $filters['module']===$m)?'selected':''; ?>><?php echo ucfirst($m); ?></option>
+            <option value="<?php echo esc_view($m); ?>" <?php echo (!empty($filters['module']) && $filters['module']===$m)?'selected':''; ?>><?php echo ucfirst($m); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -98,17 +98,17 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
         <select class="form-select" name="action">
           <option value="">All</option>
           <?php foreach ($actions as $a): ?>
-            <option value="<?php echo htmlspecialchars($a); ?>" <?php echo (!empty($filters['action']) && $filters['action']===$a)?'selected':''; ?>><?php echo ucfirst(str_replace('_',' ', $a)); ?></option>
+            <option value="<?php echo esc_view($a); ?>" <?php echo (!empty($filters['action']) && $filters['action']===$a)?'selected':''; ?>><?php echo ucfirst(str_replace('_',' ', $a)); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-1">
         <label class="form-label">From</label>
-        <input type="date" class="form-control" name="from" value="<?php echo htmlspecialchars(isset($filters['from'])?$filters['from']:''); ?>" />
+        <input type="date" class="form-control" name="from" value="<?php echo esc_view(isset($filters['from'])?$filters['from']:''); ?>" />
       </div>
       <div class="col-md-1">
         <label class="form-label">To</label>
-        <input type="date" class="form-control" name="to" value="<?php echo htmlspecialchars(isset($filters['to'])?$filters['to']:''); ?>" />
+        <input type="date" class="form-control" name="to" value="<?php echo esc_view(isset($filters['to'])?$filters['to']:''); ?>" />
       </div>
       <div class="col-md-1 align-self-end">
         <button class="btn btn-outline-secondary">Filter</button>
@@ -140,27 +140,27 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
             <tr class="activity-row" 
                 data-log-id="<?php echo (int)$r->id; ?>"
                 data-entity-id="<?php echo (int)$r->entity_id; ?>"
-                data-entity-type="<?php echo htmlspecialchars($r->entity_type, ENT_QUOTES); ?>"
-                data-action="<?php echo htmlspecialchars($r->action, ENT_QUOTES); ?>"
-                data-changes="<?php echo htmlspecialchars($r->changes ? $r->changes : '{}', ENT_QUOTES); ?>"
+                data-entity-type="<?php echo esc_view($r->entity_type); ?>"
+                data-action="<?php echo esc_view($r->action); ?>"
+                data-changes="<?php echo esc_view($r->changes ? $r->changes : '{}'); ?>"
                 style="cursor: pointer;" 
-                onclick="showActivityDetails(<?php echo (int)$r->id; ?>, <?php echo (int)$r->entity_id; ?>, '<?php echo htmlspecialchars($r->entity_type, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($r->action, ENT_QUOTES); ?>', <?php echo htmlspecialchars(json_encode($r->changes ? json_decode($r->changes, true) : null), ENT_QUOTES); ?>)">
+                onclick="showActivityDetails(<?php echo (int)$r->id; ?>, <?php echo (int)$r->entity_id; ?>, '<?php echo esc_view($r->entity_type); ?>', '<?php echo esc_view($r->action); ?>', <?php echo esc_view(json_encode($r->changes ? json_decode($r->changes, true) : null)); ?>)">
               <td><span class="badge bg-secondary">#<?php echo (int)$r->id; ?></span></td>
               <td>
                 <?php 
                   if (!empty($r->user_name)) {
-                    echo '<div class="activity-user-name">' . htmlspecialchars($r->user_name) . '</div>';
+                    echo '<div class="activity-user-name">' . esc_view($r->user_name) . '</div>';
                     if (!empty($r->user_email)) {
-                      echo '<div class="activity-user-email">' . htmlspecialchars($r->user_email) . '</div>';
+                      echo '<div class="activity-user-email">' . esc_view($r->user_email) . '</div>';
                     }
                   } elseif (!empty($r->user_email)) {
-                    echo '<div class="activity-user-name">' . htmlspecialchars($r->user_email) . '</div>';
+                    echo '<div class="activity-user-name">' . esc_view($r->user_email) . '</div>';
                   } else {
                     echo '<div class="activity-unknown">Unknown User (ID: ' . (int)$r->actor_id . ')</div>';
                   }
                 ?>
               </td>
-              <td><span class="activity-badge activity-badge-module"><?php echo htmlspecialchars(ucfirst($r->entity_type)); ?></span></td>
+              <td><span class="activity-badge activity-badge-module"><?php echo esc_view(ucfirst($r->entity_type)); ?></span></td>
               <td>
                 <?php 
                   $action = strtolower($r->action);
@@ -184,7 +184,7 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
                     $action_icon = '<i class="bi bi-eye me-1"></i>';
                   }
                   
-                  echo '<span class="activity-badge ' . $action_class . '">' . $action_icon . htmlspecialchars($action_display) . '</span>';
+                  echo '<span class="activity-badge ' . $action_class . '">' . $action_icon . esc_view($action_display) . '</span>';
                 ?>
               </td>
               <td>
@@ -224,7 +224,7 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
                   
                   // Display description with operation summary
                   if ($description) {
-                    echo '<div class="mb-1 font-weight-bold">' . htmlspecialchars($description) . '</div>';
+                    echo '<div class="mb-1 font-weight-bold">' . esc_view($description) . '</div>';
                   }
                   
                   // Show summary of changes
@@ -254,8 +254,8 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
                   }
                 ?>
               </td>
-              <td class="text-muted small"><?php echo htmlspecialchars(isset($r->ip_address)?$r->ip_address:''); ?></td>
-              <td class="text-muted small"><?php echo htmlspecialchars(isset($r->created_at)?$r->created_at:''); ?></td>
+              <td class="text-muted small"><?php echo esc_view(isset($r->ip_address)?$r->ip_address:''); ?></td>
+              <td class="text-muted small"><?php echo esc_view(isset($r->created_at)?$r->created_at:''); ?></td>
             </tr>
           <?php endforeach; endif; ?>
         </tbody>

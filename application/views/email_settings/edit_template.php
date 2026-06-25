@@ -17,7 +17,7 @@
 
                 <div class="mb-3">
                     <label>Email Body Template</label>
-                    <textarea name="email_template" class="form-control" rows="15" required><?php echo htmlspecialchars($setting->email_template); ?></textarea>
+                    <textarea name="email_template" class="form-control" rows="15" required><?php echo esc_view($setting->email_template); ?></textarea>
                     <small class="text-muted">Use the placeholders above to insert dynamic content.</small>
                 </div>
 

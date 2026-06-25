@@ -25,7 +25,7 @@
         <select name="project_id" class="form-select">
           <option value="">All</option>
           <?php if (isset($projects) && is_array($projects)) foreach ($projects as $p): ?>
-            <option value="<?php echo (int)$p->id; ?>" <?php echo (isset($filter_project_id) && (string)$filter_project_id === (string)$p->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars(isset($p->name) ? $p->name : ('#'.(int)$p->id)); ?></option>
+            <option value="<?php echo (int)$p->id; ?>" <?php echo (isset($filter_project_id) && (string)$filter_project_id === (string)$p->id) ? 'selected' : ''; ?>><?php echo esc_view(isset($p->name) ? $p->name : ('#'.(int)$p->id)); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -42,7 +42,7 @@
               else if (isset($u->name) && $u->name !== '') { $label = $u->name; }
               else if (isset($u->email) && $u->email !== '') { $label = $u->email; }
             ?>
-            <option value="<?php echo (int)$u->id; ?>" <?php echo (isset($filter_assigned_to) && (string)$filter_assigned_to === (string)$u->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <option value="<?php echo (int)$u->id; ?>" <?php echo (isset($filter_assigned_to) && (string)$filter_assigned_to === (string)$u->id) ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -52,7 +52,7 @@
         <select name="status" class="form-select">
           <?php $statuses = array('', 'pending','in_progress','completed','blocked');
           foreach ($statuses as $st): ?>
-            <option value="<?php echo htmlspecialchars($st); ?>" <?php echo (isset($filter_status) && (string)$filter_status === (string)$st) ? 'selected' : ''; ?>><?php echo $st === '' ? 'All' : ucfirst(str_replace('_',' ',$st)); ?></option>
+            <option value="<?php echo esc_view($st); ?>" <?php echo (isset($filter_status) && (string)$filter_status === (string)$st) ? 'selected' : ''; ?>><?php echo $st === '' ? 'All' : ucfirst(str_replace('_',' ',$st)); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -61,7 +61,7 @@
         <select name="priority" class="form-select">
           <?php $priorities = array('', 'low','medium','high','urgent');
           foreach ($priorities as $pr): ?>
-            <option value="<?php echo htmlspecialchars($pr); ?>" <?php echo (isset($filter_priority) && (string)$filter_priority === (string)$pr) ? 'selected' : ''; ?>><?php echo $pr === '' ? 'All' : ucfirst($pr); ?></option>
+            <option value="<?php echo esc_view($pr); ?>" <?php echo (isset($filter_priority) && (string)$filter_priority === (string)$pr) ? 'selected' : ''; ?>><?php echo $pr === '' ? 'All' : ucfirst($pr); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -104,8 +104,8 @@
           <?php if(!empty($tasks)) foreach($tasks as $t): ?>
             <tr>
               <td><?php echo (int)$t->id; ?></td>
-              <td><?php echo htmlspecialchars(isset($t->project_name) && $t->project_name !== '' ? $t->project_name : ('#'.(int)$t->project_id)); ?></td>
-              <td><?php echo htmlspecialchars($t->title); ?></td>
+              <td><?php echo esc_view(isset($t->project_name) && $t->project_name !== '' ? $t->project_name : ('#'.(int)$t->project_id)); ?></td>
+              <td><?php echo esc_view($t->title); ?></td>
               <td class="small">
                 <div class="text-muted text-truncate-2" style="max-width: 420px;">
                   <?php 
@@ -123,17 +123,17 @@
                   else if (isset($t->full_name) && $t->full_name !== '') { $assignee = $t->full_name; }
                   else if (isset($t->name) && $t->name !== '') { $assignee = $t->name; }
                   else if (isset($t->assignee_email) && $t->assignee_email !== '') { $assignee = $t->assignee_email; }
-                  echo htmlspecialchars($assignee !== '' ? $assignee : '—');
+                  echo esc_view($assignee !== '' ? $assignee : '—');
                 ?>
               </td>
               <?php endif; ?>
-              <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($t->status); ?></span></td>
+              <td><span class="badge bg-info text-dark"><?php echo esc_view($t->status); ?></span></td>
               <?php
                 $task_priority = isset($t->priority) ? strtolower((string) $t->priority) : 'medium';
                 $task_priority_sort = isset($tasks_priority_rank[$task_priority]) ? (int) $tasks_priority_rank[$task_priority] : 5;
               ?>
               <?php $task_priority_badge = isset($tasks_priority_badge[$task_priority]) ? $tasks_priority_badge[$task_priority] : 'secondary'; ?>
-              <td data-order="<?php echo $task_priority_sort; ?>"><span class="badge bg-<?php echo $task_priority_badge; ?>"><?php echo htmlspecialchars(ucfirst($task_priority !== '' ? $task_priority : 'medium')); ?></span></td>
+              <td data-order="<?php echo $task_priority_sort; ?>"><span class="badge bg-<?php echo $task_priority_badge; ?>"><?php echo esc_view(ucfirst($task_priority !== '' ? $task_priority : 'medium')); ?></span></td>
               <td class="text-end text-nowrap table-actions">
                 <div class="d-inline-flex align-items-center justify-content-end gap-1 flex-nowrap">
                   <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('tasks/'.$t->id); ?>"><i class="bi bi-eye"></i></a>

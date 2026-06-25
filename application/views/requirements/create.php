@@ -4,10 +4,10 @@
   <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements'); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -18,7 +18,7 @@
           <select name="client_id" class="form-select" required>
             <option value="">-- Select Client --</option>
             <?php if (isset($clients) && is_array($clients)) foreach ($clients as $c): ?>
-              <option value="<?php echo (int)$c->id; ?>"><?php echo htmlspecialchars($c->company_name); ?></option>
+              <option value="<?php echo (int)$c->id; ?>"><?php echo esc_view($c->company_name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -28,7 +28,7 @@
             <select name="project_id" class="form-select">
               <option value="">-- None --</option>
               <?php if (isset($projects) && is_array($projects)) foreach ($projects as $p): ?>
-                <option value="<?php echo (int)$p->id; ?>"><?php echo htmlspecialchars($p->name); ?></option>
+                <option value="<?php echo (int)$p->id; ?>"><?php echo esc_view($p->name); ?></option>
               <?php endforeach; ?>
             </select>
             <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddProject" title="Add Project">
@@ -54,11 +54,16 @@
           <label class="form-label">Description</label>
           <textarea name="description" id="description" rows="6" class="form-control"></textarea>
         </div>
+        <div class="col-md-12">
+          <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
+          <input type="url" name="reference_url" class="form-control" placeholder="https://example.com/requirement-spec">
+          <div class="form-text">Optional. Paste any web link related to this requirement.</div>
+        </div>
         <div class="col-md-3">
           <label class="form-label">Priority</label>
           <select name="priority" class="form-select">
             <?php $priorities = array('low','medium','high','critical'); foreach ($priorities as $pr): ?>
-              <option value="<?php echo htmlspecialchars($pr); ?>"><?php echo ucfirst($pr); ?></option>
+              <option value="<?php echo esc_view($pr); ?>"><?php echo ucfirst($pr); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -70,7 +75,7 @@
               foreach ($statuses as $st): 
                 $selected = ($st->code === 'received') ? 'selected' : '';
             ?>
-              <option value="<?php echo htmlspecialchars($st->code); ?>" <?php echo $selected; ?>><?php echo htmlspecialchars($st->name); ?></option>
+              <option value="<?php echo esc_view($st->code); ?>" <?php echo $selected; ?>><?php echo esc_view($st->name); ?></option>
             <?php 
               endforeach; 
             else: 
@@ -78,7 +83,7 @@
               $fallback_statuses = ['received','under_review','approved','in_progress','completed','on_hold','rejected','cancelled'];
               foreach ($fallback_statuses as $st):
             ?>
-              <option value="<?php echo htmlspecialchars($st); ?>"><?php echo ucfirst(str_replace('_',' ',$st)); ?></option>
+              <option value="<?php echo esc_view($st); ?>"><?php echo ucfirst(str_replace('_',' ',$st)); ?></option>
             <?php 
               endforeach; 
             endif; 
@@ -107,7 +112,7 @@
                 else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
                 else if (isset($m->email)) { $label = $m->email; }
               ?>
-              <option value="<?php echo (int)$m->id; ?>"><?php echo htmlspecialchars($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>"><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Maintenance - <?php echo isset($company_name) ? htmlspecialchars($company_name) : 'Office Management System'; ?></title>
+    <title>System Maintenance - <?php echo isset($company_name) ? esc_view($company_name) : 'Office Management System'; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -311,7 +311,7 @@
             
             <div class="maintenance-message">
                 <i class="bi bi-info-circle-fill text-primary me-2"></i>
-                <?php echo htmlspecialchars($message); ?>
+                <?php echo esc_view($message); ?>
             </div>
             
             <div class="progress-container">
@@ -339,10 +339,10 @@
                     <h6 class="fw-bold mb-2" style="color: #0d6efd;">Need Immediate Assistance?</h6>
                     <p class="mb-2" style="color: #2d3748; line-height: 1.6;">If you need urgent access to this module or have any questions, please contact the system administrator.</p>
                     <div class="d-flex flex-wrap gap-2 mt-3">
-                    <a href="mailto:<?php echo htmlspecialchars(isset($company_email) ? $company_email : 'admin@example.com'); ?>" class="btn btn-sm btn-outline-primary" style="text-decoration: none;">
+                    <a href="mailto:<?php echo esc_view(isset($company_email) ? $company_email : 'admin@example.com'); ?>" class="btn btn-sm btn-outline-primary" style="text-decoration: none;">
                         <i class="bi bi-envelope-fill me-1"></i> Email Admin
                     </a>
-                    <a href="tel:<?php echo htmlspecialchars(isset($company_phone) ? $company_phone : '+1234567890'); ?>" class="btn btn-sm btn-outline-success" style="text-decoration: none;">
+                    <a href="tel:<?php echo esc_view(isset($company_phone) ? $company_phone : '+1234567890'); ?>" class="btn btn-sm btn-outline-success" style="text-decoration: none;">
                         <i class="bi bi-telephone-fill me-1"></i> Call Admin
                     </a>
                     </div>

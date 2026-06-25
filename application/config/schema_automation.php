@@ -12,6 +12,7 @@ $config['schema_automation'] = array(
     array('type' => 'helper', 'helper' => 'notifications_schema', 'function' => 'notifications_schema_ensure_push_subscriptions', 'label' => 'Push subscriptions'),
     array('type' => 'helper', 'helper' => 'clients_schema', 'function' => 'clients_schema_ensure', 'label' => 'Clients'),
     array('type' => 'helper', 'helper' => 'subscription_builder_schema', 'function' => 'subscription_builder_schema_ensure', 'label' => 'Subscription Builder'),
+    array('type' => 'helper', 'helper' => 'elintom_proposals_schema', 'function' => 'elintom_proposals_schema_ensure', 'label' => 'ElintOm Proposals'),
     array('type' => 'helper', 'helper' => 'expenses_schema', 'function' => 'expenses_schema_ensure', 'label' => 'Expenses'),
     array('type' => 'helper', 'helper' => 'requirements_schema', 'function' => 'requirements_schema_ensure', 'label' => 'Requirements'),
     array('type' => 'helper', 'helper' => 'announcements_schema', 'function' => 'announcements_schema_ensure', 'label' => 'Announcements'),

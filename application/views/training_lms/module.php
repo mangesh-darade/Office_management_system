@@ -7,14 +7,14 @@ $this->load->view('partials/header', array('title' => 'Module — ' . $module->t
   <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb small mb-0">
       <li class="breadcrumb-item"><a href="<?php echo site_url('training'); ?>">Module</a></li>
-      <li class="breadcrumb-item active" aria-current="page"><?php echo htmlspecialchars($module->title); ?></li>
+      <li class="breadcrumb-item active" aria-current="page"><?php echo esc_view($module->title); ?></li>
     </ol>
   </nav>
 
   <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
     <div>
       <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.72rem;">Module</div>
-      <h1 class="h4 mb-1"><?php echo htmlspecialchars($module->title); ?></h1>
+      <h1 class="h4 mb-1"><?php echo esc_view($module->title); ?></h1>
       <p class="text-muted small mb-0">
         <?php if ($is_mgr): ?>
           <span class="badge bg-secondary me-1">Full catalogue</span> You see every topic, assignment, and assessment link (admin / LMS manager).
@@ -28,7 +28,7 @@ $this->load->view('partials/header', array('title' => 'Module — ' . $module->t
 
   <?php if (!empty($module->description)): ?>
     <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body small"><?php echo nl2br(htmlspecialchars($module->description)); ?></div>
+      <div class="card-body small"><?php echo nl2br(esc_view($module->description)); ?></div>
     </div>
   <?php endif; ?>
 
@@ -46,11 +46,11 @@ $this->load->view('partials/header', array('title' => 'Module — ' . $module->t
         $atitle = isset($t->assessment_display_title) ? trim((string) $t->assessment_display_title) : '';
         $assign_line = '—';
         if ($has_a) {
-            $assign_line = $aname !== '' ? htmlspecialchars($aname) : '<span class="text-warning">Assignment not configured</span>';
+            $assign_line = $aname !== '' ? esc_view($aname) : '<span class="text-warning">Assignment not configured</span>';
         }
         $assess_line = '—';
         if ($has_q) {
-            $assess_line = $atitle !== '' ? htmlspecialchars($atitle) : '<span class="text-muted">Linked assessment</span>';
+            $assess_line = $atitle !== '' ? esc_view($atitle) : '<span class="text-muted">Linked assessment</span>';
         }
         $done = !empty($t->learner_topic_done);
         ?>
@@ -60,9 +60,9 @@ $this->load->view('partials/header', array('title' => 'Module — ' . $module->t
               <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
                 <div>
                   <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.65rem;">Topic</div>
-                  <h3 class="h6 mb-1"><?php echo htmlspecialchars($t->name); ?></h3>
+                  <h3 class="h6 mb-1"><?php echo esc_view($t->name); ?></h3>
                   <div class="small text-muted">
-                    <i class="bi bi-clock me-1"></i><?php echo htmlspecialchars(number_format((float) $t->duration_hours, 1)); ?> h
+                    <i class="bi bi-clock me-1"></i><?php echo esc_view(number_format((float) $t->duration_hours, 1)); ?> h
                     <?php if (!empty($t->prerequisite_topic_id) && (int) $t->prerequisite_topic_id > 0): ?>
                       <span class="ms-2"><i class="bi bi-lock me-1"></i>Prerequisite topic required</span>
                     <?php endif; ?>
@@ -76,7 +76,7 @@ $this->load->view('partials/header', array('title' => 'Module — ' . $module->t
                 </div>
               </div>
               <?php if (!empty($t->description)): ?>
-                <p class="small text-muted mb-3"><?php echo nl2br(htmlspecialchars($t->description)); ?></p>
+                <p class="small text-muted mb-3"><?php echo nl2br(esc_view($t->description)); ?></p>
               <?php endif; ?>
               <div class="row g-2 small">
                 <div class="col-md-6">

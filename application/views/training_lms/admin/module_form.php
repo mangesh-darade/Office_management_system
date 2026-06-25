@@ -11,11 +11,11 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit module' : 'New
     <div class="card-body">
       <div class="mb-3">
         <label class="form-label">Title <span class="text-danger">*</span></label>
-        <input type="text" name="title" class="form-control" required maxlength="255" value="<?php echo $ed ? htmlspecialchars($row->title) : ''; ?>">
+        <input type="text" name="title" class="form-control" required maxlength="255" value="<?php echo $ed ? esc_view($row->title) : ''; ?>">
       </div>
       <div class="mb-3">
         <label class="form-label">Description</label>
-        <textarea name="description" class="form-control" rows="3"><?php echo $ed ? htmlspecialchars($row->description) : ''; ?></textarea>
+        <textarea name="description" class="form-control" rows="3"><?php echo $ed ? esc_view($row->description) : ''; ?></textarea>
       </div>
       <div class="row g-3">
         <div class="col-md-4">

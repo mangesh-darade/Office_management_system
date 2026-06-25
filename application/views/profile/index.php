@@ -5,12 +5,12 @@
 
   <?php if($this->session->flashdata('success')): ?>
     <div class="alert alert-success fade show" role="alert">
-      <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <?php echo esc_view($this->session->flashdata('success')); ?>
     </div>
   <?php endif; ?>
   <?php if($this->session->flashdata('error')): ?>
     <div class="alert alert-danger fade show" role="alert">
-      <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
     </div>
   <?php endif; ?>
 
@@ -33,22 +33,22 @@
               $initial = strtoupper(substr($displayName, 0, 1));
             ?>
             <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:56px;height:56px;font-weight:600;">
-              <?php echo htmlspecialchars($initial); ?>
+              <?php echo esc_view($initial); ?>
             </div>
             <div class="ms-3">
               <div class="fw-semibold">
-                <?php echo htmlspecialchars($displayName); ?>
+                <?php echo esc_view($displayName); ?>
               </div>
-              <div class="text-muted small">Role: <?php echo htmlspecialchars(isset($user->role) ? $user->role : 'member'); ?></div>
+              <div class="text-muted small">Role: <?php echo esc_view(isset($user->role) ? $user->role : 'member'); ?></div>
             </div>
           </div>
           <div class="small text-muted">Email</div>
-          <div class="mb-3"><?php echo htmlspecialchars(isset($user->email) ? $user->email : ''); ?></div>
+          <div class="mb-3"><?php echo esc_view(isset($user->email) ? $user->email : ''); ?></div>
           <?php if(!empty($employee)): ?>
             <div class="small text-muted">Department</div>
-            <div class="mb-2"><?php echo htmlspecialchars(isset($employee->department) ? $employee->department : '-'); ?></div>
+            <div class="mb-2"><?php echo esc_view(isset($employee->department) ? $employee->department : '-'); ?></div>
             <div class="small text-muted">Designation</div>
-            <div class="mb-2"><?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : '-'); ?></div>
+            <div class="mb-2"><?php echo esc_view(isset($employee->designation) ? $employee->designation : '-'); ?></div>
           <?php endif; ?>
         </div>
       </div>

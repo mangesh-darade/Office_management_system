@@ -30,7 +30,7 @@
                             <?php foreach($flows as $flow): ?>
                                 <tr>
                                     <td><span class="badge bg-info"><?php echo ucfirst($flow->module); ?></span></td>
-                                    <td><?php echo htmlspecialchars($flow->name); ?></td>
+                                    <td><?php echo esc_view($flow->name); ?></td>
                                     <td>
                                         <?php if($flow->is_active): ?>
                                             <span class="badge bg-success">Active</span>

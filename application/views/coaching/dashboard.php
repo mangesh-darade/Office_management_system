@@ -41,8 +41,8 @@
             <i class="bi <?php echo $c[2]; ?>"></i>
           </div>
           <div>
-            <div class="coaching-metric-title"><?php echo htmlspecialchars($c[0]); ?></div>
-            <div class="coaching-metric-value"><?php echo htmlspecialchars((string) $c[1]); ?></div>
+            <div class="coaching-metric-title"><?php echo esc_view($c[0]); ?></div>
+            <div class="coaching-metric-value"><?php echo esc_view((string) $c[1]); ?></div>
           </div>
         </div>
       </div>

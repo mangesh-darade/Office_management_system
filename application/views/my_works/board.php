@@ -11,7 +11,7 @@
   )); ?>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success py-2"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success py-2"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
 
   <?php $this->load->view('my_works/_scope_banner', array('scope' => isset($scope) ? $scope : array())); ?>
@@ -32,10 +32,10 @@
       ?>
       <div class="mw-board-col">
         <div class="mw-board-col-head">
-          <span><span class="badge bg-<?php echo $badge; ?> me-1">&nbsp;</span><?php echo htmlspecialchars($label); ?></span>
+          <span><span class="badge bg-<?php echo $badge; ?> me-1">&nbsp;</span><?php echo esc_view($label); ?></span>
           <span class="badge bg-light text-dark border"><?php echo count($colItems); ?></span>
         </div>
-        <div class="mw-board-col-body" data-status="<?php echo htmlspecialchars($colStatus); ?>">
+        <div class="mw-board-col-body" data-status="<?php echo esc_view($colStatus); ?>">
           <?php if (empty($colItems)): ?>
             <div class="text-muted small text-center py-3 mw-board-empty">No items</div>
           <?php else: ?>
@@ -45,16 +45,16 @@
                 $borderClass = my_works_row_border_class($r);
                 $overdue = my_works_is_overdue($r);
               ?>
-              <div class="mw-board-card-wrap" draggable="true" data-id="<?php echo (int) $r->id; ?>" data-status="<?php echo htmlspecialchars($r->status); ?>">
+              <div class="mw-board-card-wrap" draggable="true" data-id="<?php echo (int) $r->id; ?>" data-status="<?php echo esc_view($r->status); ?>">
                 <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-board-card <?php echo $borderClass; ?>">
-                  <div class="title"><?php echo htmlspecialchars($r->title); ?></div>
+                  <div class="title"><?php echo esc_view($r->title); ?></div>
                   <?php if (!empty($r->project_name)): ?>
-                    <span class="mw-chip mw-chip-project" style="font-size:0.65rem;"><i class="bi bi-folder2-open"></i><?php echo htmlspecialchars($r->project_name); ?></span>
+                    <span class="mw-chip mw-chip-project" style="font-size:0.65rem;"><i class="bi bi-folder2-open"></i><?php echo esc_view($r->project_name); ?></span>
                   <?php endif; ?>
                   <?php if (!empty($r->work_type) || !empty($r->client_name)): ?>
                   <div class="d-flex flex-wrap gap-1 mb-1">
-                    <?php if (!empty($r->work_type)): ?><span class="mw-chip mw-chip-type" style="font-size:0.65rem;"><i class="bi bi-tag"></i><?php echo htmlspecialchars(my_works_type_label($r->work_type)); ?></span><?php endif; ?>
-                    <?php if (!empty($r->client_name)): ?><span class="mw-chip mw-chip-client" style="font-size:0.65rem;"><i class="bi bi-building"></i><?php echo htmlspecialchars($r->client_name); ?></span><?php endif; ?>
+                    <?php if (!empty($r->work_type)): ?><span class="mw-chip mw-chip-type" style="font-size:0.65rem;"><i class="bi bi-tag"></i><?php echo esc_view(my_works_type_label($r->work_type)); ?></span><?php endif; ?>
+                    <?php if (!empty($r->client_name)): ?><span class="mw-chip mw-chip-client" style="font-size:0.65rem;"><i class="bi bi-building"></i><?php echo esc_view($r->client_name); ?></span><?php endif; ?>
                   </div>
                   <?php endif; ?>
                   <div class="d-flex flex-wrap gap-1 mb-1">
@@ -62,11 +62,11 @@
                     <?php if ((int) $r->is_important === 1): ?><span class="badge bg-warning text-dark">Important</span><?php endif; ?>
                     <?php if ($overdue): ?><span class="badge bg-danger-subtle text-danger border">Overdue</span><?php endif; ?>
                     <?php foreach (my_works_parse_tags(isset($r->tag) ? $r->tag : '') as $tg): ?>
-                      <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($tg); ?></span>
+                      <span class="badge bg-light text-dark border"><?php echo esc_view($tg); ?></span>
                     <?php endforeach; ?>
                   </div>
                   <div class="small text-muted">
-                    <i class="bi bi-person me-1"></i><?php echo htmlspecialchars($forLabel); ?>
+                    <i class="bi bi-person me-1"></i><?php echo esc_view($forLabel); ?>
                     &middot; <?php echo my_works_format_when($r->updated_at); ?>
                   </div>
                 </a>

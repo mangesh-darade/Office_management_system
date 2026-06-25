@@ -23,7 +23,7 @@ $links = [
     $active = ($seg1 === $l[0] && ($seg2 === $l[1] || ($l[1] === 'index' && ($seg2 === '' || $seg2 === 'index'))));
   ?>
   <a class="nav-link py-1 px-2 <?php echo $active ? 'active' : 'text-secondary'; ?>" href="<?php echo site_url($l[0] . ($l[1] !== 'index' ? '/' . $l[1] : '')); ?>">
-    <i class="bi <?php echo $l[3]; ?> me-1"></i><?php echo htmlspecialchars($l[2]); ?>
+    <i class="bi <?php echo $l[3]; ?> me-1"></i><?php echo esc_view($l[2]); ?>
   </a>
   <?php endforeach; ?>
 </nav>

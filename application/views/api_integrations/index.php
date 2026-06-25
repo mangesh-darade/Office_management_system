@@ -10,10 +10,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-sm">
@@ -68,14 +68,14 @@
                   <span class="badge bg-info"><?php echo strtoupper($int->service_type); ?></span>
                 </td>
                 <td>
-                  <strong><?php echo htmlspecialchars($int->service_name); ?></strong>
+                  <strong><?php echo esc_view($int->service_name); ?></strong>
                   <?php if ($int->notes): ?>
-                    <br><small class="text-muted"><?php echo htmlspecialchars(mb_substr($int->notes, 0, 50)); ?>...</small>
+                    <br><small class="text-muted"><?php echo esc_view(mb_substr($int->notes, 0, 50)); ?>...</small>
                   <?php endif; ?>
                 </td>
                 <td>
                   <?php if ($int->account_id): ?>
-                    <code><?php echo htmlspecialchars(mb_substr($int->account_id, 0, 30)); ?><?php echo mb_strlen($int->account_id) > 30 ? '...' : ''; ?></code>
+                    <code><?php echo esc_view(mb_substr($int->account_id, 0, 30)); ?><?php echo mb_strlen($int->account_id) > 30 ? '...' : ''; ?></code>
                   <?php else: ?>
                     <span class="text-muted">-</span>
                   <?php endif; ?>
@@ -85,9 +85,9 @@
                   $from = $int->from_email ?: $int->from_number;
                   if ($from): 
                   ?>
-                    <code><?php echo htmlspecialchars($from); ?></code>
+                    <code><?php echo esc_view($from); ?></code>
                     <?php if ($int->from_name): ?>
-                      <br><small class="text-muted"><?php echo htmlspecialchars($int->from_name); ?></small>
+                      <br><small class="text-muted"><?php echo esc_view($int->from_name); ?></small>
                     <?php endif; ?>
                   <?php else: ?>
                     <span class="text-muted">-</span>

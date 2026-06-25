@@ -12,7 +12,7 @@
                     <select name="employee_id" class="form-control" require>
                         <?php foreach($employees as $e): ?>
                         <option value="<?php echo (int)$e->id; ?>">
-                            <?php echo htmlspecialchars($e->first_name . ' ' . $e->last_name . ' (' . $e->department . ')'); ?>
+                            <?php echo esc_view($e->first_name . ' ' . $e->last_name . ' (' . $e->department . ')'); ?>
                         </option>
                         <?php endforeach; ?>
                     </select>

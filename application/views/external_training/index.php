@@ -65,7 +65,7 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
             <?php foreach ($rows as $r): ?>
               <tr>
                 <td><?php echo (int) $r->id; ?></td>
-                <td><?php echo htmlspecialchars($r->name); ?></td>
+                <td><?php echo esc_view($r->name); ?></td>
                 <td>External</td>
                 <td>Self-paced</td>
                 <td>
@@ -86,7 +86,7 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
                     <i class="bi bi-upload me-1"></i>Upload
                   </button>
                 </td>
-                <td><?php echo htmlspecialchars($r->created_at); ?></td>
+                <td><?php echo esc_view($r->created_at); ?></td>
                 <td>
                   <?php if ($canEdit): ?>
                   <a href="<?php echo site_url('external-training/edit/' . (int) $r->id); ?>" class="btn btn-sm btn-outline-primary me-1">
@@ -114,9 +114,9 @@ $canDelete = function_exists('has_module_access') && (has_module_access('externa
   <div class="et-mobile mt-3">
     <?php if (!empty($rows)): foreach ($rows as $r): ?>
     <div class="card et-card p-3 mb-2">
-      <div class="fw-semibold"><?php echo htmlspecialchars($r->name); ?></div>
+      <div class="fw-semibold"><?php echo esc_view($r->name); ?></div>
       <div class="small text-muted">Provider: External · Duration: Self-paced</div>
-      <div class="small text-muted">Created: <?php echo htmlspecialchars($r->created_at); ?></div>
+      <div class="small text-muted">Created: <?php echo esc_view($r->created_at); ?></div>
       <div class="mt-2 d-flex flex-wrap gap-2">
         <a href="<?php echo site_url('external-training/watch/' . (int) $r->id); ?>" class="btn btn-sm btn-primary"><i class="bi bi-play-circle me-1"></i>Open</a>
         <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-upload me-1"></i>Upload certificate</button>

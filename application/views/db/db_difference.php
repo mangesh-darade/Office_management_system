@@ -10,8 +10,8 @@
 
 <?php if (!empty($module_tables)): ?>
 <div class="alert alert-light border small mb-3">
-  <strong>Module tables on master (<?php echo htmlspecialchars($master_db); ?>):</strong>
-  <?php echo htmlspecialchars(implode(', ', $module_tables)); ?>
+  <strong>Module tables on master (<?php echo esc_view($master_db); ?>):</strong>
+  <?php echo esc_view(implode(', ', $module_tables)); ?>
 </div>
 <?php endif; ?>
 
@@ -68,18 +68,18 @@
           <label class="form-label">Source Database (Section A)</label>
           <select class="form-select" id="sourceDb" name="source_db" required>
             <option value="">-- Select Source Database --</option>
-            <option value="<?php echo htmlspecialchars($master_db); ?>" data-client-id="0" data-is-master="1" data-client-name="OMS Master">
-              OMS Master (<?php echo htmlspecialchars($master_db); ?>)
+            <option value="<?php echo esc_view($master_db); ?>" data-client-id="0" data-is-master="1" data-client-name="OMS Master">
+              OMS Master (<?php echo esc_view($master_db); ?>)
             </option>
             <?php foreach ($clients as $cl): ?>
               <?php if (!empty($cl->db_name)): ?>
-                <option value="<?php echo htmlspecialchars($cl->db_name); ?>" 
+                <option value="<?php echo esc_view($cl->db_name); ?>" 
                         data-client-id="<?php echo (int)$cl->id; ?>"
                         data-is-master="0"
-                        data-client-name="<?php echo htmlspecialchars($cl->company_name); ?>"
-                        data-db-host="<?php echo htmlspecialchars(isset($cl->db_host) ? $cl->db_host : ''); ?>"
-                        data-db-port="<?php echo htmlspecialchars(isset($cl->db_port) ? $cl->db_port : ''); ?>">
-                  <?php echo htmlspecialchars($cl->company_name . ' (' . $cl->db_name . ')'); ?>
+                        data-client-name="<?php echo esc_view($cl->company_name); ?>"
+                        data-db-host="<?php echo esc_view(isset($cl->db_host) ? $cl->db_host : ''); ?>"
+                        data-db-port="<?php echo esc_view(isset($cl->db_port) ? $cl->db_port : ''); ?>">
+                  <?php echo esc_view($cl->company_name . ' (' . $cl->db_name . ')'); ?>
                 </option>
               <?php endif; ?>
             <?php endforeach; ?>
@@ -89,18 +89,18 @@
           <label class="form-label">Target Database (Section B)</label>
           <select class="form-select" id="targetDb" name="target_db" required>
             <option value="">-- Select Target Database --</option>
-            <option value="<?php echo htmlspecialchars($master_db); ?>" data-client-id="0" data-is-master="1" data-client-name="OMS Master">
-              OMS Master (<?php echo htmlspecialchars($master_db); ?>)
+            <option value="<?php echo esc_view($master_db); ?>" data-client-id="0" data-is-master="1" data-client-name="OMS Master">
+              OMS Master (<?php echo esc_view($master_db); ?>)
             </option>
             <?php foreach ($clients as $cl): ?>
               <?php if (!empty($cl->db_name)): ?>
-                <option value="<?php echo htmlspecialchars($cl->db_name); ?>" 
+                <option value="<?php echo esc_view($cl->db_name); ?>" 
                         data-client-id="<?php echo (int)$cl->id; ?>"
                         data-is-master="0"
-                        data-client-name="<?php echo htmlspecialchars($cl->company_name); ?>"
-                        data-db-host="<?php echo htmlspecialchars(isset($cl->db_host) ? $cl->db_host : ''); ?>"
-                        data-db-port="<?php echo htmlspecialchars(isset($cl->db_port) ? $cl->db_port : ''); ?>">
-                  <?php echo htmlspecialchars($cl->company_name . ' (' . $cl->db_name . ')'); ?>
+                        data-client-name="<?php echo esc_view($cl->company_name); ?>"
+                        data-db-host="<?php echo esc_view(isset($cl->db_host) ? $cl->db_host : ''); ?>"
+                        data-db-port="<?php echo esc_view(isset($cl->db_port) ? $cl->db_port : ''); ?>">
+                  <?php echo esc_view($cl->company_name . ' (' . $cl->db_name . ')'); ?>
                 </option>
               <?php endif; ?>
             <?php endforeach; ?>

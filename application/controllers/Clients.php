@@ -551,7 +551,7 @@ class Clients extends CI_Controller {
         if (!$client) { show_404(); }
 
         $this->clients->delete_client($id);
-        $this->session->set_flashdata('success', 'Client "' . htmlspecialchars($client->company_name) . '" deleted successfully.');
+        $this->session->set_flashdata('success', 'Client "' . esc_view($client->company_name) . '" deleted successfully.');
         redirect('clients');
     }
 

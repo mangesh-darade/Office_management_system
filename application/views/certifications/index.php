@@ -7,7 +7,7 @@ $this->load->view('partials/oms_page_head', ['title' => 'Certifications', 'icon'
 ?>
 <div class="card shadow-soft"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Employee</th><th>Certification</th><th>Issuer</th><th>Status</th><th></th></tr></thead><tbody>
 <?php if (empty($rows)): ?><tr><td colspan="5" class="text-muted text-center">No submissions.</td></tr><?php else: foreach ($rows as $r): ?>
-<tr><td><?php echo htmlspecialchars($r->user_name); ?></td><td><?php echo htmlspecialchars($r->cert_name); ?></td><td><?php echo htmlspecialchars($r->issuer ?: '—'); ?></td><td><?php echo htmlspecialchars($r->status); ?></td><td>
+<tr><td><?php echo esc_view($r->user_name); ?></td><td><?php echo esc_view($r->cert_name); ?></td><td><?php echo esc_view($r->issuer ?: '—'); ?></td><td><?php echo esc_view($r->status); ?></td><td>
 <?php if (!empty($can_approve) && $r->status==='pending'): ?>
 <form method="post" action="<?php echo site_url('certifications/approve/'.$r->id); ?>" class="d-inline"><?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?><button class="btn btn-sm btn-success">Approve</button></form>
 <form method="post" action="<?php echo site_url('certifications/reject/'.$r->id); ?>" class="d-inline"><?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?><button class="btn btn-sm btn-outline-danger">Reject</button></form>

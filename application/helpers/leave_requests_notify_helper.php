@@ -97,9 +97,9 @@ if (!function_exists('leave_requests_notify_applied')) {
             }
             
             $message = '<html><body>';
-            $message .= '<h3>New ' . htmlspecialchars($request_type) . '</h3>';
-            $message .= '<p><strong>Employee:</strong> ' . htmlspecialchars($employee_name) . ' (' . htmlspecialchars($first_leave->user_email) . ')</p>';
-            $message .= '<p><strong>' . ($is_wfh ? 'WFH Type' : 'Leave Type') . ':</strong> ' . htmlspecialchars($leave_type) . '</p>';
+            $message .= '<h3>New ' . esc_view($request_type) . '</h3>';
+            $message .= '<p><strong>Employee:</strong> ' . esc_view($employee_name) . ' (' . esc_view($first_leave->user_email) . ')</p>';
+            $message .= '<p><strong>' . ($is_wfh ? 'WFH Type' : 'Leave Type') . ':</strong> ' . esc_view($leave_type) . '</p>';
             $message .= '<p><strong>Total Requests:</strong> ' . $request_count . '</p>';
             $message .= '<p><strong>Total Days:</strong> ' . number_format($total_days, 1) . '</p>';
             
@@ -110,9 +110,9 @@ if (!function_exists('leave_requests_notify_applied')) {
             
             foreach ($leave_details as $detail) {
                 $message .= '<tr>';
-                $message .= '<td>' . htmlspecialchars($detail['date']) . '</td>';
+                $message .= '<td>' . esc_view($detail['date']) . '</td>';
                 $message .= '<td>' . number_format($detail['days'], 1) . '</td>';
-                $message .= '<td>' . htmlspecialchars($detail['reason']) . '</td>';
+                $message .= '<td>' . esc_view($detail['reason']) . '</td>';
                 $message .= '</tr>';
             }
             $message .= '</table>';
@@ -256,19 +256,19 @@ if (!function_exists('leave_requests_notify_change')) {
             
             $subject = $request_type . ' ' . $status_text . ' - ' . $date_string;
             $message = '<html><body>';
-            $message .= '<h3 style="color: ' . $status_color . ';">' . htmlspecialchars($request_type) . ' ' . $status_text . '</h3>';
-            $message .= '<p>Dear ' . htmlspecialchars(!empty($row->user_name) ? $row->user_name : $row->user_email) . ',</p>';
+            $message .= '<h3 style="color: ' . $status_color . ';">' . esc_view($request_type) . ' ' . $status_text . '</h3>';
+            $message .= '<p>Dear ' . esc_view(!empty($row->user_name) ? $row->user_name : $row->user_email) . ',</p>';
             $message .= '<p>Your ' . strtolower($request_type) . ' has been <strong style="color: ' . $status_color . ';">' . $status_text . '</strong>.</p>';
             $message .= '<p><strong>' . ($is_wfh ? 'WFH' : 'Leave') . ' Details:</strong></p>';
             $message .= '<ul>';
-            $message .= '<li><strong>' . ($is_wfh ? 'WFH Type' : 'Leave Type') . ':</strong> ' . htmlspecialchars($row->type_name) . '</li>';
-            $message .= '<li><strong>Date(s):</strong> ' . htmlspecialchars($date_string) . '</li>';
+            $message .= '<li><strong>' . ($is_wfh ? 'WFH Type' : 'Leave Type') . ':</strong> ' . esc_view($row->type_name) . '</li>';
+            $message .= '<li><strong>Date(s):</strong> ' . esc_view($date_string) . '</li>';
             $message .= '<li><strong>Days:</strong> ' . number_format((float)$row->days, 1) . '</li>';
-            $message .= '<li><strong>Status:</strong> ' . htmlspecialchars($status_text) . '</li>';
+            $message .= '<li><strong>Status:</strong> ' . esc_view($status_text) . '</li>';
             $message .= '</ul>';
             if ($comments) {
                 $message .= '<p><strong>Comments:</strong></p>';
-                $message .= '<p>' . nl2br(htmlspecialchars($comments)) . '</p>';
+                $message .= '<p>' . nl2br(esc_view($comments)) . '</p>';
             }
             $message .= '<p>You can view your ' . strtolower($request_type) . 's from the <a href="' . site_url('leave/my') . '">My Leaves</a> page.</p>';
             $message .= '<p>Thank you.</p>';

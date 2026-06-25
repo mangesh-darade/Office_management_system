@@ -3,7 +3,7 @@
   <nav aria-label="breadcrumb" class="mb-2">
     <ol class="breadcrumb small mb-0">
       <li class="breadcrumb-item"><a href="<?php echo site_url('training-lms-admin'); ?>">LMS Admin</a></li>
-      <li class="breadcrumb-item active"><?php echo htmlspecialchars($module->title); ?></li>
+      <li class="breadcrumb-item active"><?php echo esc_view($module->title); ?></li>
     </ol>
   </nav>
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -15,7 +15,7 @@
   </div>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
 
   <div class="table-responsive card shadow-sm border-0">
@@ -35,18 +35,18 @@
         <?php else: ?>
           <?php foreach ($topics as $t): ?>
             <tr>
-              <td><strong><?php echo htmlspecialchars($t->name); ?></strong></td>
-              <td><?php echo htmlspecialchars(number_format((float) $t->duration_hours, 1)); ?></td>
+              <td><strong><?php echo esc_view($t->name); ?></strong></td>
+              <td><?php echo esc_view(number_format((float) $t->duration_hours, 1)); ?></td>
               <td>
                 <?php if ((int) $t->has_assignment): ?>
-                  <span class="text-primary small fw-semibold"><?php echo htmlspecialchars(!empty($t->assignment_name) ? $t->assignment_name : 'Yes'); ?></span>
+                  <span class="text-primary small fw-semibold"><?php echo esc_view(!empty($t->assignment_name) ? $t->assignment_name : 'Yes'); ?></span>
                 <?php else: ?>
                   <span class="text-muted small">—</span>
                 <?php endif; ?>
               </td>
               <td>
                 <?php if ((int) $t->has_assessment && (int) $t->assessment_id > 0): ?>
-                  <span class="text-info small fw-semibold"><?php echo htmlspecialchars(!empty($t->assessment_title) ? $t->assessment_title : 'Linked'); ?></span>
+                  <span class="text-info small fw-semibold"><?php echo esc_view(!empty($t->assessment_title) ? $t->assessment_title : 'Linked'); ?></span>
                 <?php else: ?>
                   <span class="text-muted small">—</span>
                 <?php endif; ?>

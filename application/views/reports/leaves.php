@@ -21,7 +21,7 @@
           <select name="user_id" class="form-select form-select-sm">
             <option value="">All Employees</option>
             <?php foreach($filter_options['users'] as $user): ?>
-              <option value="<?php echo $user->id; ?>" <?php echo (isset($filters['user_id']) && $filters['user_id'] == $user->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($user->email); ?></option>
+              <option value="<?php echo $user->id; ?>" <?php echo (isset($filters['user_id']) && $filters['user_id'] == $user->id) ? 'selected' : ''; ?>><?php echo esc_view($user->email); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -40,7 +40,7 @@
             <option value="">All Types</option>
             <?php if (!empty($filter_options['leave_types'])): ?>
               <?php foreach($filter_options['leave_types'] as $type): ?>
-                <option value="<?php echo $type; ?>" <?php echo (isset($filters['leave_type']) && $filters['leave_type'] === $type) ? 'selected' : ''; ?>><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $type))); ?></option>
+                <option value="<?php echo $type; ?>" <?php echo (isset($filters['leave_type']) && $filters['leave_type'] === $type) ? 'selected' : ''; ?>><?php echo esc_view(ucfirst(str_replace('_', ' ', $type))); ?></option>
               <?php endforeach; ?>
             <?php endif; ?>
           </select>
@@ -48,12 +48,12 @@
         <div class="col-md-2">
           <label class="form-label">Date From</label>
           <input type="date" name="date_from" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">Date To</label>
           <input type="date" name="date_to" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">&nbsp;</label>
@@ -169,7 +169,7 @@
                             $daysText = (fmod($daysVal, 1.0) === 0.0)
                               ? (string)(int)$daysVal
                               : rtrim(rtrim(number_format($daysVal, 2, '.', ''), '0'), '.');
-                            echo htmlspecialchars($daysText);
+                            echo esc_view($daysText);
                           } else {
                             echo '-';
                           }
@@ -210,7 +210,7 @@
                   <?php foreach ($by_employee as $r): ?>
                     <tr>
                       <td>
-                        <div class="fw-semibold"><?php echo htmlspecialchars($r->name); ?></div>
+                        <div class="fw-semibold"><?php echo esc_view($r->name); ?></div>
                         <div class="small text-muted">ID: <?php echo (int)$r->user_id; ?></div>
                       </td>
                       <td class="text-center fw-medium"><?php echo (int)$r->cnt; ?></td>
@@ -250,7 +250,7 @@
                 <tbody>
                   <?php foreach ($monthly as $m): ?>
                     <tr>
-                      <td><?php echo htmlspecialchars($m->ym); ?></td>
+                      <td><?php echo esc_view($m->ym); ?></td>
                       <td class="text-center">
                         <?php
                           $val = null;
@@ -263,7 +263,7 @@
                             $text = (fmod($val, 1.0) === 0.0)
                               ? (string)(int)$val
                               : rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.');
-                            echo htmlspecialchars($text);
+                            echo esc_view($text);
                           } else {
                             echo '-';
                           }
@@ -305,11 +305,11 @@
                   <?php foreach ($recent_leaves as $r): ?>
                     <tr>
                       <td>
-                        <div class="fw-semibold small"><?php echo htmlspecialchars($r->user_name); ?></div>
+                        <div class="fw-semibold small"><?php echo esc_view($r->user_name); ?></div>
                         <div class="small text-muted"><?php echo date('M d', strtotime($r->start_date)); ?> - <?php echo date('M d', strtotime($r->end_date)); ?></div>
                       </td>
                       <td>
-                        <div class="small"><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $r->leave_type))); ?></div>
+                        <div class="small"><?php echo esc_view(ucfirst(str_replace('_', ' ', $r->leave_type))); ?></div>
                       </td>
                       <td class="text-center">
                         <span class="badge bg-light text-dark"><?php echo (float)$r->days; ?></span>

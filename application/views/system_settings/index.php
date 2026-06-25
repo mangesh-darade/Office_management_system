@@ -37,7 +37,7 @@
               <?php foreach ($settings as $setting): ?>
                 <div class="col-md-6 mb-3">
                   <label class="form-label">
-                    <?php echo htmlspecialchars($setting->description); ?>
+                    <?php echo esc_view($setting->description); ?>
                     <?php if (!$setting->is_public): ?>
                       <span class="badge bg-warning ms-1">Admin Only</span>
                     <?php endif; ?>
@@ -79,7 +79,7 @@
                     <input type="number" 
                            class="form-control" 
                            name="settings[<?php echo $setting->setting_key; ?>]" 
-                           value="<?php echo htmlspecialchars($setting->setting_value); ?>"
+                           value="<?php echo esc_view($setting->setting_value); ?>"
                            min="0">
                     
                   <?php elseif ($setting->setting_type === 'file'): ?>
@@ -89,7 +89,7 @@
                            accept="image/*">
                     <?php if ($setting->setting_value): ?>
                       <div class="mt-2">
-                        <small class="text-muted">Current: <?php echo htmlspecialchars($setting->setting_value); ?></small>
+                        <small class="text-muted">Current: <?php echo esc_view($setting->setting_value); ?></small>
                         <br>
                         <img src="<?php echo base_url($setting->setting_value); ?>" alt="Logo" style="max-height: 50px;">
                       </div>
@@ -99,8 +99,8 @@
                     <input type="text" 
                            class="form-control" 
                            name="settings[<?php echo $setting->setting_key; ?>]" 
-                           value="<?php echo htmlspecialchars($setting->setting_value); ?>"
-                           placeholder="<?php echo htmlspecialchars($setting->description); ?>">
+                           value="<?php echo esc_view($setting->setting_value); ?>"
+                           placeholder="<?php echo esc_view($setting->description); ?>">
                   <?php endif; ?>
                 </div>
               <?php endforeach; ?>

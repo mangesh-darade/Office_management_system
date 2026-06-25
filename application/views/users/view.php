@@ -39,12 +39,12 @@
             <div class="col-md-3 text-center">
               <div class="avatar-wrapper mb-3">
                 <?php if (!empty($user->avatar)): ?>
-                  <img src="<?php echo base_url('uploads/avatars/'.htmlspecialchars($user->avatar)); ?>" 
+                  <img src="<?php echo base_url('uploads/avatars/'.esc_view($user->avatar)); ?>" 
                        class="rounded-circle avatar-lg border border-3 border-light-subtle" 
-                       alt="<?php echo htmlspecialchars($user->name); ?>">
+                       alt="<?php echo esc_view($user->name); ?>">
                 <?php else: ?>
                   <div class="avatar-lg rounded-circle bg-primary bg-gradient d-flex align-items-center justify-content-center text-white fw-bold">
-                    <?php echo htmlspecialchars(strtoupper(substr(isset($user->name) ? $user->name : '', 0, 2)), ENT_QUOTES, 'UTF-8'); ?>
+                    <?php echo esc_view(strtoupper(substr(isset($user->name) ? $user->name : '', 0, 2)), ENT_QUOTES, 'UTF-8'); ?>
                   </div>
                 <?php endif; ?>
               </div>
@@ -73,7 +73,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label text-muted small">Full Name</label>
-                  <p class="fw-semibold text-dark"><?php echo htmlspecialchars($user->name); ?></p>
+                  <p class="fw-semibold text-dark"><?php echo esc_view($user->name); ?></p>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label text-muted small">User ID</label>
@@ -83,7 +83,7 @@
                   <label class="form-label text-muted small">Email Address</label>
                   <p class="fw-semibold text-dark">
                     <i class="bi bi-envelope-fill text-muted me-2"></i>
-                    <?php echo htmlspecialchars($user->email); ?>
+                    <?php echo esc_view($user->email); ?>
                   </p>
                 </div>
                 <?php if (!empty($user->phone)): ?>
@@ -91,7 +91,7 @@
                   <label class="form-label text-muted small">Phone Number</label>
                   <p class="fw-semibold text-dark">
                     <i class="bi bi-telephone-fill text-muted me-2"></i>
-                    <?php echo htmlspecialchars($user->phone); ?>
+                    <?php echo esc_view($user->phone); ?>
                   </p>
                 </div>
                 <?php endif; ?>
@@ -144,7 +144,7 @@
                     ?>
                     <span class="badge bg-<?php echo $roleColor; ?> bg-opacity-10 text-<?php echo $roleColor; ?> border border-<?php echo $roleColor; ?> bg-opacity-25">
                       <i class="bi <?php echo $roleIcon; ?> me-1"></i>
-                      <?php echo htmlspecialchars($displayName); ?>
+                      <?php echo esc_view($displayName); ?>
                     </span>
                   </p>
                 </div>
@@ -204,18 +204,18 @@
           <div class="row g-3">
             <div class="col-12">
               <label class="form-label text-muted small">Employee Code</label>
-              <p class="fw-semibold text-dark"><?php echo htmlspecialchars($employee->emp_code); ?></p>
+              <p class="fw-semibold text-dark"><?php echo esc_view($employee->emp_code); ?></p>
             </div>
             <?php if (!empty($employee->department)): ?>
             <div class="col-12">
               <label class="form-label text-muted small">Department</label>
-              <p class="fw-semibold text-dark"><?php echo htmlspecialchars($employee->department); ?></p>
+              <p class="fw-semibold text-dark"><?php echo esc_view($employee->department); ?></p>
             </div>
             <?php endif; ?>
             <?php if (!empty($employee->designation)): ?>
             <div class="col-12">
               <label class="form-label text-muted small">Designation</label>
-              <p class="fw-semibold text-dark"><?php echo htmlspecialchars($employee->designation); ?></p>
+              <p class="fw-semibold text-dark"><?php echo esc_view($employee->designation); ?></p>
             </div>
             <?php endif; ?>
             <?php if (!empty($employee->join_date)): ?>
@@ -245,12 +245,12 @@
             $image_src = $face->image_path;
             if (strpos($image_src, 'data:image') === 0) {
                 // Base64 data URL
-                $img_tag = '<img src="' . htmlspecialchars($image_src) . '" 
+                $img_tag = '<img src="' . esc_view($image_src) . '" 
                            class="rounded border border-2 border-light-subtle mb-3" 
                            alt="Face Recognition" style="max-width: 150px;">';
             } else {
                 // Regular file path — escape to prevent XSS
-                $img_tag = '<img src="' . htmlspecialchars(base_url($image_src), ENT_QUOTES, 'UTF-8') . '" 
+                $img_tag = '<img src="' . esc_view(base_url($image_src), ENT_QUOTES, 'UTF-8') . '" 
                            class="rounded border border-2 border-light-subtle mb-3" 
                            alt="Face Recognition" style="max-width: 150px;">';
             }
@@ -303,7 +303,7 @@
               <i class="bi bi-pencil me-2"></i>Edit Profile
             </a>
             <?php endif; ?>
-            <a href="mailto:<?php echo htmlspecialchars($user->email); ?>" class="btn btn-outline-info">
+            <a href="mailto:<?php echo esc_view($user->email); ?>" class="btn btn-outline-info">
               <i class="bi bi-envelope me-2"></i>Send Email
             </a>
             <?php if (isset($employee) && $employee): ?>

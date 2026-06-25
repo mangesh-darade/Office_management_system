@@ -298,7 +298,7 @@
     <div class="stat-icon">
       <i class="bi bi-calendar-range"></i>
     </div>
-    <div class="stat-value"><?php echo htmlspecialchars($start_date); ?></div>
+    <div class="stat-value"><?php echo esc_view($start_date); ?></div>
     <div class="stat-label">Start Date</div>
   </div>
   
@@ -306,7 +306,7 @@
     <div class="stat-icon">
       <i class="bi bi-calendar-event"></i>
     </div>
-    <div class="stat-value"><?php echo htmlspecialchars($end_date); ?></div>
+    <div class="stat-value"><?php echo esc_view($end_date); ?></div>
     <div class="stat-label">End Date</div>
   </div>
   
@@ -353,16 +353,16 @@
 <!-- Compact Filters -->
 <div class="filter-section">
   <form method="get" class="filter-form">
-    <input type="hidden" name="period" value="<?php echo htmlspecialchars($period); ?>">
+    <input type="hidden" name="period" value="<?php echo esc_view($period); ?>">
     
     <div class="form-group">
       <label class="form-label">Start Date</label>
-      <input type="date" name="start_date" value="<?php echo htmlspecialchars($start_date); ?>" class="form-control">
+      <input type="date" name="start_date" value="<?php echo esc_view($start_date); ?>" class="form-control">
     </div>
     
     <div class="form-group">
       <label class="form-label">End Date</label>
-      <input type="date" name="end_date" value="<?php echo htmlspecialchars($end_date); ?>" class="form-control">
+      <input type="date" name="end_date" value="<?php echo esc_view($end_date); ?>" class="form-control">
     </div>
     
     <?php if (!empty($departments)): ?>
@@ -372,7 +372,7 @@
         <option value="all">All Departments</option>
         <?php foreach ($departments as $dept): ?>
           <option value="<?php echo $dept->id; ?>" <?php echo ($selected_department == $dept->id) ? 'selected' : ''; ?>>
-            <?php echo htmlspecialchars($dept->name); ?>
+            <?php echo esc_view($dept->name); ?>
           </option>
         <?php endforeach; ?>
       </select>
@@ -478,24 +478,24 @@
           </tr>
         <?php else: ?>
           <?php foreach ($daily as $index => $r): ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars(isset($r->name)?$r->name:'') . ' ' . htmlspecialchars(isset($r->bucket)?$r->bucket:'') . ' ' . htmlspecialchars(isset($r->status)?$r->status:'')); ?>" data-index="daily-<?php echo $index; ?>">
+            <tr data-searchable="<?php echo strtolower(esc_view(isset($r->name)?$r->name:'') . ' ' . esc_view(isset($r->bucket)?$r->bucket:'') . ' ' . esc_view(isset($r->status)?$r->status:'')); ?>" data-index="daily-<?php echo $index; ?>">
               <td>
                 <div class="employee-cell">
                   <div class="employee-avatar">
-                    <?php echo strtoupper(substr(htmlspecialchars(isset($r->name)?$r->name:'Unknown'), 0, 1)); ?>
+                    <?php echo strtoupper(substr(esc_view(isset($r->name)?$r->name:'Unknown'), 0, 1)); ?>
                   </div>
                   <div class="employee-info">
-                    <div class="employee-name"><?php echo htmlspecialchars(isset($r->name)?$r->name:'Unknown'); ?></div>
+                    <div class="employee-name"><?php echo esc_view(isset($r->name)?$r->name:'Unknown'); ?></div>
                     <div class="employee-id">ID: <?php echo $r->uid; ?></div>
                   </div>
                 </div>
               </td>
-              <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
+              <td><?php echo esc_view(isset($r->bucket)?$r->bucket:''); ?></td>
               <td>
                 <?php $badge = attendance_status_badge_meta(isset($r->status) ? $r->status : ''); ?>
-                <span class="att-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
-                  <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
-                  <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
+                <span class="att-status-badge <?php echo esc_view($badge['class']); ?>">
+                  <i class="bi <?php echo esc_view($badge['icon']); ?>"></i>
+                  <?php echo esc_view($badge['label']); ?>
                 </span>
               </td>
               <td class="count-cell"><?php echo (int)$r->cnt; ?></td>
@@ -574,24 +574,24 @@
           </tr>
         <?php else: ?>
           <?php foreach ($weekly as $index => $r): ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars(isset($r->name)?$r->name:'') . ' ' . htmlspecialchars(isset($r->bucket)?$r->bucket:'') . ' ' . htmlspecialchars(isset($r->status)?$r->status:'')); ?>" data-index="weekly-<?php echo $index; ?>">
+            <tr data-searchable="<?php echo strtolower(esc_view(isset($r->name)?$r->name:'') . ' ' . esc_view(isset($r->bucket)?$r->bucket:'') . ' ' . esc_view(isset($r->status)?$r->status:'')); ?>" data-index="weekly-<?php echo $index; ?>">
               <td>
                 <div class="employee-cell">
                   <div class="employee-avatar">
-                    <?php echo strtoupper(substr(htmlspecialchars(isset($r->name)?$r->name:'Unknown'), 0, 1)); ?>
+                    <?php echo strtoupper(substr(esc_view(isset($r->name)?$r->name:'Unknown'), 0, 1)); ?>
                   </div>
                   <div class="employee-info">
-                    <div class="employee-name"><?php echo htmlspecialchars(isset($r->name)?$r->name:'Unknown'); ?></div>
+                    <div class="employee-name"><?php echo esc_view(isset($r->name)?$r->name:'Unknown'); ?></div>
                     <div class="employee-id">ID: <?php echo $r->uid; ?></div>
                   </div>
                 </div>
               </td>
-              <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
+              <td><?php echo esc_view(isset($r->bucket)?$r->bucket:''); ?></td>
               <td>
                 <?php $badge = attendance_status_badge_meta(isset($r->status) ? $r->status : ''); ?>
-                <span class="att-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
-                  <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
-                  <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
+                <span class="att-status-badge <?php echo esc_view($badge['class']); ?>">
+                  <i class="bi <?php echo esc_view($badge['icon']); ?>"></i>
+                  <?php echo esc_view($badge['label']); ?>
                 </span>
               </td>
               <td class="count-cell"><?php echo (int)$r->cnt; ?></td>
@@ -672,24 +672,24 @@
           </tr>
         <?php else: ?>
           <?php foreach ($monthly as $index => $r): ?>
-            <tr data-searchable="<?php echo strtolower(htmlspecialchars(isset($r->name)?$r->name:'') . ' ' . htmlspecialchars(isset($r->bucket)?$r->bucket:'') . ' ' . htmlspecialchars(isset($r->status)?$r->status:'')); ?>" data-index="monthly-<?php echo $index; ?>">
+            <tr data-searchable="<?php echo strtolower(esc_view(isset($r->name)?$r->name:'') . ' ' . esc_view(isset($r->bucket)?$r->bucket:'') . ' ' . esc_view(isset($r->status)?$r->status:'')); ?>" data-index="monthly-<?php echo $index; ?>">
               <td>
                 <div class="employee-cell">
                   <div class="employee-avatar">
-                    <?php echo strtoupper(substr(htmlspecialchars(isset($r->name)?$r->name:'Unknown'), 0, 1)); ?>
+                    <?php echo strtoupper(substr(esc_view(isset($r->name)?$r->name:'Unknown'), 0, 1)); ?>
                   </div>
                   <div class="employee-info">
-                    <div class="employee-name"><?php echo htmlspecialchars(isset($r->name)?$r->name:'Unknown'); ?></div>
+                    <div class="employee-name"><?php echo esc_view(isset($r->name)?$r->name:'Unknown'); ?></div>
                     <div class="employee-id">ID: <?php echo $r->uid; ?></div>
                   </div>
                 </div>
               </td>
-              <td><?php echo htmlspecialchars(isset($r->bucket)?$r->bucket:''); ?></td>
+              <td><?php echo esc_view(isset($r->bucket)?$r->bucket:''); ?></td>
               <td>
                 <?php $badge = attendance_status_badge_meta(isset($r->status) ? $r->status : ''); ?>
-                <span class="att-status-badge <?php echo htmlspecialchars($badge['class'], ENT_QUOTES, 'UTF-8'); ?>">
-                  <i class="bi <?php echo htmlspecialchars($badge['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
-                  <?php echo htmlspecialchars($badge['label'], ENT_QUOTES, 'UTF-8'); ?>
+                <span class="att-status-badge <?php echo esc_view($badge['class']); ?>">
+                  <i class="bi <?php echo esc_view($badge['icon']); ?>"></i>
+                  <?php echo esc_view($badge['label']); ?>
                 </span>
               </td>
               <td class="count-cell"><?php echo (int)$r->cnt; ?></td>

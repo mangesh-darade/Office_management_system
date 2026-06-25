@@ -19,10 +19,10 @@
     </div>
 
     <?php if ($this->session->flashdata('success')): ?>
-        <div class="alert alert-success py-2"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+        <div class="alert alert-success py-2"><?php echo esc_view($this->session->flashdata('success')); ?></div>
     <?php endif; ?>
     <?php if ($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger py-2"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+        <div class="alert alert-danger py-2"><?php echo esc_view($this->session->flashdata('error')); ?></div>
     <?php endif; ?>
 
     <div class="card border-0 shadow-sm">
@@ -42,8 +42,8 @@
                     <tbody>
                         <?php foreach ($categories as $cat): ?>
                         <tr>
-                            <td class="ps-4 fw-medium"><?php echo htmlspecialchars($cat->name); ?></td>
-                            <td class="text-muted small"><?php echo htmlspecialchars($cat->description); ?></td>
+                            <td class="ps-4 fw-medium"><?php echo esc_view($cat->name); ?></td>
+                            <td class="text-muted small"><?php echo esc_view($cat->description); ?></td>
                             <td>
                                 <?php if ($cat->budget_limit): ?>
                                     <span class="badge bg-light text-dark border"><?php echo number_format($cat->budget_limit, 2); ?></span>
@@ -66,9 +66,9 @@
                             <td class="pe-4 text-end text-nowrap">
                                 <button type="button" class="btn btn-sm btn-outline-primary category-edit-btn"
                                     data-id="<?php echo (int) $cat->id; ?>"
-                                    data-name="<?php echo htmlspecialchars($cat->name, ENT_QUOTES); ?>"
-                                    data-description="<?php echo htmlspecialchars($cat->description, ENT_QUOTES); ?>"
-                                    data-budget="<?php echo htmlspecialchars($cat->budget_limit); ?>"
+                                    data-name="<?php echo esc_view($cat->name); ?>"
+                                    data-description="<?php echo esc_view($cat->description); ?>"
+                                    data-budget="<?php echo esc_view($cat->budget_limit); ?>"
                                     data-receipt="<?php echo (int) $cat->requires_receipt; ?>"
                                     data-active="<?php echo (int) $cat->is_active; ?>">
                                     Edit

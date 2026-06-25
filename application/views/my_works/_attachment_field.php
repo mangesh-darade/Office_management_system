@@ -9,14 +9,14 @@
 ?>
 <div class="mw-attachment-widget<?php echo $inline_row ? ' mw-attachment-widget-inline' : ''; ?>" data-max-bytes="<?php echo (int) $max_bytes; ?>" data-max-files="<?php echo (int) $max_files; ?>">
   <div class="mw-attachment-picker-row">
-    <label class="mw-attachment-choose" for="<?php echo htmlspecialchars($input_id, ENT_QUOTES, 'UTF-8'); ?>" title="Choose files to attach">
+    <label class="mw-attachment-choose" for="<?php echo esc_view($input_id); ?>" title="Choose files to attach">
       <i class="bi bi-paperclip mw-attachment-choose-icon"></i>
       <span class="mw-attachment-choose-text">Attach files</span>
     </label>
     <input type="file"
            class="mw-attachment-input"
-           id="<?php echo htmlspecialchars($input_id, ENT_QUOTES, 'UTF-8'); ?>"
-           name="<?php echo htmlspecialchars($input_name, ENT_QUOTES, 'UTF-8'); ?>"
+           id="<?php echo esc_view($input_id); ?>"
+           name="<?php echo esc_view($input_name); ?>"
            multiple>
   </div>
 

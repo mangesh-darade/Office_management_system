@@ -825,11 +825,11 @@ class Leave_requests extends CI_Controller {
         foreach ($tasks as $task) {
             $formatted_tasks[] = [
                 'id' => (int)$task->id,
-                'title' => htmlspecialchars($task->title),
-                'description' => !empty($task->description) ? htmlspecialchars($task->description) : 'No description',
-                'project_name' => !empty($task->project_name) ? htmlspecialchars($task->project_name) : 'No Project',
-                'status' => htmlspecialchars($task->status),
-                'priority' => htmlspecialchars($task->priority),
+                'title' => esc_view($task->title),
+                'description' => !empty($task->description) ? esc_view($task->description) : 'No description',
+                'project_name' => !empty($task->project_name) ? esc_view($task->project_name) : 'No Project',
+                'status' => esc_view($task->status),
+                'priority' => esc_view($task->priority),
                 'start_date' => $task->start_date ? date('M d, Y', strtotime($task->start_date)) : 'Not set',
                 'due_date' => $task->due_date ? date('M d, Y', strtotime($task->due_date)) : 'Not set',
                 'estimate_hours' => $task->estimate_hours ? number_format((float)$task->estimate_hours, 1) : 'N/A',

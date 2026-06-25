@@ -84,9 +84,9 @@ class Ai_handler {
         $filepath = $tts_dir . $filename;
 
         // Build SSML payload
-        $ssml = '<speak version="1.0" xml:lang="' . htmlspecialchars($language, ENT_QUOTES, 'UTF-8') . '">'
-              . '<voice name="' . htmlspecialchars($voice, ENT_QUOTES, 'UTF-8') . '">'
-              . htmlspecialchars($text, ENT_QUOTES, 'UTF-8')
+        $ssml = '<speak version="1.0" xml:lang="' . esc_view($language) . '">'
+              . '<voice name="' . esc_view($voice) . '">'
+              . esc_view($text)
               . '</voice></speak>';
 
         $url = 'https://' . $this->azure_region . '.tts.speech.microsoft.com/cognitiveservices/v1';

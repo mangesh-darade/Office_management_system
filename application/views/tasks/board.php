@@ -35,7 +35,7 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
           <select name="project_id" class="form-select form-select-sm" aria-label="Filter by project" onchange="this.form.submit()">
             <option value="">All Projects</option>
             <?php foreach ($projects as $p): ?>
-              <option value="<?php echo $p->id; ?>" <?php echo (isset($filter_project_id) && $filter_project_id == $p->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p->name); ?></option>
+              <option value="<?php echo $p->id; ?>" <?php echo (isset($filter_project_id) && $filter_project_id == $p->id) ? 'selected' : ''; ?>><?php echo esc_view($p->name); ?></option>
             <?php endforeach; ?>
           </select>
           <?php endif; ?>
@@ -44,7 +44,7 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
           <select name="assigned_to" class="form-select form-select-sm" aria-label="Filter by assignee" onchange="this.form.submit()">
             <option value="">All Assignees</option>
             <?php foreach ($assignees as $u): ?>
-              <option value="<?php echo $u->id; ?>" <?php echo (isset($filter_assigned_to) && $filter_assigned_to == $u->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($u->name ?: $u->email); ?></option>
+              <option value="<?php echo $u->id; ?>" <?php echo (isset($filter_assigned_to) && $filter_assigned_to == $u->id) ? 'selected' : ''; ?>><?php echo esc_view($u->name ?: $u->email); ?></option>
             <?php endforeach; ?>
           </select>
           <?php endif; ?>
@@ -142,7 +142,7 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
                     $priority = isset($t->priority) ? $t->priority : 'medium';
                     $created_date = isset($t->created_at) ? date('M j', strtotime($t->created_at)) : '';
                   ?>
-                  <div class="kanban-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int)$t->id; ?>" data-status="<?php echo $status; ?>" data-priority="<?php echo $priority; ?>" data-project="<?php echo htmlspecialchars(isset($t->project_name) ? $t->project_name : ''); ?>" data-assignee="<?php echo htmlspecialchars($assignee); ?>" data-title="<?php echo htmlspecialchars($t->title); ?>">
+                  <div class="kanban-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int)$t->id; ?>" data-status="<?php echo $status; ?>" data-priority="<?php echo $priority; ?>" data-project="<?php echo esc_view(isset($t->project_name) ? $t->project_name : ''); ?>" data-assignee="<?php echo esc_view($assignee); ?>" data-title="<?php echo esc_view($t->title); ?>">
                     <div class="kanban-card-header">
                       <div class="d-flex align-items-center justify-content-between mb-2">
                         <div class="d-flex align-items-center gap-2">
@@ -183,14 +183,14 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
                     </div>
                     <div class="kanban-card-body">
                       <h6 class="task-title mb-2">
-                        <?php echo htmlspecialchars($t->title); ?>
+                        <?php echo esc_view($t->title); ?>
                       </h6>
                       <?php if (!empty($t->description)): ?>
                         <div class="task-description mb-2">
                           <?php
                             $desc = trim(strip_tags((string) $t->description));
                             if ($desc !== '') {
-                              echo htmlspecialchars(strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc);
+                              echo esc_view(strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc);
                             }
                           ?>
                         </div>
@@ -200,9 +200,9 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
                       <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center flex-wrap gap-1">
                           <?php if (!empty($t->project_name)): ?>
-                            <span class="project-chip" title="Project: <?php echo htmlspecialchars($t->project_name); ?>">
+                            <span class="project-chip" title="Project: <?php echo esc_view($t->project_name); ?>">
                               <i class="bi bi-folder me-1"></i>
-                              <span class="project-name"><?php echo htmlspecialchars(mb_substr($t->project_name, 0, 15)); ?><?php echo mb_strlen($t->project_name) > 15 ? '...' : ''; ?></span>
+                              <span class="project-name"><?php echo esc_view(mb_substr($t->project_name, 0, 15)); ?><?php echo mb_strlen($t->project_name) > 15 ? '...' : ''; ?></span>
                             </span>
                           <?php endif; ?>
                           <?php if ($created_date): ?>
@@ -211,8 +211,8 @@ $has_filters = (isset($filter_project_id) && $filter_project_id !== '')
                             </span>
                           <?php endif; ?>
                         </div>
-                        <div class="avatar avatar-bg" title="<?php echo htmlspecialchars($assignee ?: 'Unassigned'); ?>">
-                          <?php echo htmlspecialchars($init); ?>
+                        <div class="avatar avatar-bg" title="<?php echo esc_view($assignee ?: 'Unassigned'); ?>">
+                          <?php echo esc_view($init); ?>
                         </div>
                       </div>
                     </div>

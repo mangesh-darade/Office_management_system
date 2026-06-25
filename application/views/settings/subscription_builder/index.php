@@ -45,10 +45,10 @@ function sb_catalog_query($filters, $page)
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-sm mb-3">
@@ -92,7 +92,7 @@ function sb_catalog_query($filters, $page)
         <select name="plan" class="form-select form-select-sm">
           <option value="">All</option>
           <?php foreach ($plans as $plan): ?>
-          <option value="<?php echo htmlspecialchars($plan); ?>" <?php echo ($filters['plan'] ?? '') === $plan ? 'selected' : ''; ?>><?php echo htmlspecialchars($plan); ?></option>
+          <option value="<?php echo esc_view($plan); ?>" <?php echo ($filters['plan'] ?? '') === $plan ? 'selected' : ''; ?>><?php echo esc_view($plan); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -101,17 +101,17 @@ function sb_catalog_query($filters, $page)
         <select name="industry" class="form-select form-select-sm">
           <option value="">All</option>
           <?php foreach ($industries as $industry): ?>
-          <option value="<?php echo htmlspecialchars($industry); ?>" <?php echo ($filters['industry'] ?? '') === $industry ? 'selected' : ''; ?>><?php echo htmlspecialchars($industry); ?></option>
+          <option value="<?php echo esc_view($industry); ?>" <?php echo ($filters['industry'] ?? '') === $industry ? 'selected' : ''; ?>><?php echo esc_view($industry); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-2">
         <label class="form-label small mb-1">Module</label>
-        <input type="text" class="form-control form-control-sm" name="module" value="<?php echo htmlspecialchars($filters['module'] ?? ''); ?>" placeholder="Module">
+        <input type="text" class="form-control form-control-sm" name="module" value="<?php echo esc_view($filters['module'] ?? ''); ?>" placeholder="Module">
       </div>
       <div class="col-md-4">
         <label class="form-label small mb-1">Search</label>
-        <input type="search" class="form-control form-control-sm" name="q" value="<?php echo htmlspecialchars($filters['search'] ?? ''); ?>" placeholder="Feature, module, details…">
+        <input type="search" class="form-control form-control-sm" name="q" value="<?php echo esc_view($filters['search'] ?? ''); ?>" placeholder="Feature, module, details…">
       </div>
       <div class="col-md-2 d-flex gap-2">
         <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
@@ -147,17 +147,17 @@ function sb_catalog_query($filters, $page)
             <?php foreach ($rows as $row): ?>
             <tr>
               <td><?php echo (int) $row->id; ?></td>
-              <td><?php echo htmlspecialchars($row->plan); ?></td>
-              <td><?php echo htmlspecialchars($row->industry); ?></td>
-              <td><?php echo htmlspecialchars($row->module); ?></td>
+              <td><?php echo esc_view($row->plan); ?></td>
+              <td><?php echo esc_view($row->industry); ?></td>
+              <td><?php echo esc_view($row->module); ?></td>
               <td>
-                <div><?php echo htmlspecialchars($row->feature); ?></div>
+                <div><?php echo esc_view($row->feature); ?></div>
                 <?php if (!empty($row->details)): ?>
-                <div class="text-muted small"><?php echo htmlspecialchars($row->details); ?></div>
+                <div class="text-muted small"><?php echo esc_view($row->details); ?></div>
                 <?php endif; ?>
               </td>
               <td class="text-end"><?php echo $row->common_set_up_fees !== null && $row->common_set_up_fees !== '' ? number_format((float) $row->common_set_up_fees, 0) : '—'; ?></td>
-              <td><?php echo htmlspecialchars($row->item_unit ?: '—'); ?></td>
+              <td><?php echo esc_view($row->item_unit ?: '—'); ?></td>
               <td class="text-end"><?php echo $row->per_item_per_month_maintenances !== null && $row->per_item_per_month_maintenances !== '' ? number_format((float) $row->per_item_per_month_maintenances, 0) : '—'; ?></td>
               <td class="text-nowrap">
                 <a href="<?php echo site_url('settings/subscription-builder/' . (int) $row->id . '/edit'); ?>" class="btn btn-sm btn-outline-primary">
@@ -183,10 +183,10 @@ function sb_catalog_query($filters, $page)
     <span class="small text-muted">Page <?php echo $page; ?> of <?php echo $total_pages; ?></span>
     <div class="btn-group btn-group-sm">
       <?php if ($page > 1): ?>
-      <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(sb_catalog_query($filters, $page - 1)); ?>">Previous</a>
+      <a class="btn btn-outline-secondary" href="<?php echo esc_view(sb_catalog_query($filters, $page - 1)); ?>">Previous</a>
       <?php endif; ?>
       <?php if ($page < $total_pages): ?>
-      <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(sb_catalog_query($filters, $page + 1)); ?>">Next</a>
+      <a class="btn btn-outline-secondary" href="<?php echo esc_view(sb_catalog_query($filters, $page + 1)); ?>">Next</a>
       <?php endif; ?>
     </div>
   </div>

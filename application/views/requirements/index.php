@@ -32,7 +32,7 @@ $this->load->view('partials/oms_page_head', [
         <select name="status" class="form-select">
           <?php $statuses = array('', 'received','under_review','approved','in_progress','completed','on_hold','rejected','cancelled');
           foreach ($statuses as $st): ?>
-            <option value="<?php echo htmlspecialchars($st); ?>" <?php echo ($fs===$st)?'selected':''; ?>><?php echo $st===''?'All':ucfirst(str_replace('_',' ',$st)); ?></option>
+            <option value="<?php echo esc_view($st); ?>" <?php echo ($fs===$st)?'selected':''; ?>><?php echo $st===''?'All':ucfirst(str_replace('_',' ',$st)); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -42,7 +42,7 @@ $this->load->view('partials/oms_page_head', [
         <select name="priority" class="form-select">
           <?php $priorities = array('', 'low','medium','high','critical');
           foreach ($priorities as $pr): ?>
-            <option value="<?php echo htmlspecialchars($pr); ?>" <?php echo ($fp===$pr)?'selected':''; ?>><?php echo $pr===''?'All':ucfirst($pr); ?></option>
+            <option value="<?php echo esc_view($pr); ?>" <?php echo ($fp===$pr)?'selected':''; ?>><?php echo $pr===''?'All':ucfirst($pr); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -52,7 +52,7 @@ $this->load->view('partials/oms_page_head', [
         <select name="requirement_type" class="form-select">
           <option value="">All</option>
           <?php if (isset($requirement_types) && is_array($requirement_types)): foreach ($requirement_types as $code => $label): ?>
-            <option value="<?php echo htmlspecialchars($code); ?>" <?php echo ($ft === (string)$code) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <option value="<?php echo esc_view($code); ?>" <?php echo ($ft === (string)$code) ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
           <?php endforeach; endif; ?>
         </select>
       </div>
@@ -62,7 +62,7 @@ $this->load->view('partials/oms_page_head', [
         <select name="client_id" class="form-select">
           <option value="">All</option>
           <?php if (isset($clients) && is_array($clients)) foreach ($clients as $c): ?>
-            <option value="<?php echo (int)$c->id; ?>" <?php echo ($fc===(string)$c->id)?'selected':''; ?>><?php echo htmlspecialchars($c->company_name); ?></option>
+            <option value="<?php echo (int)$c->id; ?>" <?php echo ($fc===(string)$c->id)?'selected':''; ?>><?php echo esc_view($c->company_name); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
@@ -78,13 +78,13 @@ $this->load->view('partials/oms_page_head', [
               else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
               else if (isset($m->email)) { $label = $m->email; }
             ?>
-            <option value="<?php echo (int)$m->id; ?>" <?php echo ($fa===(string)$m->id)?'selected':''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <option value="<?php echo (int)$m->id; ?>" <?php echo ($fa===(string)$m->id)?'selected':''; ?>><?php echo esc_view($label); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-2">
         <label class="form-label">Search</label>
-        <input type="text" name="q" value="<?php echo htmlspecialchars(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Req#, title">
+        <input type="text" name="q" value="<?php echo esc_view(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Req#, title">
       </div>
       <div class="col-md-2">
         <button class="btn btn-outline-primary w-100" type="submit">Filter</button>
@@ -113,12 +113,12 @@ $this->load->view('partials/oms_page_head', [
           <tr><td colspan="7" class="text-center text-muted">No requirements found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
           <tr>
-            <td><?php echo htmlspecialchars(isset($r->req_number)?$r->req_number:''); ?></td>
-            <td><?php echo htmlspecialchars(isset($r->client_name)?$r->client_name:''); ?></td>
-            <td><?php echo htmlspecialchars($r->title); ?></td>
-            <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars(isset($r->status)?$r->status:'received'); ?></span></td>
-            <td><span class="badge bg-secondary"><?php echo htmlspecialchars(isset($r->priority)?$r->priority:'medium'); ?></span></td>
-            <td><?php echo htmlspecialchars(isset($r->expected_delivery_date)?$r->expected_delivery_date:''); ?></td>
+            <td><?php echo esc_view(isset($r->req_number)?$r->req_number:''); ?></td>
+            <td><?php echo esc_view(isset($r->client_name)?$r->client_name:''); ?></td>
+            <td><?php echo esc_view($r->title); ?></td>
+            <td><span class="badge bg-light text-dark border"><?php echo esc_view(isset($r->status)?$r->status:'received'); ?></span></td>
+            <td><span class="badge bg-secondary"><?php echo esc_view(isset($r->priority)?$r->priority:'medium'); ?></span></td>
+            <td><?php echo esc_view(isset($r->expected_delivery_date)?$r->expected_delivery_date:''); ?></td>
             <td class="text-end">
               <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements/view/'.(int)$r->id); ?>"><i class="bi bi-eye"></i></a>
             </td>

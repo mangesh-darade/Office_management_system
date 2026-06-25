@@ -311,7 +311,7 @@ $this->load->view('partials/header', ['title' => $title, 'with_sidebar' => $with
         
         <div class="maintenance-message">
             <i class="bi bi-info-circle-fill text-primary me-2"></i>
-            <?php echo htmlspecialchars(isset($message) ? $message : 'The system is currently under maintenance. Please try again later.'); ?>
+            <?php echo esc_view(isset($message) ? $message : 'The system is currently under maintenance. Please try again later.'); ?>
         </div>
         
         <div class="progress-container">
@@ -339,10 +339,10 @@ $this->load->view('partials/header', ['title' => $title, 'with_sidebar' => $with
             </h6>
             <p class="mb-0">If you need urgent access or have questions, please contact the system administrator.</p>
             <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
-                <a href="mailto:<?php echo htmlspecialchars(isset($company_email) ? $company_email : 'admin@example.com'); ?>" class="btn btn-primary btn-sm">
+                <a href="mailto:<?php echo esc_view(isset($company_email) ? $company_email : 'admin@example.com'); ?>" class="btn btn-primary btn-sm">
                     <i class="bi bi-envelope-fill me-1"></i> Email Admin
                 </a>
-                <a href="tel:<?php echo htmlspecialchars(isset($company_phone) ? $company_phone : '+1234567890'); ?>" class="btn btn-success btn-sm">
+                <a href="tel:<?php echo esc_view(isset($company_phone) ? $company_phone : '+1234567890'); ?>" class="btn btn-success btn-sm">
                     <i class="bi bi-telephone-fill me-1"></i> Call Admin
                 </a>
             </div>

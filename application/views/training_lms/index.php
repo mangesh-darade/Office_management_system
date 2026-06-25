@@ -24,10 +24,10 @@ $this->load->view('partials/header', array('title' => 'Module — List'));
   <?php endif; ?>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
 
   <?php if (empty($modules)): ?>
@@ -39,9 +39,9 @@ $this->load->view('partials/header', array('title' => 'Module — List'));
           <div class="card shadow-sm border-0 h-100">
             <div class="card-body d-flex flex-column">
               <div class="text-uppercase text-muted fw-semibold mb-1" style="font-size:0.7rem;">Module</div>
-              <h2 class="h5 card-title"><?php echo htmlspecialchars($m->title); ?></h2>
+              <h2 class="h5 card-title"><?php echo esc_view($m->title); ?></h2>
               <?php if (!empty($m->description)): ?>
-                <p class="card-text small text-muted flex-grow-1"><?php echo nl2br(htmlspecialchars($m->description)); ?></p>
+                <p class="card-text small text-muted flex-grow-1"><?php echo nl2br(esc_view($m->description)); ?></p>
               <?php else: ?>
                 <p class="card-text small text-muted flex-grow-1">&nbsp;</p>
               <?php endif; ?>

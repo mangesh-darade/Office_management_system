@@ -31,13 +31,13 @@ $this->load->view('partials/header', array(
         <div class="mb-3">
           <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
           <input type="text" name="name" id="name" class="form-control" required
-                 value="<?php echo $isEdit ? htmlspecialchars($row->name) : ''; ?>">
+                 value="<?php echo $isEdit ? esc_view($row->name) : ''; ?>">
         </div>
 
         <div class="mb-3">
           <label for="embed_code" class="form-label">Video link or embed <span class="text-danger">*</span></label>
           <textarea name="embed_code" id="embed_code" rows="5" class="form-control" required><?php
-            echo $isEdit ? htmlspecialchars($row->embed_code) : '';
+            echo $isEdit ? esc_view($row->embed_code) : '';
           ?></textarea>
           <div class="form-text">
             Paste either a direct <strong>https://…</strong> link (normal YouTube/Vimeo watch links are converted to an embed player in-app) or the full HTML embed snippet.

@@ -11,10 +11,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft mb-3">
@@ -32,11 +32,11 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">From</label>
-        <input type="date" class="form-control" name="from" value="<?php echo htmlspecialchars(isset($filters['start_date']) ? $filters['start_date'] : ''); ?>" />
+        <input type="date" class="form-control" name="from" value="<?php echo esc_view(isset($filters['start_date']) ? $filters['start_date'] : ''); ?>" />
       </div>
       <div class="col-md-3">
         <label class="form-label">To</label>
-        <input type="date" class="form-control" name="to" value="<?php echo htmlspecialchars(isset($filters['end_date']) ? $filters['end_date'] : ''); ?>" />
+        <input type="date" class="form-control" name="to" value="<?php echo esc_view(isset($filters['end_date']) ? $filters['end_date'] : ''); ?>" />
       </div>
       <div class="col-md-3 align-self-end">
         <button class="btn btn-outline-secondary">Filter</button>
@@ -65,15 +65,15 @@
             <tr><td colspan="7" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr>
-              <td><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></td>
+              <td><?php echo esc_view(isset($r->type_name) ? $r->type_name : ''); ?></td>
               <td>
                 <?php
                   $sd = isset($r->start_date) ? (string)$r->start_date : '';
                   $ed = isset($r->end_date) ? (string)$r->end_date : '';
                   if ($sd !== '' && $sd === $ed) {
-                    echo htmlspecialchars($sd);
+                    echo esc_view($sd);
                   } else {
-                    echo htmlspecialchars($sd.' to '.$ed);
+                    echo esc_view($sd.' to '.$ed);
                   }
                 ?>
               </td>
@@ -86,7 +86,7 @@
                   if ($daysVal === 0.5) {
                     $daysText .= ' (Half Day)';
                   }
-                  echo htmlspecialchars($daysText);
+                  echo esc_view($daysText);
                 ?>
               </td>
               <td>
@@ -103,18 +103,18 @@
                     $badge_class = 'bg-secondary';
                   }
                 ?>
-                <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars(ucfirst(str_replace('_',' ', $r->status))); ?></span>
+                <span class="badge <?php echo $badge_class; ?>"><?php echo esc_view(ucfirst(str_replace('_',' ', $r->status))); ?></span>
               </td>
-              <td><?php echo htmlspecialchars(isset($r->created_at) ? $r->created_at : ''); ?></td>
+              <td><?php echo esc_view(isset($r->created_at) ? $r->created_at : ''); ?></td>
               <td style="max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                <?php echo htmlspecialchars(isset($r->reason) ? $r->reason : ''); ?>
+                <?php echo esc_view(isset($r->reason) ? $r->reason : ''); ?>
               </td>
               <td style="max-width: 300px;">
                 <?php if (!empty($r->comments)): ?>
                   <div class="small">
-                    <strong><?php echo htmlspecialchars(isset($r->approver_name) ? $r->approver_name : 'Manager'); ?>:</strong>
+                    <strong><?php echo esc_view(isset($r->approver_name) ? $r->approver_name : 'Manager'); ?>:</strong>
                     <span class="text-<?php echo (isset($r->decision) && $r->decision === 'approved') ? 'success' : 'danger'; ?>">
-                      <?php echo htmlspecialchars($r->comments); ?>
+                      <?php echo esc_view($r->comments); ?>
                     </span>
                   </div>
                 <?php else: ?>

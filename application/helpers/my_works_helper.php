@@ -553,7 +553,7 @@ if (!function_exists('my_works_render_details')) {
         }
         $details = (string) $details;
         if (strpos($details, '<') === false) {
-            return nl2br(htmlspecialchars($details, ENT_QUOTES, 'UTF-8'));
+            return nl2br(esc_view($details));
         }
         $allowed = '<p><br><strong><em><b><i><u><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre><span><div><del><sub><sup><table><thead><tbody><tr><th><td>';
         return strip_tags($details, $allowed);

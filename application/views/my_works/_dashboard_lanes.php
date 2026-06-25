@@ -11,15 +11,15 @@
   }
 ?>
 
-<div class="mw-dash-lanes" data-section="<?php echo htmlspecialchars($section_key, ENT_QUOTES, 'UTF-8'); ?>">
+<div class="mw-dash-lanes" data-section="<?php echo esc_view($section_key); ?>">
   <?php foreach ($lane_keys as $lane): ?>
     <?php
       $laneItems = isset($section_lanes[$lane]) ? $section_lanes[$lane] : array();
       $laneLabel = isset($lane_labels[$lane]) ? $lane_labels[$lane] : $lane;
     ?>
-    <div class="mw-dash-lane mw-dash-lane-<?php echo htmlspecialchars($lane); ?>" data-lane="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>" data-section="<?php echo htmlspecialchars($section_key, ENT_QUOTES, 'UTF-8'); ?>">
+    <div class="mw-dash-lane mw-dash-lane-<?php echo esc_view($lane); ?>" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>">
       <div class="mw-dash-lane-head">
-        <span class="mw-dash-lane-title"><?php echo htmlspecialchars($laneLabel); ?></span>
+        <span class="mw-dash-lane-title"><?php echo esc_view($laneLabel); ?></span>
         <span class="mw-dash-lane-count"><?php echo count($laneItems); ?></span>
       </div>
       <div class="mw-dash-lane-table-wrap">
@@ -32,7 +32,7 @@
               <th>Assigned To</th>
             </tr>
           </thead>
-          <tbody class="mw-dash-lane-body" data-lane="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>" data-section="<?php echo htmlspecialchars($section_key, ENT_QUOTES, 'UTF-8'); ?>">
+          <tbody class="mw-dash-lane-body" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>">
             <?php if (empty($laneItems)): ?>
               <tr class="mw-dash-lane-empty-row">
                 <td colspan="4" class="mw-dash-lane-empty">No tasks</td>
@@ -52,8 +52,8 @@
                     <?php if ($can_drag): ?>
                       draggable="true"
                       data-id="<?php echo (int) $r->id; ?>"
-                      data-lane="<?php echo htmlspecialchars($lane, ENT_QUOTES, 'UTF-8'); ?>"
-                      data-section="<?php echo htmlspecialchars($section_key, ENT_QUOTES, 'UTF-8'); ?>"
+                      data-lane="<?php echo esc_view($lane); ?>"
+                      data-section="<?php echo esc_view($section_key); ?>"
                     <?php endif; ?>>
                   <td class="mw-dash-col-drag">
                     <?php if ($can_drag): ?>
@@ -62,12 +62,12 @@
                   </td>
                   <td>
                     <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-dash-task-link">
-                      <span class="mw-dash-status-dot mw-dash-dot-<?php echo htmlspecialchars($dot, ENT_QUOTES, 'UTF-8'); ?>" style="background-color:<?php echo htmlspecialchars($dotColor, ENT_QUOTES, 'UTF-8'); ?>;"></span>
-                      <?php echo htmlspecialchars((string) $r->title, ENT_QUOTES, 'UTF-8'); ?>
+                      <span class="mw-dash-status-dot mw-dash-dot-<?php echo esc_view($dot); ?>" style="background-color:<?php echo esc_view($dotColor); ?>;"></span>
+                      <?php echo esc_view((string) $r->title, ENT_QUOTES, 'UTF-8'); ?>
                     </a>
                   </td>
-                  <td><?php echo htmlspecialchars($projLabel, ENT_QUOTES, 'UTF-8'); ?></td>
-                  <td><?php echo htmlspecialchars($forLabel, ENT_QUOTES, 'UTF-8'); ?></td>
+                  <td><?php echo esc_view($projLabel); ?></td>
+                  <td><?php echo esc_view($forLabel); ?></td>
                 </tr>
               <?php endforeach; ?>
             <?php endif; ?>
@@ -75,7 +75,7 @@
         </table>
       </div>
       <?php if (!empty($can_add)): ?>
-        <a class="mw-dash-add-btn mw-dash-add-<?php echo htmlspecialchars($lane); ?>" href="<?php echo htmlspecialchars($createUrl, ENT_QUOTES, 'UTF-8'); ?>">
+        <a class="mw-dash-add-btn mw-dash-add-<?php echo esc_view($lane); ?>" href="<?php echo esc_view($createUrl); ?>">
           <i class="bi bi-plus-lg"></i> Add Task
         </a>
       <?php endif; ?>

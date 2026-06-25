@@ -3,7 +3,7 @@
   <h1 class="h4 mb-0">Team Leave Calendar</h1>
   <form method="get" class="d-flex align-items-center gap-2">
     <label class="form-label mb-0">Month</label>
-    <input type="month" class="form-control" style="width: 200px" name="month" value="<?php echo htmlspecialchars($month); ?>" />
+    <input type="month" class="form-control" style="width: 200px" name="month" value="<?php echo esc_view($month); ?>" />
     <button class="btn btn-outline-secondary btn-sm">Go</button>
     <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('leave/team'); ?>">Back to List</a>
   </form>
@@ -43,7 +43,7 @@
         <tbody>
           <?php foreach ($events as $day => $list): ?>
             <tr>
-              <td class="text-nowrap fw-semibold"><?php echo htmlspecialchars(date('D, d M Y', strtotime($day))); ?></td>
+              <td class="text-nowrap fw-semibold"><?php echo esc_view(date('D, d M Y', strtotime($day))); ?></td>
               <td>
                 <?php if (empty($list)): ?>
                   <span class="text-muted">No leaves</span>
@@ -51,9 +51,9 @@
                   <ul class="mb-0">
                     <?php foreach ($list as $r): ?>
                       <li>
-                        <span class="badge bg-light text-dark border me-1"><?php echo htmlspecialchars(isset($r->type_name) ? $r->type_name : ''); ?></span>
-                        <strong><?php echo htmlspecialchars(isset($r->user_email) ? $r->user_email : ''); ?></strong>
-                        <span class="text-muted">(<?php echo htmlspecialchars($r->start_date.' to '.$r->end_date); ?>)</span>
+                        <span class="badge bg-light text-dark border me-1"><?php echo esc_view(isset($r->type_name) ? $r->type_name : ''); ?></span>
+                        <strong><?php echo esc_view(isset($r->user_email) ? $r->user_email : ''); ?></strong>
+                        <span class="text-muted">(<?php echo esc_view($r->start_date.' to '.$r->end_date); ?>)</span>
                         <?php
                           $daysVal = isset($r->days) ? (float)$r->days : 0.0;
                           if ($daysVal > 0) {
@@ -63,11 +63,11 @@
                             if ($daysVal === 0.5) {
                               $daysText .= ' (Half Day)';
                             }
-                            echo ' <span class="badge bg-secondary-subtle text-dark ms-1">'.htmlspecialchars($daysText.' d').'</span>';
+                            echo ' <span class="badge bg-secondary-subtle text-dark ms-1">'.esc_view($daysText.' d').'</span>';
                           }
                         ?>
                         <?php if (!empty($r->reason)): ?>
-                          <span class="text-muted">— <?php echo htmlspecialchars($r->reason); ?></span>
+                          <span class="text-muted">— <?php echo esc_view($r->reason); ?></span>
                         <?php endif; ?>
                       </li>
                     <?php endforeach; ?>

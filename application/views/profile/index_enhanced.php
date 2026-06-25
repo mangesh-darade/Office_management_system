@@ -144,12 +144,12 @@
 
 <?php if($this->session->flashdata('success')): ?>
   <div class="alert alert-success fade show" role="alert">
-    <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <i class="bi bi-check-circle me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
   </div>
 <?php endif; ?>
 <?php if($this->session->flashdata('error')): ?>
   <div class="alert alert-danger fade show" role="alert">
-    <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <i class="bi bi-exclamation-triangle me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
   </div>
 <?php endif; ?>
 
@@ -176,14 +176,14 @@
           <?php if (!empty($user->avatar) && file_exists('./' . $user->avatar)): ?>
             <img src="<?php echo base_url($user->avatar); ?>" alt="Profile Avatar" class="avatar-img">
           <?php else: ?>
-            <div class="avatar-placeholder"><?php echo htmlspecialchars($initial); ?></div>
+            <div class="avatar-placeholder"><?php echo esc_view($initial); ?></div>
           <?php endif; ?>
         </div>
         
-        <div class="profile-name"><?php echo htmlspecialchars($displayName); ?></div>
+        <div class="profile-name"><?php echo esc_view($displayName); ?></div>
         <div class="profile-role">
           <i class="bi bi-briefcase me-1"></i>
-          <?php echo htmlspecialchars(isset($user->role) ? ucfirst($user->role) : 'Member'); ?>
+          <?php echo esc_view(isset($user->role) ? ucfirst($user->role) : 'Member'); ?>
         </div>
         
         <!-- Stats -->
@@ -248,7 +248,7 @@
                   if (!empty($employee)) {
                     $fullName = trim((isset($employee->first_name) ? $employee->first_name : '') . ' ' . (isset($employee->last_name) ? $employee->last_name : ''));
                   }
-                  echo htmlspecialchars($fullName ?: $displayName);
+                  echo esc_view($fullName ?: $displayName);
                 ?>
               </div>
             </div>
@@ -259,7 +259,7 @@
               <div class="info-label">Email Address</div>
               <div class="info-value">
                 <i class="bi bi-envelope me-1"></i>
-                <?php echo htmlspecialchars(isset($user->email) ? $user->email : 'Not set'); ?>
+                <?php echo esc_view(isset($user->email) ? $user->email : 'Not set'); ?>
               </div>
             </div>
           </div>
@@ -269,7 +269,7 @@
               <div class="info-label">Phone Number</div>
               <div class="info-value">
                 <i class="bi bi-phone me-1"></i>
-                <?php echo htmlspecialchars(isset($user->phone) ? $user->phone : (isset($employee->phone) ? $employee->phone : 'Not set')); ?>
+                <?php echo esc_view(isset($user->phone) ? $user->phone : (isset($employee->phone) ? $employee->phone : 'Not set')); ?>
               </div>
             </div>
           </div>
@@ -279,7 +279,7 @@
               <div class="info-label">User Role</div>
               <div class="info-value">
                 <i class="bi bi-shield me-1"></i>
-                <?php echo htmlspecialchars(isset($user->role) ? ucfirst($user->role) : 'Member'); ?>
+                <?php echo esc_view(isset($user->role) ? ucfirst($user->role) : 'Member'); ?>
               </div>
             </div>
           </div>
@@ -301,7 +301,7 @@
               <div class="info-label">Department</div>
               <div class="info-value">
                 <i class="bi bi-building me-1"></i>
-                <?php echo htmlspecialchars(isset($employee->department) ? $employee->department : 'Not set'); ?>
+                <?php echo esc_view(isset($employee->department) ? $employee->department : 'Not set'); ?>
               </div>
             </div>
           </div>
@@ -311,7 +311,7 @@
               <div class="info-label">Designation</div>
               <div class="info-value">
                 <i class="bi bi-award me-1"></i>
-                <?php echo htmlspecialchars(isset($employee->designation) ? $employee->designation : 'Not set'); ?>
+                <?php echo esc_view(isset($employee->designation) ? $employee->designation : 'Not set'); ?>
               </div>
             </div>
           </div>
@@ -322,7 +322,7 @@
               <div class="info-label">Address</div>
               <div class="info-value">
                 <i class="bi bi-geo-alt me-1"></i>
-                <?php echo htmlspecialchars($employee->address); ?>
+                <?php echo esc_view($employee->address); ?>
               </div>
             </div>
           </div>
@@ -334,7 +334,7 @@
               <div class="info-label">Bio</div>
               <div class="info-value">
                 <i class="bi bi-card-text me-1"></i>
-                <?php echo htmlspecialchars($employee->bio); ?>
+                <?php echo esc_view($employee->bio); ?>
               </div>
             </div>
           </div>

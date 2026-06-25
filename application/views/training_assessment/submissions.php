@@ -38,19 +38,19 @@
         <?php else: ?>
           <?php foreach ($rows as $r): ?>
             <tr>
-              <td class="small"><?php echo htmlspecialchars((string) $r->assessment_title); ?></td>
+              <td class="small"><?php echo esc_view((string) $r->assessment_title); ?></td>
               <td class="small">
                 <?php
                   $name = !empty($r->user_name) ? (string) $r->user_name : (string) $r->candidate_name;
                   $email = !empty($r->user_email) ? (string) $r->user_email : (string) $r->candidate_email;
-                  echo htmlspecialchars(trim($name) !== '' ? $name : '—');
+                  echo esc_view(trim($name) !== '' ? $name : '—');
                   if (trim($email) !== '') {
-                      echo '<br><span class="text-muted">' . htmlspecialchars($email) . '</span>';
+                      echo '<br><span class="text-muted">' . esc_view($email) . '</span>';
                   }
                 ?>
               </td>
-              <td class="small text-nowrap"><?php echo !empty($r->submitted_at) ? htmlspecialchars((string) $r->submitted_at) : '—'; ?></td>
-              <td class="small"><?php echo ($r->score_percent !== null && $r->score_percent !== '') ? htmlspecialchars(number_format((float) $r->score_percent, 1)) : '—'; ?></td>
+              <td class="small text-nowrap"><?php echo !empty($r->submitted_at) ? esc_view((string) $r->submitted_at) : '—'; ?></td>
+              <td class="small"><?php echo ($r->score_percent !== null && $r->score_percent !== '') ? esc_view(number_format((float) $r->score_percent, 1)) : '—'; ?></td>
               <td>
                 <?php if (isset($r->passed) && $r->passed !== null): ?>
                   <?php if ((int)$r->passed === 1): ?>

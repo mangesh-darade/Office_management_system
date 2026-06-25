@@ -18,9 +18,9 @@
       <div class="card-header">Portal branding</div>
       <div class="card-body"><?php echo form_open('coaching-admin'); ?>
         <input type="hidden" name="action" value="branding">
-        <input name="portal_title" class="form-control mb-2" value="<?php echo htmlspecialchars($branding->portal_title); ?>">
-        <input name="primary_color" class="form-control mb-2" value="<?php echo htmlspecialchars($branding->primary_color); ?>">
-        <textarea name="welcome_message" class="form-control mb-2" rows="2"><?php echo htmlspecialchars($branding->welcome_message); ?></textarea>
+        <input name="portal_title" class="form-control mb-2" value="<?php echo esc_view($branding->portal_title); ?>">
+        <input name="primary_color" class="form-control mb-2" value="<?php echo esc_view($branding->primary_color); ?>">
+        <textarea name="welcome_message" class="form-control mb-2" rows="2"><?php echo esc_view($branding->welcome_message); ?></textarea>
         <button class="btn btn-primary btn-sm">Save</button>
       <?php echo form_close(); ?></div>
     </div>
@@ -31,7 +31,7 @@
       <div class="card-body"><?php echo form_open('coaching-admin'); ?>
         <input type="hidden" name="action" value="payments">
         <select name="gateway" class="form-select mb-2"><option value="manual">Manual</option><option value="razorpay" <?php echo $payments->gateway==='razorpay'?'selected':''; ?>>Razorpay</option></select>
-        <input name="key_id" class="form-control mb-2" value="<?php echo htmlspecialchars($payments->key_id); ?>">
+        <input name="key_id" class="form-control mb-2" value="<?php echo esc_view($payments->key_id); ?>">
         <input name="key_secret" type="password" class="form-control mb-2" placeholder="Key secret">
         <input name="webhook_secret" type="password" class="form-control mb-2" placeholder="Webhook secret">
         <div class="form-check mb-2"><input type="checkbox" name="is_active" value="1" class="form-check-input" id="payActive" <?php echo $payments->is_active?'checked':''; ?>><label for="payActive">Enable payments</label></div>
@@ -62,7 +62,7 @@
         <?php if (empty($rules)): ?>
           <li class="text-muted">No rules yet.</li>
         <?php else: foreach ($rules as $r): ?>
-          <li class="mb-1"><strong><?php echo htmlspecialchars($r->name); ?></strong> — <?php echo htmlspecialchars($r->trigger_type); ?> / <?php echo htmlspecialchars($r->action_type); ?></li>
+          <li class="mb-1"><strong><?php echo esc_view($r->name); ?></strong> — <?php echo esc_view($r->trigger_type); ?> / <?php echo esc_view($r->action_type); ?></li>
         <?php endforeach; endif; ?>
         </ul>
         <a class="btn btn-outline-primary btn-sm d-block" href="<?php echo site_url('coaching-admin/run-automation'); ?>">Run automation now</a>

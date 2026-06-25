@@ -43,12 +43,12 @@ class Mail extends CI_Controller {
         }
         if ($cc) {
             foreach ($this->_split_emails($cc) as $em) {
-                if (!$this->_is_valid_email($em)) { $this->session->set_flashdata('error', 'Invalid CC address: '.htmlspecialchars($em)); redirect('mail'); return; }
+                if (!$this->_is_valid_email($em)) { $this->session->set_flashdata('error', 'Invalid CC address: '.esc_view($em)); redirect('mail'); return; }
             }
         }
         if ($bcc) {
             foreach ($this->_split_emails($bcc) as $em) {
-                if (!$this->_is_valid_email($em)) { $this->session->set_flashdata('error', 'Invalid BCC address: '.htmlspecialchars($em)); redirect('mail'); return; }
+                if (!$this->_is_valid_email($em)) { $this->session->set_flashdata('error', 'Invalid BCC address: '.esc_view($em)); redirect('mail'); return; }
             }
         }
 

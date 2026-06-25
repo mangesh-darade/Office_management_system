@@ -14,16 +14,16 @@
       <div class="list-group-item px-0 py-2 border-0 border-bottom mw-att-list-item">
         <div class="d-flex flex-wrap align-items-center gap-2">
           <span class="mw-att-list-icon">
-            <i class="bi <?php echo htmlspecialchars($att['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
+            <i class="bi <?php echo esc_view($att['icon']); ?>"></i>
           </span>
           <div class="flex-grow-1 min-w-0">
-            <div class="fw-medium text-truncate" title="<?php echo htmlspecialchars($att['name'], ENT_QUOTES, 'UTF-8'); ?>">
-              <?php echo htmlspecialchars($att['name'], ENT_QUOTES, 'UTF-8'); ?>
+            <div class="fw-medium text-truncate" title="<?php echo esc_view($att['name']); ?>">
+              <?php echo esc_view($att['name']); ?>
             </div>
             <div class="small text-muted">
-              <?php echo htmlspecialchars($att['label'], ENT_QUOTES, 'UTF-8'); ?>
+              <?php echo esc_view($att['label']); ?>
               <?php if (!empty($att['size_label'])): ?>
-                <span class="mx-1">&middot;</span><?php echo htmlspecialchars($att['size_label'], ENT_QUOTES, 'UTF-8'); ?>
+                <span class="mx-1">&middot;</span><?php echo esc_view($att['size_label']); ?>
               <?php endif; ?>
             </div>
           </div>
@@ -31,15 +31,15 @@
             <?php if ($att['can_preview']): ?>
               <button type="button"
                       class="btn btn-outline-primary mw-media-play-btn"
-                      data-preview-url="<?php echo htmlspecialchars($att['preview_url'], ENT_QUOTES, 'UTF-8'); ?>"
-                      data-media-kind="<?php echo htmlspecialchars($att['kind'], ENT_QUOTES, 'UTF-8'); ?>"
-                      data-media-title="<?php echo htmlspecialchars($att['name'], ENT_QUOTES, 'UTF-8'); ?>"
-                      <?php if (!empty($att['size_label'])): ?>data-media-size="<?php echo htmlspecialchars($att['size_label'], ENT_QUOTES, 'UTF-8'); ?>"<?php endif; ?>
+                      data-preview-url="<?php echo esc_view($att['preview_url']); ?>"
+                      data-media-kind="<?php echo esc_view($att['kind']); ?>"
+                      data-media-title="<?php echo esc_view($att['name']); ?>"
+                      <?php if (!empty($att['size_label'])): ?>data-media-size="<?php echo esc_view($att['size_label']); ?>"<?php endif; ?>
                       title="Preview">
                 <i class="bi bi-<?php echo $att['is_video'] ? 'play-fill' : ($att['kind'] === 'image' ? 'image' : 'volume-up-fill'); ?>"></i>
               </button>
             <?php endif; ?>
-            <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars($att['download_url'], ENT_QUOTES, 'UTF-8'); ?>" title="Download">
+            <a class="btn btn-outline-secondary" href="<?php echo esc_view($att['download_url']); ?>" title="Download">
               <i class="bi bi-download"></i>
             </a>
           </div>

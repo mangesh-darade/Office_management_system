@@ -108,18 +108,18 @@
                         <option value="all">All Categories</option>
                         <?php foreach($categories as $cat): ?>
                         <option value="<?php echo $cat->id; ?>" <?php echo $filters['category'] == $cat->id ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($cat->name); ?>
+                            <?php echo esc_view($cat->name); ?>
                         </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted">From Date</label>
-                    <input type="date" name="from_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filters['from_date']); ?>">
+                    <input type="date" name="from_date" class="form-control form-control-sm" value="<?php echo esc_view($filters['from_date']); ?>">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small text-muted">To Date</label>
-                    <input type="date" name="to_date" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filters['to_date']); ?>">
+                    <input type="date" name="to_date" class="form-control form-control-sm" value="<?php echo esc_view($filters['to_date']); ?>">
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
@@ -168,13 +168,13 @@
                                         <div class="avatar-xs rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width:24px;height:24px;font-size:10px;">
                                             <?php echo strtoupper(substr($expense->username, 0, 1)); ?>
                                         </div>
-                                        <span><?php echo htmlspecialchars($expense->username); ?></span>
+                                        <span><?php echo esc_view($expense->username); ?></span>
                                     </div>
                                 </td>
-                                <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars($expense->category_name); ?></span></td>
+                                <td><span class="badge bg-light text-dark border"><?php echo esc_view($expense->category_name); ?></span></td>
                                 <td>
-                                    <span class="d-inline-block text-truncate" style="max-width: 200px;" title="<?php echo htmlspecialchars($expense->description); ?>">
-                                        <?php echo htmlspecialchars($expense->description); ?>
+                                    <span class="d-inline-block text-truncate" style="max-width: 200px;" title="<?php echo esc_view($expense->description); ?>">
+                                        <?php echo esc_view($expense->description); ?>
                                     </span>
                                     <?php if($expense->receipt_path): ?>
                                     <a href="<?php echo base_url($expense->receipt_path); ?>" target="_blank" class="text-decoration-none" title="View Receipt">

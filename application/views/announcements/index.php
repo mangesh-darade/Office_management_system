@@ -11,10 +11,10 @@
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-soft mb-3">
@@ -31,7 +31,7 @@
       </div>
       <div class="col-md-6">
         <label class="form-label">Search</label>
-        <input class="form-control" name="q" value="<?php echo htmlspecialchars(isset($filters['q']) ? $filters['q'] : ''); ?>" placeholder="Title or content" />
+        <input class="form-control" name="q" value="<?php echo esc_view(isset($filters['q']) ? $filters['q'] : ''); ?>" placeholder="Title or content" />
       </div>
       <div class="col-md-3 align-self-end">
         <button class="btn btn-outline-secondary">Filter</button>
@@ -58,10 +58,10 @@
             <tr><td colspan="5" class="text-center text-muted">No announcements found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr>
-              <td><?php echo htmlspecialchars($r->title); ?></td>
-              <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars(ucfirst($r->priority)); ?></span></td>
-              <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($r->status); ?></span></td>
-              <td><?php echo htmlspecialchars(($r->start_date ?: '—').' to '.($r->end_date ?: '—')); ?></td>
+              <td><?php echo esc_view($r->title); ?></td>
+              <td><span class="badge bg-light text-dark border"><?php echo esc_view(ucfirst($r->priority)); ?></span></td>
+              <td><span class="badge bg-info text-dark"><?php echo esc_view($r->status); ?></span></td>
+              <td><?php echo esc_view(($r->start_date ?: '—').' to '.($r->end_date ?: '—')); ?></td>
               <td>
                 <?php if (!empty($can_manage) || (function_exists('has_module_access') && (has_module_access('announcements_edit') || has_module_access('announcements')))): ?>
                   <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements/'.(int)$r->id.'/edit'); ?>">Edit</a>

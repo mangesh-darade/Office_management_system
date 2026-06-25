@@ -19,7 +19,7 @@
         <div class="col-md-2">
           <label class="form-label">Search</label>
           <input type="text" name="search" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['search']) ? $filters['search'] : ''); ?>" placeholder="Project name">
+                 value="<?php echo esc_view(isset($filters['search']) ? $filters['search'] : ''); ?>" placeholder="Project name">
         </div>
         <div class="col-md-2">
           <label class="form-label">Status</label>
@@ -35,7 +35,7 @@
           <select name="client_id" class="form-select form-select-sm">
             <option value="">All Clients</option>
             <?php foreach($filter_options['clients'] as $client): ?>
-              <option value="<?php echo $client->id; ?>" <?php echo (isset($filters['client_id']) && $filters['client_id'] == $client->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($client->company_name); ?></option>
+              <option value="<?php echo $client->id; ?>" <?php echo (isset($filters['client_id']) && $filters['client_id'] == $client->id) ? 'selected' : ''; ?>><?php echo esc_view($client->company_name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -44,19 +44,19 @@
           <select name="project_manager_id" class="form-select form-select-sm">
             <option value="">All Managers</option>
             <?php foreach($filter_options['managers'] as $manager): ?>
-              <option value="<?php echo $manager->id; ?>" <?php echo (isset($filters['project_manager_id']) && $filters['project_manager_id'] == $manager->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($manager->email); ?></option>
+              <option value="<?php echo $manager->id; ?>" <?php echo (isset($filters['project_manager_id']) && $filters['project_manager_id'] == $manager->id) ? 'selected' : ''; ?>><?php echo esc_view($manager->email); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-2">
           <label class="form-label">Start From</label>
           <input type="date" name="date_from" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">End To</label>
           <input type="date" name="date_to" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">&nbsp;</label>
@@ -198,15 +198,15 @@
                   <?php foreach ($project_details as $p): ?>
                     <tr>
                       <td>
-                        <div class="fw-semibold"><?php echo htmlspecialchars($p->project_name); ?></div>
+                        <div class="fw-semibold"><?php echo esc_view($p->project_name); ?></div>
                         <div class="small text-muted">ID: <?php echo (int)$p->project_id; ?></div>
                         <?php if (isset($p->budget) && $p->budget): ?>
                           <div class="small text-success fw-medium"><?php echo number_format($p->budget, 2); ?></div>
                         <?php endif; ?>
                       </td>
-                      <td><?php echo htmlspecialchars($p->client_name); ?></td>
+                      <td><?php echo esc_view($p->client_name); ?></td>
                       <td>
-                        <div class="small"><?php echo htmlspecialchars($p->manager_name); ?></div>
+                        <div class="small"><?php echo esc_view($p->manager_name); ?></div>
                       </td>
                       <td>
                         <?php if ($p->total_tasks > 0): ?>

@@ -11,10 +11,10 @@ $default_from_email = $ci->settings->get_setting('email_smtp_user', '');
   <a class="btn btn-light btn-sm" href="<?php echo site_url('reminders'); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -26,7 +26,7 @@ $default_from_email = $ci->settings->get_setting('email_smtp_user', '');
         </div>
         <div class="col-md-3">
           <label class="form-label">From Email (optional)</label>
-          <input type="email" name="from_email" class="form-control" placeholder="e.g. user@domain.com" value="<?php echo htmlspecialchars($default_from_email); ?>">
+          <input type="email" name="from_email" class="form-control" placeholder="e.g. user@domain.com" value="<?php echo esc_view($default_from_email); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">From Name (optional)</label>

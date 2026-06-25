@@ -1,17 +1,17 @@
 <?php $this->load->view('partials/header', ['title' => ($action==='edit'?'Edit':'New').' Release']); ?>
 <div class="container-fluid py-3">
 <h1 class="h4 fw-bold mb-3"><?php echo $action==='edit'?'Edit':'New'; ?> Release</h1>
-<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div><?php endif; ?>
-<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
+<?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
 <div class="card shadow-soft mb-3"><div class="card-body">
 <form method="post" id="releaseForm"><?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
 <div class="row g-3">
-  <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ($item && (int)$item->project_id===(int)$p->id)?'selected':''; ?>><?php echo htmlspecialchars($p->name); ?></option><?php endforeach; ?></select></div>
-  <div class="col-md-2"><label class="form-label">Version</label><input name="version" class="form-control" required value="<?php echo $item?htmlspecialchars($item->version):''; ?>"></div>
-  <div class="col-md-3"><label class="form-label">Planned date</label><input type="date" name="planned_date" class="form-control" value="<?php echo $item?htmlspecialchars($item->planned_date):''; ?>"></div>
+  <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ($item && (int)$item->project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option><?php endforeach; ?></select></div>
+  <div class="col-md-2"><label class="form-label">Version</label><input name="version" class="form-control" required value="<?php echo $item?esc_view($item->version):''; ?>"></div>
+  <div class="col-md-3"><label class="form-label">Planned date</label><input type="date" name="planned_date" class="form-control" value="<?php echo $item?esc_view($item->planned_date):''; ?>"></div>
   <div class="col-md-3"><label class="form-label">Status</label><select name="status" class="form-select" id="releaseStatus"><?php foreach (['planned','in_progress','released','cancelled'] as $s): ?><option value="<?php echo $s; ?>" <?php echo ($item && $item->status===$s)?'selected':''; ?>><?php echo ucfirst(str_replace('_',' ',$s)); ?></option><?php endforeach; ?></select></div>
-  <div class="col-12"><label class="form-label">Title</label><input name="title" class="form-control" required value="<?php echo $item?htmlspecialchars($item->title):''; ?>"></div>
-  <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Summary for stakeholders"><?php echo $item?htmlspecialchars($item->description):''; ?></textarea></div>
+  <div class="col-12"><label class="form-label">Title</label><input name="title" class="form-control" required value="<?php echo $item?esc_view($item->title):''; ?>"></div>
+  <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Summary for stakeholders"><?php echo $item?esc_view($item->description):''; ?></textarea></div>
 </div>
 
 <div class="mt-4">
@@ -27,7 +27,7 @@
     ?>
     <div class="input-group note-point-row">
       <span class="input-group-text text-muted"><?php echo (int)$idx + 1; ?>.</span>
-      <input type="text" name="note_points[]" class="form-control" maxlength="500" value="<?php echo htmlspecialchars($pt); ?>" placeholder="e.g. Fixed login timeout on mobile">
+      <input type="text" name="note_points[]" class="form-control" maxlength="500" value="<?php echo esc_view($pt); ?>" placeholder="e.g. Fixed login timeout on mobile">
       <button type="button" class="btn btn-outline-secondary btn-remove-point" title="Remove"><i class="bi bi-x-lg"></i></button>
     </div>
     <?php endforeach; ?>
@@ -46,10 +46,10 @@
     ?>
     <li class="list-group-item d-flex justify-content-between align-items-center py-2">
       <span>
-        <span class="badge bg-light text-dark border me-1"><?php echo htmlspecialchars($d->status); ?></span>
-        <?php echo htmlspecialchars($defectLine); ?>
+        <span class="badge bg-light text-dark border me-1"><?php echo esc_view($d->status); ?></span>
+        <?php echo esc_view($defectLine); ?>
       </span>
-      <button type="button" class="btn btn-sm btn-outline-secondary btn-add-defect-point" data-text="<?php echo htmlspecialchars($defectLine, ENT_QUOTES, 'UTF-8'); ?>">Add to notes</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary btn-add-defect-point" data-text="<?php echo esc_view($defectLine); ?>">Add to notes</button>
     </li>
     <?php endforeach; ?>
   </ul>
@@ -66,7 +66,7 @@
   <label class="form-label fw-semibold"><i class="bi bi-envelope me-1"></i>Send release notes (via Reminders email)</label>
   <p class="text-muted small">Select team members to receive this release by email. Uses the same delivery pipeline as <a href="<?php echo site_url('reminders/send'); ?>">Reminders → Send</a>.</p>
   <?php if ($item && !empty($item->notes_sent_at)): ?>
-  <p class="small text-success mb-2"><i class="bi bi-check-circle me-1"></i>Last sent: <?php echo htmlspecialchars(date('M j, Y g:i A', strtotime($item->notes_sent_at))); ?></p>
+  <p class="small text-success mb-2"><i class="bi bi-check-circle me-1"></i>Last sent: <?php echo esc_view(date('M j, Y g:i A', strtotime($item->notes_sent_at))); ?></p>
   <?php endif; ?>
   <div class="row g-3">
     <div class="col-12">
@@ -80,7 +80,7 @@
             elseif (isset($u->name) && $u->name !== '') { $label = $u->name; }
             else { $label = isset($u->email) ? $u->email : 'User'; }
           ?>
-          <option value="<?php echo (int)$u->id; ?>"><?php echo htmlspecialchars($label); ?> (<?php echo htmlspecialchars(isset($u->email) ? $u->email : ''); ?>)</option>
+          <option value="<?php echo (int)$u->id; ?>"><?php echo esc_view($label); ?> (<?php echo esc_view(isset($u->email) ? $u->email : ''); ?>)</option>
         <?php endforeach; ?>
       </select>
       <div class="form-text">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</div>

@@ -1,4 +1,4 @@
-<?php $this->load->view('partials/header', ['title' => 'Apply for ' . htmlspecialchars($job->title)]); ?>
+<?php $this->load->view('partials/header', ['title' => 'Apply for ' . esc_view($job->title)]); ?>
 
 <div class="container py-5">
   <div class="row justify-content-center">
@@ -9,22 +9,22 @@
         <div class="card shadow-sm border-0 text-center p-5">
           <div class="text-success mb-3"><i class="bi bi-check-circle-fill" style="font-size:3.5rem;"></i></div>
           <h4 class="fw-bold mb-2">Application Submitted!</h4>
-          <p class="text-muted mb-4">Thank you for applying for <strong><?php echo htmlspecialchars($job->title); ?></strong>. We have received your application and will review it shortly. We will contact you if your profile matches our requirements.</p>
+          <p class="text-muted mb-4">Thank you for applying for <strong><?php echo esc_view($job->title); ?></strong>. We have received your application and will review it shortly. We will contact you if your profile matches our requirements.</p>
           <a href="<?php echo site_url('recruitment'); ?>" class="btn btn-outline-primary">View Other Openings</a>
         </div>
       <?php else: ?>
         <!-- Job info header -->
         <div class="card shadow-sm border-0 mb-3">
           <div class="card-body">
-            <h4 class="fw-bold mb-1"><?php echo htmlspecialchars($job->title); ?></h4>
+            <h4 class="fw-bold mb-1"><?php echo esc_view($job->title); ?></h4>
             <?php if ($job->department): ?>
-              <span class="badge bg-light text-dark border me-2"><?php echo htmlspecialchars($job->department); ?></span>
+              <span class="badge bg-light text-dark border me-2"><?php echo esc_view($job->department); ?></span>
             <?php endif; ?>
             <?php if ($job->experience_level): ?>
-              <span class="badge bg-light text-dark border"><?php echo htmlspecialchars($job->experience_level); ?></span>
+              <span class="badge bg-light text-dark border"><?php echo esc_view($job->experience_level); ?></span>
             <?php endif; ?>
             <?php if ($job->description): ?>
-              <p class="text-muted mt-2 mb-0 small"><?php echo nl2br(htmlspecialchars($job->description)); ?></p>
+              <p class="text-muted mt-2 mb-0 small"><?php echo nl2br(esc_view($job->description)); ?></p>
             <?php endif; ?>
           </div>
         </div>

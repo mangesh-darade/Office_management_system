@@ -12,10 +12,10 @@ $this->load->view('partials/oms_page_head', [
   'actions_html' => ob_get_clean(),
 ]); ?>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
 <?php if ($this->input->get('show_deleted')): ?>
@@ -47,14 +47,14 @@ $this->load->view('partials/oms_page_head', [
             <tr><td colspan="6" class="text-center text-muted">No departments found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr class="<?php echo (isset($r->status) && $r->status === 'inactive') ? 'table-warning' : ''; ?>">
-              <td><?php echo htmlspecialchars(isset($r->dept_code) ? $r->dept_code : ''); ?></td>
-              <td><?php echo htmlspecialchars(isset($r->dept_name) ? $r->dept_name : ''); ?></td>
+              <td><?php echo esc_view(isset($r->dept_code) ? $r->dept_code : ''); ?></td>
+              <td><?php echo esc_view(isset($r->dept_name) ? $r->dept_name : ''); ?></td>
               <td><?php 
                 if (!empty($r->manager_id) && isset($managers[(int)$r->manager_id])){ 
-                  $m = $managers[(int)$r->manager_id]; echo htmlspecialchars($m->email.(!empty($m->name)?' ('.$m->name.')':''));
+                  $m = $managers[(int)$r->manager_id]; echo esc_view($m->email.(!empty($m->name)?' ('.$m->name.')':''));
                 } else { echo '<span class="text-muted">—</span>'; }
               ?></td>
-              <td><span class="badge bg-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'danger' : 'light'; ?> text-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'light' : 'dark'; ?> border"><?php echo htmlspecialchars(isset($r->status) ? $r->status : 'active'); ?></span></td>
+              <td><span class="badge bg-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'danger' : 'light'; ?> text-<?php echo (isset($r->status) && $r->status === 'inactive') ? 'light' : 'dark'; ?> border"><?php echo esc_view(isset($r->status) ? $r->status : 'active'); ?></span></td>
               <td><?php echo isset($r->deleted_at) ? '<span class="text-muted small">'.date('M j, Y H:i', strtotime($r->deleted_at)).'</span>' : '<span class="text-muted">—</span>'; ?></td>
               <td>
                 <div class="d-flex justify-content-center gap-1">

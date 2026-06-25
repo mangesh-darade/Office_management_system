@@ -18,7 +18,7 @@
           <div class="col-12 col-sm-8 col-lg-6">
             <div class="input-group">
               <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-              <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars(isset($q) ? $q : ''); ?>" placeholder="Search by code, name, email...">
+              <input type="text" class="form-control" name="q" value="<?php echo esc_view(isset($q) ? $q : ''); ?>" placeholder="Search by code, name, email...">
             </div>
           </div>
           <div class="col-12 col-sm-auto">
@@ -48,11 +48,11 @@
           <?php if (!empty($employees)): foreach ($employees as $e): ?>
             <tr>
               <td><?php echo (int)$e->id; ?></td>
-              <td><span class="badge bg-primary-subtle text-primary"><?php echo htmlspecialchars($e->emp_code); ?></span></td>
-              <td><?php echo htmlspecialchars(trim((isset($e->first_name) ? $e->first_name : '').' '.(isset($e->last_name) ? $e->last_name : ''))); ?></td>
-              <td class="d-none d-md-table-cell"><?php echo htmlspecialchars(isset($e->email) ? $e->email : ''); ?></td>
-              <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars(isset($e->department) ? $e->department : ''); ?></td>
-              <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars(isset($e->designation) ? $e->designation : ''); ?></td>
+              <td><span class="badge bg-primary-subtle text-primary"><?php echo esc_view($e->emp_code); ?></span></td>
+              <td><?php echo esc_view(trim((isset($e->first_name) ? $e->first_name : '').' '.(isset($e->last_name) ? $e->last_name : ''))); ?></td>
+              <td class="d-none d-md-table-cell"><?php echo esc_view(isset($e->email) ? $e->email : ''); ?></td>
+              <td class="d-none d-lg-table-cell"><?php echo esc_view(isset($e->department) ? $e->department : ''); ?></td>
+              <td class="d-none d-lg-table-cell"><?php echo esc_view(isset($e->designation) ? $e->designation : ''); ?></td>
               <td class="text-end table-actions">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('employees/'.$e->id); ?>"><i class="bi bi-eye"></i></a>
                 <?php if(function_exists('has_module_access') && (has_module_access('employees_edit') || has_module_access('employees'))): ?>

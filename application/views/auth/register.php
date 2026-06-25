@@ -310,10 +310,10 @@
   
   // Show flash messages as toasts on page load
   <?php if($this->session->flashdata('success')): ?>
-    showToast('success', '<?php echo htmlspecialchars($this->session->flashdata('success')); ?>');
+    showToast('success', '<?php echo esc_view($this->session->flashdata('success')); ?>');
   <?php endif; ?>
   <?php if($this->session->flashdata('error')): ?>
-    showToast('error', '<?php echo htmlspecialchars($this->session->flashdata('error')); ?>');
+    showToast('error', '<?php echo esc_view($this->session->flashdata('error')); ?>');
   <?php endif; ?>
 
   // Toast helper function

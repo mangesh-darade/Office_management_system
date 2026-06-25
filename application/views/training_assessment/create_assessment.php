@@ -15,11 +15,11 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit assessment' : 
           <div class="mb-3">
             <label class="form-label">Title <span class="text-danger">*</span></label>
             <input type="text" name="title" class="form-control" required maxlength="255"
-              value="<?php echo $ed ? htmlspecialchars($assessment->title) : ''; ?>">
+              value="<?php echo $ed ? esc_view($assessment->title) : ''; ?>">
           </div>
           <div class="mb-3">
             <label class="form-label">Description</label>
-            <textarea name="description" class="form-control" rows="3"><?php echo $ed ? htmlspecialchars($assessment->description) : ''; ?></textarea>
+            <textarea name="description" class="form-control" rows="3"><?php echo $ed ? esc_view($assessment->description) : ''; ?></textarea>
           </div>
           <div class="row g-3">
             <div class="col-md-4">
@@ -30,7 +30,7 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit assessment' : 
             <div class="col-md-4">
               <label class="form-label">Passing marks (%)</label>
               <input type="number" name="passing_marks" class="form-control" step="0.01" min="0" max="100" required
-                value="<?php echo $ed ? htmlspecialchars($assessment->passing_marks) : '60'; ?>">
+                value="<?php echo $ed ? esc_view($assessment->passing_marks) : '60'; ?>">
             </div>
             <div class="col-md-4">
               <label class="form-label">Max attempts</label>

@@ -4,16 +4,16 @@ $this->load->view('partials/header', array('title' => 'Assessment screenshots'))
 ?>
 <div class="container-fluid py-4">
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success py-2"><?php echo htmlspecialchars((string) $this->session->flashdata('success')); ?></div>
+    <div class="alert alert-success py-2"><?php echo esc_view((string) $this->session->flashdata('success')); ?></div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger py-2"><?php echo htmlspecialchars((string) $this->session->flashdata('error')); ?></div>
+    <div class="alert alert-danger py-2"><?php echo esc_view((string) $this->session->flashdata('error')); ?></div>
   <?php endif; ?>
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h1 class="h4 mb-1">Assessment screenshots</h1>
       <div class="small text-muted">
-        <?php echo htmlspecialchars((string) $au->assessment_title); ?> -
+        <?php echo esc_view((string) $au->assessment_title); ?> -
         Attempt #<?php echo (int) $au->id; ?>
       </div>
     </div>
@@ -48,9 +48,9 @@ $this->load->view('partials/header', array('title' => 'Assessment screenshots'))
                   <input class="form-check-input ta-shot-check" type="checkbox" name="screenshot_ids[]" value="<?php echo (int) $shot->id; ?>">
                   <span class="form-check-label small">Select</span>
                 </label>
-                <div class="small fw-semibold"><?php echo htmlspecialchars((string) $shot->captured_at); ?></div>
+                <div class="small fw-semibold"><?php echo esc_view((string) $shot->captured_at); ?></div>
                 <?php if (!empty($shot->ip_address)): ?>
-                  <div class="small text-muted">IP: <?php echo htmlspecialchars((string) $shot->ip_address); ?></div>
+                  <div class="small text-muted">IP: <?php echo esc_view((string) $shot->ip_address); ?></div>
                 <?php endif; ?>
                 <button type="button" class="btn btn-sm btn-outline-danger w-100 ta-delete-one" data-id="<?php echo (int) $shot->id; ?>">
                   <i class="bi bi-trash me-1"></i>Delete single

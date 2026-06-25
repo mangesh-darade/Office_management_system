@@ -8,7 +8,7 @@
 
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -19,11 +19,11 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" class="form-control" value="<?php echo isset($status) ? htmlspecialchars($status->name) : ''; ?>" required placeholder="e.g. In Progress">
+          <input type="text" name="name" class="form-control" value="<?php echo isset($status) ? esc_view($status->name) : ''; ?>" required placeholder="e.g. In Progress">
         </div>
         <div class="col-md-6">
           <label class="form-label">Code <span class="text-danger">*</span></label>
-          <input type="text" name="code" class="form-control" value="<?php echo isset($status) ? htmlspecialchars($status->code) : ''; ?>" required placeholder="e.g. in_progress">
+          <input type="text" name="code" class="form-control" value="<?php echo isset($status) ? esc_view($status->code) : ''; ?>" required placeholder="e.g. in_progress">
           <div class="form-text">Lowercase, use underscores (e.g., in_progress, on_hold)</div>
         </div>
         <div class="col-md-6">
@@ -31,7 +31,7 @@
           <select name="type" class="form-select" required>
             <option value="">-- Select Type --</option>
             <?php foreach ($types as $type): ?>
-              <option value="<?php echo htmlspecialchars($type); ?>" <?php echo (isset($status) && $status->type === $type) ? 'selected' : ''; ?>>
+              <option value="<?php echo esc_view($type); ?>" <?php echo (isset($status) && $status->type === $type) ? 'selected' : ''; ?>>
                 <?php echo ucfirst($type); ?>
               </option>
             <?php endforeach; ?>
@@ -40,8 +40,8 @@
         <div class="col-md-6">
           <label class="form-label">Color</label>
           <div class="input-group">
-            <input type="color" name="color" class="form-control form-control-color" value="<?php echo isset($status) && $status->color ? htmlspecialchars($status->color) : '#6c757d'; ?>" title="Choose color">
-            <input type="text" name="color_text" class="form-control" value="<?php echo isset($status) && $status->color ? htmlspecialchars($status->color) : '#6c757d'; ?>" id="color-text-input" placeholder="#6c757d">
+            <input type="color" name="color" class="form-control form-control-color" value="<?php echo isset($status) && $status->color ? esc_view($status->color) : '#6c757d'; ?>" title="Choose color">
+            <input type="text" name="color_text" class="form-control" value="<?php echo isset($status) && $status->color ? esc_view($status->color) : '#6c757d'; ?>" id="color-text-input" placeholder="#6c757d">
           </div>
         </div>
         <div class="col-md-6">
@@ -137,16 +137,16 @@
             foreach ($icons as $icon):
               $selected = ($currentIcon === $icon) ? 'selected' : '';
               ?>
-              <option value="<?php echo htmlspecialchars($icon); ?>" <?php echo $selected; ?>>
-                <?php echo htmlspecialchars($icon); ?>
+              <option value="<?php echo esc_view($icon); ?>" <?php echo $selected; ?>>
+                <?php echo esc_view($icon); ?>
               </option>
             <?php endforeach; ?>
           </select>
           <div class="form-text">
             <span id="icon-preview">
               <?php if ($currentIcon): ?>
-                <i class="bi bi-<?php echo htmlspecialchars($currentIcon); ?> me-1"></i>
-                Preview: <code><?php echo htmlspecialchars($currentIcon); ?></code>
+                <i class="bi bi-<?php echo esc_view($currentIcon); ?> me-1"></i>
+                Preview: <code><?php echo esc_view($currentIcon); ?></code>
               <?php else: ?>
                 Select an icon to preview
               <?php endif; ?>
@@ -160,7 +160,7 @@
         </div>
         <div class="col-md-12">
           <label class="form-label">Description</label>
-          <textarea name="description" class="form-control" rows="3" placeholder="Optional description"><?php echo isset($status) ? htmlspecialchars($status->description) : ''; ?></textarea>
+          <textarea name="description" class="form-control" rows="3" placeholder="Optional description"><?php echo isset($status) ? esc_view($status->description) : ''; ?></textarea>
         </div>
         <div class="col-md-12">
           <div class="form-check">

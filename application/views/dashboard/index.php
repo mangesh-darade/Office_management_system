@@ -13,7 +13,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
         <i class="bi bi-exclamation-triangle me-2"></i>
         <div>
-          <?php echo htmlspecialchars($this->session->flashdata('access_denied'), ENT_QUOTES, 'UTF-8'); ?>
+          <?php echo esc_view($this->session->flashdata('access_denied'), ENT_QUOTES, 'UTF-8'); ?>
         </div>
       </div>
       <?php endif; ?>
@@ -60,21 +60,21 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
                   $priority = isset($a->priority) ? strtolower((string) $a->priority) : '';
                   $prioClass = ($priority === 'high') ? 'announcement-item--high' : '';
                 ?>
-                <article class="announcement-item <?php echo htmlspecialchars($prioClass); ?>">
+                <article class="announcement-item <?php echo esc_view($prioClass); ?>">
                   <div class="announcement-item__icon" aria-hidden="true">
                     <i class="bi bi-bullhorn"></i>
                   </div>
                   <div class="announcement-item__body">
                     <div class="announcement-item__head">
                       <div class="min-w-0">
-                        <h6 class="announcement-item__title mb-0"><?php echo htmlspecialchars($a->title); ?></h6>
+                        <h6 class="announcement-item__title mb-0"><?php echo esc_view($a->title); ?></h6>
                         <?php if ($priority !== ''): ?>
-                          <span class="announcement-item__meta"><?php echo htmlspecialchars(ucfirst($priority)); ?> priority</span>
+                          <span class="announcement-item__meta"><?php echo esc_view(ucfirst($priority)); ?> priority</span>
                         <?php endif; ?>
                       </div>
                     </div>
                     <?php if ($snippet !== ''): ?>
-                      <p class="announcement-item__text mb-0"><?php echo htmlspecialchars($snippet); ?></p>
+                      <p class="announcement-item__text mb-0"><?php echo esc_view($snippet); ?></p>
                     <?php endif; ?>
                   </div>
                 </article>
@@ -143,17 +143,17 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
                   <p class="text-muted small mb-2 mb-md-1">Record your check-in and check-out for today.</p>
                   <div class="mark-attendance-status">
                     <span class="badge rounded-pill mark-attendance-badge bg-<?php echo $ma_status_class; ?>-subtle text-<?php echo $ma_status_class; ?> border border-<?php echo $ma_status_class; ?>-subtle">
-                      <i class="bi <?php echo $ma_status_icon; ?> me-1"></i><?php echo htmlspecialchars($ma_status_label); ?>
+                      <i class="bi <?php echo $ma_status_icon; ?> me-1"></i><?php echo esc_view($ma_status_label); ?>
                     </span>
                     <?php if ($ma_status_detail !== ''): ?>
-                      <p class="mark-attendance-status-detail small text-muted mb-0"><?php echo htmlspecialchars($ma_status_detail); ?></p>
+                      <p class="mark-attendance-status-detail small text-muted mb-0"><?php echo esc_view($ma_status_detail); ?></p>
                     <?php endif; ?>
                   </div>
                 </div>
               </div>
               <div class="mark-attendance-actions">
                 <a href="<?php echo site_url('attendance/create'); ?>" class="btn btn-primary mark-attendance-btn-primary">
-                  <i class="bi <?php echo $ma_btn_icon; ?> me-2"></i><?php echo htmlspecialchars($ma_btn_label); ?>
+                  <i class="bi <?php echo $ma_btn_icon; ?> me-2"></i><?php echo esc_view($ma_btn_label); ?>
                 </a>
                 <a href="<?php echo site_url('attendance'); ?>" class="btn btn-outline-secondary mark-attendance-btn-secondary">
                   <i class="bi bi-clock-history me-1 d-md-none"></i>History
@@ -178,15 +178,15 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
               $gradient_class = isset($dash['gradient_class']) && trim($dash['gradient_class']) !== '' ? trim($dash['gradient_class']) : 'bg-gradient-primary';
             ?>
             <div class="col-12 col-sm-6 col-lg-3">
-              <a href="<?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?>" class="card stat-card <?php echo htmlspecialchars($gradient_class, ENT_QUOTES, 'UTF-8'); ?> text-white h-100 hover-lift external-dashboard-card text-decoration-none">
+              <a href="<?php echo esc_view($url); ?>" class="card stat-card <?php echo esc_view($gradient_class); ?> text-white h-100 hover-lift external-dashboard-card text-decoration-none">
                 <div class="card-body text-start">
                   <div class="d-flex align-items-center justify-content-between">
                     <div>
-                      <h6 class="card-title text-white-50 mb-1"><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></h6>
-                      <small class="text-white-50">Open <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?> Looker dashboard</small>
+                      <h6 class="card-title text-white-50 mb-1"><?php echo esc_view($label); ?></h6>
+                      <small class="text-white-50">Open <?php echo esc_view($label); ?> Looker dashboard</small>
                     </div>
                     <div class="stat-icon">
-                      <i class="<?php echo htmlspecialchars($icon_class, ENT_QUOTES, 'UTF-8'); ?> fs-2"></i>
+                      <i class="<?php echo esc_view($icon_class); ?> fs-2"></i>
                     </div>
                   </div>
                 </div>

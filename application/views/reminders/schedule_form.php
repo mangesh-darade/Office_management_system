@@ -12,10 +12,10 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Sched
   <a class="btn btn-light btn-sm" href="<?php echo site_url('reminders/schedules'); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo htmlspecialchars($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
@@ -23,7 +23,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Sched
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Schedule Name</label>
-          <input type="text" name="name" class="form-control" required value="<?php echo isset($schedule->name)?htmlspecialchars($schedule->name):''; ?>">
+          <input type="text" name="name" class="form-control" required value="<?php echo isset($schedule->name)?esc_view($schedule->name):''; ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">Audience</label>
@@ -51,7 +51,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Sched
                 else if (isset($u->name) && $u->name!=='') { $label = $u->name; }
                 else if (isset($u->email)) { $label = $u->email; }
               ?>
-              <option value="<?php echo (int)$u->id; ?>"<?php echo ($is_edit && isset($schedule->user_id) && (int)$schedule->user_id === (int)$u->id) ? ' selected' : ''; ?>><?php echo htmlspecialchars($label); ?> (<?php echo htmlspecialchars(isset($u->email)?$u->email:''); ?>)</option>
+              <option value="<?php echo (int)$u->id; ?>"<?php echo ($is_edit && isset($schedule->user_id) && (int)$schedule->user_id === (int)$u->id) ? ' selected' : ''; ?>><?php echo esc_view($label); ?> (<?php echo esc_view(isset($u->email)?$u->email:''); ?>)</option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -73,26 +73,26 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Sched
               </label>
             <?php endforeach; ?>
           </div>
-          <input type="hidden" name="weekdays" id="weekdaysField" value="<?php echo ($is_edit && isset($schedule->weekdays)) ? htmlspecialchars($schedule->weekdays) : ''; ?>">
+          <input type="hidden" name="weekdays" id="weekdaysField" value="<?php echo ($is_edit && isset($schedule->weekdays)) ? esc_view($schedule->weekdays) : ''; ?>">
         </div>
         <div class="col-md-3" id="sendTimeWrap">
           <label class="form-label">Send Time</label>
-          <input type="time" name="send_time" class="form-control" required value="<?php echo ($is_edit && isset($schedule->send_time)) ? htmlspecialchars($schedule->send_time) : ''; ?>">
+          <input type="time" name="send_time" class="form-control" required value="<?php echo ($is_edit && isset($schedule->send_time)) ? esc_view($schedule->send_time) : ''; ?>">
         </div>
         <div class="col-md-3" id="oneTimeWrap"<?php
           $curType = ($is_edit && isset($schedule->schedule_type)) ? $schedule->schedule_type : 'weekly';
           if ($curType !== 'once') { echo ' style="display:none"'; }
         ?>>
           <label class="form-label">Send At (Date &amp; Time)</label>
-          <input type="datetime-local" name="one_time_at" class="form-control" value="<?php echo htmlspecialchars($oneTimeVal); ?>">
+          <input type="datetime-local" name="one_time_at" class="form-control" value="<?php echo esc_view($oneTimeVal); ?>">
         </div>
         <div class="col-md-3">
           <label class="form-label">Subject</label>
-          <input type="text" name="subject" class="form-control" required value="<?php echo ($is_edit && isset($schedule->subject)) ? htmlspecialchars($schedule->subject) : ''; ?>">
+          <input type="text" name="subject" class="form-control" required value="<?php echo ($is_edit && isset($schedule->subject)) ? esc_view($schedule->subject) : ''; ?>">
         </div>
         <div class="col-md-12">
           <label class="form-label">Message</label>
-          <textarea name="body" rows="4" class="form-control" placeholder="Optional message body. If empty, subject will be used."><?php echo ($is_edit && isset($schedule->body)) ? htmlspecialchars($schedule->body) : ''; ?></textarea>
+          <textarea name="body" rows="4" class="form-control" placeholder="Optional message body. If empty, subject will be used."><?php echo ($is_edit && isset($schedule->body)) ? esc_view($schedule->body) : ''; ?></textarea>
         </div>
       </div>
       <div>

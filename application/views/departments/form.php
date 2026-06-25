@@ -4,7 +4,7 @@
 <?php if($this->session->flashdata('error')): ?>
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+    <?php echo esc_view($this->session->flashdata('error')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -12,7 +12,7 @@
 <?php if($this->session->flashdata('success')): ?>
   <div class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="bi bi-check-circle-fill me-2"></i>
-    <?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+    <?php echo esc_view($this->session->flashdata('success')); ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
@@ -27,22 +27,22 @@
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Code</label>
-          <input class="form-control" name="dept_code" value="<?php echo htmlspecialchars(isset($row->dept_code)?$row->dept_code:''); ?>" required />
+          <input class="form-control" name="dept_code" value="<?php echo esc_view(isset($row->dept_code)?$row->dept_code:''); ?>" required />
         </div>
         <div class="col-md-8">
           <label class="form-label">Name</label>
-          <input class="form-control" name="dept_name" value="<?php echo htmlspecialchars(isset($row->dept_name)?$row->dept_name:''); ?>" required />
+          <input class="form-control" name="dept_name" value="<?php echo esc_view(isset($row->dept_name)?$row->dept_name:''); ?>" required />
         </div>
         <div class="col-md-12">
           <label class="form-label">Description</label>
-          <textarea class="form-control" name="description" rows="3"><?php echo htmlspecialchars(isset($row->description)?$row->description:''); ?></textarea>
+          <textarea class="form-control" name="description" rows="3"><?php echo esc_view(isset($row->description)?$row->description:''); ?></textarea>
         </div>
         <div class="col-md-6">
           <label class="form-label">Manager (User)</label>
           <select class="form-select" name="manager_id">
             <option value="">-- Select --</option>
             <?php foreach ($users as $u): ?>
-              <option value="<?php echo (int)$u->id; ?>" <?php echo (isset($row->manager_id) && (int)$row->manager_id===(int)$u->id)?'selected':''; ?>><?php echo htmlspecialchars($u->email.(!empty($u->name)?' ('.$u->name.')':'')); ?></option>
+              <option value="<?php echo (int)$u->id; ?>" <?php echo (isset($row->manager_id) && (int)$row->manager_id===(int)$u->id)?'selected':''; ?>><?php echo esc_view($u->email.(!empty($u->name)?' ('.$u->name.')':'')); ?></option>
             <?php endforeach; ?>
           </select>
         </div>

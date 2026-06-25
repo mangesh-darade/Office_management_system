@@ -6,7 +6,7 @@ if (!empty($import_errors) && is_array($import_errors)):
   <div class="fw-semibold mb-1">Import row issues</div>
   <ul class="mb-0 small ps-3">
     <?php foreach ($import_errors as $err): ?>
-      <li><?php echo htmlspecialchars((string) $err); ?></li>
+      <li><?php echo esc_view((string) $err); ?></li>
     <?php endforeach; ?>
   </ul>
 </div>

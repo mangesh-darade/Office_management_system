@@ -15,7 +15,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
 </div>
 
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo htmlspecialchars($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 
 <div class="card shadow-sm">
@@ -35,7 +35,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
         <div class="col-md-6 mb-3">
           <label class="form-label">Service Name <span class="text-danger">*</span></label>
           <input type="text" name="service_name" class="form-control" 
-                 value="<?php echo $integration ? htmlspecialchars($integration->service_name) : ''; ?>" 
+                 value="<?php echo $integration ? esc_view($integration->service_name) : ''; ?>" 
                  placeholder="e.g., Production SendGrid, Twilio WhatsApp" required>
         </div>
       </div>
@@ -44,7 +44,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
         <div class="col-md-6 mb-3">
           <label class="form-label">Account ID / API Key <span class="text-danger">*</span></label>
           <input type="text" name="account_id" id="account_id" class="form-control" 
-                 value="<?php echo $integration ? htmlspecialchars($integration->account_id) : ''; ?>" 
+                 value="<?php echo $integration ? esc_view($integration->account_id) : ''; ?>" 
                  placeholder="Account SID, API Key, etc." required>
           <small class="form-text text-muted">For SendGrid: API Key | For WhatsApp: Account SID</small>
         </div>
@@ -53,7 +53,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
           <label class="form-label">Auth Token / API Secret <span class="text-danger">*</span></label>
           <div class="input-group">
             <input type="password" name="auth_token" id="auth_token" class="form-control" 
-                   value="<?php echo $integration ? htmlspecialchars($integration->auth_token) : ''; ?>" 
+                   value="<?php echo $integration ? esc_view($integration->auth_token) : ''; ?>" 
                    placeholder="Auth Token, API Secret, Password" required>
             <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('auth_token')">
               <i class="bi bi-eye" id="auth_token_icon"></i>
@@ -69,7 +69,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
           <div class="col-md-6 mb-3">
             <label class="form-label">From Email</label>
             <input type="email" name="from_email" class="form-control" 
-                   value="<?php echo $integration ? htmlspecialchars($integration->from_email) : ''; ?>" 
+                   value="<?php echo $integration ? esc_view($integration->from_email) : ''; ?>" 
                    placeholder="noreply@example.com">
             <small class="form-text text-muted">Verified sender email address</small>
           </div>
@@ -77,7 +77,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
           <div class="col-md-6 mb-3">
             <label class="form-label">From Name</label>
             <input type="text" name="from_name" class="form-control" 
-                   value="<?php echo $integration ? htmlspecialchars($integration->from_name) : ''; ?>" 
+                   value="<?php echo $integration ? esc_view($integration->from_name) : ''; ?>" 
                    placeholder="Company Name">
           </div>
         </div>
@@ -89,7 +89,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
           <div class="col-md-6 mb-3">
             <label class="form-label">From Number</label>
             <input type="text" name="from_number" class="form-control" 
-                   value="<?php echo $integration ? htmlspecialchars($integration->from_number) : ''; ?>" 
+                   value="<?php echo $integration ? esc_view($integration->from_number) : ''; ?>" 
                    placeholder="whatsapp:+14155238886">
             <small class="form-text text-muted">Twilio WhatsApp number (e.g., whatsapp:+14155238886)</small>
           </div>
@@ -97,7 +97,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
           <div class="col-md-6 mb-3">
             <label class="form-label">Content SID (Template)</label>
             <input type="text" name="content_sid" class="form-control" 
-                   value="<?php echo $integration ? htmlspecialchars($integration->content_sid) : ''; ?>" 
+                   value="<?php echo $integration ? esc_view($integration->content_sid) : ''; ?>" 
                    placeholder="HXb5b62575e6e4ff6129ad7c8efe1f983e">
             <small class="form-text text-muted">Optional: Twilio Content Template SID</small>
           </div>
@@ -108,7 +108,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
         <div class="col-md-12 mb-3">
           <label class="form-label">Notes</label>
           <textarea name="notes" class="form-control" rows="3" 
-                    placeholder="Additional notes or description"><?php echo $integration ? htmlspecialchars($integration->notes) : ''; ?></textarea>
+                    placeholder="Additional notes or description"><?php echo $integration ? esc_view($integration->notes) : ''; ?></textarea>
         </div>
       </div>
       

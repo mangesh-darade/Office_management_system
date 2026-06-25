@@ -124,17 +124,17 @@ class Ai_chat extends CI_Controller {
                         
                         // Use export endpoint for format conversion (POST method for security)
                         $export_data = base64_encode(json_encode($query_result));
-                        $export_query = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                        $export_query = esc_view($message);
                         
                         if ($detected_format === 'csv') {
-                            $final_answer .= "<button type='button' class='btn btn-success btn-sm me-2 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button>";
-                            $final_answer .= "<button type='button' class='btn btn-danger btn-sm export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
+                            $final_answer .= "<button type='button' class='btn btn-success btn-sm me-2 export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button>";
+                            $final_answer .= "<button type='button' class='btn btn-danger btn-sm export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
                         } elseif ($detected_format === 'excel') {
-                            $final_answer .= "<button type='button' class='btn btn-primary btn-sm me-2 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button>";
-                            $final_answer .= "<button type='button' class='btn btn-danger btn-sm export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
+                            $final_answer .= "<button type='button' class='btn btn-primary btn-sm me-2 export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button>";
+                            $final_answer .= "<button type='button' class='btn btn-danger btn-sm export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
                         } elseif ($detected_format === 'pdf') {
-                            $final_answer .= "<button type='button' class='btn btn-primary btn-sm me-2 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button>";
-                            $final_answer .= "<button type='button' class='btn btn-success btn-sm export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button>";
+                            $final_answer .= "<button type='button' class='btn btn-primary btn-sm me-2 export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button>";
+                            $final_answer .= "<button type='button' class='btn btn-success btn-sm export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button>";
                         }
                     } else {
                         $final_answer = isset($file_info['error']) ? $file_info['error'] : 'Error generating export file.';
@@ -147,12 +147,12 @@ class Ai_chat extends CI_Controller {
                     // Add export options if data is available (POST method for security)
                     if (is_array($query_result) && !isset($query_result['error']) && !empty($query_result)) {
                         $export_data = base64_encode(json_encode($query_result));
-                        $export_query = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+                        $export_query = esc_view($message);
                         
                         $final_answer .= "<br><br><small>Export options: ";
-                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-primary me-1 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button> ";
-                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-success me-1 export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button> ";
-                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-danger export-btn' data-export-data='" . htmlspecialchars($export_data, ENT_QUOTES, 'UTF-8') . "' data-export-query='" . htmlspecialchars($export_query, ENT_QUOTES, 'UTF-8') . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
+                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-primary me-1 export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='csv'><i class='bi bi-file-earmark-spreadsheet'></i> CSV</button> ";
+                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-success me-1 export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='excel'><i class='bi bi-file-earmark-excel'></i> Excel</button> ";
+                        $final_answer .= "<button type='button' class='btn btn-sm btn-outline-danger export-btn' data-export-data='" . esc_view($export_data) . "' data-export-query='" . esc_view($export_query) . "' data-export-format='pdf'><i class='bi bi-file-earmark-pdf'></i> PDF</button>";
                         $final_answer .= "</small>";
                     }
                 }
@@ -509,7 +509,7 @@ class Ai_chat extends CI_Controller {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>' . htmlspecialchars($title ?: 'Report') . '</title>
+    <title>' . esc_view($title ?: 'Report') . '</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; font-size: 10px; }
         h2 { color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
@@ -521,7 +521,7 @@ class Ai_chat extends CI_Controller {
     </style>
 </head>
 <body>
-    <h2>' . htmlspecialchars($title ?: 'AI Generated Report') . '</h2>
+    <h2>' . esc_view($title ?: 'AI Generated Report') . '</h2>
     <div class="header-info">
         <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
         <p><strong>Total Records:</strong> ' . count($data) . '</p>
@@ -532,7 +532,7 @@ class Ai_chat extends CI_Controller {
         
         if (!empty($data)) {
             foreach (array_keys($data[0]) as $header) {
-                $html .= '<th>' . htmlspecialchars($header) . '</th>';
+                $html .= '<th>' . esc_view($header) . '</th>';
             }
         }
         
@@ -543,7 +543,7 @@ class Ai_chat extends CI_Controller {
         foreach ($data as $row) {
             $html .= '<tr>';
             foreach ($row as $cell) {
-                $html .= '<td>' . htmlspecialchars($cell) . '</td>';
+                $html .= '<td>' . esc_view($cell) . '</td>';
             }
             $html .= '</tr>';
         }

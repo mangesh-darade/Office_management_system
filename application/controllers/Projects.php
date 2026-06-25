@@ -83,6 +83,8 @@ class Projects extends CI_Controller {
     {
         // Check create permission specifically
         require_module_access(['projects_add', 'projects'], true);
+
+        $this->_ensure_reference_url_column();
         
         $embed = (bool)$this->input->get('embed');
         if ($this->input->method() === 'post') {
@@ -151,6 +153,13 @@ class Projects extends CI_Controller {
                     }
                     $data['project_type'] = $project_type;
                 }
+                $reference_url = normalize_optional_url($this->input->post('reference_url'));
+                if ($reference_url === false) {
+                    $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
+                    redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                    return;
+                }
+                $data['reference_url'] = $reference_url;
                 
                 // Use transaction for data integrity
                 $this->db->trans_start();
@@ -292,6 +301,8 @@ class Projects extends CI_Controller {
     {
         // Check edit permission specifically
         require_module_access(['projects_edit', 'projects'], true);
+
+        $this->_ensure_reference_url_column();
         
         $project = $this->db->where('id', (int)$id)->get('projects')->row();
         if (!$project) show_404();
@@ -356,6 +367,13 @@ class Projects extends CI_Controller {
                     }
                     $data['project_type'] = $project_type;
                 }
+                $reference_url = normalize_optional_url($this->input->post('reference_url'));
+                if ($reference_url === false) {
+                    $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
+                    redirect('projects/'.$id.'/edit');
+                    return;
+                }
+                $data['reference_url'] = $reference_url;
                 
                 // Load activity tracking helper
                 $this->load->helper('change_tracker');
@@ -729,5 +747,16 @@ class Projects extends CI_Controller {
             $this->session->set_flashdata('error', 'An error occurred while updating member role.');
         }
         redirect('projects/' . $project_id . '/members');
+    }
+
+    private function _ensure_reference_url_column()
+    {
+        if (!$this->db->table_exists('projects')) {
+            return;
+        }
+        $fields = $this->db->list_fields('projects');
+        if (!in_array('reference_url', $fields, true)) {
+            $this->db->query("ALTER TABLE `projects` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL");
+        }
     }
 }

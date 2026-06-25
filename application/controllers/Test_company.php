@@ -19,23 +19,23 @@ class Test_company extends CI_Controller {
         
         // Test company name
         $company_name = get_company_name();
-        echo "<p><strong>Company Name:</strong> " . htmlspecialchars($company_name) . "</p>";
+        echo "<p><strong>Company Name:</strong> " . esc_view($company_name) . "</p>";
         
         // Test company email
         $company_email = get_company_email();
-        echo "<p><strong>Company Email:</strong> " . htmlspecialchars($company_email) . "</p>";
+        echo "<p><strong>Company Email:</strong> " . esc_view($company_email) . "</p>";
         
         // Test company phone
         $company_phone = get_company_phone();
-        echo "<p><strong>Company Phone:</strong> " . htmlspecialchars($company_phone) . "</p>";
+        echo "<p><strong>Company Phone:</strong> " . esc_view($company_phone) . "</p>";
         
         // Test company address
         $company_address = get_company_address();
-        echo "<p><strong>Company Address:</strong> " . htmlspecialchars($company_address) . "</p>";
+        echo "<p><strong>Company Address:</strong> " . esc_view($company_address) . "</p>";
         
         // Test company logo
         $company_logo = get_company_logo();
-        echo "<p><strong>Company Logo:</strong> " . htmlspecialchars($company_logo) . "</p>";
+        echo "<p><strong>Company Logo:</strong> " . esc_view($company_logo) . "</p>";
         
         // Test all details
         $details = get_company_details();

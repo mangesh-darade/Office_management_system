@@ -576,7 +576,7 @@ if (!function_exists('seed_subscription_builder_permissions_if_needed')) {
             }
         }
 
-        $keys = array('subscription_builder', 'subscription_builder_list');
+        $keys = array('subscription_builder', 'subscription_builder_list', 'elintom_proposals', 'elintom_proposals_list');
         foreach ($admin_role_ids as $role_id => $_) {
             foreach ($keys as $module) {
                 $exists = $CI->db
@@ -776,6 +776,9 @@ if (!function_exists('get_controller_module_access_map')) {
             ],
             'subscription_builder' => [
                 'subscription_builder', 'subscription_builder_list',
+            ],
+            'elintom_proposals' => [
+                'elintom_proposals', 'elintom_proposals_list',
             ],
             'payroll' => ['payroll', 'payroll_view', 'payroll_manage'],
             'expenses' => [

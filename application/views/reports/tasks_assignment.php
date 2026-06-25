@@ -19,7 +19,7 @@
         <div class="col-md-3">
           <label class="form-label">Search</label>
           <input type="text" name="search" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['search']) ? $filters['search'] : ''); ?>" placeholder="Task title or description">
+                 value="<?php echo esc_view(isset($filters['search']) ? $filters['search'] : ''); ?>" placeholder="Task title or description">
         </div>
         <div class="col-md-2">
           <label class="form-label">Status</label>
@@ -35,19 +35,19 @@
           <select name="project_id" class="form-select form-select-sm">
             <option value="">All Projects</option>
             <?php foreach($filter_options['projects'] as $project): ?>
-              <option value="<?php echo $project->id; ?>" <?php echo (isset($filters['project_id']) && $filters['project_id'] == $project->id) ? 'selected' : ''; ?>><?php echo htmlspecialchars($project->name); ?></option>
+              <option value="<?php echo $project->id; ?>" <?php echo (isset($filters['project_id']) && $filters['project_id'] == $project->id) ? 'selected' : ''; ?>><?php echo esc_view($project->name); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
         <div class="col-md-2">
           <label class="form-label">Date From</label>
           <input type="date" name="date_from" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_from']) ? $filters['date_from'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">Date To</label>
           <input type="date" name="date_to" class="form-control form-control-sm" 
-                 value="<?php echo htmlspecialchars(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
+                 value="<?php echo esc_view(isset($filters['date_to']) ? $filters['date_to'] : ''); ?>">
         </div>
         <div class="col-md-2">
           <label class="form-label">&nbsp;</label>
@@ -152,7 +152,7 @@
               <?php foreach ($rows as $r): ?>
                 <tr>
                   <td>
-                    <div class="fw-semibold"><?php echo htmlspecialchars($r->name); ?></div>
+                    <div class="fw-semibold"><?php echo esc_view($r->name); ?></div>
                     <div class="small text-muted">ID: <?php echo (int)$r->user_id; ?></div>
                   </td>
                   <td>
@@ -160,8 +160,8 @@
                       <div class="task-list">
                         <?php foreach (array_slice($r->tasks, 0, 3) as $task): ?>
                           <div class="small mb-1">
-                            <span class="badge bg-light text-dark me-1"><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $task->status))); ?></span>
-                            <span class="text-truncate" title="<?php echo htmlspecialchars($task->title); ?>"><?php echo htmlspecialchars($task->title); ?></span>
+                            <span class="badge bg-light text-dark me-1"><?php echo esc_view(ucfirst(str_replace('_', ' ', $task->status))); ?></span>
+                            <span class="text-truncate" title="<?php echo esc_view($task->title); ?>"><?php echo esc_view($task->title); ?></span>
                           </div>
                         <?php endforeach; ?>
                         <?php if (count($r->tasks) > 3): ?>

@@ -29,7 +29,7 @@ $cellMap = array(
 ?>
 <div class="apm-sheet mb-3">
   <div class="apm-title-bar">
-    <?php echo htmlspecialchars($apm_title); ?> &mdash; <?php echo htmlspecialchars($apm_date); ?>
+    <?php echo esc_view($apm_title); ?> &mdash; <?php echo esc_view($apm_date); ?>
   </div>
   <div class="apm-table">
     <div class="apm-corner" aria-hidden="true"></div>
@@ -45,12 +45,12 @@ $cellMap = array(
         $tone = isset($qDef['tone']) ? $qDef['tone'] : 'yellow-soft';
         $cellClass = isset($cellMap[$qKey]) ? $cellMap[$qKey] : '';
       ?>
-      <div class="apm-quadrant <?php echo htmlspecialchars($cellClass); ?> apm-tone-<?php echo htmlspecialchars($tone); ?>">
+      <div class="apm-quadrant <?php echo esc_view($cellClass); ?> apm-tone-<?php echo esc_view($tone); ?>">
         <div class="apm-quadrant-head">
-          <span><?php echo htmlspecialchars($qDef['label']); ?></span>
-          <span class="apm-count apm-matrix-count" data-quadrant="<?php echo htmlspecialchars($qKey); ?>"><?php echo count($items); ?></span>
+          <span><?php echo esc_view($qDef['label']); ?></span>
+          <span class="apm-count apm-matrix-count" data-quadrant="<?php echo esc_view($qKey); ?>"><?php echo count($items); ?></span>
         </div>
-        <div class="apm-quadrant-body" data-quadrant="<?php echo htmlspecialchars($qKey); ?>">
+        <div class="apm-quadrant-body" data-quadrant="<?php echo esc_view($qKey); ?>">
           <div class="apm-empty apm-matrix-empty"<?php echo empty($items) ? '' : ' style="display:none"'; ?>>
             <?php echo $apm_draggable ? 'Drop items here' : 'No items'; ?>
           </div>
@@ -63,8 +63,8 @@ $cellMap = array(
                 $stLabel = function_exists('project_matrix_status_label') ? project_matrix_status_label($st, $status_map) : $st;
               ?>
               <a class="apm-item" href="<?php echo site_url('projects/' . (int) $p->id); ?>">
-                <div class="apm-item-title"><?php echo htmlspecialchars($p->name); ?></div>
-                <div class="apm-item-meta"><?php echo htmlspecialchars($stLabel); ?><?php if (!empty($p->code)): ?> &middot; <?php echo htmlspecialchars($p->code); ?><?php endif; ?></div>
+                <div class="apm-item-title"><?php echo esc_view($p->name); ?></div>
+                <div class="apm-item-meta"><?php echo esc_view($stLabel); ?><?php if (!empty($p->code)): ?> &middot; <?php echo esc_view($p->code); ?><?php endif; ?></div>
               </a>
             <?php else: ?>
               <?php
@@ -76,18 +76,18 @@ $cellMap = array(
                 $projectName = isset($r->project_name) ? trim((string) $r->project_name) : '';
                 $can_view_projects = !empty($apm_extra['can_view_projects']);
               ?>
-              <div class="apm-item apm-item-draggable-wrap"<?php echo $apm_draggable ? ' draggable="true" data-id="' . (int) $r->id . '" data-quadrant="' . htmlspecialchars($qKey, ENT_QUOTES, 'UTF-8') . '"' : ''; ?>>
-                <a class="apm-item-title" href="<?php echo site_url('my-works/' . (int) $r->id); ?>"><?php echo htmlspecialchars($r->title); ?></a>
+              <div class="apm-item apm-item-draggable-wrap"<?php echo $apm_draggable ? ' draggable="true" data-id="' . (int) $r->id . '" data-quadrant="' . esc_view($qKey) . '"' : ''; ?>>
+                <a class="apm-item-title" href="<?php echo site_url('my-works/' . (int) $r->id); ?>"><?php echo esc_view($r->title); ?></a>
                 <?php if ($projectName !== ''): ?>
                   <div class="apm-item-meta">
                     <?php if ($can_view_projects && $projectId > 0): ?>
-                      <a class="apm-item-link" href="<?php echo site_url('projects/' . $projectId); ?>"><?php echo htmlspecialchars($projectName); ?></a>
+                      <a class="apm-item-link" href="<?php echo site_url('projects/' . $projectId); ?>"><?php echo esc_view($projectName); ?></a>
                     <?php else: ?>
-                      <?php echo htmlspecialchars($projectName); ?>
+                      <?php echo esc_view($projectName); ?>
                     <?php endif; ?>
                   </div>
                 <?php endif; ?>
-                <div class="apm-item-meta"><?php echo htmlspecialchars($stLabel); ?></div>
+                <div class="apm-item-meta"><?php echo esc_view($stLabel); ?></div>
               </div>
             <?php endif; ?>
           <?php endforeach; ?>

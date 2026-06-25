@@ -5,9 +5,9 @@
     <div>
       <h4 class="mb-1 fw-bold">
         <i class="bi bi-person-badge text-primary me-2"></i>
-        <?php echo htmlspecialchars($candidate->first_name . ' ' . $candidate->last_name); ?>
+        <?php echo esc_view($candidate->first_name . ' ' . $candidate->last_name); ?>
       </h4>
-      <p class="text-muted mb-0 small">Candidate for: <strong><?php echo htmlspecialchars($candidate->job_title ? $candidate->job_title : 'Unknown Position'); ?></strong></p>
+      <p class="text-muted mb-0 small">Candidate for: <strong><?php echo esc_view($candidate->job_title ? $candidate->job_title : 'Unknown Position'); ?></strong></p>
     </div>
     <a href="<?php echo site_url('recruitment/candidates'); ?>" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Back
@@ -16,13 +16,13 @@
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show">
-      <i class="bi bi-check-circle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('success')); ?>
+      <i class="bi bi-check-circle-fill me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show">
-      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo htmlspecialchars($this->session->flashdata('error')); ?>
+      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   <?php endif; ?>
@@ -36,8 +36,8 @@
                style="width:72px;height:72px;font-size:2rem;font-weight:700;">
             <?php echo strtoupper(substr($candidate->first_name, 0, 1)); ?>
           </div>
-          <h5 class="fw-bold mb-1"><?php echo htmlspecialchars($candidate->first_name . ' ' . $candidate->last_name); ?></h5>
-          <p class="text-muted small mb-3"><?php echo htmlspecialchars($candidate->email); ?></p>
+          <h5 class="fw-bold mb-1"><?php echo esc_view($candidate->first_name . ' ' . $candidate->last_name); ?></h5>
+          <p class="text-muted small mb-3"><?php echo esc_view($candidate->email); ?></p>
 
           <?php
             $badge_map = [
@@ -56,7 +56,7 @@
           <dl class="row mb-0 small">
             <?php if ($candidate->phone): ?>
             <dt class="col-5 text-muted">Phone</dt>
-            <dd class="col-7"><?php echo htmlspecialchars($candidate->phone); ?></dd>
+            <dd class="col-7"><?php echo esc_view($candidate->phone); ?></dd>
             <?php endif; ?>
             <dt class="col-5 text-muted">Applied</dt>
             <dd class="col-7"><?php echo date('d M Y', strtotime($candidate->created_at)); ?></dd>
@@ -123,8 +123,8 @@
                 <?php foreach ($interviews as $iv): ?>
                 <tr>
                   <td><?php echo date('d M Y H:i', strtotime($iv->interview_date)); ?></td>
-                  <td><?php echo htmlspecialchars($iv->type); ?></td>
-                  <td><?php echo htmlspecialchars($iv->interviewer_name ? $iv->interviewer_name : '—'); ?></td>
+                  <td><?php echo esc_view($iv->type); ?></td>
+                  <td><?php echo esc_view($iv->interviewer_name ? $iv->interviewer_name : '—'); ?></td>
                   <td>
                     <?php
                       $ibadge = ['scheduled' => 'warning text-dark', 'completed' => 'success', 'cancelled' => 'secondary'];
@@ -132,7 +132,7 @@
                     ?>
                     <span class="badge bg-<?php echo $ib; ?>"><?php echo ucfirst($iv->status); ?></span>
                   </td>
-                  <td class="d-none d-md-table-cell small text-muted"><?php echo htmlspecialchars($iv->notes ? $iv->notes : '—'); ?></td>
+                  <td class="d-none d-md-table-cell small text-muted"><?php echo esc_view($iv->notes ? $iv->notes : '—'); ?></td>
                 </tr>
                 <?php endforeach; ?>
               </tbody>
