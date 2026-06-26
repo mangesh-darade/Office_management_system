@@ -13,7 +13,7 @@
     includedSectionOpen: true,
     planSectionOpen: true,
     industrySectionOpen: true,
-    addonsSectionOpen: true,
+    addonsSectionOpen: false,
     clientName: '',
     clientBusiness: '',
     discountPercent: 0,
@@ -316,15 +316,15 @@
         html += '<span class="sb-cell-feature-detail" title="' + detailsTitle + '">' + detailsTitle + '</span>';
       }
       html += '</td>';
-      html += '<td class="text-end sb-money d-none d-xl-table-cell">' + (item.per_item_set_up_charges ? formatMoney(item.per_item_set_up_charges) : '—') + '</td>';
-      html += '<td class="d-none d-lg-table-cell"><span class="sb-cell-text" title="' + escapeHtml(item.item_unit || '') + '">' + escapeHtml(item.item_unit || '—') + '</span></td>';
       html += '<td class="sb-col-qty-cell"><div class="sb-qty-control">';
       html += '<button type="button" class="sb-qty-minus" data-id="' + item.id + '">−</button>';
       html += '<input type="number" min="0" step="1" class="sb-qty-input" data-id="' + item.id + '" value="' + qty + '">';
       html += '<button type="button" class="sb-qty-plus" data-id="' + item.id + '">+</button>';
       html += '</div></td>';
-      html += '<td class="text-end sb-money d-none d-md-table-cell">' + (item.common_set_up_fees ? formatMoney(item.common_set_up_fees) : '—') + '</td>';
+      html += '<td class="d-none d-lg-table-cell"><span class="sb-cell-text" title="' + escapeHtml(item.item_unit || '') + '">' + escapeHtml(item.item_unit || '—') + '</span></td>';
+      html += '<td class="text-end sb-money d-none d-xl-table-cell">' + (item.per_item_set_up_charges ? formatMoney(item.per_item_set_up_charges) : '—') + '</td>';
       html += '<td class="text-end sb-money d-none d-md-table-cell">' + (item.per_item_per_month_maintenances ? formatMoney(item.per_item_per_month_maintenances) : '—') + '</td>';
+      html += '<td class="text-end sb-money d-none d-md-table-cell">' + (item.common_set_up_fees ? formatMoney(item.common_set_up_fees) : '—') + '</td>';
       html += '<td class="text-end sb-money sb-line-setup">' + formatMoney(line.setup) + '</td>';
       html += '<td class="text-end sb-money sb-line-monthly">' + formatMoney(line.monthly) + '</td>';
       html += '</tr>';

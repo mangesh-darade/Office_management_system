@@ -10,6 +10,9 @@
             </ol>
         </nav>
         <h1 class="h3 mb-0"><?php echo esc_view($project->name); ?></h1>
+        <?php if (!empty($project->reference_url)): ?>
+        <?php $this->load->view('partials/reference_url_display', ['reference_url' => $project->reference_url, 'wrapper_class' => 'mt-2']); ?>
+        <?php endif; ?>
     </div>
     <div class="d-flex gap-2">
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects'); ?>">Back</a>
@@ -86,12 +89,6 @@
                     </div>
                     <div class="small text-muted mb-1"><i class="bi bi-calendar-event me-2"></i>Start: <?php echo $project->start_date ? date('M j, Y', strtotime($project->start_date)) : '-'; ?></div>
                     <div class="small text-muted"><i class="bi bi-calendar-check me-2"></i>End: <?php echo $project->end_date ? date('M j, Y', strtotime($project->end_date)) : '-'; ?></div>
-                    <?php if (!empty($project->reference_url)): ?>
-                    <div class="small text-muted mt-2">
-                      <i class="bi bi-link-45deg me-2"></i>
-                      <a href="<?php echo esc_view($project->reference_url); ?>" target="_blank" rel="noopener noreferrer">Open link</a>
-                    </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>

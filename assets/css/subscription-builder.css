@@ -1,5 +1,8 @@
 /* Subscription Builder — viewport-fit responsive layout */
-
+main.col-12.col-md-9.col-lg-10.p-3.p-md-4 {
+  min-height: 100% !important;
+  display: inline-table !important;
+}
 .sb-page {
   --sb-purple: #5b4fc7;
   --sb-purple-light: #ede9fe;
@@ -655,8 +658,8 @@
   width: 100%;
   font-size: 0.6875rem;
   margin-bottom: 0;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
+  border: 1px solid var(--sb-border);
 }
 
 .sb-addons-table thead {
@@ -674,6 +677,7 @@
 .sb-addons-table th,
 .sb-addons-table td {
   display: table-cell;
+  border: 1px solid var(--sb-border);
 }
 
 .sb-addons-table col.sb-col-num {
@@ -714,10 +718,14 @@
   font-size: 0.625rem;
   padding: 0.4rem 0.35rem;
   z-index: 2;
-  border-bottom: 1px solid var(--sb-border);
   vertical-align: middle;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.sb-addons-table thead th.sb-th-multiline {
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .sb-addons-table thead.sticky-top th {
@@ -728,7 +736,6 @@
   vertical-align: middle;
   padding: 0.35rem;
   overflow: hidden;
-  border-bottom: 1px solid #f3f4f6;
   line-height: 1.25;
   height: var(--sb-addon-row-h);
 }
@@ -745,6 +752,7 @@
 }
 
 .sb-addons-table .sb-col-qty-cell {
+  text-align: center;
   padding-left: 0.25rem;
   padding-right: 0.25rem;
 }

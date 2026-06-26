@@ -230,6 +230,7 @@ class Projects extends CI_Controller {
     public function show($id)
     {
         try {
+            $this->_ensure_reference_url_column();
             $project = $this->db->where('id', (int)$id)->get('projects')->row();
             if (!$project) {
                 show_404();

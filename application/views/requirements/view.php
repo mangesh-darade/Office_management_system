@@ -38,12 +38,7 @@
           </div>
           <?php if (!empty($req->reference_url)): ?>
           <div class="col-md-12 mt-2">
-            <div class="text-muted">URL / Link</div>
-            <div>
-              <a href="<?php echo esc_view($req->reference_url); ?>" target="_blank" rel="noopener noreferrer">
-                <?php echo esc_view($req->reference_url); ?>
-              </a>
-            </div>
+            <?php $this->load->view('partials/reference_url_display', ['reference_url' => $req->reference_url, 'wrapper_class' => 'mb-0']); ?>
           </div>
           <?php endif; ?>
         </div>

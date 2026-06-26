@@ -69,15 +69,15 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
       </div>
     </section>
 
-    <section class="sb-section sb-section-addons" id="sb-addons-section">
+    <section class="sb-section sb-section-addons sb-section-collapsed" id="sb-addons-section">
       <div class="sb-section-head sb-section-head-toggle-wrap">
-        <button type="button" class="sb-section-head-toggle" id="sb-addons-toggle" aria-expanded="true" aria-controls="sb-addons-body">
+        <button type="button" class="sb-section-head-toggle" id="sb-addons-toggle" aria-expanded="false" aria-controls="sb-addons-body">
           <span class="sb-step">4</span>
-          <span class="sb-section-chevron" aria-hidden="true"><i class="bi bi-chevron-down"></i></span>
+          <span class="sb-section-chevron" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
           <span class="sb-section-title mb-0">Chargeable Add-ons</span>
         </button>
       </div>
-      <div id="sb-addons-body" class="sb-addons-body sb-section-body">
+      <div id="sb-addons-body" class="sb-addons-body sb-section-body d-none">
         <div class="sb-addons-toolbar">
           <input type="search" id="sb-addon-search" class="form-control form-control-sm sb-search-input" placeholder="Search module or feature…">
         </div>
@@ -87,11 +87,11 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
               <col class="sb-col-num">
               <col class="sb-col-module">
               <col class="sb-col-feature">
-              <col class="sb-col-per-item">
-              <col class="sb-col-unit">
               <col class="sb-col-qty">
-              <col class="sb-col-setup">
+              <col class="sb-col-unit">
+              <col class="sb-col-per-item">
               <col class="sb-col-monthly">
+              <col class="sb-col-setup">
               <col class="sb-col-total-setup">
               <col class="sb-col-total-monthly">
             </colgroup>
@@ -100,13 +100,13 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
                 <th>#</th>
                 <th>Module</th>
                 <th>Feature / Item</th>
-                <th class="text-end d-none d-xl-table-cell">Per Item</th>
+                <th class="text-center">Qty</th>
                 <th class="d-none d-lg-table-cell">Unit</th>
-                <th>Qty</th>
-                <th class="text-end d-none d-md-table-cell">Setup Fees</th>
-                <th class="text-end d-none d-md-table-cell">Per Month</th>
-                <th class="text-end">Total Setup</th>
-                <th class="text-end">Total Mo.</th>
+                <th class="text-end d-none d-xl-table-cell sb-th-multiline">Per Item<br>Setup</th>
+                <th class="text-end d-none d-md-table-cell sb-th-multiline">Per Item<br>Per Month</th>
+                <th class="text-end d-none d-md-table-cell sb-th-multiline">One Time<br>Setup</th>
+                <th class="text-end">Total <br>Setup</th>
+                <th class="text-end">Total <br>Monthly</th>
               </tr>
             </thead>
             <tbody id="sb-addons-rows">

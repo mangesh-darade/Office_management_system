@@ -128,6 +128,11 @@ $creatorName = $getDisplayName((object)[
               </span>
             </div>
           <?php endif; ?>
+          <?php if (!empty($task->reference_url)): ?>
+            <div class="w-100">
+              <?php $this->load->view('partials/reference_url_display', ['reference_url' => $task->reference_url, 'wrapper_class' => 'mb-0']); ?>
+            </div>
+          <?php endif; ?>
         </div>
       </div>
       <div class="col-md-4 text-end">
@@ -295,18 +300,6 @@ $creatorName = $getDisplayName((object)[
                 <?php elseif (strtotime($task->due_date) <= strtotime('+3 days')): ?>
                   <span class="badge bg-warning small">Due Soon</span>
                 <?php endif; ?>
-              </div>
-            </div>
-          <?php endif; ?>
-
-          <?php if (!empty($task->reference_url)): ?>
-            <div>
-              <label class="text-muted small">URL / Link</label>
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-link-45deg text-primary"></i>
-                <a href="<?php echo esc_view($task->reference_url); ?>" target="_blank" rel="noopener noreferrer" class="text-break">
-                  <?php echo esc_view($task->reference_url); ?>
-                </a>
               </div>
             </div>
           <?php endif; ?>

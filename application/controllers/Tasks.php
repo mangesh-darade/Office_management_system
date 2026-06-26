@@ -458,6 +458,13 @@ class Tasks extends CI_Controller {
             $html .= '<small class="text-muted">Requirement:</small><br><strong>' . esc_view($task->requirement_title) . '</strong>';
             $html .= '</div>';
         }
+
+        if (!empty($task->reference_url)) {
+            $html .= '<div class="mb-3">';
+            $html .= '<small class="text-muted">URL / Link:</small><br>';
+            $html .= '<a href="' . esc_view($task->reference_url) . '" target="_blank" rel="noopener noreferrer" class="text-break">' . esc_view($task->reference_url) . '</a>';
+            $html .= '</div>';
+        }
         
         // Assignee
         $assignee = $assigneeName($task);
@@ -493,6 +500,7 @@ class Tasks extends CI_Controller {
     // GET /tasks/{id}
     public function show($id)
     {
+        $this->_ensure_reference_url_column();
         $this->db->from('tasks t');
         $select = ['t.*'];
         
