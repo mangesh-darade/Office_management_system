@@ -1,6 +1,9 @@
 <?php
 $plans_json = json_encode(array_values($plans), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+$countries_json = json_encode(array_values($countries), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+$country_options_json = json_encode(array_values($country_options ?? array()), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+$default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 ?>
 <?php $this->load->view('partials/header', [
   'title' => 'Subscription Builder',
@@ -12,6 +15,12 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
 <div class="alert alert-info py-2 mb-2 small">
   <i class="bi bi-info-circle me-2"></i>
   No catalog data loaded yet. Import <code>database/subscription_builder_seed.sql</code> to enable the builder.
+</div>
+<?php endif; ?>
+<?php if ($this->session->flashdata('warning')): ?>
+<div class="alert alert-warning py-2 mb-2 small">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  <?php echo esc_view($this->session->flashdata('warning')); ?>
 </div>
 <?php endif; ?>
 
@@ -80,6 +89,11 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
       <div id="sb-addons-body" class="sb-addons-body sb-section-body d-none">
         <div class="sb-addons-toolbar">
           <input type="search" id="sb-addon-search" class="form-control form-control-sm sb-search-input" placeholder="Search module or feature…">
+          <div class="sb-addons-country-wrap">
+            <label class="sb-addons-country-label" for="sb-country-select">Country</label>
+            <select id="sb-country-select" class="form-select form-select-sm sb-country-select" aria-label="Country for add-on pricing"></select>
+            <div class="sb-addons-currency" id="sb-currency-display" aria-live="polite"></div>
+          </div>
         </div>
         <div class="table-responsive sb-addons-table-wrap sb-scroll-area">
           <table class="table table-sm sb-addons-table mb-0">
@@ -123,8 +137,16 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
     <div class="sb-summary-card h-100 d-flex flex-column">
       <div class="sb-summary-header">
         <h2>PROPOSAL SUMMARY</h2>
-        <div class="sb-summary-context">
-          <span id="sb-summary-industry">—</span> · <span id="sb-summary-plan">—</span>
+        <div class="sb-summary-meta-row">
+          <div class="sb-summary-context">
+            <span id="sb-summary-industry">—</span> · <span id="sb-summary-plan">—</span> · <span id="sb-summary-country">—</span> · <span id="sb-summary-currency">—</span>
+          </div>
+          <?php if (function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
+          <a href="<?php echo site_url('elintom-proposals'); ?>" class="btn btn-outline-light btn-sm sb-summary-saved-btn" title="View Saved Proposals">
+            <i class="bi bi-file-earmark-text"></i>
+            <span>Saved</span>
+          </a>
+          <?php endif; ?>
         </div>
       </div>
       <div class="sb-summary-client-fields px-2 pt-2">
@@ -135,20 +157,6 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
         <div class="mb-2">
           <label class="form-label small mb-1" for="sb-client-business">Client Business Name</label>
           <input type="text" class="form-control form-control-sm" id="sb-client-business" placeholder="Business / company name">
-        </div>
-        <div class="row g-2 mb-2">
-          <div class="col-6">
-            <label class="form-label small mb-1" for="sb-discount-percent">Discount (%)</label>
-            <input type="number" class="form-control form-control-sm" id="sb-discount-percent" min="0" max="100" step="0.01" value="0">
-          </div>
-          <div class="col-6">
-            <label class="form-label small mb-1" for="sb-gst-percent">GST (%)</label>
-            <select class="form-select form-select-sm" id="sb-gst-percent">
-              <option value="0">0%</option>
-              <option value="5">5%</option>
-              <option value="18" selected>18%</option>
-            </select>
-          </div>
         </div>
       </div>
       <div class="sb-summary-body sb-scroll-area flex-grow-1">
@@ -164,12 +172,28 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
             <span id="sb-discount-setup">₹ 0</span>
           </div>
           <div class="sb-summary-line text-muted small">
-            <span>GST</span>
+            <span>Tax</span>
             <span id="sb-gst-setup">₹ 0</span>
           </div>
           <div class="sb-summary-line sb-summary-total">
             <span>Net Setup</span>
             <span id="sb-total-setup">₹ 0</span>
+          </div>
+          <div class="sb-summary-block-adjustments">
+            <div class="row g-2">
+              <div class="col-7">
+                <label class="form-label small mb-1" for="sb-setup-discount-input">Discount</label>
+                <input type="text" class="form-control form-control-sm" id="sb-setup-discount-input" value="" placeholder="e.g. 10 or 10%" aria-label="Setup discount (flat amount or percentage with %)">
+              </div>
+              <div class="col-5">
+                <label class="form-label small mb-1" for="sb-setup-gst-percent">Tax (%)</label>
+                <select class="form-select form-select-sm" id="sb-setup-gst-percent">
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="18" selected>18%</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
         <div class="sb-summary-block">
@@ -184,12 +208,28 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
             <span id="sb-discount-monthly">₹ 0</span>
           </div>
           <div class="sb-summary-line text-muted small">
-            <span>GST</span>
+            <span>Tax</span>
             <span id="sb-gst-monthly">₹ 0</span>
           </div>
           <div class="sb-summary-line sb-summary-total">
             <span>Net Monthly</span>
             <span id="sb-total-monthly">₹ 0</span>
+          </div>
+          <div class="sb-summary-block-adjustments">
+            <div class="row g-2">
+              <div class="col-7">
+                <label class="form-label small mb-1" for="sb-monthly-discount-input">Discount</label>
+                <input type="text" class="form-control form-control-sm" id="sb-monthly-discount-input" value="" placeholder="e.g. 10 or 10%" aria-label="Monthly discount (flat amount or percentage with %)">
+              </div>
+              <div class="col-5">
+                <label class="form-label small mb-1" for="sb-monthly-gst-percent">Tax (%)</label>
+                <select class="form-select form-select-sm" id="sb-monthly-gst-percent">
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="18" selected>18%</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
         <div class="sb-net-total mb-2">
@@ -200,21 +240,40 @@ $industries_json = json_encode(array_values($industries), JSON_HEX_TAG | JSON_HE
           <div class="label">Net Monthly Payable</div>
           <div class="amount" id="sb-net-monthly">₹ 0</div>
         </div>
-        <p class="sb-summary-note mb-0">Discount applied on subtotal; GST calculated after discount.</p>
       </div>
-      <div class="sb-summary-footer d-grid gap-2">
-        <?php if (function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
-        <a href="<?php echo site_url('elintom-proposals'); ?>" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-file-earmark-text me-1"></i>View Saved Proposals
-        </a>
-        <?php endif; ?>
-        <button type="button" class="btn btn-outline-primary btn-sm" id="sb-preview-quote">
-          <i class="bi bi-eye me-1"></i>Preview Proposal
-        </button>
-        <button type="button" class="btn btn-success btn-sm" id="sb-download-quote">
-          <i class="bi bi-file-earmark-pdf me-1"></i>Download Proposal PDF
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="sb-clear-all">Clear All</button>
+      <div class="sb-summary-footer">
+        <p class="sb-summary-note mb-2">Setup and monthly charges each have their own discount and tax. Use flat amount (e.g. 10) or add % (e.g. 10%). Tax is calculated after discount.</p>
+        <div class="sb-summary-actions">
+          <button type="button" class="btn btn-outline-primary btn-sm sb-summary-action-btn" id="sb-preview-quote" title="Preview Proposal">
+            <i class="bi bi-eye"></i>
+            <span>Preview</span>
+          </button>
+          <div class="sb-export-wrap sb-summary-action-btn-wrap">
+            <button type="button" class="btn btn-success btn-sm sb-summary-action-btn sb-export-toggle" id="sb-export-toggle" aria-expanded="false" aria-controls="sb-export-menu" title="Export proposal">
+              <i class="bi bi-download"></i>
+              <span>Export</span>
+              <i class="bi bi-chevron-down sb-export-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="sb-export-menu d-none" id="sb-export-menu" role="menu" aria-label="Export format options">
+              <button type="button" class="sb-export-option" data-format="pdf" role="menuitem">
+                <i class="bi bi-file-earmark-pdf"></i>
+                <span>PDF</span>
+              </button>
+              <button type="button" class="sb-export-option" data-format="excel" role="menuitem">
+                <i class="bi bi-file-earmark-excel"></i>
+                <span>Excel</span>
+              </button>
+              <button type="button" class="sb-export-option" data-format="doc" role="menuitem">
+                <i class="bi bi-file-earmark-word"></i>
+                <span>Word (DOC)</span>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline-secondary btn-sm sb-summary-action-btn" id="sb-clear-all" title="Clear All">
+            <i class="bi bi-arrow-counterclockwise"></i>
+            <span>Clear</span>
+          </button>
+        </div>
       </div>
     </div>
   </aside>
@@ -227,10 +286,16 @@ window.SB_CONFIG = {
   catalogUrl: <?php echo json_encode($catalog_url, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
   previewQuoteUrl: <?php echo json_encode(site_url('subscription-builder/quote-preview'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
   downloadQuoteUrl: <?php echo json_encode(site_url('subscription-builder/quote-pdf'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
+  downloadExcelUrl: <?php echo json_encode(site_url('subscription-builder/quote-excel'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
+  downloadDocUrl: <?php echo json_encode(site_url('subscription-builder/quote-doc'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
   defaultPlan: <?php echo json_encode($default_plan, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
   defaultIndustry: <?php echo json_encode($default_industry, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
+  defaultCountry: <?php echo json_encode($default_country, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
+  defaultCountryMeta: <?php echo $default_country_meta_json; ?>,
   plans: <?php echo $plans_json; ?>,
-  industries: <?php echo $industries_json; ?>
+  industries: <?php echo $industries_json; ?>,
+  countries: <?php echo $countries_json; ?>,
+  countryOptions: <?php echo $country_options_json; ?>
 };
 </script>
 <script src="<?php echo base_url('assets/js/subscription-builder.js'); ?>"></script>

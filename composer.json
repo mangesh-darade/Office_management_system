@@ -1,0 +1,11 @@
+{
+    "name": "office-management-system/app",
+    "description": "Office Management System runtime dependencies",
+    "require": {
+        "php": ">=8.0",
+        "dompdf/dompdf": "^2.0"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

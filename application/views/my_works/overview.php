@@ -49,6 +49,9 @@
         <a class="btn btn-primary btn-sm mw-dash-create-btn" href="<?php echo site_url('my-works/create'); ?>">
           <i class="bi bi-plus-lg me-1"></i>Create Task
         </a>
+        <a class="btn btn-outline-primary btn-sm mw-dash-template-btn" href="<?php echo site_url('my-works/template-tasks'); ?>">
+          <i class="bi bi-collection me-1"></i>Template Task
+        </a>
       <?php endif; ?>
       <div class="mw-dash-date-pill">
         <i class="bi bi-calendar3"></i>
@@ -58,6 +61,7 @@
   </header>
 
   <div class="mw-dash-view-tabs">
+    <a class="mw-dash-view-tab" href="<?php echo site_url('my-works/todays-focus'); ?>">Today's Focus</a>
     <a class="mw-dash-view-tab active" href="<?php echo site_url('my-works?view=overview'); ?>">Overview</a>
     <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=list'); ?>">List</a>
     <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=board'); ?>">Board</a>
@@ -176,6 +180,15 @@
   var updateUrl = <?php echo json_encode(site_url('my-works/update-lane')); ?>;
   var dragRow = null;
   var dragFromBody = null;
+  var dragActive = false;
+
+  function taskRow(el) {
+    return el && el.closest ? el.closest('.mw-dash-task-row-draggable') : null;
+  }
+
+  function laneBody(el) {
+    return el && el.closest ? el.closest('.mw-dash-lane-body') : null;
+  }
 
   function laneCountEl(section, lane) {
     var laneEl = document.querySelector('.mw-dash-lane[data-section="' + section + '"][data-lane="' + lane + '"]');
@@ -192,9 +205,10 @@
 
   function ensureEmptyRow(body) {
     if (!body.querySelector('.mw-dash-task-row')) {
+      var colspan = body.getAttribute('data-colspan') || '4';
       var tr = document.createElement('tr');
       tr.className = 'mw-dash-lane-empty-row';
-      tr.innerHTML = '<td colspan="4" class="mw-dash-lane-empty">No tasks</td>';
+      tr.innerHTML = '<td colspan="' + colspan + '" class="mw-dash-lane-empty">No tasks</td>';
       body.appendChild(tr);
     }
   }
@@ -204,98 +218,126 @@
     if (empty) { empty.remove(); }
   }
 
-  document.querySelectorAll('.mw-dash-lane-body').forEach(function (body) {
-    body.addEventListener('dragover', function (e) {
-      if (!dragRow) { return; }
-      e.preventDefault();
-      body.classList.add('mw-dash-drop-target');
+  function clearDropTargets() {
+    document.querySelectorAll('.mw-dash-drop-target').forEach(function (el) {
+      el.classList.remove('mw-dash-drop-target');
     });
-    body.addEventListener('dragleave', function (e) {
-      if (e.currentTarget === body && !body.contains(e.relatedTarget)) {
-        body.classList.remove('mw-dash-drop-target');
-      }
-    });
-    body.addEventListener('drop', function (e) {
-      e.preventDefault();
-      body.classList.remove('mw-dash-drop-target');
-      if (!dragRow || !dragFromBody) { return; }
+  }
 
-      var newLane = body.getAttribute('data-lane');
-      var newSection = body.getAttribute('data-section');
-      var oldLane = dragRow.getAttribute('data-lane');
-      var oldSection = dragRow.getAttribute('data-section');
-      var id = dragRow.getAttribute('data-id');
+  function markDropTarget(body) {
+    clearDropTargets();
+    body.classList.add('mw-dash-drop-target');
+    var scroll = body.closest('.mw-dash-lane-body-scroll');
+    if (scroll) {
+      scroll.classList.add('mw-dash-drop-target');
+    }
+  }
 
-      if (!newLane || !newSection || !id || newLane === oldLane) {
-        dragRow = null;
-        dragFromBody = null;
-        return;
-      }
-      if (newSection !== oldSection) {
-        dragRow = null;
-        dragFromBody = null;
-        return;
-      }
+  document.addEventListener('dragstart', function (e) {
+    var handle = e.target.closest('.mw-dash-drag-handle');
+    if (!handle) { return; }
+    dragRow = taskRow(handle);
+    if (!dragRow) { return; }
+    dragFromBody = dragRow.parentElement;
+    dragActive = true;
+    dragRow.classList.add('mw-dash-dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragRow.getAttribute('data-id') || 'move');
+    }
+  }, true);
 
-      removeEmptyRow(body);
-      body.appendChild(dragRow);
-      dragRow.setAttribute('data-lane', newLane);
-      ensureEmptyRow(dragFromBody);
-      refreshLaneCount(oldSection, oldLane);
-      refreshLaneCount(newSection, newLane);
-
-      var payload = new URLSearchParams();
-      payload.append('id', id);
-      payload.append('lane', newLane);
-      payload.append(csrfName, csrfHash);
-
-      fetch(updateUrl, {
-        method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: payload.toString()
-      }).then(function (r) { return r.json(); }).then(function (data) {
-        if (!data || !data.ok || (data.computed_lane && data.computed_lane !== newLane)) {
-          window.location.reload();
-        }
-      }).catch(function () {
-        window.location.reload();
-      });
-
+  document.addEventListener('dragend', function (e) {
+    var row = taskRow(e.target);
+    if (row) {
+      row.classList.remove('mw-dash-dragging');
+    }
+    clearDropTargets();
+    window.setTimeout(function () {
       dragRow = null;
       dragFromBody = null;
-    });
+      dragActive = false;
+    }, 0);
+  }, true);
+
+  document.addEventListener('dragover', function (e) {
+    if (!dragRow) { return; }
+    var body = laneBody(e.target);
+    if (!body) { return; }
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    markDropTarget(body);
   });
 
-  document.querySelectorAll('.mw-dash-task-row-draggable').forEach(function (row) {
-    row.addEventListener('dragstart', function (e) {
-      dragRow = row;
-      dragFromBody = row.parentElement;
-      row.classList.add('mw-dash-dragging');
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', row.getAttribute('data-id') || '');
-      }
-    });
-    row.addEventListener('dragend', function () {
-      row.classList.remove('mw-dash-dragging');
-      dragRow = null;
-      dragFromBody = null;
-      document.querySelectorAll('.mw-dash-drop-target').forEach(function (el) {
-        el.classList.remove('mw-dash-drop-target');
-      });
-    });
-    var link = row.querySelector('.mw-dash-task-link');
-    if (link) {
-      link.addEventListener('click', function (e) {
-        if (row.classList.contains('mw-dash-dragging')) {
-          e.preventDefault();
-        }
-      });
+  document.addEventListener('dragleave', function (e) {
+    var body = laneBody(e.target);
+    if (!body) { return; }
+    var related = e.relatedTarget;
+    if (related && body.contains(related)) { return; }
+    body.classList.remove('mw-dash-drop-target');
+    var scroll = body.closest('.mw-dash-lane-body-scroll');
+    if (scroll && (!related || !scroll.contains(related))) {
+      scroll.classList.remove('mw-dash-drop-target');
     }
   });
+
+  document.addEventListener('drop', function (e) {
+    if (!dragRow || !dragFromBody) { return; }
+    var body = laneBody(e.target);
+    if (!body) { return; }
+    e.preventDefault();
+    clearDropTargets();
+
+    var newLane = body.getAttribute('data-lane');
+    var newSection = body.getAttribute('data-section');
+    var oldLane = dragRow.getAttribute('data-lane');
+    var oldSection = dragRow.getAttribute('data-section');
+    var id = dragRow.getAttribute('data-id');
+    var movingRow = dragRow;
+    var fromBody = dragFromBody;
+
+    if (!newLane || !newSection || !id || newLane === oldLane) {
+      return;
+    }
+    if (newSection !== oldSection) {
+      return;
+    }
+
+    removeEmptyRow(body);
+    body.appendChild(movingRow);
+    movingRow.setAttribute('data-lane', newLane);
+    ensureEmptyRow(fromBody);
+    refreshLaneCount(oldSection, oldLane);
+    refreshLaneCount(newSection, newLane);
+
+    var payload = new URLSearchParams();
+    payload.append('id', id);
+    payload.append('lane', newLane);
+    payload.append(csrfName, csrfHash);
+
+    fetch(updateUrl, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: payload.toString()
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (!data || !data.ok || (data.computed_lane && data.computed_lane !== newLane)) {
+        window.location.reload();
+      }
+    }).catch(function () {
+      window.location.reload();
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    if (dragActive && e.target.closest('.mw-dash-task-link')) {
+      e.preventDefault();
+    }
+  }, true);
 })();
 </script>
 

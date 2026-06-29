@@ -156,7 +156,7 @@
   })();
   </script>
 </head>
-<body>
+<body<?php echo !empty($body_class) ? ' class="' . esc_view((string) $body_class, ENT_QUOTES, 'UTF-8') . '"' : ''; ?>>
 <?php if (empty($hide_navbar)): ?>
 <nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
   <div class="container-fluid px-3">

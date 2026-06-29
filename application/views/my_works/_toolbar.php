@@ -116,6 +116,12 @@
 
           </a>
 
+          <a class="btn btn-outline-primary btn-sm mw-btn-template" href="<?php echo site_url('my-works/template-tasks'); ?>">
+
+            <i class="bi bi-collection me-1"></i><span class="d-none d-sm-inline">Template Task</span><span class="d-inline d-sm-none">Template</span>
+
+          </a>
+
         </div>
 
         <?php endif; ?>

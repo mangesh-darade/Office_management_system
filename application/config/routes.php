@@ -159,11 +159,14 @@ $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
 
 // My Works (personal / assigned work items)
 $route['my-works'] = 'my_works/index';
+$route['my-works/todays-focus'] = 'my_works/todays_focus';
 $route['my-works/create'] = 'my_works/create';
+$route['my-works/template-tasks'] = 'my_works/template_tasks';
 $route['my-works/quick-add'] = 'my_works/quick_add';
 $route['my-works/export'] = 'my_works/export';
 $route['my-works/update-status'] = 'my_works/update_status';
 $route['my-works/update-matrix'] = 'my_works/update_matrix';
+$route['my-works/update-lane'] = 'my_works/update_lane';
 $route['my-works/(:num)/comment'] = 'my_works/add_comment/$1';
 $route['my-works/(:num)/edit'] = 'my_works/edit/$1';
 $route['my-works/(:num)/delete'] = 'my_works/delete/$1';
@@ -358,6 +361,9 @@ $route['subscription-builder'] = 'subscription_builder/index';
 $route['subscription-builder/catalog'] = 'subscription_builder/catalog';
 $route['subscription-builder/quote-preview'] = 'subscription_builder/quote_preview';
 $route['subscription-builder/quote-pdf'] = 'subscription_builder/quote_pdf';
+$route['subscription-builder/quote-excel'] = 'subscription_builder/quote_excel';
+$route['subscription-builder/quote-doc'] = 'subscription_builder/quote_doc';
+$route['subscription-builder/quote-save'] = 'subscription_builder/quote_save';
 
 // ElintOm Proposals
 $route['elintom-proposals'] = 'elintom_proposals/index';

@@ -792,11 +792,19 @@ class Settings extends CI_Controller {
         $this->ensure_subscription_builder_schema();
     }
 
+    private function subscription_builder_country_options()
+    {
+        $this->load->model('Subscription_builder_countries_model', 'subscription_builder_countries');
+        $this->subscription_builder_countries->ensure_schema();
+        return $this->subscription_builder_countries->get_all_active();
+    }
+
     private function subscription_builder_filters_from_request()
     {
         return array(
             'plan' => trim((string) $this->input->get('plan')),
             'industry' => trim((string) $this->input->get('industry')),
+            'country' => trim((string) $this->input->get('country')),
             'module' => trim((string) $this->input->get('module')),
             'search' => trim((string) $this->input->get('q')),
         );
@@ -806,6 +814,7 @@ class Settings extends CI_Controller {
     {
         $plan = trim((string) $this->input->post('plan'));
         $industry = trim((string) $this->input->post('industry'));
+        $country = trim((string) $this->input->post('country'));
         $module = trim((string) $this->input->post('module'));
         $feature = trim((string) $this->input->post('feature'));
 
@@ -813,11 +822,16 @@ class Settings extends CI_Controller {
             return array('ok' => false, 'error' => 'Plan, industry, module, and feature are required.');
         }
 
+        if ($country === '') {
+            $country = 'India';
+        }
+
         return array(
             'ok' => true,
             'data' => array(
                 'plan' => $plan,
                 'industry' => $industry,
+                'country' => $country,
                 'module' => $module,
                 'feature' => $feature,
                 'details' => trim((string) $this->input->post('details')),
@@ -851,6 +865,8 @@ class Settings extends CI_Controller {
             'filters' => $filters,
             'plans' => $this->subscription_builder->get_distinct_plans(),
             'industries' => $this->subscription_builder->get_distinct_industries(),
+            'countries' => $this->subscription_builder->get_distinct_countries(),
+            'country_options' => $this->subscription_builder_country_options(),
             'total' => $total,
             'page' => $page,
             'per_page' => $per_page,
@@ -889,6 +905,8 @@ class Settings extends CI_Controller {
             'row' => null,
             'plans' => $this->subscription_builder->get_plan_order(),
             'industries' => $this->subscription_builder->get_industry_order(),
+            'countries' => $this->subscription_builder->get_distinct_countries(),
+            'country_options' => $this->subscription_builder_country_options(),
         ));
     }
 
@@ -922,6 +940,8 @@ class Settings extends CI_Controller {
             'row' => $row,
             'plans' => $this->subscription_builder->get_plan_order(),
             'industries' => $this->subscription_builder->get_industry_order(),
+            'countries' => $this->subscription_builder->get_distinct_countries(),
+            'country_options' => $this->subscription_builder_country_options(),
         ));
     }
 

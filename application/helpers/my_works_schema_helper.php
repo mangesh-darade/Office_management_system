@@ -122,6 +122,11 @@ if (!function_exists('my_works_schema_ensure')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
 
+        $CI->load->helper('my_works_template_tasks_schema');
+        if (function_exists('my_works_template_tasks_schema_ensure')) {
+            my_works_template_tasks_schema_ensure($db);
+        }
+
         if ($db->table_exists('my_work_attachments') && $db->table_exists('my_works')) {
             $legacy = $db->select('id, attachment_original, attachment_stored')
                 ->from('my_works')

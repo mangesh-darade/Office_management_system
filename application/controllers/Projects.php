@@ -28,8 +28,16 @@ class Projects extends CI_Controller {
         } else {
             $projects = $this->Project_model->all([]);
         }
+
+        $show_assignee_column = schema_table_has_column($this->db, 'projects', 'manager_id');
+        if ($show_assignee_column) {
+            $this->_attach_project_assignee_labels($projects);
+        }
         
-        $this->load->view('projects/list', ['projects' => $projects]);
+        $this->load->view('projects/list', [
+            'projects' => $projects,
+            'show_assignee_column' => $show_assignee_column,
+        ]);
     }
 
     public function matrix()
@@ -160,6 +168,12 @@ class Projects extends CI_Controller {
                     return;
                 }
                 $data['reference_url'] = $reference_url;
+
+                if (!$this->_apply_manager_id_from_post($data)) {
+                    $this->session->set_flashdata('error', 'Please select a valid assignee.');
+                    redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                    return;
+                }
                 
                 // Use transaction for data integrity
                 $this->db->trans_start();
@@ -177,6 +191,10 @@ class Projects extends CI_Controller {
                 
                 if ($this->db->trans_status() === FALSE) {
                     throw new Exception('Database transaction failed');
+                }
+
+                if (!empty($data['manager_id'])) {
+                    $this->Project_model->add_member($id, (int) $data['manager_id'], 'manager');
                 }
                 
                 // Log project creation with change tracking
@@ -223,6 +241,7 @@ class Projects extends CI_Controller {
             'embed' => $embed,
             'statuses' => $statuses_list,
             'project_types' => $project_types,
+            'users' => $this->_load_assignable_users(),
         ]);
     }
 
@@ -375,6 +394,12 @@ class Projects extends CI_Controller {
                     return;
                 }
                 $data['reference_url'] = $reference_url;
+
+                if (!$this->_apply_manager_id_from_post($data)) {
+                    $this->session->set_flashdata('error', 'Please select a valid assignee.');
+                    redirect('projects/'.$id.'/edit');
+                    return;
+                }
                 
                 // Load activity tracking helper
                 $this->load->helper('change_tracker');
@@ -385,6 +410,10 @@ class Projects extends CI_Controller {
                 $new_status = $this->input->post('status') ?: 'planned';
                 
                 $this->db->where('id', (int)$id)->update('projects', $data);
+
+                if (!empty($data['manager_id']) && !$this->Project_model->check_user_is_member((int) $id, (int) $data['manager_id'])) {
+                    $this->Project_model->add_member((int) $id, (int) $data['manager_id'], 'manager');
+                }
                 
                 if ($old_status !== $new_status) {
                     $this->load->helper('rewards');
@@ -423,6 +452,7 @@ class Projects extends CI_Controller {
             'project' => $project,
             'statuses' => $statuses_list,
             'project_types' => $project_types,
+            'users' => $this->_load_assignable_users(),
         ]);
     }
 
@@ -759,5 +789,133 @@ class Projects extends CI_Controller {
         if (!in_array('reference_url', $fields, true)) {
             $this->db->query("ALTER TABLE `projects` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL");
         }
+    }
+
+    private function _attach_project_assignee_labels(&$projects)
+    {
+        if (empty($projects) || !$this->db->table_exists('users')) {
+            return;
+        }
+
+        $manager_ids = array();
+        foreach ($projects as $project) {
+            if (!empty($project->manager_id)) {
+                $manager_ids[] = (int) $project->manager_id;
+            }
+        }
+        $manager_ids = array_values(array_unique($manager_ids));
+        $managers = array();
+        if (!empty($manager_ids)) {
+            $select = array('users.id', 'users.email');
+            if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select[] = 'users.name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select[] = 'users.full_name';
+            }
+            $has_emp_name = $this->db->table_exists('employees')
+                && schema_table_has_column($this->db, 'employees', 'user_id')
+                && schema_table_has_column($this->db, 'employees', 'name');
+            if ($has_emp_name) {
+                $select[] = 'employees.name AS emp_name';
+            }
+            $this->db->select(implode(',', $select))
+                ->from('users');
+            if ($has_emp_name) {
+                $this->db->join('employees', 'employees.user_id = users.id', 'left');
+            }
+            $rows = $this->db->where_in('users.id', $manager_ids)->get()->result();
+            foreach ($rows as $row) {
+                $managers[(int) $row->id] = $row;
+            }
+        }
+
+        foreach ($projects as $project) {
+            $project->assignee_label = '—';
+            $manager_id = !empty($project->manager_id) ? (int) $project->manager_id : 0;
+            if ($manager_id <= 0 || !isset($managers[$manager_id])) {
+                continue;
+            }
+            $manager = $managers[$manager_id];
+            if (isset($manager->emp_name) && trim((string) $manager->emp_name) !== '') {
+                $project->assignee_label = trim((string) $manager->emp_name);
+            } elseif (!empty($manager->name)) {
+                $project->assignee_label = (string) $manager->name;
+            } elseif (!empty($manager->full_name)) {
+                $project->assignee_label = (string) $manager->full_name;
+            } else {
+                $project->assignee_label = (string) $manager->email;
+            }
+        }
+    }
+
+    private function _load_assignable_users()
+    {
+        if (!$this->db->table_exists('users')) {
+            return array();
+        }
+
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            $select = array('users.id', 'users.email');
+            if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select[] = 'users.name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select[] = 'users.full_name';
+            }
+            $has_emp_name = schema_table_has_column($this->db, 'employees', 'name');
+            if ($has_emp_name) {
+                $select[] = 'employees.name AS emp_name';
+            }
+            $this->db->select(implode(',', $select))
+                ->from('users')
+                ->join('employees', 'employees.user_id = users.id', 'left');
+            if ($has_emp_name) {
+                $this->db->order_by('employees.name IS NULL ASC', '', false)
+                    ->order_by('employees.name', 'ASC');
+            }
+            $this->db->order_by('users.email', 'ASC');
+            return $this->db->get()->result();
+        }
+
+        $user_select = array('id', 'email');
+        if (schema_table_has_column($this->db, 'users', 'full_name')) {
+            $user_select[] = 'full_name';
+        }
+        if (schema_table_has_column($this->db, 'users', 'name')) {
+            $user_select[] = 'name';
+        }
+
+        return $this->db->select(implode(',', $user_select))
+            ->from('users')
+            ->order_by('email', 'ASC')
+            ->get()->result();
+    }
+
+    private function _apply_manager_id_from_post(&$data)
+    {
+        if (!schema_table_has_column($this->db, 'projects', 'manager_id')) {
+            return true;
+        }
+
+        $manager_id = $this->input->post('manager_id');
+        if ($manager_id === '' || $manager_id === null) {
+            $data['manager_id'] = null;
+            return true;
+        }
+
+        $manager_id = (int) $manager_id;
+        if ($manager_id <= 0) {
+            $data['manager_id'] = null;
+            return true;
+        }
+
+        $user = $this->db->where('id', $manager_id)->get('users')->row();
+        if (!$user) {
+            return false;
+        }
+
+        $data['manager_id'] = $manager_id;
+        return true;
     }
 }

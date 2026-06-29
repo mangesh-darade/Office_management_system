@@ -793,6 +793,31 @@ if (!function_exists('my_works_build_dashboard_sections')) {
     }
 }
 
+if (!function_exists('my_works_build_todays_focus_sections')) {
+    /**
+     * Single Today's Plan lane merging ad hoc + project items.
+     *
+     * @return array{sections: array, count: int}
+     */
+    function my_works_build_todays_focus_sections(array $rows, $exclude_closed = true)
+    {
+        $dash = my_works_build_dashboard_sections($rows, $exclude_closed);
+        $merged = array_merge(
+            isset($dash['sections']['ad_hoc']['todays_plan']) ? $dash['sections']['ad_hoc']['todays_plan'] : array(),
+            isset($dash['sections']['project']['todays_plan']) ? $dash['sections']['project']['todays_plan'] : array()
+        );
+        $merged = my_works_dashboard_lane_sort_by_date_asc($merged);
+        return array(
+            'sections' => array(
+                'focus' => array(
+                    'todays_plan' => $merged,
+                ),
+            ),
+            'count' => count($merged),
+        );
+    }
+}
+
 if (!function_exists('my_works_dashboard_status_dot')) {
     function my_works_dashboard_status_dot($row)
     {
@@ -830,6 +855,81 @@ if (!function_exists('my_works_dashboard_project_label')) {
             return (string) $row->client_name;
         }
         return '—';
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_shows_date')) {
+    function my_works_dashboard_lane_shows_date($lane)
+    {
+        return in_array((string) $lane, array('future_pipeline', 'back_log'), true);
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_date_label')) {
+    /**
+     * Due date for overview lane Date column; falls back to last updated date.
+     */
+    function my_works_dashboard_lane_date_label($row)
+    {
+        $raw = '';
+        if (!empty($row->due_date)) {
+            $raw = (string) $row->due_date;
+        } elseif (!empty($row->updated_at)) {
+            $raw = substr((string) $row->updated_at, 0, 10);
+        }
+        if ($raw === '') {
+            return '—';
+        }
+        $ts = strtotime($raw);
+        if (!$ts) {
+            return $raw;
+        }
+        return date('M j, Y', $ts);
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_date_raw')) {
+    function my_works_dashboard_lane_date_raw($row)
+    {
+        if (!empty($row->due_date)) {
+            return (string) $row->due_date;
+        }
+        if (!empty($row->updated_at)) {
+            return substr((string) $row->updated_at, 0, 10);
+        }
+        return '';
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_sort_by_date_asc')) {
+    /**
+     * Sort overview lane rows by due/updated date ascending (empty dates last).
+     *
+     * @param array $items
+     * @return array
+     */
+    function my_works_dashboard_lane_sort_by_date_asc(array $items)
+    {
+        if (count($items) < 2) {
+            return $items;
+        }
+        usort($items, function ($a, $b) {
+            $da = my_works_dashboard_lane_date_raw($a);
+            $db = my_works_dashboard_lane_date_raw($b);
+            if ($da === $db) {
+                $ta = isset($a->title) ? (string) $a->title : '';
+                $tb = isset($b->title) ? (string) $b->title : '';
+                return strcasecmp($ta, $tb);
+            }
+            if ($da === '') {
+                return 1;
+            }
+            if ($db === '') {
+                return -1;
+            }
+            return strcmp($da, $db);
+        });
+        return $items;
     }
 }
 

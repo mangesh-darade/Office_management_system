@@ -15,6 +15,20 @@ class Subscription_builder_model extends CI_Model
         'Services & AMC',
     );
 
+    private $country_order = array(
+        'India',
+        'United Arab Emirates',
+        'Saudi Arabia',
+        'Qatar',
+        'Oman',
+        'Kuwait',
+        'Bahrain',
+        'United Kingdom',
+        'United States',
+    );
+
+    private $countries_model = null;
+
     public function table_exists()
     {
         return $this->db->table_exists($this->table);
@@ -64,6 +78,173 @@ class Subscription_builder_model extends CI_Model
     public function get_industry_order()
     {
         return $this->industry_order;
+    }
+
+    public function get_default_country()
+    {
+        $this->load_countries_model();
+        if ($this->countries_model && $this->countries_model->table_exists()) {
+            return $this->countries_model->get_default_name();
+        }
+        return 'India';
+    }
+
+    public function get_country_options($chargeable_only = false)
+    {
+        $options = array();
+        foreach ($this->get_distinct_countries_from_catalog($chargeable_only) as $catalog_name) {
+            $resolved = $this->resolve_country_meta($catalog_name);
+            $options[] = array(
+                'name' => $catalog_name,
+                'code' => $resolved['code'],
+                'mobile_code' => $resolved['mobile_code'],
+                'currency_code' => $resolved['currency_code'],
+                'currency_symbol' => $resolved['currency_symbol'],
+            );
+        }
+        return $options;
+    }
+
+    public function resolve_country_meta($country)
+    {
+        $this->load_countries_model();
+        if ($this->countries_model) {
+            return $this->countries_model->resolve_meta($country);
+        }
+
+        return array(
+            'id' => 0,
+            'name' => trim((string) $country) !== '' ? trim((string) $country) : $this->get_default_country(),
+            'code' => '',
+            'mobile_code' => '',
+            'currency_code' => 'INR',
+            'currency_symbol' => '₹',
+            'sort_order' => 999,
+            'is_active' => 1,
+        );
+    }
+
+    public function get_distinct_countries($chargeable_only = false)
+    {
+        return $this->get_distinct_countries_from_catalog($chargeable_only);
+    }
+
+    private function get_distinct_countries_from_catalog($chargeable_only = false)
+    {
+        if (!$this->table_exists()) {
+            return array($this->get_default_country());
+        }
+        if (!$this->db->field_exists('country', $this->table)) {
+            return array($this->get_default_country());
+        }
+
+        $this->db->distinct();
+        $this->db->select('country');
+        $this->db->from($this->table);
+        if ($chargeable_only) {
+            $this->db->group_start();
+            $this->db->where('per_item_set_up_charges >', 0);
+            $this->db->or_where('common_set_up_fees >', 0);
+            $this->db->or_where('per_item_per_month_maintenances >', 0);
+            $this->db->group_end();
+        }
+        $rows = $this->db->get()->result();
+        $found = array();
+        foreach ($rows as $row) {
+            $label = trim((string) ($row->country ?? ''));
+            if ($label === '') {
+                $label = $this->get_default_country();
+            }
+            $found[] = $label;
+        }
+        $found = array_values(array_unique($found));
+        if (empty($found)) {
+            return array($this->get_default_country());
+        }
+        return $this->sort_by_order($found, $this->country_order);
+    }
+
+    private function load_countries_model()
+    {
+        if ($this->countries_model !== null) {
+            return;
+        }
+        $CI =& get_instance();
+        $CI->load->model('Subscription_builder_countries_model', 'subscription_builder_countries');
+        $this->countries_model = $CI->subscription_builder_countries;
+        if ($this->countries_model) {
+            $this->countries_model->ensure_schema();
+        }
+    }
+
+    public function country_labels_match($selected, $row_country)
+    {
+        $selected = trim((string) $selected);
+        $row_country = trim((string) $row_country);
+        if ($selected === '' || $row_country === '') {
+            return false;
+        }
+        if (strcasecmp($selected, $row_country) === 0) {
+            return true;
+        }
+
+        $aliases = array(
+            'uae' => array('united arab emirates', 'ae'),
+            'united arab emirates' => array('uae', 'ae'),
+            'ae' => array('uae', 'united arab emirates'),
+            'ksa' => array('saudi arabia', 'sa'),
+            'saudi arabia' => array('ksa', 'sa'),
+            'sa' => array('saudi arabia', 'ksa'),
+            'uk' => array('united kingdom', 'gb'),
+            'united kingdom' => array('uk', 'gb'),
+            'gb' => array('united kingdom', 'uk'),
+            'us' => array('united states', 'usa'),
+            'usa' => array('united states', 'us'),
+            'united states' => array('us', 'usa'),
+        );
+
+        $selected_key = strtolower($selected);
+        $row_key = strtolower($row_country);
+        if (isset($aliases[$selected_key]) && in_array($row_key, $aliases[$selected_key], true)) {
+            return true;
+        }
+        if (isset($aliases[$row_key]) && in_array($selected_key, $aliases[$row_key], true)) {
+            return true;
+        }
+
+        $selected_meta = $this->resolve_country_meta($selected);
+        $row_meta = $this->resolve_country_meta($row_country);
+        if ($selected_meta['code'] !== '' && $row_meta['code'] !== '' && strcasecmp($selected_meta['code'], $row_meta['code']) === 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function sanitize_import_country($country)
+    {
+        $country = trim((string) $country);
+        if ($country === '') {
+            return $this->get_default_country();
+        }
+
+        return $country;
+    }
+
+    public function normalize_country_label($country)
+    {
+        return $this->sanitize_import_country($country);
+    }
+
+    public function row_matches_country($row, $country)
+    {
+        $selected = $this->sanitize_import_country($country);
+        $row_country = trim((string) ($row->country ?? ''));
+        if ($row_country === '') {
+            return $this->country_labels_match($selected, $this->get_default_country());
+        }
+
+        return $this->country_labels_match($selected, $row_country);
     }
 
     public function get_distinct_plans()
@@ -139,6 +320,9 @@ class Subscription_builder_model extends CI_Model
         if (!empty($filters['industry'])) {
             $this->db->where('industry', (string) $filters['industry']);
         }
+        if (!empty($filters['country'])) {
+            $this->db->where('country', (string) $filters['country']);
+        }
         if (!empty($filters['module'])) {
             $this->db->where('module', (string) $filters['module']);
         }
@@ -158,29 +342,37 @@ class Subscription_builder_model extends CI_Model
         return $this->db->get()->result();
     }
 
-    public function get_catalog($plan, $industry)
+    public function get_catalog($plan, $industry, $country = '')
     {
         $plan = trim((string) $plan);
         $industry = trim((string) $industry);
-        $rows = $this->get_items_for_plan_hierarchy($plan, $industry);
-        $rows = $this->dedupe_hierarchy_rows($rows, $plan);
+        $country = $this->sanitize_import_country($country);
+        $all_rows = $this->get_items_for_plan_hierarchy($plan, $industry);
+
+        $country_rows = array();
+        foreach ($all_rows as $row) {
+            if ($this->row_matches_country($row, $country)) {
+                $country_rows[] = $row;
+            }
+        }
+        $plan_rows = $this->dedupe_hierarchy_rows($country_rows, $plan);
 
         $included = array();
         $chargeable = array();
         $included_by_module = array();
 
-        foreach ($rows as $row) {
+        foreach ($plan_rows as $row) {
             $item = $this->row_to_array($row);
             if ($this->is_chargeable_row($row)) {
                 $chargeable[] = $item;
-            } else {
-                $included[] = $item;
-                $module_key = $item['module'];
-                if (!isset($included_by_module[$module_key])) {
-                    $included_by_module[$module_key] = array();
-                }
-                $included_by_module[$module_key][] = $item;
+                continue;
             }
+            $included[] = $item;
+            $module_key = $item['module'];
+            if (!isset($included_by_module[$module_key])) {
+                $included_by_module[$module_key] = array();
+            }
+            $included_by_module[$module_key][] = $item;
         }
 
         return array(
@@ -196,6 +388,7 @@ class Subscription_builder_model extends CI_Model
             'id' => (int) $row->id,
             'plan' => trim((string) $row->plan),
             'industry' => trim((string) $row->industry),
+            'country' => $this->sanitize_import_country($row->country ?? ''),
             'module' => trim((string) $row->module),
             'feature' => trim((string) $row->feature),
             'details' => trim((string) ($row->details ?? '')),
@@ -272,6 +465,9 @@ class Subscription_builder_model extends CI_Model
         if (!empty($filters['industry'])) {
             $this->db->where('industry', (string) $filters['industry']);
         }
+        if (!empty($filters['country'])) {
+            $this->db->where('country', (string) $filters['country']);
+        }
         if (!empty($filters['module'])) {
             $this->db->where('module', (string) $filters['module']);
         }
@@ -284,6 +480,9 @@ class Subscription_builder_model extends CI_Model
                 $this->db->or_like('details', $q);
                 $this->db->or_like('plan', $q);
                 $this->db->or_like('industry', $q);
+                if ($this->db->field_exists('country', $this->table)) {
+                    $this->db->or_like('country', $q);
+                }
                 $this->db->group_end();
             }
         }
@@ -418,6 +617,7 @@ class Subscription_builder_model extends CI_Model
         $data = array(
             'plan' => '',
             'industry' => '',
+            'country' => $this->get_default_country(),
             'module' => '',
             'feature' => '',
             'details' => '',
@@ -437,6 +637,8 @@ class Subscription_builder_model extends CI_Model
                     $data['plan'] = $val;
                 } elseif ($key === 'industry') {
                     $data['industry'] = $val;
+                } elseif ($key === 'country') {
+                    $data['country'] = $this->sanitize_import_country($val);
                 } elseif ($key === 'module') {
                     $data['module'] = $val;
                 } elseif ($key === 'feature') {
@@ -453,17 +655,13 @@ class Subscription_builder_model extends CI_Model
                     $data['per_item_per_month_maintenances'] = $this->nullable_decimal($val);
                 }
             }
+
+            $this->apply_trailing_import_country($data, $cols, $header_map);
         } else {
-            $data['plan'] = trim((string) ($cols[0] ?? ''));
-            $data['industry'] = trim((string) ($cols[1] ?? ''));
-            $data['module'] = trim((string) ($cols[2] ?? ''));
-            $data['feature'] = trim((string) ($cols[3] ?? ''));
-            $data['details'] = trim((string) ($cols[4] ?? ''));
-            $data['per_item_set_up_charges'] = $this->nullable_decimal($cols[5] ?? null);
-            $data['item_unit'] = trim((string) ($cols[6] ?? ''));
-            $data['common_set_up_fees'] = $this->nullable_decimal($cols[7] ?? null);
-            $data['per_item_per_month_maintenances'] = $this->nullable_decimal($cols[8] ?? null);
+            $data = $this->map_import_positional_columns($cols);
         }
+
+        $data['plan'] = $this->normalize_import_plan($data['plan']);
 
         if ($data['plan'] === '' && $data['feature'] === '') {
             return null;
@@ -472,11 +670,131 @@ class Subscription_builder_model extends CI_Model
         return $data;
     }
 
+    private function map_import_positional_columns($cols)
+    {
+        $data = array(
+            'plan' => trim((string) ($cols[0] ?? '')),
+            'industry' => trim((string) ($cols[1] ?? '')),
+            'country' => $this->get_default_country(),
+            'module' => '',
+            'feature' => '',
+            'details' => '',
+            'per_item_set_up_charges' => null,
+            'item_unit' => '',
+            'common_set_up_fees' => null,
+            'per_item_per_month_maintenances' => null,
+        );
+
+        if (count($cols) >= 10 && $this->import_value_is_country($cols[9] ?? '')) {
+            $data['module'] = trim((string) ($cols[2] ?? ''));
+            $data['feature'] = trim((string) ($cols[3] ?? ''));
+            $data['details'] = trim((string) ($cols[4] ?? ''));
+            $data['per_item_set_up_charges'] = $this->nullable_decimal($cols[5] ?? null);
+            $data['item_unit'] = trim((string) ($cols[6] ?? ''));
+            $data['common_set_up_fees'] = $this->nullable_decimal($cols[7] ?? null);
+            $data['per_item_per_month_maintenances'] = $this->nullable_decimal($cols[8] ?? null);
+            $data['country'] = $this->sanitize_import_country($cols[9] ?? '');
+            return $data;
+        }
+
+        if (count($cols) >= 10 && $this->import_value_is_country($cols[2] ?? '')) {
+            $data['country'] = $this->sanitize_import_country($cols[2] ?? '');
+            $data['module'] = trim((string) ($cols[3] ?? ''));
+            $data['feature'] = trim((string) ($cols[4] ?? ''));
+            $data['details'] = trim((string) ($cols[5] ?? ''));
+            $data['per_item_set_up_charges'] = $this->nullable_decimal($cols[6] ?? null);
+            $data['item_unit'] = trim((string) ($cols[7] ?? ''));
+            $data['common_set_up_fees'] = $this->nullable_decimal($cols[8] ?? null);
+            $data['per_item_per_month_maintenances'] = $this->nullable_decimal($cols[9] ?? null);
+            return $data;
+        }
+
+        $data['module'] = trim((string) ($cols[2] ?? ''));
+        $data['feature'] = trim((string) ($cols[3] ?? ''));
+        $data['details'] = trim((string) ($cols[4] ?? ''));
+        $data['per_item_set_up_charges'] = $this->nullable_decimal($cols[5] ?? null);
+        $data['item_unit'] = trim((string) ($cols[6] ?? ''));
+        $data['common_set_up_fees'] = $this->nullable_decimal($cols[7] ?? null);
+        $data['per_item_per_month_maintenances'] = $this->nullable_decimal($cols[8] ?? null);
+
+        return $data;
+    }
+
+    private function apply_trailing_import_country(&$data, $cols, $header_map)
+    {
+        if (empty($header_map) || empty($cols)) {
+            return;
+        }
+
+        $has_country_header = false;
+        foreach ($header_map as $key) {
+            if ($key === 'country') {
+                $has_country_header = true;
+                break;
+            }
+        }
+        if ($has_country_header) {
+            return;
+        }
+
+        $last_index = count($cols) - 1;
+        $max_header_index = max(array_keys($header_map));
+        if ($last_index <= $max_header_index) {
+            return;
+        }
+
+        $trailing = trim((string) ($cols[$last_index] ?? ''));
+        if ($trailing !== '' && $this->import_value_is_country($trailing)) {
+            $data['country'] = $this->sanitize_import_country($trailing);
+        }
+    }
+
+    private function import_value_is_country($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return false;
+        }
+
+        $numeric = str_replace(array(',', ' '), '', $value);
+        if ($numeric !== '' && is_numeric($numeric)) {
+            return false;
+        }
+
+        if (strlen($value) > 60) {
+            return false;
+        }
+
+        $this->load_countries_model();
+        if ($this->countries_model && $this->countries_model->table_exists()) {
+            if ($this->countries_model->find_by_name($value)) {
+                return true;
+            }
+        }
+
+        static $known = array(
+            'india', 'uae', 'usa', 'uk', 'united arab emirates', 'united kingdom',
+            'united states', 'saudi arabia', 'qatar', 'oman', 'kuwait', 'bahrain',
+        );
+
+        return in_array(strtolower($value), $known, true);
+    }
+
+    private function normalize_import_plan($plan)
+    {
+        $plan = trim((string) $plan);
+        if (strcasecmp($plan, 'Businees') === 0 || strcasecmp($plan, 'Buisness') === 0) {
+            return 'Business';
+        }
+        return $this->normalize_plan_label($plan);
+    }
+
     private function normalize_row($data)
     {
         return array(
-            'plan' => trim((string) ($data['plan'] ?? '')),
+            'plan' => $this->normalize_import_plan($data['plan'] ?? ''),
             'industry' => trim((string) ($data['industry'] ?? '')),
+            'country' => $this->sanitize_import_country($data['country'] ?? ''),
             'module' => trim((string) ($data['module'] ?? '')),
             'feature' => trim((string) ($data['feature'] ?? '')),
             'details' => trim((string) ($data['details'] ?? '')) ?: null,

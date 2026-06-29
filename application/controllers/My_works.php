@@ -19,6 +19,7 @@ class My_works extends CI_Controller
         ));
         $this->load->library(array('session', 'upload'));
         $this->load->model('My_work_model', 'my_works');
+        $this->load->model('Template_task_model', 'template_tasks');
         require_module_access(array('my_works', 'my_works_list', 'my_works_add'), true);
         $this->ensure_schema();
     }
@@ -343,6 +344,18 @@ class My_works extends CI_Controller
         $this->load->view('my_works/list', $data);
     }
 
+    public function todays_focus()
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        $filters = $this->_sanitize_filters($this->_parse_filters());
+        $data = $this->_list_view_data($filters, 'overview');
+        $exclude_closed = ($filters['status'] === '');
+        $focus = my_works_build_todays_focus_sections($data['rows'], $exclude_closed);
+        $data['dashboard_sections'] = $focus['sections'];
+        $data['focus_count'] = $focus['count'];
+        $this->load->view('my_works/todays_focus', $data);
+    }
+
     public function export()
     {
         require_module_access(array('my_works_export', 'my_works'), true);
@@ -420,6 +433,269 @@ class My_works extends CI_Controller
             'scope'  => $this->_scope_context(),
             'redirect' => $redirect,
         ));
+    }
+
+    public function template_tasks()
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+
+        if ($this->input->method() === 'post') {
+            require_module_access(array('tasks_add', 'tasks'), true);
+            $user_id = (int) $this->session->userdata('user_id');
+            if ($user_id < 1) {
+                redirect('login');
+                return;
+            }
+
+            $client_id = (int) $this->input->post('client_id');
+            $project_id = (int) $this->input->post('project_id');
+            $team = trim((string) $this->input->post('team'));
+            $template_type = trim((string) $this->input->post('template_type'));
+            $template_ids = $this->input->post('template_ids');
+            if (!is_array($template_ids)) {
+                $template_ids = array();
+            }
+            $template_ids = array_values(array_filter(array_map('intval', $template_ids)));
+
+            if ($project_id < 1) {
+                $this->session->set_flashdata('error', 'Please select a project.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+            if ($team === '' || $template_type === '') {
+                $this->session->set_flashdata('error', 'Please select team and task type.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+            if (empty($template_ids)) {
+                $this->session->set_flashdata('error', 'Please select at least one template task.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+
+            $validated = my_works_validate_client_project($this->db, $client_id, $project_id);
+            if ($validated === false) {
+                redirect('my-works/template-tasks');
+                return;
+            }
+
+            $assigned_to = $this->input->post('assigned_to') !== '' ? (int) $this->input->post('assigned_to') : null;
+            $status = trim((string) $this->input->post('status'));
+            if ($status === '') {
+                $status = 'pending';
+            }
+            $priority = trim((string) $this->input->post('priority'));
+            if ($priority === '') {
+                $priority = 'medium';
+            }
+            $start_date = trim((string) $this->input->post('start_date'));
+            $due_date = trim((string) $this->input->post('due_date'));
+            $description = $this->input->post('description', true);
+
+            $created_ids = array();
+            foreach ($template_ids as $template_id) {
+                $template = $this->template_tasks->find($template_id);
+                if (!$template || (int) $template->is_active !== 1) {
+                    continue;
+                }
+                if ((string) $template->team !== $team || (string) $template->template_type !== $template_type) {
+                    continue;
+                }
+                $task_id = $this->_insert_task_from_template(array(
+                    'project_id' => $project_id,
+                    'title' => (string) $template->title,
+                    'description' => $description,
+                    'assigned_to' => $assigned_to,
+                    'status' => $status,
+                    'priority' => $priority,
+                    'start_date' => $start_date !== '' ? $start_date : null,
+                    'due_date' => $due_date !== '' ? $due_date : null,
+                    'created_by' => $user_id,
+                    'template_type' => (string) $template->template_type,
+                ));
+                if ($task_id > 0) {
+                    $created_ids[] = $task_id;
+                }
+            }
+
+            if (empty($created_ids)) {
+                $this->session->set_flashdata('error', 'No tasks were created. Please check your selections.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+
+            if (count($created_ids) === 1) {
+                $this->session->set_flashdata('success', 'Task created from template.');
+                redirect('tasks/' . (int) $created_ids[0]);
+                return;
+            }
+
+            $this->session->set_flashdata('success', count($created_ids) . ' tasks created from templates.');
+            redirect('tasks');
+            return;
+        }
+
+        $this->load->model('Status_model', 'statuses');
+        $template_rows = $this->template_tasks->all_active();
+        $template_payload = array();
+        foreach ($template_rows as $row) {
+            $template_payload[] = array(
+                'id' => (int) $row->id,
+                'team' => (string) $row->team,
+                'template_type' => (string) $row->template_type,
+                'title' => (string) $row->title,
+            );
+        }
+
+        $projects = my_works_projects_for_dropdown($this->db);
+        $projects_payload = array();
+        foreach ($projects as $project) {
+            $item = array(
+                'id' => (int) $project->id,
+                'name' => isset($project->name) ? (string) $project->name : ('Project #' . (int) $project->id),
+            );
+            if (isset($project->client_id)) {
+                $item['client_id'] = (int) $project->client_id;
+            }
+            $projects_payload[] = $item;
+        }
+
+        $this->load->view('my_works/template_tasks', array(
+            'clients' => my_works_clients_for_dropdown($this->db),
+            'projects_have_client' => schema_table_has_column($this->db, 'projects', 'client_id'),
+            'users' => $this->_tasks_assignable_users(),
+            'statuses' => $this->statuses->get_by_type('tasks', true),
+            'teams' => $this->template_tasks->distinct_teams(),
+            'template_json' => $template_payload,
+            'projects_json' => $projects_payload,
+        ));
+    }
+
+    /**
+     * @return array
+     */
+    private function _tasks_assignable_users()
+    {
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            $select = array('users.id', 'users.email');
+            if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select[] = 'users.name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select[] = 'users.full_name';
+            }
+            $has_emp_name = schema_table_has_column($this->db, 'employees', 'name');
+            if ($has_emp_name) {
+                $select[] = 'employees.name AS emp_name';
+            }
+            $this->db->select(implode(',', $select))
+                ->from('users')
+                ->join('employees', 'employees.user_id = users.id', 'left');
+            if ($has_emp_name) {
+                $this->db->order_by('employees.name IS NULL ASC', '', false)
+                    ->order_by('employees.name', 'ASC');
+            }
+            $this->db->order_by('users.email', 'ASC');
+            return $this->db->get()->result();
+        }
+
+        $user_select = array('id', 'email');
+        if (schema_table_has_column($this->db, 'users', 'full_name')) {
+            $user_select[] = 'full_name';
+        }
+        if (schema_table_has_column($this->db, 'users', 'name')) {
+            $user_select[] = 'name';
+        }
+        return $this->db->select(implode(',', $user_select))
+            ->from('users')
+            ->order_by('email', 'ASC')
+            ->get()
+            ->result();
+    }
+
+    /**
+     * @param array $input
+     * @return int
+     */
+    private function _insert_task_from_template(array $input)
+    {
+        if (!$this->db->table_exists('tasks')) {
+            return 0;
+        }
+
+        $fields = $this->db->list_fields('tasks');
+        $project_id = (int) $input['project_id'];
+        $project_ids_json = json_encode(array($project_id));
+
+        $data = array(
+            'project_id' => $project_id,
+            'title' => trim((string) $input['title']),
+            'description' => isset($input['description']) ? (string) $input['description'] : '',
+            'assigned_to' => isset($input['assigned_to']) && $input['assigned_to'] ? (int) $input['assigned_to'] : null,
+            'status' => isset($input['status']) ? (string) $input['status'] : 'pending',
+            'created_by' => (int) $input['created_by'],
+        );
+
+        if (in_array('priority', $fields, true)) {
+            $data['priority'] = isset($input['priority']) ? (string) $input['priority'] : 'medium';
+        }
+        if (in_array('start_date', $fields, true)) {
+            $data['start_date'] = !empty($input['start_date']) ? $input['start_date'] : null;
+        }
+        if (in_array('due_date', $fields, true)) {
+            $data['due_date'] = !empty($input['due_date']) ? $input['due_date'] : null;
+        }
+        if (in_array('project_ids', $fields, true)) {
+            $data['project_ids'] = $project_ids_json;
+        }
+        if (in_array('reference_url', $fields, true)) {
+            $data['reference_url'] = null;
+        }
+
+        if ($data['title'] === '') {
+            return 0;
+        }
+
+        $this->db->insert('tasks', $data);
+        $id = (int) $this->db->insert_id();
+        if ($id < 1) {
+            return 0;
+        }
+
+        $this->load->helper('change_tracker');
+        $description = 'Task: ' . (string) $data['title'];
+        if (!empty($input['template_type'])) {
+            $description .= ' (Template: ' . (string) $input['template_type'] . ')';
+        }
+        auto_log_insert('tasks', 'tasks', $id, $data, $description);
+
+        if (!empty($data['assigned_to'])) {
+            $this->load->helper('email_settings');
+            $task_details = $this->db->select('t.*, p.name as project_name')
+                ->from('tasks t')
+                ->join('projects p', 'p.id = t.project_id', 'left')
+                ->where('t.id', $id)
+                ->get()
+                ->row();
+            if ($task_details) {
+                send_notification_with_settings('tasks', 'created', $task_details, $task_details->assigned_to);
+            }
+
+            $this->load->model('Reminder_model', 'reminders');
+            $this->reminders->ensure_schema();
+            $subject = 'Task assigned: ' . (string) $data['title'];
+            $body = 'You have been assigned a task: ' . (string) $data['title'] . '\n\nOpen: ' . site_url('tasks/' . $id);
+            $this->reminders->enqueue(array(
+                'user_id' => (int) $data['assigned_to'],
+                'email' => get_user_email_by_id((int) $data['assigned_to']),
+                'type' => 'task_assigned',
+                'subject' => $subject,
+                'body' => $body,
+                'send_at' => date('Y-m-d H:i:00'),
+            ));
+        }
+
+        return $id;
     }
 
     public function create()

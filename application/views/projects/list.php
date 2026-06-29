@@ -28,6 +28,9 @@
             <th>#</th>
             <th>Code</th>
             <th>Name</th>
+            <?php if (!empty($show_assignee_column)): ?>
+            <th>Assigned To</th>
+            <?php endif; ?>
             <th>Status</th>
             <th class="text-end">Actions</th>
           </tr>
@@ -38,6 +41,9 @@
               <td><?php echo (int)$p->id; ?></td>
               <td><?php echo esc_view($p->code); ?></td>
               <td><?php echo esc_view($p->name); ?></td>
+              <?php if (!empty($show_assignee_column)): ?>
+              <td><?php echo esc_view(isset($p->assignee_label) ? $p->assignee_label : '—'); ?></td>
+              <?php endif; ?>
               <td><span class="badge bg-secondary"><?php echo esc_view($p->status); ?></span></td>
               <td class="text-end">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('projects/'.$p->id); ?>"><i class="bi bi-eye"></i></a>

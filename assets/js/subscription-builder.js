@@ -5,6 +5,8 @@
   var state = {
     plan: cfg.defaultPlan || 'Essential',
     industry: cfg.defaultIndustry || 'Retail',
+    country: cfg.defaultCountry || 'India',
+    countryMeta: cfg.defaultCountryMeta || null,
     catalog: null,
     qty: {},
     search: '',
@@ -16,8 +18,12 @@
     addonsSectionOpen: false,
     clientName: '',
     clientBusiness: '',
-    discountPercent: 0,
-    gstPercent: 18
+    setupDiscountPercent: 0,
+    setupDiscountFlat: 0,
+    setupGstPercent: 18,
+    monthlyDiscountPercent: 0,
+    monthlyDiscountFlat: 0,
+    monthlyGstPercent: 18
   };
 
   var planDescriptions = {
@@ -39,9 +45,154 @@
   var INCLUDED_COLS = 6;
   var INCLUDED_PREVIEW_COUNT = INCLUDED_PREVIEW_ROWS * INCLUDED_COLS;
 
+  var currencyLocaleMap = {
+    INR: 'en-IN',
+    AED: 'en-AE',
+    SAR: 'en-SA',
+    QAR: 'en-QA',
+    OMR: 'en-OM',
+    KWD: 'en-KW',
+    BHD: 'en-BH',
+    GBP: 'en-GB',
+    USD: 'en-US'
+  };
+
+  var countryAliases = {
+    uae: ['united arab emirates', 'ae'],
+    'united arab emirates': ['uae', 'ae'],
+    ae: ['uae', 'united arab emirates'],
+    ksa: ['saudi arabia', 'sa'],
+    'saudi arabia': ['ksa', 'sa'],
+    sa: ['saudi arabia', 'ksa'],
+    uk: ['united kingdom', 'gb'],
+    'united kingdom': ['uk', 'gb'],
+    gb: ['united kingdom', 'uk'],
+    us: ['united states', 'usa'],
+    usa: ['united states', 'us'],
+    'united states': ['us', 'usa']
+  };
+
+  var currencyFallback = {
+    india: { code: 'IN', mobile_code: '91', currency_code: 'INR', currency_symbol: '₹' },
+    uae: { code: 'AE', mobile_code: '971', currency_code: 'AED', currency_symbol: 'AED' },
+    'united arab emirates': { code: 'AE', mobile_code: '971', currency_code: 'AED', currency_symbol: 'AED' },
+    'saudi arabia': { code: 'SA', mobile_code: '966', currency_code: 'SAR', currency_symbol: 'SAR' },
+    qatar: { code: 'QA', mobile_code: '974', currency_code: 'QAR', currency_symbol: 'QAR' },
+    oman: { code: 'OM', mobile_code: '968', currency_code: 'OMR', currency_symbol: 'OMR' },
+    kuwait: { code: 'KW', mobile_code: '965', currency_code: 'KWD', currency_symbol: 'KWD' },
+    bahrain: { code: 'BH', mobile_code: '973', currency_code: 'BHD', currency_symbol: 'BHD' },
+    'united kingdom': { code: 'GB', mobile_code: '44', currency_code: 'GBP', currency_symbol: '£' },
+    'united states': { code: 'US', mobile_code: '1', currency_code: 'USD', currency_symbol: '$' }
+  };
+
+  function countryNamesMatch(a, b) {
+    var left = String(a || '').toLowerCase().trim();
+    var right = String(b || '').toLowerCase().trim();
+    if (!left || !right) {
+      return false;
+    }
+    if (left === right) {
+      return true;
+    }
+    var aliases = countryAliases[left];
+    if (aliases && aliases.indexOf(right) !== -1) {
+      return true;
+    }
+    aliases = countryAliases[right];
+    if (aliases && aliases.indexOf(left) !== -1) {
+      return true;
+    }
+    return false;
+  }
+
+  function getCurrencyFallback(name) {
+    var key = String(name || '').toLowerCase().trim();
+    if (currencyFallback[key]) {
+      return currencyFallback[key];
+    }
+    var aliases = countryAliases[key];
+    if (aliases) {
+      for (var i = 0; i < aliases.length; i++) {
+        if (currencyFallback[aliases[i]]) {
+          return currencyFallback[aliases[i]];
+        }
+      }
+    }
+    return null;
+  }
+
+  function getCountryMeta(name) {
+    var target = String(name || state.country || '').trim();
+    var options = cfg.countryOptions || [];
+    var found = null;
+    options.forEach(function (item) {
+      if (!item) {
+        return;
+      }
+      if (countryNamesMatch(item.name, target)) {
+        found = item;
+        return;
+      }
+      if (item.code && countryNamesMatch(item.code, target)) {
+        found = item;
+      }
+    });
+    if (found) {
+      return found;
+    }
+    if (state.countryMeta && countryNamesMatch(state.countryMeta.name, target)) {
+      return state.countryMeta;
+    }
+    var fallback = getCurrencyFallback(target);
+    if (fallback) {
+      return {
+        name: target || state.country || 'India',
+        code: fallback.code || '',
+        mobile_code: fallback.mobile_code || '',
+        currency_code: fallback.currency_code || 'INR',
+        currency_symbol: fallback.currency_symbol || '₹'
+      };
+    }
+    return {
+      name: target || state.country || 'India',
+      code: '',
+      mobile_code: '',
+      currency_code: 'INR',
+      currency_symbol: '₹'
+    };
+  }
+
+  function syncCountryMeta(name) {
+    var catalogName = name || state.country;
+    state.countryMeta = getCountryMeta(catalogName);
+    if (catalogName) {
+      state.countryMeta.name = catalogName;
+    }
+  }
+
+  function formatCurrencyLabel(meta) {
+    meta = meta || getCountryMeta(state.country);
+    var code = meta.currency_code || 'INR';
+    var symbol = meta.currency_symbol || code;
+    if (symbol === code) {
+      return code;
+    }
+    return code + ' (' + symbol + ')';
+  }
+
+  function updateCurrencyDisplay() {
+    var meta = getCountryMeta(state.country);
+    var label = formatCurrencyLabel(meta);
+    $('#sb-currency-display').text(label);
+    $('#sb-summary-currency').text(label);
+  }
+
   function formatMoney(n) {
+    var meta = getCountryMeta(state.country);
     var val = parseFloat(n) || 0;
-    return '₹ ' + val.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    var symbol = meta.currency_symbol || meta.currency_code || '₹';
+    var locale = currencyLocaleMap[meta.currency_code] || 'en-IN';
+    return symbol + ' ' + val.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   function escapeHtml(str) {
@@ -216,6 +367,23 @@
     $('#sb-plan-grid').html(html || '<div class="sb-empty">No plans in catalog.</div>');
   }
 
+  function renderCountries() {
+    var html = '';
+    var list = cfg.countryOptions && cfg.countryOptions.length ? cfg.countryOptions : [];
+    if (!list.length) {
+      list = (cfg.countries || ['India']).map(function (name) {
+        return { name: name, currency_code: 'INR', currency_symbol: '₹' };
+      });
+    }
+    list.forEach(function (item) {
+      var name = item.name || item;
+      var selected = name === state.country ? ' selected' : '';
+      html += '<option value="' + escapeHtml(name) + '"' + selected + '>' + escapeHtml(name) + '</option>';
+    });
+    $('#sb-country-select').html(html);
+    updateCurrencyDisplay();
+  }
+
   function renderIndustries() {
     var html = '';
     (cfg.industries || []).forEach(function (industry) {
@@ -292,7 +460,7 @@
   function renderAddons() {
     var list = filteredChargeable();
     if (!list.length) {
-      $('#sb-addons-rows').html('<tr><td colspan="10" class="text-center text-muted py-4">No chargeable add-ons for this plan and industry.</td></tr>');
+      $('#sb-addons-rows').html('<tr><td colspan="10" class="text-center text-muted py-4">No chargeable add-ons for this plan, industry, and country.</td></tr>');
       return;
     }
 
@@ -332,37 +500,95 @@
     $('#sb-addons-rows').html(html);
   }
 
-  function buildFinancialSummary(totals) {
-    var discountPct = parseFloat(state.discountPercent) || 0;
+  function normalizeGstPercent(val) {
+    var gstPct = parseFloat(val) || 0;
+    if ([0, 5, 18].indexOf(gstPct) === -1) {
+      gstPct = 0;
+    }
+    return gstPct;
+  }
+
+  function calcSectionDiscount(subtotal, discountPct, discountFlat) {
     if (discountPct < 0) {
       discountPct = 0;
     }
     if (discountPct > 100) {
       discountPct = 100;
     }
-    var gstPct = parseFloat(state.gstPercent) || 0;
-    if ([0, 5, 18].indexOf(gstPct) === -1) {
-      gstPct = 0;
+    if (discountFlat < 0) {
+      discountFlat = 0;
     }
+    var pctAmt = Math.round(subtotal * discountPct) / 100;
+    var total = pctAmt + discountFlat;
+    if (total > subtotal) {
+      total = subtotal;
+    }
+    return total;
+  }
 
+  function parseDiscountInput(raw) {
+    var trimmed = String(raw || '').trim();
+    if (!trimmed) {
+      return { percent: 0, flat: 0 };
+    }
+    if (/%/.test(trimmed)) {
+      var discountPct = parseFloat(trimmed.replace(/%/g, '').trim());
+      if (isNaN(discountPct) || discountPct < 0) {
+        discountPct = 0;
+      }
+      if (discountPct > 100) {
+        discountPct = 100;
+      }
+      return { percent: discountPct, flat: 0 };
+    }
+    var discountFlat = parseFloat(trimmed);
+    if (isNaN(discountFlat) || discountFlat < 0) {
+      discountFlat = 0;
+    }
+    return { percent: 0, flat: discountFlat };
+  }
+
+  function syncDiscountStateFromInputs() {
+    var setupParsed = parseDiscountInput($('#sb-setup-discount-input').val());
+    state.setupDiscountPercent = setupParsed.percent;
+    state.setupDiscountFlat = setupParsed.flat;
+    var monthlyParsed = parseDiscountInput($('#sb-monthly-discount-input').val());
+    state.monthlyDiscountPercent = monthlyParsed.percent;
+    state.monthlyDiscountFlat = monthlyParsed.flat;
+    state.setupGstPercent = normalizeGstPercent($('#sb-setup-gst-percent').val());
+    state.monthlyGstPercent = normalizeGstPercent($('#sb-monthly-gst-percent').val());
+  }
+
+  function buildFinancialSummary(totals) {
     var setupSubtotal = totals.totalSetup;
     var monthlySubtotal = totals.totalMonthly;
-    var discountSetup = Math.round(setupSubtotal * discountPct) / 100;
-    var discountMonthly = Math.round(monthlySubtotal * discountPct) / 100;
-    var setupAfterDiscount = setupSubtotal - discountSetup;
-    var monthlyAfterDiscount = monthlySubtotal - discountMonthly;
-    var gstSetup = Math.round(setupAfterDiscount * gstPct) / 100;
-    var gstMonthly = Math.round(monthlyAfterDiscount * gstPct) / 100;
+    var setupDiscountPct = parseFloat(state.setupDiscountPercent) || 0;
+    var setupDiscountFlat = parseFloat(state.setupDiscountFlat) || 0;
+    var monthlyDiscountPct = parseFloat(state.monthlyDiscountPercent) || 0;
+    var monthlyDiscountFlat = parseFloat(state.monthlyDiscountFlat) || 0;
+    var setupGstPct = normalizeGstPercent(state.setupGstPercent);
+    var monthlyGstPct = normalizeGstPercent(state.monthlyGstPercent);
+
+    var discountSetup = calcSectionDiscount(setupSubtotal, setupDiscountPct, setupDiscountFlat);
+    var discountMonthly = calcSectionDiscount(monthlySubtotal, monthlyDiscountPct, monthlyDiscountFlat);
+    var setupAfterDiscount = Math.max(0, setupSubtotal - discountSetup);
+    var monthlyAfterDiscount = Math.max(0, monthlySubtotal - discountMonthly);
+    var gstSetup = Math.round(setupAfterDiscount * setupGstPct) / 100;
+    var gstMonthly = Math.round(monthlyAfterDiscount * monthlyGstPct) / 100;
     var netSetup = setupAfterDiscount + gstSetup;
     var netMonthly = monthlyAfterDiscount + gstMonthly;
 
     return {
       setupSubtotal: setupSubtotal,
       monthlySubtotal: monthlySubtotal,
-      discountPercent: discountPct,
+      setupDiscountPercent: setupDiscountPct,
+      setupDiscountFlat: setupDiscountFlat,
+      monthlyDiscountPercent: monthlyDiscountPct,
+      monthlyDiscountFlat: monthlyDiscountFlat,
       discountSetup: discountSetup,
       discountMonthly: discountMonthly,
-      gstPercent: gstPct,
+      setupGstPercent: setupGstPct,
+      monthlyGstPercent: monthlyGstPct,
       gstSetup: gstSetup,
       gstMonthly: gstMonthly,
       netSetup: netSetup,
@@ -375,6 +601,7 @@
     var financials = buildFinancialSummary(totals);
     $('#sb-summary-plan').text(planDisplayName(state.plan));
     $('#sb-summary-industry').text(state.industry);
+    $('#sb-summary-country').text(state.country);
 
     function linesHtml(lines) {
       if (!lines.length) {
@@ -447,10 +674,22 @@
       plan: state.plan,
       plan_display: planDisplayName(state.plan),
       industry: state.industry,
+      country: state.country,
+      country_code: state.countryMeta ? state.countryMeta.code : '',
+      mobile_code: state.countryMeta ? state.countryMeta.mobile_code : '',
+      currency_code: state.countryMeta ? state.countryMeta.currency_code : 'INR',
+      currency_symbol: state.countryMeta ? state.countryMeta.currency_symbol : '₹',
       client_name: state.clientName,
       client_business: state.clientBusiness,
-      discount_percent: financials.discountPercent,
-      gst_percent: financials.gstPercent,
+      setup_discount_percent: financials.setupDiscountPercent,
+      setup_discount_flat: financials.setupDiscountFlat,
+      setup_gst_percent: financials.setupGstPercent,
+      monthly_discount_percent: financials.monthlyDiscountPercent,
+      monthly_discount_flat: financials.monthlyDiscountFlat,
+      monthly_gst_percent: financials.monthlyGstPercent,
+      discount_percent: 0,
+      discount_flat: 0,
+      gst_percent: financials.setupGstPercent,
       setup_lines: totals.setupLines,
       monthly_lines: totals.monthlyLines,
       total_setup: totals.totalSetup,
@@ -485,19 +724,40 @@
     document.body.removeChild(form);
   }
 
-  function loadCatalog() {
+  function loadCatalog(options) {
+    options = options || {};
+    var preserveIncluded = !!options.preserveIncluded;
+    var prevIncluded = preserveIncluded ? $.extend({}, state.includedChecked) : null;
+
     setLoading(true);
-    $.getJSON(cfg.catalogUrl, { plan: state.plan, industry: state.industry })
+    $.getJSON(cfg.catalogUrl, { plan: state.plan, industry: state.industry, country: state.country, _: Date.now() })
       .done(function (res) {
         if (!res || !res.ok) {
           alert((res && res.error) ? res.error : 'Unable to load catalog.');
           return;
         }
         state.catalog = res;
+        if (res.country) {
+          state.country = res.country;
+          $('#sb-country-select').val(state.country);
+        }
+        if (res.country_meta) {
+          state.countryMeta = res.country_meta;
+          if (res.country) {
+            state.countryMeta.name = res.country;
+          }
+        } else {
+          syncCountryMeta(state.country);
+        }
+        updateCurrencyDisplay();
         state.qty = {};
         state.search = '';
-        state.includedExpanded = false;
-        initIncludedChecked(res);
+        if (!preserveIncluded) {
+          state.includedExpanded = false;
+          initIncludedChecked(res);
+        } else if (prevIncluded) {
+          state.includedChecked = prevIncluded;
+        }
         $('#sb-addon-search').val('');
         $('.sb-plan-count[data-plan-count="' + state.plan + '"]').text(res.included_count);
         setLoading(false);
@@ -609,6 +869,13 @@
       renderAddons();
     });
 
+    $('#sb-country-select').on('change', function () {
+      state.country = $(this).val();
+      syncCountryMeta(state.country);
+      updateCurrencyDisplay();
+      loadCatalog({ preserveIncluded: true });
+    });
+
     $('#sb-clear-all').on('click', function () {
       state.qty = {};
       Object.keys(state.includedChecked).forEach(function (id) {
@@ -623,8 +890,34 @@
       submitQuoteForm(cfg.previewQuoteUrl, '_blank');
     });
 
-    $('#sb-download-quote').on('click', function () {
-      submitQuoteForm(cfg.downloadQuoteUrl, '_self');
+    $('#sb-export-toggle').on('click', function (e) {
+      e.stopPropagation();
+      var $menu = $('#sb-export-menu');
+      var isOpen = !$menu.hasClass('d-none');
+      $menu.toggleClass('d-none', isOpen);
+      $(this).attr('aria-expanded', isOpen ? 'false' : 'true');
+      $(this).toggleClass('is-open', !isOpen);
+    });
+
+    $(document).on('click', function () {
+      $('#sb-export-menu').addClass('d-none');
+      $('#sb-export-toggle').attr('aria-expanded', 'false').removeClass('is-open');
+    });
+
+    $('.sb-export-option').on('click', function (e) {
+      e.stopPropagation();
+      var format = $(this).data('format');
+      var urlMap = {
+        pdf: cfg.downloadQuoteUrl,
+        excel: cfg.downloadExcelUrl,
+        doc: cfg.downloadDocUrl
+      };
+      if (!urlMap[format]) {
+        return;
+      }
+      submitQuoteForm(urlMap[format], '_self');
+      $('#sb-export-menu').addClass('d-none');
+      $('#sb-export-toggle').attr('aria-expanded', 'false').removeClass('is-open');
     });
 
     $('#sb-client-name').on('input', function () {
@@ -635,9 +928,13 @@
       state.clientBusiness = $(this).val();
     });
 
-    $('#sb-discount-percent, #sb-gst-percent').on('change input', function () {
-      state.discountPercent = parseFloat($('#sb-discount-percent').val()) || 0;
-      state.gstPercent = parseFloat($('#sb-gst-percent').val()) || 0;
+    $('#sb-setup-discount-input, #sb-monthly-discount-input').on('change input', function () {
+      syncDiscountStateFromInputs();
+      renderSummary();
+    });
+
+    $('#sb-setup-gst-percent, #sb-monthly-gst-percent').on('change input', function () {
+      syncDiscountStateFromInputs();
       renderSummary();
     });
 
@@ -647,8 +944,10 @@
   }
 
   $(function () {
+    syncCountryMeta(state.country);
     renderPlans();
     renderIndustries();
+    renderCountries();
     bindEvents();
     applyDesktopSectionDefaults();
     updatePlanSectionCollapse();

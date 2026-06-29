@@ -13,6 +13,9 @@ function sb_catalog_query($filters, $page)
     if (!empty($filters['industry'])) {
         $params['industry'] = $filters['industry'];
     }
+    if (!empty($filters['country'])) {
+        $params['country'] = $filters['country'];
+    }
     if (!empty($filters['module'])) {
         $params['module'] = $filters['module'];
     }
@@ -61,7 +64,8 @@ function sb_catalog_query($filters, $page)
         <label class="form-label fw-semibold">TSV / CSV / XLSX file</label>
         <input type="file" class="form-control form-control-sm" name="import_file" accept=".tsv,.txt,.csv,.xlsx" required>
         <div class="form-text">
-          Columns: Plan, Industry, Module, Feature, Details, Per Item Set Up Charges, Item Unit, Common Set Up Fees, Per Item Per Month Maintenances.
+          Columns: Plan, Industry, Country (optional), Module, Feature, Details, Per Item Set Up Charges, Item Unit, Common Set Up Fees, Per Item Per Month Maintenances.
+          Legacy sheets may place Country in the last column without a header.
           <span class="d-inline-block ms-1">
             <a href="<?php echo site_url('settings/subscription-builder/sample-xlsx'); ?>"><i class="bi bi-download me-1"></i>Sample XLSX</a>
             <span class="text-muted mx-1">|</span>
@@ -106,14 +110,23 @@ function sb_catalog_query($filters, $page)
         </select>
       </div>
       <div class="col-md-2">
+        <label class="form-label small mb-1">Country</label>
+        <select name="country" class="form-select form-select-sm">
+          <option value="">All</option>
+          <?php foreach (($countries ?? array('India')) as $country): ?>
+          <option value="<?php echo esc_view($country); ?>" <?php echo ($filters['country'] ?? '') === $country ? 'selected' : ''; ?>><?php echo esc_view($country); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-2">
         <label class="form-label small mb-1">Module</label>
         <input type="text" class="form-control form-control-sm" name="module" value="<?php echo esc_view($filters['module'] ?? ''); ?>" placeholder="Module">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label small mb-1">Search</label>
         <input type="search" class="form-control form-control-sm" name="q" value="<?php echo esc_view($filters['search'] ?? ''); ?>" placeholder="Feature, module, details…">
       </div>
-      <div class="col-md-2 d-flex gap-2">
+      <div class="col-md-1 d-flex gap-2">
         <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filter</button>
         <a href="<?php echo site_url('settings/subscription-builder'); ?>" class="btn btn-outline-secondary btn-sm">Reset</a>
       </div>
@@ -134,6 +147,7 @@ function sb_catalog_query($filters, $page)
             <th>#</th>
             <th>Plan</th>
             <th>Industry</th>
+            <th>Country</th>
             <th>Module</th>
             <th>Feature</th>
             <th class="text-end">Setup</th>
@@ -149,6 +163,7 @@ function sb_catalog_query($filters, $page)
               <td><?php echo (int) $row->id; ?></td>
               <td><?php echo esc_view($row->plan); ?></td>
               <td><?php echo esc_view($row->industry); ?></td>
+              <td><?php echo esc_view(!empty($row->country) ? $row->country : 'India'); ?></td>
               <td><?php echo esc_view($row->module); ?></td>
               <td>
                 <div><?php echo esc_view($row->feature); ?></div>
@@ -171,7 +186,7 @@ function sb_catalog_query($filters, $page)
             <?php endforeach; ?>
           <?php else: ?>
             <tr>
-              <td colspan="9" class="text-center text-muted py-4">No catalog rows found. Add a row or import a TSV file.</td>
+              <td colspan="10" class="text-center text-muted py-4">No catalog rows found. Add a row or import a TSV file.</td>
             </tr>
           <?php endif; ?>
         </tbody>

@@ -129,6 +129,27 @@ if (!function_exists('my_works_status_hex_color')) {
     }
 }
 
+if (!function_exists('my_works_status_row_bg_color')) {
+    /**
+     * Light tinted row background from status color (dashboard lane rows).
+     */
+    function my_works_status_row_bg_color($code, $alpha = 0.12)
+    {
+        $hex = ltrim((string) my_works_status_hex_color($code), '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
+            return 'transparent';
+        }
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        $alpha = max(0.0, min(1.0, (float) $alpha));
+        return 'rgba(' . $r . ',' . $g . ',' . $b . ',' . $alpha . ')';
+    }
+}
+
 if (!function_exists('my_works_status_bootstrap_class')) {
     function my_works_status_bootstrap_class($code)
     {

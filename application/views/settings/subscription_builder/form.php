@@ -4,6 +4,9 @@ $page_title = $is_edit ? 'Edit Catalog Row' : 'Add Catalog Row';
 $row = isset($row) ? $row : null;
 $plans = isset($plans) ? $plans : array();
 $industries = isset($industries) ? $industries : array();
+$countries = isset($countries) ? $countries : array('India');
+$country_options = isset($country_options) ? $country_options : array();
+$default_country = 'India';
 ?>
 <?php $this->load->view('partials/header', ['title' => $page_title]); ?>
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -43,6 +46,22 @@ $industries = isset($industries) ? $industries : array();
             <option value="<?php echo esc_view($industry); ?>">
             <?php endforeach; ?>
           </datalist>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">Country</label>
+          <input type="text" class="form-control" name="country" list="sb-country-list" value="<?php echo esc_view($row && !empty($row->country) ? $row->country : $default_country); ?>" required>
+          <datalist id="sb-country-list">
+            <?php if (!empty($country_options)): ?>
+              <?php foreach ($country_options as $country): ?>
+              <option value="<?php echo esc_view($country['name']); ?>">
+              <?php endforeach; ?>
+            <?php else: ?>
+              <?php foreach ($countries as $country): ?>
+              <option value="<?php echo esc_view($country); ?>">
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </datalist>
+          <div class="form-text">Use a country from the master list (name, code, mobile code, currency).</div>
         </div>
         <div class="col-md-3">
           <label class="form-label fw-semibold">Module</label>

@@ -45,7 +45,11 @@
               <td><?php echo esc_view($row->client_business ?: '—'); ?></td>
               <td>
                 <?php if (!empty($row->document_path)): ?>
-                  <span class="text-muted small"><?php echo esc_view(basename((string) $row->document_path)); ?></span>
+                  <?php
+                    $doc_name = basename((string) $row->document_path);
+                    $doc_display = preg_replace('/\.html?$/i', '.pdf', $doc_name);
+                  ?>
+                  <span class="text-muted small"><?php echo esc_view($doc_display); ?></span>
                 <?php else: ?>
                   —
                 <?php endif; ?>
@@ -55,7 +59,7 @@
               <td class="text-nowrap">
                 <?php if (!empty($row->document_path)): ?>
                 <a href="<?php echo site_url('elintom-proposals/' . (int) $row->id . '/download'); ?>" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-download"></i> Download
+                  <i class="bi bi-file-earmark-pdf"></i> Download PDF
                 </a>
                 <?php else: ?>
                   <span class="text-muted small">No file</span>
@@ -65,7 +69,7 @@
             <?php endforeach; ?>
           <?php else: ?>
             <tr>
-              <td colspan="7" class="text-center text-muted py-4">No proposals saved yet. Download a proposal PDF from Subscription Builder to save it here.</td>
+              <td colspan="7" class="text-center text-muted py-4">No proposals saved yet. Use <strong>Print / Save as PDF</strong> on the proposal preview or download PDF from Subscription Builder.</td>
             </tr>
           <?php endif; ?>
         </tbody>

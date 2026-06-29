@@ -35,10 +35,33 @@
           <label class="form-label">Code</label>
           <input type="text" name="code" class="form-control" value="<?php echo isset($project) ? esc_view($project->code ?? '') : ''; ?>" placeholder="PRJ-001">
         </div>
-        <div class="col-md-8">
+        <div class="col-md-4">
           <label class="form-label">Name <span class="text-danger">*</span></label>
           <input required type="text" name="name" class="form-control" value="<?php echo isset($project) ? esc_view($project->name ?? '') : ''; ?>" placeholder="Website Redesign">
         </div>
+        <?php if (function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'manager_id')): ?>
+        <div class="col-md-4">
+          <label class="form-label">Assigned To</label>
+          <?php $cur_manager = (isset($project) && !empty($project->manager_id)) ? (int) $project->manager_id : 0; ?>
+          <select name="manager_id" class="form-select">
+            <option value="">-- Unassigned --</option>
+            <?php if (!empty($users)) foreach ($users as $u): ?>
+              <?php
+                if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
+                  $label = trim((string) $u->emp_name);
+                } else {
+                  $label = !empty($u->full_name) ? $u->full_name : (!empty($u->name) ? $u->name : $u->email);
+                }
+                $label = trim($label);
+                $label = $label ? $label . ' (' . $u->email . ')' : $u->email;
+              ?>
+              <option value="<?php echo (int) $u->id; ?>" <?php echo $cur_manager === (int) $u->id ? 'selected' : ''; ?>>
+                <?php echo esc_view($label); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php endif; ?>
         <?php if (!empty($project_types) && function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'project_type')): ?>
         <div class="col-md-4">
           <label class="form-label">Type</label>

@@ -59,15 +59,37 @@ class Elintom_proposals extends CI_Controller
 
         $filename = basename($absolute);
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $download_name = preg_replace('/\.html?$/i', '.pdf', $filename);
+        if (!preg_match('/\.pdf$/i', $download_name)) {
+            $download_name .= '.pdf';
+        }
+
+        if ($ext === 'html' || $ext === 'htm') {
+            $this->load->helper(array('dompdf_bootstrap', 'subscription_builder_quote'));
+            $html = file_get_contents($absolute);
+            $pdf_binary = dompdf_render_html($html, 'A4', 'portrait');
+            if ($pdf_binary === false) {
+                $this->session->set_flashdata('error', 'PDF engine is not available. Run composer install in the project root to enable PDF downloads.');
+                redirect('elintom-proposals');
+                return;
+            }
+
+            $this->output
+                ->set_content_type('application/pdf')
+                ->set_header('Content-Disposition: attachment; filename="' . $download_name . '"')
+                ->set_output($pdf_binary);
+            return;
+        }
+
         if ($ext === 'pdf') {
             $mime = 'application/pdf';
         } else {
-            $mime = 'text/html; charset=utf-8';
+            $mime = 'application/octet-stream';
         }
 
         $this->output
             ->set_content_type($mime)
-            ->set_header('Content-Disposition: attachment; filename="' . $filename . '"')
+            ->set_header('Content-Disposition: attachment; filename="' . $download_name . '"')
             ->set_output(file_get_contents($absolute));
     }
 }
