@@ -9,8 +9,9 @@
   }
   $this->load->view('partials/header', $header_data);
 ?>
+<div class="oms-form-compact">
 <?php if (!$embed): ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo $action === 'edit' ? 'Edit Project' : 'Create Project'; ?></h1>
   <div>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects'); ?>">Back to Projects</a>
@@ -30,7 +31,7 @@
       }
     ?>
     <form method="post" action="<?php echo $form_action; ?>" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Code</label>
           <input type="text" name="code" class="form-control" value="<?php echo isset($project) ? esc_view($project->code ?? '') : ''; ?>" placeholder="PRJ-001">
@@ -171,4 +172,5 @@
   });
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', array('title' => ($action === 'edit' ? 'Edit Type' : 'Create Type'))); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo $action === 'edit' ? 'Edit Type' : 'Create Type'; ?></h1>
   <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('settings/types'); ?>">Back to Types</a>
 </div>
@@ -11,7 +12,7 @@
 <div class="card shadow-sm border-0">
   <div class="card-body">
     <form method="post" action="<?php echo $action === 'edit' ? site_url('settings/types/' . (int) $type->id . '/edit') : site_url('settings/types/create'); ?>">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Name <span class="text-danger">*</span></label>
           <input type="text" name="name" class="form-control" required value="<?php echo isset($type) ? esc_view($type->name) : ''; ?>" placeholder="e.g. Partner">
@@ -51,5 +52,6 @@
       </div>
     </form>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

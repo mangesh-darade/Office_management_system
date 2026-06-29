@@ -44,6 +44,9 @@ if (!function_exists('module_type_definitions')) {
                 array('code' => 'contract', 'name' => 'Contract', 'order' => 3),
                 array('code' => 'intern', 'name' => 'Intern', 'order' => 4),
             ),
+            'tasks' => array(
+                array('code' => 'setup_onboarding', 'name' => 'Setup & Onboarding', 'order' => 1),
+            ),
         );
     }
 }
@@ -57,7 +60,27 @@ if (!function_exists('module_type_registry')) {
             'projects'     => 'Projects',
             'requirements' => 'Requirements',
             'employees'    => 'Employees',
+            'tasks'        => 'Tasks',
         );
+    }
+}
+
+if (!function_exists('module_type_matches_value')) {
+    /**
+     * Match a module type code against a stored value (code or display name).
+     */
+    function module_type_matches_value($code, $module, $value)
+    {
+        $code = trim((string) $code);
+        $value = trim((string) $value);
+        if ($code === '' || $value === '') {
+            return false;
+        }
+        if ($code === $value) {
+            return true;
+        }
+        $label = module_type_label($code, $module);
+        return $label !== '' && $label === $value;
     }
 }
 

@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Assign Asset']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">Assign Asset</h1>
   <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('assets-mgmt'); ?>">Back</a>
 </div>
@@ -19,10 +20,10 @@
   </div>
 </div>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">User <span class="text-danger">*</span></label>
           <select name="user_id" class="form-select" required>
@@ -41,10 +42,11 @@
           <textarea name="remarks" class="form-control" rows="2"></textarea>
         </div>
       </div>
-      <div class="mt-3">
+      <div class="oms-form-actions">
         <button type="submit" class="btn btn-primary">Assign</button>
       </div>
     </form>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

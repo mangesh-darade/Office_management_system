@@ -731,14 +731,8 @@ if (!function_exists('my_works_dashboard_lane_for_row')) {
             return 'back_log';
         }
 
-        $updated = !empty($row->updated_at) ? substr((string) $row->updated_at, 0, 10) : '';
-        if ($updated === $yesterday) {
-            return 'yesterday';
-        }
-        if ($updated === $today) {
-            return 'todays_plan';
-        }
-        return 'back_log';
+        // No due date: treat as recent/last-updated bucket (Yesterday lane).
+        return 'yesterday';
     }
 }
 

@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => (isset($action) && $action === 'edit') ? 'Edit Designation' : 'Create Designation']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo (isset($action) && $action === 'edit') ? 'Edit Designation' : 'Create Designation'; ?></h1>
   <a class="btn btn-light btn-sm" href="<?php echo site_url('designations'); ?>">Back</a>
 </div>
@@ -17,10 +18,10 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 <?php endif; ?>
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="" id="designationForm" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Code</label>
           <input type="text" name="designation_code" class="form-control" value="<?php echo esc_view(isset($row) && isset($row->designation_code) ? $row->designation_code : ''); ?>" required>
@@ -45,7 +46,7 @@
           <input type="number" name="level" min="1" class="form-control" value="<?php echo esc_view((string)(isset($row) && isset($row->level) ? (int)$row->level : 1)); ?>">
         </div>
       </div>
-      <div class="mt-4">
+      <div class="oms-form-actions">
         <button type="submit" class="btn btn-primary" id="submitBtn">
           <span class="btn-text"><?php echo (isset($action) && $action === 'edit') ? 'Update' : 'Create'; ?></span>
           <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
@@ -105,4 +106,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

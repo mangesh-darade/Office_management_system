@@ -17,6 +17,7 @@
   $st_in_label  = $has_status ? $att_format_time(isset($attendance_status['checkin_time']) ? $attendance_status['checkin_time'] : '') : '';
   $st_out_label = $has_status ? $att_format_time(isset($attendance_status['checkout_time']) ? $attendance_status['checkout_time'] : '') : '';
 ?>
+<div class="oms-form-compact">
 <div class="container-fluid px-3 px-md-4 att-punch-page">
   <div class="att-punch-header">
     <div class="att-punch-header-row">
@@ -976,4 +977,5 @@
       });
     })();
   </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

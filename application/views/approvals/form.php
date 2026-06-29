@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Manage Approval Flow']); ?>
+<div class="oms-form-compact">
 
 <div class="row justify-content-center">
     <div class="col-md-8">
@@ -152,4 +153,5 @@
     }
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

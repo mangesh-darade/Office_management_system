@@ -46,6 +46,7 @@
 
 ?>
 
+<div class="oms-form-compact">
 <div class="container-fluid py-3 mw-form-page">
 
   <nav aria-label="breadcrumb" class="small mb-2 d-none d-md-block mw-breadcrumb">
@@ -129,7 +130,7 @@
 
           </div>
 
-          <div class="row g-3 mw-form-assignment-row">
+          <div class="row g-2 oms-form-grid mw-form-assignment-row">
 
             <div class="col-12 col-lg-4 mw-form-field">
 
@@ -201,7 +202,7 @@
 
           </div>
 
-          <div class="row g-3 align-items-end">
+          <div class="row g-2 oms-form-grid align-items-end">
 
             <div class="col-12 col-md-4">
 
@@ -271,7 +272,7 @@
 
           </div>
 
-          <div class="row g-3">
+          <div class="row g-2 oms-form-grid">
 
             <div class="col-12 mw-form-description-block">
 
@@ -305,7 +306,7 @@
 
           </div>
 
-          <div class="row g-3">
+          <div class="row g-2 oms-form-grid">
 
             <div class="col-12 col-md-6">
 
@@ -599,5 +600,6 @@
 <?php $this->load->view('my_works/_media_preview_modal'); ?>
 <?php $this->load->view('my_works/_media_preview_scripts'); ?>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>
 

@@ -2,6 +2,7 @@
 $ed = isset($row) && $row;
 $this->load->view('partials/header', array('title' => $ed ? 'Edit module' : 'New module'));
 ?>
+<div class="oms-form-compact">
 <div class="container py-4">
   <h1 class="h4 mb-3"><?php echo $ed ? 'Edit module' : 'New module'; ?></h1>
   <?php echo form_open('training-lms-admin/save-module'); ?>
@@ -17,7 +18,7 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit module' : 'New
         <label class="form-label">Description</label>
         <textarea name="description" class="form-control" rows="3"><?php echo $ed ? esc_view($row->description) : ''; ?></textarea>
       </div>
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Sort order</label>
           <input type="number" name="sort_order" class="form-control" value="<?php echo $ed ? (int) $row->sort_order : 0; ?>">
@@ -37,5 +38,6 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit module' : 'New
     </div>
   </div>
   <?php echo form_close(); ?>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

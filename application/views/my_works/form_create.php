@@ -19,6 +19,7 @@
   $curFor = (int) $field('created_for', $uid);
 ?>
 
+<div class="oms-form-compact">
 <div class="container-fluid py-3 mw-form-page mw-form-create-page">
 
   <nav aria-label="breadcrumb" class="small mb-2 d-none d-md-block mw-breadcrumb">
@@ -234,4 +235,5 @@
 <script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
 <?php $this->load->view('my_works/_media_preview_modal'); ?>
 <?php $this->load->view('my_works/_media_preview_scripts'); ?>
+</div>
 <?php $this->load->view('partials/footer'); ?>

@@ -438,6 +438,7 @@ class My_works extends CI_Controller
     public function template_tasks()
     {
         require_module_access(array('my_works_list', 'my_works'), true);
+        $this->load->model('Status_model', 'statuses');
 
         if ($this->input->method() === 'post') {
             require_module_access(array('tasks_add', 'tasks'), true);
@@ -450,25 +451,25 @@ class My_works extends CI_Controller
             $client_id = (int) $this->input->post('client_id');
             $project_id = (int) $this->input->post('project_id');
             $team = trim((string) $this->input->post('team'));
-            $template_type = trim((string) $this->input->post('template_type'));
-            $template_ids = $this->input->post('template_ids');
-            if (!is_array($template_ids)) {
-                $template_ids = array();
-            }
-            $template_ids = array_values(array_filter(array_map('intval', $template_ids)));
+            $template_id = (int) $this->input->post('template_id');
 
             if ($project_id < 1) {
                 $this->session->set_flashdata('error', 'Please select a project.');
                 redirect('my-works/template-tasks');
                 return;
             }
-            if ($team === '' || $template_type === '') {
-                $this->session->set_flashdata('error', 'Please select team and task type.');
+            if (schema_table_has_column($this->db, 'projects', 'client_id') && $client_id < 1) {
+                $this->session->set_flashdata('error', 'Please select a client.');
                 redirect('my-works/template-tasks');
                 return;
             }
-            if (empty($template_ids)) {
-                $this->session->set_flashdata('error', 'Please select at least one template task.');
+            if ($team === '') {
+                $this->session->set_flashdata('error', 'Please select a team.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+            if ($template_id < 1) {
+                $this->session->set_flashdata('error', 'Please select a template task.');
                 redirect('my-works/template-tasks');
                 return;
             }
@@ -484,6 +485,13 @@ class My_works extends CI_Controller
             if ($status === '') {
                 $status = 'pending';
             }
+            $status_row = $this->statuses->get_by_code($status, 'tasks');
+            if (!$status_row || !(int) $status_row->is_active) {
+                $this->session->set_flashdata('error', 'Please select a valid task status.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+            $status = (string) $status_row->code;
             $priority = trim((string) $this->input->post('priority'));
             if ($priority === '') {
                 $priority = 'medium';
@@ -492,57 +500,48 @@ class My_works extends CI_Controller
             $due_date = trim((string) $this->input->post('due_date'));
             $description = $this->input->post('description', true);
 
-            $created_ids = array();
-            foreach ($template_ids as $template_id) {
-                $template = $this->template_tasks->find($template_id);
-                if (!$template || (int) $template->is_active !== 1) {
-                    continue;
-                }
-                if ((string) $template->team !== $team || (string) $template->template_type !== $template_type) {
-                    continue;
-                }
-                $task_id = $this->_insert_task_from_template(array(
-                    'project_id' => $project_id,
-                    'title' => (string) $template->title,
-                    'description' => $description,
-                    'assigned_to' => $assigned_to,
-                    'status' => $status,
-                    'priority' => $priority,
-                    'start_date' => $start_date !== '' ? $start_date : null,
-                    'due_date' => $due_date !== '' ? $due_date : null,
-                    'created_by' => $user_id,
-                    'template_type' => (string) $template->template_type,
-                ));
-                if ($task_id > 0) {
-                    $created_ids[] = $task_id;
-                }
+            $template = $this->template_tasks->find($template_id);
+            if (!$template || (int) $template->is_active !== 1) {
+                $this->session->set_flashdata('error', 'Invalid template task selected.');
+                redirect('my-works/template-tasks');
+                return;
             }
-
-            if (empty($created_ids)) {
-                $this->session->set_flashdata('error', 'No tasks were created. Please check your selections.');
+            if ((string) $template->team !== $team) {
+                $this->session->set_flashdata('error', 'Template task does not match the selected team.');
                 redirect('my-works/template-tasks');
                 return;
             }
 
-            if (count($created_ids) === 1) {
-                $this->session->set_flashdata('success', 'Task created from template.');
-                redirect('tasks/' . (int) $created_ids[0]);
+            $task_id = $this->_insert_task_from_template(array(
+                'project_id' => $project_id,
+                'title' => (string) $template->title,
+                'description' => $description,
+                'assigned_to' => $assigned_to,
+                'status' => $status,
+                'priority' => $priority,
+                'start_date' => $start_date !== '' ? $start_date : null,
+                'due_date' => $due_date !== '' ? $due_date : null,
+                'created_by' => $user_id,
+                'template_type' => (string) $template->template_type,
+            ));
+
+            if ($task_id < 1) {
+                $this->session->set_flashdata('error', 'Task could not be created. Please check your selections.');
+                redirect('my-works/template-tasks');
                 return;
             }
 
-            $this->session->set_flashdata('success', count($created_ids) . ' tasks created from templates.');
-            redirect('tasks');
+            $this->session->set_flashdata('success', 'Task created from template.');
+            redirect('tasks/' . (int) $task_id);
             return;
         }
 
-        $this->load->model('Status_model', 'statuses');
         $template_rows = $this->template_tasks->all_active();
         $template_payload = array();
         foreach ($template_rows as $row) {
             $template_payload[] = array(
                 'id' => (int) $row->id,
                 'team' => (string) $row->team,
-                'template_type' => (string) $row->template_type,
                 'title' => (string) $row->title,
             );
         }

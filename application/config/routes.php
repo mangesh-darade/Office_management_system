@@ -113,7 +113,9 @@ $route['clients/(:num)/contacts'] = 'clients/contacts/$1';
 // Projects
 $route['projects'] = 'projects/index';
 $route['projects/matrix'] = 'projects/matrix';
+$route['projects/dashboard'] = 'projects/dashboard_index';
 $route['projects/create'] = 'projects/create';
+$route['projects/(:num)/dashboard'] = 'projects/dashboard/$1';
 $route['projects/(:num)'] = 'projects/show/$1';
 $route['projects/(:num)/edit'] = 'projects/edit/$1';
 $route['projects/(:num)/delete'] = 'projects/delete/$1';

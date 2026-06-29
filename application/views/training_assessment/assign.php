@@ -10,9 +10,15 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
 ?>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-<div class="container py-4">
-  <h1 class="h4 mb-3">Assign assessment</h1>
-  <p class="text-muted"><?php echo esc_view($assessment->title); ?></p>
+<div class="oms-form-compact">
+<div class="container py-3">
+  <div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <h1 class="h5 mb-0">Assign assessment</h1>
+      <p class="text-muted small mb-0"><?php echo esc_view($assessment->title); ?></p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('training-assessment/dashboard'); ?>">Back</a>
+  </div>
 
   <?php if ($qCount < 1): ?>
     <div class="alert alert-danger">
@@ -281,4 +287,6 @@ $qCount = isset($question_count) ? (int)$question_count : 0;
   }
 })();
 </script>
+</div>
+</div>
 <?php $this->load->view('partials/footer'); ?>

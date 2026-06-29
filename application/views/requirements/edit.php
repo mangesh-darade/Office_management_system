@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Requirement']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">Edit Requirement</h1>
   <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements/view/'.(int)$row->id); ?>">Back</a>
 </div>
@@ -9,10 +10,10 @@
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="" class="vstack gap-3" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Client <span class="text-danger">*</span></label>
           <select name="client_id" class="form-select" required>
@@ -135,6 +136,7 @@
       </div>
     </form>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>

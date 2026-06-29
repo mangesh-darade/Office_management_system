@@ -10,6 +10,9 @@
     <?php if (function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
     <a class="btn btn-outline-secondary btn-sm" title="Portfolio Matrix" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-1"></i><span class="d-none d-sm-inline">Matrix</span></a>
     <?php endif; ?>
+    <?php if (function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'))): ?>
+    <a class="btn btn-outline-secondary btn-sm" title="Project Dashboard" href="<?php echo site_url('projects/dashboard'); ?>"><i class="bi bi-speedometer2 me-1"></i><span class="d-none d-sm-inline">Dashboard</span></a>
+    <?php endif; ?>
     <?php if(function_exists('has_module_access') && (has_module_access('projects_add') || has_module_access('projects'))): ?>
     <a class="btn btn-primary btn-sm" title="Create" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">New Project</span></a>
     <?php endif; ?>
@@ -46,6 +49,7 @@
               <?php endif; ?>
               <td><span class="badge bg-secondary"><?php echo esc_view($p->status); ?></span></td>
               <td class="text-end">
+                <a class="btn btn-light btn-sm" title="Dashboard" href="<?php echo site_url('projects/'.$p->id.'/dashboard'); ?>"><i class="bi bi-speedometer2"></i></a>
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('projects/'.$p->id); ?>"><i class="bi bi-eye"></i></a>
                 <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects'))): ?>
                 <a class="btn btn-primary btn-sm" title="Edit" href="<?php echo site_url('projects/'.$p->id.'/edit'); ?>"><i class="bi bi-pencil"></i></a>

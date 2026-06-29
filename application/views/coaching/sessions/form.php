@@ -1,6 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'Session']); ?>
+<div class="oms-form-compact">
 <?php $this->load->view('coaching/_subnav'); ?>
-<div class="card shadow-soft"><div class="card-body">
+<div class="card shadow-soft oms-form-card"><div class="card-body">
 <?php echo form_open($row ? 'coaching-sessions/edit/'.$row->id : 'coaching-sessions/create'); ?>
 <div class="mb-3"><label class="form-label">Client</label><select name="coaching_client_id" class="form-select" required><?php foreach ($clients as $c): ?><option value="<?php echo (int)$c->id; ?>" <?php echo ($row && (int)$row->coaching_client_id===(int)$c->id)?'selected':''; ?>><?php echo esc_view($c->full_name); ?></option><?php endforeach; ?></select></div>
 <div class="mb-3"><label class="form-label">Coach</label><select name="coach_id" class="form-select" required><?php foreach ($coaches as $c): ?><option value="<?php echo (int)$c->id; ?>" <?php echo ($row && (int)$row->coach_id===(int)$c->id)?'selected':''; ?>><?php echo esc_view($c->name); ?></option><?php endforeach; ?></select></div>
@@ -15,4 +16,5 @@
 <button type="submit" class="btn btn-primary">Save</button>
 <?php echo form_close(); ?>
 </div></div>
+</div>
 <?php $this->load->view('partials/footer'); ?>

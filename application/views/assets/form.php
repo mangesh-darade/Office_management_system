@@ -1,13 +1,14 @@
 <?php $this->load->view('partials/header', ['title' => $action==='edit' ? 'Edit Asset' : 'Add Asset']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo $action==='edit' ? 'Edit Asset' : 'Add Asset'; ?></h1>
   <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('assets-mgmt'); ?>">Back</a>
 </div>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Name <span class="text-danger">*</span></label>
           <input type="text" name="name" class="form-control" required value="<?php echo isset($row->name)?esc_view($row->name):''; ?>" />
@@ -58,10 +59,11 @@
           <textarea name="notes" class="form-control" rows="3"><?php echo isset($row->notes)?esc_view($row->notes):''; ?></textarea>
         </div>
       </div>
-      <div class="mt-3">
+      <div class="oms-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
       </div>
     </form>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

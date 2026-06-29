@@ -1,8 +1,9 @@
 <?php $this->load->view('partials/header', ['title' => $row ? 'Edit Client' : 'Add Client']); ?>
+<div class="oms-form-compact">
 <?php $this->load->view('coaching/_subnav'); ?>
-<div class="card shadow-soft"><div class="card-body">
+<div class="card shadow-soft oms-form-card"><div class="card-body">
 <?php echo form_open($row ? 'coaching-clients/edit/'.$row->id : 'coaching-clients/create'); ?>
-<div class="row g-3">
+<div class="row g-2 oms-form-grid">
 <div class="col-md-6"><label class="form-label">Full name *</label><input name="full_name" class="form-control" required value="<?php echo $row ? esc_view($row->full_name) : ''; ?>"></div>
 <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="<?php echo $row ? esc_view($row->email) : ''; ?>"></div>
 <div class="col-md-6"><label class="form-label">Phone</label><input name="phone" class="form-control" value="<?php echo $row ? esc_view($row->phone) : ''; ?>"></div>
@@ -19,4 +20,5 @@
 <button type="submit" class="btn btn-primary mt-3">Save</button>
 <?php echo form_close(); ?>
 </div></div>
+</div>
 <?php $this->load->view('partials/footer'); ?>

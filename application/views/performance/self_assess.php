@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Self-Assessment']); ?>
+<div class="oms-form-compact">
 
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
@@ -31,7 +32,7 @@
       <p class="text-muted small">Your manager will create an appraisal for you to review.</p>
     </div>
   <?php else: ?>
-    <div class="row g-3">
+    <div class="row g-2 oms-form-grid">
       <?php foreach ($appraisals as $a): ?>
       <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0">
@@ -101,4 +102,5 @@
   <?php endif; ?>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

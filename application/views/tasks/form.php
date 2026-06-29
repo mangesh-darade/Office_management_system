@@ -1,6 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => ($action === 'edit' ? 'Edit Task' : 'Create Task')]); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0"><?php echo $action === 'edit' ? 'Edit Task' : 'Create Task'; ?></h1>
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
+  <h1 class="h5 mb-0 fw-semibold"><?php echo $action === 'edit' ? 'Edit Task' : 'Create Task'; ?></h1>
   <div>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks'); ?>">Back to Tasks</a>
   </div>
@@ -21,11 +22,11 @@
   </div>
 </div>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" enctype="multipart/form-data" action="<?php echo $action === 'edit' ? site_url('tasks/'.$task->id.'/edit') : site_url('tasks/create'); ?>" data-validate="true">
-      <div class="row g-3">
-         <div class="col-md-12">
+      <div class="row g-2 oms-form-grid">
+         <div class="col-md-4">
            <label class="form-label">
              <i class="bi bi-folder me-1"></i>Projects <span class="text-danger">*</span>
              <small class="text-muted">(Select one or more projects)</small>
@@ -63,12 +64,12 @@
              <span id="selected-projects-count"><?php echo count($curProjIds); ?></span> project(s) selected
            </div>
          </div>
-        <div class="col-md-8">
+        <div class="col-md-4">
           <label class="form-label">Title <span class="text-danger">*</span></label>
           <input required type="text" name="title" class="form-control" value="<?php echo isset($task) ? esc_view($task->title) : ''; ?>" placeholder="Enter task title" id="task-title-input">
         </div>
         <?php if (isset($requirements) && is_array($requirements) && count($requirements) > 0): ?>
-        <div class="col-md-12" id="requirement-container">
+        <div class="col-md-4" id="requirement-container">
           <label class="form-label">
             <i class="bi bi-link-45deg me-1"></i>Link to Requirement (optional)
           </label>
@@ -98,33 +99,11 @@
           </div>
         </div>
         <?php endif; ?>
-        <div class="col-12">
-          <label class="form-label">
-            <i class="bi bi-file-text me-1"></i>Description
-          </label>
-          <textarea id="task-description" name="description" rows="10" class="form-control" placeholder="Enter task description..."><?php echo isset($task) ? esc_view($task->description) : ''; ?></textarea>
-          <div class="form-text">
-            <i class="bi bi-info-circle me-1"></i>
-            Use the toolbar above to format text: <strong>Bold</strong>, <em>Italic</em>, <u>Underline</u>, colors, fonts, and more.
-          </div>
-        </div>
         <?php 
           // Show attachment input only if column exists to avoid DB issues
           $attachment_enabled = schema_table_has_column($this->db, 'tasks', 'attachment_path');
         ?>
-        <?php if($attachment_enabled): ?>
-        <div class="col-12">
-          <label class="form-label">Attachment (optional)</label>
-          <?php if(isset($task) && !empty($task->attachment_path)): ?>
-            <div class="mb-2">
-              <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url($task->attachment_path); ?>" target="_blank"><i class="bi bi-paperclip"></i> Current file</a>
-            </div>
-          <?php endif; ?>
-          <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
-          <div class="form-text">Max 4MB. Allowed: JPG, PNG, PDF, DOC, DOCX</div>
-        </div>
-        <?php endif; ?>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Assign To</label>
           <?php $curUser = isset($task) && $task->assigned_to !== null ? (int)$task->assigned_to : 0; ?>
           <select name="assigned_to" class="form-select">
@@ -146,7 +125,7 @@
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">
             <i class="bi bi-flag me-1"></i>Priority
           </label>
@@ -158,7 +137,7 @@
             <option value="urgent" <?php echo $pr==='urgent'?'selected':''; ?>>🔴 Urgent</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">
             <i class="bi bi-arrow-right-circle me-1"></i>Status
           </label>
@@ -186,7 +165,7 @@
             ?>
           </select>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-3">
           <label class="form-label">
             <i class="bi bi-calendar-event me-1"></i>Start Date
           </label>
@@ -198,13 +177,30 @@
           </label>
           <input type="date" name="due_date" class="form-control" value="<?php echo isset($task) && isset($task->due_date) && $task->due_date ? date('Y-m-d', strtotime($task->due_date)) : ''; ?>">
         </div>
-        <div class="col-md-12">
+        <div class="col-md-6">
           <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
           <input type="url" name="reference_url" class="form-control" value="<?php echo isset($task) && !empty($task->reference_url) ? esc_view($task->reference_url) : ''; ?>" placeholder="https://example.com/task-details">
-          <div class="form-text">Optional. Paste any web link related to this task.</div>
+        </div>
+        <?php if($attachment_enabled): ?>
+        <div class="col-md-12">
+          <label class="form-label">Attachment (optional)</label>
+          <?php if(isset($task) && !empty($task->attachment_path)): ?>
+            <div class="mb-2">
+              <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url($task->attachment_path); ?>" target="_blank"><i class="bi bi-paperclip"></i> Current file</a>
+            </div>
+          <?php endif; ?>
+          <input type="file" name="attachment" class="form-control" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+          <div class="form-text">Max 4MB. Allowed: JPG, PNG, PDF, DOC, DOCX</div>
+        </div>
+        <?php endif; ?>
+        <div class="col-12">
+          <label class="form-label">
+            <i class="bi bi-file-text me-1"></i>Description
+          </label>
+          <textarea id="task-description" name="description" rows="6" class="form-control" placeholder="Enter task description..."><?php echo isset($task) ? esc_view($task->description) : ''; ?></textarea>
         </div>
       </div>
-      <div class="mt-4 d-flex gap-2">
+      <div class="oms-form-actions">
         <button class="btn btn-primary" type="submit"><?php echo $action === 'edit' ? 'Save Changes' : 'Create Task'; ?></button>
         <a class="btn btn-light" href="<?php echo site_url('tasks'); ?>">Cancel</a>
       </div>
@@ -218,6 +214,23 @@
  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
  
  <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+ <style>
+ .oms-form-compact .select2-container .select2-selection--multiple {
+   min-height: calc(1.5em + 0.56rem + 2px);
+   border-radius: 6px;
+   border-color: #ced4da;
+   font-size: 0.8125rem;
+ }
+ .oms-form-compact .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+   margin-top: 2px;
+   margin-bottom: 2px;
+   font-size: 0.75rem;
+   padding: 0.08rem 0.35rem;
+ }
+ .oms-form-compact .tox-tinymce {
+   border-radius: 6px !important;
+ }
+ </style>
  <script>
    $(document).ready(function() {
      // Initialize Select2 for project multi-select
@@ -306,7 +319,7 @@
       'bullist numlist outdent indent | ' +
       'removeformat | link image | code | fullscreen | help',
     branding: false,
-    height: 400,
+    height: 280,
     width: '100%',
     convert_urls: false,
     default_link_target: '_blank',
@@ -443,4 +456,5 @@
   })();
 
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

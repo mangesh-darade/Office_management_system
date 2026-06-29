@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Appraisal']); ?>
+<div class="oms-form-compact">
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card">
@@ -52,5 +53,6 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

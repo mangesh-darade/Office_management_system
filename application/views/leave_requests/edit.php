@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Leave Request']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">Edit Leave Request</h1>
   <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('leave/team'); ?>">Back to Team Leaves</a>
 </div>
@@ -11,10 +12,10 @@
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="<?php echo site_url('leave/edit/'.(int)$leave->id); ?>">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Leave Type <span class="text-danger">*</span></label>
           <select class="form-select" name="type_id" required>
@@ -63,5 +64,6 @@
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>
 

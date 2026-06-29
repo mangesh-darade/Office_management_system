@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'Apply Leave']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">Apply Leave</h1>
   <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('leave/my'); ?>">My Leaves</a>
 </div>
@@ -11,10 +12,10 @@
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="<?php echo site_url('leave/apply'); ?>" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-3">
           <label class="form-label">Leave Type</label>
           <select class="form-select" name="type_id" id="type_id" required>
@@ -60,7 +61,7 @@
           <div class="form-text">Use this mode for separate days like 3, 8, 15 of the month.</div>
         </div>
         <div class="col-md-12">
-          <div class="row g-3">
+          <div class="row g-2 oms-form-grid">
             <div class="col-md-4">
               <label class="form-label">Duration</label>
               <select class="form-select" name="duration_type" id="duration_type">
@@ -101,7 +102,7 @@
           <div class="fw-semibold" id="total_days">0</div>
         </div>
       </div>
-      <div class="mt-3">
+      <div class="oms-form-actions">
         <button type="submit" class="btn btn-primary">Submit Request</button>
       </div>
     </form>
@@ -432,4 +433,5 @@
 })();
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

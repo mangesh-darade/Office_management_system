@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Salary Structure']); ?>
+<div class="oms-form-compact">
 <div class="container-fluid py-3">
 <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
   <div>
@@ -8,10 +9,10 @@
   <a class="btn btn-outline-secondary btn-sm mt-2 mt-sm-0" href="<?php echo site_url('payroll/structures'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
 </div>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Employee <span class="text-danger">*</span></label>
           <select name="user_id" class="form-select" required <?php echo $user_id ? 'disabled' : ''; ?>>
@@ -73,11 +74,12 @@
           <input type="number" step="0.01" name="esi_percent" class="form-control" value="<?php echo isset($row->esi_percent)?esc_view($row->esi_percent):''; ?>" />
         </div>
       </div>
-      <div class="mt-3">
+      <div class="oms-form-actions">
         <button type="submit" class="btn btn-primary">Save</button>
       </div>
     </form>
   </div>
+</div>
 </div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

@@ -581,6 +581,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
             <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='matrix')?'active':''; ?>" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-2"></i>Portfolio Matrix</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'))): ?>
+            <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='dashboard')?'active':''; ?>" href="<?php echo site_url('projects/dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Project Dashboard</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('projects_add')): ?>
             <a class="submenu-link" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-square me-2"></i>Add Project</a>
             <?php endif; ?>

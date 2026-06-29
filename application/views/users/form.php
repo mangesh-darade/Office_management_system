@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', array('title' => (isset($title) ? $title : 'User'), 'active' => 'users')); ?>
-<div class="row g-3">
+<div class="oms-form-compact">
+<div class="row g-2 oms-form-grid">
   <div class="col-12">
     <div class="card mb-3 border-0 shadow-sm">
       <div class="card-body d-flex justify-content-between align-items-center">
@@ -21,7 +22,7 @@
         $form_attrs = array('id' => 'userForm', 'class' => 'needs-validation', 'novalidate' => '');
         echo form_open_multipart($form_action, $form_attrs);
         ?>
-          <div class="row g-3">
+          <div class="row g-2 oms-form-grid">
             <div class="col-md-4">
               <label class="form-label">Name <span class="text-danger">*</span></label>
               <input type="text" name="name" class="form-control <?php echo form_error('name') ? 'is-invalid' : ''; ?>"
@@ -481,4 +482,5 @@
   });
 })();
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

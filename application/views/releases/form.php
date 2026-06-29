@@ -1,11 +1,12 @@
 <?php $this->load->view('partials/header', ['title' => ($action==='edit'?'Edit':'New').' Release']); ?>
+<div class="oms-form-compact">
 <div class="container-fluid py-3">
 <h1 class="h4 fw-bold mb-3"><?php echo $action==='edit'?'Edit':'New'; ?> Release</h1>
 <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
 <div class="card shadow-soft mb-3"><div class="card-body">
 <form method="post" id="releaseForm"><?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
-<div class="row g-3">
+<div class="row g-2 oms-form-grid">
   <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ($item && (int)$item->project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option><?php endforeach; ?></select></div>
   <div class="col-md-2"><label class="form-label">Version</label><input name="version" class="form-control" required value="<?php echo $item?esc_view($item->version):''; ?>"></div>
   <div class="col-md-3"><label class="form-label">Planned date</label><input type="date" name="planned_date" class="form-control" value="<?php echo $item?esc_view($item->planned_date):''; ?>"></div>
@@ -14,7 +15,7 @@
   <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Summary for stakeholders"><?php echo $item?esc_view($item->description):''; ?></textarea></div>
 </div>
 
-<div class="mt-4">
+<div class="oms-form-actions">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <label class="form-label mb-0 fw-semibold">Release note points</label>
     <button type="button" class="btn btn-sm btn-outline-primary" id="addNotePoint"><i class="bi bi-plus-lg me-1"></i>Add point</button>
@@ -35,7 +36,7 @@
 </div>
 
 <?php if ($action === 'edit' && !empty($related_defects)): ?>
-<div class="mt-4">
+<div class="oms-form-actions">
   <label class="form-label fw-semibold">Related defects (linked to this release)</label>
   <p class="text-muted small">Click Add to copy a defect into release note points.</p>
   <ul class="list-group list-group-flush border rounded">
@@ -55,7 +56,7 @@
   </ul>
 </div>
 <?php elseif ($action === 'edit'): ?>
-<div class="mt-4">
+<div class="oms-form-actions">
   <label class="form-label fw-semibold">Related defects</label>
   <p class="text-muted small mb-0">No defects linked to this release yet. Link defects on the Defects screen (Release field).</p>
 </div>
@@ -68,7 +69,7 @@
   <?php if ($item && !empty($item->notes_sent_at)): ?>
   <p class="small text-success mb-2"><i class="bi bi-check-circle me-1"></i>Last sent: <?php echo esc_view(date('M j, Y g:i A', strtotime($item->notes_sent_at))); ?></p>
   <?php endif; ?>
-  <div class="row g-3">
+  <div class="row g-2 oms-form-grid">
     <div class="col-12">
       <label class="form-label">Recipients</label>
       <select name="user_ids[]" id="releaseRecipients" class="form-select" multiple size="8">
@@ -95,7 +96,7 @@
 </div>
 <?php endif; ?>
 
-<div class="mt-4">
+<div class="oms-form-actions">
   <button class="btn btn-primary" type="submit">Save</button>
   <?php if ($action === 'edit' && !empty($can_send_notes)): ?>
   <button class="btn btn-success" type="button" id="btnSendNotesNow">Send notes now</button>
@@ -201,4 +202,5 @@
   }
 })();
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

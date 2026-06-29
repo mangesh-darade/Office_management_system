@@ -15,6 +15,7 @@
         <?php endif; ?>
     </div>
     <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects/dashboard'); ?>">Dashboard</a>
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects'); ?>">Back</a>
       <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects'))): ?>
       <a class="btn btn-primary btn-sm" href="<?php echo site_url('projects/'.$project->id.'/edit'); ?>">Edit Project</a>
@@ -139,6 +140,7 @@
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">Project Tasks</h6>
                 <?php if(function_exists('has_module_access') && has_module_access('tasks_add')): ?>
+                <a href="<?php echo site_url('projects/'.$project->id.'/dashboard'); ?>" class="btn btn-outline-secondary btn-sm me-2"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
                 <a href="<?php echo site_url('tasks/board?project_id='.$project->id); ?>" class="btn btn-outline-secondary btn-sm me-2"><i class="bi bi-kanban me-1"></i>Board View</a>
                 <a href="<?php echo site_url('tasks/create?project_id='.$project->id); ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Task</a>
                 <?php endif; ?>

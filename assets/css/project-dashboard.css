@@ -1,0 +1,367 @@
+/**
+ * Project dashboard — clean professional layout.
+ * Font: Plus Jakarta Sans (loaded from view CDN).
+ */
+.project-dash-compact {
+  --pd-font: 0.8125rem;
+  --pd-label: 0.6875rem;
+  --pd-task-row-h: 1.625rem;
+  --pd-task-head-h: 1.75rem;
+  --pd-task-visible: 10;
+  --pd-list-h: calc(var(--pd-task-head-h) + (var(--pd-task-visible) * var(--pd-task-row-h)));
+  --pd-border: #e5e7eb;
+  --pd-muted: #6b7280;
+  --pd-text: #111827;
+  --pd-surface: #ffffff;
+  --pd-bg: #f3f4f6;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background: var(--pd-bg);
+  min-height: calc(100vh - 120px);
+}
+
+.project-dash-compact.container-fluid {
+  padding: 0.75rem 1rem 1rem !important;
+}
+
+.project-dash-compact .oms-page-head {
+  margin-bottom: 0.75rem !important;
+  padding: 0;
+  border: none;
+}
+
+.project-dash-compact .oms-page-head h1.h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pd-text);
+}
+
+.project-dash-compact .oms-page-head .text-muted.small {
+  font-size: 0.8125rem;
+  color: var(--pd-muted) !important;
+}
+
+.project-dash-compact .oms-page-actions .btn-sm {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+/* Summary strip */
+.project-dash-compact .project-dash-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.project-dash-compact .project-dash-stat {
+  flex: 1 1 120px;
+  background: var(--pd-surface);
+  border: 1px solid var(--pd-border);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.project-dash-compact .project-dash-stat-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pd-muted);
+  margin-bottom: 0.15rem;
+}
+
+.project-dash-compact .project-dash-stat-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--pd-text);
+  line-height: 1.2;
+}
+
+/* Status legend */
+.project-dash-compact .project-dash-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--pd-surface);
+  border: 1px solid var(--pd-border);
+  border-radius: 10px;
+}
+
+.project-dash-compact .project-dash-legend-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pd-muted);
+  margin-right: 0.25rem;
+}
+
+.project-dash-compact .project-dash-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  background: #f9fafb;
+  border: 1px solid var(--pd-border);
+  color: #374151;
+}
+
+.project-dash-compact .project-dash-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Grid */
+.project-dash-compact .project-dash-grid {
+  --bs-gutter-x: 0.75rem;
+  --bs-gutter-y: 0.75rem;
+}
+
+/* Cards */
+.project-dash-compact .project-dash-card {
+  border-radius: 12px;
+  border: 1px solid var(--pd-border) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  background: var(--pd-surface);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+
+.project-dash-compact .project-dash-card:hover {
+  border-color: #d1d5db !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.project-dash-compact .project-dash-card > .card-body {
+  padding: 0;
+}
+
+.project-dash-compact .project-dash-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--pd-border);
+  background: #fafafa;
+}
+
+.project-dash-compact .project-dash-head-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.project-dash-compact .project-dash-code {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4b5563;
+  background: #fff;
+  border: 1px solid var(--pd-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  line-height: 1.3;
+  margin-bottom: 0.2rem;
+}
+
+.project-dash-compact .project-dash-project-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--pd-text);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.project-dash-compact .project-dash-project-name:hover {
+  color: #2563eb !important;
+}
+
+.project-dash-compact .project-dash-count {
+  flex-shrink: 0;
+  min-width: 1.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 0.2rem 0.5rem;
+  line-height: 1.2;
+}
+
+.project-dash-compact .project-dash-count.is-zero {
+  color: var(--pd-muted);
+  background: #f9fafb;
+  border-color: var(--pd-border);
+}
+
+/* Task list */
+.project-dash-compact .project-dash-task-list {
+  height: var(--pd-list-h);
+  max-height: var(--pd-list-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f9fafb;
+}
+
+.project-dash-compact .project-dash-task-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.project-dash-compact .project-dash-task-list::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.project-dash-compact .project-dash-task-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.project-dash-compact .project-dash-task-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.project-dash-compact .project-dash-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: var(--pd-font);
+  color: var(--pd-muted);
+  background: #fafafa;
+}
+
+.project-dash-compact .project-dash-empty i {
+  font-size: 1.25rem;
+  opacity: 0.5;
+}
+
+/* Table */
+.project-dash-compact .project-dash-task-table {
+  font-size: var(--pd-font);
+  margin-bottom: 0;
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--pd-border);
+}
+
+.project-dash-compact .project-dash-task-table thead th {
+  font-size: var(--pd-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pd-muted);
+  height: var(--pd-task-head-h);
+  padding: 0.35rem 0.625rem;
+  line-height: 1.2;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f9fafb;
+  border: 1px solid var(--pd-border);
+  white-space: nowrap;
+}
+
+.project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 50%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 32%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 18%; }
+
+.project-dash-compact .project-dash-task-table tbody tr {
+  height: var(--pd-task-row-h);
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.12s ease;
+}
+
+.project-dash-compact .project-dash-task-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.project-dash-compact .project-dash-task-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.project-dash-compact .project-dash-task-table tbody td {
+  padding: 0.25rem 0.625rem;
+  height: var(--pd-task-row-h);
+  vertical-align: middle;
+  border: 1px solid var(--pd-border);
+}
+
+.project-dash-compact .project-dash-status-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1.3;
+}
+
+.project-dash-compact .project-dash-task-title {
+  color: #374151;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.project-dash-compact .project-dash-task-title:hover {
+  color: #2563eb;
+  text-decoration: none !important;
+}
+
+.project-dash-compact .project-dash-date {
+  font-size: 0.75rem;
+  color: var(--pd-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1400px) {
+  .project-dash-compact .project-dash-grid > [class*="col-"] {
+    flex: 0 0 auto;
+    width: 25%;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+  .project-dash-compact .project-dash-grid > [class*="col-"] {
+    flex: 0 0 auto;
+    width: 33.333333%;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 44%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 36%; }
+}

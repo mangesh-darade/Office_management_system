@@ -1,12 +1,13 @@
 <?php $this->load->view('partials/header', ['title' => isset($action) && $action === 'edit' ? 'Edit Shift' : 'Create New Shift']); ?>
+<div class="oms-form-compact">
 
 <div class="">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1><?php echo isset($action) && $action === 'edit' ? 'Edit Shift' : 'Create New Shift'; ?></h1>
-        <a href="<?php echo base_url('shifts'); ?>" class="btn btn-secondary">Back to List</a>
+    <div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
+        <h1 class="h5 mb-0"><?php echo isset($action) && $action === 'edit' ? 'Edit Shift' : 'Create New Shift'; ?></h1>
+        <a href="<?php echo base_url('shifts'); ?>" class="btn btn-secondary btn-sm">Back to List</a>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm oms-form-card">
         <div class="card-header bg-primary text-white">
             <h5 class="card-title mb-0">Shift Details</h5>
         </div>
@@ -61,4 +62,5 @@
     </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

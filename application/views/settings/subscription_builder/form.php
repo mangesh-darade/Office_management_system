@@ -9,7 +9,8 @@ $country_options = isset($country_options) ? $country_options : array();
 $default_country = 'India';
 ?>
 <?php $this->load->view('partials/header', ['title' => $page_title]); ?>
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h3 mb-0">
     <i class="bi bi-sliders me-2"></i><?php echo esc_view($page_title); ?>
   </h1>
@@ -22,13 +23,13 @@ $default_country = 'India';
   <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm oms-form-card">
   <div class="card-header bg-light">
     <h5 class="card-title mb-0"><i class="bi bi-pencil-square me-2"></i><?php echo esc_view($page_title); ?></h5>
   </div>
   <div class="card-body">
     <form method="post" action="">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-3">
           <label class="form-label fw-semibold">Plan</label>
           <input type="text" class="form-control" name="plan" list="sb-plan-list" value="<?php echo esc_view($row ? $row->plan : ''); ?>" required>
@@ -102,4 +103,5 @@ $default_country = 'India';
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

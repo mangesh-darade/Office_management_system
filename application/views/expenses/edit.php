@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', array('title' => 'Edit Expense Claim', 'active' => 'expenses')); ?>
+<div class="oms-form-compact">
 
 <div class="container-fluid p-0">
   <div class="row mb-3">
@@ -22,7 +23,7 @@
           <?php endif; ?>
 
           <?php echo form_open_multipart('expenses/edit/' . (int) $expense->id); ?>
-          <div class="row g-3">
+          <div class="row g-2 oms-form-grid">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Expense Date</label>
               <input type="date" name="expense_date" class="form-control" required value="<?php echo esc_view($expense->expense_date); ?>">
@@ -67,4 +68,5 @@
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

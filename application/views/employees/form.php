@@ -1,14 +1,15 @@
 <?php $this->load->view('partials/header', ['title' => (($action === 'edit') ? 'Edit' : 'Create').' Employee']); ?>
-  <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
-    <h1 class="h4 mb-2 mb-sm-0"><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Employee</h1>
-    <a class="btn btn-secondary" href="<?php echo site_url('employees'); ?>">Back</a>
+<div class="oms-form-compact">
+  <div class="oms-form-page-head oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-2">
+    <h1 class="h5 mb-1 mb-sm-0"><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Employee</h1>
+    <a class="btn btn-secondary btn-sm" href="<?php echo site_url('employees'); ?>">Back</a>
   </div>
-  <div class="card shadow-soft">
+  <div class="card shadow-soft oms-form-card">
     <div class="card-body">
   
   
   <form method="post" data-validate="true">
-    <div class="row g-3">
+    <div class="row g-2 oms-form-grid">
       <?php if ($action === 'create'): ?>
       <div class="col-12 col-md-6">
         <label class="form-label" for="user_id">User <span class="text-danger">*</span></label>
@@ -264,4 +265,5 @@
     }
   })();
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

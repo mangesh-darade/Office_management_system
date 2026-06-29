@@ -14,6 +14,7 @@
   <link href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.min.css" rel="stylesheet">
   <link rel="manifest" href="<?php echo base_url('assets/pwa/manifest.webmanifest'); ?>">
   <link href="<?php echo base_url('assets/css/app.css'); ?>" rel="stylesheet">
+  <link href="<?php echo base_url('assets/css/compact-forms.css'); ?>" rel="stylesheet">
   <style>
     /* Show user avatar on mobile */
     @media (max-width: 576px) {

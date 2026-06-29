@@ -3,6 +3,7 @@ $ed = isset($topic) && $topic;
 $this->load->view('partials/header', array('title' => $ed ? 'Edit topic' : 'New topic'));
 $hasAssessments = !empty($assessments);
 ?>
+<div class="oms-form-compact">
 <div class="container py-4">
   <nav aria-label="breadcrumb" class="mb-2">
     <ol class="breadcrumb small mb-0">
@@ -44,7 +45,7 @@ $hasAssessments = !empty($assessments);
         </select>
         <p class="small text-muted mb-0">Learners must mark the prerequisite topic complete before opening this topic.</p>
       </div>
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Duration (hours)</label>
           <input type="number" name="duration_hours" class="form-control" step="0.1" min="0" value="<?php echo $ed ? esc_view($topic->duration_hours) : '0'; ?>">
@@ -54,7 +55,7 @@ $hasAssessments = !empty($assessments);
           <input type="number" name="sort_order" class="form-control" value="<?php echo $ed ? (int) $topic->sort_order : 0; ?>">
         </div>
       </div>
-      <div class="row g-3 mt-1">
+      <div class="row g-2 oms-form-grid mt-1">
         <div class="col-md-6">
           <div class="form-check mt-2">
             <input class="form-check-input" type="checkbox" name="has_assignment" value="1" id="ha" <?php echo ($ed && (int) $topic->has_assignment) ? 'checked' : ''; ?>>
@@ -133,4 +134,5 @@ document.addEventListener('DOMContentLoaded', function() {
     toggle();
 });
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

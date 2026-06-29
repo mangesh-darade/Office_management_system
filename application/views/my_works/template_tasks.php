@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', array('title' => 'Template Task', 'extra_css' => array('assets/css/my-works.css', 'assets/css/tasks.css'))); ?>
+<div class="oms-form-compact">
 
 <?php
   $clients = isset($clients) ? $clients : array();
@@ -10,11 +11,11 @@
   $projects_json = isset($projects_json) ? $projects_json : array();
 ?>
 
-<div class="container-fluid py-3 mw-page">
-  <div class="d-flex justify-content-between align-items-start gap-2 mb-3 flex-wrap">
+<div class="container-fluid py-2 mw-page">
+  <div class="oms-form-page-head d-flex justify-content-between align-items-start gap-2 mb-2 flex-wrap">
     <div>
-      <h1 class="h4 mb-1 fw-bold">Create Task from Template</h1>
-      <p class="text-muted small mb-0">Select client, task type, and template tasks — saved to the Tasks module.</p>
+      <h1 class="h5 mb-0 fw-semibold">Create Task from Template</h1>
+      <p class="text-muted small mb-0">Select client, team, and one template task — saved to the Tasks module.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">
@@ -40,29 +41,32 @@
     </div>
   <?php endif; ?>
 
-  <div class="card shadow-sm border-0">
-    <div class="card-body p-3 p-md-4">
+  <div class="card shadow-sm border-0 oms-form-card">
+    <div class="card-body">
       <form method="post" action="<?php echo site_url('my-works/template-tasks'); ?>" id="mw-template-task-form">
         <?php $this->load->view('my_works/_csrf'); ?>
 
-        <div class="row g-3">
-          <?php if ($projects_have_client && !empty($clients)): ?>
-            <div class="col-md-6">
-              <label class="form-label" for="mw-tt-client">
-                <i class="bi bi-building me-1"></i>Client <span class="text-danger">*</span>
-              </label>
-              <select name="client_id" id="mw-tt-client" class="form-select" required>
-                <option value="">-- Select client --</option>
+        <div class="row g-2 oms-form-grid">
+          <div class="col-md-6">
+            <label class="form-label" for="mw-tt-client">
+              <i class="bi bi-building me-1"></i>Client <?php if ($projects_have_client): ?><span class="text-danger">*</span><?php endif; ?>
+            </label>
+            <?php if (!empty($clients)): ?>
+              <select name="client_id" id="mw-tt-client" class="form-select" <?php echo $projects_have_client ? 'required' : ''; ?>>
+                <option value=""><?php echo $projects_have_client ? '-- Select client --' : '-- All clients / optional --'; ?></option>
                 <?php foreach ($clients as $client): ?>
                   <option value="<?php echo (int) $client->id; ?>">
                     <?php echo esc_view((string) $client->company_name, ENT_QUOTES, 'UTF-8'); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
-            </div>
-          <?php else: ?>
-            <input type="hidden" name="client_id" value="0">
-          <?php endif; ?>
+            <?php else: ?>
+              <select id="mw-tt-client" class="form-select" disabled>
+                <option>No clients in system</option>
+              </select>
+              <input type="hidden" name="client_id" value="0">
+            <?php endif; ?>
+          </div>
 
           <div class="col-md-6">
             <label class="form-label" for="mw-tt-project">
@@ -73,7 +77,7 @@
             </select>
           </div>
 
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label class="form-label" for="mw-tt-team">
               <i class="bi bi-people me-1"></i>Team <span class="text-danger">*</span>
             </label>
@@ -87,29 +91,13 @@
             </select>
           </div>
 
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-type">
-              <i class="bi bi-tags me-1"></i>Task type <span class="text-danger">*</span>
-            </label>
-            <select name="template_type" id="mw-tt-type" class="form-select" required disabled>
-              <option value="">-- Select task type --</option>
-            </select>
-          </div>
-
-          <div class="col-md-4">
+          <div class="col-md-6">
             <label class="form-label" for="mw-tt-task">
-              <i class="bi bi-check2-square me-1"></i>Template task(s) <span class="text-danger">*</span>
+              <i class="bi bi-check2-square me-1"></i>Template task <span class="text-danger">*</span>
             </label>
-            <select name="template_ids[]" id="mw-tt-task" class="form-select" multiple required disabled size="6">
+            <select name="template_id" id="mw-tt-task" class="form-select" required disabled>
+              <option value="">-- Select template task --</option>
             </select>
-            <div class="form-text">Hold Ctrl (Windows) or Cmd (Mac) to select multiple tasks.</div>
-          </div>
-
-          <div class="col-12">
-            <label class="form-label" for="mw-tt-description">
-              <i class="bi bi-file-text me-1"></i>Description
-            </label>
-            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description applied to all selected tasks"></textarea>
           </div>
 
           <div class="col-md-4">
@@ -142,8 +130,8 @@
           </div>
 
           <div class="col-md-4">
-            <label class="form-label"><i class="bi bi-arrow-right-circle me-1"></i>Status</label>
-            <select name="status" class="form-select">
+            <label class="form-label" for="mw-tt-status"><i class="bi bi-arrow-right-circle me-1"></i>Status</label>
+            <select name="status" id="mw-tt-status" class="form-select" <?php echo empty($statuses) ? 'disabled' : ''; ?>>
               <?php if (!empty($statuses)): ?>
                 <?php foreach ($statuses as $st): ?>
                   <option value="<?php echo esc_view((string) $st->code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo (string) $st->code === 'pending' ? 'selected' : ''; ?>>
@@ -151,12 +139,10 @@
                   </option>
                 <?php endforeach; ?>
               <?php else: ?>
-                <option value="pending" selected>Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="blocked">Blocked</option>
+                <option value="">— No task statuses configured —</option>
               <?php endif; ?>
             </select>
+            <div class="form-text">From <a href="<?php echo site_url('statuses?type=tasks'); ?>">Statuses (Tasks)</a></div>
           </div>
 
           <div class="col-md-6">
@@ -168,11 +154,19 @@
             <label class="form-label"><i class="bi bi-calendar-check me-1"></i>Due date</label>
             <input type="date" name="due_date" class="form-control">
           </div>
+
+          <div class="col-12">
+            <label class="form-label" for="mw-tt-description">
+              <i class="bi bi-file-text me-1"></i>Description
+            </label>
+            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new task"></textarea>
+            <div class="form-text">Rich text — bold, italic, colors, lists, and links supported.</div>
+          </div>
         </div>
 
-        <div class="mt-4 d-flex gap-2 flex-wrap">
+        <div class="oms-form-actions">
           <button class="btn btn-primary" type="submit">
-            <i class="bi bi-check-lg me-1"></i>Create Task(s)
+            <i class="bi bi-check-lg me-1"></i>Create Task
           </button>
           <a class="btn btn-light" href="<?php echo site_url('my-works'); ?>">Cancel</a>
         </div>
@@ -185,12 +179,12 @@
 (function () {
   var templates = <?php echo json_encode($template_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
   var projects = <?php echo json_encode($projects_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-  var hasClient = <?php echo $projects_have_client ? 'true' : 'false'; ?>;
+  var hasClient = <?php echo ($projects_have_client && !empty($clients)) ? 'true' : 'false'; ?>;
+  var hasClientSelect = <?php echo !empty($clients) ? 'true' : 'false'; ?>;
 
   var clientSel = document.getElementById('mw-tt-client');
   var projectSel = document.getElementById('mw-tt-project');
   var teamSel = document.getElementById('mw-tt-team');
-  var typeSel = document.getElementById('mw-tt-type');
   var taskSel = document.getElementById('mw-tt-task');
 
   function clearSelect(sel, placeholder) {
@@ -226,56 +220,25 @@
     });
   }
 
-  function typesForTeam(team) {
-    var map = {};
-    templates.forEach(function (t) {
-      if (t.team === team && t.template_type) {
-        map[t.template_type] = true;
-      }
-    });
-    return Object.keys(map).sort();
-  }
-
-  function tasksForTeamType(team, type) {
+  function tasksForTeam(team) {
     return templates.filter(function (t) {
-      return t.team === team && t.template_type === type;
+      return t.team === team;
     }).sort(function (a, b) {
       return String(a.title).localeCompare(String(b.title));
     });
   }
 
-  function fillTypes() {
-    if (!typeSel || !teamSel) {
-      return;
-    }
-    var team = teamSel.value;
-    clearSelect(typeSel, '-- Select task type --');
-    typeSel.disabled = team === '';
-    if (team === '') {
-      fillTasks();
-      return;
-    }
-    typesForTeam(team).forEach(function (type) {
-      var opt = document.createElement('option');
-      opt.value = type;
-      opt.textContent = type;
-      typeSel.appendChild(opt);
-    });
-    fillTasks();
-  }
-
   function fillTasks() {
-    if (!taskSel || !teamSel || !typeSel) {
+    if (!taskSel || !teamSel) {
       return;
     }
     var team = teamSel.value;
-    var type = typeSel.value;
-    taskSel.innerHTML = '';
-    taskSel.disabled = team === '' || type === '';
-    if (team === '' || type === '') {
+    clearSelect(taskSel, '-- Select template task --');
+    taskSel.disabled = team === '';
+    if (team === '') {
       return;
     }
-    tasksForTeamType(team, type).forEach(function (t) {
+    tasksForTeam(team).forEach(function (t) {
       var opt = document.createElement('option');
       opt.value = String(t.id);
       opt.textContent = t.title;
@@ -283,26 +246,70 @@
     });
   }
 
-  if (hasClient && clientSel) {
+  if (hasClientSelect && clientSel) {
     clientSel.addEventListener('change', fillProjects);
   }
   if (teamSel) {
-    teamSel.addEventListener('change', fillTypes);
-  }
-  if (typeSel) {
-    typeSel.addEventListener('change', fillTasks);
+    teamSel.addEventListener('change', fillTasks);
   }
 
   fillProjects();
   if (teamSel && teamSel.options.length === 2) {
     teamSel.selectedIndex = 1;
-    fillTypes();
-    if (typeSel && typeSel.options.length === 2) {
-      typeSel.selectedIndex = 1;
-      fillTasks();
+    fillTasks();
+    if (taskSel && taskSel.options.length === 2) {
+      taskSel.selectedIndex = 1;
     }
   }
 })();
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+(function () {
+  if (!document.getElementById('mw-tt-description')) {
+    return;
+  }
+  tinymce.init({
+    selector: '#mw-tt-description',
+    menubar: 'edit view insert format tools',
+    statusbar: true,
+    plugins: [
+      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+      'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount',
+      'textcolor', 'colorpicker', 'fontselect', 'fontsizeselect'
+    ],
+    toolbar: 'undo redo | formatselect | ' +
+      'bold italic underline strikethrough | forecolor backcolor | ' +
+      'alignleft aligncenter alignright alignjustify | ' +
+      'bullist numlist outdent indent | ' +
+      'removeformat | link image | code | fullscreen | help',
+    branding: false,
+    height: 280,
+    width: '100%',
+    convert_urls: false,
+    default_link_target: '_blank',
+    font_formats: 'Arial=arial,helvetica,sans-serif; Courier New=courier new,courier; Georgia=georgia,palatino; Helvetica=helvetica; Impact=impact,chicago; Tahoma=tahoma,arial,helvetica,sans-serif; Times New Roman=times new roman,times; Trebuchet MS=trebuchet ms,geneva; Verdana=verdana,geneva',
+    fontsize_formats: '8pt 10pt 12pt 14pt 16pt 18pt 24pt 36pt 48pt',
+    formats: {
+      bold: { inline: 'strong', classes: 'fw-bold' },
+      italic: { inline: 'em', classes: 'fst-italic' },
+      underline: { inline: 'u', classes: 'text-decoration-underline' },
+      strikethrough: { inline: 'del' }
+    },
+    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }'
+  });
+  var form = document.getElementById('mw-template-task-form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      if (window.tinymce && tinymce.get('mw-tt-description')) {
+        tinymce.get('mw-tt-description').save();
+      }
+    });
+  }
+})();
+</script>
+
+</div>
 <?php $this->load->view('partials/footer'); ?>

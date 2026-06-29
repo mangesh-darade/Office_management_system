@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Profile']); ?>
+<div class="oms-form-compact">
 <style>
 .profile-edit .card { border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
 .profile-edit .form-label { font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
@@ -64,7 +65,7 @@
 </style>
 
 <div class="profile-edit">
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h3 mb-0">✏️ Edit Profile</h1>
   <a class="btn btn-secondary btn-sm" href="<?php echo site_url('profile'); ?>">
     <i class="bi bi-arrow-left me-1"></i>Back to Profile
@@ -123,7 +124,7 @@
           <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display: none;" onchange="previewAvatar(event)">
           
           <?php if (!empty($user->avatar)): ?>
-            <div class="mt-3">
+            <div class="oms-form-actions">
               <form method="post" action="<?php echo site_url('profile/remove_avatar'); ?>" class="d-inline" onsubmit="return confirm('Remove current avatar?');">
                 <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
                 <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -155,7 +156,7 @@
     <div class="card-body">
       <h5 class="section-title">👤 Personal Information</h5>
       
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Display Name <span class="text-danger">*</span></label>
           <input type="text" name="name" class="form-control" value="<?php echo esc_view(isset($user->name) ? $user->name : ''); ?>" required placeholder="Enter your display name">
@@ -197,7 +198,7 @@
     <div class="card-body">
       <h5 class="section-title">💼 Professional Information</h5>
       
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">First Name</label>
           <input type="text" name="first_name" class="form-control" value="<?php echo esc_view(isset($employee->first_name) ? $employee->first_name : ''); ?>" placeholder="Enter first name">
@@ -422,4 +423,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

@@ -14,6 +14,7 @@ if ($redirect_path === '' || strpos($redirect_path, '://') !== false) {
 }
 $back_url = site_url($redirect_path);
 ?>
+<div class="oms-form-compact">
 <div class="container-fluid py-2 mw-page mw-quick-add-page">
   <nav aria-label="breadcrumb" class="small mb-2 d-none d-md-block">
     <ol class="breadcrumb mb-0">
@@ -47,7 +48,7 @@ $back_url = site_url($redirect_path);
         <?php $this->load->view('my_works/_csrf'); ?>
         <input type="hidden" name="redirect" value="<?php echo esc_view($redirect_path); ?>">
 
-        <div class="row g-3">
+        <div class="row g-2 oms-form-grid">
           <div class="col-12 col-lg-8">
             <div class="mw-form-section mw-quick-add-section">
               <div class="mw-form-section-head d-none d-lg-flex">
@@ -156,4 +157,5 @@ $back_url = site_url($redirect_path);
 })();
 </script>
 <script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

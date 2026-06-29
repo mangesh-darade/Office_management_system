@@ -1,9 +1,10 @@
 <?php $this->load->view('partials/header', ['title' => ($action==='edit'?'Edit':'Log').' Defect']); ?>
+<div class="oms-form-compact">
 <div class="container-fluid py-3">
 <h1 class="h4 fw-bold mb-3"><?php echo $action==='edit'?'Edit':'Log'; ?> Defect</h1>
-<div class="card shadow-soft"><div class="card-body">
+<div class="card shadow-soft oms-form-card"><div class="card-body">
 <form method="post"><?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
-<div class="row g-3">
+<div class="row g-2 oms-form-grid">
   <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ($item && (int)$item->project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option><?php endforeach; ?></select></div>
   <div class="col-md-4"><label class="form-label">Release (optional)</label><select name="release_id" class="form-select"><option value="">—</option><?php foreach ($releases as $rel): ?><option value="<?php echo (int)$rel->id; ?>" <?php echo ($item && (int)$item->release_id===(int)$rel->id)?'selected':''; ?>><?php echo esc_view($rel->version . ' — ' . $rel->title); ?></option><?php endforeach; ?></select></div>
   <div class="col-md-4"><label class="form-label">Related task (optional)</label><select name="task_id" class="form-select"><option value="">—</option><?php foreach ($tasks as $t): ?><option value="<?php echo (int)$t->id; ?>" <?php echo ($item && (int)$item->task_id===(int)$t->id)?'selected':''; ?>><?php echo esc_view($t->title); ?></option><?php endforeach; ?></select></div>
@@ -15,6 +16,7 @@
   <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3"><?php echo $item?esc_view($item->description):''; ?></textarea></div>
   <div class="col-12"><label class="form-label">Steps to reproduce</label><textarea name="steps_to_reproduce" class="form-control" rows="4"><?php echo $item?esc_view($item->steps_to_reproduce):''; ?></textarea></div>
 </div>
-<div class="mt-3"><button class="btn btn-primary">Save</button> <a class="btn btn-outline-secondary" href="<?php echo site_url($item ? 'defects/view/'.$item->id : 'defects'); ?>">Cancel</a></div>
+<div class="oms-form-actions"><button class="btn btn-primary">Save</button> <a class="btn btn-outline-secondary" href="<?php echo site_url($item ? 'defects/view/'.$item->id : 'defects'); ?>">Cancel</a></div>
 </form></div></div></div>
+</div>
 <?php $this->load->view('partials/footer'); ?>

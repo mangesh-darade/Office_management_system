@@ -6,8 +6,9 @@ $this->load->view('partials/header', array(
   'with_sidebar' => true,
 ));
 ?>
+<div class="oms-form-compact">
 <div class="container-fluid py-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
     <h1 class="h4 mb-0"><?php echo $isEdit ? 'Edit External Training' : 'Add External Training'; ?></h1>
     <a href="<?php echo site_url('external-training'); ?>" class="btn btn-outline-secondary">
       &larr; Back to list
@@ -21,7 +22,7 @@ $this->load->view('partials/header', array(
     </div>
   <?php endif; ?>
 
-  <div class="card shadow-sm">
+  <div class="card shadow-sm oms-form-card">
     <div class="card-body">
       <?php echo form_open('external-training/save'); ?>
         <?php if ($isEdit): ?>
@@ -58,6 +59,7 @@ $this->load->view('partials/header', array(
       <?php echo form_close(); ?>
     </div>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
 

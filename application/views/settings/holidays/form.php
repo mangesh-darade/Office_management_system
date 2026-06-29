@@ -4,7 +4,8 @@ $page_title = $is_edit ? 'Edit Holiday' : 'Add Holiday';
 $row = isset($row) ? $row : null;
 ?>
 <?php $this->load->view('partials/header', ['title' => $page_title]); ?>
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h3 mb-0">
     <i class="bi bi-calendar-event me-2"></i><?php echo esc_view($page_title); ?>
   </h1>
@@ -20,7 +21,7 @@ $row = isset($row) ? $row : null;
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm oms-form-card">
   <div class="card-header bg-light">
     <h5 class="card-title mb-0">
       <i class="bi bi-pencil-square me-2"></i><?php echo esc_view($page_title); ?>
@@ -28,7 +29,7 @@ $row = isset($row) ? $row : null;
   </div>
   <div class="card-body">
     <form method="post" action="">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label fw-semibold">Holiday Date</label>
           <input type="date" class="form-control" name="holiday_date"
@@ -61,5 +62,6 @@ $row = isset($row) ? $row : null;
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>
 

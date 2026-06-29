@@ -2852,7 +2852,7 @@ body.mw-body-todays-focus main > .mw-dash-page-focus {
   font-weight: 600;
   color: var(--dash-muted);
   padding: 0.3rem 0.2rem;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px solid #111111;
   white-space: nowrap;
   background: var(--dash-card);
 }
@@ -2860,7 +2860,7 @@ body.mw-body-todays-focus main > .mw-dash-page-focus {
 .mw-dash-lane-table tbody td {
   padding: 0.22rem 0.2rem;
   vertical-align: middle;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid #111111;
   line-height: 1.25;
   color: #374151;
   white-space: nowrap;

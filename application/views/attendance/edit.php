@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Attendance']); ?>
+<div class="oms-form-compact">
   <div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
     <div class="d-flex align-items-center gap-3 mb-2 mb-sm-0">
       <h1 class="h4 mb-0">Edit Attendance</h1>
@@ -19,7 +20,7 @@
       <h5 class="card-title mb-0">Attendance Details</h5>
     </div>
     <div class="card-body">
-      <form method="post" enctype="multipart/form-data" class="row g-3" id="attendanceEditForm">
+      <form method="post" enctype="multipart/form-data" class="row g-2 oms-form-grid" id="attendanceEditForm">
         <input type="hidden" name="lat" value="" />
         <input type="hidden" name="lng" value="" />
         <input type="hidden" name="face_required" id="faceRequired" value="0" />
@@ -72,7 +73,7 @@
                 <i class="bi bi-camera-video me-2"></i>Face Verification (Optional)
                 <span class="badge bg-info ms-2">Enhanced Security</span>
               </h6>
-              <div class="row g-3">
+              <div class="row g-2 oms-form-grid">
                 <div class="col-12 col-md-6">
                   <div class="position-relative">
                     <video id="attFaceVideo" class="w-100 border rounded" autoplay muted playsinline style="max-height:220px; background:#000;"></video>
@@ -450,4 +451,5 @@
     });
   })();
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

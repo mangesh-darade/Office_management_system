@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', array('title' => isset($question) && $question ? 'Edit question' : 'Add question')); ?>
+<div class="oms-form-compact">
 <div class="container py-4">
   <h1 class="h4 mb-3"><?php echo isset($question) && $question ? 'Edit question' : 'Add question'; ?></h1>
   <p class="text-muted small">Assessment: <strong><?php echo esc_view($assessment->title); ?></strong></p>
@@ -110,4 +111,5 @@
   sync();
 })();
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

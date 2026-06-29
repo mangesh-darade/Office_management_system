@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Schedule Interview']); ?>
+<div class="oms-form-compact">
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
@@ -32,5 +33,6 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>

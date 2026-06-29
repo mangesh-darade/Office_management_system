@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Daily Activity']); ?>
+<div class="oms-form-compact">
 
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
@@ -75,4 +76,5 @@
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

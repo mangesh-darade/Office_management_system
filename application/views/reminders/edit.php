@@ -1,6 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'Edit Reminder']); ?>
+<div class="oms-form-compact">
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
         <h3 class="mb-0 d-flex align-items-center gap-2">
             <i class="bi bi-bell"></i> Edit Reminder
         </h3>
@@ -192,6 +193,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
 

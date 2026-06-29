@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => ($action === 'edit' ? 'Edit Status' : 'Create Status')]); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo $action === 'edit' ? 'Edit Status' : 'Create Status'; ?></h1>
   <div>
     <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('statuses'); ?>">Back to Statuses</a>
@@ -13,10 +14,10 @@
   </div>
 <?php endif; ?>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="<?php echo $action === 'edit' ? site_url('statuses/edit/'.$status->id) : site_url('statuses/create'); ?>" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Name <span class="text-danger">*</span></label>
           <input type="text" name="name" class="form-control" value="<?php echo isset($status) ? esc_view($status->name) : ''; ?>" required placeholder="e.g. In Progress">
@@ -207,5 +208,6 @@
   });
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>
 

@@ -3,8 +3,9 @@ $is_edit = (isset($action) && $action === 'edit');
 $integration = isset($integration) ? $integration : null;
 $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integration' : 'Add API Integration']); 
 ?>
+<div class="oms-form-compact">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h3 mb-0">
     <i class="bi bi-<?php echo $is_edit ? 'pencil' : 'plus-circle'; ?> me-2"></i>
     <?php echo $is_edit ? 'Edit' : 'Add'; ?> API Integration
@@ -18,7 +19,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
   <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
 <?php endif; ?>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm oms-form-card">
   <div class="card-body">
     <form method="post" action="<?php echo site_url('api-integrations/' . ($is_edit ? 'update/' . $integration->id : 'store')); ?>" data-validate="true">
       <div class="row">
@@ -182,5 +183,6 @@ function togglePassword(fieldId) {
 }
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>
 

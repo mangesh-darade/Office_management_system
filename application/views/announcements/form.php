@@ -1,5 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => (($action === 'edit') ? 'Edit' : 'Create').' Announcement']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo ($action==='edit'?'Edit':'Create'); ?> Announcement</h1>
   <a class="btn btn-secondary btn-sm" href="<?php echo site_url('announcements'); ?>">Back</a>
 </div>
@@ -11,10 +12,10 @@
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-8">
           <label class="form-label">Title</label>
           <input class="form-control" name="title" value="<?php echo esc_view(isset($row->title)?$row->title:''); ?>" required />
@@ -54,11 +55,12 @@
           </select>
         </div>
       </div>
-      <div class="mt-3">
+      <div class="oms-form-actions">
         <button class="btn btn-primary"><?php echo ($action==='edit'?'Update':'Create'); ?></button>
       </div>
     </form>
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

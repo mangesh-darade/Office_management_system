@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => (($action === 'edit') ? 'Edit' : 'Create').' Department']); ?>
+<div class="oms-form-compact">
 
 <!-- Flash Messages -->
 <?php if($this->session->flashdata('error')): ?>
@@ -17,14 +18,14 @@
   </div>
 <?php endif; ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Department</h1>
   <a class="btn btn-secondary btn-sm" href="<?php echo site_url('departments'); ?>">Back</a>
 </div>
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" id="departmentForm" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-4">
           <label class="form-label">Code</label>
           <input class="form-control" name="dept_code" value="<?php echo esc_view(isset($row->dept_code)?$row->dept_code:''); ?>" required />
@@ -47,7 +48,7 @@
           </select>
         </div>
       </div>
-      <div class="mt-3">
+      <div class="oms-form-actions">
         <button class="btn btn-primary" type="submit" id="submitBtn">
           <span class="btn-text"><?php echo ($action === 'edit') ? 'Update' : 'Create'; ?></span>
           <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
@@ -106,4 +107,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

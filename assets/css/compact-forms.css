@@ -1,0 +1,165 @@
+/**
+ * Compact add/edit form screens — scoped to .oms-form-compact only.
+ * Does not affect list pages or modals outside this wrapper.
+ */
+.oms-form-compact {
+  --oms-form-gap: 0.5rem;
+  --oms-form-label-size: 0.78rem;
+  --oms-form-control-size: 0.8125rem;
+  max-width: 1180px;
+}
+
+.oms-form-compact .oms-form-page-head {
+  gap: 0.5rem;
+  margin-bottom: 0.5rem !important;
+}
+
+.oms-form-compact .oms-form-page-head h1,
+.oms-form-compact .oms-form-page-head .h4,
+.oms-form-compact .oms-form-page-head .h5 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.oms-form-compact .alert {
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.oms-form-compact .oms-form-card,
+.oms-form-compact .card.shadow-soft,
+.oms-form-compact .card.shadow-sm {
+  border-radius: 10px;
+}
+
+.oms-form-compact .oms-form-card > .card-body,
+.oms-form-compact .card.shadow-soft > .card-body,
+.oms-form-compact .card.shadow-sm > .card-body {
+  padding: 0.75rem 1rem;
+}
+
+.oms-form-compact .card-header {
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+}
+
+.oms-form-compact .card-header .card-title,
+.oms-form-compact .card-header h5 {
+  font-size: 0.875rem;
+  margin-bottom: 0;
+}
+
+.oms-form-compact .card-footer {
+  padding: 0.5rem 1rem;
+  background: #f9fafb;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.oms-form-compact .form-label {
+  font-size: var(--oms-form-label-size);
+  margin-bottom: 0.15rem;
+  font-weight: 500;
+}
+
+.oms-form-compact .form-text {
+  font-size: 0.72rem;
+  margin-top: 0.1rem;
+}
+
+.oms-form-compact .form-control,
+.oms-form-compact .form-select {
+  padding: 0.28rem 0.5rem;
+  font-size: var(--oms-form-control-size);
+  min-height: calc(1.5em + 0.56rem + 2px);
+  border-radius: 6px;
+}
+
+.oms-form-compact textarea.form-control {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.oms-form-compact textarea.form-control[rows="3"],
+.oms-form-compact textarea.form-control[rows="4"] {
+  min-height: 3.5rem;
+}
+
+.oms-form-compact .form-check-label {
+  font-size: var(--oms-form-control-size);
+}
+
+.oms-form-compact .form-check-input {
+  margin-top: 0.15em;
+}
+
+.oms-form-compact .oms-form-grid,
+.oms-form-compact .row.g-3,
+.oms-form-compact .row.g-2 {
+  --bs-gutter-x: 0.65rem;
+  --bs-gutter-y: var(--oms-form-gap);
+}
+
+.oms-form-compact .mb-3:not(.row):not(.col-md-6):not(.col-12) {
+  margin-bottom: 0.5rem !important;
+}
+
+.oms-form-compact .oms-form-actions,
+.oms-form-compact form > .mt-3,
+.oms-form-compact form > .mt-4,
+.oms-form-compact .card-body > .mt-3,
+.oms-form-compact .card-body > .mt-4 {
+  margin-top: 0.65rem !important;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eef0f3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.oms-form-compact .oms-form-actions .btn,
+.oms-form-compact form .btn-primary,
+.oms-form-compact form .btn-secondary,
+.oms-form-compact form .btn-light,
+.oms-form-compact form .btn-outline-secondary {
+  padding: 0.28rem 0.65rem;
+  font-size: 0.8125rem;
+}
+
+.oms-form-compact .invalid-feedback,
+.oms-form-compact .text-danger.mt-1 {
+  font-size: 0.72rem;
+}
+
+.oms-form-compact .nav-tabs {
+  margin-bottom: 0.5rem;
+}
+
+.oms-form-compact .nav-tabs .nav-link {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+}
+
+@media (min-width: 992px) {
+  .oms-form-compact .oms-form-grid > .col-md-6:not(.col-md-12),
+  .oms-form-compact .row.g-3 > .col-md-6:not(.col-md-12),
+  .oms-form-compact .row.g-2 > .col-md-6:not(.col-md-12) {
+    flex: 0 0 auto;
+    width: 33.333333%;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .oms-form-compact {
+    max-width: 100%;
+  }
+
+  .oms-form-compact .card-body {
+    padding: 0.65rem 0.75rem;
+  }
+}

@@ -7,7 +7,8 @@ if ($is_edit && isset($schedule->one_time_at) && $schedule->one_time_at){
 }
 $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Schedule' : 'New Reminder Schedule']);
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-compact">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0"><?php echo $is_edit ? 'Edit Reminder Schedule' : 'New Reminder Schedule'; ?></h1>
   <a class="btn btn-light btn-sm" href="<?php echo site_url('reminders/schedules'); ?>">Back</a>
 </div>
@@ -17,10 +18,10 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit Reminder Sched
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="<?php echo isset($form_action) ? $form_action : site_url('reminders/schedules/create'); ?>" class="vstack gap-3" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Schedule Name</label>
           <input type="text" name="name" class="form-control" required value="<?php echo isset($schedule->name)?esc_view($schedule->name):''; ?>">
@@ -134,4 +135,5 @@ document.addEventListener('DOMContentLoaded', function(){
   if (typeSel){ toggleScheduleType(typeSel.value); }
 });
 </script>
+</div>
 <?php $this->load->view('partials/footer'); ?>

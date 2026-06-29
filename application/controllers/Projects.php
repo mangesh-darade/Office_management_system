@@ -316,6 +316,92 @@ class Projects extends CI_Controller {
         }
     }
 
+    // GET /projects/dashboard
+    public function dashboard_index()
+    {
+        $user_id = (int) $this->session->userdata('user_id');
+        $role_id = (int) $this->session->userdata('role_id');
+        $filters = get_user_group_filter($user_id, $role_id);
+
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('projects_view_all');
+        if (!$can_view_all) {
+            $projects = $this->Project_model->all($filters);
+        } else {
+            $projects = $this->Project_model->all(array());
+        }
+        if (!empty($projects)) {
+            usort($projects, function ($a, $b) {
+                $a_name = isset($a->name) ? strtolower(trim((string) $a->name)) : '';
+                $b_name = isset($b->name) ? strtolower(trim((string) $b->name)) : '';
+                if ($a_name === $b_name) {
+                    $a_code = isset($a->code) ? strtolower(trim((string) $a->code)) : '';
+                    $b_code = isset($b->code) ? strtolower(trim((string) $b->code)) : '';
+                    return strcmp($a_code, $b_code);
+                }
+                return strcmp($a_name, $b_name);
+            });
+        }
+
+        $this->load->model('Status_model', 'statuses');
+        $status_rows = $this->_project_dashboard_status_rows();
+
+        $project_ids = array();
+        foreach ($projects as $project) {
+            $project_ids[] = (int) $project->id;
+        }
+        $tasks_by_project = $this->_project_dashboard_tasks_for_projects($project_ids);
+
+        $project_cards = array();
+        foreach ($projects as $project) {
+            $project_id = (int) $project->id;
+            $project_cards[] = array(
+                'project' => $project,
+                'tasks'   => isset($tasks_by_project[$project_id]) ? $tasks_by_project[$project_id] : array(),
+            );
+        }
+
+        $this->load->view('projects/dashboard_index', array(
+            'project_cards' => $project_cards,
+            'status_rows'   => $status_rows,
+        ));
+    }
+
+    // GET /projects/{id}/dashboard
+    public function dashboard($id)
+    {
+        $project_id = (int) $id;
+        $project = $this->db->where('id', $project_id)->get('projects')->row();
+        if (!$project) {
+            show_404();
+            return;
+        }
+        if (!$this->_user_can_access_project($project_id)) {
+            return;
+        }
+
+        $this->load->model('Status_model', 'statuses');
+        $status_rows = $this->_project_dashboard_status_rows();
+        $status_codes = $this->_project_dashboard_status_codes($status_rows);
+        $columns = $this->_project_dashboard_columns($project_id, $status_codes);
+        $stats = $this->_project_task_stats($project_id, $status_codes);
+
+        $completed = isset($stats['completed']) ? (int) $stats['completed'] : 0;
+        $total = 0;
+        foreach ($stats as $count) {
+            $total += (int) $count;
+        }
+        $progress = ($total > 0) ? round(($completed / $total) * 100) : 0;
+
+        $this->load->view('projects/dashboard', array(
+            'project'     => $project,
+            'columns'     => $columns,
+            'status_rows' => $status_rows,
+            'stats'       => $stats,
+            'progress'    => $progress,
+        ));
+    }
+
     // GET /projects/{id}/edit, POST /projects/{id}/edit
     public function edit($id)
     {
@@ -917,5 +1003,165 @@ class Projects extends CI_Controller {
 
         $data['manager_id'] = $manager_id;
         return true;
+    }
+
+    /**
+     * @return array
+     */
+    private function _project_dashboard_status_rows()
+    {
+        $rows = $this->statuses->get_by_type('tasks', true);
+        if (!empty($rows)) {
+            return $rows;
+        }
+        return array(
+            (object) array('code' => 'pending', 'name' => 'Pending', 'color' => '#6c757d'),
+            (object) array('code' => 'in_progress', 'name' => 'In Progress', 'color' => '#007bff'),
+            (object) array('code' => 'completed', 'name' => 'Completed', 'color' => '#28a745'),
+            (object) array('code' => 'blocked', 'name' => 'Blocked', 'color' => '#dc3545'),
+        );
+    }
+
+    /**
+     * @param array $status_rows
+     * @return array
+     */
+    private function _project_dashboard_status_codes($status_rows)
+    {
+        $codes = array();
+        foreach ($status_rows as $row) {
+            $code = trim((string) $row->code);
+            if ($code !== '') {
+                $codes[] = $code;
+            }
+        }
+        if (empty($codes)) {
+            $codes = array('pending', 'in_progress', 'completed', 'blocked');
+        }
+        return $codes;
+    }
+
+    /**
+     * @param int $project_id
+     * @param array $status_codes
+     * @return array
+     */
+    private function _project_task_stats($project_id, $status_codes)
+    {
+        $stats = array();
+        foreach ($status_codes as $code) {
+            $stats[$code] = 0;
+        }
+
+        if (!$this->db->table_exists('tasks')) {
+            return $stats;
+        }
+
+        $this->db->select('status, COUNT(*) AS cnt', false);
+        $this->db->from('tasks');
+        $this->db->where('project_id', (int) $project_id);
+        apply_role_hierarchy_filter($this->db, 'created_by');
+        $this->db->group_by('status');
+        $rows = $this->db->get()->result();
+
+        foreach ($rows as $row) {
+            $status = trim((string) $row->status);
+            if ($status === '') {
+                $status = 'pending';
+            }
+            if (!isset($stats[$status])) {
+                $stats[$status] = 0;
+            }
+            $stats[$status] += (int) $row->cnt;
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param array $project_ids
+     * @return array<int, array>
+     */
+    private function _project_dashboard_tasks_for_projects($project_ids)
+    {
+        $grouped = array();
+        if (empty($project_ids) || !$this->db->table_exists('tasks')) {
+            return $grouped;
+        }
+
+        $ids = array();
+        foreach ($project_ids as $project_id) {
+            $project_id = (int) $project_id;
+            if ($project_id > 0) {
+                $ids[] = $project_id;
+            }
+        }
+        if (empty($ids)) {
+            return $grouped;
+        }
+
+        $this->db->select('t.id, t.project_id, t.title, t.status, t.due_date, t.start_date, t.created_at');
+        $this->db->from('tasks t');
+        $this->db->where_in('t.project_id', $ids);
+        apply_role_hierarchy_filter($this->db, 't.created_by');
+        $this->db->order_by('t.project_id', 'ASC');
+        $this->db->order_by('t.title', 'ASC');
+        $this->db->order_by('t.id', 'ASC');
+        $rows = $this->db->get()->result();
+
+        foreach ($rows as $row) {
+            $project_id = (int) $row->project_id;
+            if (!isset($grouped[$project_id])) {
+                $grouped[$project_id] = array();
+            }
+            $grouped[$project_id][] = $row;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @param int $project_id
+     * @param array $status_codes
+     * @return array
+     */
+    private function _project_dashboard_columns($project_id, $status_codes)
+    {
+        $columns = array();
+        if (!$this->db->table_exists('tasks')) {
+            foreach ($status_codes as $code) {
+                $columns[$code] = array();
+            }
+            return $columns;
+        }
+
+        foreach ($status_codes as $status_code) {
+            $this->db->from('tasks t');
+            $select = array('t.*');
+            if ($this->db->table_exists('users')) {
+                $select[] = 'u.email AS assignee_email';
+                if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                    $select[] = 'u.full_name';
+                }
+                if (schema_table_has_column($this->db, 'users', 'name')) {
+                    $select[] = 'u.name';
+                }
+                $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+            }
+            if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+                if (schema_table_has_column($this->db, 'employees', 'name')) {
+                    $select[] = 'e.name AS emp_name';
+                }
+                $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+            }
+            $this->db->select(implode(',', $select));
+            $this->db->where('t.project_id', (int) $project_id);
+            $this->db->where('t.status', (string) $status_code);
+            apply_role_hierarchy_filter($this->db, 't.created_by');
+            $this->db->order_by('t.id', 'DESC');
+            $columns[$status_code] = $this->db->get()->result();
+        }
+
+        return $columns;
     }
 }

@@ -5,6 +5,7 @@ $title   = $editing ? 'Edit Job Post' : 'Create Job Post';
 $action  = $editing ? site_url('recruitment/edit-job/' . $job->id) : site_url('recruitment/create-job');
 $this->load->view('partials/header', ['title' => $title]);
 ?>
+<div class="oms-form-compact">
 
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
@@ -33,7 +34,7 @@ $this->load->view('partials/header', ['title' => $title]);
                      placeholder="e.g. Senior Software Engineer">
             </div>
 
-            <div class="row g-3 mb-3">
+            <div class="row g-2 oms-form-grid mb-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Department</label>
                 <input type="text" name="department" class="form-control"
@@ -87,4 +88,5 @@ $this->load->view('partials/header', ['title' => $title]);
   </div>
 </div>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>

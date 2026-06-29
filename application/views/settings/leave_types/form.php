@@ -1,4 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => (($action === 'edit') ? 'Edit' : 'Create') . ' Leave Type']); ?>
+<div class="oms-form-compact">
 
 <!-- Flash Messages -->
 <?php if($this->session->flashdata('error')): ?>
@@ -17,7 +18,7 @@
   </div>
 <?php endif; ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
   <h1 class="h4 mb-0">
     <i class="bi bi-calendar-x me-2"></i><?php echo ($action === 'edit') ? 'Edit' : 'Create'; ?> Leave Type
   </h1>
@@ -26,10 +27,10 @@
   </a>
 </div>
 
-<div class="card shadow-soft">
+<div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" id="leaveTypeForm" data-validate="true">
-      <div class="row g-3">
+      <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label fw-semibold">Leave Type Name <span class="text-danger">*</span></label>
           <input class="form-control" 
@@ -134,5 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+</div>
 <?php $this->load->view('partials/footer'); ?>
 

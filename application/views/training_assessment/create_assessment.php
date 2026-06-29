@@ -2,6 +2,7 @@
 $ed = isset($assessment) && $assessment;
 $this->load->view('partials/header', array('title' => $ed ? 'Edit assessment' : 'New assessment'));
 ?>
+<div class="oms-form-compact">
 <div class="container py-4">
   <div class="row justify-content-center">
     <div class="col-lg-8">
@@ -21,7 +22,7 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit assessment' : 
             <label class="form-label">Description</label>
             <textarea name="description" class="form-control" rows="3"><?php echo $ed ? esc_view($assessment->description) : ''; ?></textarea>
           </div>
-          <div class="row g-3">
+          <div class="row g-2 oms-form-grid">
             <div class="col-md-4">
               <label class="form-label">Time limit (minutes)</label>
               <input type="number" name="time_limit_minutes" class="form-control" min="1" max="600" required
@@ -38,7 +39,7 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit assessment' : 
                 value="<?php echo $ed ? (int)$assessment->max_attempts : 1; ?>">
             </div>
           </div>
-          <div class="row g-3 mt-1">
+          <div class="row g-2 oms-form-grid mt-1">
             <div class="col-md-6">
               <div class="form-check mt-2">
                 <input class="form-check-input" type="checkbox" name="randomize_questions" value="1" id="rq"
@@ -81,5 +82,6 @@ $this->load->view('partials/header', array('title' => $ed ? 'Edit assessment' : 
       <?php echo form_close(); ?>
     </div>
   </div>
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
