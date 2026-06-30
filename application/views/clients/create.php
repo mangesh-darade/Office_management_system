@@ -14,71 +14,71 @@
   <div class="card-body">
     <form method="post" action="" enctype="multipart/form-data" class="vstack gap-3" data-validate="true">
       <div class="row g-2 oms-form-grid">
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label" for="company_name">Company Name <span class="text-danger">*</span></label>
           <input type="text" name="company_name" id="company_name" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="255" required>
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label" for="contact_person">Contact Person <span class="text-danger">*</span></label>
           <input type="text" name="contact_person" id="contact_person" class="form-control" data-mandatory="true" data-min-length="2" data-max-length="200" required>
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label" for="email">Email</label>
           <input type="email" name="email" id="email" class="form-control">
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
+          <label class="form-label" for="website">URL</label>
+          <input type="url" name="website" id="website" class="form-control" placeholder="https://example.com">
+        </div>
+        <div class="col-lg-3 col-md-6">
           <label class="form-label" for="phone">Phone <span class="text-danger">*</span></label>
           <input type="text" name="phone" id="phone" class="form-control" data-mandatory="true" data-min-length="10" data-max-length="20" data-pattern="^[0-9+\s\-\(\)]+$" required>
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Alternate Phone</label>
           <input type="text" name="alternate_phone" class="form-control">
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Website</label>
-          <input type="text" name="website" class="form-control">
-        </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Demo URL</label>
-          <input type="text" name="demo_url" class="form-control">
+          <input type="url" name="demo_url" class="form-control" placeholder="https://demo.example.com">
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">POS URL</label>
-          <input type="text" name="pos_url" class="form-control">
+          <input type="url" name="pos_url" class="form-control" placeholder="https://pos.example.com">
         </div>
-        <div class="col-md-12">
+        <div class="col-12">
           <label class="form-label">Address</label>
           <textarea name="address" rows="2" class="form-control"></textarea>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">City</label>
           <input type="text" name="city" class="form-control">
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">State</label>
           <input type="text" name="state" class="form-control">
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Country</label>
           <input type="text" name="country" class="form-control" value="India">
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Zip</label>
           <input type="text" name="zip_code" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">GSTIN</label>
           <input type="text" name="gstin" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">PAN</label>
           <input type="text" name="pan_number" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Industry</label>
           <input type="text" name="industry" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Type</label>
           <?php $this->load->view('partials/module_type_select', array(
             'field_name' => 'client_type',
@@ -88,7 +88,7 @@
             'placeholder' => '— Select type —',
           )); ?>
         </div>
-        <div class="col-md-8">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Account Manager</label>
           <select name="account_manager_id" class="form-select">
             <option value="">-- Select --</option>
@@ -98,35 +98,35 @@
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Onboarding Date</label>
           <input type="date" name="onboarding_date" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">Logo</label>
           <input type="file" name="logo" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">DB Name</label>
           <input type="text" name="db_name" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">DB Username</label>
           <input type="text" name="db_username" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">DB Password</label>
           <input type="text" name="db_password" class="form-control">
         </div>
-        <div class="col-md-4">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">DB Host</label>
           <input type="text" name="db_host" class="form-control" placeholder="Remote MySQL host">
         </div>
-        <div class="col-md-2">
+        <div class="col-lg-3 col-md-6">
           <label class="form-label">DB Port</label>
           <input type="text" name="db_port" class="form-control" placeholder="3306">
         </div>
-        <div class="col-md-12">
+        <div class="col-12">
           <label class="form-label">Notes</label>
           <textarea name="notes" rows="3" class="form-control"></textarea>
         </div>

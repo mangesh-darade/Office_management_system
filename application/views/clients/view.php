@@ -73,7 +73,7 @@
             <div><?php echo esc_view(isset($client->industry)?$client->industry:''); ?></div>
           </div>
           <div class="col-md-6">
-            <div class="small text-muted">Website</div>
+            <div class="small text-muted">URL</div>
             <div>
               <?php if (!empty($client->website)): ?>
                 <a href="<?php echo esc_view($client->website); ?>" target="_blank" rel="noopener">

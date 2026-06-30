@@ -713,6 +713,7 @@ if (!function_exists('get_controller_module_access_map')) {
             'timesheets' => ['timesheets', 'timesheets_list', 'timesheets_add', 'timesheets_edit', 'timesheets_delete'],
             'chats' => ['chats', 'chats_list', 'chats_add', 'chatsgrouping'],
             'calls' => ['calls', 'chats'],
+            'meetings' => ['calls', 'chats'],
             'announcements' => [
                 'announcements', 'announcements_list', 'announcements_add', 'announcements_edit',
                 'announcements_delete', 'announcements_manage',

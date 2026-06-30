@@ -310,6 +310,66 @@ if (!function_exists('validate_twilio_webhook_signature')) {
     }
 }
 
+if (!function_exists('get_jitsi_config')) {
+    /**
+     * Get Jitsi Meet configuration from api_integrations.
+     *
+     * @param int|null $integration_id Optional specific integration ID
+     * @return array domain, app_id, jwt_secret, enabled, integration_id
+     */
+    function get_jitsi_config($integration_id = null) {
+        $integration = get_api_integration('jitsi', $integration_id);
+
+        if (!$integration || !$integration->is_active || empty($integration->account_id)) {
+            return array(
+                'domain' => '',
+                'app_id' => '',
+                'jwt_secret' => '',
+                'enabled' => false,
+                'integration_id' => null,
+                'is_public_server' => false,
+                'jwt_enabled' => false,
+                'security_warning' => '',
+            );
+        }
+
+        $app_id = '';
+        if (!empty($integration->from_name)) {
+            $app_id = trim($integration->from_name);
+        }
+        if ($app_id === '' && !empty($integration->notes)) {
+            $notes = json_decode($integration->notes, true);
+            if (is_array($notes) && !empty($notes['app_id'])) {
+                $app_id = trim((string) $notes['app_id']);
+            }
+        }
+
+        $domain = preg_replace('#^https?://#i', '', trim($integration->account_id));
+        $domain = rtrim($domain, '/');
+        $domain_lc = strtolower($domain);
+        $is_public = in_array($domain_lc, array('meet.jit.si', '8x8.vc'), true);
+        $jwt_enabled = ($app_id !== '' && $integration->auth_token !== '');
+
+        $security_warning = '';
+        if ($is_public) {
+            $security_warning = 'Public Jitsi server — meeting rooms are not private. Use self-hosted Jitsi with JWT for production.';
+        } elseif ($domain !== '' && !$jwt_enabled) {
+            $security_warning = 'JWT is not configured — anyone with the room link may join if they discover the URL.';
+        }
+
+        return array(
+            'domain' => $domain,
+            'app_id' => $app_id,
+            'jwt_secret' => $integration->auth_token ? trim($integration->auth_token) : '',
+            'enabled' => ($domain !== ''),
+            'integration_id' => (int) $integration->id,
+            'is_public_server' => $is_public,
+            'jwt_enabled' => $jwt_enabled,
+            'security_warning' => $security_warning,
+        );
+    }
+}
+
 if (!function_exists('get_all_api_integrations')) {
     /**
      * Get all API integrations (optionally filtered by service type)

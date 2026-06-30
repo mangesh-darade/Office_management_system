@@ -60,13 +60,7 @@
     </div>
   </header>
 
-  <div class="mw-dash-view-tabs">
-    <a class="mw-dash-view-tab" href="<?php echo site_url('my-works/todays-focus'); ?>">Today's Focus</a>
-    <a class="mw-dash-view-tab active" href="<?php echo site_url('my-works?view=overview'); ?>">Overview</a>
-    <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=list'); ?>">List</a>
-    <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=board'); ?>">Board</a>
-    <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=matrix'); ?>">Matrix</a>
-  </div>
+  <?php $this->load->view('my_works/_dash_view_tabs', array('active_tab' => 'overview')); ?>
 
   <div class="mw-dash-filters">
     <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-filter-form" id="mwDashFilterForm">

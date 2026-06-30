@@ -295,18 +295,52 @@ class Projects extends CI_Controller {
             // Fetch Requirements
             $requirements = [];
             if ($this->db->table_exists('requirements')) {
-                $this->db->where('project_id', (int)$id);
-                apply_role_hierarchy_filter($this->db, 'created_by');
-                $requirements = $this->db->get('requirements')->result();
+                $this->db->select('r.*, u.email AS assignee_email, u.name AS assignee_name');
+                $this->db->from('requirements r');
+                $this->db->join('users u', 'u.id = r.assigned_to', 'left');
+                $this->db->where('r.project_id', (int) $id);
+                apply_role_hierarchy_filter($this->db, 'r.created_by');
+                $this->db->order_by('r.id', 'DESC');
+                $requirements = $this->db->get()->result();
+            }
+
+            $defects = array();
+            if ($this->db->table_exists('project_defects')
+                && function_exists('has_module_access')
+                && (has_module_access('defects') || has_module_access('defects_list'))) {
+                $this->load->model('Defect_model', 'project_defects');
+                $defects = $this->project_defects->list_defects(array('project_id' => (int) $id));
             }
             
+            $assignable_users = $this->_load_assignable_users();
+            $can_manage_tasks = function_exists('has_module_access')
+                && (has_module_access('tasks_add') || has_module_access('tasks_edit') || has_module_access('tasks'));
+            $can_manage_requirements = function_exists('has_module_access')
+                && (has_module_access('requirements_add') || has_module_access('requirements_edit') || has_module_access('requirements'));
+            $can_manage_defects = function_exists('has_module_access')
+                && (has_module_access('defects_add') || has_module_access('defects_edit') || has_module_access('defects'));
+            $can_delete_tasks = function_exists('has_module_access')
+                && (has_module_access('tasks_delete') || has_module_access('tasks'));
+            $can_delete_requirements = function_exists('has_module_access')
+                && (has_module_access('requirements_delete') || has_module_access('requirements'));
+            $can_delete_defects = function_exists('has_module_access')
+                && (has_module_access('defects_delete') || has_module_access('defects'));
+
             $data = [
                 'project' => $project,
                 'tasks' => $tasks,
                 'members' => $members,
                 'requirements' => $requirements,
+                'defects' => $defects,
                 'progress' => $progress,
-                'stats' => $stats
+                'stats' => $stats,
+                'assignable_users' => $assignable_users,
+                'can_manage_tasks' => $can_manage_tasks,
+                'can_manage_requirements' => $can_manage_requirements,
+                'can_manage_defects' => $can_manage_defects,
+                'can_delete_tasks' => $can_delete_tasks,
+                'can_delete_requirements' => $can_delete_requirements,
+                'can_delete_defects' => $can_delete_defects,
             ];
             
             $this->load->view('projects/view', $data);
@@ -1100,8 +1134,34 @@ class Projects extends CI_Controller {
             return $grouped;
         }
 
-        $this->db->select('t.id, t.project_id, t.title, t.status, t.due_date, t.start_date, t.created_at');
         $this->db->from('tasks t');
+        $select = array(
+            't.id',
+            't.project_id',
+            't.title',
+            't.status',
+            't.due_date',
+            't.start_date',
+            't.created_at',
+            't.assigned_to',
+        );
+        if ($this->db->table_exists('users')) {
+            $select[] = 'u.email AS assignee_email';
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select[] = 'u.full_name AS assignee_full_name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select[] = 'u.name AS assignee_name';
+            }
+            $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+        }
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            if (schema_table_has_column($this->db, 'employees', 'name')) {
+                $select[] = 'e.name AS emp_name';
+            }
+            $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+        }
+        $this->db->select(implode(',', $select));
         $this->db->where_in('t.project_id', $ids);
         apply_role_hierarchy_filter($this->db, 't.created_by');
         $this->db->order_by('t.project_id', 'ASC');
@@ -1163,5 +1223,415 @@ class Projects extends CI_Controller {
         }
 
         return $columns;
+    }
+
+    // POST /projects/{id}/inline-save — quick add/update from project detail tabs
+    public function inline_save($project_id)
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+
+        $project_id = (int) $project_id;
+        if (!$this->_user_can_access_project($project_id)) {
+            return;
+        }
+
+        $project = $this->db->where('id', $project_id)->get('projects')->row();
+        if (!$project) {
+            return $this->_inline_json(false, array(), 'Project not found', 404);
+        }
+
+        $type = trim((string) $this->input->post('type'));
+        $item_id = (int) $this->input->post('id');
+        $title = trim((string) $this->input->post('title'));
+        $status = trim((string) $this->input->post('status'));
+        $priority = trim((string) $this->input->post('priority'));
+        $assigned_raw = $this->input->post('assigned_to');
+        $assigned_to = ($assigned_raw !== '' && $assigned_raw !== null) ? (int) $assigned_raw : null;
+
+        if ($type === 'task') {
+            return $this->_inline_save_task($project_id, $item_id, $title, $status, $priority, $assigned_to);
+        }
+        if ($type === 'requirement') {
+            return $this->_inline_save_requirement($project, $item_id, $title, $status, $priority, $assigned_to);
+        }
+        if ($type === 'defect') {
+            return $this->_inline_save_defect($project_id, $item_id, $title, $status, $priority, $assigned_to);
+        }
+
+        return $this->_inline_json(false, array(), 'Invalid type', 400);
+    }
+
+    // POST /projects/{id}/inline-delete — delete row from project detail tabs
+    public function inline_delete($project_id)
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+
+        $project_id = (int) $project_id;
+        if (!$this->_user_can_access_project($project_id)) {
+            return;
+        }
+
+        $type = trim((string) $this->input->post('type'));
+        $item_id = (int) $this->input->post('id');
+        if ($item_id < 1) {
+            return $this->_inline_json(false, array(), 'Invalid id', 400);
+        }
+
+        if ($type === 'task') {
+            return $this->_inline_delete_task($project_id, $item_id);
+        }
+        if ($type === 'requirement') {
+            return $this->_inline_delete_requirement($project_id, $item_id);
+        }
+        if ($type === 'defect') {
+            return $this->_inline_delete_defect($project_id, $item_id);
+        }
+
+        return $this->_inline_json(false, array(), 'Invalid type', 400);
+    }
+
+    private function _inline_delete_task($project_id, $item_id)
+    {
+        if (!has_module_access('tasks_delete') && !has_module_access('tasks')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+
+        $task = $this->db->where('id', $item_id)->where('project_id', $project_id)->get('tasks')->row();
+        if (!$task) {
+            return $this->_inline_json(false, array(), 'Task not found', 404);
+        }
+
+        $current_user = (int) $this->session->userdata('user_id');
+        $can_manage_all = is_admin_group() || has_module_access('tasks_delete_all');
+        if ($current_user > 0 && !$can_manage_all) {
+            $assigned = isset($task->assigned_to) ? (int) $task->assigned_to : 0;
+            $creator = isset($task->created_by) ? (int) $task->created_by : 0;
+            if ($assigned !== $current_user && $creator !== $current_user) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+        }
+
+        $this->load->helper('change_tracker');
+        $old_data = (array) $task;
+        $this->db->where('id', $item_id)->delete('tasks');
+        $description = 'Task deleted' . (isset($task->title) ? ': ' . $task->title : '');
+        auto_log_delete('tasks', 'tasks', $item_id, $old_data, $description);
+
+        return $this->_inline_json(true, array('id' => $item_id));
+    }
+
+    private function _inline_delete_requirement($project_id, $item_id)
+    {
+        if (!$this->db->table_exists('requirements')) {
+            return $this->_inline_json(false, array(), 'Requirements module unavailable', 400);
+        }
+        if (!has_module_access('requirements_delete') && !has_module_access('requirements')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+
+        $req = $this->db->where('id', $item_id)->where('project_id', $project_id)->get('requirements')->row();
+        if (!$req) {
+            return $this->_inline_json(false, array(), 'Requirement not found', 404);
+        }
+
+        $current_user = (int) $this->session->userdata('user_id');
+        $can_manage_all = is_admin_group() || has_module_access('requirements_delete_all');
+        if ($current_user > 0 && !$can_manage_all) {
+            $creator = isset($req->created_by) ? (int) $req->created_by : 0;
+            $owner = isset($req->owner_id) ? (int) $req->owner_id : 0;
+            if ($creator !== $current_user && $owner !== $current_user) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+        }
+
+        if ($this->db->table_exists('tasks') && schema_table_has_column($this->db, 'tasks', 'requirement_id')) {
+            $this->db->where('requirement_id', $item_id)->update('tasks', array('requirement_id' => null));
+        }
+        if ($this->db->table_exists('requirement_versions')) {
+            $this->db->where('requirement_id', $item_id)->delete('requirement_versions');
+        }
+        if ($this->db->table_exists('requirement_comments')) {
+            $this->db->where('requirement_id', $item_id)->delete('requirement_comments');
+        }
+        if ($this->db->table_exists('requirement_attachments')) {
+            $this->db->where('requirement_id', $item_id)->delete('requirement_attachments');
+        }
+        $this->db->where('id', $item_id)->delete('requirements');
+
+        return $this->_inline_json(true, array('id' => $item_id));
+    }
+
+    private function _inline_delete_defect($project_id, $item_id)
+    {
+        if (!$this->db->table_exists('project_defects')) {
+            return $this->_inline_json(false, array(), 'Defects module unavailable', 400);
+        }
+        if (!has_module_access('defects_delete') && !has_module_access('defects')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+
+        $this->load->model('Defect_model', 'project_defects');
+        $defect = $this->project_defects->get_defect($item_id);
+        if (!$defect || (int) $defect->project_id !== $project_id) {
+            return $this->_inline_json(false, array(), 'Defect not found', 404);
+        }
+
+        $this->project_defects->delete_defect($item_id);
+        return $this->_inline_json(true, array('id' => $item_id));
+    }
+
+    private function _inline_json($ok, $data = array(), $error = '', $status = 200)
+    {
+        $payload = array('ok' => (bool) $ok);
+        if ($ok) {
+            $payload = array_merge($payload, $data);
+        } else {
+            $payload['error'] = $error !== '' ? $error : 'Request failed';
+        }
+        return $this->output
+            ->set_status_header((int) $status)
+            ->set_content_type('application/json')
+            ->set_output(json_encode($payload));
+    }
+
+    private function _inline_save_task($project_id, $item_id, $title, $status, $priority, $assigned_to)
+    {
+        $allowed_status = array('pending', 'in_progress', 'completed', 'blocked');
+        $allowed_priority = array('low', 'medium', 'high', 'urgent');
+        if ($status === '' || !in_array($status, $allowed_status, true)) {
+            $status = 'pending';
+        }
+        if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
+            $priority = 'medium';
+        }
+
+        if ($item_id > 0) {
+            if (!has_module_access('tasks_edit') && !has_module_access('tasks')) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+            $task = $this->db->where('id', $item_id)->where('project_id', $project_id)->get('tasks')->row();
+            if (!$task) {
+                return $this->_inline_json(false, array(), 'Task not found', 404);
+            }
+            if ($title === '') {
+                return $this->_inline_json(false, array(), 'Title is required', 400);
+            }
+            $update = array(
+                'title' => $title,
+                'status' => $status,
+                'assigned_to' => $assigned_to,
+            );
+            $task_fields = $this->db->list_fields('tasks');
+            if (in_array('priority', $task_fields, true)) {
+                $update['priority'] = $priority;
+            }
+            $this->db->where('id', $item_id)->update('tasks', $update);
+            return $this->_inline_json(true, array('id' => $item_id));
+        }
+
+        if (!has_module_access('tasks_add') && !has_module_access('tasks')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+        if ($title === '') {
+            $title = 'New task';
+        }
+
+        $user_id = (int) $this->session->userdata('user_id');
+        $task_fields = $this->db->list_fields('tasks');
+        $insert = array(
+            'project_id' => $project_id,
+            'title' => $title,
+            'status' => $status,
+            'assigned_to' => $assigned_to,
+            'created_by' => $user_id,
+        );
+        if (in_array('priority', $task_fields, true)) {
+            $insert['priority'] = $priority;
+        }
+        $this->db->insert('tasks', $insert);
+        $new_id = (int) $this->db->insert_id();
+        return $this->_inline_json(true, array('id' => $new_id));
+    }
+
+    private function _inline_save_requirement($project, $item_id, $title, $status, $priority, $assigned_to)
+    {
+        if (!$this->db->table_exists('requirements')) {
+            return $this->_inline_json(false, array(), 'Requirements module unavailable', 400);
+        }
+
+        $allowed_status = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
+        $allowed_priority = array('low', 'medium', 'high', 'urgent');
+        if ($status === '' || !in_array($status, $allowed_status, true)) {
+            $status = 'received';
+        }
+        if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
+            $priority = 'medium';
+        }
+
+        if ($item_id > 0) {
+            if (!has_module_access('requirements_edit') && !has_module_access('requirements')) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+            $req = $this->db->where('id', $item_id)->where('project_id', (int) $project->id)->get('requirements')->row();
+            if (!$req) {
+                return $this->_inline_json(false, array(), 'Requirement not found', 404);
+            }
+            if ($title === '') {
+                return $this->_inline_json(false, array(), 'Title is required', 400);
+            }
+            $this->db->where('id', $item_id)->update('requirements', array(
+                'title' => $title,
+                'status' => $status,
+                'priority' => $priority,
+                'assigned_to' => $assigned_to,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ));
+            return $this->_inline_json(true, array('id' => $item_id, 'req_number' => $req->req_number));
+        }
+
+        if (!has_module_access('requirements_add') && !has_module_access('requirements')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+        if ($title === '') {
+            $title = 'New requirement';
+        }
+
+        $client_id = 0;
+        if (schema_table_has_column($this->db, 'projects', 'client_id') && !empty($project->client_id)) {
+            $client_id = (int) $project->client_id;
+        }
+        if ($client_id < 1 && $this->db->table_exists('clients')) {
+            $client_row = $this->db->select('id')->order_by('id', 'ASC')->limit(1)->get('clients')->row();
+            if ($client_row) {
+                $client_id = (int) $client_row->id;
+            }
+        }
+        if ($client_id < 1) {
+            return $this->_inline_json(false, array(), 'No client available for requirement', 400);
+        }
+
+        $user_id = (int) $this->session->userdata('user_id');
+        $req_number = $this->_inline_generate_req_number();
+        $now = date('Y-m-d H:i:s');
+        $insert = array(
+            'req_number' => $req_number,
+            'client_id' => $client_id,
+            'project_id' => (int) $project->id,
+            'title' => $title,
+            'description' => '',
+            'requirement_type' => 'new_feature',
+            'priority' => $priority,
+            'status' => $status,
+            'received_date' => date('Y-m-d'),
+            'owner_id' => $user_id,
+            'assigned_to' => $assigned_to,
+            'created_by' => $user_id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        );
+        $this->db->insert('requirements', $insert);
+        $new_id = (int) $this->db->insert_id();
+
+        if ($this->db->table_exists('requirement_versions')) {
+            $this->db->insert('requirement_versions', array(
+                'requirement_id' => $new_id,
+                'version_no' => 1,
+                'title' => $title,
+                'description' => '',
+                'requirement_type' => 'new_feature',
+                'priority' => $priority,
+                'status' => $status,
+                'received_date' => date('Y-m-d'),
+                'owner_id' => $user_id,
+                'assigned_to' => $assigned_to,
+                'created_by' => $user_id,
+                'created_at' => $now,
+            ));
+        }
+
+        return $this->_inline_json(true, array('id' => $new_id, 'req_number' => $req_number));
+    }
+
+    private function _inline_save_defect($project_id, $item_id, $title, $status, $priority, $assigned_to)
+    {
+        if (!$this->db->table_exists('project_defects')) {
+            return $this->_inline_json(false, array(), 'Defects module unavailable', 400);
+        }
+
+        $allowed_status = array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected');
+        $allowed_priority = array('low', 'medium', 'high', 'critical');
+        if ($status === '' || !in_array($status, $allowed_status, true)) {
+            $status = 'open';
+        }
+        if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
+            $priority = 'medium';
+        }
+
+        $this->load->model('Defect_model', 'project_defects');
+
+        if ($item_id > 0) {
+            if (!has_module_access('defects_edit') && !has_module_access('defects')) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+            $defect = $this->project_defects->get_defect($item_id);
+            if (!$defect || (int) $defect->project_id !== $project_id) {
+                return $this->_inline_json(false, array(), 'Defect not found', 404);
+            }
+            if ($title === '') {
+                return $this->_inline_json(false, array(), 'Title is required', 400);
+            }
+            $this->project_defects->save_defect(array(
+                'title' => $title,
+                'status' => $status,
+                'priority' => $priority,
+                'assigned_to' => $assigned_to,
+            ), $item_id);
+            return $this->_inline_json(true, array('id' => $item_id, 'defect_number' => $defect->defect_number));
+        }
+
+        if (!has_module_access('defects_add') && !has_module_access('defects')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+        if ($title === '') {
+            $title = 'New defect';
+        }
+
+        $uid = (int) $this->session->userdata('user_id');
+        $defect_number = $this->project_defects->next_defect_number();
+        $new_id = $this->project_defects->save_defect(array(
+            'defect_number' => $defect_number,
+            'project_id' => $project_id,
+            'title' => $title,
+            'description' => '',
+            'severity' => 'medium',
+            'priority' => $priority,
+            'status' => $status,
+            'reported_by' => $uid,
+            'assigned_to' => $assigned_to,
+        ));
+
+        return $this->_inline_json(true, array('id' => $new_id, 'defect_number' => $defect_number));
+    }
+
+    private function _inline_generate_req_number()
+    {
+        $year = date('Y');
+        $prefix = 'REQ-' . $year . '-';
+        $row = $this->db->like('req_number', $prefix, 'after')->order_by('id', 'DESC')->limit(1)->get('requirements')->row();
+        $num = 0;
+        if ($row && isset($row->req_number)) {
+            $tail = substr($row->req_number, -5);
+            if (ctype_digit($tail)) {
+                $num = (int) $tail;
+            }
+        }
+        $num++;
+        return $prefix . str_pad((string) $num, 5, '0', STR_PAD_LEFT);
     }
 }

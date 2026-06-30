@@ -170,7 +170,12 @@
     <?php endif; ?>
     <div class="navbar-collapse">
       <div class="me-auto"></div>
-      <div class="d-flex">
+      <div class="d-flex align-items-center gap-2">
+        <?php if($this->session->userdata('user_id')): ?>
+          <button type="button" id="btnEnablePortalAlerts" class="btn btn-sm btn-outline-light d-none" title="Enable call and chat alerts">
+            <i class="bi bi-bell"></i><span class="d-none d-md-inline ms-1">Enable Alerts</span>
+          </button>
+        <?php endif; ?>
         <?php if($this->session->userdata('user_id')): ?>
           <?php 
             $emailStr = strtolower(trim((string)$this->session->userdata('email')));
@@ -616,14 +621,20 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='projects'?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'))): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='projects' && $active_sub==='dashboard')?'active':''; ?>" href="<?php echo site_url('projects/dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Project Dashboard</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('projects_add')): ?>
             <a class="nav-link sidebar-link small" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-square me-2"></i>Add Project</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('requirements')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirement</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'))): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='tasks' && $active_sub==='my-dashboard')?'active':''; ?>" href="<?php echo site_url('tasks/my-dashboard'); ?>"><i class="bi bi-person-check me-2"></i>My Task Dashboard</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
-            <a class="nav-link sidebar-link small <?php echo $active==='tasks'?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Task</a>
+            <a class="nav-link sidebar-link small <?php echo ($active==='tasks' && $active_sub==='board')?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Task</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('timesheets')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='timesheets'?'active':''; ?>" href="<?php echo site_url('timesheets'); ?>"><i class="bi bi-calendar3 me-2"></i>Timesheet</a>
@@ -888,10 +899,27 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         incomingFromEl.textContent = sig.from_email ? ('Incoming call from ' + sig.from_email) : 'Incoming call';
         var convId = sig.conversation_id || '';
         var callId = sig.call_id || '';
-        btnAccept.href = site + 'chats/app?open=' + convId + (callId ? ('&call=' + callId + '&auto_accept=1') : '');
+        btnAccept.href = site + 'chats/app?open=' + convId + (callId ? ('&call=' + callId) : '');
         ensureModal();
         try { if (bsModal) bsModal.show(); else modalEl.style.display='block'; } catch(e){}
         startRing();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            var n = new Notification('Incoming call', {
+              body: sig.from_email ? ('From ' + sig.from_email) : 'Someone is calling you',
+              tag: 'incoming-call-' + (callId || '0'),
+              requireInteraction: true
+            });
+            n.onclick = function(){
+              try { window.focus(); } catch(e){}
+              n.close();
+              window.location.href = btnAccept.href;
+            };
+          } catch(e){}
+        }
+        if (typeof window.portalRequestPushPermission === 'function' && Notification.permission === 'default') {
+          window.portalRequestPushPermission();
+        }
       }
       function hideIncoming(){
         stopRing();
@@ -942,6 +970,25 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       });
       // If user navigates to Chats via Accept, the Chats app will handle actual accept signaling
       modalEl.addEventListener('hidden.bs.modal', function(){ stopRing(); });
+      var btnEnableAlerts = document.getElementById('btnEnablePortalAlerts');
+      if (btnEnableAlerts && 'Notification' in window) {
+        if (Notification.permission === 'default') {
+          btnEnableAlerts.classList.remove('d-none');
+        }
+        btnEnableAlerts.addEventListener('click', function(){
+          if (typeof window.portalRequestPushPermission === 'function') {
+            window.portalRequestPushPermission().then(function(ok){
+              if (ok || Notification.permission === 'granted') {
+                btnEnableAlerts.classList.add('d-none');
+              }
+            });
+          } else if (Notification.requestPermission) {
+            Notification.requestPermission().then(function(p){
+              if (p === 'granted') btnEnableAlerts.classList.add('d-none');
+            });
+          }
+        });
+      }
     }catch(e){}
   })();
   </script>

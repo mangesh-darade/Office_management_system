@@ -116,6 +116,8 @@ $route['projects/matrix'] = 'projects/matrix';
 $route['projects/dashboard'] = 'projects/dashboard_index';
 $route['projects/create'] = 'projects/create';
 $route['projects/(:num)/dashboard'] = 'projects/dashboard/$1';
+$route['projects/(:num)/inline-save'] = 'projects/inline_save/$1';
+$route['projects/(:num)/inline-delete'] = 'projects/inline_delete/$1';
 $route['projects/(:num)'] = 'projects/show/$1';
 $route['projects/(:num)/edit'] = 'projects/edit/$1';
 $route['projects/(:num)/delete'] = 'projects/delete/$1';
@@ -150,6 +152,7 @@ $route['tasks/(:num)/edit'] = 'tasks/edit/$1';
 $route['tasks/(:num)/delete'] = 'tasks/delete/$1';
 $route['tasks/(:num)/preview'] = 'tasks/preview/$1';
 $route['tasks/import'] = 'tasks/import';
+$route['tasks/my-dashboard'] = 'tasks/user_dashboard';
 $route['tasks/board'] = 'tasks/board';
 $route['tasks/update-status'] = 'tasks/update_status';
 $route['tasks/send-daily-summary'] = 'tasks/send_daily_summary';
@@ -243,6 +246,11 @@ $route['notifications/mark-all-read'] = 'notifications/mark_all_read';
 $route['notifications/delete/(:num)'] = 'notifications/delete/$1';
 $route['notifications/subscribe-push'] = 'notifications/subscribe_push';
 $route['notifications/unsubscribe-push'] = 'notifications/unsubscribe_push';
+
+// Web Push (browser closed notifications)
+$route['push/vapid-public'] = 'push/vapid_public';
+$route['push/subscribe'] = 'push/subscribe';
+$route['push/unsubscribe'] = 'push/unsubscribe';
 
 // Reports
 $route['reports'] = 'reports/index';
@@ -408,6 +416,18 @@ $route['calls/poll/(:num)'] = 'calls/poll_signals/$1';
 $route['calls/end/(:num)'] = 'calls/end/$1';
 $route['calls/incoming/(:num)'] = 'calls/poll_incoming/$1';
 $route['calls/incoming-any'] = 'calls/poll_incoming_any';
+
+// Meetings (Jitsi video meetings)
+$route['meetings/start/(:num)'] = 'meetings/start/$1';
+$route['meetings/join/(:num)'] = 'meetings/join/$1';
+$route['meetings/end/(:num)'] = 'meetings/end/$1';
+$route['meetings/status/(:num)'] = 'meetings/status/$1';
+$route['meetings/join-scheduled/(:num)'] = 'meetings/join_scheduled/$1';
+$route['meetings/participants/(:num)'] = 'meetings/participants/$1';
+$route['meetings/schedule'] = 'meetings/schedule';
+$route['meetings/list'] = 'meetings/list_meetings';
+$route['meetings/cancel/(:num)'] = 'meetings/cancel/$1';
+$route['meetings/scheduled/(:num)'] = 'meetings/scheduled/$1';
 
 // Mail (SMTP test & UI)
 $route['mail'] = 'mail/index';

@@ -51,7 +51,7 @@ class Api_integrations extends CI_Controller {
             'content_sid' => trim($this->input->post('content_sid')),
             'is_active' => $this->input->post('is_active') ? 1 : 0,
             'is_default' => $this->input->post('is_default') ? 1 : 0,
-            'notes' => trim($this->input->post('notes'))
+            'notes' => $this->_resolve_notes()
         ];
         
         // Validation
@@ -120,7 +120,7 @@ class Api_integrations extends CI_Controller {
             'content_sid' => trim($this->input->post('content_sid')),
             'is_active' => $this->input->post('is_active') ? 1 : 0,
             'is_default' => $this->input->post('is_default') ? 1 : 0,
-            'notes' => trim($this->input->post('notes'))
+            'notes' => $this->_resolve_notes()
         ];
         
         // Validation
@@ -165,6 +165,17 @@ class Api_integrations extends CI_Controller {
         
         $this->session->set_flashdata('success', 'API integration deleted successfully.');
         redirect('api-integrations');
+    }
+
+    private function _resolve_notes() {
+        $service_type = $this->input->post('service_type');
+        if ($service_type === 'jitsi') {
+            $json_notes = trim((string) $this->input->post('jitsi_notes_json'));
+            if ($json_notes !== '') {
+                return $json_notes;
+            }
+        }
+        return trim((string) $this->input->post('notes'));
     }
 }
 

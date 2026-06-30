@@ -42,6 +42,7 @@ class Client_model extends CI_Model {
                 ->or_like('client_code', $q)
                 ->or_like('contact_person', $q)
                 ->or_like('email', $q)
+                ->or_like('website', $q)
             ->group_end();
         }
     }

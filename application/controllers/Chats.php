@@ -57,6 +57,11 @@ class Chats extends CI_Controller {
         $open_id = (int)$this->input->get('open');
         $auto_call_id = (int)$this->input->get('call');
         $auto_accept = (int)$this->input->get('auto_accept');
+        $scheduled_meeting_id = (int)$this->input->get('meeting');
+
+        $this->load->helper('api_integration');
+        $jitsi_config = get_jitsi_config();
+
         $this->load->view('chats/app', [
             'conversations' => $conversations,
             'users' => $users,
@@ -64,6 +69,9 @@ class Chats extends CI_Controller {
             'open_id' => $open_id,
             'auto_call_id' => $auto_call_id,
             'auto_accept' => $auto_accept ? 1 : 0,
+            'scheduled_meeting_id' => $scheduled_meeting_id,
+            'jitsi_config' => $jitsi_config,
+            'user_display_name' => $this->session->userdata('name') ?: $this->session->userdata('email'),
         ]);
     }
 
@@ -137,6 +145,8 @@ class Chats extends CI_Controller {
         }
         $msg_id = $this->Chat_model->add_message($conversation_id, $user_id, $body, $attachment_path);
         $message = $this->Chat_model->get_message_by_id($msg_id);
+        $this->load->helper('web_push');
+        web_push_notify_chat_message($conversation_id, $user_id, $message);
         $this->_json(['ok'=>true,'message_id'=>$msg_id,'message'=>$message]);
     }
 

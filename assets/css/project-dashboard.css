@@ -285,21 +285,52 @@
   white-space: nowrap;
 }
 
-.project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 50%; }
-.project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 32%; }
-.project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 18%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 36%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 22%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 24%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(4) { width: 18%; }
 
 .project-dash-compact .project-dash-task-table tbody tr {
   height: var(--pd-task-row-h);
   border-bottom: 1px solid #f3f4f6;
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row {
+  border-left: 3px solid var(--pd-row-status-color, #94a3b8);
+  background: color-mix(in srgb, var(--pd-row-status-color, #94a3b8) 11%, #ffffff);
+}
+
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row-pending {
+  --pd-row-status-color: #6b7280;
+}
+
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row-in_progress {
+  --pd-row-status-color: #0284c7;
+}
+
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row-completed {
+  --pd-row-status-color: #16a34a;
+}
+
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row-blocked {
+  --pd-row-status-color: #dc2626;
 }
 
 .project-dash-compact .project-dash-task-table tbody tr:last-child {
   border-bottom: none;
 }
 
-.project-dash-compact .project-dash-task-table tbody tr:hover {
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row:hover {
+  background: color-mix(in srgb, var(--pd-row-status-color, #94a3b8) 18%, #ffffff);
+}
+
+.project-dash-compact .project-dash-task-table tbody tr.project-dash-task-row td {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--pd-row-status-color, #94a3b8) 20%, #e5e7eb);
+}
+
+.project-dash-compact .project-dash-task-table tbody tr:hover:not(.project-dash-task-row) {
   background: #f9fafb;
 }
 
@@ -347,6 +378,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.project-dash-compact .project-dash-assignee {
+  font-size: 0.75rem;
+  color: #374151;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+  min-width: 0;
+}
+
 @media (min-width: 1400px) {
   .project-dash-compact .project-dash-grid > [class*="col-"] {
     flex: 0 0 auto;
@@ -362,6 +404,72 @@
 }
 
 @media (max-width: 575.98px) {
-  .project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 44%; }
-  .project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 36%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 34%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 24%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 24%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(4) { width: 18%; }
+}
+
+/* Single project kanban dashboard — /projects/{id}/dashboard */
+.project-single-dash {
+  padding-top: 0.75rem;
+  padding-bottom: 1rem;
+}
+
+.project-single-dash .oms-page-head {
+  margin-bottom: 0.65rem !important;
+}
+
+.project-single-dash .oms-page-head h1.h4 {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.project-single-dash .oms-page-head .text-muted.small {
+  font-size: 0.78rem;
+}
+
+.project-single-dash-summary {
+  margin-bottom: 0.5rem;
+}
+
+.project-single-dash-summary .project-dash-stat {
+  border-top: 3px solid #94a3b8;
+  flex: 1 1 6.5rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.project-single-dash-summary .project-dash-stat-label {
+  font-size: 0.65rem;
+  margin-bottom: 0.1rem;
+}
+
+.project-single-dash-summary .project-dash-stat-value {
+  font-size: 1.05rem;
+}
+
+.project-single-dash-summary .project-dash-stat-progress {
+  border-top-color: #16a34a;
+}
+
+.project-single-dash-summary .project-dash-stat-progress .project-dash-stat-value {
+  color: #16a34a;
+}
+
+.project-single-dash .project-dash-legend {
+  margin-bottom: 0.65rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.project-single-dash-hint {
+  white-space: nowrap;
+}
+
+.project-single-dash .tb-drop-zone {
+  min-height: 300px;
+  max-height: calc(100vh - 300px);
+}
+
+.project-single-dash .kanban-columns {
+  --bs-gutter-x: 0.5rem;
 }

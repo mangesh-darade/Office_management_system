@@ -1,76 +1,122 @@
-<?php $this->load->view('partials/header', [
+<?php $this->load->view('partials/header', array(
   'title' => 'Project Dashboard — ' . (isset($project->name) ? $project->name : ''),
-  'extra_css' => ['assets/css/tasks.css'],
-]); ?>
-<div class="container-fluid py-3 task-board-page project-dashboard-page">
+  'extra_css' => array('assets/css/project-dashboard.css', 'assets/css/tasks.css'),
+)); ?>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="container-fluid project-dash-compact project-single-dash task-board-pro">
 <?php
-$status_badges = array(
-    'pending'     => 'secondary',
-    'in_progress' => 'info',
-    'completed'   => 'success',
-    'blocked'     => 'danger',
-);
 $status_labels = array();
+$status_colors = array();
+$default_colors = array(
+    'pending'     => '#6b7280',
+    'in_progress' => '#0284c7',
+    'completed'   => '#16a34a',
+    'blocked'     => '#dc2626',
+);
+$status_meta = array(
+    'pending' => array('icon' => 'bi-hourglass-split'),
+    'in_progress' => array('icon' => 'bi-play-circle'),
+    'completed' => array('icon' => 'bi-check-circle'),
+    'blocked' => array('icon' => 'bi-slash-circle'),
+);
+$priority_meta = array(
+    'urgent' => array('label' => 'Urgent', 'class' => 'tb-priority-urgent'),
+    'high' => array('label' => 'High', 'class' => 'tb-priority-high'),
+    'medium' => array('label' => 'Medium', 'class' => 'tb-priority-medium'),
+    'low' => array('label' => 'Low', 'class' => 'tb-priority-low'),
+);
+
 foreach ($status_rows as $sr) {
-    $status_labels[(string) $sr->code] = (string) $sr->name;
+    $code = (string) $sr->code;
+    $status_labels[$code] = (string) $sr->name;
+    $color = isset($sr->color) ? trim((string) $sr->color) : '';
+    if ($color === '' && isset($default_colors[$code])) {
+        $color = $default_colors[$code];
+    }
+    if ($color !== '') {
+        $status_colors[$code] = $color;
+    }
 }
+
+$total_tasks = 0;
+foreach ($stats as $cnt) {
+    $total_tasks += (int) $cnt;
+}
+
 $can_add_task = function_exists('has_module_access') && (has_module_access('tasks_add') || has_module_access('tasks'));
 $can_edit_task = function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'));
 
-$head_actions = '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects/dashboard') . '"><i class="bi bi-speedometer2 me-1"></i>All Projects</a>';
+$head_actions = '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects/dashboard') . '"><i class="bi bi-grid me-1"></i>All Projects</a>';
 $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects/' . (int) $project->id) . '"><i class="bi bi-eye me-1"></i>Details</a>';
 if ($can_add_task) {
     $head_actions .= '<a class="btn btn-primary btn-sm" href="' . site_url('tasks/create?project_id=' . (int) $project->id) . '"><i class="bi bi-plus-lg me-1"></i>New Task</a>';
 }
-?>
 
-<!-- Summary cards above project name -->
-<div class="row g-3 mb-3">
-  <?php foreach ($status_rows as $sr): ?>
-    <?php
-      $code = (string) $sr->code;
-      $count = isset($stats[$code]) ? (int) $stats[$code] : 0;
-      $badge = isset($status_badges[$code]) ? $status_badges[$code] : 'secondary';
-      $label = isset($status_labels[$code]) ? $status_labels[$code] : $code;
-    ?>
-    <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 h-100">
-        <div class="card-body py-3">
-          <div class="text-muted small text-uppercase mb-1"><?php echo esc_view($label); ?></div>
-          <div class="d-flex align-items-center justify-content-between">
-            <span class="h4 mb-0 fw-bold"><?php echo $count; ?></span>
-            <span class="badge bg-<?php echo esc_view($badge); ?> rounded-pill"><?php echo esc_view($label); ?></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  <?php endforeach; ?>
-  <div class="col-6 col-md-3">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-body py-3">
-        <div class="text-muted small text-uppercase mb-1">Progress</div>
-        <div class="d-flex align-items-center justify-content-between">
-          <span class="h4 mb-0 fw-bold"><?php echo (int) $progress; ?>%</span>
-          <span class="badge bg-success rounded-pill">Completed</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+$project_code = isset($project->code) ? trim((string) $project->code) : '';
+$subtitle_parts = array();
+if ($project_code !== '') {
+    $subtitle_parts[] = $project_code;
+}
+$subtitle_parts[] = 'tasks by status';
+$subtitle = implode(' · ', $subtitle_parts);
 
-<?php
 $this->load->view('partials/oms_page_head', array(
     'title'        => (string) $project->name,
     'icon'         => 'bi-columns-gap',
-    'subtitle'     => (string) $project->code . ' — tasks by status',
+    'subtitle'     => $subtitle,
     'actions_html' => $head_actions,
+    'mb'           => 'mb-2',
 ));
 ?>
+
+<div class="project-dash-summary project-single-dash-summary">
+  <div class="project-dash-stat">
+    <div class="project-dash-stat-label">Total Tasks</div>
+    <div class="project-dash-stat-value"><?php echo (int) $total_tasks; ?></div>
+  </div>
+  <?php foreach ($status_rows as $sr): ?>
+    <?php
+      $code = (string) $sr->code;
+      $label = isset($status_labels[$code]) ? $status_labels[$code] : $code;
+      $count = isset($stats[$code]) ? (int) $stats[$code] : 0;
+      $color = isset($status_colors[$code]) ? $status_colors[$code] : '#374151';
+    ?>
+    <div class="project-dash-stat" style="border-top-color:<?php echo esc_view($color, ENT_QUOTES, 'UTF-8'); ?>;">
+      <div class="project-dash-stat-label"><?php echo esc_view($label); ?></div>
+      <div class="project-dash-stat-value" style="color:<?php echo esc_view($color, ENT_QUOTES, 'UTF-8'); ?>;"><?php echo $count; ?></div>
+    </div>
+  <?php endforeach; ?>
+  <div class="project-dash-stat project-dash-stat-progress">
+    <div class="project-dash-stat-label">Progress</div>
+    <div class="project-dash-stat-value"><?php echo (int) $progress; ?>%</div>
+  </div>
+</div>
+
+<?php if (!empty($status_rows)): ?>
+<div class="project-dash-legend mb-2">
+  <span class="project-dash-legend-title">Status</span>
+  <?php foreach ($status_rows as $sr): ?>
+    <?php
+      $code = (string) $sr->code;
+      $label = isset($status_labels[$code]) ? $status_labels[$code] : $code;
+      $dot_color = isset($status_colors[$code]) ? $status_colors[$code] : '#9ca3af';
+    ?>
+    <span class="project-dash-legend-item">
+      <span class="project-dash-legend-dot" style="background:<?php echo esc_view($dot_color, ENT_QUOTES, 'UTF-8'); ?>;"></span>
+      <?php echo esc_view($label); ?>
+    </span>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <div class="card shadow-soft task-board-toolbar mb-3">
   <div class="card-body py-2 px-3">
     <div class="task-board-toolbar-inner">
-      <div class="task-board-search-wrap ms-auto">
+      <span class="project-single-dash-hint text-muted small d-none d-md-inline"><i class="bi bi-arrows-move me-1"></i>Drag cards to change status</span>
+      <div class="task-board-search-wrap ms-md-auto">
         <div class="input-group input-group-sm task-board-search">
           <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
           <input type="text" class="form-control" id="searchTasks" placeholder="Search tasks…" aria-label="Search tasks">
@@ -101,32 +147,39 @@ $this->load->view('partials/oms_page_head', array(
     $initials = function ($text) {
         $text = trim((string) $text);
         if ($text === '') {
-            return 'NA';
+            return '?';
         }
         $parts = preg_split('/\s+/', $text);
         $first = strtoupper(substr($parts[0], 0, 1));
         $last = isset($parts[count($parts) - 1]) ? strtoupper(substr($parts[count($parts) - 1], 0, 1)) : '';
         return $first . ($last && $last !== $first ? $last : '');
     };
+    $formatDue = function ($task) {
+        $due = isset($task->due_date) ? trim((string) $task->due_date) : '';
+        if ($due === '' || $due === '0000-00-00') {
+            return array('label' => '', 'overdue' => false);
+        }
+        $overdue = ($due < date('Y-m-d') && (!isset($task->status) || $task->status !== 'completed'));
+        return array('label' => date('M j', strtotime($due)), 'overdue' => $overdue);
+    };
   ?>
   <div class="kanban-scroll-wrap">
-    <div class="row g-3 kanban-columns flex-nowrap flex-lg-wrap">
+    <div class="row g-2 kanban-columns flex-nowrap flex-lg-wrap">
       <?php foreach ($columns as $status => $items): ?>
         <?php
           $label = isset($status_labels[$status]) ? $status_labels[$status] : ucfirst(str_replace('_', ' ', $status));
-          $badge = isset($status_badges[$status]) ? $status_badges[$status] : 'secondary';
+          $color = isset($status_colors[$status]) ? $status_colors[$status] : '#94a3b8';
+          $icon = isset($status_meta[$status]['icon']) ? $status_meta[$status]['icon'] : 'bi-circle';
         ?>
         <div class="col kanban-col col-10 col-sm-8 col-md-6 col-lg-3">
-          <div class="card shadow-sm kanban-column-card fade-in" data-column-status="<?php echo esc_view($status); ?>">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 kanban-column-header">
-              <div class="d-flex align-items-center min-w-0">
-                <div class="status-indicator status-<?php echo esc_view($status); ?> me-2 flex-shrink-0"></div>
-                <h6 class="mb-0 fw-semibold text-truncate">
-                  <?php echo esc_view($label); ?>
-                  <span class="badge bg-<?php echo esc_view($badge); ?> ms-2" id="count-<?php echo esc_view($status); ?>"><?php echo count($items); ?></span>
-                </h6>
+          <div class="card shadow-sm kanban-column-card fade-in tb-column-card" data-column-status="<?php echo esc_view($status); ?>" style="--tb-col-accent:<?php echo esc_view($color, ENT_QUOTES, 'UTF-8'); ?>;">
+            <div class="card-header kanban-column-header tb-column-header">
+              <div class="d-flex align-items-center min-w-0 flex-grow-1">
+                <i class="bi <?php echo esc_view($icon); ?> tb-column-icon me-2"></i>
+                <h6 class="mb-0 fw-semibold text-truncate"><?php echo esc_view($label); ?></h6>
+                <span class="badge rounded-pill tb-column-count ms-2" id="count-<?php echo esc_view($status); ?>"><?php echo count($items); ?></span>
               </div>
-              <button class="btn btn-sm btn-outline-secondary kanban-col-toggle flex-shrink-0" type="button"
+              <button class="btn btn-sm btn-light border kanban-col-toggle flex-shrink-0" type="button"
                 onclick="toggleKanbanColumn('<?php echo esc_view($status); ?>', event)"
                 title="Collapse column"
                 aria-label="Toggle column <?php echo esc_view($label); ?>">
@@ -134,11 +187,12 @@ $this->load->view('partials/oms_page_head', array(
               </button>
             </div>
             <div class="card-body p-2">
-              <div class="kanban-column" data-status="<?php echo esc_view($status); ?>" ondragover="event.preventDefault();" ondrop="handleDrop(event, this)">
+              <div class="kanban-column tb-drop-zone" data-status="<?php echo esc_view($status); ?>" ondragover="event.preventDefault();" ondrop="handleDrop(event, this)">
                 <?php if (empty($items)): ?>
-                  <div class="d-flex flex-column align-items-center justify-content-center empty-hint xsmall empty-hint-placeholder">
-                    <i class="bi bi-inbox text-muted mb-2" style="font-size: 2rem;"></i>
-                    <span class="text-muted">No tasks</span>
+                  <div class="tb-empty-column">
+                    <i class="bi bi-inbox"></i>
+                    <span>No tasks</span>
+                    <small>Drop here</small>
                   </div>
                 <?php endif; ?>
                 <?php foreach ($items as $t): ?>
@@ -146,53 +200,46 @@ $this->load->view('partials/oms_page_head', array(
                     $assignee = $assigneeName($t);
                     $init = $initials($assignee);
                     $priority = isset($t->priority) ? $t->priority : 'medium';
-                    $created_date = isset($t->created_at) ? date('M j', strtotime($t->created_at)) : '';
+                    $pr = isset($priority_meta[$priority]) ? $priority_meta[$priority] : $priority_meta['medium'];
+                    $due = $formatDue($t);
                   ?>
-                  <div class="kanban-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int) $t->id; ?>" data-status="<?php echo esc_view($status); ?>" data-priority="<?php echo esc_view($priority); ?>" data-assignee="<?php echo esc_view($assignee); ?>" data-title="<?php echo esc_view($t->title); ?>">
-                    <div class="kanban-card-header">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="d-flex align-items-center gap-2">
-                          <span class="priority-indicator priority-<?php echo esc_view($priority); ?>" title="Priority: <?php echo esc_view(ucfirst($priority)); ?>"></span>
-                          <span class="task-id text-muted small fw-mono">#<?php echo (int) $t->id; ?></span>
-                        </div>
-                        <div class="kanban-card-actions">
-                          <a class="btn btn-sm btn-light border" href="<?php echo site_url('tasks/' . (int) $t->id); ?>" title="View details">
-                            <i class="bi bi-box-arrow-up-right"></i>
-                          </a>
-                          <?php if ($can_edit_task): ?>
-                          <a class="btn btn-sm btn-primary" href="<?php echo site_url('tasks/' . (int) $t->id . '/edit'); ?>" title="Edit task">
-                            <i class="bi bi-pencil"></i>
-                          </a>
-                          <?php endif; ?>
-                        </div>
+                  <div class="kanban-card tb-task-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int) $t->id; ?>" data-status="<?php echo esc_view($status); ?>" data-priority="<?php echo esc_view($priority); ?>" data-assignee="<?php echo esc_view($assignee); ?>" data-title="<?php echo esc_view($t->title); ?>">
+                    <div class="tb-task-card-top">
+                      <div class="tb-task-card-meta">
+                        <span class="tb-task-id">#<?php echo (int) $t->id; ?></span>
+                        <span class="tb-priority-pill <?php echo esc_view($pr['class']); ?>"><?php echo esc_view($pr['label']); ?></span>
+                      </div>
+                      <div class="kanban-card-actions tb-task-card-actions">
+                        <a class="btn btn-sm btn-light border-0" href="<?php echo site_url('tasks/' . (int) $t->id); ?>" title="Open task">
+                          <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                        <?php if ($can_edit_task): ?>
+                        <a class="btn btn-sm btn-light border-0" href="<?php echo site_url('tasks/' . (int) $t->id . '/edit'); ?>" title="Edit">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+                        <?php endif; ?>
                       </div>
                     </div>
-                    <div class="kanban-card-body">
-                      <h6 class="task-title mb-2"><?php echo esc_view($t->title); ?></h6>
-                      <?php if (!empty($t->description)): ?>
-                        <div class="task-description mb-2">
-                          <?php
-                            $desc = trim(strip_tags((string) $t->description));
-                            if ($desc !== '') {
-                              echo esc_view(strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc);
-                            }
-                          ?>
-                        </div>
-                      <?php endif; ?>
-                      <span class="badge bg-<?php echo esc_view($badge); ?>"><?php echo esc_view($label); ?></span>
-                    </div>
-                    <div class="kanban-card-footer">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center flex-wrap gap-1">
-                          <?php if ($created_date): ?>
-                            <span class="date-chip text-muted">
-                              <i class="bi bi-calendar3 me-1"></i><?php echo esc_view($created_date); ?>
-                            </span>
-                          <?php endif; ?>
-                        </div>
-                        <div class="avatar avatar-bg" title="<?php echo esc_view($assignee !== '' ? $assignee : 'Unassigned'); ?>">
-                          <?php echo esc_view($init); ?>
-                        </div>
+                    <a class="tb-task-title" href="<?php echo site_url('tasks/' . (int) $t->id); ?>"><?php echo esc_view($t->title); ?></a>
+                    <?php if (!empty($t->description)): ?>
+                      <?php
+                        $desc = trim(strip_tags((string) $t->description));
+                        if ($desc !== '') {
+                          echo '<p class="tb-task-desc">' . esc_view(strlen($desc) > 90 ? substr($desc, 0, 90) . '…' : $desc) . '</p>';
+                        }
+                      ?>
+                    <?php endif; ?>
+                    <div class="tb-task-card-footer">
+                      <div class="tb-task-chips">
+                        <?php if ($due['label'] !== ''): ?>
+                          <span class="tb-chip tb-chip-due<?php echo $due['overdue'] ? ' is-overdue' : ''; ?>">
+                            <i class="bi bi-calendar-event"></i>
+                            <?php echo esc_view($due['label']); ?>
+                          </span>
+                        <?php endif; ?>
+                      </div>
+                      <div class="avatar avatar-bg tb-task-avatar" title="<?php echo esc_view($assignee !== '' ? $assignee : 'Unassigned'); ?>">
+                        <?php echo esc_view($init); ?>
                       </div>
                     </div>
                   </div>
@@ -212,15 +259,23 @@ $this->load->view('partials/oms_page_head', array(
   var draggedId = null;
 
   window.handleDragStart = function (e) {
-    draggedId = e.target && e.target.dataset ? e.target.dataset.id : null;
-    e.target.style.opacity = '0.5';
+    var card = e.target.closest('.kanban-card');
+    if (!card) {
+      return;
+    }
+    draggedId = card.dataset.id || null;
+    card.classList.add('dragging');
+    card.style.opacity = '0.55';
     e.dataTransfer.effectAllowed = 'move';
   };
 
   document.addEventListener('dragend', function (e) {
-    if (e.target.classList && e.target.classList.contains('kanban-card')) {
-      e.target.style.opacity = '';
+    var card = e.target.closest('.kanban-card');
+    if (!card) {
+      return;
     }
+    card.classList.remove('dragging');
+    card.style.opacity = '';
   });
 
   window.handleDrop = async function (e, column) {
@@ -231,7 +286,6 @@ $this->load->view('partials/oms_page_head', array(
     }
     var card = document.querySelector('.kanban-card[data-id="' + draggedId + '"]');
     if (card) {
-      card.style.opacity = '0.7';
       card.style.pointerEvents = 'none';
     }
     try {
@@ -249,6 +303,10 @@ $this->load->view('partials/oms_page_head', array(
         if (card) {
           card.dataset.status = status;
           column.prepend(card);
+          var empty = column.querySelector('.tb-empty-column');
+          if (empty) {
+            empty.remove();
+          }
         }
         updateColumnCounts();
       }
@@ -290,11 +348,9 @@ $this->load->view('partials/oms_page_head', array(
       return;
     }
     card.classList.toggle('collapsed');
-    var btn = card.querySelector('.kanban-col-toggle');
     var icon = card.querySelector('.kanban-col-toggle-icon');
-    if (btn && icon) {
-      var collapsed = card.classList.contains('collapsed');
-      icon.className = collapsed ? 'bi bi-chevron-down kanban-col-toggle-icon' : 'bi bi-chevron-up kanban-col-toggle-icon';
+    if (icon) {
+      icon.className = card.classList.contains('collapsed') ? 'bi bi-chevron-down kanban-col-toggle-icon' : 'bi bi-chevron-up kanban-col-toggle-icon';
     }
   };
 

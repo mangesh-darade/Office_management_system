@@ -354,7 +354,7 @@ class AuthHook {
         $always_allowed_controllers = [
             'dashboard', 'profile', 'auth', 'errors', 'welcome',
             'cron', 'install', 'migrate', 'short_url', 'test_company',
-            'coaching_portal', 'coaching_webhooks',
+            'coaching_portal', 'coaching_webhooks', 'push',
         ];
         if (in_array($controller, $always_allowed_controllers, true)) { return; }
 

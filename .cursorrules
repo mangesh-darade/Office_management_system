@@ -153,6 +153,7 @@ permissions, db, ai_chat, analytics, api_integrations
 | PROJECT_CONTEXT.md | What this system is |
 | PROJECT_ARCHITECTURE.md | Request flow, layers |
 | MODULE_DOCUMENTATION.md | All modules |
+| SIDEBAR_SCREEN_INDEX.md | Sidebar modules and screen links |
 | DATABASE_DOCUMENTATION.md | Tables, schema sources |
 | API_DOCUMENTATION.md | JSON/AJAX endpoints |
 | SECURITY_AUDIT.md | Security findings |

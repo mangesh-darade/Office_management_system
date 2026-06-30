@@ -10,6 +10,11 @@
 
   $matrixUrl = site_url('my-works?view=matrix');
 
+  $show_project_dashboard = function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'));
+  $show_task_dashboard = function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'));
+  $projectDashboardUrl = site_url('projects/dashboard');
+  $taskDashboardUrl = site_url('tasks/my-dashboard');
+
   $redirectBack = 'my-works';
 
   if (!empty($_SERVER['QUERY_STRING'])) {
@@ -79,6 +84,22 @@
             <i class="bi bi-grid-1x2 me-1"></i><span class="d-none d-sm-inline">Overview</span>
 
           </a>
+
+          <?php if ($show_project_dashboard): ?>
+          <a class="btn btn-outline-primary" href="<?php echo esc_view($projectDashboardUrl); ?>" title="Project Dashboard">
+
+            <i class="bi bi-speedometer2 me-1"></i><span class="d-none d-sm-inline">Project Dashboard</span>
+
+          </a>
+          <?php endif; ?>
+
+          <?php if ($show_task_dashboard): ?>
+          <a class="btn btn-outline-primary" href="<?php echo esc_view($taskDashboardUrl); ?>" title="Task Dashboard">
+
+            <i class="bi bi-person-check me-1"></i><span class="d-none d-sm-inline">Task Dashboard</span>
+
+          </a>
+          <?php endif; ?>
 
           <a class="btn <?php echo $toolbar_mode === 'list' ? 'btn-primary' : 'btn-outline-primary'; ?>" href="<?php echo esc_view($listUrl); ?>">
 

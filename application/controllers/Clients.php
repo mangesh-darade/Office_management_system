@@ -5,7 +5,7 @@ class Clients extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','error_handler','schema_columns','types']);
+        $this->load->helper(['url','form','permission','error_handler','schema_columns','types','validation']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -30,6 +30,22 @@ class Clients extends CI_Controller {
     {
         $type = module_type_validate_code($posted, 'clients', false, 'company');
         return $type === false ? 'company' : $type;
+    }
+
+    /**
+     * @param string $field_label
+     * @param string $redirect_path
+     * @return string|null
+     */
+    private function _normalize_client_url($field_name, $field_label, $redirect_path)
+    {
+        $normalized = normalize_optional_url($this->input->post($field_name));
+        if ($normalized === false) {
+            $this->session->set_flashdata('error', 'Please enter a valid ' . $field_label . ' or leave it blank.');
+            redirect($redirect_path);
+            exit;
+        }
+        return $normalized;
     }
 
     private function upload_logo($existing = null){
@@ -167,6 +183,10 @@ class Clients extends CI_Controller {
                 
                 // Upload logo
                 $logo_path = $this->upload_logo();
+
+                $website = $this->_normalize_client_url('website', 'URL', 'clients/create');
+                $demo_url = $this->_normalize_client_url('demo_url', 'Demo URL', 'clients/create');
+                $pos_url = $this->_normalize_client_url('pos_url', 'POS URL', 'clients/create');
                 
                 // Prepare data
                 $data = [
@@ -176,9 +196,9 @@ class Clients extends CI_Controller {
                     'email' => $email,
                     'phone' => $phone,
                     'alternate_phone' => trim($this->input->post('alternate_phone')),
-                    'website' => trim($this->input->post('website')),
-                    'demo_url' => trim($this->input->post('demo_url')),
-                    'pos_url' => trim($this->input->post('pos_url')),
+                    'website' => $website,
+                    'demo_url' => $demo_url,
+                    'pos_url' => $pos_url,
                     'address' => trim($this->input->post('address')),
                     'city' => trim($this->input->post('city')),
                     'state' => trim($this->input->post('state')),
@@ -379,15 +399,18 @@ class Clients extends CI_Controller {
                     }
                     
                     $logo_path = $this->upload_logo(isset($c->logo) ? $c->logo : null);
+                    $website = $this->_normalize_client_url('website', 'URL', 'clients/edit/'.$id);
+                    $demo_url = $this->_normalize_client_url('demo_url', 'Demo URL', 'clients/edit/'.$id);
+                    $pos_url = $this->_normalize_client_url('pos_url', 'POS URL', 'clients/edit/'.$id);
                     $data = [
                         'company_name' => $company_name,
                         'contact_person' => $contact_person,
                         'email' => $email,
                         'phone' => $phone,
                         'alternate_phone' => trim($this->input->post('alternate_phone')),
-                        'website' => trim($this->input->post('website')),
-                        'demo_url' => trim($this->input->post('demo_url')),
-                        'pos_url' => trim($this->input->post('pos_url')),
+                        'website' => $website,
+                        'demo_url' => $demo_url,
+                        'pos_url' => $pos_url,
                         'address' => trim($this->input->post('address')),
                         'city' => trim($this->input->post('city')),
                         'state' => trim($this->input->post('state')),
@@ -486,7 +509,7 @@ class Clients extends CI_Controller {
             'Email',
             'Phone',
             'Alternate Phone',
-            'Website',
+            'URL',
             'Demo URL',
             'POS URL',
             'Address',

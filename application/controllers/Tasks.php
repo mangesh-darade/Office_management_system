@@ -830,6 +830,356 @@ class Tasks extends CI_Controller {
         redirect('tasks');
     }
 
+    // GET /tasks/my-dashboard
+    public function user_dashboard()
+    {
+        require_module_access(['tasks_list', 'tasks'], true);
+
+        $user_id = (int) $this->session->userdata('user_id');
+        $role_id = (int) $this->session->userdata('role_id');
+        if ($user_id < 1) {
+            redirect('auth/login');
+            return;
+        }
+
+        $can_view_all = $this->_user_dashboard_can_view_all($role_id);
+
+        $this->load->model('Status_model', 'statuses');
+        $status_rows = $this->statuses->get_by_type('tasks', true);
+        if (empty($status_rows)) {
+            $status_rows = array(
+                (object) array('code' => 'pending', 'name' => 'Pending', 'color' => '#6c757d'),
+                (object) array('code' => 'in_progress', 'name' => 'In Progress', 'color' => '#007bff'),
+                (object) array('code' => 'completed', 'name' => 'Completed', 'color' => '#28a745'),
+                (object) array('code' => 'blocked', 'name' => 'Blocked', 'color' => '#dc3545'),
+            );
+        }
+
+        $display_name = $this->_user_dashboard_display_name($user_id);
+        $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all);
+
+        if ($can_view_all) {
+            $group_cards = $this->_user_dashboard_employee_cards($tasks);
+            $group_mode = 'employee';
+            $page_title = 'Task Dashboard';
+            $subtitle = 'All employee tasks';
+        } else {
+            $group_cards = $this->_user_dashboard_project_cards($tasks);
+            $group_mode = 'project';
+            $page_title = 'My Task Dashboard';
+            $subtitle = 'Tasks assigned to you or created by you';
+            if (!empty($display_name)) {
+                $subtitle = 'Tasks for ' . $display_name . ' (assigned or created by you)';
+            }
+        }
+
+        $this->load->view('tasks/user_dashboard', array(
+            'status_rows'   => $status_rows,
+            'group_cards'   => $group_cards,
+            'group_mode'    => $group_mode,
+            'page_title'    => $page_title,
+            'display_name'  => $display_name,
+            'task_total'    => count($tasks),
+            'is_admin_view' => $can_view_all,
+            'subtitle'      => $subtitle,
+        ));
+    }
+
+    /**
+     * @param int $role_id
+     * @return bool
+     */
+    private function _user_dashboard_can_view_all($role_id)
+    {
+        $role_id = (int) $role_id;
+        if ($role_id === 1) {
+            return true;
+        }
+        if (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data()) {
+            return true;
+        }
+        if (function_exists('has_module_access') && has_module_access('tasks_view_all')) {
+            return true;
+        }
+        if (function_exists('is_admin_group') && is_admin_group()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param int $user_id
+     * @return string
+     */
+    private function _user_dashboard_display_name($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id < 1) {
+            return '';
+        }
+
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'name')) {
+            $emp = $this->db->select('name')->from('employees')->where('user_id', $user_id)->limit(1)->get()->row();
+            if ($emp && trim((string) $emp->name) !== '') {
+                return trim((string) $emp->name);
+            }
+        }
+
+        if ($this->db->table_exists('users')) {
+            $user = $this->db->where('id', $user_id)->limit(1)->get('users')->row();
+            if ($user) {
+                if (schema_table_has_column($this->db, 'users', 'full_name') && trim((string) $user->full_name) !== '') {
+                    return trim((string) $user->full_name);
+                }
+                if (schema_table_has_column($this->db, 'users', 'name') && trim((string) $user->name) !== '') {
+                    return trim((string) $user->name);
+                }
+                if (!empty($user->email)) {
+                    return (string) $user->email;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param int $user_id
+     * @param int $role_id
+     * @param bool $can_view_all
+     * @return array
+     */
+    private function _user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id < 1 || !$this->db->table_exists('tasks')) {
+            return array();
+        }
+
+        $select = array(
+            't.id',
+            't.project_id',
+            't.title',
+            't.status',
+            't.due_date',
+            't.start_date',
+            't.created_at',
+            't.assigned_to',
+        );
+        if (schema_table_has_column($this->db, 'tasks', 'created_by')) {
+            $select[] = 't.created_by';
+        }
+        if (schema_table_has_column($this->db, 'tasks', 'priority')) {
+            $select[] = 't.priority';
+        }
+
+        $this->db->from('tasks t');
+
+        if ($this->db->table_exists('projects') && schema_table_has_column($this->db, 'projects', 'name')) {
+            $select[] = 'p.name AS project_name';
+            $this->db->join('projects p', 'p.id = t.project_id', 'left');
+        }
+
+        if ($can_view_all) {
+            if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
+                if (schema_table_has_column($this->db, 'employees', 'name')) {
+                    $select[] = 'e.name AS assignee_name';
+                }
+                if (schema_table_has_column($this->db, 'employees', 'emp_code')) {
+                    $select[] = 'e.emp_code AS assignee_code';
+                }
+                $this->db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+            }
+            if ($this->db->table_exists('users')) {
+                if (schema_table_has_column($this->db, 'users', 'email')) {
+                    $select[] = 'u.email AS assignee_email';
+                }
+                if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                    $select[] = 'u.full_name AS assignee_full_name';
+                }
+                if (schema_table_has_column($this->db, 'users', 'name')) {
+                    $select[] = 'u.name AS assignee_user_name';
+                }
+                $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+            }
+        }
+
+        $this->db->select(implode(',', $select));
+
+        if (!$can_view_all) {
+            $this->db->group_start();
+            $this->db->where('t.assigned_to', $user_id);
+            if (schema_table_has_column($this->db, 'tasks', 'created_by')) {
+                $this->db->or_where('t.created_by', $user_id);
+            }
+            $this->db->group_end();
+        }
+
+        if (schema_table_has_column($this->db, 'tasks', 'priority')) {
+            $priority_order = "CASE t.priority
+                WHEN 'urgent' THEN 1
+                WHEN 'high' THEN 2
+                WHEN 'medium' THEN 3
+                WHEN 'low' THEN 4
+                ELSE 5 END";
+            $this->db->order_by($priority_order, 'ASC', false);
+        }
+        $this->db->order_by('t.due_date IS NULL', 'ASC', false);
+        $this->db->order_by('t.due_date', 'ASC');
+        $this->db->order_by('t.title', 'ASC');
+        $this->db->order_by('t.id', 'ASC');
+
+        return $this->db->get()->result();
+    }
+
+    /**
+     * @param array $tasks
+     * @return array
+     */
+    private function _user_dashboard_employee_cards($tasks)
+    {
+        $grouped = array();
+        foreach ($tasks as $task) {
+            $assignee_id = isset($task->assigned_to) ? (int) $task->assigned_to : 0;
+            if (!isset($grouped[$assignee_id])) {
+                $grouped[$assignee_id] = array();
+            }
+            $grouped[$assignee_id][] = $task;
+        }
+
+        if (empty($grouped)) {
+            return array();
+        }
+
+        $cards = array();
+        foreach ($grouped as $assignee_id => $employee_tasks) {
+            $assignee_id = (int) $assignee_id;
+            $label = 'Unassigned';
+            $code = '—';
+
+            if ($assignee_id > 0 && !empty($employee_tasks)) {
+                $first = $employee_tasks[0];
+                if (!empty($first->assignee_name)) {
+                    $label = trim((string) $first->assignee_name);
+                } else if (!empty($first->assignee_full_name)) {
+                    $label = trim((string) $first->assignee_full_name);
+                } else if (!empty($first->assignee_user_name)) {
+                    $label = trim((string) $first->assignee_user_name);
+                } else if (!empty($first->assignee_email)) {
+                    $label = trim((string) $first->assignee_email);
+                } else {
+                    $label = $this->_user_dashboard_display_name($assignee_id);
+                }
+                if ($label === '') {
+                    $label = 'User #' . $assignee_id;
+                }
+                if (!empty($first->assignee_code)) {
+                    $code = trim((string) $first->assignee_code);
+                } else {
+                    $code = '#' . $assignee_id;
+                }
+            }
+
+            $cards[] = array(
+                'entity' => (object) array(
+                    'id'   => $assignee_id,
+                    'code' => $code,
+                    'name' => $label,
+                ),
+                'tasks' => $employee_tasks,
+            );
+        }
+
+        usort($cards, function ($a, $b) {
+            $a_name = isset($a['entity']->name) ? strtolower(trim((string) $a['entity']->name)) : '';
+            $b_name = isset($b['entity']->name) ? strtolower(trim((string) $b['entity']->name)) : '';
+            if ($a_name === 'unassigned') {
+                return 1;
+            }
+            if ($b_name === 'unassigned') {
+                return -1;
+            }
+            return strcmp($a_name, $b_name);
+        });
+
+        return $cards;
+    }
+
+
+    /**
+     * @param array $tasks
+     * @return array
+     */
+    private function _user_dashboard_project_cards($tasks)
+    {
+        $grouped = array();
+        foreach ($tasks as $task) {
+            $project_id = isset($task->project_id) ? (int) $task->project_id : 0;
+            if (!isset($grouped[$project_id])) {
+                $grouped[$project_id] = array();
+            }
+            $grouped[$project_id][] = $task;
+        }
+
+        if (empty($grouped)) {
+            return array();
+        }
+
+        $project_ids = array();
+        foreach (array_keys($grouped) as $project_id) {
+            $project_id = (int) $project_id;
+            if ($project_id > 0) {
+                $project_ids[] = $project_id;
+            }
+        }
+
+        $projects_by_id = array();
+        if (!empty($project_ids) && $this->db->table_exists('projects')) {
+            $rows = $this->db->where_in('id', $project_ids)->get('projects')->result();
+            foreach ($rows as $row) {
+                $projects_by_id[(int) $row->id] = $row;
+            }
+        }
+
+        $cards = array();
+        foreach ($grouped as $project_id => $project_tasks) {
+            $project_id = (int) $project_id;
+            if ($project_id > 0 && isset($projects_by_id[$project_id])) {
+                $project = $projects_by_id[$project_id];
+            } else {
+                $project = (object) array(
+                    'id'   => 0,
+                    'code' => '—',
+                    'name' => 'General Tasks',
+                );
+            }
+
+            $cards[] = array(
+                'entity' => $project,
+                'tasks'   => $project_tasks,
+            );
+        }
+
+        usort($cards, function ($a, $b) {
+            $a_name = isset($a['entity']->name) ? strtolower(trim((string) $a['entity']->name)) : '';
+            $b_name = isset($b['entity']->name) ? strtolower(trim((string) $b['entity']->name)) : '';
+            if ($a_name === $b_name) {
+                $a_code = isset($a['entity']->code) ? strtolower(trim((string) $a['entity']->code)) : '';
+                $b_code = isset($b['entity']->code) ? strtolower(trim((string) $b['entity']->code)) : '';
+                return strcmp($a_code, $b_code);
+            }
+            if ($a_name === 'general tasks') {
+                return 1;
+            }
+            if ($b_name === 'general tasks') {
+                return -1;
+            }
+            return strcmp($a_name, $b_name);
+        });
+
+        return $cards;
+    }
+
     // GET /tasks/board
     public function board()
     {
@@ -915,6 +1265,16 @@ class Tasks extends CI_Controller {
             }
         }
         
+        $board_stats = array();
+        $total_tasks = 0;
+        foreach ($statuses as $st) {
+            $cnt = count($columns[$st]);
+            $board_stats[$st] = $cnt;
+            $total_tasks += $cnt;
+        }
+        $completed_count = isset($board_stats['completed']) ? (int) $board_stats['completed'] : 0;
+        $board_progress = ($total_tasks > 0) ? (int) round(($completed_count / $total_tasks) * 100) : 0;
+
         $this->load->view('tasks/board', [
             'columns' => $columns,
             'projects' => $projects,
@@ -922,6 +1282,9 @@ class Tasks extends CI_Controller {
             'filter_project_id' => $project_filter,
             'filter_assigned_to' => $assignee_filter,
             'filter_priority' => $priority_filter,
+            'board_stats' => $board_stats,
+            'total_tasks' => $total_tasks,
+            'board_progress' => $board_progress,
         ]);
     }
 

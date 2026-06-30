@@ -21,7 +21,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
 
 <div class="card shadow-sm oms-form-card">
   <div class="card-body">
-    <form method="post" action="<?php echo site_url('api-integrations/' . ($is_edit ? 'update/' . $integration->id : 'store')); ?>" data-validate="true">
+    <form method="post" action="<?php echo site_url('api-integrations/' . ($is_edit ? 'update/' . $integration->id : 'store')); ?>" data-validate="true" id="apiIntegrationForm">
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">Service Type <span class="text-danger">*</span></label>
@@ -30,6 +30,7 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
             <option value="sendgrid" <?php echo ($integration && $integration->service_type === 'sendgrid') ? 'selected' : ''; ?>>SendGrid (Email API)</option>
             <option value="whatsapp" <?php echo ($integration && $integration->service_type === 'whatsapp') ? 'selected' : ''; ?>>WhatsApp (Twilio)</option>
             <option value="smtp" <?php echo ($integration && $integration->service_type === 'smtp') ? 'selected' : ''; ?>>SMTP (Email)</option>
+            <option value="jitsi" <?php echo ($integration && $integration->service_type === 'jitsi') ? 'selected' : ''; ?>>Jitsi Meet (Video Meetings)</option>
           </select>
         </div>
         
@@ -84,6 +85,35 @@ $this->load->view('partials/header', ['title' => $is_edit ? 'Edit API Integratio
         </div>
       </div>
       
+      <!-- Jitsi-specific fields -->
+      <div id="jitsi_fields" style="display: none;">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">JWT App ID (Issuer)</label>
+            <input type="text" name="from_name" id="jitsi_app_id" class="form-control"
+                   value="<?php echo $integration ? esc_view($integration->from_name) : ''; ?>"
+                   placeholder="my_jitsi_app">
+            <small class="form-text text-muted">Required only when JWT auth is enabled on your Jitsi server</small>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Extra config (JSON)</label>
+            <input type="text" name="jitsi_notes_json" id="jitsi_notes_json" class="form-control"
+                   value="<?php
+                     if ($integration && $integration->service_type === 'jitsi' && $integration->notes) {
+                       echo esc_view($integration->notes);
+                     }
+                   ?>"
+                   placeholder='{"app_id":"my_jitsi_app"}'>
+            <small class="form-text text-muted">Optional JSON; app_id fallback if From Name is empty</small>
+          </div>
+        </div>
+        <div class="alert alert-info small mb-3">
+          <strong>Field mapping:</strong> Account ID = Jitsi Meet <em>server</em> domain only (e.g. <code>meet.jit.si</code> or <code>meet.elintpos.in</code>).
+          Do <strong>not</strong> use your OMS portal URL (<code>internalportal.elintpos.in</code>).
+          Auth Token = JWT secret (leave blank for public <code>meet.jit.si</code>).
+        </div>
+      </div>
+
       <!-- WhatsApp-specific fields -->
       <div id="whatsapp_fields" style="display: none;">
         <div class="row">
@@ -147,25 +177,51 @@ document.addEventListener('DOMContentLoaded', function() {
   const serviceType = document.getElementById('service_type');
   const emailFields = document.getElementById('email_fields');
   const whatsappFields = document.getElementById('whatsapp_fields');
+  const jitsiFields = document.getElementById('jitsi_fields');
+  const authTokenField = document.getElementById('auth_token');
+  const accountIdField = document.getElementById('account_id');
   
   function toggleFields() {
     const type = serviceType.value;
     emailFields.style.display = (type === 'sendgrid' || type === 'smtp') ? 'block' : 'none';
     whatsappFields.style.display = (type === 'whatsapp') ? 'block' : 'none';
+    if (jitsiFields) {
+      jitsiFields.style.display = (type === 'jitsi') ? 'block' : 'none';
+    }
     
-    // Update placeholders and labels based on service type
-    const accountIdField = document.getElementById('account_id');
     if (type === 'sendgrid') {
       accountIdField.placeholder = 'SG.xxxxxxxxxxxxxxxxxxxxx';
+      authTokenField.required = false;
     } else if (type === 'whatsapp') {
       accountIdField.placeholder = 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+      authTokenField.required = true;
     } else if (type === 'smtp') {
       accountIdField.placeholder = 'smtp.gmail.com or server address';
+      authTokenField.required = true;
+    } else if (type === 'jitsi') {
+      accountIdField.placeholder = 'meet.jit.si or jitsi.yourcompany.com';
+      authTokenField.required = false;
+      authTokenField.placeholder = 'JWT secret (optional for meet.jit.si)';
     }
   }
   
   serviceType.addEventListener('change', toggleFields);
-  toggleFields(); // Initial call
+  toggleFields();
+
+  var apiForm = document.getElementById('apiIntegrationForm');
+  if (apiForm) {
+    apiForm.addEventListener('submit', function(){
+      [emailFields, whatsappFields, jitsiFields].forEach(function(wrapper){
+        if (!wrapper) return;
+        var hidden = wrapper.style.display === 'none';
+        wrapper.querySelectorAll('input, select, textarea').forEach(function(el){
+          if (hidden) {
+            el.disabled = true;
+          }
+        });
+      });
+    });
+  }
 });
 
 function togglePassword(fieldId) {

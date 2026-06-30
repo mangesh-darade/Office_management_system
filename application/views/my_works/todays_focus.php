@@ -53,13 +53,10 @@
       <?php endif; ?>
     </div>
 
-    <div class="mw-dash-view-tabs mw-focus-view-tabs">
-      <a class="mw-dash-view-tab active" href="<?php echo esc_view($focusUrl, ENT_QUOTES, 'UTF-8'); ?>">Today's Focus</a>
-      <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=overview'); ?>">Overview</a>
-      <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=list'); ?>">List</a>
-      <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=board'); ?>">Board</a>
-      <a class="mw-dash-view-tab" href="<?php echo site_url('my-works?view=matrix'); ?>">Matrix</a>
-    </div>
+    <?php $this->load->view('my_works/_dash_view_tabs', array(
+      'active_tab' => 'todays-focus',
+      'tabs_class' => 'mw-dash-view-tabs mw-focus-view-tabs',
+    )); ?>
   </div>
 
   <div class="mw-focus-filters-card">

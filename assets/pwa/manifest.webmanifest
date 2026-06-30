@@ -1,7 +1,8 @@
 {
   "name": "Office Management Tool",
   "short_name": "OfficeMgmt",
-  "start_url": "/",
+  "start_url": "/chats/app",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0d6efd",

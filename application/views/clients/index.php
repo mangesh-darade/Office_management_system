@@ -34,7 +34,7 @@
 <div class="card shadow-soft mb-3">
   <div class="card-body">
     <form method="get" action="<?php echo site_url('clients'); ?>" class="row g-2 align-items-end">
-      <div class="col-md-3">
+      <div class="col-lg-3 col-md-6">
         <label class="form-label">Status</label>
         <?php $st = isset($filters['status']) ? (string)$filters['status'] : ''; ?>
         <select name="status" class="form-select">
@@ -44,7 +44,7 @@
           <option value="blocked" <?php echo $st==='blocked'?'selected':''; ?>>Blocked</option>
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-lg-3 col-md-6">
         <label class="form-label">Type</label>
         <?php $ct = isset($filters['client_type']) ? (string)$filters['client_type'] : ''; ?>
         <select name="client_type" class="form-select">
@@ -54,11 +54,11 @@
           <?php endforeach; endif; ?>
         </select>
       </div>
-      <div class="col-md-4">
+      <div class="col-lg-3 col-md-6">
         <label class="form-label">Search</label>
-        <input type="text" name="q" value="<?php echo esc_view(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Company, code, contact, email...">
+        <input type="text" name="q" value="<?php echo esc_view(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Company, code, contact, email, URL...">
       </div>
-      <div class="col-md-2">
+      <div class="col-lg-3 col-md-6">
         <button class="btn btn-outline-primary w-100" type="submit">Filter</button>
       </div>
     </form>
@@ -73,17 +73,16 @@
           <tr>
             <th style="width:56px;">Logo</th>
             <th>Company</th>
-            <th class="d-none d-md-table-cell">Code</th>
-            <th class="d-none d-sm-table-cell">Contact</th>
-            <th class="d-none d-sm-table-cell">Phone</th>
-            <th class="d-none d-lg-table-cell">Demo / POS</th>
+            <th>Contact</th>
+            <th>Phone</th>
+            <th>URL</th>
             <th>Status</th>
             <th class="text-end" style="min-width:120px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-          <tr><td colspan="8" class="text-center text-muted py-4">No clients found.</td></tr>
+          <tr><td colspan="7" class="text-center text-muted py-4">No clients found.</td></tr>
           <?php else: foreach ($rows as $c): ?>
           <tr>
             <td>
@@ -105,23 +104,29 @@
             </td>
             <td>
               <div class="fw-semibold"><?php echo esc_view($c->company_name); ?></div>
-              <div class="small text-muted d-md-none"><?php echo esc_view($c->client_code); ?></div>
+              <?php if (!empty($c->client_code)): ?>
+              <div class="small text-muted"><?php echo esc_view($c->client_code); ?></div>
+              <?php endif; ?>
             </td>
-            <td class="d-none d-md-table-cell small text-muted"><?php echo esc_view($c->client_code); ?></td>
-            <td class="d-none d-sm-table-cell"><?php echo esc_view(isset($c->contact_person)?$c->contact_person:''); ?></td>
-            <td class="d-none d-sm-table-cell"><?php echo esc_view(isset($c->phone)?$c->phone:''); ?></td>
-            <td class="d-none d-lg-table-cell small">
+            <td><?php echo esc_view(isset($c->contact_person)?$c->contact_person:''); ?></td>
+            <td><?php echo esc_view(isset($c->phone)?$c->phone:''); ?></td>
+            <td class="small">
+              <?php if (!empty($c->website)): ?>
+                <a href="<?php echo esc_view($c->website); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:180px;" title="<?php echo esc_view($c->website, ENT_QUOTES, 'UTF-8'); ?>">
+                  <i class="bi bi-link-45deg me-1"></i><?php echo esc_view($c->website); ?>
+                </a>
+              <?php endif; ?>
               <?php if (!empty($c->demo_url)): ?>
-                <a href="<?php echo esc_view($c->demo_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo esc_view($c->demo_url); ?>">
+                <a href="<?php echo esc_view($c->demo_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:180px;" title="<?php echo esc_view($c->demo_url); ?>">
                   <i class="bi bi-box-arrow-up-right me-1"></i>Demo
                 </a>
               <?php endif; ?>
               <?php if (!empty($c->pos_url)): ?>
-                <a href="<?php echo esc_view($c->pos_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:160px;" title="<?php echo esc_view($c->pos_url); ?>">
+                <a href="<?php echo esc_view($c->pos_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:180px;" title="<?php echo esc_view($c->pos_url); ?>">
                   <i class="bi bi-box-arrow-up-right me-1"></i>POS
                 </a>
               <?php endif; ?>
-              <?php if (empty($c->demo_url) && empty($c->pos_url)): ?>
+              <?php if (empty($c->website) && empty($c->demo_url) && empty($c->pos_url)): ?>
                 <span class="text-muted">—</span>
               <?php endif; ?>
             </td>

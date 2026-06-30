@@ -42,6 +42,26 @@ class Calls extends CI_Controller {
         $to_user_id = (int)$this->input->post('to_user_id'); // optional
         if (!$type || !$payload) { $this->_json(['ok'=>false,'error'=>'invalid']); return; }
         $id = $this->Call_model->add_signal($call_id, $from, $to_user_id ?: null, $type, $payload);
+        if ($type === 'offer') {
+            $call = $this->db->get_where('calls', ['id' => $call_id])->row();
+            if ($call) {
+                $recipients = [];
+                if ($to_user_id > 0) {
+                    $recipients[] = $to_user_id;
+                } else {
+                    $parts = $this->db->select('user_id')
+                        ->from('conversation_participants')
+                        ->where('conversation_id', (int) $call->conversation_id)
+                        ->where('user_id !=', $from)
+                        ->get()->result();
+                    foreach ($parts as $p) {
+                        $recipients[] = (int) $p->user_id;
+                    }
+                }
+                $this->load->helper('web_push');
+                web_push_notify_incoming_call($call_id, $from, (int) $call->conversation_id, $recipients);
+            }
+        }
         $this->_json(['ok'=>true,'id'=>$id]);
     }
 

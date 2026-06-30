@@ -1,3 +1,4 @@
+/* Portal service worker — root install for WAMP subdirectory scope (localhost + production) */
 self.addEventListener('install', function(event) {
   self.skipWaiting();
 });

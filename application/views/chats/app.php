@@ -84,7 +84,33 @@
     </button>
   </div>
 </div>
+<?php if (!empty($jitsi_config['enabled']) && !empty($jitsi_config['security_warning'])): ?>
+<div class="container-fluid pt-0">
+  <div class="alert alert-warning py-2 mb-2 small d-flex align-items-start gap-2">
+    <i class="bi bi-shield-exclamation flex-shrink-0 mt-1"></i>
+    <span><?php echo esc_view($jitsi_config['security_warning']); ?></span>
+  </div>
+</div>
+<?php elseif (empty($jitsi_config['enabled'])): ?>
+<div class="container-fluid pt-0">
+  <div class="alert alert-info py-2 mb-2 small d-flex align-items-start gap-2">
+    <i class="bi bi-camera-video-off flex-shrink-0 mt-1"></i>
+    <span>Group video meetings need Jitsi configured under <strong>API Integrations</strong> (use <code>meet.jit.si</code> for testing). Quick 1:1 WebRTC calls still work in DMs.</span>
+  </div>
+</div>
+<?php endif; ?>
 
+<div class="container-fluid py-0 d-none" id="meetingMinimizedBar">
+  <div class="alert alert-primary py-2 mb-2 d-flex align-items-center justify-content-between gap-2">
+    <span class="small fw-semibold"><i class="bi bi-camera-video-fill me-1"></i> Meeting in progress</span>
+    <div class="d-flex gap-1">
+      <button type="button" class="btn btn-sm btn-primary" id="btnMeetingRestore">Return</button>
+      <button type="button" class="btn btn-sm btn-outline-danger" id="btnMeetingLeaveFromBar">Leave</button>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid pb-3">
 <div class="chat-app row g-3">
   <!-- Sidebar: conversation list -->
   <div class="col-12 col-md-4 col-lg-3">
@@ -101,7 +127,15 @@
       </div>
       <div class="card-body p-0">
         <div class="list-group list-group-flush" id="convoList"
-             data-initial-id="<?php echo (int)((isset($open_id) && $open_id) ? $open_id : (!empty($conversations) ? (int)$conversations[0]->id : 0)); ?>">
+             data-initial-id="<?php
+               $initial_convo = 0;
+               if (!empty($open_id) && (int)$open_id > 0) {
+                   $initial_convo = (int)$open_id;
+               } elseif (empty($scheduled_meeting_id) && !empty($conversations)) {
+                   $initial_convo = (int)$conversations[0]->id;
+               }
+               echo $initial_convo;
+             ?>">
           <?php if (!empty($conversations)): ?>
             <?php
               $my_email = $this->session->userdata('email');
@@ -136,6 +170,7 @@
                     data-type="<?php echo esc_view($c->type); ?>"
                     data-title="<?php echo esc_view($c->title ? $c->title : ''); ?>"
                     data-members="<?php echo esc_view($c->members ? $c->members : ''); ?>"
+                    data-participant-ids="<?php echo esc_view(isset($c->member_ids) ? $c->member_ids : ''); ?>"
                     data-label="<?php echo esc_view(strtolower($label)); ?>">
               <span class="avatar flex-shrink-0"><?php echo esc_view($initial); ?></span>
               <div class="flex-grow-1 overflow-hidden">
@@ -174,17 +209,39 @@
           <div class="fw-semibold" id="hdrConvTitle">Select a conversation</div>
           <div id="hdrConvMeta" class="header-sub text-muted small"></div>
         </div>
-        <div class="d-flex flex-wrap gap-1">
-          <button id="btnToggleMic" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Microphone"><i class="bi bi-mic"></i></button>
-          <button id="btnToggleSpeaker" class="btn btn-outline-secondary btn-sm" disabled title="Toggle Speaker"><i class="bi bi-volume-up"></i></button>
-          <button id="btnCallToggle" class="btn btn-outline-primary btn-sm" disabled><i class="bi bi-camera-video"></i> <span class="d-none d-sm-inline">Start Call</span></button>
+        <div class="d-flex flex-wrap gap-1 chat-header-toolbar align-items-center">
+          <?php if (!empty($jitsi_config['enabled'])): ?>
+          <button id="btnStartMeeting" class="btn btn-primary btn-sm" disabled title="Start or join video meeting">
+            <i class="bi bi-camera-video-fill"></i> <span class="d-none d-sm-inline" id="btnStartMeetingLabel">Start Meeting</span>
+          </button>
+          <button id="btnScheduleMeeting" class="btn btn-outline-primary btn-sm" disabled title="Schedule meeting">
+            <i class="bi bi-calendar-plus"></i> <span class="d-none d-sm-inline">Schedule</span>
+          </button>
+          <?php endif; ?>
+          <button id="btnCallToggle" class="btn btn-outline-primary btn-sm" disabled title="Quick 1:1 call (WebRTC)"><i class="bi bi-telephone"></i> <span class="d-none d-sm-inline">Quick Call</span></button>
           <button id="btnAcceptCall" class="btn btn-success btn-sm d-none" title="Accept call"><i class="bi bi-telephone-inbound"></i></button>
           <button id="btnRejectCall" class="btn btn-outline-danger btn-sm d-none" title="Reject call"><i class="bi bi-telephone-x"></i></button>
-          <button id="btnShareScreen" class="btn btn-outline-secondary btn-sm" disabled title="Share Screen"><i class="bi bi-display"></i></button>
-          <button id="btnRecord" class="btn btn-outline-secondary btn-sm" disabled title="Record"><i class="bi bi-record-circle"></i></button>
+          <div class="dropdown d-none" id="webrtcToolsDropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="In-call tools">
+              <i class="bi bi-sliders"></i> <span class="d-none d-md-inline">In call</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><button type="button" class="dropdown-item" id="btnToggleMicDd"><i class="bi bi-mic me-2"></i>Toggle mic</button></li>
+              <li><button type="button" class="dropdown-item" id="btnToggleSpeakerDd"><i class="bi bi-volume-up me-2"></i>Toggle speaker</button></li>
+              <li><button type="button" class="dropdown-item" id="btnShareScreenDd"><i class="bi bi-display me-2"></i>Share screen</button></li>
+              <li><button type="button" class="dropdown-item" id="btnRecordDd"><i class="bi bi-record-circle me-2"></i>Record</button></li>
+              <li><button type="button" class="dropdown-item" id="btnFullscreenDd"><i class="bi bi-arrows-fullscreen me-2"></i>Full view</button></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><button type="button" class="dropdown-item text-danger" id="btnEndCallDd"><i class="bi bi-telephone-x me-2"></i>End call</button></li>
+            </ul>
+          </div>
+          <button id="btnToggleMic" class="btn btn-outline-secondary btn-sm d-none webrtc-tool-btn" disabled title="Toggle Microphone"><i class="bi bi-mic"></i></button>
+          <button id="btnToggleSpeaker" class="btn btn-outline-secondary btn-sm d-none webrtc-tool-btn" disabled title="Toggle Speaker"><i class="bi bi-volume-up"></i></button>
+          <button id="btnShareScreen" class="btn btn-outline-secondary btn-sm d-none webrtc-tool-btn" disabled title="Share Screen"><i class="bi bi-display"></i></button>
+          <button id="btnRecord" class="btn btn-outline-secondary btn-sm d-none webrtc-tool-btn" disabled title="Record"><i class="bi bi-record-circle"></i></button>
+          <button id="btnEndCall" class="btn btn-outline-danger btn-sm d-none" title="End call"><i class="bi bi-telephone-x"></i></button>
+          <button id="btnFullscreen" class="btn btn-outline-secondary btn-sm d-none webrtc-tool-btn" disabled title="Full View"><i class="bi bi-arrows-fullscreen"></i></button>
           <button id="btnReminder" class="btn btn-outline-warning btn-sm" title="Send reminder" disabled><i class="bi bi-bell"></i></button>
-          <button id="btnEndCall" class="btn btn-outline-danger btn-sm d-none"><i class="bi bi-telephone-x"></i></button>
-          <button id="btnFullscreen" class="btn btn-outline-secondary btn-sm" disabled title="Full View"><i class="bi bi-arrows-fullscreen"></i></button>
         </div>
       </div>
       <div class="card-body p-2 p-md-3">
@@ -247,7 +304,59 @@
                 <button class="btn" id="btnLocalAudioToggle" title="Toggle Microphone"><i class="bi bi-mic"></i></button>
               </div>
             </div>
-            <div id="callStatus" class="small text-muted">Idle</div>
+            <div id="callStatus" class="small text-muted mt-1">
+              <span id="callStatusText">Idle</span>
+              <span id="callModeBadge" class="badge bg-secondary ms-1 d-none">WebRTC</span>
+              <span id="meetingModeBadge" class="badge bg-primary ms-1 d-none">Meeting</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Pre-join lobby modal (Google Meet style) -->
+<div class="modal fade" id="preJoinLobbyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title fw-bold" id="lobbyMeetingTitle">Ready to join?</h5>
+          <p class="text-muted small mb-0" id="lobbyMeetingMeta"></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 align-items-center">
+          <div class="col-md-7">
+            <div class="lobby-preview-wrap ratio ratio-16x9 bg-dark rounded overflow-hidden">
+              <video id="lobbyPreviewVideo" autoplay playsinline muted></video>
+              <div id="lobbyPreviewPlaceholder" class="lobby-preview-placeholder">
+                <i class="bi bi-camera-video-off"></i>
+                <span>Camera off</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <div class="d-flex flex-column gap-3">
+              <div>
+                <label class="form-label small fw-semibold">Microphone</label>
+                <select id="lobbyAudioInput" class="form-select form-select-sm"></select>
+              </div>
+              <div>
+                <label class="form-label small fw-semibold">Camera</label>
+                <select id="lobbyVideoInput" class="form-select form-select-sm"></select>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" id="lobbyToggleMic" class="btn btn-outline-secondary flex-fill"><i class="bi bi-mic-fill"></i> Mic on</button>
+                <button type="button" id="lobbyToggleCam" class="btn btn-outline-secondary flex-fill"><i class="bi bi-camera-video-fill"></i> Cam on</button>
+              </div>
+              <button type="button" id="btnLobbyJoin" class="btn btn-primary btn-lg w-100">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Join now
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -255,7 +364,52 @@
   </div>
 </div>
 
-<!-- Full-screen call overlay -->
+<!-- Schedule meeting modal -->
+<div class="modal fade" id="scheduleMeetingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-plus me-2"></i>Schedule Meeting</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="scheduleMeetingForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Title</label>
+            <input type="text" id="schedTitle" class="form-control" required placeholder="Team standup">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Date &amp; time</label>
+            <input type="datetime-local" id="schedDateTime" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Duration (minutes)</label>
+            <input type="number" id="schedDuration" class="form-control" value="60" min="15" step="15">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Invite emails (comma-separated)</label>
+            <input type="text" id="schedEmails" class="form-control" placeholder="user1@company.com, user2@company.com">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notes</label>
+            <textarea id="schedNotes" class="form-control" rows="2"></textarea>
+          </div>
+        </form>
+        <div id="upcomingMeetingsWrap" class="d-none">
+          <hr>
+          <h6 class="fw-semibold">Upcoming meetings</h6>
+          <ul id="upcomingMeetingsList" class="list-group list-group-flush small"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btnSubmitSchedule" class="btn btn-primary">Schedule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full-screen call overlay (legacy 1:1 WebRTC) -->
 <div id="callOverlay" class="call-overlay" aria-hidden="true">
   <div class="overlay-toolbar">
     <button id="btnOverlayMinimize" class="btn btn-outline-light btn-sm" title="Back to chat"><i class="bi bi-chat-dots"></i></button>
@@ -286,6 +440,50 @@
   <div id="overlayStatus" class="overlay-status">Idle</div>
 </div>
 
+<!-- Jitsi meeting overlay (Zoom/Meet style) -->
+<div id="meetingOverlay" class="meeting-overlay" aria-hidden="true">
+  <div class="meeting-top-bar">
+    <div class="meeting-top-left">
+      <span id="meetingTitleBar" class="meeting-title-bar">Meeting</span>
+      <span id="meetingTimerBar" class="meeting-timer-bar">00:00</span>
+      <span id="meetingQualityBar" class="meeting-quality-bar d-none"><i class="bi bi-wifi"></i> <span>Good</span></span>
+    </div>
+    <div class="meeting-top-right">
+      <button id="btnMeetingChatToggle" class="btn btn-sm btn-outline-light" title="Toggle chat"><i class="bi bi-chat-left-text"></i></button>
+      <button id="btnMeetingMinimize" class="btn btn-sm btn-outline-light" title="Minimize"><i class="bi bi-dash-lg"></i></button>
+    </div>
+  </div>
+  <div class="meeting-body">
+    <div id="jitsiMeetContainer" class="jitsi-meet-container"></div>
+    <aside id="meetingSidePanel" class="meeting-side-panel d-none">
+      <div class="meeting-panel-tabs">
+        <button type="button" class="active" data-panel="participants"><i class="bi bi-people"></i> People</button>
+        <button type="button" data-panel="chat"><i class="bi bi-chat-dots"></i> Chat</button>
+      </div>
+      <div id="meetingPanelParticipants" class="meeting-panel-content">
+        <ul id="meetingParticipantList" class="meeting-participant-list"></ul>
+      </div>
+      <div id="meetingPanelChat" class="meeting-panel-content d-none">
+        <p class="text-muted small p-2 mb-0">Use the main chat panel when minimized, or Jitsi in-meeting chat.</p>
+      </div>
+    </aside>
+  </div>
+  <div class="meeting-bottom-bar">
+    <div class="meeting-controls-center">
+      <button id="btnMeetMic" class="meeting-ctrl-btn" title="Microphone (M)"><i class="bi bi-mic-fill"></i><span>Mic</span></button>
+      <button id="btnMeetCam" class="meeting-ctrl-btn" title="Camera (V)"><i class="bi bi-camera-video-fill"></i><span>Camera</span></button>
+      <button id="btnMeetScreen" class="meeting-ctrl-btn" title="Share screen (D)"><i class="bi bi-display"></i><span>Share</span></button>
+      <button id="btnMeetParticipants" class="meeting-ctrl-btn" title="Participants"><i class="bi bi-people-fill"></i><span>People</span></button>
+      <button id="btnMeetPip" class="meeting-ctrl-btn" title="Picture-in-Picture"><i class="bi bi-pip"></i><span>PiP</span></button>
+      <button id="btnMeetRecord" class="meeting-ctrl-btn d-none moderator-only" title="Record"><i class="bi bi-record-circle"></i><span>Record</span></button>
+      <button id="btnMeetMuteAll" class="meeting-ctrl-btn d-none moderator-only" title="Mute all"><i class="bi bi-mic-mute-fill"></i><span>Mute all</span></button>
+      <button id="btnMeetLobby" class="meeting-ctrl-btn d-none moderator-only" title="Waiting room"><i class="bi bi-door-closed"></i><span>Lobby</span></button>
+      <button id="btnMeetLeave" class="meeting-ctrl-btn meeting-ctrl-leave" title="Leave (L)"><i class="bi bi-telephone-x-fill"></i><span>Leave</span></button>
+    </div>
+  </div>
+  <div id="meetingStatusBar" class="meeting-status-bar">Connecting…</div>
+</div>
+
 <!-- Recording footer -->
 <div id="recordFooter" class="position-fixed bottom-0 start-0 end-0 py-2 px-3">
   <div class="d-flex align-items-center justify-content-between">
@@ -312,11 +510,11 @@
 </div>
 
 <!-- Notification permission banner (shown only if permission not yet granted) -->
-<div id="notifPermBanner" class="d-none">
+<div id="notifPermBanner" class="d-none position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index:1095;max-width:520px;width:calc(100% - 2rem);">
   <div class="alert alert-info alert-dismissible d-flex align-items-center gap-2 shadow py-2 px-3 mb-0" role="alert">
     <i class="bi bi-bell-fill text-primary fs-5 flex-shrink-0"></i>
     <div class="flex-grow-1 small">
-      <strong>Enable notifications</strong> to get alerts for new messages even when this tab is in the background.
+      <strong>Enable notifications</strong> to get chat and call alerts even when the browser tab is closed.
     </div>
     <button id="btnEnableNotif" class="btn btn-sm btn-primary flex-shrink-0">Enable</button>
     <button type="button" class="btn-close ms-1" data-bs-dismiss="alert"></button>
@@ -352,6 +550,14 @@ window._chatPlaySound = function(){
   var initialAutoCallId  = <?php echo isset($auto_call_id) ? (int)$auto_call_id : 0; ?>;
   var initialAutoAccept  = <?php echo !empty($auto_accept) ? 'true' : 'false'; ?>;
   var autoAcceptCallId   = (initialAutoAccept && initialAutoCallId) ? initialAutoCallId : 0;
+  var jitsiEnabled       = <?php echo !empty($jitsi_config['enabled']) ? 'true' : 'false'; ?>;
+  var jitsiDomain        = <?php echo json_encode(!empty($jitsi_config['domain']) ? $jitsi_config['domain'] : ''); ?>;
+  var userDisplayName    = <?php echo json_encode(isset($user_display_name) ? $user_display_name : 'User'); ?>;
+  var scheduledMeetingId = <?php echo isset($scheduled_meeting_id) ? (int)$scheduled_meeting_id : 0; ?>;
+  var jitsiSecurityWarning = <?php echo json_encode(!empty($jitsi_config['security_warning']) ? $jitsi_config['security_warning'] : ''); ?>;
+  var pendingScheduledMeetingId = scheduledMeetingId;
+  var hasActiveMeeting = false;
+  var lobbyLobbyOn = false;
 
   // ── State ────────────────────────────────────────────────────────────────
   var convoId = 0, lastId = 0, pollTimer = null, signalTimer = null;
@@ -361,6 +567,19 @@ window._chatPlaySound = function(){
   var overlayOpen  = false;
   var cameraEnabled = true;
   var typingTimer  = null;
+  var currentConvoType = '';
+  var currentParticipantIds = '';
+  var jitsiApi = null;
+  var meetingActive = false;
+  var meetingIsModerator = false;
+  var meetingTimerInterval = null;
+  var meetingStartedAt = 0;
+  var lobbyStream = null;
+  var lobbyMicOn = true;
+  var lobbyCamOn = true;
+  var lobbyIsStart = false;
+  var presenceTimer = null;
+  var onlineUserIds = {};
 
   // ── DOM refs ─────────────────────────────────────────────────────────────
   var convoList        = document.getElementById('convoList');
@@ -388,6 +607,29 @@ window._chatPlaySound = function(){
   var btnSend          = document.getElementById('btnSend');
   var btnFullscreen    = document.getElementById('btnFullscreen');
   var callOverlay      = document.getElementById('callOverlay');
+  var btnStartMeeting  = document.getElementById('btnStartMeeting');
+  var btnScheduleMeeting = document.getElementById('btnScheduleMeeting');
+  var preJoinLobbyModal = document.getElementById('preJoinLobbyModal');
+  var lobbyPreviewVideo = document.getElementById('lobbyPreviewVideo');
+  var lobbyPreviewPlaceholder = document.getElementById('lobbyPreviewPlaceholder');
+  var lobbyMeetingTitle = document.getElementById('lobbyMeetingTitle');
+  var lobbyMeetingMeta  = document.getElementById('lobbyMeetingMeta');
+  var lobbyAudioInput   = document.getElementById('lobbyAudioInput');
+  var lobbyVideoInput   = document.getElementById('lobbyVideoInput');
+  var lobbyToggleMic    = document.getElementById('lobbyToggleMic');
+  var lobbyToggleCam    = document.getElementById('lobbyToggleCam');
+  var btnLobbyJoin      = document.getElementById('btnLobbyJoin');
+  var meetingOverlay    = document.getElementById('meetingOverlay');
+  var jitsiMeetContainer = document.getElementById('jitsiMeetContainer');
+  var meetingTitleBar   = document.getElementById('meetingTitleBar');
+  var meetingTimerBar   = document.getElementById('meetingTimerBar');
+  var meetingStatusBar  = document.getElementById('meetingStatusBar');
+  var meetingSidePanel  = document.getElementById('meetingSidePanel');
+  var meetingParticipantList = document.getElementById('meetingParticipantList');
+  var scheduleMeetingModal = document.getElementById('scheduleMeetingModal');
+  var btnSubmitSchedule = document.getElementById('btnSubmitSchedule');
+  var upcomingMeetingsList = document.getElementById('upcomingMeetingsList');
+  var upcomingMeetingsWrap = document.getElementById('upcomingMeetingsWrap');
   var overlayRemoteVideo  = document.getElementById('overlayRemoteVideo');
   var overlayRemoteThumb  = document.getElementById('overlayRemoteThumb');
   var overlayLocalVideo   = document.getElementById('overlayLocalVideo');
@@ -464,7 +706,53 @@ window._chatPlaySound = function(){
   function handleUnauthorized(r){ if (isUnauthorized(r)) { window.location = site + 'login'; return true; } return false; }
   function parseJsonSafe(r){ try { return r.json(); } catch(e){ return Promise.resolve(null); } }
 
-  function setStatus(s){ if (callStatus) callStatus.textContent = s; setOverlayStatus(s); }
+  function setStatus(s){
+    if (callStatus) {
+      var t = callStatus.querySelector('#callStatusText');
+      if (t) t.textContent = s;
+      else callStatus.textContent = s;
+    }
+    setOverlayStatus(s);
+  }
+
+  function setWebRtcToolbarVisible(visible){
+    var dd = document.getElementById('webrtcToolsDropdown');
+    if (dd) dd.classList.toggle('d-none', !visible);
+    document.querySelectorAll('.webrtc-tool-btn').forEach(function(el){
+      el.classList.add('d-none');
+    });
+    var badge = document.getElementById('callModeBadge');
+    if (badge) badge.classList.toggle('d-none', !visible);
+    if (btnCallToggle) btnCallToggle.classList.toggle('d-none', visible);
+  }
+
+  function setMeetingModeBadge(visible){
+    var badge = document.getElementById('meetingModeBadge');
+    if (badge) badge.classList.toggle('d-none', !visible);
+    if (btnStartMeeting && visible) btnStartMeeting.classList.add('d-none');
+    else if (btnStartMeeting) btnStartMeeting.classList.remove('d-none');
+  }
+
+  function wireDropdownAction(id, fn){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e){ e.preventDefault(); fn(); });
+  }
+  wireDropdownAction('btnToggleMicDd', function(){ toggleMic(); });
+  wireDropdownAction('btnToggleSpeakerDd', function(){
+    if (!remoteVideo) return;
+    remoteVideo.muted = !remoteVideo.muted;
+  });
+  wireDropdownAction('btnShareScreenDd', function(){
+    if (!pc) return;
+    if (screenStream) stopScreenShare(); else startScreenShare();
+  });
+  wireDropdownAction('btnRecordDd', function(){
+    if (btnRecord) btnRecord.click();
+  });
+  wireDropdownAction('btnFullscreenDd', function(){
+    if (btnFullscreen) btnFullscreen.click();
+  });
+  wireDropdownAction('btnEndCallDd', endCall);
   function setOverlayStatus(t){ try { if (overlayStatus) overlayStatus.textContent = t || ''; } catch(e){} }
 
   // ── Ringing ───────────────────────────────────────────────────────────────
@@ -594,11 +882,12 @@ window._chatPlaySound = function(){
           p.then(function(perm){
             if (notifPermBanner) notifPermBanner.classList.add('d-none');
             if (perm === 'granted') {
-              // Show a test notification so user knows it works
+              if (typeof window.portalRequestPushPermission === 'function') {
+                window.portalRequestPushPermission();
+              }
               try {
                 var n = new Notification('Notifications enabled!', {
-                  body: 'You will now receive alerts for new chat messages.',
-                  icon: '<?php echo base_url('assets/favicon.png'); ?>'
+                  body: 'You will receive alerts even when this browser tab is closed.'
                 });
                 setTimeout(function(){ try { n.close(); } catch(e){} }, 3000);
               } catch(e){}
@@ -993,13 +1282,16 @@ window._chatPlaySound = function(){
     if (hdrConvMeta) {
       hdrConvMeta.textContent = type ? '[' + type.toUpperCase() + ']' + (id ? ' #' + id : '') : '';
     }
-    if (btnCallToggle) btnCallToggle.disabled = !id;
+    if (btnCallToggle) btnCallToggle.disabled = !id || type === 'group';
+    if (btnStartMeeting) btnStartMeeting.disabled = !id || !jitsiEnabled;
+    if (btnScheduleMeeting) btnScheduleMeeting.disabled = !id || !jitsiEnabled;
     if (btnReminder)   btnReminder.disabled   = !id;
     if (btnEndCall)    btnEndCall.disabled     = true;
     if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
     if (btnRejectCall) btnRejectCall.classList.add('d-none');
-    if (callStatus)    callStatus.textContent  = 'Idle';
-    setOverlayStatus('Idle');
+    setStatus('Idle');
+    setWebRtcToolbarVisible(false);
+    setMeetingModeBadge(false);
     if (btnFullscreen) btnFullscreen.disabled  = !id;
   }
 
@@ -1013,13 +1305,18 @@ window._chatPlaySound = function(){
       var type    = btn.getAttribute('data-type') || '';
       var title   = btn.getAttribute('data-title') || '';
       var members = btn.getAttribute('data-members') || '';
+      var participantIds = btn.getAttribute('data-participant-ids') || '';
       if (!id) return;
       document.querySelectorAll('#convoList .convo-item.active').forEach(function(x){ x.classList.remove('active'); });
       btn.classList.add('active');
       convoId = id; lastId = 0; clearMessages();
+      currentConvoType = type;
+      currentParticipantIds = participantIds;
       if (inputConvo) inputConvo.value = id;
       updateHeader({ id: id, type: type, title: title, members: members });
       setUnread(id, 0);
+      refreshPresenceDots(participantIds);
+      fetchMeetingParticipantsPanel();
       // Clear tab title badge when opening a conversation
       _unreadTotal = 0; updateTabTitle();
       setFormEnabled(true);
@@ -1027,6 +1324,7 @@ window._chatPlaySound = function(){
       fetchMessages();
       ensurePolling();
       ensureIncomingPolling();
+      fetchMeetingStatus();
     } catch(e){ console.warn('selectConvo error', e); }
   }
 
@@ -1218,6 +1516,36 @@ window._chatPlaySound = function(){
   var remoteVideoStatus    = document.getElementById('remoteVideoStatus');
   var localVideoStatus     = document.getElementById('localVideoStatus');
   var pendingRemoteOffer   = null;
+  var pendingIceCandidates = [];
+
+  function resetCallMedia(keepPendingOffer){
+    if (pc) {
+      try { pc.getSenders().forEach(function(s){ try { s.track && s.track.stop(); } catch(e){} }); } catch(e){}
+      try { pc.close(); } catch(e){}
+      pc = null;
+    }
+    if (localStream) {
+      try { localStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+      localStream = null;
+    }
+    if (screenStream) {
+      try { screenStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+      screenStream = null;
+    }
+    originalVideoTrack = null;
+    pendingIceCandidates = [];
+    if (!keepPendingOffer) {
+      pendingRemoteOffer = null;
+    }
+  }
+
+  function flushPendingIce(){
+    if (!pc || !pc.remoteDescription) return;
+    while (pendingIceCandidates.length) {
+      var cand = pendingIceCandidates.shift();
+      try { pc.addIceCandidate(new RTCIceCandidate(cand)); } catch(e){}
+    }
+  }
 
   function setCallToggleUI(active){
     if (!btnCallToggle) return;
@@ -1285,7 +1613,12 @@ window._chatPlaySound = function(){
   }
 
   function startCall(){
+    if (jitsiApi || meetingActive) {
+      showMeetingToast('Leave the video meeting before starting a quick call.', true);
+      return;
+    }
     if (!convoId) return;
+    resetCallMedia(false);
     setStatus('Starting call…');
     updateVideoStatus(remoteVideoStatus, 'connecting', 'Connecting…');
     fetch(site + 'calls/start/' + convoId, { method: 'POST' })
@@ -1311,6 +1644,7 @@ window._chatPlaySound = function(){
         signalTimer = setInterval(pollSignals, 2000);
         setCallToggleUI(true);
         if (btnEndCall) btnEndCall.classList.add('d-none');
+        setWebRtcToolbarVisible(true);
         startRinging('out');
         syncOverlayStreams();
       }).catch(function(e){ if (String(e) !== 'Error: unauth') setStatus('Call failed: ' + e.message); updateVideoStatus(remoteVideoStatus, 'disconnected', 'Call Failed'); });
@@ -1320,10 +1654,21 @@ window._chatPlaySound = function(){
     if (sig.type === 'offer') { return; }
     if (sig.type === 'answer') {
       try { if (parseInt(sig.from_user_id || 0, 10) === userId) return; } catch(e){}
-      try { pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload))); } catch(e){ return; }
+      try {
+        pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(sig.payload))).then(function(){
+          flushPendingIce();
+        });
+      } catch(e){ return; }
       setStatus('Connected'); stopRinging();
     } else if (sig.type === 'ice') {
-      try { pc.addIceCandidate(new RTCIceCandidate(JSON.parse(sig.payload))); } catch(e){}
+      try {
+        var ice = JSON.parse(sig.payload);
+        if (pc && pc.remoteDescription) {
+          pc.addIceCandidate(new RTCIceCandidate(ice));
+        } else {
+          pendingIceCandidates.push(ice);
+        }
+      } catch(e){}
     } else if (sig.type === 'end') {
       try { if (parseInt(sig.from_user_id || 0, 10) === userId) return; } catch(e){}
       callId = null; endCall();
@@ -1361,8 +1706,19 @@ window._chatPlaySound = function(){
             startRinging('in');
             if (signalTimer) clearInterval(signalTimer);
             signalTimer = setInterval(pollSignals, 2000);
-            if (autoAcceptCallId && callId && autoAcceptCallId === callId && btnAcceptCall) {
-              btnAcceptCall.click(); autoAcceptCallId = 0;
+            if (btnAcceptCall) {
+              btnAcceptCall.classList.add('btn-pulse');
+              btnAcceptCall.classList.remove('d-none');
+            }
+            if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+              try {
+                var n = new Notification('Incoming call', {
+                  body: 'From ' + (s.from_email || 'someone') + ' — tap Accept to enable camera',
+                  tag: 'chat-incoming-' + (s.call_id || '0'),
+                  requireInteraction: true
+                });
+                n.onclick = function(){ try { window.focus(); n.close(); } catch(e){} };
+              } catch(e){}
             }
           });
         }
@@ -1377,7 +1733,7 @@ window._chatPlaySound = function(){
     if (callId) {
       fetch(site + 'calls/end/' + callId, { method: 'POST' }).catch(function(){});
     }
-    if (pc) { pc.getSenders().forEach(function(s){ try { s.track && s.track.stop(); } catch(e){} }); pc.close(); pc = null; }
+    resetCallMedia(false);
     callId = null;
     if (btnEndCall) btnEndCall.disabled = true;
     setStatus('Idle');
@@ -1400,6 +1756,7 @@ window._chatPlaySound = function(){
     if (btnEndCall)    btnEndCall.classList.add('d-none');
     if (btnCallToggle) btnCallToggle.classList.remove('d-none');
     setCallToggleUI(false); setOverlayVisible(false); stopRecording();
+    setWebRtcToolbarVisible(false);
     cameraEnabled = false;
   }
 
@@ -1521,10 +1878,14 @@ window._chatPlaySound = function(){
   if (btnAcceptCall) {
     btnAcceptCall.addEventListener('click', function(){
       if (!pendingRemoteOffer) return;
-      var p = pc ? Promise.resolve() : initPeer();
-      p.then(function(){
-        return pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(pendingRemoteOffer)));
-      }).then(function(){ return pc.createAnswer(); })
+      var offerPayload = pendingRemoteOffer;
+      resetCallMedia(true);
+      initPeer().then(function(){
+        return pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(offerPayload)));
+      }).then(function(){
+        flushPendingIce();
+        return pc.createAnswer();
+      })
         .then(function(answer){ return pc.setLocalDescription(answer).then(function(){ return answer; }); })
         .then(function(answer){
           return fetch(site + 'calls/signal/' + callId, {
@@ -1537,12 +1898,19 @@ window._chatPlaySound = function(){
           if (signalTimer) clearInterval(signalTimer);
           signalTimer = setInterval(pollSignals, 2000);
           syncOverlayStreams(); setCallToggleUI(true);
+          setWebRtcToolbarVisible(true);
           if (btnEndCall) btnEndCall.classList.add('d-none');
           if (!overlayOpen) setOverlayVisible(true);
-        }).catch(function(){ setStatus('Accept failed'); })
+        }).catch(function(err){
+          setStatus('Accept failed — allow camera & microphone, then try again');
+          console.warn('Accept call failed', err);
+        })
         .then(function(){
           pendingRemoteOffer = null;
-          if (btnAcceptCall) btnAcceptCall.classList.add('d-none');
+          if (btnAcceptCall) {
+            btnAcceptCall.classList.add('d-none');
+            btnAcceptCall.classList.remove('btn-pulse');
+          }
           if (btnRejectCall) btnRejectCall.classList.add('d-none');
           if (btnCallToggle) btnCallToggle.classList.remove('d-none');
         });
@@ -1621,6 +1989,693 @@ window._chatPlaySound = function(){
   if (btnOverlayCamera)   btnOverlayCamera.addEventListener('click', toggleCamera);
   if (btnOverlayLeave)    btnOverlayLeave.addEventListener('click', endCall);
 
+  // ── Jitsi Meeting Platform ────────────────────────────────────────────────
+  var preJoinBsModal = null;
+  var scheduleBsModal = null;
+  try {
+    if (preJoinLobbyModal && window.bootstrap && window.bootstrap.Modal) {
+      preJoinBsModal = new bootstrap.Modal(preJoinLobbyModal);
+    }
+    if (scheduleMeetingModal && window.bootstrap && window.bootstrap.Modal) {
+      scheduleBsModal = new bootstrap.Modal(scheduleMeetingModal);
+    }
+  } catch(e){}
+
+  function formatMeetingTimer(ms){
+    var totalSec = Math.floor(ms / 1000);
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function startMeetingTimer(){
+    meetingStartedAt = Date.now();
+    if (meetingTimerInterval) clearInterval(meetingTimerInterval);
+    meetingTimerInterval = setInterval(function(){
+      if (meetingTimerBar && meetingStartedAt) {
+        meetingTimerBar.textContent = formatMeetingTimer(Date.now() - meetingStartedAt);
+      }
+    }, 1000);
+  }
+
+  function stopMeetingTimer(){
+    if (meetingTimerInterval) { clearInterval(meetingTimerInterval); meetingTimerInterval = null; }
+    if (meetingTimerBar) meetingTimerBar.textContent = '00:00';
+    meetingStartedAt = 0;
+  }
+
+  function setMeetingOverlayVisible(show){
+    if (!meetingOverlay) return;
+    var minBar = document.getElementById('meetingMinimizedBar');
+    if (show) {
+      meetingActive = true;
+      meetingOverlay.classList.add('show');
+      meetingOverlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('meeting-active');
+      if (minBar) minBar.classList.add('d-none');
+      setMeetingModeBadge(true);
+    } else {
+      meetingOverlay.classList.remove('show');
+      meetingOverlay.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('meeting-active');
+      if (minBar && jitsiApi) minBar.classList.remove('d-none');
+    }
+  }
+
+  function showMeetingToast(msg, isError){
+    if (toastTitleEl) toastTitleEl.textContent = isError ? 'Meeting error' : 'Meeting';
+    if (toastBodyEl) toastBodyEl.textContent = msg || '';
+    if (toastInstance) toastInstance.show();
+    setMeetingStatus(msg);
+  }
+
+  function updateMeetingButtonLabel(){
+    var lbl = document.getElementById('btnStartMeetingLabel');
+    if (!lbl || !btnStartMeeting) return;
+    if (!convoId || !jitsiEnabled) return;
+    lbl.textContent = hasActiveMeeting ? 'Join Meeting' : 'Start Meeting';
+    btnStartMeeting.title = hasActiveMeeting ? 'Join ongoing meeting' : 'Start a new video meeting';
+  }
+
+  function fetchMeetingStatus(){
+    if (!convoId || !jitsiEnabled) return Promise.resolve();
+    return fetch(site + 'meetings/status/' + convoId)
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (j && j.ok) {
+          hasActiveMeeting = !!j.has_active;
+          updateMeetingButtonLabel();
+        }
+      }).catch(function(){});
+  }
+
+  function setMeetingStatus(text){
+    if (meetingStatusBar) meetingStatusBar.textContent = text || '';
+    setStatus(text || 'Idle');
+  }
+
+  function showModeratorControls(show){
+    document.querySelectorAll('.moderator-only').forEach(function(el){
+      el.classList.toggle('d-none', !show);
+    });
+  }
+
+  function loadJitsiScript(domain){
+    return new Promise(function(resolve, reject){
+      if (window.JitsiMeetExternalAPI) { resolve(); return; }
+      var existing = document.getElementById('jitsiExternalApiScript');
+      if (existing) {
+        existing.addEventListener('load', function(){ resolve(); });
+        existing.addEventListener('error', function(){ reject(new Error('Jitsi script failed')); });
+        return;
+      }
+      var s = document.createElement('script');
+      s.id = 'jitsiExternalApiScript';
+      s.src = 'https://' + domain + '/external_api.js';
+      s.async = true;
+      s.onload = function(){ resolve(); };
+      s.onerror = function(){ reject(new Error('Could not load Jitsi from ' + domain)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function stopLobbyStream(){
+    if (lobbyStream) {
+      try { lobbyStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+      lobbyStream = null;
+    }
+    if (lobbyPreviewVideo) lobbyPreviewVideo.srcObject = null;
+  }
+
+  function populateLobbyDevices(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return Promise.resolve();
+    return navigator.mediaDevices.enumerateDevices().then(function(devices){
+      if (lobbyAudioInput) {
+        lobbyAudioInput.innerHTML = '';
+        devices.filter(function(d){ return d.kind === 'audioinput'; }).forEach(function(d, i){
+          var opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.textContent = d.label || ('Microphone ' + (i + 1));
+          lobbyAudioInput.appendChild(opt);
+        });
+      }
+      if (lobbyVideoInput) {
+        lobbyVideoInput.innerHTML = '';
+        devices.filter(function(d){ return d.kind === 'videoinput'; }).forEach(function(d, i){
+          var opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.textContent = d.label || ('Camera ' + (i + 1));
+          lobbyVideoInput.appendChild(opt);
+        });
+      }
+    }).catch(function(){});
+  }
+
+  function startLobbyPreview(){
+    stopLobbyStream();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve();
+    var constraints = {
+      audio: lobbyMicOn,
+      video: lobbyCamOn ? { facingMode: 'user' } : false
+    };
+    return navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+      lobbyStream = stream;
+      if (lobbyPreviewVideo) {
+        lobbyPreviewVideo.srcObject = stream;
+        lobbyPreviewVideo.classList.toggle('d-none', !lobbyCamOn);
+      }
+      if (lobbyPreviewPlaceholder) {
+        lobbyPreviewPlaceholder.classList.toggle('d-none', lobbyCamOn);
+      }
+      return populateLobbyDevices();
+    }).catch(function(){
+      if (lobbyPreviewPlaceholder) lobbyPreviewPlaceholder.classList.remove('d-none');
+    });
+  }
+
+  function openPreJoinLobby(isStart){
+    if (!jitsiEnabled) {
+      showMeetingToast('Jitsi is not configured. Add it under API Integrations.', true);
+      return;
+    }
+    if (!convoId && !pendingScheduledMeetingId) return;
+    lobbyIsStart = !!isStart;
+    var activeBtn = convoId ? findConvoButtonById(convoId) : null;
+    var title = activeBtn ? (activeBtn.querySelector('.fw-semibold') || {}).textContent : 'Scheduled meeting';
+    if (lobbyMeetingTitle) lobbyMeetingTitle.textContent = title || 'Ready to join?';
+    if (lobbyMeetingMeta) {
+      var mode = isStart && !hasActiveMeeting ? 'Starting meeting' : 'Joining meeting';
+      lobbyMeetingMeta.textContent = (currentConvoType === 'group' ? 'Group video' : 'Video meeting') + ' — ' + mode;
+      if (jitsiSecurityWarning) {
+        lobbyMeetingMeta.textContent += '. Note: ' + jitsiSecurityWarning;
+      }
+    }
+    lobbyMicOn = true;
+    lobbyCamOn = true;
+    updateLobbyToggleButtons();
+    startLobbyPreview().then(function(){
+      if (preJoinBsModal) preJoinBsModal.show();
+      else if (preJoinLobbyModal) preJoinLobbyModal.classList.add('show');
+    });
+  }
+
+  function updateLobbyToggleButtons(){
+    if (lobbyToggleMic) {
+      lobbyToggleMic.innerHTML = lobbyMicOn
+        ? '<i class="bi bi-mic-fill"></i> Mic on'
+        : '<i class="bi bi-mic-mute-fill"></i> Mic off';
+      lobbyToggleMic.classList.toggle('btn-danger', !lobbyMicOn);
+    }
+    if (lobbyToggleCam) {
+      lobbyToggleCam.innerHTML = lobbyCamOn
+        ? '<i class="bi bi-camera-video-fill"></i> Cam on'
+        : '<i class="bi bi-camera-video-off"></i> Cam off';
+      lobbyToggleCam.classList.toggle('btn-danger', !lobbyCamOn);
+    }
+  }
+
+  if (lobbyToggleMic) {
+    lobbyToggleMic.addEventListener('click', function(){
+      lobbyMicOn = !lobbyMicOn;
+      if (lobbyStream) {
+        var at = lobbyStream.getAudioTracks()[0];
+        if (at) at.enabled = lobbyMicOn;
+      }
+      updateLobbyToggleButtons();
+    });
+  }
+  if (lobbyToggleCam) {
+    lobbyToggleCam.addEventListener('click', function(){
+      lobbyCamOn = !lobbyCamOn;
+      if (lobbyStream) {
+        var vt = lobbyStream.getVideoTracks()[0];
+        if (vt) vt.enabled = lobbyCamOn;
+      }
+      if (lobbyPreviewVideo) lobbyPreviewVideo.classList.toggle('d-none', !lobbyCamOn);
+      if (lobbyPreviewPlaceholder) lobbyPreviewPlaceholder.classList.toggle('d-none', lobbyCamOn);
+      updateLobbyToggleButtons();
+    });
+  }
+  if (preJoinLobbyModal) {
+    preJoinLobbyModal.addEventListener('hidden.bs.modal', stopLobbyStream);
+  }
+
+  function destroyJitsiApi(){
+    if (jitsiApi) {
+      try { jitsiApi.dispose(); } catch(e){}
+      jitsiApi = null;
+    }
+    if (jitsiMeetContainer) jitsiMeetContainer.innerHTML = '';
+  }
+
+  function joinJitsiMeeting(payload){
+    if (!payload || !payload.domain || !payload.room_name) return;
+    destroyJitsiApi();
+    setMeetingStatus('Connecting to meeting…');
+    setMeetingOverlayVisible(true);
+    if (meetingTitleBar) meetingTitleBar.textContent = payload.conversation_title || 'Meeting';
+    meetingIsModerator = !!payload.is_moderator;
+    showModeratorControls(meetingIsModerator);
+    setMeetingModeBadge(true);
+
+    return loadJitsiScript(payload.domain).then(function(){
+      var options = {
+        roomName: payload.room_name,
+        parentNode: jitsiMeetContainer,
+        width: '100%',
+        height: '100%',
+        userInfo: { displayName: payload.display_name || userDisplayName },
+        configOverwrite: {
+          prejoinPageEnabled: false,
+          startWithAudioMuted: !lobbyMicOn,
+          startWithVideoMuted: !lobbyCamOn,
+          disableDeepLinking: true,
+          toolbarButtons: [],
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_BUTTONS: [],
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+          MOBILE_APP_PROMO: false,
+        },
+      };
+      if (payload.jwt) options.jwt = payload.jwt;
+
+      jitsiApi = new JitsiMeetExternalAPI(payload.domain, options);
+
+      jitsiApi.addListener('videoConferenceJoined', function(){
+        setMeetingStatus('Connected');
+        startMeetingTimer();
+        stopLobbyStream();
+        if (preJoinBsModal) preJoinBsModal.hide();
+        hasActiveMeeting = true;
+        updateMeetingButtonLabel();
+      });
+      jitsiApi.addListener('videoConferenceLeft', function(){
+        leaveJitsiMeeting();
+      });
+      jitsiApi.addListener('participantJoined', function(){
+        fetchMeetingParticipantsPanel();
+      });
+      jitsiApi.addListener('participantLeft', function(){
+        fetchMeetingParticipantsPanel();
+      });
+      jitsiApi.addListener('connectionQualityChanged', function(data){
+        var bar = document.getElementById('meetingQualityBar');
+        if (!bar) return;
+        var q = (data && data.quality) ? parseInt(data.quality, 10) : 0;
+        var label = q >= 70 ? 'Good' : (q >= 40 ? 'Fair' : 'Poor');
+        bar.classList.remove('d-none');
+        bar.querySelector('span').textContent = label;
+      });
+      jitsiApi.addListener('recordingStatusChanged', function(data){
+        var btn = document.getElementById('btnMeetRecord');
+        if (btn) btn.classList.toggle('active', !!(data && data.on));
+      });
+      jitsiApi.addListener('audioMuteStatusChanged', function(data){
+        if (btnMeetMic) {
+          btnMeetMic.classList.toggle('active', !!(data && data.muted));
+          var ic = btnMeetMic.querySelector('i');
+          if (ic) ic.className = (data && data.muted) ? 'bi bi-mic-mute-fill' : 'bi bi-mic-fill';
+        }
+      });
+      jitsiApi.addListener('videoMuteStatusChanged', function(data){
+        if (btnMeetCam) {
+          btnMeetCam.classList.toggle('active', !!(data && data.muted));
+          var ic = btnMeetCam.querySelector('i');
+          if (ic) ic.className = (data && data.muted) ? 'bi bi-camera-video-off-fill' : 'bi bi-camera-video-fill';
+        }
+      });
+      jitsiApi.addListener('screenSharingStatusChanged', function(data){
+        if (btnMeetScreen) {
+          btnMeetScreen.classList.toggle('active', !!(data && data.on));
+        }
+      });
+    }).catch(function(err){
+      showMeetingToast('Meeting failed: ' + (err.message || 'unknown'), true);
+      setMeetingOverlayVisible(false);
+    });
+  }
+
+  function requestMeetingJoin(isStart){
+    if (pendingScheduledMeetingId) {
+      return fetch(site + 'meetings/join-scheduled/' + pendingScheduledMeetingId, { method: 'GET' })
+        .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+        .then(function(j){
+          if (!j || !j.ok) throw new Error((j && j.error) ? j.error : 'Unable to join scheduled meeting');
+          if (j.security_warning) showMeetingToast(j.security_warning, false);
+          return j;
+        });
+    }
+    var endpoint = (isStart && !hasActiveMeeting) ? 'meetings/start/' : 'meetings/join/';
+    var method = (isStart && !hasActiveMeeting) ? 'POST' : 'GET';
+    return fetch(site + endpoint + convoId, { method: method })
+      .then(function(r){ if (handleUnauthorized(r)) throw new Error('unauth'); return r.json(); })
+      .then(function(j){
+        if (!j || !j.ok) {
+          if (j && j.use_fallback && currentConvoType !== 'group') {
+            startCall();
+            return null;
+          }
+          throw new Error((j && j.error) ? j.error : 'Unable to join meeting');
+        }
+        if (j.security_warning) showMeetingToast(j.security_warning, false);
+        if (isStart && !hasActiveMeeting) hasActiveMeeting = true;
+        return j;
+      });
+  }
+
+  function leaveJitsiMeeting(){
+    destroyJitsiApi();
+    stopMeetingTimer();
+    meetingActive = false;
+    setMeetingOverlayVisible(false);
+    setMeetingStatus('Meeting ended');
+    setMeetingModeBadge(false);
+    hasActiveMeeting = false;
+    updateMeetingButtonLabel();
+    var minBar = document.getElementById('meetingMinimizedBar');
+    if (minBar) minBar.classList.add('d-none');
+    if (convoId && meetingIsModerator) {
+      fetch(site + 'meetings/end/' + convoId, { method: 'POST' }).catch(function(){});
+    }
+    pendingScheduledMeetingId = 0;
+    if (meetingSidePanel) meetingSidePanel.classList.add('d-none');
+  }
+
+  if (btnLobbyJoin) {
+    btnLobbyJoin.addEventListener('click', function(){
+      var origHtml = btnLobbyJoin.innerHTML;
+      btnLobbyJoin.disabled = true;
+      btnLobbyJoin.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Joining…';
+      requestMeetingJoin(lobbyIsStart).then(function(payload){
+        if (payload) joinJitsiMeeting(payload);
+      }).catch(function(e){
+        if (String(e) !== 'Error: unauth') showMeetingToast(e.message || 'Join failed', true);
+      }).finally(function(){
+        btnLobbyJoin.disabled = false;
+        btnLobbyJoin.innerHTML = origHtml;
+      });
+    });
+  }
+
+  if (btnStartMeeting) {
+    btnStartMeeting.addEventListener('click', function(){
+      if (callId) {
+        showMeetingToast('End the quick call before joining a video meeting.', true);
+        return;
+      }
+      if (!jitsiEnabled) {
+        showMeetingToast('Configure Jitsi under API Integrations first.', true);
+        return;
+      }
+      if (currentConvoType === 'group' || jitsiEnabled) {
+        fetchMeetingStatus().then(function(){
+          openPreJoinLobby(!hasActiveMeeting);
+        });
+      } else {
+        startCall();
+      }
+    });
+  }
+
+  function meetingExecute(cmd, args){
+    if (!jitsiApi) return;
+    try { jitsiApi.executeCommand(cmd, args); } catch(e){}
+  }
+
+  var btnMeetMic = document.getElementById('btnMeetMic');
+  var btnMeetCam = document.getElementById('btnMeetCam');
+  var btnMeetScreen = document.getElementById('btnMeetScreen');
+  var btnMeetParticipants = document.getElementById('btnMeetParticipants');
+  var btnMeetPip = document.getElementById('btnMeetPip');
+  var btnMeetRecord = document.getElementById('btnMeetRecord');
+  var btnMeetMuteAll = document.getElementById('btnMeetMuteAll');
+  var btnMeetLobby = document.getElementById('btnMeetLobby');
+  var btnMeetLeave = document.getElementById('btnMeetLeave');
+  var btnMeetingMinimize = document.getElementById('btnMeetingMinimize');
+  var btnMeetingChatToggle = document.getElementById('btnMeetingChatToggle');
+
+  if (btnMeetMic) btnMeetMic.addEventListener('click', function(){ meetingExecute('toggleAudio'); });
+  if (btnMeetCam) btnMeetCam.addEventListener('click', function(){ meetingExecute('toggleVideo'); });
+  if (btnMeetScreen) btnMeetScreen.addEventListener('click', function(){ meetingExecute('toggleShareScreen'); });
+  if (btnMeetParticipants) {
+    btnMeetParticipants.addEventListener('click', function(){
+      if (!meetingSidePanel) return;
+      meetingSidePanel.classList.toggle('d-none');
+      fetchMeetingParticipantsPanel();
+    });
+  }
+  if (btnMeetPip) {
+    btnMeetPip.addEventListener('click', function(){
+      var iframe = jitsiMeetContainer ? jitsiMeetContainer.querySelector('iframe') : null;
+      if (!iframe) return;
+      if (iframe.requestPictureInPicture) {
+        iframe.requestPictureInPicture().catch(function(){});
+      }
+    });
+  }
+  if (btnMeetRecord) {
+    btnMeetRecord.addEventListener('click', function(){
+      if (!meetingIsModerator) return;
+      meetingExecute('toggleRecording');
+    });
+  }
+  if (btnMeetMuteAll) {
+    btnMeetMuteAll.addEventListener('click', function(){
+      if (!meetingIsModerator) return;
+      meetingExecute('muteEveryone');
+    });
+  }
+  if (btnMeetLobby) {
+    btnMeetLobby.addEventListener('click', function(){
+      if (!meetingIsModerator) return;
+      lobbyLobbyOn = !lobbyLobbyOn;
+      meetingExecute('toggleLobby', lobbyLobbyOn);
+      btnMeetLobby.classList.toggle('active', lobbyLobbyOn);
+    });
+  }
+  if (btnMeetLeave) btnMeetLeave.addEventListener('click', leaveJitsiMeeting);
+  if (btnMeetingMinimize) btnMeetingMinimize.addEventListener('click', function(){ setMeetingOverlayVisible(false); });
+  var btnMeetingRestore = document.getElementById('btnMeetingRestore');
+  var btnMeetingLeaveFromBar = document.getElementById('btnMeetingLeaveFromBar');
+  if (btnMeetingRestore) btnMeetingRestore.addEventListener('click', function(){ setMeetingOverlayVisible(true); });
+  if (btnMeetingLeaveFromBar) btnMeetingLeaveFromBar.addEventListener('click', leaveJitsiMeeting);
+  if (btnMeetingChatToggle) {
+    btnMeetingChatToggle.addEventListener('click', function(){
+      if (!meetingSidePanel) return;
+      meetingSidePanel.classList.remove('d-none');
+      document.querySelectorAll('.meeting-panel-tabs button').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-panel') === 'chat');
+      });
+      document.getElementById('meetingPanelParticipants').classList.add('d-none');
+      document.getElementById('meetingPanelChat').classList.remove('d-none');
+    });
+  }
+
+  document.querySelectorAll('.meeting-panel-tabs button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var panel = btn.getAttribute('data-panel');
+      document.querySelectorAll('.meeting-panel-tabs button').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('meetingPanelParticipants').classList.toggle('d-none', panel !== 'participants');
+      document.getElementById('meetingPanelChat').classList.toggle('d-none', panel !== 'chat');
+    });
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (!meetingActive) return;
+    var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea') return;
+    if (e.key === 'm' || e.key === 'M') { meetingExecute('toggleAudio'); e.preventDefault(); }
+    if (e.key === 'v' || e.key === 'V') { meetingExecute('toggleVideo'); e.preventDefault(); }
+    if (e.key === 'd' || e.key === 'D') { meetingExecute('toggleShareScreen'); e.preventDefault(); }
+    if (e.key === 'l' || e.key === 'L') { leaveJitsiMeeting(); e.preventDefault(); }
+    if (e.key === 'Escape') { setMeetingOverlayVisible(false); }
+  });
+
+  function fetchMeetingParticipantsPanel(){
+    if (!convoId || !meetingParticipantList) return;
+    fetch(site + 'meetings/participants/' + convoId)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data || !data.ok) return;
+        meetingParticipantList.innerHTML = '';
+        (data.participants || []).forEach(function(p){
+          var li = document.createElement('li');
+          var online = onlineUserIds[p.id];
+          li.innerHTML = '<span class="presence-dot ' + (online ? 'online' : 'offline') + '"></span>' +
+            '<span class="participant-name">' + htmlEsc(p.name || p.email) + '</span>' +
+            (parseInt(p.id, 10) === userId ? ' <span class="badge bg-secondary">You</span>' : '');
+          meetingParticipantList.appendChild(li);
+        });
+      }).catch(function(){});
+  }
+
+  function refreshPresenceDots(participantIds){
+    if (!participantIds) return;
+    fetch(site + 'chats/get-online-status?user_ids=' + encodeURIComponent(participantIds))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data || !data.ok || !data.status) return;
+        onlineUserIds = {};
+        var rows = Array.isArray(data.status) ? data.status : [];
+        rows.forEach(function(row){
+          var uid = parseInt(row.user_id, 10);
+          if (uid) onlineUserIds[uid] = !!parseInt(row.is_online, 10);
+        });
+        document.querySelectorAll('#convoList .convo-item').forEach(function(item){
+          var ids = (item.getAttribute('data-participant-ids') || '').split(',');
+          var avatar = item.querySelector('.avatar');
+          if (!avatar) return;
+          var anyOnline = ids.some(function(id){
+            id = parseInt(id, 10);
+            return id && id !== userId && data.status[id];
+          });
+          avatar.classList.toggle('online', anyOnline);
+        });
+        if (convoId) fetchMeetingParticipantsPanel();
+      }).catch(function(){});
+  }
+
+  function ensurePresencePolling(){
+    if (presenceTimer) clearInterval(presenceTimer);
+    presenceTimer = setInterval(function(){
+      var allIds = [];
+      document.querySelectorAll('#convoList .convo-item').forEach(function(item){
+        var ids = (item.getAttribute('data-participant-ids') || '').split(',');
+        ids.forEach(function(id){
+          id = parseInt(id, 10);
+          if (id && allIds.indexOf(id) === -1) allIds.push(id);
+        });
+      });
+      if (allIds.length) refreshPresenceDots(allIds.join(','));
+    }, 15000);
+  }
+  ensurePresencePolling();
+  setTimeout(function(){
+    var allIds = [];
+    document.querySelectorAll('#convoList .convo-item').forEach(function(item){
+      (item.getAttribute('data-participant-ids') || '').split(',').forEach(function(id){
+        id = parseInt(id, 10);
+        if (id && allIds.indexOf(id) === -1) allIds.push(id);
+      });
+    });
+    if (allIds.length) refreshPresenceDots(allIds.join(','));
+  }, 1500);
+
+  // ── Schedule meetings ─────────────────────────────────────────────────────
+  function loadUpcomingMeetings(){
+    if (!upcomingMeetingsList) return;
+    fetch(site + 'meetings/list')
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data || !data.ok || !data.meetings || !data.meetings.length) {
+          if (upcomingMeetingsWrap) upcomingMeetingsWrap.classList.add('d-none');
+          return;
+        }
+        if (upcomingMeetingsWrap) upcomingMeetingsWrap.classList.remove('d-none');
+        upcomingMeetingsList.innerHTML = '';
+        data.meetings.forEach(function(m){
+          var li = document.createElement('li');
+          li.className = 'list-group-item d-flex justify-content-between align-items-center';
+          li.innerHTML = '<div><strong>' + htmlEsc(m.title) + '</strong><br><small>' + htmlEsc(m.scheduled_at) + '</small></div>' +
+            '<div class="d-flex gap-1">' +
+            '<a href="' + htmlEsc(m.join_url) + '" class="btn btn-sm btn-outline-primary">Join</a>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger" data-cancel-id="' + m.id + '">Cancel</button></div>';
+          upcomingMeetingsList.appendChild(li);
+        });
+        upcomingMeetingsList.querySelectorAll('[data-cancel-id]').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var mid = btn.getAttribute('data-cancel-id');
+            fetch(site + 'meetings/cancel/' + mid, { method: 'POST' })
+              .then(function(r){ return r.json(); })
+              .then(function(j){ if (j && j.ok) loadUpcomingMeetings(); });
+          });
+        });
+      }).catch(function(){});
+  }
+
+  if (btnScheduleMeeting) {
+    btnScheduleMeeting.addEventListener('click', function(){
+      var schedDt = document.getElementById('schedDateTime');
+      if (schedDt) {
+        var d = new Date();
+        d.setMinutes(d.getMinutes() + 30 - (d.getMinutes() % 15));
+        schedDt.value = d.toISOString().slice(0, 16);
+      }
+      var schedTitle = document.getElementById('schedTitle');
+      if (schedTitle && !schedTitle.value) {
+        var activeBtn = findConvoButtonById(convoId);
+        schedTitle.value = activeBtn ? (activeBtn.querySelector('.fw-semibold') || {}).textContent : 'Team Meeting';
+      }
+      loadUpcomingMeetings();
+      if (scheduleBsModal) scheduleBsModal.show();
+    });
+  }
+
+  if (btnSubmitSchedule) {
+    btnSubmitSchedule.addEventListener('click', function(){
+      var title = (document.getElementById('schedTitle') || {}).value || '';
+      var scheduled_at = (document.getElementById('schedDateTime') || {}).value || '';
+      var duration = (document.getElementById('schedDuration') || {}).value || '60';
+      var emails = (document.getElementById('schedEmails') || {}).value || '';
+      var notes = (document.getElementById('schedNotes') || {}).value || '';
+      if (!title || !scheduled_at) {
+        showMeetingToast('Title and date/time are required.', true);
+        return;
+      }
+      var fd = new FormData();
+      fd.append('conversation_id', convoId);
+      fd.append('title', title);
+      fd.append('scheduled_at', scheduled_at);
+      fd.append('duration_minutes', duration);
+      fd.append('participant_emails', emails);
+      fd.append('notes', notes);
+      btnSubmitSchedule.disabled = true;
+      fetch(site + 'meetings/schedule', { method: 'POST', body: fd })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if (j && j.ok) {
+            if (scheduleBsModal) scheduleBsModal.hide();
+            showMeetingToast('Meeting scheduled. Invite link: ' + (j.join_url || ''), false);
+            loadUpcomingMeetings();
+          } else {
+            showMeetingToast((j && j.error) ? j.error : 'Schedule failed', true);
+          }
+        }).catch(function(){
+          showMeetingToast('Schedule request failed', true);
+        }).finally(function(){
+          btnSubmitSchedule.disabled = false;
+        });
+    });
+  }
+
+  function handleScheduledDeepLink(){
+    if (!pendingScheduledMeetingId) return;
+    fetch(site + 'meetings/scheduled/' + pendingScheduledMeetingId)
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (!j || !j.ok || !j.meeting) {
+          showMeetingToast((j && j.error) ? j.error : 'Scheduled meeting not found', true);
+          return;
+        }
+        var m = j.meeting;
+        if (m.conversation_id) {
+          focusConversationById(m.conversation_id);
+        }
+        if (lobbyMeetingTitle) lobbyMeetingTitle.textContent = m.title || 'Scheduled meeting';
+        setTimeout(function(){ openPreJoinLobby(false); }, m.conversation_id ? 800 : 300);
+      }).catch(function(){
+        showMeetingToast('Could not load scheduled meeting', true);
+      });
+  }
+
+  if (pendingScheduledMeetingId) {
+    setTimeout(handleScheduledDeepLink, 1000);
+  }
+
   // ── Reminder ──────────────────────────────────────────────────────────────
   if (btnReminder) {
     btnReminder.addEventListener('click', function(){
@@ -1658,6 +2713,11 @@ window._chatPlaySound = function(){
     setTimeout(autoSelectFirst, 200);
     setTimeout(function(){ if (!convoId) { var f = convoList.querySelector('.convo-item'); if (f) f.click(); } }, 800);
     document.addEventListener('DOMContentLoaded', autoSelectFirst);
+    if (initialAutoCallId) {
+      setTimeout(function(){
+        setStatus('Incoming call — click Accept and allow camera & microphone');
+      }, 500);
+    }
   }
 
 })();

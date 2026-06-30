@@ -129,6 +129,11 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
+#btnAcceptCall.btn-pulse {
+  animation: pulse 1s ease-in-out infinite;
+  box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.45);
+}
+
 @keyframes typing {
   0%, 60%, 100% { opacity: 1; }
   30% { opacity: 0.3; }
@@ -961,6 +966,25 @@
   opacity: .9;
 }
 
+.chat-header-toolbar {
+  max-width: 100%;
+}
+
+.chat-header-toolbar .dropdown-menu {
+  min-width: 200px;
+}
+
+.chat-header-toolbar .btn.active,
+.meeting-ctrl-btn.active {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+#callStatus .badge {
+  font-size: 0.65rem;
+  vertical-align: middle;
+}
+
 @media (max-width: 767.98px) {
   .chat-app .avatar {
     width: 30px;
@@ -1161,4 +1185,257 @@
 @keyframes slideDown {
   from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Pre-join lobby ─────────────────────────────────────────────────────── */
+.lobby-preview-wrap {
+  position: relative;
+  background: #0f172a;
+}
+
+.lobby-preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.7);
+  gap: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.lobby-preview-placeholder i {
+  font-size: 2.5rem;
+}
+
+#lobbyPreviewVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Jitsi meeting overlay (Meet/Zoom style) ───────────────────────────── */
+.meeting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  background: #0b0f19;
+  color: #fff;
+  display: none;
+  flex-direction: column;
+}
+
+.meeting-overlay.show {
+  display: flex;
+}
+
+body.meeting-active {
+  overflow: hidden;
+}
+
+.meeting-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.meeting-top-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.meeting-title-bar {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.meeting-timer-bar {
+  font-variant-numeric: tabular-nums;
+  color: rgba(226,232,240,0.85);
+  font-size: 0.9rem;
+}
+
+.meeting-quality-bar {
+  font-size: 0.8rem;
+  color: #86efac;
+}
+
+.meeting-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.jitsi-meet-container {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: #000;
+}
+
+.jitsi-meet-container iframe {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.meeting-side-panel {
+  width: 300px;
+  flex-shrink: 0;
+  background: #111827;
+  border-left: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.meeting-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.meeting-panel-tabs button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(226,232,240,0.7);
+  padding: 0.65rem;
+  font-size: 0.8rem;
+}
+
+.meeting-panel-tabs button.active {
+  color: #fff;
+  border-bottom: 2px solid #667eea;
+}
+
+.meeting-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.meeting-participant-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.meeting-participant-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.35rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.85rem;
+}
+
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.presence-dot.online {
+  background: #22c55e;
+}
+
+.presence-dot.offline {
+  background: #6b7280;
+}
+
+.meeting-bottom-bar {
+  flex-shrink: 0;
+  padding: 0.85rem 1rem 1.1rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.85) 100%);
+  display: flex;
+  justify-content: center;
+}
+
+.meeting-controls-center {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(30, 41, 59, 0.95);
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.meeting-ctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 0.65rem;
+  gap: 0.2rem;
+  transition: background 0.15s ease;
+}
+
+.meeting-ctrl-btn i {
+  font-size: 1.15rem;
+}
+
+.meeting-ctrl-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.meeting-ctrl-btn.active {
+  background: #dc2626;
+}
+
+.meeting-ctrl-leave {
+  background: #dc2626;
+}
+
+.meeting-ctrl-leave:hover {
+  background: #b91c1c;
+}
+
+  .meeting-status-bar {
+  position: absolute;
+  bottom: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+
+#meetingMinimizedBar .alert {
+  border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+  .meeting-side-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    width: min(280px, 85vw);
+  }
+
+  .meeting-ctrl-btn {
+    min-width: 52px;
+    padding: 0.35rem;
+  }
+
+  .meeting-ctrl-btn span {
+    display: none;
+  }
 }

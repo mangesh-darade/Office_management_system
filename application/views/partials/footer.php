@@ -474,10 +474,101 @@ document.getElementById('widgetSpeakBtn').addEventListener('click', async functi
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('<?php echo base_url('assets/pwa/sw.js'); ?>').catch(function(e){console.warn('SW reg failed', e)})
-    })
+      var swUrl = '<?php echo base_url('sw.js'); ?>';
+      var swScope = '<?php echo base_url(); ?>';
+      navigator.serviceWorker.register(swUrl, { scope: swScope })
+        .then(function(reg){
+          if (/localhost|127\.0\.0\.1/i.test(window.location.hostname)) {
+            console.info('[Portal] Service worker OK, scope:', reg.scope);
+          }
+        })
+        .catch(function(e){ console.warn('[Portal] SW registration failed:', e); });
+    });
   }
 </script>
+<?php if ($this->session->userdata('user_id')): ?>
+<script>
+(function(){
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  var pushVapidUrl = '<?php echo site_url('push/vapid-public'); ?>';
+  var pushSubscribeUrl = '<?php echo site_url('push/subscribe'); ?>';
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    var raw = window.atob(base64);
+    var output = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      output[i] = raw.charCodeAt(i);
+    }
+    return output;
+  }
+
+  function subscribePortalPush() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      return Promise.resolve(false);
+    }
+    return fetch(pushVapidUrl, { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(cfg) {
+        if (!cfg || !cfg.publicKey) return false;
+        return navigator.serviceWorker.ready.then(function(reg) {
+          return reg.pushManager.getSubscription().then(function(existing) {
+            if (existing) return existing;
+            return reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(cfg.publicKey)
+            });
+          });
+        });
+      })
+      .then(function(sub) {
+        if (!sub) return false;
+        var j = sub.toJSON();
+        var fd = new FormData();
+        fd.append('endpoint', j.endpoint);
+        fd.append('p256dh', j.keys.p256dh);
+        fd.append('auth', j.keys.auth);
+        return fetch(pushSubscribeUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+          .then(function(r) { return r.json().then(function(j){ return j && j.ok; }); });
+      })
+      .then(function(ok) {
+        if (ok && /localhost|127\.0\.0\.1/i.test(window.location.hostname)) {
+          console.info('[Portal] Web Push subscribed — notifications work when tab is closed');
+        }
+        return !!ok;
+      })
+      .catch(function(e) {
+        console.warn('[Portal] Push subscribe failed:', e);
+        return false;
+      });
+  }
+
+  window.portalRequestPushPermission = function() {
+    if (!('Notification' in window)) return Promise.resolve(false);
+    if (Notification.permission === 'granted') {
+      return subscribePortalPush().then(function(ok){ return !!ok; });
+    }
+    if (Notification.permission === 'denied') {
+      return Promise.resolve(false);
+    }
+    return Notification.requestPermission().then(function(perm) {
+      if (perm === 'granted') {
+        return subscribePortalPush().then(function(ok){ return !!ok; });
+      }
+      return false;
+    });
+  };
+
+  window.addEventListener('load', function() {
+    if (Notification.permission === 'granted') {
+      setTimeout(subscribePortalPush, 2000);
+    }
+  });
+})();
+</script>
+<?php endif; ?>
 <?php if ($this->config->item('csrf_protection')): ?>
 <script>
 (function(){
@@ -582,6 +673,10 @@ document.getElementById('widgetSpeakBtn').addEventListener('click', async functi
       if (!alreadyHasToken) {
         if (body instanceof FormData) {
           body.append(csrfName, csrfHash);
+        } else if (body instanceof URLSearchParams) {
+          if (!body.has(csrfName)) {
+            body.append(csrfName, csrfHash);
+          }
         } else if (typeof body === 'string') {
           // URL-encoded string body
           body += (body ? '&' : '') + encodeURIComponent(csrfName) + '=' + encodeURIComponent(csrfHash);

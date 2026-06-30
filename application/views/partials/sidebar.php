@@ -84,12 +84,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <aside class="sidebar-left h-100" id="appSidebar">
   <div class="sidebar-inner p-3">
     <nav class="nav flex-column gap-1 sidebar-nav">
-      <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='elintom-proposals'?'active':''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
-      <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>
@@ -107,16 +101,12 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <div class="ps-3 sidebar-submenu" id="daily-activity-submenu">
             <div class="submenu-list">
-                <a class="submenu-link <?php echo ($active==='daily-activity' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('daily-activity'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Activity</a>
                 <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='list')?'active':''; ?>" href="<?php echo site_url('daily-activity/list'); ?>"><i class="bi bi-list-ul me-1"></i>All Activities</a>
                 <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='export')?'active':''; ?>" href="<?php echo site_url('daily-activity/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
             </div>
         </div>
       </div>
       <script>initSidebarGroup('daily-activity-group','daily-activity-toggle','daily-activity-parent','daily-activity-submenu','sb_daily_activity_open',<?php echo ($active==='daily-activity'||$active==='daily_activity')?'true':'false'; ?>);</script>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
       <?php endif; ?>
       <?php
       $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
@@ -187,7 +177,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="ps-3 sidebar-submenu" id="recruitment-submenu">
             <div class="submenu-list">
                 <a class="submenu-link <?php echo ($active==='recruitment' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('recruitment'); ?>"><i class="bi bi-briefcase me-1"></i>Job Openings</a>
-                <a class="submenu-link <?php echo ($active==='recruitment' && in_array((string) $active_sub, array('create-job', 'edit-job'), true))?'active':''; ?>" href="<?php echo site_url('recruitment/create-job'); ?>"><i class="bi bi-plus-lg me-1"></i>Post New Job</a>
                 <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='candidates')?'active':''; ?>" href="<?php echo site_url('recruitment/candidates'); ?>"><i class="bi bi-people me-1"></i>Candidates</a>
                 <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='export')?'active':''; ?>" href="<?php echo site_url('recruitment/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
             </div>
@@ -209,9 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="ps-3 sidebar-submenu" id="performance-submenu">
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($active==='performance' && (!$active_sub||$active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('performance'); ?>"><i class="bi bi-list-ul me-1"></i>All Appraisals</a>
-            <?php if((isset($is_superadmin)&&$is_superadmin)||(function_exists('has_module_access')&&has_module_access('performance_create'))): ?>
-            <a class="submenu-link <?php echo ($active==='performance'&&$active_sub==='create')?'active':''; ?>" href="<?php echo site_url('performance/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New Appraisal</a>
-            <?php endif; ?>
             <a class="submenu-link <?php echo ($active==='performance'&&$active_sub==='self-assess')?'active':''; ?>" href="<?php echo site_url('performance/self-assess'); ?>"><i class="bi bi-person-check me-1"></i>Self-Assessment</a>
             <a class="submenu-link" href="<?php echo site_url('performance/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
           </div>
@@ -346,9 +332,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard')) || (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests')))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && (!$active_sub || $active_sub==='dashboard'))?'active':''; ?>" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
             <?php endif; ?>
-            <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_create'))): ?>
-            <a class="submenu-link <?php echo ($active==='training-assessment' && in_array($active_sub, array('create', 'edit'), true))?'active':''; ?>" href="<?php echo site_url('training-assessment/create'); ?>"><i class="bi bi-plus-lg me-1"></i>New assessment</a>
-            <?php endif; ?>
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_import'))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && strpos((string) $active_sub, 'import') === 0)?'active':''; ?>" href="<?php echo site_url('training-assessment/import'); ?>"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import CSV</a>
             <?php endif; ?>
@@ -417,9 +400,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && (has_module_access('users') || has_module_access('users_list') || has_module_access('users_add') || has_module_access('users_edit') || has_module_access('users_delete'))): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
-            <a class="submenu-link" href="<?php echo site_url('users/create'); ?>"><i class="bi bi-person-plus me-2"></i>Add User</a>
-            <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('roles') || has_module_access('permissions'))): ?>
             <a class="submenu-link <?php echo $active==='roles'?'active':''; ?>" href="<?php echo site_url('roles'); ?>"><i class="bi bi-person-gear me-2"></i>Roles</a>
             <?php endif; ?>
@@ -428,9 +408,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('attendance_list') || has_module_access('attendance_add') || has_module_access('attendance_edit') || has_module_access('attendance_delete'))): ?>
             <a class="submenu-link <?php echo $active==='attendance'?'active':''; ?>" href="<?php echo site_url('attendance'); ?>"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('attendance') || has_module_access('attendance_add'))): ?>
-            <a class="submenu-link <?php echo ($active==='attendance' && $active_sub==='create')?'active':''; ?>" href="<?php echo site_url('attendance/create'); ?>"><i class="bi bi-plus-square me-2"></i>Mark Attendance</a>
             <?php endif; ?>
             <?php if((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (has_module_access('shifts') || has_module_access('shifts_view') || has_module_access('shifts_manage')))): ?>
             <a class="submenu-link <?php echo $active==='shifts'?'active':''; ?>" href="<?php echo site_url('shifts'); ?>"><i class="bi bi-clock me-2"></i>Shifts</a>
@@ -494,18 +471,14 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="ps-3 sidebar-submenu" id="expense-submenu">
             <div class="submenu-list">
             <a class="submenu-link <?php echo ($active==='expenses' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('expenses'); ?>">My Expenses</a>
-            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='create')?'active':''; ?>" href="<?php echo site_url('expenses/create'); ?>">Create Request</a>
             <?php if(function_exists('has_module_access') && has_module_access('expenses_approve')): ?>
             <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='pending')?'active':''; ?>" href="<?php echo site_url('expenses/pending'); ?>">Approvals</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('expenses_categories')): ?>
+            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='categories')?'active':''; ?>" href="<?php echo site_url('expenses/categories'); ?>">Categories</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('expenses_reports')): ?>
             <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='report')?'active':''; ?>" href="<?php echo site_url('expenses/report'); ?>">Reports</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('expenses_categories')): ?>
-            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='categories')?'active':''; ?>" href="<?php echo site_url('expenses/categories'); ?>">Categories</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('expenses_categories')): ?>
-            <a class="submenu-link <?php echo ($active==='expenses' && $active_sub==='categories')?'active':''; ?>" href="<?php echo site_url('expenses/categories'); ?>">Categories</a>
             <?php endif; ?>
             </div>
         </div>
@@ -578,20 +551,20 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
             <a class="submenu-link <?php echo ($active==='projects' && $active_sub!=='matrix')?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
-            <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='matrix')?'active':''; ?>" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-2"></i>Portfolio Matrix</a>
-            <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'))): ?>
             <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='dashboard')?'active':''; ?>" href="<?php echo site_url('projects/dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Project Dashboard</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('projects_add')): ?>
-            <a class="submenu-link" href="<?php echo site_url('projects/create'); ?>"><i class="bi bi-plus-square me-2"></i>Add Project</a>
+            <?php if(function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'))): ?>
+            <a class="submenu-link <?php echo ($active==='tasks' && $active_sub==='my-dashboard')?'active':''; ?>" href="<?php echo site_url('tasks/my-dashboard'); ?>"><i class="bi bi-person-check me-2"></i>My Task Dashboard</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
+            <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='matrix')?'active':''; ?>" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-2"></i>Portfolio Matrix</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('requirements')): ?>
             <a class="submenu-link <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirement</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
-            <a class="submenu-link <?php echo $active==='tasks'?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Task</a>
+            <a class="submenu-link <?php echo ($active==='tasks' && $active_sub==='board')?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Task</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('timesheets')): ?>
             <a class="submenu-link <?php echo $active==='timesheets' && (!$active_sub || $active_sub==='index')?'active':''; ?>" href="<?php echo site_url('timesheets'); ?>"><i class="bi bi-calendar3 me-2"></i>Timesheet</a>
@@ -613,6 +586,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='elintom-proposals'?'active':''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
       <?php endif; ?>
       <?php $this->load->view('partials/sidebar_meals_group', array('variant' => 'desktop', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
@@ -779,29 +758,35 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
             <a class="submenu-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('holidays') || has_module_access('settings') || has_module_access('admin'))): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('subscription_builder')): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false)?'active':''; ?>" href="<?php echo site_url('settings/subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder Catalog</a>
+            <?php if(function_exists('has_module_access') && has_module_access('system_settings')): ?>
+            <a class="submenu-link <?php echo ($active==='system-settings' && isset($active_sub) && $active_sub==='user-access')?'active':''; ?>" href="<?php echo site_url('system-settings/user-access'); ?>"><i class="bi bi-person-lines-fill me-2"></i>User Access</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('permissions')): ?>
             <a class="submenu-link <?php echo $active==='permissions'?'active':''; ?>" href="<?php echo site_url('permissions'); ?>"><i class="bi bi-shield-lock me-2"></i>Permission Manager</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('system_settings')): ?>
-            <a class="submenu-link <?php echo ($active==='system-settings' && isset($active_sub) && $active_sub==='user-access')?'active':''; ?>" href="<?php echo site_url('system-settings/user-access'); ?>"><i class="bi bi-person-lines-fill me-2"></i>User Access</a>
+            <?php if(function_exists('has_module_access') && has_module_access('approvals')): ?>
+            <a class="submenu-link <?php echo $active==='approvals'?'active':''; ?>" href="<?php echo site_url('approvals'); ?>"><i class="bi bi-diagram-2 me-2"></i>Approval Workflows</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('statuses'))): ?>
+            <a class="submenu-link <?php echo $active==='statuses'?'active':''; ?>" href="<?php echo site_url('statuses'); ?>"><i class="bi bi-tags me-2"></i>Status Management</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && (has_module_access('holidays') || has_module_access('settings') || has_module_access('admin'))): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
             <a class="submenu-link <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('approvals')): ?>
-            <a class="submenu-link <?php echo $active==='approvals'?'active':''; ?>" href="<?php echo site_url('approvals'); ?>"><i class="bi bi-diagram-2 me-2"></i>Approval Workflows</a>
+            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
+            <a class="submenu-link <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('lead_mapping')): ?>
+            <a class="submenu-link <?php echo $active==='lead-mapping'?'active':''; ?>" href="<?php echo site_url('lead-mapping'); ?>"><i class="bi bi-diagram-2 me-2"></i>Lead Mapping</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
             <a class="submenu-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
@@ -814,19 +799,16 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
             <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('statuses'))): ?>
-            <a class="submenu-link <?php echo $active==='statuses'?'active':''; ?>" href="<?php echo site_url('statuses'); ?>"><i class="bi bi-tags me-2"></i>Status Management</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
-            <a class="submenu-link <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('lead_mapping')): ?>
-            <a class="submenu-link <?php echo $active==='lead-mapping'?'active':''; ?>" href="<?php echo site_url('lead-mapping'); ?>"><i class="bi bi-diagram-2 me-2"></i>Lead Mapping</a>
+            <?php if(function_exists('has_module_access') && has_module_access('subscription_builder')): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false)?'active':''; ?>" href="<?php echo site_url('settings/subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder Catalog</a>
             <?php endif; ?>
           </div>
         </div>
       </div>
       <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false))?'true':'false'; ?>);</script>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
       <?php endif; ?>
       <?php $this->load->view('partials/sidebar_guide_nav', ['guide_nav_variant' => 'desktop']); ?>
       <hr class="my-2 border-secondary">

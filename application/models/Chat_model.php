@@ -134,6 +134,7 @@ class Chat_model extends CI_Model {
         $name_col = schema_table_has_column($this->db, 'users', 'full_name') ? "COALESCE(u.full_name, u.email)" :
                     (schema_table_has_column($this->db, 'users', 'name') ? "COALESCE(u.name, u.email)" : "u.email");
         $sql = "SELECT c.*, 
+                       GROUP_CONCAT(u.id ORDER BY u.email SEPARATOR ',') AS member_ids,
                        GROUP_CONCAT(u.email ORDER BY u.email SEPARATOR ', ') AS members,
                        GROUP_CONCAT({$name_col} ORDER BY u.email SEPARATOR ', ') AS member_names,
                        (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.id DESC LIMIT 1) AS last_message,

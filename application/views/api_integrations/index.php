@@ -54,7 +54,8 @@
                     $icons = [
                       'sendgrid' => 'bi-envelope',
                       'whatsapp' => 'bi-whatsapp',
-                      'smtp' => 'bi-mailbox'
+                      'smtp' => 'bi-mailbox',
+                      'jitsi' => 'bi-camera-video'
                     ];
                     $icon = isset($icons[$int->service_type]) ? $icons[$int->service_type] : 'bi-gear';
                     ?>
