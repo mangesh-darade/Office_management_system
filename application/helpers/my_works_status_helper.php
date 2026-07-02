@@ -135,18 +135,9 @@ if (!function_exists('my_works_status_row_bg_color')) {
      */
     function my_works_status_row_bg_color($code, $alpha = 0.12)
     {
-        $hex = ltrim((string) my_works_status_hex_color($code), '#');
-        if (strlen($hex) === 3) {
-            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
-        }
-        if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
-            return 'transparent';
-        }
-        $r = hexdec(substr($hex, 0, 2));
-        $g = hexdec(substr($hex, 2, 2));
-        $b = hexdec(substr($hex, 4, 2));
-        $alpha = max(0.0, min(1.0, (float) $alpha));
-        return 'rgba(' . $r . ',' . $g . ',' . $b . ',' . $alpha . ')';
+        $CI =& get_instance();
+        $CI->load->helper('status_row');
+        return status_row_bg_from_hex(my_works_status_hex_color($code), $alpha);
     }
 }
 

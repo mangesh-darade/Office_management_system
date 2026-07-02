@@ -94,9 +94,9 @@
           <?php endif; ?>
 
           <?php if ($show_task_dashboard): ?>
-          <a class="btn btn-outline-primary" href="<?php echo esc_view($taskDashboardUrl); ?>" title="Task Dashboard">
+          <a class="btn btn-outline-primary" href="<?php echo esc_view($taskDashboardUrl); ?>" title="Team Dashboard">
 
-            <i class="bi bi-person-check me-1"></i><span class="d-none d-sm-inline">Task Dashboard</span>
+            <i class="bi bi-people me-1"></i><span class="d-none d-sm-inline">Team Dashboard</span>
 
           </a>
           <?php endif; ?>

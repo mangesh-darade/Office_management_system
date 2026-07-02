@@ -272,6 +272,15 @@ body.sidebar-collapsed main.col-md-9.col-lg-10 {
   opacity: 1;
   transform: scale(1.1);
 }
+i.oms-icon-brain {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  background-color: currentColor;
+  -webkit-mask: url('../icons/brain.svg') no-repeat center / contain;
+  mask: url('../icons/brain.svg') no-repeat center / contain;
+}
 
 /* Enhanced Sidebar group toggles and submenus */
 .sidebar-submenu { 
@@ -931,6 +940,28 @@ h1.h4, h4.fw-bold, .page-title {
 }
 .table tbody td { padding: 0.75rem 1rem; }
 .table-hover tbody tr:hover { background: #f0f4ff !important; }
+
+/* DataTables — clickable sortable column headers (arrows from dataTables.bootstrap5.css) */
+table.dataTable thead th.dt-orderable-asc,
+table.dataTable thead th.dt-orderable-desc,
+table.dataTable thead th.dt-ordering-asc,
+table.dataTable thead th.dt-ordering-desc {
+  cursor: pointer;
+  user-select: none;
+}
+table.dataTable thead th.dt-orderable-none,
+table.dataTable thead th.no-sort {
+  cursor: default;
+}
+
+/* Card grids: sort-only DataTables (no search / length / pagination bars) */
+.card div.dt-container div.dt-layout-row:empty,
+.card div.dt-container div.dt-length,
+.card div.dt-container div.dt-search,
+.card div.dt-container div.dt-paging,
+.card div.dt-container div.dt-info {
+  display: none !important;
+}
 
 /* Better form controls */
 .form-control:focus, .form-select:focus {

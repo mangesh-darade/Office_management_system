@@ -357,12 +357,26 @@ class Projects extends CI_Controller {
         $role_id = (int) $this->session->userdata('role_id');
         $filters = get_user_group_filter($user_id, $role_id);
 
+        $filter_user_id = $this->input->get('user_id') !== null ? (int)$this->input->get('user_id') : -1;
+        $filter_project_id = $this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1;
+        $filter_status = $this->input->get('status') !== null ? (string)$this->input->get('status') : 'all';
+
         $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
             || has_module_access('projects_view_all');
         if (!$can_view_all) {
             $projects = $this->Project_model->all($filters);
         } else {
             $projects = $this->Project_model->all(array());
+        }
+
+        $filter_projects = array();
+        if ($this->db->table_exists('projects')) {
+            $filter_projects = $this->db->select('id, name')->order_by('name', 'asc')->get('projects')->result();
+        }
+
+        $filter_users = array();
+        if ($this->db->table_exists('users')) {
+            $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
         }
         if (!empty($projects)) {
             usort($projects, function ($a, $b) {
@@ -384,11 +398,17 @@ class Projects extends CI_Controller {
         foreach ($projects as $project) {
             $project_ids[] = (int) $project->id;
         }
-        $tasks_by_project = $this->_project_dashboard_tasks_for_projects($project_ids);
+        $tasks_by_project = $this->_project_dashboard_tasks_for_projects($project_ids, $filter_user_id, $filter_project_id, $filter_status);
 
         $project_cards = array();
         foreach ($projects as $project) {
             $project_id = (int) $project->id;
+            // If filtering by project, skip projects that don't match
+            if ($filter_project_id > 0 && $project_id !== $filter_project_id) {
+                continue;
+            }
+            // If the project doesn't have tasks matching the filter, we could choose to hide it.
+            // But let's just show it empty if it matches the project_id (or if no project_id filter).
             $project_cards[] = array(
                 'project' => $project,
                 'tasks'   => isset($tasks_by_project[$project_id]) ? $tasks_by_project[$project_id] : array(),
@@ -398,6 +418,11 @@ class Projects extends CI_Controller {
         $this->load->view('projects/dashboard_index', array(
             'project_cards' => $project_cards,
             'status_rows'   => $status_rows,
+            'filter_user_id'    => $filter_user_id,
+            'filter_project_id' => $filter_project_id,
+            'filter_status'     => $filter_status,
+            'filter_projects'   => $filter_projects,
+            'filter_users'      => $filter_users,
         ));
     }
 
@@ -1114,9 +1139,12 @@ class Projects extends CI_Controller {
 
     /**
      * @param array $project_ids
+     * @param int $filter_user_id
+     * @param int $filter_project_id
+     * @param string $filter_status
      * @return array<int, array>
      */
-    private function _project_dashboard_tasks_for_projects($project_ids)
+    private function _project_dashboard_tasks_for_projects($project_ids, $filter_user_id = -1, $filter_project_id = -1, $filter_status = 'all')
     {
         $grouped = array();
         if (empty($project_ids) || !$this->db->table_exists('tasks')) {
@@ -1163,6 +1191,13 @@ class Projects extends CI_Controller {
         }
         $this->db->select(implode(',', $select));
         $this->db->where_in('t.project_id', $ids);
+
+        if ($filter_status !== 'all' && schema_table_has_column($this->db, 'tasks', 'status')) {
+            $this->db->where('t.status', $filter_status);
+        }
+        if ($filter_user_id > 0 && schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
+            $this->db->where('t.assigned_to', $filter_user_id);
+        }
         apply_role_hierarchy_filter($this->db, 't.created_by');
         $this->db->order_by('t.project_id', 'ASC');
         $this->db->order_by('t.title', 'ASC');

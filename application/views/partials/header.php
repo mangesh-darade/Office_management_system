@@ -230,7 +230,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>
+      <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
       <?php endif; ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
@@ -631,7 +631,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='requirements'?'active':''; ?>" href="<?php echo site_url('requirements'); ?>"><i class="bi bi-clipboard-check me-2"></i>Requirement</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'))): ?>
-            <a class="nav-link sidebar-link small <?php echo ($active==='tasks' && $active_sub==='my-dashboard')?'active':''; ?>" href="<?php echo site_url('tasks/my-dashboard'); ?>"><i class="bi bi-person-check me-2"></i>My Task Dashboard</a>
+            <a class="nav-link sidebar-link small <?php echo ($active==='tasks' && $active_sub==='my-dashboard')?'active':''; ?>" href="<?php echo site_url('tasks/my-dashboard'); ?>"><i class="bi bi-people me-2"></i>Team Dashboard</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('tasks')): ?>
             <a class="nav-link sidebar-link small <?php echo ($active==='tasks' && $active_sub==='board')?'active':''; ?>" href="<?php echo site_url('tasks/board'); ?>"><i class="bi bi-list-check me-2"></i>Task</a>

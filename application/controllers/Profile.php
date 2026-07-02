@@ -18,7 +18,7 @@ class Profile extends CI_Controller {
         $user = $this->User_model->get($uid);
         $employee = null;
         if (!empty($user)) {
-            $employee = $this->db->where('user_id', $user->id)->get('employees')->row();
+            $employee = $this->Employee_model->get_by_user_id((int)$user->id);
         }
         $this->load->view('profile/index_enhanced', [
             'user' => $user,
@@ -34,7 +34,7 @@ class Profile extends CI_Controller {
         $user = $this->User_model->get($uid);
         $employee = null;
         if (!empty($user)) {
-            $employee = $this->db->where('user_id', $user->id)->get('employees')->row();
+            $employee = $this->Employee_model->get_by_user_id((int)$user->id);
         }
         
         if ($this->input->method() === 'post') {

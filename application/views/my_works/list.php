@@ -130,6 +130,14 @@
 
                 <?php
 
+                  $this->load->helper('my_works_status');
+
+                  $stCode = isset($r->status) ? (string) $r->status : my_works_status_default_code();
+
+                  $statusHex = my_works_status_hex_color($stCode);
+
+                  $rowBg = my_works_status_row_bg_color($stCode);
+
                   $stColor = isset($statusColors[$r->status]) ? $statusColors[$r->status] : 'secondary';
 
                   $stLabel = isset($statusLabels[$r->status]) ? $statusLabels[$r->status] : $r->status;
@@ -154,7 +162,8 @@
 
                 ?>
 
-                <tr class="<?php echo $rowClass; ?>">
+                <tr class="mw-list-status-row <?php echo $rowClass; ?>"
+                    style="--mw-status-color:<?php echo esc_view($statusHex, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($rowBg, ENT_QUOTES, 'UTF-8'); ?>;">
 
                   <td>
 

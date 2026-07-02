@@ -165,6 +165,10 @@ $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
 // My Works (personal / assigned work items)
 $route['my-works'] = 'my_works/index';
 $route['my-works/todays-focus'] = 'my_works/todays_focus';
+$route['my-works/yesterday'] = 'my_works/yesterday';
+$route['my-works/future-pipeline'] = 'my_works/future_pipeline';
+$route['my-works/back-log'] = 'my_works/back_log';
+$route['my-works/need-discussion'] = 'my_works/need_discussion';
 $route['my-works/create'] = 'my_works/create';
 $route['my-works/template-tasks'] = 'my_works/template_tasks';
 $route['my-works/quick-add'] = 'my_works/quick_add';

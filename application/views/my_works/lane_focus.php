@@ -1,9 +1,11 @@
 <?php
-  $lane_key = 'todays_plan';
-  $page_title = "Today's Focus";
-  $body_class = 'mw-body-todays-focus';
+  $lane_key = isset($lane_key) ? (string) $lane_key : 'todays_plan';
+  $lane_pages = my_works_dashboard_lane_focus_pages();
+  $lane_meta = isset($lane_pages[$lane_key]) ? $lane_pages[$lane_key] : $lane_pages['todays_plan'];
+  $page_title = isset($page_title) ? (string) $page_title : $lane_meta['page_title'];
+  $body_class = isset($body_class) ? (string) $body_class : $lane_meta['body_class'];
   $lane_labels = my_works_dashboard_lane_labels();
-  $lane_label = isset($lane_labels[$lane_key]) ? $lane_labels[$lane_key] : "Today's Plan";
+  $lane_label = isset($lane_label) ? (string) $lane_label : (isset($lane_labels[$lane_key]) ? $lane_labels[$lane_key] : $lane_key);
   $dashboard_sections = isset($dashboard_sections) ? $dashboard_sections : array();
   $back_url = site_url('my-works?view=overview');
 ?>

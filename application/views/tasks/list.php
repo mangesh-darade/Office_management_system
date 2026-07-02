@@ -29,7 +29,7 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <?php if (isset($is_admin) && $is_admin): ?>
+      <?php if ((isset($is_admin) && $is_admin) || (isset($team_scope) && $team_scope)): ?>
       <div class="col-md-3">
         <label class="form-label">Assignee</label>
         <select name="assigned_to" class="form-select">

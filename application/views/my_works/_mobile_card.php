@@ -1,7 +1,11 @@
 <?php
+  $this->load->helper('my_works_status');
   $statusLabels = my_works_status_labels();
   $statusColors = my_works_status_colors();
   $borderClass = my_works_row_border_class($r);
+  $stCode = isset($r->status) ? (string) $r->status : my_works_status_default_code();
+  $statusHex = my_works_status_hex_color($stCode);
+  $rowBg = my_works_status_row_bg_color($stCode);
   $stColor = isset($statusColors[$r->status]) ? $statusColors[$r->status] : 'secondary';
   $stLabel = isset($statusLabels[$r->status]) ? $statusLabels[$r->status] : $r->status;
   $forLabel = my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for);
@@ -10,7 +14,8 @@
   $canStatus = (!empty($can_quick_edit) || (int) $r->created_for === $uid);
   $overdue = my_works_is_overdue($r);
 ?>
-<div class="mw-item-card <?php echo $borderClass; ?>">
+<div class="mw-item-card mw-list-status-row <?php echo $borderClass; ?>"
+     style="--mw-status-color:<?php echo esc_view($statusHex, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($rowBg, ENT_QUOTES, 'UTF-8'); ?>;">
   <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="d-block text-decoration-none text-body">
     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
       <div class="fw-semibold fs-6 text-dark"><?php echo esc_view($r->title); ?></div>

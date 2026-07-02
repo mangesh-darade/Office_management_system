@@ -5,8 +5,8 @@
 .project-dash-compact {
   --pd-font: 0.8125rem;
   --pd-label: 0.6875rem;
-  --pd-task-row-h: 1.625rem;
-  --pd-task-head-h: 1.75rem;
+  --pd-task-row-h: 2.25rem;
+  --pd-task-head-h: 2.25rem;
   --pd-task-visible: 10;
   --pd-list-h: calc(var(--pd-task-head-h) + (var(--pd-task-visible) * var(--pd-task-row-h)));
   --pd-border: #e5e7eb;
@@ -45,6 +45,45 @@
   font-size: 0.8125rem;
   font-weight: 600;
   border-radius: 8px;
+}
+
+/* Dashboard filters */
+.project-dash-compact .project-dash-filters {
+  margin-bottom: 0.75rem;
+}
+
+.project-dash-compact .project-dash-filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.project-dash-compact .project-dash-filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  min-width: 220px;
+  max-width: 360px;
+  flex: 1 1 220px;
+}
+
+.project-dash-compact .project-dash-filter-label-text {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pd-muted);
+}
+
+.project-dash-compact .project-dash-filter-select {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border-color: var(--pd-border);
+  background: var(--pd-surface);
+  color: var(--pd-text);
 }
 
 /* Summary strip */
@@ -258,6 +297,41 @@
   opacity: 0.5;
 }
 
+.project-dash-compact .project-dash-section {
+  margin-top: 0.5rem;
+}
+
+.project-dash-compact .project-dash-section-adhoc {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--pd-border);
+}
+
+.project-dash-compact .project-dash-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--pd-muted);
+  margin-bottom: 0.35rem;
+}
+
+.project-dash-compact .project-dash-task-list-section {
+  /* Use the default max-height */
+}
+
+.project-dash-compact .project-dash-section-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  font-size: var(--pd-font);
+  color: var(--pd-muted);
+  background: #fafafa;
+  border: 1px dashed var(--pd-border);
+  border-radius: 0.35rem;
+}
+
 /* Table */
 .project-dash-compact .project-dash-task-table {
   font-size: var(--pd-font);
@@ -286,9 +360,9 @@
 }
 
 .project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 36%; }
-.project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 22%; }
-.project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 24%; }
-.project-dash-compact .project-dash-task-table thead th:nth-child(4) { width: 18%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 24%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 18%; }
+.project-dash-compact .project-dash-task-table thead th:nth-child(4) { width: 22%; }
 
 .project-dash-compact .project-dash-task-table tbody tr {
   height: var(--pd-task-row-h);
@@ -389,25 +463,236 @@
   min-width: 0;
 }
 
-@media (min-width: 1400px) {
-  .project-dash-compact .project-dash-grid > [class*="col-"] {
+.project-single-dash .kanban-columns {
+  --bs-gutter-x: 0.5rem;
+}
+
+/* All-projects dashboard — /projects/dashboard (compact index) */
+.project-dash-index {
+  --pd-font: 0.75rem;
+  --pd-label: 0.625rem;
+  --pd-task-row-h: 2.125rem;
+  --pd-task-head-h: 2.125rem;
+  --pd-task-visible: 10;
+  --pd-list-h: calc(var(--pd-task-head-h) + (var(--pd-task-visible) * var(--pd-task-row-h)));
+  min-height: auto;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.project-dash-index.container-fluid {
+  padding: 0.5rem 0.75rem 0.75rem !important;
+}
+
+.project-dash-index .oms-page-head {
+  margin-bottom: 0.5rem !important;
+}
+
+.project-dash-index .oms-page-head h1.h4 {
+  font-size: 0.875rem;
+  margin-bottom: 0 !important;
+}
+
+.project-dash-index .oms-page-actions .btn-sm {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.project-dash-index .project-dash-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.project-dash-index .project-dash-stat {
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+
+.project-dash-index .project-dash-stat-label {
+  font-size: 0.6rem;
+  margin-bottom: 0.05rem;
+  letter-spacing: 0.03em;
+}
+
+.project-dash-index .project-dash-stat-value {
+  font-size: 0.9375rem;
+  line-height: 1.1;
+}
+
+.project-dash-index .project-dash-grid {
+  --bs-gutter-x: 0.5rem;
+  --bs-gutter-y: 0.5rem;
+}
+
+.project-dash-index .project-dash-grid-col {
+  min-width: 0;
+}
+
+.project-dash-index .project-dash-card {
+  border-radius: 8px;
+}
+
+.project-dash-index .project-dash-head {
+  padding: 0.4rem 0.55rem;
+}
+
+.project-dash-index .project-dash-code {
+  font-size: 0.5625rem;
+  padding: 0.05rem 0.3rem;
+  margin-bottom: 0.1rem;
+}
+
+.project-dash-index .project-dash-project-name {
+  font-size: 0.8125rem;
+}
+
+.project-dash-index .project-dash-count {
+  min-width: 1.5rem;
+  font-size: 0.6875rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+}
+
+.project-dash-index .project-dash-status-badge {
+  font-size: 0.625rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+}
+
+.project-dash-index .project-dash-date,
+.project-dash-index .project-dash-assignee {
+  font-size: 0.6875rem;
+}
+
+.project-dash-index .project-dash-task-table thead th,
+.project-dash-index .project-dash-task-table tbody td {
+  padding: 0.15rem 0.4rem;
+}
+
+.project-dash-index .project-dash-empty {
+  font-size: 0.75rem;
+  gap: 0.25rem;
+}
+
+.project-dash-index .project-dash-empty i {
+  font-size: 1rem;
+}
+
+@media (min-width: 1600px) {
+  .project-dash-compact:not(.project-dash-index) .project-dash-grid > [class*="col-"] {
+    flex: 0 0 auto;
+    width: 20%;
+  }
+}
+
+@media (min-width: 1400px) and (max-width: 1599.98px) {
+  .project-dash-compact:not(.project-dash-index) .project-dash-grid > [class*="col-"] {
     flex: 0 0 auto;
     width: 25%;
   }
 }
 
 @media (min-width: 1200px) and (max-width: 1399.98px) {
-  .project-dash-compact .project-dash-grid > [class*="col-"] {
+  .project-dash-compact:not(.project-dash-index) .project-dash-grid > [class*="col-"] {
     flex: 0 0 auto;
     width: 33.333333%;
   }
 }
 
+/* All-projects index dashboard — responsive layout */
+@media (min-width: 576px) {
+  .project-dash-index .project-dash-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 992px) {
+  .project-dash-index .project-dash-summary {
+    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  }
+
+  .project-dash-index .project-dash-stat-value {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .project-dash-index .project-dash-filters {
+    margin-bottom: 0.5rem;
+  }
+
+  .project-dash-index .project-dash-filter-label {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .project-dash-index .project-dash-filter-select {
+    width: 100%;
+  }
+
+  .project-dash-index .project-dash-task-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .project-dash-index .project-dash-task-table {
+    min-width: 26rem;
+  }
+
+  .project-dash-index .project-dash-task-title {
+    min-height: 1.5rem;
+    line-height: 1.5rem;
+  }
+}
+
 @media (max-width: 575.98px) {
-  .project-dash-compact .project-dash-task-table thead th:nth-child(1) { width: 34%; }
-  .project-dash-compact .project-dash-task-table thead th:nth-child(2) { width: 24%; }
-  .project-dash-compact .project-dash-task-table thead th:nth-child(3) { width: 24%; }
-  .project-dash-compact .project-dash-task-table thead th:nth-child(4) { width: 18%; }
+  .project-dash-index.container-fluid {
+    padding: 0.5rem 0.625rem 0.75rem !important;
+  }
+
+  .project-dash-index .oms-page-head {
+    gap: 0.5rem;
+  }
+
+  .project-dash-index .oms-page-actions {
+    width: 100%;
+  }
+
+  .project-dash-index .oms-page-actions .btn {
+    width: 100%;
+    min-height: 2.25rem;
+    justify-content: center;
+  }
+
+  .project-dash-index .project-dash-stat {
+    padding: 0.35rem 0.45rem;
+  }
+
+  .project-dash-index .project-dash-stat-label {
+    font-size: 0.5625rem;
+  }
+
+  .project-dash-index .project-dash-stat-value {
+    font-size: 0.875rem;
+  }
+
+  .project-dash-index .project-dash-head {
+    padding: 0.45rem 0.5rem;
+  }
+
+  .project-dash-compact .project-dash-task-table thead th:nth-child(1),
+  .project-dash-index .project-dash-task-table thead th:nth-child(1) { width: 34%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(2),
+  .project-dash-index .project-dash-task-table thead th:nth-child(2) { width: 24%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(3),
+  .project-dash-index .project-dash-task-table thead th:nth-child(3) { width: 18%; }
+  .project-dash-compact .project-dash-task-table thead th:nth-child(4),
+  .project-dash-index .project-dash-task-table thead th:nth-child(4) { width: 24%; }
 }
 
 /* Single project kanban dashboard — /projects/{id}/dashboard */
@@ -472,4 +757,43 @@
 
 .project-single-dash .kanban-columns {
   --bs-gutter-x: 0.5rem;
+}
+
+/* Team dashboard — /tasks/my-dashboard */
+.team-dash-index {
+  --pd-task-visible: 10;
+  --pd-list-h: calc(var(--pd-task-head-h) + (var(--pd-task-visible) * var(--pd-task-row-h)));
+}
+
+.team-dash-index .team-dash-grid-col {
+  min-width: 0;
+}
+
+.team-dash-index.is-user-filtered .team-dash-grid-col-full {
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
+}
+
+.team-dash-index.is-user-filtered .project-dash-task-list-section {
+  height: var(--pd-list-h);
+  max-height: var(--pd-list-h);
+}
+
+.team-dash-index.is-user-filtered .project-dash-section-adhoc {
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 1400px) {
+  .team-dash-index:not(.is-user-filtered) .team-dash-grid-col {
+    flex: 0 0 auto;
+    width: 25%;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+  .team-dash-index:not(.is-user-filtered) .team-dash-grid-col {
+    flex: 0 0 auto;
+    width: 33.333333%;
+  }
 }

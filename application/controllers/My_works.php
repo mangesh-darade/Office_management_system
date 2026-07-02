@@ -344,16 +344,53 @@ class My_works extends CI_Controller
         $this->load->view('my_works/list', $data);
     }
 
-    public function todays_focus()
+    private function _lane_focus_view($lane_key)
     {
+        if (!my_works_dashboard_lane_is_valid($lane_key)) {
+            show_404();
+        }
         require_module_access(array('my_works_list', 'my_works'), true);
         $filters = $this->_sanitize_filters($this->_parse_filters());
         $data = $this->_list_view_data($filters, 'overview');
         $exclude_closed = ($filters['status'] === '');
-        $focus = my_works_build_todays_focus_sections($data['rows'], $exclude_closed);
+        $focus = my_works_build_lane_focus_sections($data['rows'], $lane_key, $exclude_closed);
         $data['dashboard_sections'] = $focus['sections'];
         $data['focus_count'] = $focus['count'];
-        $this->load->view('my_works/todays_focus', $data);
+        $data['lane_key'] = $lane_key;
+        $pages = my_works_dashboard_lane_focus_pages();
+        $meta = isset($pages[$lane_key]) ? $pages[$lane_key] : $pages['todays_plan'];
+        $labels = my_works_dashboard_lane_labels();
+        $data['page_title'] = $meta['page_title'];
+        $data['body_class'] = $meta['body_class'];
+        $data['active_tab'] = $meta['active_tab'];
+        $data['lane_label'] = isset($labels[$lane_key]) ? $labels[$lane_key] : $lane_key;
+        $data['focus_url'] = site_url($meta['route']);
+        $this->load->view('my_works/lane_focus', $data);
+    }
+
+    public function todays_focus()
+    {
+        $this->_lane_focus_view('todays_plan');
+    }
+
+    public function yesterday()
+    {
+        $this->_lane_focus_view('yesterday');
+    }
+
+    public function future_pipeline()
+    {
+        $this->_lane_focus_view('future_pipeline');
+    }
+
+    public function back_log()
+    {
+        $this->_lane_focus_view('back_log');
+    }
+
+    public function need_discussion()
+    {
+        $this->_lane_focus_view('need_discussion');
     }
 
     public function export()
@@ -575,41 +612,8 @@ class My_works extends CI_Controller
      */
     private function _tasks_assignable_users()
     {
-        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
-            $select = array('users.id', 'users.email');
-            if (schema_table_has_column($this->db, 'users', 'name')) {
-                $select[] = 'users.name';
-            }
-            if (schema_table_has_column($this->db, 'users', 'full_name')) {
-                $select[] = 'users.full_name';
-            }
-            $has_emp_name = schema_table_has_column($this->db, 'employees', 'name');
-            if ($has_emp_name) {
-                $select[] = 'employees.name AS emp_name';
-            }
-            $this->db->select(implode(',', $select))
-                ->from('users')
-                ->join('employees', 'employees.user_id = users.id', 'left');
-            if ($has_emp_name) {
-                $this->db->order_by('employees.name IS NULL ASC', '', false)
-                    ->order_by('employees.name', 'ASC');
-            }
-            $this->db->order_by('users.email', 'ASC');
-            return $this->db->get()->result();
-        }
-
-        $user_select = array('id', 'email');
-        if (schema_table_has_column($this->db, 'users', 'full_name')) {
-            $user_select[] = 'full_name';
-        }
-        if (schema_table_has_column($this->db, 'users', 'name')) {
-            $user_select[] = 'name';
-        }
-        return $this->db->select(implode(',', $user_select))
-            ->from('users')
-            ->order_by('email', 'ASC')
-            ->get()
-            ->result();
+        $c = $this->_ctx();
+        return my_works_assignable_users($this->db, $c['can_view_all'], $c['user_id'], $c['role_id']);
     }
 
     /**

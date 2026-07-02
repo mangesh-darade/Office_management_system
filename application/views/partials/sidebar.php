@@ -4,9 +4,6 @@ $active = strtolower($this->uri->segment(1) ?: 'dashboard');
 $active_sub = strtolower($this->uri->segment(2) ?: '');
 if ($active === 'my-works') {
   $active = 'my_works';
-  if ($active_sub === 'todays-focus') {
-    $active = 'my_works_focus';
-  }
 }
 $coaching_nav_active = ($active === 'coaching' || strpos((string) $active, 'coaching-') === 0);
 $role_id = (int) $this->session->userdata('role_id');
@@ -86,8 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <nav class="nav flex-column gap-1 sidebar-nav">
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-clipboard2-check me-2"></i>My Works</a>
-      <a class="nav-link sidebar-link <?php echo $active==='my_works_focus'?'active':''; ?>" href="<?php echo site_url('my-works/todays-focus'); ?>"><i class="bi bi-bullseye me-2"></i>Today's Focus</a>
+      <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item" id="daily-activity-group">
@@ -555,7 +551,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='dashboard')?'active':''; ?>" href="<?php echo site_url('projects/dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Project Dashboard</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'))): ?>
-            <a class="submenu-link <?php echo ($active==='tasks' && $active_sub==='my-dashboard')?'active':''; ?>" href="<?php echo site_url('tasks/my-dashboard'); ?>"><i class="bi bi-person-check me-2"></i>My Task Dashboard</a>
+            <a class="submenu-link <?php echo ($active==='tasks' && $active_sub==='my-dashboard')?'active':''; ?>" href="<?php echo site_url('tasks/my-dashboard'); ?>"><i class="bi bi-people me-2"></i>Team Dashboard</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))): ?>
             <a class="submenu-link <?php echo ($active==='projects' && $active_sub==='matrix')?'active':''; ?>" href="<?php echo site_url('projects/matrix'); ?>"><i class="bi bi-grid-3x3-gap me-2"></i>Portfolio Matrix</a>

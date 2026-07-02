@@ -258,7 +258,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
               </div>
             </div>
             <div class="card-footer bg-transparent border-0 pt-0">
-              <a href="<?php echo site_url('tasks/my-dashboard'); ?>" class="btn btn-outline-light btn-sm">My Tasks</a>
+              <a href="<?php echo site_url('tasks/my-dashboard'); ?>" class="btn btn-outline-light btn-sm">Team Dashboard</a>
             </div>
           </div>
         </div>

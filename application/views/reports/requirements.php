@@ -155,7 +155,7 @@
         </div>
       <?php else: ?>
         <div class="table-responsive">
-          <table class="table table-hover align-middle" id="requirementsTable">
+          <table class="table table-hover align-middle" id="requirementsTable" data-dt-manual="1">
             <thead>
               <tr>
                 <th style="width:3%">#</th>
@@ -241,13 +241,13 @@
   // Initialize DataTable for better UX
   $(document).ready(function() {
     $('#requirementsTable').DataTable({
-      pageLength: 25,
-      order: [[0, 'desc']],
-      responsive: true,
-      language: {
-        search: 'Search requirements:',
-        lengthMenu: 'Show _MENU_ requirements per page'
-      }
+      ordering: true,
+      order: [[0, 'asc']],
+      paging: false,
+      searching: false,
+      lengthChange: false,
+      info: false,
+      responsive: true
     });
   });
   </script>

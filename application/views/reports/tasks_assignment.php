@@ -135,7 +135,7 @@
         </div>
       <?php else: ?>
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0" id="tasksAssignmentTable">
+          <table class="table table-hover align-middle mb-0" id="tasksAssignmentTable" data-dt-manual="1">
             <thead class="table-light">
               <tr>
                 <th style="width:20%">Employee</th>
@@ -213,13 +213,13 @@
   $(document).ready(function() {
     if ($.fn.DataTable) {
       $('#tasksAssignmentTable').DataTable({
-        pageLength: 25,
-        order: [[6, 'desc']],
-        responsive: true,
-        language: {
-          search: 'Search employees:',
-          lengthMenu: 'Show _MENU_ employees per page'
-        }
+        ordering: true,
+        order: [[0, 'asc']],
+        paging: false,
+        searching: false,
+        lengthChange: false,
+        info: false,
+        responsive: true
       });
     }
   });

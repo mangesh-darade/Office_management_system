@@ -41,6 +41,7 @@
               <th class="d-none d-md-table-cell">Email</th>
               <th class="d-none d-lg-table-cell">Department</th>
               <th class="d-none d-lg-table-cell">Designation</th>
+              <th class="d-none d-xl-table-cell">Reporting To</th>
               <th class="text-end">Actions</th>
             </tr>
           </thead>
@@ -53,6 +54,17 @@
               <td class="d-none d-md-table-cell"><?php echo esc_view(isset($e->email) ? $e->email : ''); ?></td>
               <td class="d-none d-lg-table-cell"><?php echo esc_view(isset($e->department) ? $e->department : ''); ?></td>
               <td class="d-none d-lg-table-cell"><?php echo esc_view(isset($e->designation) ? $e->designation : ''); ?></td>
+              <td class="d-none d-xl-table-cell">
+                <?php
+                  $manager_label = '';
+                  if (!empty($e->reporting_to_name)) {
+                    $manager_label = (string)$e->reporting_to_name;
+                  } elseif (!empty($e->reporting_to_email)) {
+                    $manager_label = (string)$e->reporting_to_email;
+                  }
+                  echo esc_view($manager_label);
+                ?>
+              </td>
               <td class="text-end table-actions">
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('employees/'.$e->id); ?>"><i class="bi bi-eye"></i></a>
                 <?php if(function_exists('has_module_access') && (has_module_access('employees_edit') || has_module_access('employees'))): ?>
@@ -68,7 +80,7 @@
             </tr>
           <?php endforeach; else: ?>
             <tr>
-              <td colspan="7" class="text-center py-5">
+              <td colspan="8" class="text-center py-5">
                 <div class="empty-state">
                   <div class="empty-icon"><i class="bi bi-people"></i></div>
                   <h5>No employees found</h5>

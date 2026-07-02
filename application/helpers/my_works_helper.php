@@ -787,6 +787,89 @@ if (!function_exists('my_works_build_dashboard_sections')) {
     }
 }
 
+if (!function_exists('my_works_dashboard_lane_focus_pages')) {
+    /**
+     * Full-view page metadata per overview lane (route, title, view tab).
+     *
+     * @return array<string, array{route:string,page_title:string,active_tab:string,body_class:string}>
+     */
+    function my_works_dashboard_lane_focus_pages()
+    {
+        return array(
+            'todays_plan'     => array(
+                'route'       => 'my-works/todays-focus',
+                'page_title'  => "Today's Focus",
+                'active_tab'  => 'todays-focus',
+                'body_class'  => 'mw-body-todays-focus',
+            ),
+            'yesterday'       => array(
+                'route'       => 'my-works/yesterday',
+                'page_title'  => 'Yesterday',
+                'active_tab'  => '',
+                'body_class'  => 'mw-body-lane-yesterday',
+            ),
+            'future_pipeline' => array(
+                'route'       => 'my-works/future-pipeline',
+                'page_title'  => 'Future Pipeline',
+                'active_tab'  => '',
+                'body_class'  => 'mw-body-lane-future-pipeline',
+            ),
+            'back_log'        => array(
+                'route'       => 'my-works/back-log',
+                'page_title'  => 'Back Log',
+                'active_tab'  => '',
+                'body_class'  => 'mw-body-lane-back-log',
+            ),
+            'need_discussion' => array(
+                'route'       => 'my-works/need-discussion',
+                'page_title'  => 'Need Discussion',
+                'active_tab'  => '',
+                'body_class'  => 'mw-body-lane-need-discussion',
+            ),
+        );
+    }
+}
+
+if (!function_exists('my_works_dashboard_lane_focus_route')) {
+    function my_works_dashboard_lane_focus_route($lane)
+    {
+        $pages = my_works_dashboard_lane_focus_pages();
+        $lane = (string) $lane;
+        return isset($pages[$lane]['route']) ? (string) $pages[$lane]['route'] : '';
+    }
+}
+
+if (!function_exists('my_works_build_lane_focus_sections')) {
+    /**
+     * Single lane full view merging ad hoc + project items.
+     *
+     * @return array{sections: array, count: int}
+     */
+    function my_works_build_lane_focus_sections(array $rows, $lane_key, $exclude_closed = true)
+    {
+        if (!my_works_dashboard_lane_is_valid($lane_key)) {
+            return array(
+                'sections' => array('focus' => array()),
+                'count'    => 0,
+            );
+        }
+        $dash = my_works_build_dashboard_sections($rows, $exclude_closed);
+        $merged = array_merge(
+            isset($dash['sections']['ad_hoc'][$lane_key]) ? $dash['sections']['ad_hoc'][$lane_key] : array(),
+            isset($dash['sections']['project'][$lane_key]) ? $dash['sections']['project'][$lane_key] : array()
+        );
+        $merged = my_works_dashboard_lane_sort_by_date_asc($merged);
+        return array(
+            'sections' => array(
+                'focus' => array(
+                    $lane_key => $merged,
+                ),
+            ),
+            'count' => count($merged),
+        );
+    }
+}
+
 if (!function_exists('my_works_build_todays_focus_sections')) {
     /**
      * Single Today's Plan lane merging ad hoc + project items.
@@ -795,20 +878,7 @@ if (!function_exists('my_works_build_todays_focus_sections')) {
      */
     function my_works_build_todays_focus_sections(array $rows, $exclude_closed = true)
     {
-        $dash = my_works_build_dashboard_sections($rows, $exclude_closed);
-        $merged = array_merge(
-            isset($dash['sections']['ad_hoc']['todays_plan']) ? $dash['sections']['ad_hoc']['todays_plan'] : array(),
-            isset($dash['sections']['project']['todays_plan']) ? $dash['sections']['project']['todays_plan'] : array()
-        );
-        $merged = my_works_dashboard_lane_sort_by_date_asc($merged);
-        return array(
-            'sections' => array(
-                'focus' => array(
-                    'todays_plan' => $merged,
-                ),
-            ),
-            'count' => count($merged),
-        );
+        return my_works_build_lane_focus_sections($rows, 'todays_plan', $exclude_closed);
     }
 }
 
@@ -849,6 +919,53 @@ if (!function_exists('my_works_dashboard_project_label')) {
             return (string) $row->client_name;
         }
         return '—';
+    }
+}
+
+if (!function_exists('my_works_dashboard_group_lane_by_project')) {
+    /**
+     * Group overview lane rows by project (ad hoc items last, no header).
+     *
+     * @param array $items
+     * @return array<int, array{label: string, project_id: int, items: array}>
+     */
+    function my_works_dashboard_group_lane_by_project(array $items)
+    {
+        if (empty($items)) {
+            return array();
+        }
+        $groups = array();
+        $order = array();
+        foreach ($items as $row) {
+            $pid = !empty($row->project_id) ? (int) $row->project_id : 0;
+            $key = $pid > 0 ? 'p_' . $pid : 'adhoc';
+            if (!isset($groups[$key])) {
+                $groups[$key] = array(
+                    'label'      => $pid > 0 ? my_works_dashboard_project_label($row) : '',
+                    'project_id' => $pid,
+                    'items'      => array(),
+                );
+                $order[] = $key;
+            }
+            $groups[$key]['items'][] = $row;
+        }
+        $result = array();
+        foreach ($order as $key) {
+            $result[] = $groups[$key];
+        }
+        usort($result, function ($a, $b) {
+            if ($a['project_id'] === 0 && $b['project_id'] === 0) {
+                return 0;
+            }
+            if ($a['project_id'] === 0) {
+                return 1;
+            }
+            if ($b['project_id'] === 0) {
+                return -1;
+            }
+            return strcasecmp($a['label'], $b['label']);
+        });
+        return $result;
     }
 }
 

@@ -705,6 +705,14 @@
   background: #f8fafc;
 }
 
+.mw-list-table-card tbody tr.mw-list-status-row td:first-child {
+  border-left: 3px solid var(--mw-status-color, #94a3b8);
+}
+
+.mw-list-table-card tbody tr.mw-list-status-row:hover {
+  background-color: color-mix(in srgb, var(--mw-status-color, #94a3b8) 16%, #ffffff) !important;
+}
+
 .mw-work-title {
   font-weight: 600;
   color: var(--mw-text);
@@ -821,6 +829,18 @@
 
 .mw-item-card:hover {
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.mw-item-card.mw-list-status-row {
+  border-left: 3px solid var(--mw-status-color, #94a3b8);
+}
+
+.mw-item-card.mw-list-status-row.mw-border-urgent {
+  border-left: 4px solid #dc3545 !important;
+}
+
+.mw-item-card.mw-list-status-row.mw-border-important {
+  border-left: 4px solid #f59e0b !important;
 }
 
 /* Board */
@@ -2523,6 +2543,37 @@
   --dash-bg: #eef2f7;
 }
 
+.mw-dash-page-focus-immersive {
+  padding: 0.5rem 0.75rem 0.35rem;
+  min-height: calc(100vh - 64px);
+  height: calc(100vh - 64px);
+  max-height: calc(100vh - 64px);
+}
+
+.mw-focus-screen-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  padding: 0.15rem 0;
+}
+
+.mw-focus-back-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.mw-focus-screen-title {
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
 @media (min-width: 768px) {
   .mw-dash-page-focus {
     margin: -1.5rem -1.5rem -1.5rem;
@@ -2530,6 +2581,17 @@
     min-height: calc(100vh - 120px);
     height: calc(100vh - 120px);
     max-height: calc(100vh - 120px);
+  }
+
+  .mw-dash-page-focus-immersive {
+    padding: 0.65rem 1rem 0.4rem;
+    min-height: calc(100vh - 72px);
+    height: calc(100vh - 72px);
+    max-height: calc(100vh - 72px);
+  }
+
+  .mw-focus-screen-title {
+    font-size: 1.4rem;
   }
 }
 
@@ -2650,9 +2712,12 @@
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
 }
 
-.mw-dash-page-focus .mw-dash-lane-todays_plan .mw-dash-lane-head {
+.mw-dash-page-focus .mw-dash-lane .mw-dash-lane-head {
   padding: 0.7rem 1rem;
   font-size: 0.85rem;
+}
+
+.mw-dash-page-focus .mw-dash-lane-todays_plan .mw-dash-lane-head {
   color: #92400e;
 }
 
@@ -2734,7 +2799,12 @@
 }
 
 body:has(.mw-dash-page-focus) main,
-body.mw-body-todays-focus main {
+body.mw-body-todays-focus main,
+body.mw-body-lane-focus-immersive main,
+body.mw-body-lane-yesterday main,
+body.mw-body-lane-future-pipeline main,
+body.mw-body-lane-back-log main,
+body.mw-body-lane-need-discussion main {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 56px);
@@ -2742,7 +2812,12 @@ body.mw-body-todays-focus main {
 }
 
 body:has(.mw-dash-page-focus) main > .mw-dash-page-focus,
-body.mw-body-todays-focus main > .mw-dash-page-focus {
+body.mw-body-todays-focus main > .mw-dash-page-focus,
+body.mw-body-lane-focus-immersive main > .mw-dash-page-focus,
+body.mw-body-lane-yesterday main > .mw-dash-page-focus,
+body.mw-body-lane-future-pipeline main > .mw-dash-page-focus,
+body.mw-body-lane-back-log main > .mw-dash-page-focus,
+body.mw-body-lane-need-discussion main > .mw-dash-page-focus {
   width: 100%;
 }
 
@@ -2766,6 +2841,18 @@ body.mw-body-todays-focus main > .mw-dash-page-focus {
   border-radius: 12px 12px 0 0;
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+a.mw-dash-lane-title-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.mw-dash-lane-title-link:hover,
+a.mw-dash-lane-title-link:focus {
+  text-decoration: underline;
+  color: inherit;
 }
 
 .mw-dash-lane-yesterday .mw-dash-lane-head { background: #e8f4fc; color: #1e40af; }
@@ -2794,6 +2881,10 @@ body.mw-body-todays-focus main > .mw-dash-page-focus {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+.mw-dash-lane-table-wrap:not(.mw-dash-lane-table-wrap-unified) .mw-dash-lane-body-scroll {
+  scrollbar-gutter: stable;
 }
 
 .mw-dash-lane-table {
@@ -2833,6 +2924,46 @@ body.mw-body-todays-focus main > .mw-dash-page-focus {
 
 .mw-dash-lane-table col.mw-dash-col-date {
   width: 20%;
+}
+
+/* Overview lanes: project hidden, drag visible — keep drag narrow, title fills slack */
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag) .mw-dash-lane-table col.mw-dash-col-drag {
+  width: 1.25rem;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag) .mw-dash-lane-table col.mw-dash-col-title {
+  width: auto;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag).mw-dash-lane-no-date .mw-dash-lane-table col.mw-dash-col-assignee {
+  width: 30%;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag).mw-dash-lane-has-date .mw-dash-lane-table col.mw-dash-col-assignee {
+  width: 24%;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag).mw-dash-lane-has-date .mw-dash-lane-table col.mw-dash-col-date {
+  width: 20%;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag) .mw-dash-col-drag {
+  width: 1.25rem;
+  max-width: 1.25rem;
+  padding-left: 0.08rem !important;
+  padding-right: 0.04rem !important;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag) .mw-dash-lane-table thead th:nth-child(2),
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag) .mw-dash-lane-table tbody td:nth-child(2) {
+  text-align: left;
+  padding-left: 0.12rem;
+  padding-right: 0.15rem;
+}
+
+.mw-dash-lane-no-project-col:not(.mw-dash-lane-no-drag) .mw-dash-task-link {
+  width: 100%;
+  min-width: 0;
 }
 
 .mw-dash-col-date-cell {

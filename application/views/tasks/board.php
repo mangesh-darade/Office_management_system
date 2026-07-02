@@ -10,7 +10,7 @@ $can_delete = function_exists('has_module_access') && (has_module_access('tasks_
 
 $head_actions = '';
 if (function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'))) {
-  $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('tasks/my-dashboard') . '"><i class="bi bi-person-check me-1"></i><span class="d-none d-md-inline">My Dashboard</span></a>';
+  $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('tasks/my-dashboard') . '"><i class="bi bi-people me-1"></i><span class="d-none d-md-inline">Team Dashboard</span></a>';
 }
 $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('tasks') . '"><i class="bi bi-list me-1"></i><span class="d-none d-md-inline">List</span></a>';
 if ($can_add) {

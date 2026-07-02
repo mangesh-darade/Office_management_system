@@ -42,17 +42,21 @@ class Project_model extends CI_Model {
         $this->db->from($this->table . ' p');
         
         // Apply group filters for non-admin users
+        $member_scoped = false;
         if (!empty($filters)) {
             if (isset($filters['user_id'])) {
                 // Show only projects where user is a member
                 $this->db->join('project_members pm', 'pm.project_id = p.id');
                 $this->db->where('pm.user_id', $filters['user_id']);
+                $member_scoped = true;
             }
         }
-        if ($this->has_column('created_by')) {
-            apply_role_hierarchy_filter($this->db, 'p.created_by');
-        } else if ($this->has_column('manager_id')) {
-            apply_role_hierarchy_filter($this->db, 'p.manager_id');
+        if (!$member_scoped) {
+            if ($this->has_column('created_by')) {
+                apply_role_hierarchy_filter($this->db, 'p.created_by');
+            } else if ($this->has_column('manager_id')) {
+                apply_role_hierarchy_filter($this->db, 'p.manager_id');
+            }
         }
         
         return $this->db->order_by('p.id','DESC')->group_by('p.id')->get()->result();

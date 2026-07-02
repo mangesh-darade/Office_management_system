@@ -233,7 +233,7 @@ class Reports_hr extends Reports_base {
         // Get filter options
         $filter_options = [
             'users' => [],
-            'statuses' => ['pending', 'lead_approved', 'hr_approved', 'rejected', 'cancelled'],
+            'statuses' => ['pending', 'lead_approved', 'hr_approved', 'approved', 'rejected', 'cancelled'],
             'leave_types' => []
         ];
         

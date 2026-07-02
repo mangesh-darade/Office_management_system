@@ -315,6 +315,28 @@
               </div>
             </div>
           </div>
+
+          <div class="col-md-6">
+            <div class="info-card">
+              <div class="info-label">Reporting To</div>
+              <div class="info-value">
+                <i class="bi bi-person-check me-1"></i>
+                <?php
+                  $profile_manager = 'Not set';
+                  if (!empty($employee->reporting_to)) {
+                    if (!empty($employee->reporting_to_name)) {
+                      $profile_manager = (string)$employee->reporting_to_name;
+                    } elseif (!empty($employee->reporting_to_email)) {
+                      $profile_manager = (string)$employee->reporting_to_email;
+                    } else {
+                      $profile_manager = 'User #' . (int)$employee->reporting_to;
+                    }
+                  }
+                  echo esc_view($profile_manager);
+                ?>
+              </div>
+            </div>
+          </div>
           
           <?php if (isset($employee->address)): ?>
           <div class="col-12">

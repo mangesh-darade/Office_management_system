@@ -292,7 +292,7 @@
             </div>
           <?php else: ?>
             <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0" id="recentLeavesTable">
+              <table class="table table-hover align-middle mb-0" id="recentLeavesTable" data-dt-manual="1">
                 <thead class="table-light">
                   <tr>
                     <th>Employee</th>

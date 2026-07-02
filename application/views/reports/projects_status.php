@@ -183,7 +183,7 @@
             </div>
           <?php else: ?>
             <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0" id="projectsTable">
+              <table class="table table-hover align-middle mb-0" id="projectsTable" data-dt-manual="1">
                 <thead class="table-light">
                   <tr>
                     <th>Project</th>
@@ -268,13 +268,13 @@
   $(document).ready(function() {
     if ($.fn.DataTable) {
       $('#projectsTable').DataTable({
-        pageLength: 25,
+        ordering: true,
         order: [[0, 'asc']],
-        responsive: true,
-        language: {
-          search: 'Search projects:',
-          lengthMenu: 'Show _MENU_ projects per page'
-        }
+        paging: false,
+        searching: false,
+        lengthChange: false,
+        info: false,
+        responsive: true
       });
     }
   });

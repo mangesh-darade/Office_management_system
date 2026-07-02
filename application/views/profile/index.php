@@ -49,6 +49,22 @@
             <div class="mb-2"><?php echo esc_view(isset($employee->department) ? $employee->department : '-'); ?></div>
             <div class="small text-muted">Designation</div>
             <div class="mb-2"><?php echo esc_view(isset($employee->designation) ? $employee->designation : '-'); ?></div>
+            <div class="small text-muted">Reporting To</div>
+            <div class="mb-2">
+              <?php
+                $profile_manager = '-';
+                if (!empty($employee->reporting_to)) {
+                  if (!empty($employee->reporting_to_name)) {
+                    $profile_manager = (string)$employee->reporting_to_name;
+                  } elseif (!empty($employee->reporting_to_email)) {
+                    $profile_manager = (string)$employee->reporting_to_email;
+                  } else {
+                    $profile_manager = 'User #' . (int)$employee->reporting_to;
+                  }
+                }
+                echo esc_view($profile_manager);
+              ?>
+            </div>
           <?php endif; ?>
         </div>
       </div>

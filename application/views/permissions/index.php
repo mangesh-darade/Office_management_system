@@ -167,7 +167,7 @@ $total_cols = 1 + count($admin_roles) + count($user_roles);
         ?>
 
         <div class="table-responsive perm-grid-wrap" id="permGridWrap">
-          <table class="table table-bordered table-hover perm-table mb-0" id="permTable">
+          <table class="table table-bordered table-hover perm-table mb-0" id="permTable" data-no-datatable="1">
             <thead class="sticky-head">
               <!-- Group header row -->
               <tr>
