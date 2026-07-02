@@ -249,6 +249,7 @@ $this->load->view('partials/oms_page_head', array(
                 <?php foreach ($status_rows as $sr): ?>
                   <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"
                           data-color="<?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>"
+                          style="color: <?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>; font-weight: 600;"
                           <?php echo $sr->code === $item_status ? 'selected' : ''; ?>>
                     <?php echo esc_view($sr->name); ?>
                   </option>

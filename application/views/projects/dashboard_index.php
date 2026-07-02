@@ -101,6 +101,18 @@ $assignee_label = function ($task) {
 <?php if (!empty($filter_projects)): ?>
 <div class="project-dash-filters">
   <form method="get" action="<?php echo site_url('projects/dashboard'); ?>" class="project-dash-filter-form" id="projectDashFilterForm">
+    <?php if (isset($filter_departments) && !empty($filter_departments)): ?>
+    <label class="project-dash-filter-label me-3">
+      <span class="project-dash-filter-label-text">Department</span>
+      <select name="department_id" class="form-select form-select-sm project-dash-filter-select">
+        <option value="all"<?php echo $filter_department_id < 0 ? ' selected' : ''; ?>>All Departments</option>
+        <?php foreach ($filter_departments as $fd): ?>
+          <option value="<?php echo (int) $fd->id; ?>"<?php echo $filter_department_id === (int) $fd->id ? ' selected' : ''; ?>><?php echo esc_view($fd->dept_name, ENT_QUOTES, 'UTF-8'); ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <?php endif; ?>
+
     <label class="project-dash-filter-label me-3">
       <span class="project-dash-filter-label-text">Project</span>
       <select name="project_id" class="form-select form-select-sm project-dash-filter-select">
@@ -202,6 +214,12 @@ $assignee_label = function ($task) {
                 <a href="<?php echo site_url('projects/' . (int) $p->id); ?>" class="text-decoration-none project-dash-project-name" title="<?php echo esc_view((string) $p->name, ENT_QUOTES, 'UTF-8'); ?>">
                   <?php echo esc_view((string) $p->name); ?>
                 </a>
+                <?php if (!empty($p->department_name)): ?>
+                  <div class="text-muted small mt-1" style="font-size: 0.6875rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: #4b5563 !important;">
+                    <i class="bi bi-building"></i>
+                    <span><?php echo esc_view($p->department_name); ?></span>
+                  </div>
+                <?php endif; ?>
               </div>
               <span class="project-dash-count<?php echo $item_count < 1 ? ' is-zero' : ''; ?>" title="<?php echo (int) $item_count; ?> item(s)">
                 <?php echo (int) $item_count; ?>
@@ -266,8 +284,12 @@ $assignee_label = function ($task) {
                                   style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
                                   title="<?php echo esc_view($task_label, ENT_QUOTES, 'UTF-8'); ?>">
                             <?php foreach ($status_rows as $srow): ?>
+                              <?php
+                                $opt_color = isset($status_colors[$srow->code]) ? $status_colors[$srow->code] : $srow->color;
+                              ?>
                               <option value="<?php echo esc_view($srow->code, ENT_QUOTES, 'UTF-8'); ?>" 
-                                      data-color="<?php echo esc_view(isset($status_colors[$srow->code]) ? $status_colors[$srow->code] : $srow->color, ENT_QUOTES, 'UTF-8'); ?>"
+                                      data-color="<?php echo esc_view($opt_color, ENT_QUOTES, 'UTF-8'); ?>"
+                                      style="color: <?php echo esc_view($opt_color, ENT_QUOTES, 'UTF-8'); ?>; font-weight: 600;"
                                       <?php echo $task_status === $srow->code ? 'selected' : ''; ?>>
                                 <?php echo esc_view($srow->name, ENT_QUOTES, 'UTF-8'); ?>
                               </option>

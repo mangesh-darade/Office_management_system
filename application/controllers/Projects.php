@@ -145,12 +145,23 @@ class Projects extends CI_Controller {
                     }
                 }
                 
+                $department_id = $this->input->post('department_id') ? (int) $this->input->post('department_id') : null;
+                if ($department_id) {
+                    $this->load->model('Department_model');
+                    if (!$this->Department_model->find($department_id)) {
+                        $this->session->set_flashdata('error', 'Please select a valid department.');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                        return;
+                    }
+                }
+                
                 $data = [
                     'code' => $code !== '' ? $code : null,
                     'name' => $name,
                     'status' => $this->input->post('status') ?: 'planned',
                     'start_date' => $start_date,
                     'end_date' => $end_date,
+                    'department_id' => $department_id,
                 ];
                 if (schema_table_has_column($this->db, 'projects', 'project_type')) {
                     $project_type = module_type_validate_code($this->input->post('project_type'), 'projects', true);
@@ -235,6 +246,9 @@ class Projects extends CI_Controller {
         $this->load->model('Status_model', 'statuses');
         $statuses_list = $this->statuses->get_by_type('projects', true);
         
+        $this->load->model('Department_model');
+        $departments = $this->Department_model->all();
+        
         $project_types = module_type_options_resolved('projects');
         $this->load->view('projects/form', [
             'action' => 'create',
@@ -242,6 +256,7 @@ class Projects extends CI_Controller {
             'statuses' => $statuses_list,
             'project_types' => $project_types,
             'users' => $this->_load_assignable_users(),
+            'departments' => $departments,
         ]);
     }
 
@@ -360,6 +375,7 @@ class Projects extends CI_Controller {
         $filter_user_id = $this->input->get('user_id') !== null ? (int)$this->input->get('user_id') : -1;
         $filter_project_id = $this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1;
         $filter_status = $this->input->get('status') !== null ? (string)$this->input->get('status') : 'all';
+        $filter_department_id = $this->input->get('department_id') !== null ? (int)$this->input->get('department_id') : -1;
 
         $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
             || has_module_access('projects_view_all');
@@ -378,6 +394,14 @@ class Projects extends CI_Controller {
         if ($this->db->table_exists('users')) {
             $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
         }
+
+        $this->load->model('Department_model');
+        $filter_departments = $this->Department_model->all();
+        $department_map = array();
+        foreach ($filter_departments as $dept) {
+            $department_map[(int)$dept->id] = (string)$dept->dept_name;
+        }
+
         if (!empty($projects)) {
             usort($projects, function ($a, $b) {
                 $a_name = isset($a->name) ? strtolower(trim((string) $a->name)) : '';
@@ -407,6 +431,14 @@ class Projects extends CI_Controller {
             if ($filter_project_id > 0 && $project_id !== $filter_project_id) {
                 continue;
             }
+            // If filtering by department, skip projects that don't match
+            if ($filter_department_id > 0 && (int)$project->department_id !== $filter_department_id) {
+                continue;
+            }
+
+            // Set department name
+            $project->department_name = isset($department_map[(int)$project->department_id]) ? $department_map[(int)$project->department_id] : '';
+
             // If the project doesn't have tasks matching the filter, we could choose to hide it.
             // But let's just show it empty if it matches the project_id (or if no project_id filter).
             $project_cards[] = array(
@@ -423,6 +455,8 @@ class Projects extends CI_Controller {
             'filter_status'     => $filter_status,
             'filter_projects'   => $filter_projects,
             'filter_users'      => $filter_users,
+            'filter_departments' => $filter_departments,
+            'filter_department_id' => $filter_department_id,
         ));
     }
 
@@ -516,12 +550,23 @@ class Projects extends CI_Controller {
                     }
                 }
                 
+                $department_id = $this->input->post('department_id') ? (int) $this->input->post('department_id') : null;
+                if ($department_id) {
+                    $this->load->model('Department_model');
+                    if (!$this->Department_model->find($department_id)) {
+                        $this->session->set_flashdata('error', 'Please select a valid department.');
+                        redirect('projects/'.$id.'/edit');
+                        return;
+                    }
+                }
+                
                 $data = [
                     'code' => $code !== '' ? $code : null,
                     'name' => $name,
                     'status' => $this->input->post('status') ?: 'planned',
                     'start_date' => $start_date,
                     'end_date' => $end_date,
+                    'department_id' => $department_id,
                 ];
                 if (schema_table_has_column($this->db, 'projects', 'project_type')) {
                     $project_type = module_type_validate_code($this->input->post('project_type'), 'projects', true);
@@ -591,6 +636,9 @@ class Projects extends CI_Controller {
         $this->load->model('Status_model', 'statuses');
         $statuses_list = $this->statuses->get_by_type('projects', true);
         
+        $this->load->model('Department_model');
+        $departments = $this->Department_model->all();
+        
         $project_types = module_type_options_resolved('projects');
         $this->load->view('projects/form', [
             'action' => 'edit',
@@ -598,6 +646,7 @@ class Projects extends CI_Controller {
             'statuses' => $statuses_list,
             'project_types' => $project_types,
             'users' => $this->_load_assignable_users(),
+            'departments' => $departments,
         ]);
     }
 

@@ -101,6 +101,20 @@
             ?>
           </select>
         </div>
+        <?php if (isset($departments) && !empty($departments)): ?>
+        <div class="col-md-4">
+          <label class="form-label">Department</label>
+          <?php $cur_dept = (isset($project) && !empty($project->department_id)) ? (int) $project->department_id : 0; ?>
+          <select name="department_id" class="form-select">
+            <option value="">-- No Department --</option>
+            <?php foreach ($departments as $d): ?>
+              <option value="<?php echo (int) $d->id; ?>" <?php echo $cur_dept === (int) $d->id ? 'selected' : ''; ?>>
+                <?php echo esc_view($d->dept_name); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <?php endif; ?>
         <div class="col-md-4">
           <label class="form-label">Start Date</label>
           <input type="date" name="start_date" id="start_date" class="form-control" value="<?php echo isset($project) ? esc_view($project->start_date ?? '') : ''; ?>">
