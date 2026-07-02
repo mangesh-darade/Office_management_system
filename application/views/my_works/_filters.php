@@ -1,4 +1,5 @@
 <?php
+  $embed = (bool)$this->input->get('embed');
   $statusLabels = my_works_status_labels();
   $statusColors = my_works_status_colors();
   $baseQuery = array();
@@ -25,24 +26,24 @@
   $projects = isset($projects) ? $projects : array();
 ?>
 <div class="mw-kpi-grid mb-3">
-  <a class="mw-kpi <?php echo $filters['status'] === '' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => '', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>">
-    <div class="lbl">Total</div><div class="val"><?php echo (int) $stats['total']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === '' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => '', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
+    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Total</div><div class="val" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['total']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo $filters['status'] === 'new' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'new', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>">
-    <div class="lbl">New</div><div class="val text-secondary"><?php echo (int) $stats['new']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === 'new' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'new', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
+    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>New</div><div class="val text-secondary" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['new']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo $filters['status'] === 'in_progress' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'in_progress', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>">
-    <div class="lbl">In progress</div><div class="val text-primary"><?php echo (int) $stats['in_progress']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === 'in_progress' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'in_progress', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
+    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>In progress</div><div class="val text-primary" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['in_progress']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo $filters['status'] === 'closed' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'closed', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>">
-    <div class="lbl">Closed</div><div class="val text-success"><?php echo (int) $stats['closed']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === 'closed' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'closed', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
+    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Closed</div><div class="val text-success" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['closed']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo !empty($filters['urgent_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'urgent_only' => empty($filters['urgent_only']) ? 1 : 0, 'view' => isset($view_mode) ? $view_mode : 'list')); ?>">
-    <div class="lbl">Open urgent</div><div class="val text-danger"><?php echo (int) $stats['urgent']; ?></div>
+  <a class="mw-kpi <?php echo !empty($filters['urgent_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'urgent_only' => empty($filters['urgent_only']) ? 1 : 0, 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
+    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Open urgent</div><div class="val text-danger" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['urgent']; ?></div>
   </a>
   <?php if (isset($stats['overdue'])): ?>
-  <a class="mw-kpi <?php echo !empty($filters['overdue_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'overdue_only' => empty($filters['overdue_only']) ? 1 : 0, 'view' => isset($view_mode) ? $view_mode : 'list')); ?>">
-    <div class="lbl">Overdue</div><div class="val text-danger"><?php echo (int) $stats['overdue']; ?></div>
+  <a class="mw-kpi <?php echo !empty($filters['overdue_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'overdue_only' => empty($filters['overdue_only']) ? 1 : 0, 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
+    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Overdue</div><div class="val text-danger" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['overdue']; ?></div>
   </a>
   <?php endif; ?>
 </div>
@@ -59,7 +60,8 @@
           data-bs-toggle="collapse"
           data-bs-target="#mwFilterBody"
           aria-expanded="false"
-          aria-controls="mwFilterBody">
+          aria-controls="mwFilterBody"
+          <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8rem;"<?php endif; ?>>
     <span class="fw-semibold small text-uppercase"><i class="bi bi-funnel me-1"></i>Search &amp; filters</span>
     <span class="d-flex align-items-center gap-2">
       <span class="text-muted small d-none d-md-inline">Narrow results by client, type, status, and more</span>

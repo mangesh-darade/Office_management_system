@@ -1,4 +1,9 @@
-  <?php if (isset($__with_sidebar) && $__with_sidebar): ?>
+<?php
+$embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
+if ($embed) {
+    return;
+}
+?>  <?php if (isset($__with_sidebar) && $__with_sidebar): ?>
     </main>
   </div>
 </div>

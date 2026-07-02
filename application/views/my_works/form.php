@@ -573,19 +573,26 @@
   if (!document.getElementById('mw-form-details')) {
     return;
   }
-  tinymce.init({
-    selector: '#mw-form-details',
-    menubar: false,
-    statusbar: true,
-    plugins: 'lists link autolink code wordcount',
-    toolbar: 'undo redo | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link | removeformat | code',
-    branding: false,
-    height: 320,
-    width: '100%',
-    convert_urls: false,
-    default_link_target: '_blank',
-    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }'
-  });
+  function initFormEditor() {
+    if (typeof tinymce === 'undefined') {
+      setTimeout(initFormEditor, 50);
+      return;
+    }
+    tinymce.init({
+      selector: '#mw-form-details',
+      menubar: false,
+      statusbar: true,
+      plugins: 'lists link autolink code wordcount',
+      toolbar: 'undo redo | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link | removeformat | code',
+      branding: false,
+      height: 320,
+      width: '100%',
+      convert_urls: false,
+      default_link_target: '_blank',
+      content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }'
+    });
+  }
+  initFormEditor();
   var form = document.getElementById('mw-work-form');
   if (form) {
     form.addEventListener('submit', function () {

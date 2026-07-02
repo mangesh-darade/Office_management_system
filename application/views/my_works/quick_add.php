@@ -129,31 +129,38 @@ $back_url = site_url($redirect_path);
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
 (function () {
-  var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
-  tinymce.init({
-    selector: '#mw-qa-details',
-    menubar: false,
-    statusbar: !isMobile,
-    plugins: 'lists link autolink code wordcount',
-    toolbar: isMobile
-      ? 'bold italic underline | bullist numlist | link | removeformat'
-      : 'undo redo | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link | removeformat | code',
-    toolbar_mode: isMobile ? 'scrolling' : 'wrap',
-    branding: false,
-    height: isMobile ? 220 : 320,
-    width: '100%',
-    resize: !isMobile,
-    convert_urls: false,
-    default_link_target: '_blank',
-    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }',
-    setup: function (editor) {
-      editor.on('init', function () {
-        if (!isMobile) {
-          editor.focus();
-        }
-      });
+  function initQAEditor() {
+    if (typeof tinymce === 'undefined') {
+      setTimeout(initQAEditor, 50);
+      return;
     }
-  });
+    var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
+    tinymce.init({
+      selector: '#mw-qa-details',
+      menubar: false,
+      statusbar: !isMobile,
+      plugins: 'lists link autolink code wordcount',
+      toolbar: isMobile
+        ? 'bold italic underline | bullist numlist | link | removeformat'
+        : 'undo redo | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link | removeformat | code',
+      toolbar_mode: isMobile ? 'scrolling' : 'wrap',
+      branding: false,
+      height: isMobile ? 220 : 320,
+      width: '100%',
+      resize: !isMobile,
+      convert_urls: false,
+      default_link_target: '_blank',
+      content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }',
+      setup: function (editor) {
+        editor.on('init', function () {
+          if (!isMobile) {
+            editor.focus();
+          }
+        });
+      }
+    });
+  }
+  initQAEditor();
 })();
 </script>
 <script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>

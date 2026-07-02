@@ -210,18 +210,25 @@
 <script>
 (function () {
   if (!document.getElementById('mw-form-details')) { return; }
-  tinymce.init({
-    selector: '#mw-form-details',
-    menubar: false,
-    statusbar: true,
-    plugins: 'lists link autolink code wordcount',
-    toolbar: 'undo redo | bold italic underline strikethrough | bullist numlist | link | removeformat',
-    branding: false,
-    height: 280,
-    width: '100%',
-    convert_urls: false,
-    default_link_target: '_blank'
-  });
+  function initFormCreateEditor() {
+    if (typeof tinymce === 'undefined') {
+      setTimeout(initFormCreateEditor, 50);
+      return;
+    }
+    tinymce.init({
+      selector: '#mw-form-details',
+      menubar: false,
+      statusbar: true,
+      plugins: 'lists link autolink code wordcount',
+      toolbar: 'undo redo | bold italic underline strikethrough | bullist numlist | link | removeformat',
+      branding: false,
+      height: 280,
+      width: '100%',
+      convert_urls: false,
+      default_link_target: '_blank'
+    });
+  }
+  initFormCreateEditor();
   var form = document.getElementById('mw-work-form');
   if (form) {
     form.addEventListener('submit', function () {

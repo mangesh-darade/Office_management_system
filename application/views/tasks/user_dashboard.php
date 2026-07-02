@@ -13,14 +13,17 @@ $type_counts = isset($type_counts) ? $type_counts : array(
 $my_works_status_rows = isset($my_works_status_rows) ? $my_works_status_rows : array();
 $empty_message = 'No tasks, requirements, Second Brain items, or ad hoc items found for your team.';
 
-$this->load->view('partials/header', array(
-  'title' => $page_title,
-  'extra_css' => array('assets/css/project-dashboard.css'),
-));
-?>
+$embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
+if (!$embed):
+  $this->load->view('partials/header', array(
+    'title' => $page_title,
+    'extra_css' => array('assets/css/project-dashboard.css'),
+    'embed' => $embed,
+  )); ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<?php endif; ?>
 
 <style>
 .project-dash-section {
@@ -41,6 +44,40 @@ $this->load->view('partials/header', array(
     color: #64748b;
     margin-bottom: 0.5rem;
     padding-left: 0.5rem;
+}
+#unifiedEmployeeTasksTable {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+#unifiedEmployeeTasksTable thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 10px 14px;
+}
+#unifiedEmployeeTasksTable tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+}
+#unifiedEmployeeTasksTable tbody tr:last-child td {
+    border-bottom: none;
+}
+#unifiedEmployeeTasksTable tbody tr:hover {
+    background-color: #f8fafc !important;
+}
+.employee-dash-badge {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.72rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 4px 8px;
 }
 </style>
 
@@ -86,115 +123,113 @@ if (function_exists('has_module_access') && (has_module_access('projects') || ha
     $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects/dashboard') . '"><i class="bi bi-speedometer2 me-1"></i>Project Dashboard</a>';
 }
 
-$this->load->view('partials/oms_page_head', array(
-    'title'        => $page_title,
-    'icon'         => 'bi-people',
-    'subtitle'     => $subtitle,
-    'actions_html' => $head_actions,
-    'mb'           => 'mb-0',
-));
+if (!$embed) {
+    $this->load->view('partials/oms_page_head', array(
+        'title'        => $page_title,
+        'icon'         => 'bi-people',
+        'subtitle'     => $subtitle,
+        'actions_html' => $head_actions,
+        'mb'           => 'mb-0',
+    ));
+}
 ?>
 
-<?php if (!empty($filter_users)): ?>
-<div class="project-dash-filters">
-  <form method="get" action="<?php echo site_url('tasks/my-dashboard'); ?>" class="project-dash-filter-form" id="teamDashFilterForm">
-    <?php if (!empty($filter_projects)): ?>
-    <label class="project-dash-filter-label me-3">
-      <span class="project-dash-filter-label-text">Project</span>
-      <select name="project_id" class="form-select form-select-sm project-dash-filter-select">
-        <option value="all"<?php echo $filter_project_id < 0 ? ' selected' : ''; ?>>All Projects</option>
-        <?php foreach ($filter_projects as $fp): ?>
-          <option value="<?php echo (int)$fp->id; ?>"<?php echo $filter_project_id === (int)$fp->id ? ' selected' : ''; ?>><?php echo esc_view($fp->name, ENT_QUOTES, 'UTF-8'); ?></option>
-        <?php endforeach; ?>
-      </select>
-    </label>
-    <?php endif; ?>
+<?php if (!$is_user_filtered): ?>
+  <?php if (!empty($filter_users)): ?>
+  <div class="project-dash-filters">
+    <form method="get" action="<?php echo site_url('tasks/my-dashboard'); ?>" class="project-dash-filter-form" id="teamDashFilterForm">
+      <?php if (!empty($filter_projects)): ?>
+      <label class="project-dash-filter-label me-3">
+        <span class="project-dash-filter-label-text">Project</span>
+        <select name="project_id" class="form-select form-select-sm project-dash-filter-select">
+          <option value="all"<?php echo $filter_project_id < 0 ? ' selected' : ''; ?>>All Projects</option>
+          <?php foreach ($filter_projects as $fp): ?>
+            <option value="<?php echo (int)$fp->id; ?>"<?php echo $filter_project_id === (int)$fp->id ? ' selected' : ''; ?>><?php echo esc_view($fp->name, ENT_QUOTES, 'UTF-8'); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+      <?php endif; ?>
 
-    <label class="project-dash-filter-label me-3">
-      <span class="project-dash-filter-label-text">Status</span>
-      <select name="status" class="form-select form-select-sm project-dash-filter-select">
-        <option value="all"<?php echo $filter_status === 'all' ? ' selected' : ''; ?>>All Statuses</option>
-        <?php foreach ($status_rows as $sr): ?>
-          <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $filter_status === $sr->code ? ' selected' : ''; ?>><?php echo esc_view($sr->name, ENT_QUOTES, 'UTF-8'); ?></option>
-        <?php endforeach; ?>
-      </select>
-    </label>
+      <label class="project-dash-filter-label me-3">
+        <span class="project-dash-filter-label-text">Status</span>
+        <select name="status" class="form-select form-select-sm project-dash-filter-select">
+          <option value="all"<?php echo $filter_status === 'all' ? ' selected' : ''; ?>>All Statuses</option>
+          <?php foreach ($status_rows as $sr): ?>
+            <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $filter_status === $sr->code ? ' selected' : ''; ?>><?php echo esc_view($sr->name, ENT_QUOTES, 'UTF-8'); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
 
-    <label class="project-dash-filter-label">
-      <span class="project-dash-filter-label-text">Employee</span>
-      <select name="user_id" class="form-select form-select-sm project-dash-filter-select">
-        <option value="all"<?php echo $filter_user_id < 0 ? ' selected' : ''; ?>>All Employees</option>
-        <?php foreach ($filter_users as $fu): ?>
-          <?php
-            $fu_id = (int) $fu->id;
-            $fu_name = isset($fu->name) ? trim((string) $fu->name) : '';
-            $fu_label = $fu_name !== '' ? $fu_name : ($fu_id > 0 ? 'User #' . $fu_id : 'Unassigned');
-          ?>
-          <option value="<?php echo $fu_id; ?>"<?php echo $filter_user_id === $fu_id ? ' selected' : ''; ?>><?php echo esc_view($fu_label, ENT_QUOTES, 'UTF-8'); ?></option>
-        <?php endforeach; ?>
-      </select>
-    </label>
-  </form>
-</div>
+      <label class="project-dash-filter-label">
+        <span class="project-dash-filter-label-text">Employee</span>
+        <select name="user_id" class="form-select form-select-sm project-dash-filter-select">
+          <option value="all"<?php echo $filter_user_id < 0 ? ' selected' : ''; ?>>All Employees</option>
+          <?php foreach ($filter_users as $fu): ?>
+            <?php
+              $fu_id = (int) $fu->id;
+              $fu_name = isset($fu->name) ? trim((string) $fu->name) : '';
+              $fu_label = $fu_name !== '' ? $fu_name : ($fu_id > 0 ? 'User #' . $fu_id : 'Unassigned');
+            ?>
+            <option value="<?php echo $fu_id; ?>"<?php echo $filter_user_id === $fu_id ? ' selected' : ''; ?>><?php echo esc_view($fu_label, ENT_QUOTES, 'UTF-8'); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+    </form>
+  </div>
+  <?php endif; ?>
+
+  <div class="project-dash-summary">
+    <div class="project-dash-stat">
+      <div class="project-dash-stat-label">Employees</div>
+      <div class="project-dash-stat-value"><?php echo (int) $total_groups; ?></div>
+    </div>
+    <div class="project-dash-stat">
+      <div class="project-dash-stat-label">Total Items</div>
+      <div class="project-dash-stat-value"><?php echo (int) $total_items; ?></div>
+    </div>
+    <div class="project-dash-stat">
+      <div class="project-dash-stat-label">Project Tasks</div>
+      <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['project_task']) ? $type_counts['project_task'] : 0); ?></div>
+    </div>
+    <div class="project-dash-stat">
+      <div class="project-dash-stat-label">Requirements</div>
+      <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['requirement']) ? $type_counts['requirement'] : 0); ?></div>
+    </div>
+    <div class="project-dash-stat">
+      <div class="project-dash-stat-label">Project Tasks</div>
+      <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['my_work']) ? $type_counts['my_work'] : 0); ?></div>
+    </div>
+    <div class="project-dash-stat">
+      <div class="project-dash-stat-label">Ad Hoc</div>
+      <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['ad_hoc']) ? $type_counts['ad_hoc'] : 0); ?></div>
+    </div>
+  </div>
+<?php else: ?>
+  <header class="mw-focus-screen-head">
+    <?php 
+      $backParams = $_GET;
+      unset($backParams['user_id']);
+      if (isset($_GET['tab'])) {
+          $backUrl = site_url('my-works') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
+      } else {
+          $backUrl = site_url('tasks/my-dashboard') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
+      }
+    ?>
+    <a class="btn btn-outline-secondary btn-sm mw-focus-back-btn" href="<?php echo esc_view($backUrl); ?>" title="Back to Team Dashboard">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <?php 
+      // Use display_name from controller (set based on filtered user_id), fallback to first card entity name
+      $display_name_header = isset($display_name) && !empty($display_name) ? $display_name : '';
+      if (empty($display_name_header) && !empty($group_cards[0]['entity']->name)) {
+          $display_name_header = $group_cards[0]['entity']->name;
+      }
+      if (empty($display_name_header)) $display_name_header = 'Employee';
+    ?>
+    <h1 class="mw-focus-screen-title"><?php echo esc_view($display_name_header); ?></h1>
+  </header>
 <?php endif; ?>
 
-<div class="project-dash-summary">
-  <div class="project-dash-stat">
-    <div class="project-dash-stat-label">Employees</div>
-    <div class="project-dash-stat-value"><?php echo (int) $total_groups; ?></div>
-  </div>
-  <div class="project-dash-stat">
-    <div class="project-dash-stat-label">Total Items</div>
-    <div class="project-dash-stat-value"><?php echo (int) $total_items; ?></div>
-  </div>
-  <div class="project-dash-stat">
-    <div class="project-dash-stat-label">Project Tasks</div>
-    <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['project_task']) ? $type_counts['project_task'] : 0); ?></div>
-  </div>
-  <div class="project-dash-stat">
-    <div class="project-dash-stat-label">Requirements</div>
-    <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['requirement']) ? $type_counts['requirement'] : 0); ?></div>
-  </div>
-  <div class="project-dash-stat">
-    <div class="project-dash-stat-label">Second Brain</div>
-    <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['my_work']) ? $type_counts['my_work'] : 0); ?></div>
-  </div>
-  <div class="project-dash-stat">
-    <div class="project-dash-stat-label">Ad Hoc</div>
-    <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['ad_hoc']) ? $type_counts['ad_hoc'] : 0); ?></div>
-  </div>
-</div>
-
-<?php if (!empty($status_rows) || !empty($my_works_status_rows)): ?>
-  <div class="project-dash-legend mb-3 d-flex flex-wrap align-items-center">
-    <?php if (!empty($status_rows)): ?>
-      <span class="project-dash-legend-title">Project Task Status</span>
-      <?php foreach ($status_rows as $sr): ?>
-        <?php
-          $code = (string) $sr->code;
-          $label = isset($status_labels[$code]) ? $status_labels[$code] : $code;
-          $dot_color = isset($status_colors[$code]) ? $status_colors[$code] : '#9ca3af';
-        ?>
-        <span class="project-dash-legend-item">
-          <span class="project-dash-legend-dot" style="background:<?php echo esc_view($dot_color, ENT_QUOTES, 'UTF-8'); ?>;"></span>
-          <?php echo esc_view($label); ?>
-        </span>
-      <?php endforeach; ?>
-    <?php endif; ?>
-    <?php if (!empty($my_works_status_rows)): ?>
-      <span class="project-dash-legend-title ms-3">Second Brain Status</span>
-      <?php foreach ($my_works_status_rows as $sr): ?>
-        <?php
-          $mw_color = isset($sr->color) ? trim((string) $sr->color) : '#9ca3af';
-        ?>
-        <span class="project-dash-legend-item">
-          <span class="project-dash-legend-dot" style="background:<?php echo esc_view($mw_color, ENT_QUOTES, 'UTF-8'); ?>;"></span>
-          <?php echo esc_view((string) $sr->name); ?>
-        </span>
-      <?php endforeach; ?>
-    <?php endif; ?>
-  </div>
-<?php endif; ?>
 
 <?php if (empty($group_cards)): ?>
   <div class="card project-dash-card">
@@ -262,89 +297,194 @@ $this->load->view('partials/oms_page_head', array(
       echo '</tbody></table>';
   };
   ?>
-  <div class="row project-dash-grid align-items-start">
-    <?php foreach ($group_cards as $card): ?>
-      <?php
-        $entity = isset($card['entity']) ? $card['entity'] : null;
-        $items = isset($card['items']) ? $card['items'] : array();
-        $project_task_items = array();
-        $requirement_items = array();
-        $my_work_items = array();
-        $ad_hoc_items = array();
-        foreach ($items as $item) {
-            $item_type = isset($item['item_type']) ? (string) $item['item_type'] : '';
-            if ($item_type === 'ad_hoc') {
-                $ad_hoc_items[] = $item;
-            } else if ($item_type === 'my_work') {
-                $my_work_items[] = $item;
-            } else if ($item_type === 'requirement') {
-                $requirement_items[] = $item;
-            } else {
-                $project_task_items[] = $item;
-            }
-        }
-        $item_count = count($items);
-        $entity_name = ($entity && isset($entity->name)) ? (string) $entity->name : '';
-        $grid_col_class = $is_user_filtered ? 'col-12 team-dash-grid-col-full' : 'col-sm-6 col-lg-4 col-xl-3 team-dash-grid-col';
-      ?>
-      <div class="<?php echo esc_view($grid_col_class); ?>">
-        <div class="card project-dash-card">
-          <div class="card-body">
-            <div class="project-dash-head">
-              <div class="project-dash-head-main">
-                <span class="project-dash-project-name text-body" title="<?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($entity_name); ?></span>
+  <?php if ($is_user_filtered && !empty($group_cards)): ?>
+    <?php
+      $card = $group_cards[0];
+      $entity = isset($card['entity']) ? $card['entity'] : null;
+      $items = isset($card['items']) ? $card['items'] : array();
+      
+      $type_labels = array(
+          'project_task' => array('label' => 'Project Task', 'bg' => '#0284c7', 'text' => '#ffffff'),
+          'requirement' => array('label' => 'Requirement', 'bg' => '#16a34a', 'text' => '#ffffff'),
+          'my_work' => array('label' => 'Project Tasks', 'bg' => '#f97316', 'text' => '#ffffff'),
+          'ad_hoc' => array('label' => 'Ad Hoc', 'bg' => '#dc2626', 'text' => '#ffffff')
+      );
+    ?>
+    <div class="table-responsive bg-white rounded-3 border p-3 mt-2 shadow-sm">
+      <?php if (empty($items)): ?>
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-inbox d-block mb-2" style="font-size:2rem;"></i>
+          No items found for this employee.
+        </div>
+      <?php else: ?>
+        <table class="table table-hover table-striped datatable sortable-table align-middle mb-0" id="unifiedEmployeeTasksTable">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Type</th>
+              <th>Task</th>
+              <th style="width: 100px;">Date</th>
+              <th style="width: 140px;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($items as $item): ?>
+              <?php
+                $item_type = isset($item['item_type']) ? (string) $item['item_type'] : 'project_task';
+                $type_info = isset($type_labels[$item_type]) ? $type_labels[$item_type] : $type_labels['project_task'];
+                
+                $item_status = isset($item['status']) ? (string) $item['status'] : 'pending';
+                $item_label = isset($item['status_label']) ? (string) $item['status_label'] : ucfirst(str_replace('_', ' ', $item_status));
+                $item_date = isset($item['date']) ? (string) $item['date'] : '—';
+                if ($item_date !== '' && $item_date !== '—') {
+                    $parsed = strtotime($item_date);
+                    if ($parsed) {
+                        $item_date = date('d M', $parsed);
+                    }
+                }
+                $badge_color = isset($item['status_color']) ? (string) $item['status_color'] : '#6b7280';
+                $item_title = isset($item['title']) ? (string) $item['title'] : '';
+                $item_url = isset($item['url']) ? (string) $item['url'] : '#';
+                $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
+                $row_bg = $badge_color . '08';
+              ?>
+              <tr class="project-dash-task-row project-dash-task-row-<?php echo esc_view($item_status); ?>" style="--pd-row-status-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>; background-color: <?php echo esc_view($row_bg, ENT_QUOTES, 'UTF-8'); ?>;">
+                <td>
+                  <span class="badge employee-dash-badge" style="background-color: <?php echo $type_info['bg']; ?>; color: <?php echo $type_info['text']; ?>;">
+                    <?php echo esc_view($type_info['label']); ?>
+                  </span>
+                </td>
+                <td>
+                  <div class="fw-semibold">
+                    <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title text-decoration-none text-dark" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
+                      <?php echo esc_view($item_title); ?>
+                    </a>
+                  </div>
+                  <?php if ($item_detail !== ''): ?>
+                    <div class="small text-muted text-truncate" style="max-width:30rem;" title="<?php echo esc_view($item_detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_detail); ?></div>
+                  <?php endif; ?>
+                </td>
+                <td>
+                  <span class="project-dash-date text-muted font-monospace small" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm project-dash-status-select font-semibold small" 
+                          data-item-id="<?php echo (int) $item['id']; ?>" 
+                          data-item-type="<?php echo esc_view($item['item_type'], ENT_QUOTES, 'UTF-8'); ?>"
+                          style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
+                          title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php foreach ($status_rows as $sr): ?>
+                      <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"
+                              data-color="<?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>"
+                              style="color: <?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>; font-weight: 600;"
+                              <?php echo $sr->code === $item_status ? 'selected' : ''; ?>>
+                        <?php echo esc_view($sr->name); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    </div>
+  <?php else: ?>
+    <div class="row project-dash-grid align-items-start">
+      <?php foreach ($group_cards as $card): ?>
+        <?php
+          $entity = isset($card['entity']) ? $card['entity'] : null;
+          $items = isset($card['items']) ? $card['items'] : array();
+          $project_task_items = array();
+          $requirement_items = array();
+          $my_work_items = array();
+          $ad_hoc_items = array();
+          foreach ($items as $item) {
+              $item_type = isset($item['item_type']) ? (string) $item['item_type'] : '';
+              if ($item_type === 'ad_hoc') {
+                  $ad_hoc_items[] = $item;
+              } else if ($item_type === 'my_work') {
+                  $my_work_items[] = $item;
+              } else if ($item_type === 'requirement') {
+                  $requirement_items[] = $item;
+              } else {
+                  $project_task_items[] = $item;
+              }
+          }
+          $item_count = count($items);
+          $entity_name = ($entity && isset($entity->name)) ? (string) $entity->name : '';
+          $grid_col_class = $is_user_filtered ? 'col-12 team-dash-grid-col-full' : 'col-sm-6 col-lg-4 col-xl-3 team-dash-grid-col';
+        ?>
+        <div class="<?php echo esc_view($grid_col_class); ?>">
+          <div class="card project-dash-card">
+            <div class="card-body">
+              <div class="project-dash-head">
+                <div class="project-dash-head-main">
+                  <?php if ($entity && isset($entity->id)): ?>
+                    <?php 
+                      $paramName = ($group_mode === 'employee') ? 'user_id' : 'project_id';
+                      $linkParams = $_GET;
+                      unset($linkParams['embed']);
+                      $targetUrl = site_url('tasks/my-dashboard') . '?' . http_build_query(array_merge($linkParams, array($paramName => (int) $entity->id))); 
+                    ?>
+                    <a href="<?php echo esc_view($targetUrl); ?>" class="project-dash-project-name text-primary fw-semibold text-decoration-none" title="Filter by <?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>">
+                      <?php echo esc_view($entity_name); ?>
+                    </a>
+                  <?php else: ?>
+                    <span class="project-dash-project-name text-body" title="<?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($entity_name); ?></span>
+                  <?php endif; ?>
+                </div>
+                <span class="project-dash-count<?php echo $item_count < 1 ? ' is-zero' : ''; ?>" title="<?php echo (int) $item_count; ?> item(s)">
+                  <?php echo (int) $item_count; ?>
+                </span>
               </div>
-              <span class="project-dash-count<?php echo $item_count < 1 ? ' is-zero' : ''; ?>" title="<?php echo (int) $item_count; ?> item(s)">
-                <?php echo (int) $item_count; ?>
-              </span>
-            </div>
 
-            <?php if (empty($items)): ?>
-              <div class="project-dash-task-list">
-                <div class="project-dash-empty">
-                  <i class="bi bi-inbox"></i>
-                  <span>No items</span>
+              <?php if (empty($items)): ?>
+                <div class="project-dash-task-list">
+                  <div class="project-dash-empty">
+                    <i class="bi bi-inbox"></i>
+                    <span>No items</span>
+                  </div>
                 </div>
-              </div>
-            <?php else: ?>
-              <?php if (!empty($project_task_items)): ?>
-              <div class="project-dash-section">
-                <div class="project-dash-section-title">Project Tasks</div>
-                <div class="project-dash-task-list project-dash-task-list-section">
-                  <?php $render_team_dash_items_table($project_task_items); ?>
+              <?php else: ?>
+                <?php if (!empty($project_task_items)): ?>
+                <div class="project-dash-section">
+                  <div class="project-dash-section-title">Project Tasks</div>
+                  <div class="project-dash-task-list project-dash-task-list-section">
+                    <?php $render_team_dash_items_table($project_task_items); ?>
+                  </div>
                 </div>
-              </div>
+                <?php endif; ?>
+                <?php if (!empty($requirement_items)): ?>
+                <div class="project-dash-section">
+                  <div class="project-dash-section-title">Requirements</div>
+                  <div class="project-dash-task-list project-dash-task-list-section">
+                    <?php $render_team_dash_items_table($requirement_items); ?>
+                  </div>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($my_work_items)): ?>
+                <div class="project-dash-section">
+                  <div class="project-dash-section-title">Project Tasks</div>
+                  <div class="project-dash-task-list project-dash-task-list-section">
+                    <?php $render_team_dash_items_table($my_work_items); ?>
+                  </div>
+                </div>
+                <?php endif; ?>
+                <?php if (!empty($ad_hoc_items)): ?>
+                <div class="project-dash-section project-dash-section-adhoc">
+                  <div class="project-dash-section-title">Ad Hoc</div>
+                  <div class="project-dash-task-list project-dash-task-list-section">
+                    <?php $render_team_dash_items_table($ad_hoc_items); ?>
+                  </div>
+                </div>
+                <?php endif; ?>
               <?php endif; ?>
-              <?php if (!empty($requirement_items)): ?>
-              <div class="project-dash-section">
-                <div class="project-dash-section-title">Requirements</div>
-                <div class="project-dash-task-list project-dash-task-list-section">
-                  <?php $render_team_dash_items_table($requirement_items); ?>
-                </div>
-              </div>
-              <?php endif; ?>
-              <?php if (!empty($my_work_items)): ?>
-              <div class="project-dash-section">
-                <div class="project-dash-section-title">Second Brain</div>
-                <div class="project-dash-task-list project-dash-task-list-section">
-                  <?php $render_team_dash_items_table($my_work_items); ?>
-                </div>
-              </div>
-              <?php endif; ?>
-              <?php if (!empty($ad_hoc_items)): ?>
-              <div class="project-dash-section project-dash-section-adhoc">
-                <div class="project-dash-section-title">Ad Hoc</div>
-                <div class="project-dash-task-list project-dash-task-list-section">
-                  <?php $render_team_dash_items_table($ad_hoc_items); ?>
-                </div>
-              </div>
-              <?php endif; ?>
-            <?php endif; ?>
+            </div>
           </div>
         </div>
-      </div>
-    <?php endforeach; ?>
-  </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
 <?php endif; ?>
 </div>
 <?php if (!empty($filter_users)): ?>
@@ -405,4 +545,6 @@ $this->load->view('partials/oms_page_head', array(
 })();
 </script>
 <?php endif; ?>
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed) {
+  $this->load->view('partials/footer');
+} ?>

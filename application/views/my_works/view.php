@@ -1,6 +1,7 @@
 <?php
+  $embed = isset($embed) ? (bool)$embed : (bool)$this->input->get('embed');
 
-  $this->load->view('partials/header', array('title' => $item->title, 'extra_css' => array('assets/css/my-works.css')));
+  $this->load->view('partials/header', array('title' => $item->title, 'extra_css' => array('assets/css/my-works.css'), 'embed' => $embed));
 
   $statusLabels = my_works_status_labels();
 
@@ -20,8 +21,27 @@
 
 ?>
 
-<div class="container-fluid py-3">
+<?php if ($embed): ?>
+<style>
+  .mw-detail-hero {
+      padding: 0.75rem 1rem !important;
+      margin-bottom: 0.75rem !important;
+      background: #ffffff !important;
+      box-shadow: none !important;
+      border-radius: 6px !important;
+  }
+  .mw-detail-title {
+      font-size: 1.25rem !important;
+  }
+  .container-fluid {
+      padding: 0 !important;
+  }
+</style>
+<?php endif; ?>
 
+<div class="container-fluid <?php echo $embed ? 'p-0' : 'py-3'; ?>">
+
+  <?php if (!$embed): ?>
   <nav aria-label="breadcrumb" class="small mb-2">
 
     <ol class="breadcrumb mb-0">
@@ -33,6 +53,7 @@
     </ol>
 
   </nav>
+  <?php endif; ?>
 
 
 

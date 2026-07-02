@@ -1,10 +1,14 @@
-<?php $this->load->view('partials/header', array(
-  'title' => 'Project Dashboard',
-  'extra_css' => array('assets/css/project-dashboard.css'),
-)); ?>
+<?php 
+$embed = (bool)$this->input->get('embed');
+if (!$embed):
+  $this->load->view('partials/header', array(
+    'title' => 'Project Dashboard',
+    'extra_css' => array('assets/css/project-dashboard.css'),
+  )); ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<?php endif; ?>
 
 <div class="container-fluid project-dash-compact project-dash-index">
 <?php
@@ -57,13 +61,15 @@ $filter_project_id = isset($filter_project_id) ? (int) $filter_project_id : 0;
 $filter_projects = isset($filter_projects) ? $filter_projects : array();
 
 $head_actions = '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects') . '"><i class="bi bi-kanban me-1"></i>All Projects</a>';
-$this->load->view('partials/oms_page_head', array(
-    'title'        => 'Project Dashboard',
-    'icon'         => 'bi-columns-gap',
-    'subtitle'     => '',
-    'actions_html' => $head_actions,
-    'mb'           => 'mb-0',
-));
+if (!$embed) {
+    $this->load->view('partials/oms_page_head', array(
+        'title'        => 'Project Dashboard',
+        'icon'         => 'bi-columns-gap',
+        'subtitle'     => '',
+        'actions_html' => $head_actions,
+        'mb'           => 'mb-0',
+    ));
+}
 
 $format_task_date = function ($task) {
     $due = isset($task->due_date) ? trim((string) $task->due_date) : '';
@@ -372,4 +378,6 @@ $assignee_label = function ($task) {
 })();
 </script>
 <?php endif; ?>
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed) {
+  $this->load->view('partials/footer');
+} ?>

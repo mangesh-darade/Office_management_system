@@ -1,5 +1,7 @@
 <?php
 
+  $embed = (bool)$this->input->get('embed');
+
   $toolbar_mode = isset($view_mode) ? $view_mode : 'list';
 
   $overviewUrl = site_url('my-works?view=overview');
@@ -42,6 +44,10 @@
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
 
 ?>
+
+<?php if ($embed): ?>
+  <!-- Skip toolbar in embed mode -->
+<?php else: ?>
 
 <div class="mw-toolbar card border-0 shadow-sm mb-3">
 
@@ -154,4 +160,7 @@
   </div>
 
 </div>
+
+<?php endif; ?>
+
 

@@ -855,11 +855,14 @@ class Tasks extends CI_Controller {
             );
         }
 
-        $display_name = $this->_user_dashboard_display_name($user_id);
-        
-        $filter_user_id = $this->input->get('user_id') !== null ? (int)$this->input->get('user_id') : -1;
-        $filter_project_id = $this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1;
-        $filter_status = $this->input->get('status') !== null ? (string)$this->input->get('status') : 'all';
+        $filter_user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : ($this->input->get('user_id') !== null ? (int)$this->input->get('user_id') : -1);
+        $filter_project_id = isset($_GET['project_id']) ? (int)$_GET['project_id'] : ($this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1);
+        $filter_status = isset($_GET['status']) ? (string)$_GET['status'] : ($this->input->get('status') !== null ? (string)$this->input->get('status') : 'all');
+
+        // When viewing a specific employee's detail, resolve their name (not the logged-in user's name)
+        $display_name = ($filter_user_id > 0)
+            ? $this->_user_dashboard_display_name($filter_user_id)
+            : $this->_user_dashboard_display_name($user_id);
 
         $filter_projects = array();
         if ($this->db->table_exists('projects')) {
@@ -888,7 +891,7 @@ class Tasks extends CI_Controller {
         }
 
         if ($can_view_all) {
-            $group_cards = $this->_user_dashboard_employee_cards($tasks, $status_rows);
+            $group_cards = $this->_user_dashboard_employee_cards($tasks, $status_rows, $filter_user_id);
             $group_mode = 'employee';
             $page_title = 'Team Dashboard';
             $subtitle = 'All employee tasks, requirements, and work items';
@@ -1350,7 +1353,7 @@ class Tasks extends CI_Controller {
      * @param array $status_rows
      * @return array
      */
-    private function _user_dashboard_employee_cards($tasks, $status_rows = array())
+    private function _user_dashboard_employee_cards($tasks, $status_rows = array(), $filter_user_id = -1)
     {
         $status_map = array();
         if (is_array($status_rows)) {
@@ -1375,6 +1378,10 @@ class Tasks extends CI_Controller {
             $this->db->select(implode(',', $select));
             if (schema_table_has_column($this->db, 'employees', 'status')) {
                 $this->db->where('status', 'active');
+            }
+            // If a specific user is being filtered, only load that employee record
+            if ($filter_user_id > 0) {
+                $this->db->where('user_id', $filter_user_id);
             }
             $all_emps = $this->db->get('employees')->result();
             foreach ($all_emps as $emp) {

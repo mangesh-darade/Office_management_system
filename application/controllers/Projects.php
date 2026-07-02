@@ -432,12 +432,13 @@ class Projects extends CI_Controller {
                 continue;
             }
             // If filtering by department, skip projects that don't match
-            if ($filter_department_id > 0 && (int)$project->department_id !== $filter_department_id) {
+            $project_dept_id = isset($project->department_id) ? (int)$project->department_id : 0;
+            if ($filter_department_id > 0 && $project_dept_id !== $filter_department_id) {
                 continue;
             }
 
             // Set department name
-            $project->department_name = isset($department_map[(int)$project->department_id]) ? $department_map[(int)$project->department_id] : '';
+            $project->department_name = isset($department_map[$project_dept_id]) ? $department_map[$project_dept_id] : '';
 
             // If the project doesn't have tasks matching the filter, we could choose to hide it.
             // But let's just show it empty if it matches the project_id (or if no project_id filter).

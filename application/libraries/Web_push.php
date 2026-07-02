@@ -10,7 +10,7 @@ class Web_push {
     private $vapid_private_pem;
     private $vapid_subject;
 
-    public function __construct($public_b64, $private_pem, $subject)
+    public function __construct($public_b64 = null, $private_pem = null, $subject = null)
     {
         $this->vapid_public_b64 = $public_b64;
         $this->vapid_private_pem = $private_pem;

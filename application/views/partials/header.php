@@ -1,4 +1,9 @@
-<!doctype html>
+<?php
+$embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
+if ($embed) {
+    return;
+}
+?><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">

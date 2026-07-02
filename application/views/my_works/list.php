@@ -1,4 +1,11 @@
-<?php $this->load->view('partials/header', array('title' => 'My Works', 'extra_css' => array('assets/css/my-works.css'))); ?>
+<?php 
+$embed = (bool)$this->input->get('embed');
+if (!$embed) {
+  $this->load->view('partials/header', array(
+    'title' => 'My Works', 
+    'extra_css' => array('assets/css/my-works.css'),
+  ));
+} ?>
 
 <?php
 
@@ -12,7 +19,7 @@
 
 ?>
 
-<div class="container-fluid py-3 mw-page">
+<div class="container-fluid <?php echo $embed ? 'p-1' : 'py-3'; ?> mw-page">
 
   <?php $this->load->view('my_works/_toolbar', array(
     'view_mode' => $view_mode,
@@ -325,5 +332,7 @@
 <script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
 <?php endif; ?>
 
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed) {
+  $this->load->view('partials/footer');
+} ?>
 

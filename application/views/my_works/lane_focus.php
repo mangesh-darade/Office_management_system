@@ -8,8 +8,11 @@
   $lane_label = isset($lane_label) ? (string) $lane_label : (isset($lane_labels[$lane_key]) ? $lane_labels[$lane_key] : $lane_key);
   $dashboard_sections = isset($dashboard_sections) ? $dashboard_sections : array();
   $back_url = site_url('my-works?view=overview');
+  $embed = (bool)$this->input->get('embed');
 ?>
-<?php $this->load->view('partials/header', array('title' => $page_title, 'extra_css' => array('assets/css/my-works.css'), 'body_class' => $body_class . ' mw-body-lane-focus-immersive')); ?>
+<?php if (!$embed): ?>
+  <?php $this->load->view('partials/header', array('title' => $page_title, 'extra_css' => array('assets/css/my-works.css'), 'body_class' => $body_class . ' mw-body-lane-focus-immersive')); ?>
+<?php endif; ?>
 
 <div class="mw-dash-page mw-dash-page-focus mw-dash-page-focus-immersive">
 
@@ -43,4 +46,6 @@
 
 </div>
 
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed): ?>
+  <?php $this->load->view('partials/footer'); ?>
+<?php endif; ?>

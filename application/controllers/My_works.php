@@ -302,6 +302,14 @@ class My_works extends CI_Controller
 
     public function index()
     {
+        $embed = (bool)$this->input->get('embed');
+        if (!$embed) {
+            $this->load->view('my_works/unified', [
+                'active_tab' => $this->input->get('tab') ?: 'overview'
+            ]);
+            return;
+        }
+
         require_module_access(array('my_works_list', 'my_works'), true);
         $filters = $this->_sanitize_filters($this->_parse_filters());
         $view_mode = trim((string) $this->input->get('view'));
@@ -402,7 +410,7 @@ class My_works extends CI_Controller
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $out = fopen('php://output', 'w');
-        fputcsv($out, array('ID', 'Title', 'Type', 'Status', 'Client', 'Project', 'Closing comment', 'URL', 'Tag', 'Due date', 'Urgent', 'Important', 'Created by', 'Created for', 'Updated'));
+        fputcsv($out, array('ID', 'Title', 'Type', 'Status', 'Client', 'Project', 'Closing comment', 'URL', 'Tag', 'Due date', 'Urgent', 'Important', 'Created by', 'Created for', 'Updated'), ',', '"', "\\");
         $labels = my_works_status_labels();
         foreach ($rows as $r) {
             fputcsv($out, array(
@@ -421,7 +429,7 @@ class My_works extends CI_Controller
                 my_works_user_label($r->created_by_name, $r->created_by_email, $r->created_by),
                 my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for),
                 $r->updated_at,
-            ));
+            ), ',', '"', "\\");
         }
         fclose($out);
         exit;

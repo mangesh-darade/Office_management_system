@@ -1,4 +1,11 @@
-<?php $this->load->view('partials/header', array('title' => 'My Work Overview', 'extra_css' => array('assets/css/my-works.css'))); ?>
+<?php 
+$embed = (bool)$this->input->get('embed');
+if (!$embed) {
+  $this->load->view('partials/header', array(
+    'title' => 'My Work Overview', 
+    'extra_css' => array('assets/css/my-works.css'),
+  ));
+} ?>
 
 <?php
   $view_mode = 'overview';
@@ -26,6 +33,7 @@
     </div>
   <?php endif; ?>
 
+  <?php if (!$embed): ?>
   <header class="mw-dash-header">
     <div class="mw-dash-header-left">
       <h1 class="mw-dash-title">My Work Overview</h1>
@@ -59,11 +67,14 @@
       </div>
     </div>
   </header>
+  <?php endif; ?>
 
-  <?php $this->load->view('my_works/_dash_view_tabs', array('active_tab' => 'overview')); ?>
+  <?php if (!$embed) {
+    $this->load->view('my_works/_dash_view_tabs', array('active_tab' => 'overview'));
+  } ?>
 
-  <div class="mw-dash-filters">
-    <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-filter-form" id="mwDashFilterForm">
+  <div class="mw-dash-filters d-flex align-items-center justify-content-between gap-3 flex-nowrap" style="overflow-x: auto; white-space: nowrap; padding: 0.5rem 0.75rem; -webkit-overflow-scrolling: touch;">
+    <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-filter-form flex-nowrap mb-0" id="mwDashFilterForm">
       <input type="hidden" name="view" value="overview">
       <?php if (!empty($filters['q'])): ?>
         <input type="hidden" name="q" value="<?php echo esc_view((string) $filters['q'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -91,18 +102,40 @@
         </select>
       </label>
     </form>
-    <div class="mw-dash-legend">
+    <div class="mw-dash-legend flex-nowrap align-items-center mb-0" style="gap: 0.35rem;">
       <?php $this->load->helper('my_works_status'); ?>
       <?php foreach (my_works_status_records() as $st): ?>
-        <span class="mw-dash-legend-item">
-          <span class="mw-dash-status-dot mw-dash-dot-<?php echo esc_view(my_works_status_dashboard_dot_class($st->code), ENT_QUOTES, 'UTF-8'); ?>" style="background-color:<?php echo esc_view(my_works_status_hex_color($st->code), ENT_QUOTES, 'UTF-8'); ?>;"></span>
+        <?php
+          $hex_color = my_works_status_hex_color($st->code);
+        ?>
+        <span class="badge rounded-pill" 
+              style="background-color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>12; 
+                     color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>; 
+                     border: 1px solid <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>24;
+                     font-weight: 600;
+                     font-size: 0.72rem;
+                     text-transform: uppercase;
+                     letter-spacing: 0.3px;
+                     padding: 4px 10px;
+                     display: inline-block;
+                     box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
           <?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?>
         </span>
       <?php endforeach; ?>
-      <?php if (function_exists('has_module_access') && has_module_access('statuses')): ?>
-        <a class="mw-dash-legend-manage small" href="<?php echo site_url('statuses?type=my_works'); ?>">Manage statuses</a>
-      <?php endif; ?>
     </div>
+    <?php if ($embed): ?>
+      <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-search-form mb-0">
+        <input type="hidden" name="view" value="overview">
+        <?php foreach ($baseQuery as $qk => $qv): ?>
+          <?php if ($qk === 'q' || $qk === 'view') { continue; } ?>
+          <input type="hidden" name="<?php echo esc_view($qk); ?>" value="<?php echo esc_view((string) $qv, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php endforeach; ?>
+        <div class="mw-dash-search-wrap" style="padding: 0.3rem 0.60rem; border-radius: 8px; width: 220px; box-shadow: none; height: 31px;">
+          <i class="bi bi-search"></i>
+          <input type="search" name="q" class="mw-dash-search-input" placeholder="Search..." value="<?php echo esc_view(isset($filters['q']) ? (string) $filters['q'] : '', ENT_QUOTES, 'UTF-8'); ?>">
+        </div>
+      </form>
+    <?php endif; ?>
   </div>
 
   <section class="mw-dash-section">
@@ -335,4 +368,6 @@
 })();
 </script>
 
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed) {
+  $this->load->view('partials/footer');
+} ?>
