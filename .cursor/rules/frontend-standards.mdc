@@ -1,0 +1,61 @@
+---
+description: Bootstrap, CSS, JavaScript, icons, and frontend assets
+globs: assets/**,application/views/**
+alwaysApply: false
+---
+
+# Frontend Standards
+
+## Stack
+
+Bootstrap 4/5 + jQuery + `$.ajax()` — no React/Vue/npm/webpack unless explicitly requested.
+
+## Forms
+
+```html
+<div class="mb-3">
+  <label for="email" class="form-label">Email Address</label>
+  <input type="email" class="form-control" id="email" name="email" required>
+  <?php echo form_error('email', '<div class="invalid-feedback d-block">', '</div>'); ?>
+</div>
+```
+
+Every input needs `<label>` or `aria-label`. Meaningful `alt` on images (empty `alt=""` for decorative).
+
+## AJAX Rules
+
+- Global `$.ajaxSetup()` once in base layout (401 → login redirect)
+- Always: `beforeSend` (disable btn/loader), `complete` (re-enable), `error` callback
+- Check `response.status === 'success'` before processing data
+- Use toastr/Bootstrap alerts, never raw `alert()`
+
+## Event Delegation
+
+```js
+$(document).on('click', '.btn-edit', function() {
+    editRecord($(this).data('id'));
+});
+```
+
+## CSS Naming
+
+- PHP: snake_case | JS: camelCase | CSS: kebab-case | Constants: UPPER_SNAKE_CASE
+- Prefer Bootstrap utility classes over inline styles
+- Mobile-first responsive (`d-none d-lg-block`, etc.)
+
+## CDN Versions
+
+Pin exactly (e.g. `bootstrap@5.3.2`, `jquery@3.7.1`) — never `@latest`. Track in PROJECT_MAP.md.
+
+## Asset Layout
+
+```
+assets/css/   — module stylesheets
+assets/js/    — app.js (global), module-specific JS
+```
+
+Load app JS in footer after CDN libraries (especially DataTables).
+
+## Accessibility
+
+4.5:1 contrast minimum. Keyboard-navigable interactive elements. No div-as-button without `role="button"` + `tabindex="0"`.

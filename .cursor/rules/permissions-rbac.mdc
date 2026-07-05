@@ -1,0 +1,57 @@
+---
+description: RBAC permission checks, data scope, and group filtering
+globs: application/controllers/**,application/helpers/permission*.php,application/hooks/AuthHook.php
+alwaysApply: false
+---
+
+# RBAC & Permissions
+
+## Permission Checking
+
+```php
+public function __construct() {
+    parent::__construct();
+    require_module_access('employees');
+    $this->load->model('Employee_model');
+}
+```
+
+Views gate UI with `has_module_access('employees')` or granular keys like `employees_export`.
+
+**AuthHook** reads `get_controller_module_access_map()` in `permission_helper.php` — do not duplicate keys in AuthHook.
+
+## Adding New Permission Keys
+
+See `.cursor/rules/new-feature-rbac-and-guide.mdc` for the full checklist (Permissions.php matrix, permission_helper map, view alignment, audit scripts).
+
+## Data Scope
+
+Use `data_scope` / `hierarchy_filter` helpers for org-wide vs scoped data. Admin tier (`role_id = 1` or admin group) sees all; others see scoped records only.
+
+Apply scope in Model queries — never trust client-side role checks.
+
+## Session Security
+
+```php
+// After login
+$this->session->sess_regenerate(true);
+
+// Logout
+$this->session->sess_destroy();
+```
+
+## Audit Trail
+
+Log permission-sensitive actions via `log_activity()` with user_id, action, module, record_id.
+
+## Anti-Patterns
+
+- Permission check mid-function instead of at start
+- View button without matching controller gate
+- Hardcoded role IDs (use constants)
+- Storing secrets in session
+- Forgetting data scope filter on list queries
+
+## Office Meals Exception
+
+Office Meals uses `meal_role_has()` / `require_meal_access()` — not `has_module_access()`. See new-feature-rbac rule section E.

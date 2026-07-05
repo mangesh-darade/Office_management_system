@@ -85,12 +85,12 @@ On create/update/delete/status/comment:
 2. **Permission** — New action needs a key + seed in Permissions UI.
 3. **Schema** — Column in `ensure_schema()` or migration; model insert/update only whitelisted fields.
 4. **Controller** — Thin: validate → model → activity/notify → redirect/JSON.
-5. **View** — Match existing card/table patterns; PHP 5.6 safe (no `??` in views).
+5. **View** — Match existing card/table patterns; follow project view PHP style (PHP 8.4 runtime).
 6. **Test matrix** — Staff A/B/C (creator, assignee, outsider), admin, assignee status-only, CSRF, 403 on foreign ID.
 
 ## PHP / CI conventions
 
-- CodeIgniter 3, PHP 5.6+ compatible in views.
+- CodeIgniter 3, PHP 8.4 runtime; match existing view syntax in each file.
 - Reuse helpers: `my_works_status_labels`, `my_works_user_label`, `my_works_is_overdue`, `my_works_safe_redirect`.
 - Use `require_module_access()` not raw session checks in controllers.
 - Prefer extending existing private methods over duplicating query logic.

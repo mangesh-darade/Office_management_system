@@ -1,0 +1,61 @@
+---
+description: Database schema, queries, models, and migrations
+globs: application/models/**,application/migrations/**,database/**
+alwaysApply: false
+---
+
+# Database Rules
+
+## Table Design
+
+Every table: `id` (PK AI), `created_at`, `updated_at ON UPDATE CURRENT_TIMESTAMP`, `is_active TINYINT(1) DEFAULT 1`, `is_deleted TINYINT(1) DEFAULT 0`.
+
+- Tables: snake_case plural (`employees`, `leave_requests`)
+- Columns: snake_case, no abbreviations (`employee_id` not `emp_id`)
+- Never `SELECT *` — specify columns
+- No ENUM — use TINYINT + constants in `constants.php`
+- Index every FK + filtered column (status, is_deleted, created_at)
+
+## Timestamps
+
+UTC only in DB. Convert to local timezone at display layer only.
+
+## Soft Delete
+
+Always `WHERE is_deleted = 0`. Never raw DELETE on user data. Cascade soft-delete in one Model method inside a transaction.
+
+## Transactions (2+ tables)
+
+```php
+$this->db->trans_start();
+// ... operations ...
+$this->db->trans_complete();
+if ($this->db->trans_status() === FALSE) {
+    log_message('error', 'Transaction failed');
+    return false;
+}
+return true;
+```
+
+## Bulk Operations
+
+Use `insert_batch()` / `update_batch()`, max 500 rows per batch. CSV imports via `fgetcsv()`, max 1000 rows per chunk.
+
+## Performance
+
+- No N+1 — use JOIN / WHERE IN
+- Paginate everything (default 25/page, return total count)
+- `unset()` large arrays after use
+
+## Model Return Convention
+
+| Operation | Return |
+|-----------|--------|
+| Insert | `insert_id` or `false` |
+| Update/Delete | `true` or `false` |
+| Fetch single | `array` or `false` |
+| Fetch multiple | `array` (`[]` if none) |
+
+## Schema Changes
+
+Document in PROJECT_MAP.md `[DB Changes]`. Provide full ALTER/CREATE SQL. Get approval before modifying production schema.

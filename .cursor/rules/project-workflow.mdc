@@ -1,0 +1,49 @@
+---
+description: Scope, communication, and workflow — apply on every task
+alwaysApply: true
+---
+
+# Project Workflow
+
+## Communication
+
+Concise, no preamble. Bullets over paragraphs. Don't over-explain PHP/CI/MySQL basics.
+
+## Scope
+
+- Large task → 2–3 line plan first, wait for go-ahead. Ambiguous → state assumption in one line, proceed.
+- Read full target file before editing (>300 lines → read in sections). Batch reads for multi-file work.
+- Incremental/surgical edits only — don't touch working code unless asked. No placeholders/TODO. Deploy-ready always.
+- Read `PROJECT_CONTEXT.md` and `DEVELOPMENT_GUIDELINES.md` before making changes.
+
+## Code Output
+
+Working code only, minimal comments (non-obvious logic only). Show changed function/block only unless full file requested. Match existing style.
+
+## Anti Over-Engineering
+
+No abstraction/patterns/future-proofing unless asked. Simplest CI3+MySQL+Bootstrap solution. Deep validation only for auth/payments/PHI.
+
+## API Standard
+
+`{ "status": "success|error", "message": "", "data": {} }`. Pagination: `data[], total, per_page, current_page`. Validation error → 422 with `errors` object. One endpoint = one response type (JSON-only or PRG-only, never mixed).
+
+## Forms / POST Flow
+
+PRG always — never re-render view after POST. Flash message after every redirect. CI3 `form_validation` — rules defined once.
+
+## Model Return Convention
+
+Insert → `insert_id`/false. Update/Delete → true/false. Fetch single → array/false. Fetch multiple → array (`[]` if none). Controller always checks return value.
+
+## Logging
+
+Prod: `log_message('error', ...)` only with context. Never log passwords/tokens/raw JWT/PII. No `var_dump`/`print_r` in committed code.
+
+## Git Hygiene
+
+Conventional Commits: `type(scope): description`. Before editing: verify file still referenced (route/autoload/view). CDN versions pinned exactly, never `@latest`.
+
+## Schema Changes
+
+Document in PROJECT_MAP.md `[DB Changes]`: `table | change | reason | date`. Always provide full ALTER/CREATE SQL in task output.

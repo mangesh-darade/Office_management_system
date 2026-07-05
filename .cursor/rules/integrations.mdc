@@ -1,0 +1,57 @@
+---
+description: SendGrid, WhatsApp, Jitsi, webhooks, and third-party API integrations
+globs: application/libraries/**,application/helpers/api_integration*,application/controllers/*webhook*,application/controllers/*integration*,application/models/*integration*
+alwaysApply: false
+---
+
+# Third-Party Integrations
+
+## Config
+
+Load API keys from `settings` / `api_integrations` table or env — never hardcode. The `api_integration` helper is autoloaded.
+
+## Standard Pattern
+
+```php
+try {
+    $response = $this->call_external_api($endpoint, 'POST', $payload);
+    if ($response === false) {
+        log_message('error', 'Integration: sendgrid | user_id:123 | failed');
+        return false;
+    }
+    log_message('info', 'Integration: sendgrid | user_id:123 | success');
+    return true;
+} catch (Exception $e) {
+    log_message('error', 'Integration exception: ' . $e->getMessage());
+    return false;
+}
+```
+
+## cURL Settings
+
+- `CURLOPT_TIMEOUT` → 10s
+- `CURLOPT_CONNECTTIMEOUT` → 5s
+- Return `true`/`false` or decoded JSON — never throw to caller
+- Never expose raw external errors to frontend
+
+## Webhooks
+
+1. Validate HMAC signature with `hash_equals()` before processing
+2. Log raw payload to `webhook_logs` first
+3. Return HTTP 200 within 5s
+4. Signature mismatch → 401 + log IP, do not process
+5. Never expose internal errors in webhook response body
+
+## Logging
+
+| Log | Don't log |
+|-----|-----------|
+| user_id, record_id, status | API keys, tokens, secrets |
+| Masked email `sub***@***` | Full message content |
+| Last 4 digits of phone | Raw JWT payloads |
+
+Format: `log_message('info', 'Integration: action | context | status');`
+
+## Rate Limiting
+
+Track API usage per user/service in DB. Return 429 with generic message when daily limit exceeded.

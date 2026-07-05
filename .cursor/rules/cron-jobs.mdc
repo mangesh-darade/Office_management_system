@@ -1,0 +1,64 @@
+---
+description: Scheduled tasks, cron entry points, and reminder processing
+globs: **/*cron*,**/reminders_*
+alwaysApply: false
+---
+
+# Cron Jobs & Scheduled Tasks
+
+## Entry Point Pattern
+
+```php
+// reminders_cron.php — CLI only
+define('ENVIRONMENT', 'production');
+require_once __DIR__ . '/index.php';
+
+log_message('info', '=== Cron Started: ' . date('Y-m-d H:i:s') . ' ===');
+$CI = &get_instance();
+$CI->load->model('Reminder_model');
+// ... run tasks ...
+log_message('info', '=== Cron Completed ===');
+```
+
+## Controller Guard
+
+```php
+public function __construct() {
+    parent::__construct();
+    if (!is_cli()) {
+        show_404();
+    }
+}
+```
+
+## Reminder Processing
+
+1. Fetch pending/upcoming records (with `is_deleted = 0`)
+2. Bulk insert reminders via `insert_batch()` (max 500/batch)
+3. Send pending in chunks (limit ~100/run)
+4. Update status + retry count on failure (max 3 retries)
+
+## Logging
+
+```php
+log_message('info', 'Cron: reminder_send | processed: 150 | sent: 145 | failed: 5');
+log_message('error', 'Cron: reminder_send | error: email_service_down');
+```
+
+Include: cron_name, records processed, status. Never log sensitive content (full emails, message bodies).
+
+## Windows Task Scheduler
+
+Use `.ps1` or `.bat` scripts pointing to WAMP PHP 8.4:
+
+```
+C:\wamp64\bin\php\php8.4.0\php.exe reminders_cron_generate.php
+```
+
+## Best Practices
+
+- Always `is_cli()` guard — prevent web access
+- Batch operations, use transactions for multi-table changes
+- Set explicit time limits (not `set_time_limit(0)`)
+- Monitor last execution — alert if stale >24h
+- Document schedule in PROJECT_MAP.md
