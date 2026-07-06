@@ -855,9 +855,12 @@ class Tasks extends CI_Controller {
             );
         }
 
-        $filter_user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : ($this->input->get('user_id') !== null ? (int)$this->input->get('user_id') : -1);
-        $filter_project_id = isset($_GET['project_id']) ? (int)$_GET['project_id'] : ($this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1);
-        $filter_status = isset($_GET['status']) ? (string)$_GET['status'] : ($this->input->get('status') !== null ? (string)$this->input->get('status') : 'all');
+        $filter_user_id = $this->_user_dashboard_parse_filter_id($this->input->get('user_id'));
+        $filter_project_id = $this->_user_dashboard_parse_filter_id($this->input->get('project_id'));
+        $filter_status = $this->input->get('status') !== null ? trim((string) $this->input->get('status')) : 'all';
+        if ($filter_status === '') {
+            $filter_status = 'all';
+        }
 
         // When viewing a specific employee's detail, resolve their name (not the logged-in user's name)
         $display_name = ($filter_user_id > 0)
@@ -993,6 +996,24 @@ class Tasks extends CI_Controller {
             return $this->output->set_content_type('application/json')
                 ->set_output(json_encode(['success' => false, 'error' => 'Database error.']));
         }
+    }
+
+    /**
+     * Normalize dashboard filter ids: "all", empty, or non-positive → -1 (no filter).
+     *
+     * @param mixed $raw
+     * @return int
+     */
+    private function _user_dashboard_parse_filter_id($raw)
+    {
+        if ($raw === null || $raw === '' || $raw === 'all') {
+            return -1;
+        }
+        $id = (int) $raw;
+        if ($id < 1) {
+            return -1;
+        }
+        return $id;
     }
 
     /**

@@ -84,10 +84,11 @@ if (!$embed):
 <?php
 $filter_user_id = isset($filter_user_id) ? (int) $filter_user_id : -1;
 $filter_users = isset($filter_users) ? $filter_users : array();
-$is_user_filtered = ($filter_user_id >= 0);
+$focus_raw = $this->input->get('focus');
+$is_user_focused = ($filter_user_id > 0 && in_array((string) $focus_raw, array('1', 'true'), true));
 ?>
 
-<div class="container-fluid project-dash-compact team-dash-index<?php echo $is_user_filtered ? ' is-user-filtered' : ''; ?>">
+<div class="container-fluid project-dash-compact team-dash-index<?php echo $is_user_focused ? ' is-user-filtered' : ''; ?>">
 <?php
 $status_labels = array();
 $status_colors = array();
@@ -134,10 +135,13 @@ if (!$embed) {
 }
 ?>
 
-<?php if (!$is_user_filtered): ?>
+<?php if (!$is_user_focused): ?>
   <?php if (!empty($filter_users)): ?>
   <div class="project-dash-filters">
     <form method="get" action="<?php echo site_url('tasks/my-dashboard'); ?>" class="project-dash-filter-form" id="teamDashFilterForm">
+      <?php if ($embed): ?>
+      <input type="hidden" name="embed" value="1">
+      <?php endif; ?>
       <?php if (!empty($filter_projects)): ?>
       <label class="project-dash-filter-label me-3">
         <span class="project-dash-filter-label-text">Project</span>
@@ -208,8 +212,11 @@ if (!$embed) {
   <header class="mw-focus-screen-head">
     <?php 
       $backParams = $_GET;
-      unset($backParams['user_id']);
-      if (isset($_GET['tab'])) {
+      unset($backParams['user_id'], $backParams['focus']);
+      if ($embed) {
+          $backParams['embed'] = 1;
+          $backUrl = site_url('tasks/my-dashboard') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
+      } elseif (isset($_GET['tab'])) {
           $backUrl = site_url('my-works') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
       } else {
           $backUrl = site_url('tasks/my-dashboard') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
@@ -225,8 +232,13 @@ if (!$embed) {
           $display_name_header = $group_cards[0]['entity']->name;
       }
       if (empty($display_name_header)) $display_name_header = 'Employee';
+      $focus_item_count = isset($task_total) ? (int) $task_total : 0;
+      if (!empty($group_cards[0]['items']) && is_array($group_cards[0]['items'])) {
+          $focus_item_count = count($group_cards[0]['items']);
+      }
     ?>
     <h1 class="mw-focus-screen-title"><?php echo esc_view($display_name_header); ?></h1>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2 align-self-center"><?php echo (int) $focus_item_count; ?> item<?php echo (int) $focus_item_count === 1 ? '' : 's'; ?></span>
   </header>
 <?php endif; ?>
 
@@ -315,10 +327,11 @@ if (!$embed) {
       echo '</tbody></table>';
   };
   ?>
-  <?php if ($is_user_filtered && !empty($group_cards)): ?>
+  <?php if ($is_user_focused && !empty($group_cards)): ?>
     <?php
       $card = $group_cards[0];
       $items = isset($card['items']) ? $card['items'] : array();
+      $focus_item_count = count($items);
     ?>
     <div class="table-responsive bg-white rounded-3 border p-3 mt-2 shadow-sm">
       <?php if (empty($items)): ?>
@@ -342,30 +355,39 @@ if (!$embed) {
           $items = isset($card['items']) ? $card['items'] : array();
           $item_count = count($items);
           $entity_name = ($entity && isset($entity->name)) ? (string) $entity->name : '';
-          $grid_col_class = $is_user_filtered ? 'col-12 team-dash-grid-col-full' : 'col-sm-6 col-lg-4 col-xl-3 team-dash-grid-col';
+          $grid_col_class = $is_user_focused ? 'col-12 team-dash-grid-col-full' : 'col-sm-6 col-lg-4 col-xl-3 team-dash-grid-col';
         ?>
         <div class="<?php echo esc_view($grid_col_class); ?>">
           <div class="card project-dash-card">
             <div class="card-body">
               <div class="project-dash-head">
-                <div class="project-dash-head-main">
                   <?php if ($entity && isset($entity->id)): ?>
                     <?php 
                       $paramName = ($group_mode === 'employee') ? 'user_id' : 'project_id';
                       $linkParams = $_GET;
-                      unset($linkParams['embed']);
-                      $targetUrl = site_url('tasks/my-dashboard') . '?' . http_build_query(array_merge($linkParams, array($paramName => (int) $entity->id))); 
+                      unset($linkParams['embed'], $linkParams['focus']);
+                      $linkExtra = array($paramName => (int) $entity->id, 'focus' => 1);
+                      if ($embed) {
+                          $linkParams['embed'] = 1;
+                      }
+                      $targetUrl = site_url('tasks/my-dashboard') . '?' . http_build_query(array_merge($linkParams, $linkExtra)); 
                     ?>
-                    <a href="<?php echo esc_view($targetUrl); ?>" class="project-dash-project-name text-primary fw-semibold text-decoration-none" title="Filter by <?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>">
-                      <?php echo esc_view($entity_name); ?>
+                    <a href="<?php echo esc_view($targetUrl); ?>" class="project-dash-head-link text-decoration-none d-flex align-items-start justify-content-between w-100" title="View all items for <?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>">
+                      <div class="project-dash-head-main">
+                        <span class="project-dash-project-name text-primary fw-semibold"><?php echo esc_view($entity_name); ?></span>
+                      </div>
+                      <span class="project-dash-count<?php echo $item_count < 1 ? ' is-zero' : ''; ?>" title="<?php echo (int) $item_count; ?> item(s)">
+                        <?php echo (int) $item_count; ?>
+                      </span>
                     </a>
                   <?php else: ?>
-                    <span class="project-dash-project-name text-body" title="<?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($entity_name); ?></span>
+                    <div class="project-dash-head-main">
+                      <span class="project-dash-project-name text-body" title="<?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($entity_name); ?></span>
+                    </div>
+                    <span class="project-dash-count<?php echo $item_count < 1 ? ' is-zero' : ''; ?>" title="<?php echo (int) $item_count; ?> item(s)">
+                      <?php echo (int) $item_count; ?>
+                    </span>
                   <?php endif; ?>
-                </div>
-                <span class="project-dash-count<?php echo $item_count < 1 ? ' is-zero' : ''; ?>" title="<?php echo (int) $item_count; ?> item(s)">
-                  <?php echo (int) $item_count; ?>
-                </span>
               </div>
 
               <?php if (empty($items)): ?>
@@ -401,7 +423,7 @@ if (!$embed) {
   }
   selects.forEach(function (select) {
     select.addEventListener('change', function () {
-      $('#teamDashFilterForm').submit();
+      form.submit();
     });
   });
 
