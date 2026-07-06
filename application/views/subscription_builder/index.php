@@ -65,16 +65,14 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
           <span class="sb-included-head-text">
             <span class="sb-section-title mb-0" id="sb-included-title">Included in ElintOm Essential</span>
             <span class="sb-included-meta">
-              <span class="sb-included-subtitle">No extra charges</span>
               <span class="sb-included-count-badge d-none" id="sb-included-count-badge"></span>
             </span>
           </span>
         </button>
-        <button type="button" class="btn btn-link sb-included-view-all p-0 d-none" id="sb-included-view-all" aria-label="View all included features">View all</button>
       </div>
       <div id="sb-included-body" class="sb-included-body">
         <div id="sb-loading" class="sb-loading d-none"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
-        <div id="sb-included-wrap" class="sb-included-panel"></div>
+        <div id="sb-included-wrap" class="sb-included-panel sb-scroll-area"></div>
       </div>
     </section>
 

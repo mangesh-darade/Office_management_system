@@ -286,11 +286,103 @@ if (!function_exists('attendance_report_empty_summary_row')) {
             'wfh'         => 0.0,
             'absent'      => 0.0,
             'leave'       => 0.0,
+            'holiday'     => 0.0,
             'late'        => 0.0,
             'on_time'     => 0.0,
             'late_hours'  => 0.0,
             'extra_hours' => 0.0,
         );
+    }
+}
+
+if (!function_exists('attendance_report_summary_row_has_data')) {
+    function attendance_report_summary_row_has_data($row)
+    {
+        if (!$row) {
+            return false;
+        }
+
+        return (float) $row->present_days > 0
+            || (float) $row->half_days > 0
+            || (float) $row->wfh_days > 0
+            || (float) $row->absent_days > 0
+            || (float) $row->leave_days > 0
+            || (isset($row->holiday_days) && (float) $row->holiday_days > 0)
+            || (isset($row->on_time_days) && (float) $row->on_time_days > 0)
+            || (float) $row->late_days > 0
+            || (isset($row->late_hours_decimal) && (float) $row->late_hours_decimal > 0)
+            || (isset($row->extra_hours_decimal) && (float) $row->extra_hours_decimal > 0)
+            || (isset($row->net_hours_decimal) && (float) $row->net_hours_decimal !== 0.0);
+    }
+}
+
+if (!function_exists('attendance_report_load_user_timing_map')) {
+    /**
+     * Per-user office timing from employee shift, falling back to global settings.
+     *
+     * @param CI_DB_query_builder $db
+     * @param array<int> $userIds
+     * @param object|null $settings
+     * @return array<int,array{office_start:string,office_end:string,grace_minutes:int,standard_hours:float}>
+     */
+    function attendance_report_load_user_timing_map($db, array $userIds, $settings = null)
+    {
+        $default = attendance_report_get_timing_settings($settings);
+        $map = array();
+        $userIds = array_values(array_unique(array_map('intval', array_filter($userIds))));
+
+        foreach ($userIds as $uid) {
+            $map[$uid] = $default;
+        }
+
+        if (empty($userIds) || !$db->table_exists('employees') || !$db->table_exists('shifts')) {
+            return $map;
+        }
+
+        $employees = $db->select('e.user_id, e.shift_id')
+            ->from('employees e')
+            ->where_in('e.user_id', $userIds)
+            ->get()
+            ->result();
+
+        $shiftIds = array();
+        foreach ($employees as $emp) {
+            if (!empty($emp->shift_id)) {
+                $shiftIds[] = (int) $emp->shift_id;
+            }
+        }
+        $shiftIds = array_values(array_unique(array_filter($shiftIds)));
+        $shifts = array();
+        if (!empty($shiftIds)) {
+            $shiftRows = $db->where_in('id', $shiftIds)->get('shifts')->result();
+            foreach ($shiftRows as $shiftRow) {
+                $shifts[(int) $shiftRow->id] = $shiftRow;
+            }
+        }
+
+        foreach ($employees as $emp) {
+            $uid = (int) $emp->user_id;
+            $shiftId = isset($emp->shift_id) ? (int) $emp->shift_id : 0;
+            if ($shiftId <= 0 || !isset($shifts[$shiftId])) {
+                continue;
+            }
+            $shift = $shifts[$shiftId];
+            $officeStart = date('H:i', strtotime($shift->start_time));
+            $officeEnd = date('H:i', strtotime($shift->end_time));
+            $graceMinutes = (int) $shift->late_grace_period;
+            $startTs = strtotime($shift->start_time);
+            $endTs = strtotime($shift->end_time);
+            $diff = $endTs - $startTs;
+            $standardHours = ($diff > 0) ? round($diff / 3600, 1) : (float) $default['standard_hours'];
+            $map[$uid] = array(
+                'office_start'   => $officeStart,
+                'office_end'     => $officeEnd,
+                'grace_minutes'  => $graceMinutes,
+                'standard_hours' => $standardHours,
+            );
+        }
+
+        return $map;
     }
 }
 
@@ -330,6 +422,38 @@ if (!function_exists('attendance_report_format_hours_hhmm')) {
         $totalMinutes = (int) round(max(0, (float) $hours) * 60);
 
         return sprintf('%02d:%02d', intdiv($totalMinutes, 60), $totalMinutes % 60);
+    }
+}
+
+if (!function_exists('attendance_report_format_hours_hhmm_signed')) {
+    /**
+     * Signed HH:MM for net balance (negative = time deficit).
+     *
+     * @param float|int|string $hours
+     * @return string e.g. -09:00, 02:30, 00:00
+     */
+    function attendance_report_format_hours_hhmm_signed($hours)
+    {
+        $hours = (float) $hours;
+        $sign = '';
+        if ($hours < 0) {
+            $sign = '-';
+            $hours = abs($hours);
+        }
+        $totalMinutes = (int) round($hours * 60);
+
+        return $sign . sprintf('%02d:%02d', intdiv($totalMinutes, 60), $totalMinutes % 60);
+    }
+}
+
+if (!function_exists('attendance_report_compute_net_hours')) {
+    /**
+     * Net time balance: extra work minus late time.
+     * Positive = surplus, negative = deficit (still owes time).
+     */
+    function attendance_report_compute_net_hours($extraHours, $lateHours)
+    {
+        return (float) $extraHours - (float) $lateHours;
     }
 }
 
@@ -565,8 +689,14 @@ if (!function_exists('attendance_report_compute_punch_timing')) {
             }
         }
 
-        if ($workedHours > (float) $standardHours) {
-            $result['extra_hours'] = $workedHours - (float) $standardHours;
+        if (attendance_report_is_valid_punch_time($coutRaw)) {
+            $coutTime = attendance_report_extract_time_part($coutRaw);
+            if (preg_match('/^\d{1,2}:\d{2}/', $coutTime)) {
+                $coutTs = strtotime($attDate . ' ' . $coutTime);
+                if ($coutTs !== false && $officeEndTs !== false && $coutTs > $officeEndTs) {
+                    $result['extra_hours'] = ($coutTs - $officeEndTs) / 3600;
+                }
+            }
         }
 
         return $result;
@@ -697,6 +827,7 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
         $statusCol = $cols['status_col'];
         $fields = $cols['fields'];
         $timing = attendance_report_get_timing_settings($settings);
+        $timingByUser = attendance_report_load_user_timing_map($db, $userIds, $settings);
 
         $checkInCol = null;
         $checkOutCol = null;
@@ -825,6 +956,7 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
             $leaveDays = isset($leaveDaysByUser[$uid]) ? $leaveDaysByUser[$uid] : array();
             $wfhDays = isset($wfhDaysByUser[$uid]) ? $wfhDaysByUser[$uid] : array();
             $userAttendance = isset($attByUserDate[$uid]) ? $attByUserDate[$uid] : array();
+            $userTiming = isset($timingByUser[$uid]) ? $timingByUser[$uid] : $timing;
 
             foreach ($workingDays as $day) {
                 $row = isset($userAttendance[$day]) ? $userAttendance[$day] : null;
@@ -853,6 +985,7 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
                 }
 
                 if ($statusKey === 'holiday' || ($isHoliday && !$hasIn && !$hasOut && $rawStatus === '')) {
+                    $summaries[$uid]['holiday'] += 1;
                     continue;
                 }
 
@@ -871,10 +1004,10 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
                         $cinRaw,
                         $coutRaw,
                         $totalHours,
-                        $timing['office_start'],
-                        $timing['grace_minutes'],
-                        $timing['standard_hours'],
-                        $timing['office_end']
+                        $userTiming['office_start'],
+                        $userTiming['grace_minutes'],
+                        $userTiming['standard_hours'],
+                        $userTiming['office_end']
                     );
                     $summaries[$uid]['late'] += $timingMetrics['late'];
                     $summaries[$uid]['on_time'] += $timingMetrics['on_time'];
@@ -1019,16 +1152,26 @@ if (!function_exists('attendance_report_summary_output_rows')) {
             $o->wfh_days = attendance_report_format_day_count($s['wfh']);
             $o->absent_days = attendance_report_format_day_count($s['absent']);
             $o->leave_days = attendance_report_format_day_count($s['leave']);
+            $o->holiday_days = attendance_report_format_day_count(isset($s['holiday']) ? $s['holiday'] : 0);
             $o->late_days = attendance_report_format_day_count($s['late']);
             $o->on_time_days = attendance_report_format_day_count($s['on_time']);
             $o->late_hours = attendance_report_format_hours_hhmm($s['late_hours']);
             $o->extra_hours = attendance_report_format_hours_hhmm($s['extra_hours']);
             $o->late_hours_decimal = (float) $s['late_hours'];
             $o->extra_hours_decimal = (float) $s['extra_hours'];
+            $netDecimal = attendance_report_compute_net_hours($s['extra_hours'], $s['late_hours']);
+            $o->net_hours = attendance_report_format_hours_hhmm_signed($netDecimal);
+            $o->net_hours_decimal = $netDecimal;
             $o->total_working_days = $totalWorkingDays;
             $rowsOut[] = $o;
         }
         usort($rowsOut, function ($a, $b) {
+            $lateA = (float) $a->late_days;
+            $lateB = (float) $b->late_days;
+            if ($lateA !== $lateB) {
+                return ($lateB <=> $lateA);
+            }
+
             return strcmp($a->name, $b->name);
         });
 

@@ -141,10 +141,20 @@
     return cfg;
   }
 
+  function stripColspanPlaceholderRows(tbl) {
+    tbl.querySelectorAll('tbody tr').forEach(function(tr) {
+      var cells = tr.querySelectorAll('td');
+      if (cells.length === 1 && cells[0].hasAttribute('colspan')) {
+        tr.remove();
+      }
+    });
+  }
+
   function initDataTable(tbl, overrides) {
     if (shouldSkipDataTable(tbl)) {
       return;
     }
+    stripColspanPlaceholderRows(tbl);
     try {
       new DataTable(tbl, buildDataTableConfig(tbl, overrides));
       tbl.dataset.dtInited = '1';
@@ -198,6 +208,26 @@
           order: [[0, 'asc']],
           columnDefs: [
             { orderable: false, targets: [2, 5] }
+          ]
+        });
+      }
+
+      var tasksTbl = document.getElementById('tasksTable');
+      if (tasksTbl) {
+        initDataTable(tasksTbl, {
+          responsive: true,
+          paging: true,
+          searching: true,
+          lengthChange: true,
+          info: true,
+          pageLength: 25,
+          lengthMenu: [10, 25, 50, 100],
+          ordering: true,
+          order: parseTableOrder(tasksTbl),
+          columnDefs: [
+            { responsivePriority: 1, targets: 2 },
+            { responsivePriority: 2, targets: 0 },
+            { responsivePriority: 3, targets: -1 }
           ]
         });
       }

@@ -21,10 +21,12 @@ if (!$embed) {
 
 <div class="container-fluid <?php echo $embed ? 'p-1' : 'py-3'; ?> mw-page">
 
+  <?php if (!$embed): ?>
   <?php $this->load->view('my_works/_toolbar', array(
     'view_mode' => $view_mode,
     'can_add' => !empty($can_add),
   )); ?>
+  <?php endif; ?>
 
 
 

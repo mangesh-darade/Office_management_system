@@ -55,8 +55,12 @@
 
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-stretch align-items-lg-center gap-3">
 
-      <div class="mw-toolbar-title">
-
+      <div class="mw-toolbar-title d-flex align-items-start gap-2">
+        <?php $this->load->view('my_works/_back_btn', array(
+          'back_url' => site_url('dashboard'),
+          'back_title' => 'Back to Dashboard',
+        )); ?>
+        <div class="min-w-0">
         <nav aria-label="breadcrumb" class="mw-breadcrumb small mb-1">
 
           <ol class="breadcrumb mb-0">
@@ -79,6 +83,7 @@
 
         <p class="text-muted small mb-0">Track tasks, clients, projects, links, and files in one place</p>
 
+        </div>
       </div>
 
       <div class="mw-toolbar-actions">

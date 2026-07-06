@@ -118,6 +118,38 @@ if (!function_exists('subscription_builder_quote_reference')) {
     }
 }
 
+if (!function_exists('subscription_builder_quote_issuer_profile')) {
+    /**
+     * Legal issuer details for ElintOm proposal exports.
+     *
+     * @return array{name:string,address:string,cin:string,gst:string,website:string,email:string,phone:string}
+     */
+    function subscription_builder_quote_issuer_profile()
+    {
+        $CI =& get_instance();
+        $CI->load->helper('company');
+
+        $email = trim((string) get_company_email());
+        $phone = trim((string) get_company_phone());
+        if ($email === '' || $email === 'noreply@example.com') {
+            $email = 'sateri.mangesh@gmail.com';
+        }
+        if ($phone === '' || $phone === '+1-234-567-8900') {
+            $phone = '7744010738';
+        }
+
+        return array(
+            'name'    => 'SATERI DIGITAL PRIVATE LIMITED',
+            'address' => "2nd Floor, Neelprabha Apt, Right Bhusari Colony,\nPaud Road, Pune, Maharashtra, India - 411038.",
+            'cin'     => 'U72900PN2022PTC215872',
+            'gst'     => '27ABJCS6705P1ZM',
+            'website' => 'https://sateridigital.com',
+            'email'   => $email,
+            'phone'   => $phone,
+        );
+    }
+}
+
 if (!function_exists('subscription_builder_quote_normalize_gst_percent')) {
     function subscription_builder_quote_normalize_gst_percent($value)
     {
@@ -491,11 +523,13 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $CI =& get_instance();
         $CI->load->helper('company');
 
-        $company_name = esc_view(get_company_name(), ENT_QUOTES, 'UTF-8');
-        $company_email = esc_view(get_company_email(), ENT_QUOTES, 'UTF-8');
-        $company_phone = esc_view(get_company_phone(), ENT_QUOTES, 'UTF-8');
-        $company_address_raw = trim(get_company_address());
-        $company_address = nl2br(esc_view($company_address_raw));
+        $profile = subscription_builder_quote_issuer_profile();
+        $company_name = esc_view($profile['name'], ENT_QUOTES, 'UTF-8');
+        $company_email = esc_view($profile['email'], ENT_QUOTES, 'UTF-8');
+        $company_phone = esc_view($profile['phone'], ENT_QUOTES, 'UTF-8');
+        $company_cin = esc_view($profile['cin'], ENT_QUOTES, 'UTF-8');
+        $company_gst = esc_view($profile['gst'], ENT_QUOTES, 'UTF-8');
+        $company_address = nl2br(esc_view(trim($profile['address']), ENT_QUOTES, 'UTF-8'));
 
         $logo_uri = subscription_builder_quote_logo_data_uri(subscription_builder_quote_resolve_logo_path());
         $logo_html = '';
@@ -511,15 +545,17 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $generated_date = date('d M Y');
         $generated_time = date('h:i A');
         $valid_until = date('d M Y', strtotime('+30 days'));
-        $site_url = esc_view('https://sateridigital.com');
+        $site_url = esc_view($profile['website'], ENT_QUOTES, 'UTF-8');
         $site_url_link = '<a href="' . $site_url . '" class="sq-website-link" target="_blank" rel="noopener noreferrer">' . $site_url . '</a>';
 
         $company_block = '<div class="sq-company-name">' . $company_name . '</div>'
             . '<div class="sq-company-meta">'
-            . ($company_address !== '' ? $company_address . '<br>' : '')
-            . ($company_phone !== '' ? 'Phone: ' . $company_phone . ' &nbsp;|&nbsp; ' : '')
-            . ($company_email !== '' ? 'Email: ' . $company_email . '<br>' : '')
-            . 'Website: ' . $site_url_link
+            . $company_address . '<br><br>'
+            . 'CIN: ' . $company_cin . '<br>'
+            . 'GST No.: ' . $company_gst
+            . ($company_phone !== '' ? '<br>Phone: ' . $company_phone : '')
+            . ($company_email !== '' ? ' &nbsp;|&nbsp; Email: ' . $company_email : '')
+            . '<br>Website: ' . $site_url_link
             . '</div>';
 
         if ($logo_html === '') {
@@ -576,7 +612,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $included_html = '';
         if (!empty($included_groups)) {
             $included_html .= '<div class="sq-section">'
-                . '<div class="sq-section-title">Included in ' . $plan . ' <span class="sq-badge">No extra charges</span></div>';
+                . '<div class="sq-section-title">Included in ' . $plan . '</div>';
             foreach ($included_groups as $module => $features) {
                 $mod_esc = esc_view($module);
                 $feature_parts = array();

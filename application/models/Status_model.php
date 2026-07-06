@@ -66,6 +66,33 @@ class Status_model extends CI_Model {
             ['name' => 'Needs Discussion', 'code' => 'need_discussion', 'type' => 'my_works', 'color' => '#ef4444', 'icon' => 'chat-dots', 'display_order' => 3],
             ['name' => 'Closed', 'code' => 'closed', 'type' => 'my_works', 'color' => '#22c55e', 'icon' => 'check-circle', 'display_order' => 4],
             ['name' => 'Postponed', 'code' => 'postponed', 'type' => 'my_works', 'color' => '#f97316', 'icon' => 'pause-circle', 'display_order' => 5],
+
+            // Clients statuses
+            ['name' => 'Active', 'code' => 'active', 'type' => 'clients', 'color' => '#28a745', 'icon' => 'check-circle', 'display_order' => 1],
+            ['name' => 'Inactive', 'code' => 'inactive', 'type' => 'clients', 'color' => '#6c757d', 'icon' => 'pause-circle', 'display_order' => 2],
+            ['name' => 'Blocked', 'code' => 'blocked', 'type' => 'clients', 'color' => '#dc3545', 'icon' => 'x-circle', 'display_order' => 3],
+
+            // Leaves statuses
+            ['name' => 'Pending', 'code' => 'pending', 'type' => 'leaves', 'color' => '#ffc107', 'icon' => 'clock', 'display_order' => 1],
+            ['name' => 'Lead Approved', 'code' => 'lead_approved', 'type' => 'leaves', 'color' => '#17a2b8', 'icon' => 'check', 'display_order' => 2],
+            ['name' => 'HR Approved', 'code' => 'hr_approved', 'type' => 'leaves', 'color' => '#17a2b8', 'icon' => 'check2', 'display_order' => 3],
+            ['name' => 'Approved', 'code' => 'approved', 'type' => 'leaves', 'color' => '#28a745', 'icon' => 'check-circle', 'display_order' => 4],
+            ['name' => 'Rejected', 'code' => 'rejected', 'type' => 'leaves', 'color' => '#dc3545', 'icon' => 'x-circle', 'display_order' => 5],
+            ['name' => 'Cancelled', 'code' => 'cancelled', 'type' => 'leaves', 'color' => '#6c757d', 'icon' => 'ban', 'display_order' => 6],
+
+            // Defects statuses
+            ['name' => 'Open', 'code' => 'open', 'type' => 'defects', 'color' => '#dc3545', 'icon' => 'bug', 'display_order' => 1],
+            ['name' => 'In Progress', 'code' => 'in_progress', 'type' => 'defects', 'color' => '#007bff', 'icon' => 'play-circle', 'display_order' => 2],
+            ['name' => 'Fixed', 'code' => 'fixed', 'type' => 'defects', 'color' => '#ffc107', 'icon' => 'wrench', 'display_order' => 3],
+            ['name' => 'Verified', 'code' => 'verified', 'type' => 'defects', 'color' => '#28a745', 'icon' => 'check-circle', 'display_order' => 4],
+            ['name' => 'Closed', 'code' => 'closed', 'type' => 'defects', 'color' => '#6c757d', 'icon' => 'check', 'display_order' => 5],
+            ['name' => 'Rejected', 'code' => 'rejected', 'type' => 'defects', 'color' => '#dc3545', 'icon' => 'x-circle', 'display_order' => 6],
+
+            // Releases statuses
+            ['name' => 'Planned', 'code' => 'planned', 'type' => 'releases', 'color' => '#6c757d', 'icon' => 'calendar', 'display_order' => 1],
+            ['name' => 'In Progress', 'code' => 'in_progress', 'type' => 'releases', 'color' => '#007bff', 'icon' => 'play-circle', 'display_order' => 2],
+            ['name' => 'Released', 'code' => 'released', 'type' => 'releases', 'color' => '#28a745', 'icon' => 'rocket', 'display_order' => 3],
+            ['name' => 'Cancelled', 'code' => 'cancelled', 'type' => 'releases', 'color' => '#dc3545', 'icon' => 'ban', 'display_order' => 4],
         ];
         
         foreach ($defaults as $status) {
@@ -144,15 +171,38 @@ class Status_model extends CI_Model {
         }
         $CI =& get_instance();
         $CI->load->helper('my_works_status');
-        foreach (my_works_status_fallback_definitions() as $status) {
-            $status['type'] = 'my_works';
-            $status['is_active'] = 1;
-            if ($this->get_by_code($status['code'], 'my_works')) {
+        $this->seed_module_statuses_if_missing('my_works', my_works_status_fallback_definitions());
+    }
+
+    public function seed_module_statuses_if_missing($type, array $definitions)
+    {
+        if (!$this->db->table_exists('statuses') || empty($definitions)) {
+            return;
+        }
+        $type = trim((string) $type);
+        if ($type === '') {
+            return;
+        }
+        foreach ($definitions as $status) {
+            if (!isset($status['code'], $status['name'])) {
                 continue;
             }
-            $status['created_at'] = date('Y-m-d H:i:s');
-            $status['updated_at'] = date('Y-m-d H:i:s');
-            $this->db->insert('statuses', $status);
+            if ($this->get_by_code($status['code'], $type)) {
+                continue;
+            }
+            $row = array(
+                'name' => $status['name'],
+                'code' => $status['code'],
+                'type' => $type,
+                'color' => isset($status['color']) ? $status['color'] : '#6c757d',
+                'icon' => isset($status['icon']) ? $status['icon'] : null,
+                'display_order' => isset($status['display_order']) ? (int) $status['display_order'] : 0,
+                'is_active' => 1,
+                'description' => isset($status['description']) ? $status['description'] : null,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            );
+            $this->db->insert('statuses', $row);
         }
     }
 }

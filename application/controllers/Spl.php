@@ -1,0 +1,836 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Spl extends CI_Controller
+{
+    public function __construct()
+    {
+        parent::__construct();
+        $this->load->database();
+        $this->load->helper(array('url', 'form', 'permission', 'rewards', 'spl'));
+        $this->load->library('session');
+        $this->load->model('Reward_model', 'rewards');
+        $this->load->model('Spl_model', 'spl');
+        require_controller_access('spl', true);
+    }
+
+    public function index()
+    {
+        require_module_access(spl_access_module_keys(), true);
+        $uid = (int) $this->session->userdata('user_id');
+        $tab = trim((string) $this->input->get('tab'));
+        if ($tab === '') {
+            $tab = spl_resolve_default_tab();
+        }
+        if ($tab === 'my-reward' && !spl_can_my_reward()) {
+            $tab = spl_resolve_default_tab();
+        }
+        if ($tab === 'rules' && !spl_can_manage_rules()) {
+            $tab = spl_resolve_default_tab();
+        }
+        if ($tab === 'levels' && !spl_can_view_levels()) {
+            $tab = spl_resolve_default_tab();
+        }
+        if ($tab === 'activity' && !spl_can_submit()) {
+            $tab = spl_resolve_default_tab();
+        }
+        if ($tab === 'approvals' && !spl_can_approve()) {
+            $tab = spl_resolve_default_tab();
+        }
+
+        if (!spl_has_any_index_tab()) {
+            if (spl_can_view_groups()) {
+                redirect('spl/groups');
+                return;
+            }
+            show_error('You do not have permission to access SPL.', 403);
+            return;
+        }
+
+        $approval_view = trim((string) $this->input->get('approval_view'));
+        if ($approval_view === '') {
+            $approval_view = 'pending';
+        }
+        if (!in_array($approval_view, array('pending', 'approved', 'rejected'), true)) {
+            $approval_view = 'pending';
+        }
+        if ($tab !== 'approvals') {
+            $approval_view = 'pending';
+        }
+
+        $this->spl->sync_all_rules_to_all_groups();
+
+        $summary = $this->rewards->get_user_summary($uid);
+        $level = $this->rewards->get_level($summary->current_level_code);
+        $reward_period = spl_normalize_reward_period($this->input->get('reward_period'));
+        $reward_bounds = spl_reward_period_bounds($reward_period);
+        $recent = $this->rewards->list_user_activity_feed($uid, 100, $reward_bounds['from'], $reward_bounds['to']);
+        $reward_totals = $this->rewards->sum_user_activity_points($uid, $reward_bounds['from'], $reward_bounds['to']);
+        $activity_stats = array(
+            'pending' => 0,
+            'approved' => 0,
+            'rejected' => 0,
+            'other' => 0,
+        );
+        foreach ($recent as $activity_row) {
+            $st = (string) $activity_row->status;
+            if ($st === 'pending') {
+                $activity_stats['pending']++;
+            } elseif ($st === 'approved') {
+                $activity_stats['approved']++;
+            } elseif ($st === 'rejected') {
+                $activity_stats['rejected']++;
+            } else {
+                $activity_stats['other']++;
+            }
+        }
+        $my_pending_count = (int) $reward_totals['pending_count'];
+        $rules = spl_can_manage_rules() ? $this->rewards->list_rules(false) : array();
+        $levels = spl_can_view_levels() ? $this->rewards->list_levels(false) : array();
+        $categories = $this->spl->list_categories(true);
+        $pending_approvals = array();
+        $approved_approvals = array();
+        $rejected_approvals = array();
+        $approval_counts = array('pending' => 0, 'approved' => 0, 'rejected' => 0);
+        if (spl_can_approve()) {
+            $approval_counts['pending'] = $this->rewards->count_spl_approvals_by_status('pending');
+            $approval_counts['approved'] = $this->rewards->count_spl_approvals_by_status('approved');
+            $approval_counts['rejected'] = $this->rewards->count_spl_approvals_by_status('rejected');
+            if ($approval_view === 'pending') {
+                $pending_approvals = spl_enrich_approval_rows($this->rewards, $this->rewards->list_spl_pending_approvals(200));
+            } elseif ($approval_view === 'approved') {
+                $approved_approvals = spl_enrich_approval_rows($this->rewards, $this->rewards->list_spl_approval_history('approved', 200));
+            } else {
+                $rejected_approvals = spl_enrich_approval_rows($this->rewards, $this->rewards->list_spl_approval_history('rejected', 200));
+            }
+        }
+
+        $this->load->view('spl/index', array(
+            'active_tab' => $tab,
+            'approval_view' => $approval_view,
+            'approval_counts' => $approval_counts,
+            'summary' => $summary,
+            'level' => $level,
+            'recent' => $recent,
+            'activity_stats' => $activity_stats,
+            'my_pending_count' => $my_pending_count,
+            'reward_period' => $reward_period,
+            'reward_bounds' => $reward_bounds,
+            'reward_totals' => $reward_totals,
+            'rules' => $rules,
+            'levels' => $levels,
+            'categories' => $categories,
+            'pending_approvals' => $pending_approvals,
+            'approved_approvals' => $approved_approvals,
+            'rejected_approvals' => $rejected_approvals,
+            'can_submit' => spl_can_submit(),
+            'can_my_reward' => spl_can_my_reward(),
+            'can_rules' => spl_can_manage_rules(),
+            'can_levels' => spl_can_view_levels(),
+            'can_approve' => spl_can_approve(),
+            'can_groups' => spl_can_view_groups(),
+        ));
+    }
+
+    public function submit_activity()
+    {
+        require_module_access(array('spl_submit', 'spl', 'rewards_submit', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+
+        $actor = (int) $this->session->userdata('user_id');
+        $ruleCode = trim((string) $this->input->post('rule_code'));
+        $rule = $this->rewards->get_rule_by_code($ruleCode);
+        if (!$rule || $rule->trigger_event !== 'reward_claim') {
+            $this->session->set_flashdata('error', 'Invalid activity selected.');
+            redirect('spl?tab=activity');
+            return;
+        }
+        if ((int) $rule->requires_approval !== 1) {
+            $this->session->set_flashdata('error', 'This activity is tracked automatically and cannot be submitted manually.');
+            redirect('spl?tab=activity');
+            return;
+        }
+
+        $label = spl_sanitize_note_html($this->input->post('reference_label'));
+        if ($label === '') {
+            $label = $rule->name;
+        }
+
+        $txIds = reward_engine_claim($ruleCode, array(
+            'user_id' => $actor,
+            'actor_id' => $actor,
+            'source_module' => 'spl',
+            'source_record_id' => null,
+            'reference_label' => $label,
+        ));
+
+        $lastQueueId = 0;
+        if (!empty($txIds)) {
+            $q = $this->spl->get_latest_queue_for_transaction((int) $txIds[0]);
+            if ($q) {
+                $lastQueueId = (int) $q->id;
+            }
+        }
+
+        if ($lastQueueId > 0 && !empty($_FILES['attachment']['name'])) {
+            spl_save_evidence_file($lastQueueId, $actor);
+        }
+
+        if (empty($txIds)) {
+            $this->session->set_flashdata('error', 'Could not submit activity. It may already be pending or capped for today.');
+            redirect('spl?tab=activity');
+            return;
+        }
+
+        $this->session->set_flashdata('success', 'Activity submitted for approval. Points will be added after admin approval.');
+        $redirectTab = spl_can_my_reward() ? 'my-reward' : 'activity';
+        redirect('spl?tab=' . $redirectTab);
+    }
+
+    public function approve_activity($id = 0)
+    {
+        require_module_access(array('spl', 'spl_approve', 'rewards_approve', 'rewards_admin'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+        $id = (int) $id;
+        $q = $this->rewards->get_approval_queue($id);
+        if (!$q || $q->source_module !== 'spl') {
+            $this->session->set_flashdata('error', 'Invalid approval request.');
+            redirect('spl?tab=approvals&approval_view=pending');
+            return;
+        }
+        $comment = trim((string) $this->input->post('comment'));
+        $ok = $this->rewards->approve_pending($id, (int) $this->session->userdata('user_id'), $comment);
+        $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Activity approved. Points added to user.' : 'Could not approve activity.');
+        redirect('spl?tab=approvals&approval_view=' . ($ok ? 'approved' : 'pending'));
+    }
+
+    public function reject_activity($id = 0)
+    {
+        require_module_access(array('spl', 'spl_approve', 'rewards_approve', 'rewards_admin'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+        $id = (int) $id;
+        $q = $this->rewards->get_approval_queue($id);
+        if (!$q || $q->source_module !== 'spl') {
+            $this->session->set_flashdata('error', 'Invalid approval request.');
+            redirect('spl?tab=approvals&approval_view=pending');
+            return;
+        }
+        $comment = trim((string) $this->input->post('comment'));
+        $ok = $this->rewards->reject_pending($id, (int) $this->session->userdata('user_id'), $comment);
+        $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Activity rejected.' : 'Could not reject activity.');
+        redirect('spl?tab=approvals&approval_view=' . ($ok ? 'rejected' : 'pending'));
+    }
+
+    public function approvals()
+    {
+        $view = trim((string) $this->input->get('approval_view'));
+        if (!in_array($view, array('pending', 'approved', 'rejected'), true)) {
+            $view = 'pending';
+        }
+        redirect('spl?tab=approvals&approval_view=' . $view);
+    }
+
+    public function save_rule()
+    {
+        require_module_access(array('spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            $this->_json_error('Invalid request', 405);
+        }
+
+        $id = (int) $this->input->post('id');
+        $code = trim((string) $this->input->post('code'));
+        $name = trim((string) $this->input->post('name'));
+        if ($code === '' || $name === '') {
+            $this->_json_error('Code and name are required.', 422);
+        }
+
+        $data = array(
+            'code' => $code,
+            'name' => $name,
+            'description' => trim((string) $this->input->post('description')),
+            'trigger_event' => trim((string) $this->input->post('trigger_event')) ?: 'reward_claim',
+            'condition_json' => trim((string) $this->input->post('condition_json')),
+            'points' => (float) $this->input->post('points'),
+            'category_id' => $this->input->post('category_id') !== '' ? (int) $this->input->post('category_id') : null,
+            'max_per_day' => $this->input->post('max_per_day') !== '' ? (int) $this->input->post('max_per_day') : null,
+            'requires_approval' => (int) $this->input->post('requires_approval'),
+            'is_active' => (int) $this->input->post('is_active'),
+        );
+
+        if ($data['trigger_event'] === 'reward_claim' && $data['condition_json'] === '') {
+            $data['condition_json'] = json_encode(array('claim_type' => $code));
+        }
+
+        $savedId = $this->rewards->save_rule($data, $id > 0 ? $id : null);
+        $this->rewards->audit('rule', $savedId, $id > 0 ? 'updated' : 'created', (int) $this->session->userdata('user_id'));
+        if ($data['trigger_event'] === 'reward_claim' && (int) $data['is_active'] === 1) {
+            $this->spl->sync_all_rules_to_all_groups();
+        }
+        $this->_json_success(array('id' => $savedId));
+    }
+
+    public function save_level()
+    {
+        require_module_access(array('spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            $this->_json_error('Invalid request', 405);
+        }
+
+        $id = (int) $this->input->post('id');
+        $name = trim((string) $this->input->post('name'));
+        if ($id <= 0 || $name === '') {
+            $this->_json_error('Level id and name are required.', 422);
+        }
+
+        $existing = $this->rewards->get_level_by_id($id);
+        if (!$existing) {
+            $this->_json_error('Level not found.', 404);
+        }
+
+        $max_raw = trim((string) $this->input->post('max_lifetime_points'));
+        $data = array(
+            'name' => $name,
+            'min_lifetime_points' => (float) $this->input->post('min_lifetime_points'),
+            'max_lifetime_points' => $max_raw !== '' ? (float) $max_raw : null,
+            'badge_color' => trim((string) $this->input->post('badge_color')) ?: $existing->badge_color,
+            'is_active' => (int) $this->input->post('is_active'),
+        );
+
+        $savedId = $this->rewards->save_level($data, $id);
+        $this->rewards->audit('level', $savedId, 'updated', (int) $this->session->userdata('user_id'));
+        $this->_json_success(array('id' => $savedId));
+    }
+
+    public function rules_sample_csv()
+    {
+        require_module_access(array('spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        $path = FCPATH . 'assets/samples/spl_rules_import_sample.csv';
+        if (!is_file($path)) {
+            show_404();
+            return;
+        }
+        $this->output
+            ->set_content_type('text/csv; charset=utf-8')
+            ->set_header('Content-Disposition: attachment; filename="spl_rules_import_sample.csv"')
+            ->set_output(file_get_contents($path));
+    }
+
+    public function rules_export_csv()
+    {
+        require_module_access(array('spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        $rules = $this->rewards->list_rules(false);
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="spl_rules_' . date('Y-m-d') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('code', 'name', 'category', 'trigger_event', 'points', 'requires_approval', 'is_active', 'description', 'max_per_day'));
+        foreach ($rules as $r) {
+            fputcsv($out, array(
+                (string) $r->code,
+                (string) $r->name,
+                isset($r->category_name) ? (string) $r->category_name : '',
+                (string) $r->trigger_event,
+                (float) $r->points,
+                (int) $r->requires_approval,
+                (int) $r->is_active,
+                isset($r->description) ? (string) $r->description : '',
+                $r->max_per_day !== null ? (int) $r->max_per_day : '',
+            ));
+        }
+        fclose($out);
+        exit;
+    }
+
+    public function rules_import()
+    {
+        require_module_access(array('spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+
+        $this->load->helper('csv_import');
+        $opened = csv_import_open('file');
+        if (!$opened['ok']) {
+            $this->session->set_flashdata('error', $opened['error']);
+            redirect('spl?tab=rules');
+            return;
+        }
+
+        $columns = csv_import_require_columns($opened['map'], array('code', 'name'), array());
+        if (!$columns['ok']) {
+            fclose($opened['handle']);
+            $this->session->set_flashdata('error', $columns['error']);
+            redirect('spl?tab=rules');
+            return;
+        }
+
+        $category_map = array();
+        foreach ($this->spl->list_categories(false) as $cat) {
+            $category_map[strtolower(trim((string) $cat->name))] = (int) $cat->id;
+        }
+
+        $actor = (int) $this->session->userdata('user_id');
+        $inserted = 0;
+        $updated = 0;
+        $skipped = 0;
+        $row_errors = array();
+        $line = 1;
+        $prev_debug = $this->db->db_debug;
+        $this->db->db_debug = false;
+
+        while (($row = fgetcsv($opened['handle'])) !== false) {
+            $line++;
+            $code = csv_import_get($opened['map'], $row, 'code');
+            $name = csv_import_get($opened['map'], $row, 'name');
+            if ($code === '' || $name === '') {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Code and name are required.');
+                continue;
+            }
+
+            $category_id = null;
+            $category_name = csv_import_get($opened['map'], $row, 'category', '');
+            if ($category_name !== '') {
+                $cat_key = strtolower($category_name);
+                if (!isset($category_map[$cat_key])) {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'Unknown category "' . $category_name . '".');
+                    continue;
+                }
+                $category_id = $category_map[$cat_key];
+            }
+
+            $trigger_event = csv_import_get($opened['map'], $row, 'trigger_event', 'reward_claim');
+            if ($trigger_event === '') {
+                $trigger_event = 'reward_claim';
+            }
+
+            $points_raw = csv_import_get($opened['map'], $row, 'points', '0');
+            if ($points_raw === '' || !is_numeric($points_raw)) {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Points must be a number.');
+                continue;
+            }
+
+            $requires_approval = $this->_spl_csv_bool(csv_import_get($opened['map'], $row, 'requires_approval', '1'), 1);
+            $is_active = $this->_spl_csv_bool(csv_import_get($opened['map'], $row, 'is_active', '1'), 1);
+            $max_per_day_raw = csv_import_get($opened['map'], $row, 'max_per_day', '');
+            $max_per_day = $max_per_day_raw !== '' ? (int) $max_per_day_raw : null;
+
+            $data = array(
+                'code' => $code,
+                'name' => $name,
+                'description' => csv_import_get($opened['map'], $row, 'description', ''),
+                'trigger_event' => $trigger_event,
+                'condition_json' => trim((string) csv_import_get($opened['map'], $row, 'condition_json', '')),
+                'points' => (float) $points_raw,
+                'category_id' => $category_id,
+                'max_per_day' => $max_per_day,
+                'requires_approval' => $requires_approval,
+                'is_active' => $is_active,
+            );
+
+            if ($data['trigger_event'] === 'reward_claim' && $data['condition_json'] === '') {
+                $data['condition_json'] = json_encode(array('claim_type' => $code));
+            }
+
+            $existing = $this->rewards->get_rule_by_code($code);
+            $saved_id = $this->rewards->save_rule($data, $existing ? (int) $existing->id : null);
+            if ($saved_id <= 0) {
+                $skipped++;
+                $db_error = $this->db->error();
+                $reason = !empty($db_error['message']) ? $db_error['message'] : 'Could not save rule.';
+                csv_import_add_row_error($row_errors, $line, $reason);
+                continue;
+            }
+
+            $this->rewards->audit('rule', $saved_id, $existing ? 'updated' : 'created', $actor);
+            if ($existing) {
+                $updated++;
+            } else {
+                $inserted++;
+            }
+        }
+
+        $this->db->db_debug = $prev_debug;
+        fclose($opened['handle']);
+        $this->spl->sync_all_rules_to_all_groups();
+
+        $total = $inserted + $updated;
+        if ($total === 0) {
+            $msg = 'No rules were imported.';
+            if (!empty($row_errors)) {
+                $msg .= ' ' . implode(' ', array_slice($row_errors, 0, 3));
+                if (count($row_errors) > 3) {
+                    $msg .= ' (+' . (count($row_errors) - 3) . ' more)';
+                }
+            } else {
+                $msg .= ' Check column headers and row data.';
+            }
+            $this->session->set_flashdata('error', $msg);
+            if (!empty($row_errors)) {
+                $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
+            }
+            redirect('spl?tab=rules');
+            return;
+        }
+
+        $msg = 'Imported ' . $inserted . ' new rule(s)';
+        if ($updated > 0) {
+            $msg .= ', updated ' . $updated;
+        }
+        if ($skipped > 0) {
+            $msg .= '. ' . $skipped . ' row(s) skipped.';
+        }
+        $this->session->set_flashdata('success', $msg);
+        if (!empty($row_errors)) {
+            $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
+        }
+        redirect('spl?tab=rules');
+    }
+
+    public function delete_rule($id = 0)
+    {
+        require_module_access(array('spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            $this->_json_error('Invalid request', 405);
+        }
+        $id = (int) $id;
+        if ($id <= 0) {
+            $this->_json_error('Invalid rule.', 422);
+        }
+        $this->db->where('id', $id)->update('reward_rules', array('is_active' => 0, 'updated_at' => date('Y-m-d H:i:s')));
+        $this->rewards->audit('rule', $id, 'deactivated', (int) $this->session->userdata('user_id'));
+        $this->spl->sync_all_rules_to_all_groups();
+        $this->_json_success(array());
+    }
+
+    public function rules_by_category()
+    {
+        require_module_access(array('spl_submit', 'spl', 'rewards_submit', 'rewards'), true);
+        $category_id = (int) $this->input->get('category_id');
+        $group_id = (int) $this->input->get('group_id');
+        $rows = array();
+        if ($group_id > 0) {
+            $rows = $this->spl->list_group_rules($group_id);
+            if ($category_id > 0) {
+                $filtered = array();
+                foreach ($rows as $row) {
+                    if ((int) $row->category_id === $category_id) {
+                        $filtered[] = $row;
+                    }
+                }
+                $rows = $filtered;
+            }
+        } else {
+            $rows = $this->spl->list_claim_rules_by_category($category_id);
+        }
+        $out = array();
+        foreach ($rows as $r) {
+            $out[] = array(
+                'code' => (string) $r->code,
+                'name' => (string) $r->name,
+                'points' => (float) $r->points,
+                'category_id' => $r->category_id ? (int) $r->category_id : null,
+            );
+        }
+        $this->output->set_content_type('application/json')->set_output(json_encode(array(
+            'status' => 'success',
+            'data' => $out,
+        )));
+    }
+
+    public function group_context()
+    {
+        require_module_access(array('spl_submit', 'spl', 'rewards_submit', 'rewards', 'spl_groups', 'rewards_admin'), true);
+        $group_id = (int) $this->input->get('group_id');
+        if ($group_id <= 0) {
+            $this->_json_error('Invalid group.', 422);
+            return;
+        }
+        $group = $this->spl->get_group($group_id);
+        if (!$group) {
+            $this->_json_error('Group not found.', 404);
+            return;
+        }
+        $members = array();
+        foreach ($this->spl->list_group_members($group_id) as $m) {
+            $members[] = array(
+                'id' => (int) $m->id,
+                'name' => (string) $m->name,
+            );
+        }
+        $rules = array();
+        foreach ($this->spl->list_group_rules($group_id) as $r) {
+            $rules[] = array(
+                'code' => (string) $r->code,
+                'name' => (string) $r->name,
+                'points' => (float) $r->points,
+                'category_id' => $r->category_id ? (int) $r->category_id : null,
+            );
+        }
+        $this->_json_success(array(
+            'group' => array(
+                'id' => (int) $group->id,
+                'name' => (string) $group->name,
+            ),
+            'members' => $members,
+            'rules' => $rules,
+        ));
+    }
+
+    public function groups()
+    {
+        require_module_access(array('spl', 'spl_groups', 'spl_groups_manage', 'rewards', 'rewards_admin'), true);
+        $reward_period = spl_normalize_reward_period($this->input->get('reward_period'));
+        $reward_bounds = spl_reward_period_bounds($reward_period);
+        $use_period_points = ($reward_period !== 'all');
+        $this->spl->sync_all_rules_to_all_groups();
+        $boardGroups = $this->spl->list_groups_board(
+            false,
+            $use_period_points ? $reward_bounds['from'] : null,
+            $use_period_points ? $reward_bounds['to'] : null
+        );
+        $filtered = array();
+        foreach ($boardGroups as $g) {
+            if (strpos((string) $g->code, 'group_') === 0) {
+                $filtered[] = $g;
+            }
+        }
+        if (empty($filtered)) {
+            $filtered = $boardGroups;
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        $my_group = null;
+        $my_member = null;
+        $user_groups = $this->spl->list_groups_for_user($uid, true);
+        if (!empty($user_groups)) {
+            $my_group_id = (int) $user_groups[0]->id;
+            foreach ($filtered as $g) {
+                if ((int) $g->id === $my_group_id) {
+                    $my_group = $g;
+                    if (!empty($g->members)) {
+                        foreach ($g->members as $member) {
+                            if ((int) $member->id === $uid) {
+                                $my_member = $member;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        $this->load->view('spl/groups', array(
+            'groups' => $filtered,
+            'my_group' => $my_group,
+            'my_member' => $my_member,
+            'current_user_id' => $uid,
+            'can_manage' => spl_can_manage_groups(),
+            'users' => spl_list_users_for_groups(),
+            'reward_period' => $reward_period,
+            'reward_bounds' => $reward_bounds,
+            'use_period_points' => $use_period_points,
+        ));
+    }
+
+    public function group($id = 0)
+    {
+        require_module_access(array('spl', 'spl_groups', 'spl_groups_manage', 'rewards', 'rewards_admin'), true);
+        $group = $this->spl->get_group((int) $id);
+        if (!$group) {
+            show_404();
+        }
+        $this->load->view('spl/group', array(
+            'group' => $group,
+            'rules' => $this->spl->list_group_rules((int) $group->id),
+            'members' => $this->spl->list_group_members((int) $group->id),
+            'can_manage' => spl_can_manage_groups(),
+            'can_submit' => spl_can_submit(),
+            'users' => spl_list_users_for_groups(),
+        ));
+    }
+
+    public function save_groups_board()
+    {
+        require_module_access(array('spl', 'spl_groups_manage', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+
+        $names = $this->input->post('group_name');
+        $codes = $this->input->post('group_code');
+        $sortOrders = $this->input->post('group_sort');
+        $allMemberIds = $this->input->post('member_ids');
+        if (!is_array($names)) {
+            $names = array();
+        }
+        if (!is_array($codes)) {
+            $codes = array();
+        }
+        if (!is_array($sortOrders)) {
+            $sortOrders = array();
+        }
+        if (!is_array($allMemberIds)) {
+            $allMemberIds = array();
+        }
+
+        foreach ($names as $rawId => $name) {
+            $id = (int) $rawId;
+            $name = trim((string) $name);
+            $code = isset($codes[$rawId]) ? trim((string) $codes[$rawId]) : '';
+            if ($id <= 0 || $name === '' || $code === '') {
+                continue;
+            }
+
+            $data = array(
+                'name' => $name,
+                'code' => $code,
+                'sort_order' => isset($sortOrders[$rawId]) ? (int) $sortOrders[$rawId] : 0,
+                'is_active' => 1,
+            );
+
+            if (!empty($_FILES['group_poster']['name'][$rawId])) {
+                $dir = FCPATH . 'uploads/spl/groups/';
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                $ext = strtolower(pathinfo((string) $_FILES['group_poster']['name'][$rawId], PATHINFO_EXTENSION));
+                $allowed = array('png', 'jpg', 'jpeg', 'gif', 'webp');
+                if (in_array($ext, $allowed, true)) {
+                    $safe = 'group_' . preg_replace('/[^a-z0-9_-]+/i', '_', $code) . '_' . time() . '.' . $ext;
+                    $tmp = $_FILES['group_poster']['tmp_name'][$rawId];
+                    if (is_uploaded_file($tmp) && move_uploaded_file($tmp, $dir . $safe)) {
+                        $data['poster_path'] = 'uploads/spl/groups/' . $safe;
+                    }
+                }
+            }
+
+            $savedId = $this->spl->save_group($data, $id);
+            $memberIds = isset($allMemberIds[$rawId]) && is_array($allMemberIds[$rawId]) ? $allMemberIds[$rawId] : array();
+            $this->spl->sync_group_members($savedId, $memberIds);
+        }
+
+        $this->spl->sync_all_rules_to_all_groups();
+
+        $this->session->set_flashdata('success', 'SPL groups saved.');
+        $period = spl_normalize_reward_period($this->input->post('reward_period'));
+        redirect(spl_groups_url($period));
+    }
+
+    public function save_group()
+    {
+        require_module_access(array('spl', 'spl_groups_manage', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+
+        $id = (int) $this->input->post('id');
+        $name = trim((string) $this->input->post('name'));
+        $code = trim((string) $this->input->post('code'));
+        if ($name === '' || $code === '') {
+            $this->session->set_flashdata('error', 'Group name and code are required.');
+            redirect($id > 0 ? 'spl/groups/' . $id : 'spl/groups');
+            return;
+        }
+
+        $data = array(
+            'name' => $name,
+            'code' => $code,
+            'description' => trim((string) $this->input->post('description')),
+            'sort_order' => (int) $this->input->post('sort_order'),
+            'is_active' => (int) $this->input->post('is_active'),
+        );
+
+        if (!empty($_FILES['poster']['name'])) {
+            $dir = FCPATH . 'uploads/spl/groups/';
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0755, true);
+            }
+            $ext = strtolower(pathinfo((string) $_FILES['poster']['name'], PATHINFO_EXTENSION));
+            $allowed = array('png', 'jpg', 'jpeg', 'gif', 'webp');
+            if (in_array($ext, $allowed, true)) {
+                $safe = 'group_' . preg_replace('/[^a-z0-9_-]+/i', '_', $code) . '_' . time() . '.' . $ext;
+                if (move_uploaded_file($_FILES['poster']['tmp_name'], $dir . $safe)) {
+                    $data['poster_path'] = 'uploads/spl/groups/' . $safe;
+                }
+            }
+        }
+
+        $savedId = $this->spl->save_group($data, $id > 0 ? $id : null);
+        $ruleIds = $this->input->post('rule_ids');
+        if (is_array($ruleIds)) {
+            $this->spl->sync_group_rules($savedId, $ruleIds);
+        } else {
+            $this->spl->sync_all_rules_to_all_groups();
+        }
+
+        $memberIds = $this->input->post('member_ids');
+        if (!is_array($memberIds)) {
+            $memberIds = array();
+        }
+        $this->spl->sync_group_members($savedId, $memberIds);
+
+        $this->session->set_flashdata('success', 'SPL group saved.');
+        $redirect = trim((string) $this->input->post('redirect'));
+        if ($redirect === '' || strpos($redirect, 'spl/') !== 0) {
+            $redirect = 'spl/groups/' . $savedId;
+        }
+        redirect($redirect);
+    }
+
+    public function add_group()
+    {
+        require_module_access(array('spl', 'spl_groups_manage', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+        $next = (int) $this->db->count_all('spl_groups') + 1;
+        $savedId = $this->spl->save_group(array(
+            'name' => 'Group ' . $next,
+            'code' => 'group_' . $next,
+            'description' => '',
+            'sort_order' => $next,
+            'is_active' => 1,
+        ), null);
+        $this->session->set_flashdata('success', 'Group added.');
+        redirect('spl/groups');
+    }
+
+    private function _spl_csv_bool($value, $default = 1)
+    {
+        $value = strtolower(trim((string) $value));
+        if ($value === '') {
+            return (int) $default;
+        }
+        if (in_array($value, array('1', 'yes', 'y', 'true', 'on'), true)) {
+            return 1;
+        }
+        if (in_array($value, array('0', 'no', 'n', 'false', 'off'), true)) {
+            return 0;
+        }
+        return (int) $default;
+    }
+
+    private function _json_success($data = array())
+    {
+        $this->output->set_content_type('application/json')->set_output(json_encode(array(
+            'status' => 'success',
+            'data' => $data,
+        )));
+    }
+
+    private function _json_error($message, $http = 400)
+    {
+        $this->output->set_status_header((int) $http);
+        $this->output->set_content_type('application/json')->set_output(json_encode(array(
+            'status' => 'error',
+            'message' => (string) $message,
+        )));
+    }
+}

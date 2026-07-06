@@ -1055,17 +1055,6 @@ class Training_assessment_model extends CI_Model
             'updated_at' => $submitted,
         ));
 
-        if ($passed && !empty($au->user_id)) {
-            $this->load->helper('rewards');
-            reward_engine_dispatch('assessment_passed', array(
-                'user_id' => (int) $au->user_id,
-                'source_module' => 'training_assessment',
-                'source_record_id' => (int) $assessment_user_id,
-                'reference_label' => isset($au->title) ? (string) $au->title : 'Assessment passed',
-                'payload' => array('passed' => true, 'score_percent' => $percent),
-            ));
-        }
-
         return $this->get_result_by_au($assessment_user_id);
     }
 

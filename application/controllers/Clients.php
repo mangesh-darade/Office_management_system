@@ -433,6 +433,13 @@ class Clients extends CI_Controller {
                     ];
                     $status = $this->input->post('status');
                     if ($status !== null && $status !== ''){
+                        $this->load->helper('module_status');
+                        $status = module_status_sanitize($status, 'clients', isset($c->status) ? (string) $c->status : 'active');
+                        if ($status === false) {
+                            $this->session->set_flashdata('error', 'Invalid client status selected.');
+                            redirect('clients/edit/'.$id);
+                            return;
+                        }
                         $data['status'] = $status;
                     }
                     

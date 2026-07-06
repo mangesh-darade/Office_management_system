@@ -685,6 +685,13 @@ class Leave_requests extends CI_Controller {
             $days = $this->input->post('days') !== '' ? (float)$this->input->post('days') : null;
             $reason = trim((string)$this->input->post('reason'));
             $status = trim((string)$this->input->post('status'));
+            $this->load->helper('module_status');
+            $status = module_status_sanitize($status, 'leaves', (string) $leave->status);
+            if ($status === false) {
+                $this->session->set_flashdata('error', 'Invalid leave status selected.');
+                redirect('leave/edit/'.$id);
+                return;
+            }
             
             // Validation
             if (!$type_id || !$start_date || !$end_date) {

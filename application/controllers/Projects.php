@@ -597,24 +597,11 @@ class Projects extends CI_Controller {
                 
                 // Get old data before update
                 $old_data = track_changes_before('projects', (int)$id);
-                $old_status = isset($project->status) ? (string) $project->status : '';
-                $new_status = $this->input->post('status') ?: 'planned';
                 
                 $this->db->where('id', (int)$id)->update('projects', $data);
 
                 if (!empty($data['manager_id']) && !$this->Project_model->check_user_is_member((int) $id, (int) $data['manager_id'])) {
                     $this->Project_model->add_member((int) $id, (int) $data['manager_id'], 'manager');
-                }
-                
-                if ($old_status !== $new_status) {
-                    $this->load->helper('rewards');
-                    reward_engine_dispatch('project_status_update', array(
-                        'user_id' => (int) $this->session->userdata('user_id'),
-                        'source_module' => 'projects',
-                        'source_record_id' => (int) $id,
-                        'reference_label' => 'Project status: ' . $new_status,
-                        'payload' => array('status' => $new_status),
-                    ));
                 }
                 
                 // Log update with change tracking
@@ -1462,11 +1449,13 @@ class Projects extends CI_Controller {
         }
 
         $this->load->model('Defect_model', 'project_defects');
+        $this->load->helper(array('change_tracker', 'activity'));
         $defect = $this->project_defects->get_defect($item_id);
         if (!$defect || (int) $defect->project_id !== $project_id) {
             return $this->_inline_json(false, array(), 'Defect not found', 404);
         }
 
+        auto_log_delete('defects', 'project_defects', $item_id, (array) $defect, 'Defect deleted: ' . $defect->defect_number);
         $this->project_defects->delete_defect($item_id);
         return $this->_inline_json(true, array('id' => $item_id));
     }
@@ -1659,6 +1648,7 @@ class Projects extends CI_Controller {
         }
 
         $this->load->model('Defect_model', 'project_defects');
+        $this->load->helper(array('defects_releases', 'change_tracker', 'activity'));
 
         if ($item_id > 0) {
             if (!has_module_access('defects_edit') && !has_module_access('defects')) {
@@ -1671,12 +1661,17 @@ class Projects extends CI_Controller {
             if ($title === '') {
                 return $this->_inline_json(false, array(), 'Title is required', 400);
             }
+            $uid = (int) $this->session->userdata('user_id');
+            $old_assignee = (int) $defect->assigned_to;
             $this->project_defects->save_defect(array(
                 'title' => $title,
                 'status' => $status,
                 'priority' => $priority,
                 'assigned_to' => $assigned_to,
             ), $item_id);
+            if ($assigned_to && (int) $assigned_to !== $old_assignee) {
+                defect_notify_assignee($item_id, (int) $assigned_to, $title, $uid);
+            }
             return $this->_inline_json(true, array('id' => $item_id, 'defect_number' => $defect->defect_number));
         }
 
@@ -1700,6 +1695,10 @@ class Projects extends CI_Controller {
             'reported_by' => $uid,
             'assigned_to' => $assigned_to,
         ));
+        $this->project_defects->log_activity($new_id, $uid, 'created', 'Created from project tab');
+        if ($assigned_to) {
+            defect_notify_assignee($new_id, (int) $assigned_to, $title, $uid);
+        }
 
         return $this->_inline_json(true, array('id' => $new_id, 'defect_number' => $defect_number));
     }

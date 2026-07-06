@@ -83,6 +83,8 @@ class Attendance extends CI_Controller {
         
         $user_id = (int)$this->session->userdata('user_id');
         $role_id = (int)$this->session->userdata('role_id');
+        $userTab = $this->input->get('tab');
+        $userTab = ($userTab === 'inactive') ? 'inactive' : 'active';
         
         $canViewAll = has_module_access('attendance_view_all') || is_admin_group();
         $canAddAttendance = true; // All logged-in users can add their own attendance
@@ -96,6 +98,7 @@ class Attendance extends CI_Controller {
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         
         apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
+        attendance_list_apply_user_status_tab($this->db, 'u', $userTab);
         
         $total_query = $this->db->get()->row();
         $total_records = $total_query->total;
@@ -107,6 +110,7 @@ class Attendance extends CI_Controller {
         $this->db->join('users u', 'u.id = a.user_id', 'left');
         
         apply_role_hierarchy_filter($this->db, 'a.user_id', $user_id, $role_id);
+        attendance_list_apply_user_status_tab($this->db, 'u', $userTab);
         
         $this->db->group_by('a.user_id, u.email, u.name');
         
@@ -125,6 +129,7 @@ class Attendance extends CI_Controller {
         $this->load->view('attendance/index', [
             'records' => $records,
             'total_records' => $total_records,
+            'user_tab' => $userTab,
             'can_add_attendance' => $canAddAttendance,
             'can_view_all' => $canViewAll,
             'can_edit_attendance' => $canEditAttendance,
@@ -491,8 +496,7 @@ class Attendance extends CI_Controller {
                         );
                         $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                        $checkInStatus = isset($updates['status']) ? (string) $updates['status'] : 'present';
-                        $this->rewards_after_checkin($user_id, (int) $existing->id, $checkInStatus, $today);
+                        $this->award_spl_attendance_points($user_id, 'in', (int) $existing->id, $checkInStatus ?: 'present', $nowDateTime);
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
                     } else {
@@ -548,14 +552,7 @@ class Attendance extends CI_Controller {
                                 
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
-                                $this->load->helper(array('notification', 'rewards'));
-                                reward_engine_dispatch('attendance_checkout', array(
-                                    'user_id' => $user_id,
-                                    'source_module' => 'attendance',
-                                    'source_record_id' => (int) $existing->id,
-                                    'reference_label' => 'Check-out',
-                                    'payload' => array(),
-                                ));
+                                $this->award_spl_attendance_points($user_id, 'out', (int) $existing->id, '', $nowDateTime);
                                 $success_msg = get_notification_message('attendance', 'create', 'success');
                                 $this->session->set_flashdata('success', $success_msg);
                             } else {
@@ -626,8 +623,7 @@ class Attendance extends CI_Controller {
                         );
                         $this->db->where('id', (int)$existing_final->id)->update('attendance', $updates);
                         $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                        $checkInStatus = isset($updates['status']) ? (string) $updates['status'] : (isset($data['status']) ? (string) $data['status'] : 'present');
-                        $this->rewards_after_checkin($user_id, (int) $existing_final->id, $checkInStatus, $today);
+                        $this->award_spl_attendance_points($user_id, 'in', (int) $existing_final->id, $checkInStatus ?: 'present', $nowDateTime);
                         $this->load->helper('notification');
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
@@ -637,8 +633,7 @@ class Attendance extends CI_Controller {
                             $this->db->insert('attendance', $data);
                             $attId = (int) $this->db->insert_id();
                             $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                            $checkInStatus = isset($data['status']) ? (string) $data['status'] : 'present';
-                            $this->rewards_after_checkin($user_id, $attId, $checkInStatus, $today);
+                            $this->award_spl_attendance_points($user_id, 'in', $attId, $checkInStatus ?: 'present', $nowDateTime);
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
                         } catch (Exception $e) {
@@ -666,8 +661,7 @@ class Attendance extends CI_Controller {
                                     );
                                     $this->db->where('id', (int)$existing_after->id)->update('attendance', $updates);
                                     $this->maybe_send_attendance_email($user_id, 'in', $nowDateTime);
-                                    $checkInStatus = isset($updates['status']) ? (string) $updates['status'] : (isset($data['status']) ? (string) $data['status'] : 'present');
-                                    $this->rewards_after_checkin($user_id, (int) $existing_after->id, $checkInStatus, $today);
+                                    $this->award_spl_attendance_points($user_id, 'in', (int) $existing_after->id, $checkInStatus ?: 'present', $nowDateTime);
                                     $this->load->helper('notification');
                         $success_msg = get_notification_message('attendance', 'create', 'success');
                         $this->session->set_flashdata('success', $success_msg);
@@ -822,22 +816,6 @@ class Attendance extends CI_Controller {
         ]);
     }
 
-    /**
-     * Award check-in points and scan for prior missed checkouts.
-     */
-    private function rewards_after_checkin($user_id, $attendance_id, $status, $today)
-    {
-        $this->load->helper(array('rewards', 'rewards_automation'));
-        reward_engine_dispatch('attendance_checkin', array(
-            'user_id' => (int) $user_id,
-            'source_module' => 'attendance',
-            'source_record_id' => (int) $attendance_id,
-            'reference_label' => 'Check-in',
-            'payload' => array('status' => (string) $status),
-        ));
-        rewards_automation_after_checkin($this->db, (int) $user_id, $today);
-    }
-
     private function maybe_send_attendance_email($user_id, $action, $dateTime){
         $email_key = $user_id . '_' . $action . '_' . date('Y-m-d H:i:s', strtotime($dateTime));
         if (isset(self::$email_sent_tracker[$email_key])) {
@@ -897,6 +875,14 @@ class Attendance extends CI_Controller {
 
     private function calculate_late_time($checkinDateTime){
         return attendance_notify_calculate_late_time($this->settings, $checkinDateTime);
+    }
+
+    private function award_spl_attendance_points($user_id, $action, $attendance_id, $status, $occurred_at)
+    {
+        $this->load->helper('spl');
+        if (function_exists('spl_award_attendance_points')) {
+            spl_award_attendance_points($user_id, $action, $attendance_id, $status, $occurred_at);
+        }
     }
 
     private function send_late_mark_to_managers($user_id, $user_name, $checkin_time, $late_info){

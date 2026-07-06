@@ -18,8 +18,11 @@ class Users extends CI_Controller {
     public function index() {
         require_module_access(['users_list', 'users'], true);
         $q = trim($this->input->get('q', true) ?: '');
+        $userTab = $this->input->get('tab');
+        $userTab = ($userTab === 'inactive') ? 'inactive' : 'active';
         $data['title'] = 'Users';
         $data['q'] = $q;
+        $data['user_tab'] = $userTab;
         $roleFilter = null;
         $userIdFilter = null;
         $currentUserId = (int)$this->session->userdata('user_id');
@@ -29,7 +32,7 @@ class Users extends CI_Controller {
                 $userIdFilter = $currentUserId;
             }
         }
-        $rows = $this->users->list_users($q, 250, $roleFilter, $userIdFilter);
+        $rows = $this->users->list_users($q, 250, $roleFilter, $userIdFilter, $userTab);
         
         // Check face registration status for each user
         $this->faces->ensure_schema();

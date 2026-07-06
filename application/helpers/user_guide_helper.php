@@ -108,17 +108,6 @@ if (!function_exists('user_guide_all_modules')) {
                 ],
             ],
             [
-                'id' => '11', 'slug' => '11-engagement-rewards', 'file' => '11-engagement-rewards.md',
-                'title' => 'Engagement & Rewards', 'icon' => 'bi-trophy',
-                'access_keys' => [
-                    'rewards', 'rewards_leaderboard', 'rewards_submit', 'rewards_approve',
-                    'rewards_admin', 'rewards_rules', 'rewards_manual_grant',
-                    'knowledge_base', 'knowledge_base_add', 'knowledge_base_edit',
-                    'helpdesk', 'helpdesk_manage', 'events', 'events_add', 'events_edit',
-                    'certifications', 'certifications_approve', 'customer_feedback',
-                ],
-            ],
-            [
                 'id' => '12', 'slug' => '12-office-meals', 'file' => '12-office-meals.md',
                 'title' => 'Office Meals', 'icon' => 'bi-cup-hot', 'access_fn' => 'meal_has_any_access',
             ],

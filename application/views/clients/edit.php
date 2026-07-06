@@ -90,12 +90,12 @@
         </div>
         <div class="col-lg-3 col-md-6">
           <label class="form-label">Status</label>
-          <?php $st = isset($client->status)?(string)$client->status:'active'; ?>
-          <select name="status" class="form-select">
-            <option value="active" <?php echo $st==='active'?'selected':''; ?>>Active</option>
-            <option value="inactive" <?php echo $st==='inactive'?'selected':''; ?>>Inactive</option>
-            <option value="blocked" <?php echo $st==='blocked'?'selected':''; ?>>Blocked</option>
-          </select>
+          <?php $st = isset($client->status) ? (string) $client->status : 'active'; ?>
+          <?php $this->load->view('partials/status_select', array(
+            'field_name' => 'status',
+            'module_type' => 'clients',
+            'current' => $st,
+          )); ?>
         </div>
         <div class="col-lg-3 col-md-6">
           <label class="form-label">Account Manager</label>

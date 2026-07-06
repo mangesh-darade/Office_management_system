@@ -1,4 +1,14 @@
 <?php $this->load->view('partials/header', array('title' => (isset($title) ? $title : 'Users'), 'active' => 'users')); ?>
+<?php
+$user_tab = (isset($user_tab) && $user_tab === 'inactive') ? 'inactive' : 'active';
+$isInactiveTab = ($user_tab === 'inactive');
+$tabQuery = array();
+if (isset($q) && $q !== '') {
+    $tabQuery['q'] = $q;
+}
+$activeTabUrl = site_url('users') . '?' . http_build_query(array_merge($tabQuery, array('tab' => 'active')));
+$inactiveTabUrl = site_url('users') . '?' . http_build_query(array_merge($tabQuery, array('tab' => 'inactive')));
+?>
 <div class="container-fluid py-3 oms-fluid-pad">
   <!-- Header Section -->
   <div class="row g-2 mb-3">
@@ -6,7 +16,13 @@
       <div class="oms-page-head d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
         <div>
           <h5 class="mb-0 fw-bold">Users Management</h5>
-          <p class="text-muted mb-0 small">Manage system users and their permissions</p>
+          <p class="text-muted mb-0 small">
+            <?php if ($isInactiveTab): ?>
+              Inactive system users
+            <?php else: ?>
+              Active system users and their permissions
+            <?php endif; ?>
+          </p>
         </div>
         <?php if (function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
         <a href="<?php echo site_url('users/create'); ?>" class="btn btn-primary">
@@ -17,12 +33,26 @@
     </div>
   </div>
 
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link <?php echo !$isInactiveTab ? 'active' : ''; ?>" href="<?php echo $activeTabUrl; ?>">
+        <i class="bi bi-person-check me-1"></i>Active Users
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link <?php echo $isInactiveTab ? 'active' : ''; ?>" href="<?php echo $inactiveTabUrl; ?>">
+        <i class="bi bi-person-x me-1"></i>Inactive Users
+      </a>
+    </li>
+  </ul>
+
   <!-- Search and Filters -->
   <div class="row g-2 mb-3">
     <div class="col-12">
       <div class="card border-0 shadow-sm">
         <div class="card-body py-3">
           <form method="get" action="<?php echo site_url('users'); ?>" class="row g-2 align-items-end">
+            <input type="hidden" name="tab" value="<?php echo esc_view($user_tab); ?>">
             <div class="col-md-4">
               <label class="form-label fw-semibold text-dark mb-1">Search Users</label>
               <div class="input-group">
@@ -38,7 +68,7 @@
                 <i class="bi bi-search me-2"></i>Search
               </button>
               <?php if (isset($q) && $q !== ''): ?>
-              <a href="<?php echo site_url('users'); ?>" class="btn btn-outline-secondary ms-2">
+              <a href="<?php echo site_url('users?tab=' . urlencode($user_tab)); ?>" class="btn btn-outline-secondary ms-2">
                 <i class="bi bi-x-lg me-1"></i>Clear
               </a>
               <?php endif; ?>
@@ -57,7 +87,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-bold text-dark">
               <i class="bi bi-people-fill me-2 text-primary"></i>
-              All Users
+              <?php echo $isInactiveTab ? 'Inactive Users' : 'Active Users'; ?>
               <?php if (!empty($rows)): ?>
               <span class="badge bg-primary ms-2"><?php echo count($rows); ?></span>
               <?php endif; ?>
@@ -255,11 +285,13 @@
             <p class="text-muted small mb-4">
               <?php if (isset($q) && $q !== ''): ?>
                 No users match your search criteria. Try adjusting your search terms.
+              <?php elseif ($isInactiveTab): ?>
+                No inactive users found.
               <?php else: ?>
-                No users have been added to the system yet.
+                No active users found.
               <?php endif; ?>
             </p>
-            <?php if (function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
+            <?php if (!$isInactiveTab && function_exists('has_module_access') && (has_module_access('users_add') || has_module_access('users'))): ?>
             <a href="<?php echo site_url('users/create'); ?>" class="btn btn-primary">
               <i class="bi bi-person-plus-fill me-2"></i>Add Your First User
             </a>

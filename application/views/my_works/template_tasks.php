@@ -12,15 +12,16 @@
 ?>
 
 <div class="container-fluid py-2 mw-page">
-  <div class="oms-form-page-head d-flex justify-content-between align-items-start gap-2 mb-2 flex-wrap">
-    <div>
+  <div class="oms-form-page-head mw-page-head-with-back d-flex align-items-start gap-2 mb-2 flex-wrap">
+    <?php $this->load->view('my_works/_back_btn', array(
+      'back_url' => site_url('my-works'),
+      'back_title' => 'Back to Second Brain',
+    )); ?>
+    <div class="min-w-0 flex-grow-1">
       <h1 class="h5 mb-0 fw-semibold">Create Task from Template</h1>
       <p class="text-muted small mb-0">Select client, team, and one template task — saved to the Tasks module.</p>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">
-        <i class="bi bi-arrow-left me-1"></i>Back to My Works
-      </a>
+    <div class="d-flex gap-2 flex-wrap ms-sm-auto">
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks'); ?>">
         <i class="bi bi-list-task me-1"></i>Tasks List
       </a>

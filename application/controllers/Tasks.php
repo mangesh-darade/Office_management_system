@@ -931,6 +931,7 @@ class Tasks extends CI_Controller {
 
         $id = (int) $this->input->post('id');
         $type = (string) $this->input->post('type');
+        $source = trim((string) $this->input->post('source'));
         $status = (string) $this->input->post('status');
 
         if ($id <= 0 || empty($type) || empty($status)) {
@@ -946,17 +947,17 @@ class Tasks extends CI_Controller {
         $assigned_field = '';
         $created_field = '';
 
-        if ($type === 'project_task' || $type === 'ad_hoc') {
-            $table = 'tasks';
-            $assigned_field = 'assigned_to';
+        if ($source === 'my_works' || $type === 'my_work') {
+            $table = 'my_works';
+            $assigned_field = 'created_for';
             $created_field = 'created_by';
-        } else if ($type === 'requirement') {
+        } else if ($source === 'requirements' || $type === 'requirement') {
             $table = 'requirements';
             $assigned_field = 'assigned_to';
             $created_field = 'created_by';
-        } else if ($type === 'my_work') {
-            $table = 'my_works';
-            $assigned_field = 'created_for';
+        } else if ($source === 'tasks' || $type === 'project_task' || $type === 'ad_hoc') {
+            $table = 'tasks';
+            $assigned_field = 'assigned_to';
             $created_field = 'created_by';
         }
 
@@ -1017,6 +1018,61 @@ class Tasks extends CI_Controller {
     }
 
     /**
+     * @param object $t
+     * @param array $status_map
+     * @return array
+     */
+    private function _user_dashboard_format_item($t, $status_map = array())
+    {
+        $item_type = isset($t->item_type) ? (string) $t->item_type : 'project_task';
+        $item_source = isset($t->item_source) ? (string) $t->item_source : '';
+        if ($item_source === '') {
+            if ($item_type === 'requirement') {
+                $item_source = 'requirements';
+            } else if ($item_type === 'my_work') {
+                $item_source = 'my_works';
+            } else {
+                $item_source = 'tasks';
+            }
+        }
+
+        $url = '#';
+        if ($item_source === 'tasks') {
+            $url = site_url('tasks/view/' . $t->id);
+        } else if ($item_source === 'requirements') {
+            $url = site_url('requirements/view/' . $t->id);
+        } else if ($item_source === 'my_works') {
+            $url = site_url('my-works/' . $t->id);
+        }
+
+        $status = isset($t->status) ? $t->status : 'pending';
+        $status_label = ucfirst(str_replace('_', ' ', $status));
+        $status_color = '#6b7280';
+        if (isset($status_map[$status])) {
+            $status_label = isset($status_map[$status]->name) ? $status_map[$status]->name : $status_label;
+            $status_color = isset($status_map[$status]->color) ? $status_map[$status]->color : $status_color;
+        }
+
+        $detail = '';
+        if (!empty($t->project_name)) {
+            $detail = trim((string) $t->project_name);
+        }
+
+        return array(
+            'item_type'    => $item_type,
+            'item_source'  => $item_source,
+            'id'           => $t->id,
+            'title'        => isset($t->title) ? $t->title : '',
+            'status'       => $status,
+            'status_label' => $status_label,
+            'status_color' => $status_color,
+            'date'         => isset($t->due_date) ? $t->due_date : '',
+            'url'          => $url,
+            'detail'       => $detail,
+        );
+    }
+
+    /**
      * @param int $user_id
      * @return string
      */
@@ -1069,6 +1125,7 @@ class Tasks extends CI_Controller {
         }
 
         $all_items = array();
+        $this->load->helper('my_works_status');
 
         // 1. Fetch Tasks
         if ($this->db->table_exists('tasks')) {
@@ -1148,6 +1205,9 @@ class Tasks extends CI_Controller {
 
             $task_rows = $this->db->get()->result();
             foreach ($task_rows as $row) {
+                $project_id = isset($row->project_id) ? (int) $row->project_id : 0;
+                $row->item_source = 'tasks';
+                $row->item_type = ($project_id > 0) ? 'project_task' : 'ad_hoc';
                 $all_items[] = $row;
             }
         }
@@ -1233,6 +1293,7 @@ class Tasks extends CI_Controller {
 
             $req_rows = $this->db->get()->result();
             foreach ($req_rows as $row) {
+                $row->item_source = 'requirements';
                 $all_items[] = $row;
             }
         }
@@ -1254,8 +1315,17 @@ class Tasks extends CI_Controller {
             } else if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
                 $select[] = 'm.created_by AS assigned_to';
             }
+            if (schema_table_has_column($this->db, 'my_works', 'project_id')) {
+                $select[] = 'm.project_id';
+            }
 
             $this->db->from('my_works m');
+
+            if ($this->db->table_exists('projects') && schema_table_has_column($this->db, 'projects', 'name')
+                && schema_table_has_column($this->db, 'my_works', 'project_id')) {
+                $select[] = 'p.name AS project_name';
+                $this->db->join('projects p', 'p.id = m.project_id', 'left');
+            }
 
             if ($can_view_all) {
                 if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
@@ -1322,7 +1392,12 @@ class Tasks extends CI_Controller {
 
             if (!$can_view_all) {
                 if (schema_table_has_column($this->db, 'my_works', 'created_for')) {
+                    $this->db->group_start();
                     $this->db->where('m.created_for', $user_id);
+                    if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
+                        $this->db->or_where('m.created_by', $user_id);
+                    }
+                    $this->db->group_end();
                 } else if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
                     $this->db->where('m.created_by', $user_id);
                 }
@@ -1330,6 +1405,13 @@ class Tasks extends CI_Controller {
 
             $my_work_rows = $this->db->get()->result();
             foreach ($my_work_rows as $row) {
+                $project_id = isset($row->project_id) ? (int) $row->project_id : 0;
+                $has_project = $project_id > 0 || !empty($row->project_name);
+                $row->item_source = 'my_works';
+                $row->item_type = $has_project ? 'my_work' : 'ad_hoc';
+                if ($filter_status === 'all' && isset($row->status) && my_works_status_is_closed($row->status)) {
+                    continue;
+                }
                 $all_items[] = $row;
             }
         }
@@ -1460,34 +1542,7 @@ class Tasks extends CI_Controller {
 
             $formatted_items = array();
             foreach ($employee_tasks as $t) {
-                $item_type = isset($t->item_type) ? (string) $t->item_type : 'project_task';
-                $url = '#';
-                if ($item_type === 'project_task') {
-                    $url = site_url('tasks/view/' . $t->id);
-                } else if ($item_type === 'requirement') {
-                    $url = site_url('requirements/view/' . $t->id);
-                } else if ($item_type === 'my_work') {
-                    $url = site_url('my_works');
-                }
-
-                $status = isset($t->status) ? $t->status : 'pending';
-                $status_label = ucfirst(str_replace('_', ' ', $status));
-                $status_color = '#6b7280';
-                if (isset($status_map[$status])) {
-                    $status_label = isset($status_map[$status]->name) ? $status_map[$status]->name : $status_label;
-                    $status_color = isset($status_map[$status]->color) ? $status_map[$status]->color : $status_color;
-                }
-
-                $formatted_items[] = array(
-                    'item_type'    => $item_type,
-                    'id'           => $t->id,
-                    'title'        => isset($t->title) ? $t->title : '',
-                    'status'       => $status,
-                    'status_label' => $status_label,
-                    'status_color' => $status_color,
-                    'date'         => isset($t->due_date) ? $t->due_date : '',
-                    'url'          => $url,
-                );
+                $formatted_items[] = $this->_user_dashboard_format_item($t, $status_map);
             }
 
             $cards[] = array(
@@ -1576,34 +1631,7 @@ class Tasks extends CI_Controller {
 
             $formatted_items = array();
             foreach ($project_tasks as $t) {
-                $item_type = isset($t->item_type) ? (string) $t->item_type : 'project_task';
-                $url = '#';
-                if ($item_type === 'project_task') {
-                    $url = site_url('tasks/view/' . $t->id);
-                } else if ($item_type === 'requirement') {
-                    $url = site_url('requirements/view/' . $t->id);
-                } else if ($item_type === 'my_work') {
-                    $url = site_url('my_works');
-                }
-
-                $status = isset($t->status) ? $t->status : 'pending';
-                $status_label = ucfirst(str_replace('_', ' ', $status));
-                $status_color = '#6b7280';
-                if (isset($status_map[$status])) {
-                    $status_label = isset($status_map[$status]->name) ? $status_map[$status]->name : $status_label;
-                    $status_color = isset($status_map[$status]->color) ? $status_map[$status]->color : $status_color;
-                }
-
-                $formatted_items[] = array(
-                    'item_type'    => $item_type,
-                    'id'           => $t->id,
-                    'title'        => isset($t->title) ? $t->title : '',
-                    'status'       => $status,
-                    'status_label' => $status_label,
-                    'status_color' => $status_color,
-                    'date'         => isset($t->due_date) ? $t->due_date : '',
-                    'url'       => $url,
-                );
+                $formatted_items[] = $this->_user_dashboard_format_item($t, $status_map);
             }
 
             $cards[] = array(
@@ -1762,25 +1790,6 @@ class Tasks extends CI_Controller {
         $this->db->where('id',$id)->update('tasks',['status'=>$status]);
         $this->load->helper('activity');
         log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$status);
-
-        if ($status === 'completed' && $old_status !== 'completed') {
-            $this->load->helper('rewards');
-            $beforeDue = false;
-            if (!empty($task->due_date)) {
-                $beforeDue = (date('Y-m-d') <= $task->due_date);
-            }
-            $beneficiary = !empty($task->assigned_to) ? (int) $task->assigned_to : (int) $task->created_by;
-            $actor = (int) $this->session->userdata('user_id');
-            if ($beforeDue) {
-                reward_engine_claim('delivery_before_deadline', array(
-                    'user_id' => $beneficiary,
-                    'actor_id' => $actor > 0 ? $actor : $beneficiary,
-                    'source_module' => 'tasks',
-                    'source_record_id' => (int) $id,
-                    'reference_label' => 'Task completed before deadline: ' . (string) $task->title,
-                ));
-            }
-        }
         
         // Send email notification if status changed and task has assignee
         if ($old_status !== $status && !empty($task->assigned_to)) {

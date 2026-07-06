@@ -33,15 +33,13 @@ if ($guide_variant === 'mobile'): ?>
 </div>
 <?php else: ?>
 <div class="nav-item" id="guide-group">
-  <div class="d-flex align-items-center justify-content-between">
-    <a id="guide-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $guide_nav_active ? 'active' : ''; ?>" href="<?php echo site_url('guide'); ?>">
-      <i class="bi bi-book me-2"></i>User Guide
-    </a>
-    <button id="guide-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="guide-submenu" title="Toggle">
-      <i class="bi bi-chevron-right"></i>
-    </button>
-  </div>
-  <div class="ps-3 sidebar-submenu" id="guide-submenu">
+  <a id="guide-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo $guide_nav_active ? 'active' : ''; ?>" href="<?php echo site_url('guide'); ?>">
+    <span class="sidebar-group-row-inner">
+      <span><i class="bi bi-book me-2"></i>User Guide</span>
+      <span class="sidebar-group-chevron" id="guide-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+    </span>
+  </a>
+  <div class="sidebar-submenu" id="guide-submenu">
     <div class="submenu-list">
       <a class="submenu-link <?php echo ($guide_nav_active && $guide_sub === '') ? 'active' : ''; ?>" href="<?php echo site_url('guide'); ?>"><i class="bi bi-grid me-1"></i>All Modules</a>
       <?php foreach ($guide_modules as $gm): ?>

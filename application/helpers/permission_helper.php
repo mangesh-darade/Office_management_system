@@ -170,14 +170,59 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
                 'coaching_whatsapp_crm', 'coaching_resources', 'coaching_admin', 'coaching_portal',
             ],
-            'rewards' => [
-                'rewards', 'rewards_leaderboard', 'rewards_submit', 'rewards_approve',
-                'rewards_admin', 'rewards_rules', 'rewards_manual_grant',
-            ],
             'meals' => [
                 'meals_order', 'meals_calendar', 'meals_provider', 'meals_settings',
                 'meals_history', 'meals_all_orders',
             ],
+            'defects' => [
+                'defects', 'defects_list', 'defects_add', 'defects_edit', 'defects_delete',
+                'defects_view', 'defects_export',
+            ],
+            'releases' => [
+                'releases', 'releases_add', 'releases_edit', 'releases_send_notes', 'releases_export',
+            ],
+            'spl' => [
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
+            ],
+            'chats' => ['chats', 'chats_list', 'chats_add', 'chatsgrouping', 'calls'],
+            'settings' => [
+                'settings', 'holidays', 'holidays_add', 'holidays_edit', 'holidays_delete',
+                'email_settings', 'system_settings', 'mail', 'sendgrid', 'api_integrations',
+            ],
+            'announcements' => [
+                'announcements', 'announcements_list', 'announcements_add', 'announcements_edit',
+                'announcements_delete', 'announcements_manage',
+            ],
+            'users' => ['users', 'users_list', 'users_add', 'users_edit', 'users_delete', 'users_view', 'users_view_all'],
+            'clients' => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete'],
+            'recruitment' => [
+                'recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews',
+                'recruitment_export', 'recruitment_add', 'recruitment_delete',
+            ],
+            'performance' => [
+                'performance', 'performance_create', 'performance_view', 'performance_edit',
+                'performance_delete', 'performance_self_assess', 'performance_export',
+            ],
+            'training_lms' => [
+                'training_lms', 'training_lms_manage',
+                'training_screen_tl_hub', 'training_screen_tl_module', 'training_screen_tl_assignment',
+            ],
+            'training_assessment' => [
+                'training_assessment', 'training_assessment_manage', 'training_assessment_take',
+                'training_screen_ta_dashboard', 'training_screen_ta_create', 'training_screen_ta_import',
+                'training_screen_ta_report', 'training_screen_ta_submissions',
+                'training_screen_ta_team_progress', 'training_screen_ta_my_tests',
+            ],
+            'requirements' => [
+                'requirements', 'requirements_list', 'requirements_add', 'requirements_edit',
+                'requirements_delete', 'requirements_view', 'requirements_board', 'requirements_calendar',
+                'requirements_export', 'requirements_delete_all',
+            ],
+            'timesheets' => ['timesheets', 'timesheets_list', 'timesheets_add', 'timesheets_edit', 'timesheets_delete'],
+            'payroll' => ['payroll', 'payroll_list', 'payroll_add', 'payroll_edit', 'payroll_delete', 'payroll_export'],
+            'expenses' => ['expenses', 'expenses_list', 'expenses_add', 'expenses_edit', 'expenses_delete', 'expenses_approve'],
+            'daily_activity' => ['daily_activity', 'daily_activity_list', 'daily_activity_add', 'reports_daily_activity'],
         ];
     }
 }
@@ -213,11 +258,20 @@ if (!function_exists('dashboard_has_module_access')) {
             return true;
         }
         $groups = get_dashboard_module_groups();
-        if (!isset($groups[$parent])) {
-            return false;
+        if (isset($groups[$parent])) {
+            $aliases = array_values(array_diff($groups[$parent], [$parent]));
+            if (can_access_any_module($aliases)) {
+                return true;
+            }
         }
-        $aliases = array_values(array_diff($groups[$parent], [$parent]));
-        return can_access_any_module($aliases);
+        if (function_exists('get_controller_module_access_map')) {
+            $map = get_controller_module_access_map();
+            if (isset($map[$parent]) && can_access_any_module($map[$parent])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -473,11 +527,11 @@ if (!function_exists('seed_attendance_export_if_needed')) {
     }
 }
 
-if (!function_exists('seed_engagement_rewards_permissions_if_needed')) {
+if (!function_exists('seed_meals_default_permissions_if_needed')) {
     /**
-     * Grant default Rewards access to all roles; full Engagement modules to admin roles.
+     * Grant default Office Meals access to all roles; admin screens to admin roles.
      */
-    function seed_engagement_rewards_permissions_if_needed()
+    function seed_meals_default_permissions_if_needed()
     {
         static $done = false;
         if ($done) {
@@ -492,14 +546,8 @@ if (!function_exists('seed_engagement_rewards_permissions_if_needed')) {
         $CI->load->helper('schema_columns');
 
         $all_roles = $CI->db->select('id')->from('roles')->get()->result();
-        $staff_keys = array('rewards', 'rewards_leaderboard', 'rewards_submit', 'meals_order');
+        $staff_keys = array('meals_order');
         $admin_keys = array(
-            'knowledge_base', 'knowledge_base_add', 'knowledge_base_edit',
-            'helpdesk', 'helpdesk_manage',
-            'events', 'events_add', 'events_edit',
-            'certifications', 'certifications_approve',
-            'customer_feedback',
-            'rewards_admin', 'rewards_rules', 'rewards_manual_grant', 'rewards_approve',
             'meals_calendar', 'meals_provider', 'meals_settings', 'meals_history', 'meals_all_orders',
         );
 
@@ -617,9 +665,9 @@ if (!function_exists('seed_project_extensions_permissions_if_needed')) {
         $CI->load->helper('schema_columns');
 
         $all_roles = $CI->db->select('id')->from('roles')->get()->result();
-        $staff_defect_keys = array('defects_list', 'defects_add', 'defects_view');
+        $staff_defect_keys = array('defects_list', 'defects_add', 'defects_view', 'defects_export');
         $admin_keys = array(
-            'releases', 'releases_add', 'releases_edit', 'releases_send_notes',
+            'releases', 'releases_add', 'releases_edit', 'releases_send_notes', 'releases_export',
             'defects', 'defects_edit', 'defects_delete',
         );
 
@@ -705,6 +753,14 @@ if (!function_exists('get_controller_module_access_map')) {
                 'my_works', 'my_works_list', 'my_works_add', 'my_works_edit', 'my_works_delete',
                 'my_works_view_all', 'my_works_export',
             ],
+            'spl' => array(
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
+            ),
+            'rewards' => array(
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
+            ),
             'requirements' => [
                 'requirements', 'requirements_list', 'requirements_add', 'requirements_edit',
                 'requirements_delete', 'requirements_view', 'requirements_board', 'requirements_calendar',
@@ -834,19 +890,10 @@ if (!function_exists('get_controller_module_access_map')) {
             'superadmin' => ['superadmin'],
             'guide' => ['guide'],
             'lead_mapping' => ['lead_mapping'],
-            'releases' => ['releases', 'releases_add', 'releases_edit', 'releases_send_notes'],
+            'releases' => ['releases', 'releases_add', 'releases_edit', 'releases_send_notes', 'releases_export'],
             'defects' => [
                 'defects', 'defects_list', 'defects_add', 'defects_edit',
-                'defects_delete', 'defects_view',
-            ],
-            'knowledge_base' => ['knowledge_base', 'knowledge_base_add', 'knowledge_base_edit'],
-            'helpdesk' => ['helpdesk', 'helpdesk_manage'],
-            'events' => ['events', 'events_add', 'events_edit'],
-            'certifications' => ['certifications', 'certifications_approve'],
-            'customer_feedback' => ['customer_feedback'],
-            'rewards' => [
-                'rewards', 'rewards_leaderboard', 'rewards_submit', 'rewards_approve',
-                'rewards_admin', 'rewards_rules', 'rewards_manual_grant',
+                'defects_delete', 'defects_view', 'defects_export',
             ],
             'meals' => [
                 'meals_order', 'meals_calendar', 'meals_provider',

@@ -63,9 +63,13 @@
 
 
 
-  <div class="mw-form-page-head d-flex justify-content-between align-items-start gap-2 mb-3">
+  <div class="mw-form-page-head mw-page-head-with-back d-flex align-items-start gap-2 mb-3">
 
-    <div class="min-w-0">
+    <?php $this->load->view('my_works/_back_btn', array(
+      'back_url' => $isEdit ? site_url('my-works/' . (int) $item->id) : site_url('my-works'),
+    )); ?>
+
+    <div class="min-w-0 flex-grow-1">
 
       <h1 class="h4 mb-0 fw-bold text-dark mw-form-page-title"><?php echo esc_view($title); ?></h1>
 
@@ -79,9 +83,6 @@
           <i class="bi bi-lightning-charge-fill me-1"></i>Quick add
         </a>
       <?php endif; ?>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo $isEdit ? site_url('my-works/' . (int) $item->id) : site_url('my-works'); ?>" title="Back">
-        <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back</span>
-      </a>
     </div>
 
   </div>

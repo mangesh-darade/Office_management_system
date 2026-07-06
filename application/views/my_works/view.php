@@ -61,7 +61,9 @@
 
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
 
-      <div class="flex-grow-1">
+      <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
+        <?php $this->load->view('my_works/_back_btn', array('back_url' => site_url('my-works'))); ?>
+        <div class="min-w-0 flex-grow-1">
 
         <h1 class="mw-detail-title mb-2"><?php echo esc_view($item->title); ?></h1>
 
@@ -85,11 +87,10 @@
 
         </div>
 
+        </div>
       </div>
 
       <div class="d-flex flex-wrap gap-2">
-
-        <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
 
         <?php if (!empty($can_edit)): ?>
 

@@ -12,7 +12,14 @@ class Statuses extends CI_Controller {
         // RBAC Audit: Centralized module access check
         require_module_access('statuses', true);
         
+        $this->load->helper('module_status');
         $this->load->model('Status_model', 'statuses');
+    }
+
+    private function _status_type_options()
+    {
+        $this->load->helper('module_status');
+        return module_status_registry();
     }
     
     // GET /statuses
@@ -20,7 +27,7 @@ class Statuses extends CI_Controller {
         $type = $this->input->get('type');
         $statuses = $this->statuses->get_all($type, false); // Get all including inactive
         
-        $types = ['requirements', 'projects', 'tasks', 'my_works'];
+        $types = $this->_status_type_options();
         
         $this->load->view('statuses/index', [
             'statuses' => $statuses,
@@ -57,7 +64,7 @@ class Statuses extends CI_Controller {
             return;
         }
         
-        $types = ['requirements', 'projects', 'tasks', 'my_works'];
+        $types = $this->_status_type_options();
         $this->load->view('statuses/form', ['action' => 'create', 'types' => $types]);
     }
     
@@ -104,7 +111,7 @@ class Statuses extends CI_Controller {
             return;
         }
         
-        $types = ['requirements', 'projects', 'tasks', 'my_works'];
+        $types = $this->_status_type_options();
         $this->load->view('statuses/form', ['action' => 'edit', 'status' => $status, 'types' => $types]);
     }
     

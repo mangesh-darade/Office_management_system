@@ -181,6 +181,10 @@ if (!function_exists('attendance_report_generate_daily_details')) {
             $obj->check_out_location = $checkOutLocation;
             $obj->worked_hours = round($workedHours, 2);
             $obj->extra_hours = round($extraHours, 2);
+            $lateHoursDec = ($lateMinutes > 0) ? round($lateMinutes / 60, 2) : 0.0;
+            $obj->late_hours = $lateHoursDec;
+            $obj->net_hours = round(attendance_report_compute_net_hours($obj->extra_hours, $lateHoursDec), 2);
+            $obj->net_hours_display = attendance_report_format_hours_hhmm_signed($obj->net_hours);
             $obj->worked_seconds = $workedSeconds;
             $obj->extra_seconds = $extraSeconds;
             $obj->notes = $notes;
@@ -189,6 +193,443 @@ if (!function_exists('attendance_report_generate_daily_details')) {
         }
         
         return $days;
+    }
+}
+
+if (!function_exists('attendance_report_format_hours_decimal')) {
+    function attendance_report_format_hours_decimal($hours)
+    {
+        return number_format(max(0, (float) $hours), 2, '.', '');
+    }
+}
+
+if (!function_exists('attendance_report_format_hours_decimal_signed')) {
+    function attendance_report_format_hours_decimal_signed($hours)
+    {
+        return number_format((float) $hours, 2, '.', '');
+    }
+}
+
+if (!function_exists('attendance_report_export_timing_calculation_notes')) {
+    function attendance_report_export_timing_calculation_notes($officeStart = '', $officeEnd = '', $graceMinutes = '', $standardHours = '')
+    {
+        $lines = array(
+            'Late Days = count of working days where check-in is after office start + grace period.',
+            'Late = total late time (HH:MM) after grace period on present days.',
+            'Work = total extra time (HH:MM) stayed after official office end.',
+            'Total = Work minus Late (HH:MM). Negative values mean time deficit.',
+        );
+        if ($officeStart !== '' && $officeEnd !== '') {
+            $grace = is_numeric($graceMinutes) ? (int) $graceMinutes : 0;
+            $graceCutoff = $officeStart;
+            $officeTs = strtotime('1970-01-01 ' . $officeStart . ':00');
+            if ($officeTs !== false) {
+                $graceCutoff = date('H:i', $officeTs + ($grace * 60));
+            }
+            $lines[] = 'Default office rule: check-in by ' . $graceCutoff . ', check-out from ' . $officeEnd
+                . ($standardHours !== '' ? ', standard ' . $standardHours . 'h/day' : '')
+                . ' (employee shift overrides when assigned).';
+        }
+
+        return $lines;
+    }
+}
+
+if (!function_exists('attendance_report_grid_summary_headers')) {
+    function attendance_report_grid_summary_headers()
+    {
+        return array(
+            'Employee',
+            'Present',
+            'Half Day',
+            'WFH',
+            'Absent',
+            'On Time',
+            'Late Days',
+            'Leave',
+            'Holiday',
+            'Late',
+            'Work',
+            'Total',
+        );
+    }
+}
+
+if (!function_exists('attendance_report_grid_row_timing_values')) {
+  /**
+   * @param array<string,string> $row
+   * @return array{late_hours_decimal:float,extra_hours_decimal:float,net_hours_decimal:float,late_hours_display:string,extra_hours_display:string,net_hours_display:string}
+   */
+    function attendance_report_grid_row_timing_values(array $row)
+    {
+        $lateDec = 0.0;
+        if (isset($row['late_hours_decimal']) && $row['late_hours_decimal'] !== '') {
+            $lateDec = (float) $row['late_hours_decimal'];
+        }
+        $extraDec = 0.0;
+        if (isset($row['extra_hours_decimal']) && $row['extra_hours_decimal'] !== '') {
+            $extraDec = (float) $row['extra_hours_decimal'];
+        }
+        $netDec = isset($row['net_hours_decimal']) && $row['net_hours_decimal'] !== ''
+            ? (float) $row['net_hours_decimal']
+            : attendance_report_compute_net_hours($extraDec, $lateDec);
+
+        $lateDisplay = isset($row['late_hours']) ? trim((string) $row['late_hours']) : '00:00';
+        $extraDisplay = isset($row['extra_hours']) ? trim((string) $row['extra_hours']) : '00:00';
+        $netDisplay = isset($row['net_hours']) ? trim((string) $row['net_hours']) : attendance_report_format_hours_hhmm_signed($netDec);
+
+        return array(
+            'late_hours_decimal'   => $lateDec,
+            'extra_hours_decimal'  => $extraDec,
+            'net_hours_decimal'    => $netDec,
+            'late_hours_display'   => $lateDisplay !== '' ? $lateDisplay : '00:00',
+            'extra_hours_display'  => $extraDisplay !== '' ? $extraDisplay : '00:00',
+            'net_hours_display'    => $netDisplay !== '' ? $netDisplay : attendance_report_format_hours_hhmm_signed(0),
+        );
+    }
+}
+
+if (!function_exists('attendance_report_grid_export_totals')) {
+    /**
+     * @param array<int,array<string,string>> $gridRows
+     * @return array{late_days:float,late_hours_decimal:float,extra_hours_decimal:float,net_hours_decimal:float}
+     */
+    function attendance_report_grid_export_totals(array $gridRows)
+    {
+        $totals = array(
+            'late_days'            => 0.0,
+            'late_hours_decimal'   => 0.0,
+            'extra_hours_decimal'  => 0.0,
+            'net_hours_decimal'    => 0.0,
+        );
+
+        foreach ($gridRows as $row) {
+            $timing = attendance_report_grid_row_timing_values($row);
+            $totals['late_days'] += (float) (isset($row['late']) ? $row['late'] : 0);
+            $totals['late_hours_decimal'] += $timing['late_hours_decimal'];
+            $totals['extra_hours_decimal'] += $timing['extra_hours_decimal'];
+            $totals['net_hours_decimal'] += $timing['net_hours_decimal'];
+        }
+
+        return $totals;
+    }
+}
+
+if (!function_exists('attendance_report_parse_grid_export_rows')) {
+    /**
+     * @param string $json
+     * @return array<int,array<string,string>>
+     */
+    function attendance_report_parse_grid_export_rows($json)
+    {
+        $decoded = json_decode((string) $json, true);
+        if (!is_array($decoded)) {
+            return array();
+        }
+
+        $rows = array();
+        foreach ($decoded as $item) {
+            if (!is_array($item) || empty($item['user_id'])) {
+                continue;
+            }
+            $rows[] = array(
+                'user_id'              => (string) (int) $item['user_id'],
+                'name'                 => isset($item['name']) ? trim((string) $item['name']) : '',
+                'present'              => isset($item['present']) ? trim((string) $item['present']) : '0',
+                'half_day'             => isset($item['half_day']) ? trim((string) $item['half_day']) : '0',
+                'wfh'                  => isset($item['wfh']) ? trim((string) $item['wfh']) : '0',
+                'absent'               => isset($item['absent']) ? trim((string) $item['absent']) : '0',
+                'on_time'              => isset($item['on_time']) ? trim((string) $item['on_time']) : '0',
+                'late'                 => isset($item['late']) ? trim((string) $item['late']) : '0',
+                'leave'                => isset($item['leave']) ? trim((string) $item['leave']) : '0',
+                'holiday'              => isset($item['holiday']) ? trim((string) $item['holiday']) : '0',
+                'late_hours'           => isset($item['late_hours']) ? trim((string) $item['late_hours']) : '00:00',
+                'extra_hours'          => isset($item['extra_hours']) ? trim((string) $item['extra_hours']) : '00:00',
+                'late_hours_decimal'   => isset($item['late_hours_decimal']) ? trim((string) $item['late_hours_decimal']) : '0',
+                'extra_hours_decimal'  => isset($item['extra_hours_decimal']) ? trim((string) $item['extra_hours_decimal']) : '0',
+                'net_hours'            => isset($item['net_hours']) ? trim((string) $item['net_hours']) : '00:00',
+                'net_hours_decimal'    => isset($item['net_hours_decimal']) ? trim((string) $item['net_hours_decimal']) : '0',
+            );
+        }
+
+        return $rows;
+    }
+}
+
+if (!function_exists('attendance_report_grid_row_to_csv_line')) {
+    function attendance_report_grid_row_to_csv_line(array $row)
+    {
+        $name = $row['name'];
+        if ($name === '') {
+            $name = 'User #' . $row['user_id'];
+        }
+        $timing = attendance_report_grid_row_timing_values($row);
+
+        return array(
+            $name . ' (ID: ' . $row['user_id'] . ')',
+            $row['present'],
+            $row['half_day'],
+            $row['wfh'],
+            $row['absent'],
+            $row['on_time'],
+            $row['late'],
+            $row['leave'],
+            $row['holiday'],
+            $timing['late_hours_display'],
+            $timing['extra_hours_display'],
+            $timing['net_hours_display'],
+        );
+    }
+}
+
+if (!function_exists('attendance_report_export_grid_summary_csv')) {
+    function attendance_report_export_grid_summary_csv(
+        array $gridRows,
+        $period,
+        $from,
+        $to,
+        $sortColumn = '',
+        $sortDirection = '',
+        $officeStart = '',
+        $officeEnd = '',
+        $graceMinutes = '',
+        $standardHours = ''
+    ) {
+        $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        fputcsv($output, array('Report', 'Employee Attendance Summary'));
+        fputcsv($output, array('Period', ucfirst((string) $period)));
+        fputcsv($output, array('From', $from));
+        fputcsv($output, array('To', $to));
+        if ($sortColumn !== '' && $sortDirection !== '') {
+            fputcsv($output, array('Sorted By', 'Column ' . $sortColumn . ' (' . $sortDirection . ')'));
+        }
+        foreach (attendance_report_export_timing_calculation_notes($officeStart, $officeEnd, $graceMinutes, $standardHours) as $note) {
+            fputcsv($output, array('Calculation', $note));
+        }
+        fputcsv($output, array());
+
+        fputcsv($output, attendance_report_grid_summary_headers());
+
+        foreach ($gridRows as $row) {
+            fputcsv($output, attendance_report_grid_row_to_csv_line($row));
+        }
+
+        $totals = attendance_report_grid_export_totals($gridRows);
+        fputcsv($output, array());
+        fputcsv($output, array(
+            'TOTAL (selected employees)',
+            '',
+            '',
+            '',
+            '',
+            '',
+            attendance_report_format_day_count($totals['late_days']),
+            '',
+            '',
+            attendance_report_format_hours_hhmm($totals['late_hours_decimal']),
+            attendance_report_format_hours_hhmm($totals['extra_hours_decimal']),
+            attendance_report_format_hours_hhmm_signed($totals['net_hours_decimal']),
+        ));
+
+        fclose($output);
+        exit;
+    }
+}
+
+if (!function_exists('attendance_report_grid_summary_pdf_html')) {
+    function attendance_report_grid_summary_pdf_html(
+        array $gridRows,
+        $period,
+        $from,
+        $to,
+        $sortColumn = '',
+        $sortDirection = '',
+        $officeStart = '',
+        $officeEnd = '',
+        $graceMinutes = '',
+        $standardHours = ''
+    ) {
+        $headers = attendance_report_grid_summary_headers();
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Attendance Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 9px; }
+        h1 { color: #2563eb; margin-bottom: 10px; font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background-color: #2563eb; color: white; padding: 6px; text-align: left; border: 1px solid #ddd; font-size: 8px; }
+        td { padding: 5px; border: 1px solid #ddd; font-size: 8px; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        tfoot td { background-color: #e2e8f0; font-weight: bold; }
+        .header-info { margin-bottom: 15px; padding: 10px; background-color: #f1f5f9; border-radius: 4px; font-size: 9px; }
+        .header-info p { margin: 3px 0; }
+        .late-val { color: #dc2626; font-weight: bold; }
+        .extra-val { color: #059669; font-weight: bold; }
+        .net-deficit { color: #dc2626; font-weight: bold; }
+        .net-surplus { color: #059669; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Employee Attendance Report</h1>
+    <div class="header-info">
+        <p><strong>Period:</strong> ' . esc_view(ucfirst((string) $period)) . '</p>
+        <p><strong>Date Range:</strong> ' . esc_view($from) . ' to ' . esc_view($to) . '</p>
+        <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>';
+        if ($sortColumn !== '' && $sortDirection !== '') {
+            $html .= '<p><strong>Grid Sort:</strong> Column ' . esc_view($sortColumn) . ' (' . esc_view($sortDirection) . ')</p>';
+        }
+        foreach (attendance_report_export_timing_calculation_notes($officeStart, $officeEnd, $graceMinutes, $standardHours) as $note) {
+            $html .= '<p><strong>Calculation:</strong> ' . esc_view($note) . '</p>';
+        }
+        $html .= '</div>
+    <table>
+        <thead><tr>';
+        foreach ($headers as $header) {
+            $html .= '<th>' . esc_view($header) . '</th>';
+        }
+        $html .= '</tr></thead><tbody>';
+
+        foreach ($gridRows as $row) {
+            $name = $row['name'] !== '' ? esc_view($row['name']) : ('User #' . esc_view($row['user_id']));
+            $timing = attendance_report_grid_row_timing_values($row);
+            $lateClass = ((float) $row['late'] > 0) ? ' class="late-val"' : '';
+            $extraClass = ($timing['extra_hours_decimal'] > 0) ? ' class="extra-val"' : '';
+            $netClass = '';
+            if ($timing['net_hours_decimal'] < 0) {
+                $netClass = ' class="net-deficit"';
+            } elseif ($timing['net_hours_decimal'] > 0) {
+                $netClass = ' class="net-surplus"';
+            }
+            $html .= '<tr>
+                <td>' . $name . ' (ID: ' . esc_view($row['user_id']) . ')</td>
+                <td>' . esc_view($row['present']) . '</td>
+                <td>' . esc_view($row['half_day']) . '</td>
+                <td>' . esc_view($row['wfh']) . '</td>
+                <td>' . esc_view($row['absent']) . '</td>
+                <td>' . esc_view($row['on_time']) . '</td>
+                <td' . $lateClass . '>' . esc_view($row['late']) . '</td>
+                <td>' . esc_view($row['leave']) . '</td>
+                <td>' . esc_view($row['holiday']) . '</td>
+                <td' . $lateClass . '>' . esc_view($timing['late_hours_display']) . '</td>
+                <td' . $extraClass . '>' . esc_view($timing['extra_hours_display']) . '</td>
+                <td' . $netClass . '>' . esc_view($timing['net_hours_display']) . '</td>
+            </tr>';
+        }
+
+        $totals = attendance_report_grid_export_totals($gridRows);
+        $html .= '</tbody><tfoot><tr>
+            <td>TOTAL (selected)</td>
+            <td></td><td></td><td></td><td></td><td></td>
+            <td class="late-val">' . esc_view(attendance_report_format_day_count($totals['late_days'])) . '</td>
+            <td></td><td></td>
+            <td class="late-val">' . esc_view(attendance_report_format_hours_hhmm($totals['late_hours_decimal'])) . '</td>
+            <td class="extra-val">' . esc_view(attendance_report_format_hours_hhmm($totals['extra_hours_decimal'])) . '</td>
+            <td class="' . ($totals['net_hours_decimal'] < 0 ? 'net-deficit' : ($totals['net_hours_decimal'] > 0 ? 'net-surplus' : '')) . '">' . esc_view(attendance_report_format_hours_hhmm_signed($totals['net_hours_decimal'])) . '</td>
+        </tr></tfoot></table></body></html>';
+
+        return $html;
+    }
+}
+
+if (!function_exists('attendance_report_export_grid_summary_pdf')) {
+    function attendance_report_export_grid_summary_pdf(
+        array $gridRows,
+        $period,
+        $from,
+        $to,
+        $sortColumn = '',
+        $sortDirection = '',
+        $officeStart = '',
+        $officeEnd = '',
+        $graceMinutes = '',
+        $standardHours = ''
+    ) {
+        $html = attendance_report_grid_summary_pdf_html(
+            $gridRows,
+            $period,
+            $from,
+            $to,
+            $sortColumn,
+            $sortDirection,
+            $officeStart,
+            $officeEnd,
+            $graceMinutes,
+            $standardHours
+        );
+        $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.pdf';
+
+        if (class_exists('\\Dompdf\\Dompdf')) {
+            $dompdf = new \Dompdf\Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo $dompdf->output();
+            exit;
+        }
+
+        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . str_replace('.pdf', '.html', $filename) . '"');
+        echo $html;
+        exit;
+    }
+}
+
+if (!function_exists('attendance_report_build_grid_rows_from_summary')) {
+    /**
+     * @param array $users
+     * @param array $summary
+     * @return array<int,array<string,string>>
+     */
+    function attendance_report_build_grid_rows_from_summary($users, array $summary)
+    {
+        $gridRows = array();
+        foreach ($users as $user) {
+            $uid = (int) $user->id;
+            $name = isset($user->name) ? $user->name : 'Unknown';
+            $data = isset($summary[$uid]) ? $summary[$uid] : array(
+                'present' => 0.0, 'half' => 0.0, 'wfh' => 0.0, 'absent' => 0.0,
+                'leave' => 0.0, 'holiday' => 0.0, 'late' => 0.0, 'on_time' => 0.0,
+                'late_hours' => 0.0, 'extra_hours' => 0.0,
+            );
+            $gridRows[] = array(
+                'user_id'             => (string) $uid,
+                'name'                => $name,
+                'present'             => attendance_report_format_day_count(isset($data['present']) ? $data['present'] : 0),
+                'half_day'            => attendance_report_format_day_count(isset($data['half']) ? $data['half'] : 0),
+                'wfh'                 => attendance_report_format_day_count(isset($data['wfh']) ? $data['wfh'] : 0),
+                'absent'              => attendance_report_format_day_count(isset($data['absent']) ? $data['absent'] : 0),
+                'on_time'             => attendance_report_format_day_count(isset($data['on_time']) ? $data['on_time'] : 0),
+                'late'                => attendance_report_format_day_count(isset($data['late']) ? $data['late'] : 0),
+                'leave'               => attendance_report_format_day_count(isset($data['leave']) ? $data['leave'] : 0),
+                'holiday'             => attendance_report_format_day_count(isset($data['holiday']) ? $data['holiday'] : 0),
+                'late_hours'          => attendance_report_format_hours_hhmm(isset($data['late_hours']) ? $data['late_hours'] : 0),
+                'extra_hours'         => attendance_report_format_hours_hhmm(isset($data['extra_hours']) ? $data['extra_hours'] : 0),
+                'late_hours_decimal'  => attendance_report_format_hours_decimal(isset($data['late_hours']) ? $data['late_hours'] : 0),
+                'extra_hours_decimal' => attendance_report_format_hours_decimal(isset($data['extra_hours']) ? $data['extra_hours'] : 0),
+                'net_hours'           => attendance_report_format_hours_hhmm_signed(attendance_report_compute_net_hours(
+                    isset($data['extra_hours']) ? $data['extra_hours'] : 0,
+                    isset($data['late_hours']) ? $data['late_hours'] : 0
+                )),
+                'net_hours_decimal'   => attendance_report_format_hours_decimal_signed(attendance_report_compute_net_hours(
+                    isset($data['extra_hours']) ? $data['extra_hours'] : 0,
+                    isset($data['late_hours']) ? $data['late_hours'] : 0
+                )),
+            );
+        }
+
+        return $gridRows;
     }
 }
 
@@ -220,6 +661,7 @@ if (!function_exists('attendance_report_employee_summary_pdf_html')) {
         <p><strong>Period:</strong> ' . ucfirst($period) . '</p>
         <p><strong>Date Range:</strong> ' . esc_view($from) . ' to ' . esc_view($to) . '</p>
         <p><strong>Generated:</strong> ' . date('Y-m-d H:i:s') . '</p>
+        <p><strong>Note:</strong> Late/on-time uses each employee shift when assigned, otherwise global office settings.</p>
     </div>
     <table>
         <thead>
@@ -230,11 +672,13 @@ if (!function_exists('attendance_report_employee_summary_pdf_html')) {
                 <th>Half</th>
                 <th>WFH</th>
                 <th>Absent</th>
-                <th>Leave</th>
-                <th>Late Days</th>
                 <th>On Time</th>
-                <th>Late Hours</th>
-                <th>Extra Hours</th>
+                <th>Late Days</th>
+                <th>Leave</th>
+                <th>Holiday</th>
+                <th>Late</th>
+                <th>Work</th>
+                <th>Total</th>
             </tr>
         </thead>
         <tbody>';
@@ -242,10 +686,15 @@ if (!function_exists('attendance_report_employee_summary_pdf_html')) {
         foreach ($users as $user) {
             $uid = (int)$user->id;
             $name = isset($user->name) ? esc_view($user->name) : 'Unknown';
-            $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
+            $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'holiday'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
 
             $lateDays  = isset($data['late']) ? (float)$data['late'] : 0.0;
             $lateStyle = $lateDays > 0 ? ' style="color:#dc2626;font-weight:bold;"' : '';
+            $netHours = attendance_report_compute_net_hours(
+                isset($data['extra_hours']) ? $data['extra_hours'] : 0,
+                isset($data['late_hours']) ? $data['late_hours'] : 0
+            );
+            $netStyle = $netHours < 0 ? ' style="color:#dc2626;font-weight:bold;"' : ($netHours > 0 ? ' style="color:#059669;font-weight:bold;"' : '');
             
             $html .= '<tr>
                 <td>' . $name . '</td>
@@ -254,11 +703,13 @@ if (!function_exists('attendance_report_employee_summary_pdf_html')) {
                 <td>' . attendance_report_format_day_count($data['half']) . '</td>
                 <td>' . attendance_report_format_day_count($data['wfh']) . '</td>
                 <td>' . attendance_report_format_day_count($data['absent']) . '</td>
-                <td>' . attendance_report_format_day_count($data['leave']) . '</td>
-                <td' . $lateStyle . '>' . attendance_report_format_day_count($lateDays) . '</td>
                 <td>' . attendance_report_format_day_count(isset($data['on_time']) ? $data['on_time'] : 0) . '</td>
+                <td' . $lateStyle . '>' . attendance_report_format_day_count($lateDays) . '</td>
+                <td>' . attendance_report_format_day_count($data['leave']) . '</td>
+                <td>' . attendance_report_format_day_count(isset($data['holiday']) ? $data['holiday'] : 0) . '</td>
                 <td>' . attendance_report_format_hours_hhmm(isset($data['late_hours']) ? $data['late_hours'] : 0) . '</td>
                 <td>' . attendance_report_format_hours_hhmm(isset($data['extra_hours']) ? $data['extra_hours'] : 0) . '</td>
+                <td' . $netStyle . '>' . attendance_report_format_hours_hhmm_signed($netHours) . '</td>
             </tr>';
         }
         
@@ -369,47 +820,34 @@ if (!function_exists('attendance_report_export_employee_summary_csv')) {
             // Add BOM for UTF-8 Excel compatibility
             fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
             
-            // Headers
-            fputcsv($output, [
-                'Employee Name',
-                'Employee ID',
-                'Period',
-                'From',
-                'To',
-                'Present Days',
-                'Half Days',
-                'WFH Days',
-                'Absent Days',
-                'Leave Days',
-                'Late Days',
-                'On Time Days',
-                'Late Hours',
-                'Extra Hours'
-            ]);
-            
-            // Data rows
-            foreach ($users as $user) {
-                $uid = (int)$user->id;
-                $name = isset($user->name) ? $user->name : 'Unknown';
-                $data = isset($summary[$uid]) ? $summary[$uid] : ['present'=>0.0,'half'=>0.0,'wfh'=>0.0,'absent'=>0.0,'leave'=>0.0,'late'=>0.0,'on_time'=>0.0,'late_hours'=>0.0,'extra_hours'=>0.0];
-                
-                fputcsv($output, [
-                    $name,
-                    $uid,
-                    ucfirst($period),
-                    $from,
-                    $to,
-                    attendance_report_format_day_count(isset($data['present']) ? $data['present'] : 0),
-                    attendance_report_format_day_count(isset($data['half']) ? $data['half'] : 0),
-                    attendance_report_format_day_count(isset($data['wfh']) ? $data['wfh'] : 0),
-                    attendance_report_format_day_count(isset($data['absent']) ? $data['absent'] : 0),
-                    attendance_report_format_day_count(isset($data['leave']) ? $data['leave'] : 0),
-                    attendance_report_format_day_count(isset($data['late']) ? $data['late'] : 0),
-                    attendance_report_format_day_count(isset($data['on_time']) ? $data['on_time'] : 0),
-                    attendance_report_format_hours_hhmm(isset($data['late_hours']) ? $data['late_hours'] : 0),
-                    attendance_report_format_hours_hhmm(isset($data['extra_hours']) ? $data['extra_hours'] : 0)
-                ]);
+            $exportGridRows = attendance_report_build_grid_rows_from_summary($users, $summary);
+
+            fputcsv($output, array('Report', 'Employee Attendance Summary'));
+            fputcsv($output, array('Period', ucfirst($period)));
+            fputcsv($output, array('From', $from));
+            fputcsv($output, array('To', $to));
+            foreach (attendance_report_export_timing_calculation_notes() as $note) {
+                fputcsv($output, array('Calculation', $note));
             }
+            fputcsv($output, array());
+
+            fputcsv($output, attendance_report_grid_summary_headers());
+
+            foreach ($exportGridRows as $gridRow) {
+                fputcsv($output, attendance_report_grid_row_to_csv_line($gridRow));
+            }
+
+            $totals = attendance_report_grid_export_totals($exportGridRows);
+            fputcsv($output, array());
+            fputcsv($output, array(
+                'TOTAL (selected employees)',
+                '', '', '', '', '',
+                attendance_report_format_day_count($totals['late_days']),
+                '', '',
+                attendance_report_format_hours_hhmm($totals['late_hours_decimal']),
+                attendance_report_format_hours_hhmm($totals['extra_hours_decimal']),
+                attendance_report_format_hours_hhmm_signed($totals['net_hours_decimal']),
+            ));
             
             fclose($output);
             exit;
@@ -425,31 +863,9 @@ if (!function_exists('attendance_report_export_employee_summary_pdf')) {
     {
         try {
             $users = $fetchUsers($userIds);
-
             $summary = attendance_report_build_export_summaries($db, $userIds, $from, $to, $settings);
-
-            $html = attendance_report_employee_summary_pdf_html($users, $summary, $period, $from, $to, $month, $date);
-            
-            // Try to use DomPDF if available
-            if (class_exists('\\Dompdf\\Dompdf')) {
-                $dompdf = new \Dompdf\Dompdf();
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4', 'landscape');
-                $dompdf->render();
-                
-                $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.pdf';
-                header('Content-Type: application/pdf');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                echo $dompdf->output();
-                exit;
-            } else {
-                // Fallback to HTML with print styling
-                $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.html';
-                header('Content-Type: text/html; charset=utf-8');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                echo $html;
-                exit;
-            }
+            $gridRows = attendance_report_build_grid_rows_from_summary($users, $summary);
+            attendance_report_export_grid_summary_pdf($gridRows, $period, $from, $to);
         } catch (Exception $e) {
             log_message('error', 'Export PDF error: ' . $e->getMessage());
             show_error('Error generating PDF export: ' . $e->getMessage(), 500);

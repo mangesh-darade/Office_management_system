@@ -17,6 +17,11 @@
   $curClient = (int) $field('client_id', 0);
   $curProject = (int) $field('project_id', 0);
   $curFor = (int) $field('created_for', $uid);
+  $status = ($item && isset($item->status)) ? (string) $item->status : 'new';
+
+  $this->load->helper('my_works_status');
+  $statusRecords = my_works_status_records();
+  $statusLabels = my_works_status_labels();
 ?>
 
 <div class="oms-form-compact">
@@ -29,14 +34,12 @@
     </ol>
   </nav>
 
-  <div class="mw-form-page-head d-flex justify-content-between align-items-start gap-2 mb-3">
-    <div class="min-w-0">
+  <div class="mw-form-page-head mw-page-head-with-back d-flex align-items-start gap-2 mb-3">
+    <?php $this->load->view('my_works/_back_btn', array('back_url' => site_url('my-works'))); ?>
+    <div class="min-w-0 flex-grow-1">
       <h1 class="h4 mb-0 fw-bold text-dark mw-form-page-title">New Work Item</h1>
-      <p class="text-muted small mb-0 d-none d-sm-block">Status will be set to <strong>New</strong> automatically</p>
+      <p class="text-muted small mb-0 d-none d-sm-block">Set status, due date, and assignment for the new work item</p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm flex-shrink-0" href="<?php echo site_url('my-works'); ?>" title="Back">
-      <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back</span>
-    </a>
   </div>
 
   <?php if ($this->session->flashdata('error')): ?>
@@ -51,7 +54,6 @@
     <div class="card-body p-3 p-md-4">
       <form method="post" enctype="multipart/form-data" action="<?php echo site_url('my-works/create'); ?>" id="mw-work-form" class="mw-upload-form" data-tinymce-id="mw-form-details">
         <?php $this->load->view('my_works/_csrf'); ?>
-        <input type="hidden" name="status" value="new">
 
         <div class="mw-form-section mw-form-create-section">
           <div class="mw-form-section-head">
@@ -94,6 +96,20 @@
                 <input type="date" name="due_date" id="mw-form-due-date" class="form-control mw-create-control" required value="<?php echo esc_view((string) $field('due_date'), ENT_QUOTES, 'UTF-8'); ?>">
               </div>
               <div class="mw-create-field">
+                <label class="form-label mw-create-label" for="mw-form-status">Status</label>
+                <select name="status" id="mw-form-status" class="form-select mw-create-control">
+                  <?php if (!empty($statusRecords)): ?>
+                    <?php foreach ($statusRecords as $st): ?>
+                      <option value="<?php echo esc_view((string) $st->code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $status === (string) $st->code ? 'selected' : ''; ?>><?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?></option>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <?php foreach ($statusLabels as $k => $lbl): ?>
+                      <option value="<?php echo esc_view($k, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $status === $k ? 'selected' : ''; ?>><?php echo esc_view($lbl); ?></option>
+                    <?php endforeach; ?>
+                  <?php endif; ?>
+                </select>
+              </div>
+              <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-client-select">Client</label>
                 <select name="client_id" id="mw-client-select" class="form-select mw-create-control" <?php echo empty($clients) ? 'disabled' : ''; ?>>
                   <option value="0">— Select client —</option>
@@ -104,6 +120,9 @@
                   <?php endforeach; ?>
                 </select>
               </div>
+            </div>
+
+            <div class="mw-create-row mw-create-row-3">
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-project-select">Project</label>
                 <select name="project_id" id="mw-project-select" class="form-select mw-create-control" <?php echo empty($projects) ? 'disabled' : ''; ?>>
@@ -117,9 +136,6 @@
                   <?php endforeach; ?>
                 </select>
               </div>
-            </div>
-
-            <div class="mw-create-row mw-create-row-3">
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-tag">Tag</label>
                 <input type="text" name="tag" id="mw-form-tag" class="form-control mw-create-control" maxlength="255" list="mw-form-tags" value="<?php echo esc_view((string) $field('tag'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="follow-up, demo">
@@ -136,7 +152,10 @@
                   <input type="text" name="url" id="mw-form-url" class="form-control mw-create-control" value="<?php echo esc_view((string) $field('url'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="https://example.com">
                 </div>
               </div>
-              <div class="mw-create-field">
+            </div>
+
+            <div class="mw-create-row mw-create-row-1">
+              <div class="mw-create-field mw-create-field--attach">
                 <label class="form-label mw-create-label" for="mw-form-attachment">Attach file</label>
                 <?php $this->load->view('my_works/_attachment_field', array(
                   'input_id' => 'mw-form-attachment',

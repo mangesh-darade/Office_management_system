@@ -278,8 +278,8 @@
           "purpose": "Track project version releases, document release note points, and email stakeholders via Reminders when a release goes live.",
           "list": {"route": "releases"},
           "add": {"route": "releases/create", "steps": ["Pick project and version.", "Add release note points (what is included).", "Set planned date → Save."]},
-          "edit": {"list_route": "releases", "steps": ["Open release → Add or edit release note points.", "Review related defects linked to this release (Add to notes).", "Select recipients and Send notes now, or check Send when I save.", "Set status to Released when live (earns reward points)."]},
-          "delete": null
+          "edit": {"list_route": "releases", "steps": ["Open release → Add or edit release note points.", "Use Add all fixed defects to notes for bulk changelog.", "Review related defects (Add to notes per item).", "Select recipients and Send notes now, or check Send when I save.", "Set status to Released when live."]},
+          "delete": {"steps": ["Open release edit → Delete (soft delete, admin)."]}
         },
         {
           "name": "Defects",
@@ -287,8 +287,8 @@
           "purpose": "Log, assign, and resolve bugs linked to projects, releases, and tasks.",
           "list": {"route": "defects"},
           "add": {"route": "defects/create", "steps": ["Select project.", "Describe issue and steps to reproduce.", "Assign if known → Save."]},
-          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved."]},
-          "delete": {"steps": ["Open defect detail → Delete (admin)."]}
+          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved.", "Set due date for SLA tracking.", "Add comments and attachments on the detail page."]},
+          "delete": {"steps": ["Open defect detail → Delete (soft delete, admin)."]}
         }
       ]
     },

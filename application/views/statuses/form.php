@@ -31,9 +31,9 @@
           <label class="form-label">Type <span class="text-danger">*</span></label>
           <select name="type" class="form-select" required>
             <option value="">-- Select Type --</option>
-            <?php foreach ($types as $type): ?>
-              <option value="<?php echo esc_view($type); ?>" <?php echo (isset($status) && $status->type === $type) ? 'selected' : ''; ?>>
-                <?php echo ucfirst($type); ?>
+            <?php foreach ($types as $key => $label): ?>
+              <option value="<?php echo esc_view($key); ?>" <?php echo (isset($status) && $status->type === $key) ? 'selected' : ''; ?>>
+                <?php echo esc_view($label); ?>
               </option>
             <?php endforeach; ?>
           </select>

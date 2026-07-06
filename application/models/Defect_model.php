@@ -7,18 +7,16 @@ class Defect_model extends CI_Model
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(array('defects_schema', 'schema_columns'));
+        $this->load->helper(array('defects_schema', 'schema_columns', 'defects_releases'));
         defects_schema_ensure($this->db);
     }
 
-    public function list_defects($filters = array())
+    private function _apply_defect_filters($filters = array())
     {
-        $this->db->select('d.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, r.version AS release_version');
-        $this->db->from('project_defects d');
-        $this->db->join('projects p', 'p.id = d.project_id', 'left');
-        $this->db->join('users rep', 'rep.id = d.reported_by', 'left');
-        $this->db->join('users asn', 'asn.id = d.assigned_to', 'left');
-        $this->db->join('project_releases r', 'r.id = d.release_id', 'left');
+        if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+            $this->db->where('d.is_deleted', 0);
+        }
+        defects_releases_apply_project_scope($this->db, 'd', 'project_id');
         if (!empty($filters['status'])) {
             $this->db->where('d.status', $filters['status']);
         }
@@ -31,6 +29,13 @@ class Defect_model extends CI_Model
         if (!empty($filters['assigned_to'])) {
             $this->db->where('d.assigned_to', (int) $filters['assigned_to']);
         }
+        if (!empty($filters['overdue'])) {
+            if (schema_table_has_column($this->db, 'project_defects', 'due_date')) {
+                $this->db->where('d.due_date IS NOT NULL', null, false);
+                $this->db->where('d.due_date <', date('Y-m-d'));
+                $this->db->where_not_in('d.status', array('closed', 'rejected', 'verified'));
+            }
+        }
         if (!empty($filters['q'])) {
             $q = $this->db->escape_like_str($filters['q']);
             $this->db->group_start()
@@ -39,20 +44,56 @@ class Defect_model extends CI_Model
                 ->or_like('d.description', $q)
                 ->group_end();
         }
-        $this->db->order_by('d.id', 'DESC');
-        return $this->db->get()->result();
     }
 
-    public function get_defect($id)
+    public function count_defects($filters = array())
     {
-        $this->db->select('d.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, r.version AS release_version, r.title AS release_title');
+        $this->db->from('project_defects d');
+        $this->_apply_defect_filters($filters);
+        return (int) $this->db->count_all_results();
+    }
+
+    public function list_defects($filters = array(), $limit = null, $offset = 0)
+    {
+        $this->db->select('d.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, r.version AS release_version');
         $this->db->from('project_defects d');
         $this->db->join('projects p', 'p.id = d.project_id', 'left');
         $this->db->join('users rep', 'rep.id = d.reported_by', 'left');
         $this->db->join('users asn', 'asn.id = d.assigned_to', 'left');
         $this->db->join('project_releases r', 'r.id = d.release_id', 'left');
+        $this->_apply_defect_filters($filters);
+        $this->db->order_by('d.id', 'DESC');
+        if ($limit !== null) {
+            $this->db->limit((int) $limit, (int) $offset);
+        }
+        return $this->db->get()->result();
+    }
+
+    public function get_defect($id, $include_deleted = false)
+    {
+        $this->db->select('d.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, ver.name AS verifier_name, r.version AS release_version, r.title AS release_title, t.title AS task_title');
+        $this->db->from('project_defects d');
+        $this->db->join('projects p', 'p.id = d.project_id', 'left');
+        $this->db->join('users rep', 'rep.id = d.reported_by', 'left');
+        $this->db->join('users asn', 'asn.id = d.assigned_to', 'left');
+        $this->db->join('users ver', 'ver.id = d.verified_by', 'left');
+        $this->db->join('project_releases r', 'r.id = d.release_id', 'left');
+        $this->db->join('tasks t', 't.id = d.task_id', 'left');
         $this->db->where('d.id', (int) $id);
-        return $this->db->get()->row();
+        if (!$include_deleted && schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+            $this->db->where('d.is_deleted', 0);
+        }
+        $row = $this->db->get()->row();
+        if (!$row) {
+            return null;
+        }
+        if (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (!in_array((int) $row->project_id, $ids, true)) {
+                return null;
+            }
+        }
+        return $row;
     }
 
     public function next_defect_number()
@@ -83,13 +124,123 @@ class Defect_model extends CI_Model
 
     public function delete_defect($id)
     {
+        if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+            return $this->db->where('id', (int) $id)->update('project_defects', array(
+                'is_deleted' => 1,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ));
+        }
         return $this->db->where('id', (int) $id)->delete('project_defects');
+    }
+
+    public function log_activity($defect_id, $user_id, $action, $detail = '')
+    {
+        if (!$this->db->table_exists('project_defect_activity')) {
+            return;
+        }
+        $this->db->insert('project_defect_activity', array(
+            'defect_id' => (int) $defect_id,
+            'user_id' => (int) $user_id,
+            'action' => (string) $action,
+            'detail' => $detail !== '' ? (string) $detail : null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ));
+    }
+
+    public function list_activity($defect_id)
+    {
+        if (!$this->db->table_exists('project_defect_activity')) {
+            return array();
+        }
+        $this->db->select('a.*, u.name AS user_name');
+        $this->db->from('project_defect_activity a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->where('a.defect_id', (int) $defect_id);
+        $this->db->order_by('a.id', 'DESC');
+        return $this->db->get()->result();
+    }
+
+    public function add_comment($defect_id, $user_id, $comment)
+    {
+        if (!$this->db->table_exists('project_defect_comments')) {
+            return false;
+        }
+        $comment = trim((string) $comment);
+        if ($comment === '') {
+            return false;
+        }
+        $this->db->insert('project_defect_comments', array(
+            'defect_id' => (int) $defect_id,
+            'user_id' => (int) $user_id,
+            'comment' => $comment,
+            'created_at' => date('Y-m-d H:i:s'),
+        ));
+        return (int) $this->db->insert_id();
+    }
+
+    public function list_comments($defect_id)
+    {
+        if (!$this->db->table_exists('project_defect_comments')) {
+            return array();
+        }
+        $this->db->select('c.*, u.name AS user_name');
+        $this->db->from('project_defect_comments c');
+        $this->db->join('users u', 'u.id = c.user_id', 'left');
+        $this->db->where('c.defect_id', (int) $defect_id);
+        $this->db->order_by('c.id', 'ASC');
+        return $this->db->get()->result();
+    }
+
+    public function save_attachments($defect_id, $user_id, array $uploads)
+    {
+        if (!$this->db->table_exists('project_defect_attachments') || empty($uploads)) {
+            return;
+        }
+        foreach ($uploads as $u) {
+            $this->db->insert('project_defect_attachments', array(
+                'defect_id' => (int) $defect_id,
+                'original_name' => (string) $u['original_name'],
+                'stored_name' => (string) $u['stored_name'],
+                'file_size' => (int) $u['file_size'],
+                'uploaded_by' => (int) $user_id,
+                'created_at' => date('Y-m-d H:i:s'),
+            ));
+        }
+    }
+
+    public function list_attachments($defect_id)
+    {
+        if (!$this->db->table_exists('project_defect_attachments')) {
+            return array();
+        }
+        return $this->db->where('defect_id', (int) $defect_id)
+            ->order_by('id', 'ASC')
+            ->get('project_defect_attachments')
+            ->result();
+    }
+
+    public function get_attachment($defect_id, $attachment_id)
+    {
+        if (!$this->db->table_exists('project_defect_attachments')) {
+            return null;
+        }
+        return $this->db->where('id', (int) $attachment_id)
+            ->where('defect_id', (int) $defect_id)
+            ->get('project_defect_attachments')
+            ->row();
     }
 
     public function project_options()
     {
         if (!$this->db->table_exists('projects')) {
             return array();
+        }
+        if (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (empty($ids)) {
+                return array();
+            }
+            $this->db->where_in('id', $ids);
         }
         return $this->db->select('id, name')->order_by('name')->get('projects')->result();
     }
@@ -100,8 +251,17 @@ class Defect_model extends CI_Model
             return array();
         }
         $this->db->select('id, version, title, project_id')->from('project_releases');
+        if (schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            $this->db->where('is_deleted', 0);
+        }
         if ($project_id) {
             $this->db->where('project_id', (int) $project_id);
+        } elseif (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (empty($ids)) {
+                return array();
+            }
+            $this->db->where_in('project_id', $ids);
         }
         return $this->db->order_by('id', 'DESC')->get()->result();
     }
@@ -114,6 +274,33 @@ class Defect_model extends CI_Model
         $this->db->select('d.id, d.defect_number, d.title, d.status, d.severity');
         $this->db->from('project_defects d');
         $this->db->where('d.release_id', (int) $release_id);
+        if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+            $this->db->where('d.is_deleted', 0);
+        }
+        $this->db->order_by('d.id', 'ASC');
+        return $this->db->get()->result();
+    }
+
+    public function list_fixed_by_release($release_id, $project_id = null)
+    {
+        if (!$this->db->table_exists('project_defects')) {
+            return array();
+        }
+        $this->db->select('d.id, d.defect_number, d.title, d.status, d.severity, d.release_id');
+        $this->db->from('project_defects d');
+        if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+            $this->db->where('d.is_deleted', 0);
+        }
+        $this->db->where_in('d.status', array('fixed', 'verified', 'closed'));
+        $this->db->group_start();
+        $this->db->where('d.release_id', (int) $release_id);
+        if ($project_id) {
+            $this->db->or_group_start();
+            $this->db->where('d.project_id', (int) $project_id);
+            $this->db->where('d.release_id IS NULL', null, false);
+            $this->db->group_end();
+        }
+        $this->db->group_end();
         $this->db->order_by('d.id', 'ASC');
         return $this->db->get()->result();
     }
@@ -126,6 +313,12 @@ class Defect_model extends CI_Model
         $this->db->select('id, title, project_id')->from('tasks');
         if ($project_id) {
             $this->db->where('project_id', (int) $project_id);
+        } elseif (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (empty($ids)) {
+                return array();
+            }
+            $this->db->where_in('project_id', $ids);
         }
         return $this->db->order_by('id', 'DESC')->limit(200)->get()->result();
     }
@@ -137,5 +330,35 @@ class Defect_model extends CI_Model
             $this->db->where('status', 'active');
         }
         return $this->db->order_by('name')->get()->result();
+    }
+
+    public function dashboard_counts($user_id)
+    {
+        $filters = array();
+        $open = 0;
+        $overdue = 0;
+        if (!$this->db->table_exists('project_defects')) {
+            return array('open' => 0, 'overdue' => 0);
+        }
+        $this->db->from('project_defects d');
+        if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+            $this->db->where('d.is_deleted', 0);
+        }
+        defects_releases_apply_project_scope($this->db, 'd', 'project_id');
+        $this->db->where_in('d.status', array('open', 'in_progress'));
+        $open = (int) $this->db->count_all_results();
+
+        if (schema_table_has_column($this->db, 'project_defects', 'due_date')) {
+            $this->db->from('project_defects d');
+            if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+                $this->db->where('d.is_deleted', 0);
+            }
+            defects_releases_apply_project_scope($this->db, 'd', 'project_id');
+            $this->db->where('d.due_date IS NOT NULL', null, false);
+            $this->db->where('d.due_date <', date('Y-m-d'));
+            $this->db->where_not_in('d.status', array('closed', 'rejected', 'verified'));
+            $overdue = (int) $this->db->count_all_results();
+        }
+        return array('open' => $open, 'overdue' => $overdue);
     }
 }

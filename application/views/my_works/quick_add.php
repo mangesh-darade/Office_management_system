@@ -23,15 +23,16 @@ $back_url = site_url($redirect_path);
     </ol>
   </nav>
 
-  <div class="mw-quick-add-page-head">
-    <div class="d-flex justify-content-between align-items-center gap-2">
+  <div class="mw-quick-add-page-head mw-page-head-with-back">
+    <div class="d-flex align-items-center gap-2">
+      <?php $this->load->view('my_works/_back_btn', array(
+        'back_url' => $back_url,
+        'back_title' => 'Back to Second Brain',
+      )); ?>
       <h1 class="h4 mb-0 fw-bold text-dark mw-quick-add-title">
         <span class="mw-toolbar-icon"><i class="bi bi-lightning-charge-fill"></i></span>
         Quick add work item
       </h1>
-      <a class="btn btn-outline-secondary btn-sm flex-shrink-0" href="<?php echo esc_view($back_url); ?>" title="Back to My Works">
-        <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back</span>
-      </a>
     </div>
   </div>
 

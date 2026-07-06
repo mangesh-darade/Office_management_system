@@ -10,7 +10,13 @@
   <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ($item && (int)$item->project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option><?php endforeach; ?></select></div>
   <div class="col-md-2"><label class="form-label">Version</label><input name="version" class="form-control" required value="<?php echo $item?esc_view($item->version):''; ?>"></div>
   <div class="col-md-3"><label class="form-label">Planned date</label><input type="date" name="planned_date" class="form-control" value="<?php echo $item?esc_view($item->planned_date):''; ?>"></div>
-  <div class="col-md-3"><label class="form-label">Status</label><select name="status" class="form-select" id="releaseStatus"><?php foreach (['planned','in_progress','released','cancelled'] as $s): ?><option value="<?php echo $s; ?>" <?php echo ($item && $item->status===$s)?'selected':''; ?>><?php echo ucfirst(str_replace('_',' ',$s)); ?></option><?php endforeach; ?></select></div>
+  <div class="col-md-3"><label class="form-label">Status</label><?php $this->load->view('partials/status_select', array(
+    'field_name' => 'status',
+    'module_type' => 'releases',
+    'select_id' => 'releaseStatus',
+    'current' => $item ? (string) $item->status : '',
+    'default_code' => 'planned',
+  )); ?></div>
   <div class="col-12"><label class="form-label">Title</label><input name="title" class="form-control" required value="<?php echo $item?esc_view($item->title):''; ?>"></div>
   <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Summary for stakeholders"><?php echo $item?esc_view($item->description):''; ?></textarea></div>
 </div>
@@ -37,7 +43,15 @@
 
 <?php if ($action === 'edit' && !empty($related_defects)): ?>
 <div class="oms-form-actions">
-  <label class="form-label fw-semibold">Related defects (linked to this release)</label>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <label class="form-label mb-0 fw-semibold">Related defects (linked to this release)</label>
+    <?php if (!empty($fixed_defects)): ?>
+    <form method="post" action="<?php echo site_url('releases/add-all-fixed/'.(int)$item->id); ?>" class="d-inline">
+      <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+      <button type="submit" class="btn btn-sm btn-outline-success">Add all fixed defects to notes</button>
+    </form>
+    <?php endif; ?>
+  </div>
   <p class="text-muted small">Click Add to copy a defect into release note points.</p>
   <ul class="list-group list-group-flush border rounded">
     <?php foreach ($related_defects as $d): ?>
@@ -98,8 +112,14 @@
 
 <div class="oms-form-actions">
   <button class="btn btn-primary" type="submit">Save</button>
+  <?php if ($action === 'edit'): ?>
+  <a class="btn btn-outline-secondary" href="<?php echo site_url('releases/view/'.(int)$item->id); ?>">View</a>
+  <?php endif; ?>
   <?php if ($action === 'edit' && !empty($can_send_notes)): ?>
   <button class="btn btn-success" type="button" id="btnSendNotesNow">Send notes now</button>
+  <?php endif; ?>
+  <?php if ($action === 'edit' && (function_exists('has_module_access') && (has_module_access('releases_edit') || has_module_access('releases')))): ?>
+  <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteReleaseModal">Delete</button>
   <?php endif; ?>
   <a class="btn btn-outline-secondary" href="<?php echo site_url('releases'); ?>">Cancel</a>
 </div>
@@ -112,6 +132,22 @@
   <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
   <div id="sendNotesUserIds"></div>
 </form>
+<?php endif; ?>
+
+<?php if ($action === 'edit'): ?>
+<div class="modal fade" id="deleteReleaseModal" tabindex="-1">
+  <div class="modal-dialog modal-sm"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Delete release?</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body small">This soft-deletes the release. Linked defects are kept.</div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+      <form method="post" action="<?php echo site_url('releases/delete/'.(int)$item->id); ?>">
+        <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+      </form>
+    </div>
+  </div></div>
+</div>
 <?php endif; ?>
 
 <script>

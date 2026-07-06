@@ -108,17 +108,6 @@ class Cron extends CI_Controller {
         $this->coaching_automation();
         echo str_repeat("-", 50) . "\n";
 
-        $this->rewards_leaderboard();
-        echo str_repeat("-", 50) . "\n";
-
-        $this->rewards_attendance_penalties();
-        echo str_repeat("-", 50) . "\n";
-
-        if ((int) date('j') === 1) {
-            $this->rewards_consistency();
-            echo str_repeat("-", 50) . "\n";
-        }
-
         echo str_repeat("=", 50) . "\n";
         
         echo "✅ All cron jobs completed at " . date('Y-m-d H:i:s') . "\n";
@@ -159,64 +148,6 @@ class Cron extends CI_Controller {
         echo "Run All: " . site_url('cron/run_all') . "\n";
         echo "Coaching Session Reminders: " . site_url('cron/coaching_session_reminders') . "\n";
         echo "Coaching Automation: " . site_url('cron/coaching_automation') . "\n";
-    }
-
-    /**
-     * Rebuild monthly reward leaderboard snapshots.
-     */
-    public function rewards_leaderboard()
-    {
-        if (!$this->db->table_exists('reward_leaderboard')) {
-            $this->load->helper('rewards_schema');
-            rewards_schema_ensure($this->db);
-        }
-        if (!$this->db->table_exists('reward_leaderboard')) {
-            echo "⏭ Rewards tables not installed — skipping.\n";
-            return;
-        }
-        $this->load->model('Reward_model', 'rewards');
-        try {
-            $monthKey = date('Y-m');
-            $count = $this->rewards->rebuild_leaderboard('monthly', $monthKey);
-            echo "✅ Rewards leaderboard rebuilt: {$count} users for {$monthKey} at " . date('Y-m-d H:i:s') . "\n";
-        } catch (Exception $e) {
-            echo "❌ Error rebuilding rewards leaderboard: " . $e->getMessage() . "\n";
-        }
-    }
-
-    /**
-     * Daily: missed check-in / check-out penalties for yesterday.
-     */
-    public function rewards_attendance_penalties()
-    {
-        $this->load->helper(array('rewards_schema', 'rewards_automation'));
-        rewards_schema_ensure($this->db);
-        try {
-            $stats = rewards_automation_daily_attendance_penalties($this->db);
-            if (!empty($stats['skipped'])) {
-                echo "⏭ Skipped attendance penalties (non-workday).\n";
-                return;
-            }
-            echo "✅ Attendance penalties for {$stats['date']}: missed check-in {$stats['missed_checkin']}, missed checkout {$stats['missed_checkout']}\n";
-        } catch (Exception $e) {
-            echo "❌ Attendance penalty cron: " . $e->getMessage() . "\n";
-        }
-    }
-
-    /**
-     * Monthly: consistency bonuses (run on 1st for previous month).
-     */
-    public function rewards_consistency($yearMonth = null)
-    {
-        $this->load->helper(array('rewards_schema', 'rewards_automation'));
-        rewards_schema_ensure($this->db);
-        $yearMonth = $yearMonth ?: date('Y-m', strtotime('first day of last month'));
-        try {
-            $stats = rewards_automation_consistency_monthly($this->db, $yearMonth);
-            echo "✅ Consistency review {$stats['month']}: self-updates {$stats['self_updates']}, on-time {$stats['on_time']}, no missed checkout {$stats['no_missed_checkout']}\n";
-        } catch (Exception $e) {
-            echo "❌ Consistency cron: " . $e->getMessage() . "\n";
-        }
     }
 
     /**

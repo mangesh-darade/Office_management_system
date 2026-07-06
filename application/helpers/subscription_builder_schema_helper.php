@@ -69,5 +69,8 @@ if (!function_exists('subscription_builder_schema_ensure')) {
 
         $CI->load->helper('subscription_builder_countries_schema');
         subscription_builder_countries_schema_ensure($db);
+
+        $CI->load->helper('subscription_builder_included_order_schema');
+        subscription_builder_included_order_schema_ensure($db);
     }
 }

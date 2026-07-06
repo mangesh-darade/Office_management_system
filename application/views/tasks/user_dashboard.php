@@ -196,7 +196,7 @@ if (!$embed) {
       <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['requirement']) ? $type_counts['requirement'] : 0); ?></div>
     </div>
     <div class="project-dash-stat">
-      <div class="project-dash-stat-label">Project Tasks</div>
+      <div class="project-dash-stat-label">Second Brain</div>
       <div class="project-dash-stat-value"><?php echo (int) (isset($type_counts['my_work']) ? $type_counts['my_work'] : 0); ?></div>
     </div>
     <div class="project-dash-stat">
@@ -240,13 +240,23 @@ if (!$embed) {
   </div>
 <?php else: ?>
   <?php
-  $render_team_dash_items_table = function (array $section_items) use ($status_rows) {
+  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($status_rows) {
       if (empty($section_items)) {
           echo '<div class="project-dash-section-empty"><span>No items</span></div>';
           return;
       }
-      echo '<table class="table table-sm project-dash-task-table mb-0">';
-      echo '<thead><tr><th>Task</th><th style="width: 55px;">Date</th><th style="width: 110px;">Status</th></tr></thead><tbody>';
+
+      $table_id = isset($options['table_id']) ? (string) $options['table_id'] : '';
+      $table_class = isset($options['table_class']) ? (string) $options['table_class'] : 'table table-sm project-dash-task-table mb-0';
+      $is_full = !empty($options['full_width']);
+
+      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . '">';
+      echo '<thead><tr>';
+      echo '<th>Task</th>';
+      echo '<th style="width:' . ($is_full ? '100px' : '55px') . ';">Date</th>';
+      echo '<th style="width:' . ($is_full ? '140px' : '110px') . ';">Status</th>';
+      echo '</tr></thead><tbody>';
+
       foreach ($section_items as $item) {
           $item_status = isset($item['status']) ? (string) $item['status'] : 'pending';
           $item_label = isset($item['status_label']) ? (string) $item['status_label'] : ucfirst(str_replace('_', ' ', $item_status));
@@ -261,24 +271,32 @@ if (!$embed) {
           $item_title = isset($item['title']) ? (string) $item['title'] : '';
           $item_url = isset($item['url']) ? (string) $item['url'] : '#';
           $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
-          $row_bg = $badge_color . '14';
+          $row_bg = $badge_color . ($is_full ? '08' : '14');
+          $detail_max = $is_full ? '30rem' : '9rem';
           ?>
           <tr class="project-dash-task-row project-dash-task-row-<?php echo esc_view($item_status); ?>" style="--pd-row-status-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background:<?php echo esc_view($row_bg, ENT_QUOTES, 'UTF-8'); ?>;">
             <td>
-              <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
+              <?php if ($is_full): ?>
+              <div class="fw-semibold">
+              <?php endif; ?>
+              <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title<?php echo $is_full ? ' text-decoration-none text-dark' : ''; ?>" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <?php echo esc_view($item_title); ?>
               </a>
+              <?php if ($is_full): ?>
+              </div>
+              <?php endif; ?>
               <?php if ($item_detail !== ''): ?>
-                <div class="small text-muted text-truncate" style="max-width:9rem;" title="<?php echo esc_view($item_detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_detail); ?></div>
+                <div class="small text-muted text-truncate" style="max-width:<?php echo esc_view($detail_max, ENT_QUOTES, 'UTF-8'); ?>;" title="<?php echo esc_view($item_detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_detail); ?></div>
               <?php endif; ?>
             </td>
             <td>
-              <span class="project-dash-date" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
+              <span class="project-dash-date<?php echo $is_full ? ' text-muted font-monospace small' : ''; ?>" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
             </td>
             <td>
-              <select class="form-select form-select-sm project-dash-status-select" 
-                      data-item-id="<?php echo (int) $item['id']; ?>" 
+              <select class="form-select form-select-sm project-dash-status-select<?php echo $is_full ? ' font-semibold small' : ''; ?>"
+                      data-item-id="<?php echo (int) $item['id']; ?>"
                       data-item-type="<?php echo esc_view($item['item_type'], ENT_QUOTES, 'UTF-8'); ?>"
+                      data-item-source="<?php echo esc_view(isset($item['item_source']) ? (string) $item['item_source'] : '', ENT_QUOTES, 'UTF-8'); ?>"
                       style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
                       title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php foreach ($status_rows as $sr): ?>
@@ -300,15 +318,7 @@ if (!$embed) {
   <?php if ($is_user_filtered && !empty($group_cards)): ?>
     <?php
       $card = $group_cards[0];
-      $entity = isset($card['entity']) ? $card['entity'] : null;
       $items = isset($card['items']) ? $card['items'] : array();
-      
-      $type_labels = array(
-          'project_task' => array('label' => 'Project Task', 'bg' => '#0284c7', 'text' => '#ffffff'),
-          'requirement' => array('label' => 'Requirement', 'bg' => '#16a34a', 'text' => '#ffffff'),
-          'my_work' => array('label' => 'Project Tasks', 'bg' => '#f97316', 'text' => '#ffffff'),
-          'ad_hoc' => array('label' => 'Ad Hoc', 'bg' => '#dc2626', 'text' => '#ffffff')
-      );
     ?>
     <div class="table-responsive bg-white rounded-3 border p-3 mt-2 shadow-sm">
       <?php if (empty($items)): ?>
@@ -317,75 +327,11 @@ if (!$embed) {
           No items found for this employee.
         </div>
       <?php else: ?>
-        <table class="table table-hover table-striped datatable sortable-table align-middle mb-0" id="unifiedEmployeeTasksTable">
-          <thead>
-            <tr>
-              <th style="width: 140px;">Type</th>
-              <th>Task</th>
-              <th style="width: 100px;">Date</th>
-              <th style="width: 140px;">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($items as $item): ?>
-              <?php
-                $item_type = isset($item['item_type']) ? (string) $item['item_type'] : 'project_task';
-                $type_info = isset($type_labels[$item_type]) ? $type_labels[$item_type] : $type_labels['project_task'];
-                
-                $item_status = isset($item['status']) ? (string) $item['status'] : 'pending';
-                $item_label = isset($item['status_label']) ? (string) $item['status_label'] : ucfirst(str_replace('_', ' ', $item_status));
-                $item_date = isset($item['date']) ? (string) $item['date'] : '—';
-                if ($item_date !== '' && $item_date !== '—') {
-                    $parsed = strtotime($item_date);
-                    if ($parsed) {
-                        $item_date = date('d M', $parsed);
-                    }
-                }
-                $badge_color = isset($item['status_color']) ? (string) $item['status_color'] : '#6b7280';
-                $item_title = isset($item['title']) ? (string) $item['title'] : '';
-                $item_url = isset($item['url']) ? (string) $item['url'] : '#';
-                $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
-                $row_bg = $badge_color . '08';
-              ?>
-              <tr class="project-dash-task-row project-dash-task-row-<?php echo esc_view($item_status); ?>" style="--pd-row-status-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>; background-color: <?php echo esc_view($row_bg, ENT_QUOTES, 'UTF-8'); ?>;">
-                <td>
-                  <span class="badge employee-dash-badge" style="background-color: <?php echo $type_info['bg']; ?>; color: <?php echo $type_info['text']; ?>;">
-                    <?php echo esc_view($type_info['label']); ?>
-                  </span>
-                </td>
-                <td>
-                  <div class="fw-semibold">
-                    <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title text-decoration-none text-dark" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
-                      <?php echo esc_view($item_title); ?>
-                    </a>
-                  </div>
-                  <?php if ($item_detail !== ''): ?>
-                    <div class="small text-muted text-truncate" style="max-width:30rem;" title="<?php echo esc_view($item_detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_detail); ?></div>
-                  <?php endif; ?>
-                </td>
-                <td>
-                  <span class="project-dash-date text-muted font-monospace small" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
-                </td>
-                <td>
-                  <select class="form-select form-select-sm project-dash-status-select font-semibold small" 
-                          data-item-id="<?php echo (int) $item['id']; ?>" 
-                          data-item-type="<?php echo esc_view($item['item_type'], ENT_QUOTES, 'UTF-8'); ?>"
-                          style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
-                          title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>">
-                    <?php foreach ($status_rows as $sr): ?>
-                      <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"
-                              data-color="<?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>"
-                              style="color: <?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>; font-weight: 600;"
-                              <?php echo $sr->code === $item_status ? 'selected' : ''; ?>>
-                        <?php echo esc_view($sr->name); ?>
-                      </option>
-                    <?php endforeach; ?>
-                  </select>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
+        <?php $render_team_dash_items_table($items, array(
+          'table_id'    => 'unifiedEmployeeTasksTable',
+          'table_class' => 'table table-hover table-striped datatable sortable-table align-middle mb-0',
+          'full_width'  => true,
+        )); ?>
       <?php endif; ?>
     </div>
   <?php else: ?>
@@ -394,22 +340,6 @@ if (!$embed) {
         <?php
           $entity = isset($card['entity']) ? $card['entity'] : null;
           $items = isset($card['items']) ? $card['items'] : array();
-          $project_task_items = array();
-          $requirement_items = array();
-          $my_work_items = array();
-          $ad_hoc_items = array();
-          foreach ($items as $item) {
-              $item_type = isset($item['item_type']) ? (string) $item['item_type'] : '';
-              if ($item_type === 'ad_hoc') {
-                  $ad_hoc_items[] = $item;
-              } else if ($item_type === 'my_work') {
-                  $my_work_items[] = $item;
-              } else if ($item_type === 'requirement') {
-                  $requirement_items[] = $item;
-              } else {
-                  $project_task_items[] = $item;
-              }
-          }
           $item_count = count($items);
           $entity_name = ($entity && isset($entity->name)) ? (string) $entity->name : '';
           $grid_col_class = $is_user_filtered ? 'col-12 team-dash-grid-col-full' : 'col-sm-6 col-lg-4 col-xl-3 team-dash-grid-col';
@@ -446,38 +376,9 @@ if (!$embed) {
                   </div>
                 </div>
               <?php else: ?>
-                <?php if (!empty($project_task_items)): ?>
-                <div class="project-dash-section">
-                  <div class="project-dash-section-title">Project Tasks</div>
-                  <div class="project-dash-task-list project-dash-task-list-section">
-                    <?php $render_team_dash_items_table($project_task_items); ?>
-                  </div>
+                <div class="project-dash-task-list project-dash-task-list-section">
+                  <?php $render_team_dash_items_table($items); ?>
                 </div>
-                <?php endif; ?>
-                <?php if (!empty($requirement_items)): ?>
-                <div class="project-dash-section">
-                  <div class="project-dash-section-title">Requirements</div>
-                  <div class="project-dash-task-list project-dash-task-list-section">
-                    <?php $render_team_dash_items_table($requirement_items); ?>
-                  </div>
-                </div>
-                <?php endif; ?>
-                <?php if (!empty($my_work_items)): ?>
-                <div class="project-dash-section">
-                  <div class="project-dash-section-title">Project Tasks</div>
-                  <div class="project-dash-task-list project-dash-task-list-section">
-                    <?php $render_team_dash_items_table($my_work_items); ?>
-                  </div>
-                </div>
-                <?php endif; ?>
-                <?php if (!empty($ad_hoc_items)): ?>
-                <div class="project-dash-section project-dash-section-adhoc">
-                  <div class="project-dash-section-title">Ad Hoc</div>
-                  <div class="project-dash-task-list project-dash-task-list-section">
-                    <?php $render_team_dash_items_table($ad_hoc_items); ?>
-                  </div>
-                </div>
-                <?php endif; ?>
               <?php endif; ?>
             </div>
           </div>
@@ -508,6 +409,7 @@ if (!$embed) {
       var $select = $(this);
       var itemId = $select.data('item-id');
       var itemType = $select.data('item-type');
+      var itemSource = $select.data('item-source') || '';
       var newStatus = $select.val();
       var $selectedOption = $select.find('option:selected');
       var newColor = $selectedOption.data('color');
@@ -529,6 +431,7 @@ if (!$embed) {
           data: {
               id: itemId,
               type: itemType,
+              source: itemSource,
               status: newStatus,
               <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
           },

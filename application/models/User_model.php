@@ -124,17 +124,16 @@ class User_model extends CI_Model {
         return $this->db->get()->result();
     }
 
-    public function list_users($q = '', $limit = 250, $roleIds = null, $userId = null){
+    public function list_users($q = '', $limit = 250, $roleIds = null, $userId = null, $statusTab = 'active'){
         $this->db->from($this->table);
-        // Hide soft-deleted users from the grid if status column exists
-        if ($this->has_column('status')){
-            $this->db->where('status !=', 'inactive');
-        }
         if ($userId !== null){
             $this->db->where('id', (int)$userId);
         }
         if ($userId === null) {
             apply_role_hierarchy_filter($this->db, 'id');
+        }
+        if ($userId === null) {
+            $this->apply_status_tab_filter($statusTab);
         }
         // Optional role-based filter (used to scope list by group type)
         if (is_array($roleIds) && !empty($roleIds) && $this->has_column('role_id')){
@@ -187,5 +186,32 @@ class User_model extends CI_Model {
         }
         // If no status column, do not hard-delete to avoid FK crashes
         return false;
+    }
+
+    /**
+     * @param string $statusTab active|inactive
+     * @param string $alias optional table alias prefix e.g. u
+     */
+    private function apply_status_tab_filter($statusTab = 'active', $alias = '')
+    {
+        if (!$this->has_column('status')) {
+            return;
+        }
+
+        $statusTab = ($statusTab === 'inactive') ? 'inactive' : 'active';
+        $col = ($alias !== '') ? $alias . '.status' : 'status';
+
+        if ($statusTab === 'inactive') {
+            $this->db->group_start();
+            $this->db->where($col, 'inactive');
+            $this->db->or_where($col, 0);
+            $this->db->group_end();
+            return;
+        }
+
+        $this->db->group_start();
+        $this->db->where($col, 'active');
+        $this->db->or_where($col, 1);
+        $this->db->group_end();
     }
 }

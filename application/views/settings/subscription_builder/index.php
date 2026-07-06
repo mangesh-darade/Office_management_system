@@ -41,6 +41,9 @@ function sb_catalog_query($filters, $page)
     <a href="<?php echo site_url('settings'); ?>" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left"></i> Back to Settings
     </a>
+    <a href="<?php echo site_url('settings/subscription-builder/included-order'); ?>" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-sort-down me-1"></i>Included Order
+    </a>
     <a href="<?php echo site_url('settings/subscription-builder/create'); ?>" class="btn btn-primary btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Add Row
     </a>

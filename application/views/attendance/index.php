@@ -5,6 +5,10 @@
   $isAdminGroup = (function_exists('is_admin_group') && is_admin_group());
   $canViewAll = isset($can_view_all) ? $can_view_all : ($isAdminGroup || in_array($role_id, [1,2], true));
   $canAddAttendance = isset($can_add_attendance) ? $can_add_attendance : $canViewAll;
+  $user_tab = (isset($user_tab) && $user_tab === 'inactive') ? 'inactive' : 'active';
+  $isInactiveTab = ($user_tab === 'inactive');
+  $activeTabUrl = site_url('attendance?tab=active');
+  $inactiveTabUrl = site_url('attendance?tab=inactive');
   
   // Get permission flags from controller
   $canEditAttendance = isset($can_edit_attendance) ? $can_edit_attendance : false;
@@ -18,7 +22,9 @@
     'extra_css' => array('assets/css/attendance-index.css'),
   ));
   $employee_count = isset($total_records) ? (int) $total_records : 0;
-  $summary_scope = $canViewAll ? 'all employees' : 'your department/team';
+  $summary_scope = $canViewAll
+    ? ($isInactiveTab ? 'inactive employees' : 'active employees')
+    : ($isInactiveTab ? 'your inactive department/team' : 'your active department/team');
   $canExport = isset($can_export_attendance)
     ? (bool) $can_export_attendance
     : (function_exists('can_access_attendance_export') && can_access_attendance_export());
@@ -60,6 +66,19 @@
       </div>
     <?php endif; ?>
   </div>
+
+  <ul class="nav nav-tabs att-status-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link <?php echo !$isInactiveTab ? 'active' : ''; ?>" href="<?php echo $activeTabUrl; ?>">
+        <i class="bi bi-person-check me-1"></i>Active Employees
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link <?php echo $isInactiveTab ? 'active' : ''; ?>" href="<?php echo $inactiveTabUrl; ?>">
+        <i class="bi bi-person-x me-1"></i>Inactive Employees
+      </a>
+    </li>
+  </ul>
 
   <?php if ($canExport): ?>
   <div class="att-export-bar mb-3" id="exportActionsBar" style="display: none;">
@@ -151,7 +170,7 @@
       <div class="att-empty">
         <i class="bi bi-calendar-x d-block"></i>
         <div class="fw-semibold">No attendance records found</div>
-        <div class="small">Start by marking attendance or adding records.</div>
+        <div class="small"><?php echo $isInactiveTab ? 'No inactive employees with attendance records.' : 'No active employees with attendance records.'; ?></div>
       </div>
     <?php endif; ?>
   </div>
@@ -227,7 +246,7 @@
               <div class="att-empty">
                 <i class="bi bi-calendar-x d-block"></i>
                 <div class="fw-semibold">No attendance records found</div>
-                <div class="small">Start by marking attendance or adding records.</div>
+                <div class="small"><?php echo $isInactiveTab ? 'No inactive employees with attendance records.' : 'No active employees with attendance records.'; ?></div>
               </div>
             </td>
           </tr>

@@ -42,6 +42,9 @@ if (!function_exists('engagement_schema_ensure')) {
             if (!schema_table_has_column($db, 'project_releases', 'notes_sent_at')) {
                 $db->query("ALTER TABLE `project_releases` ADD COLUMN `notes_sent_at` datetime DEFAULT NULL AFTER `released_at`");
             }
+            if (!schema_table_has_column($db, 'project_releases', 'is_deleted')) {
+                $db->query("ALTER TABLE `project_releases` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0 AFTER `notes_sent_at`");
+            }
         }
 
         if (!$db->table_exists('project_release_notes')) {

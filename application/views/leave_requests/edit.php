@@ -29,14 +29,12 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Status <span class="text-danger">*</span></label>
-          <select class="form-select" name="status" required>
-            <?php $statuses=['pending','lead_approved','hr_approved','approved','rejected','cancelled'];
-            foreach ($statuses as $st): ?>
-              <option value="<?php echo $st; ?>" <?php echo ($leave->status === $st) ? 'selected' : ''; ?>>
-                <?php echo ucfirst(str_replace('_',' ', $st)); ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
+          <?php $this->load->view('partials/status_select', array(
+            'field_name' => 'status',
+            'module_type' => 'leaves',
+            'current' => (string) $leave->status,
+            'required' => true,
+          )); ?>
         </div>
         <div class="col-md-6">
           <label class="form-label">Start Date <span class="text-danger">*</span></label>

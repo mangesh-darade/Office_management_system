@@ -222,10 +222,16 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 **Steps:**
 
-1. Open release → Add or edit release note points.
-2. Review related defects linked to this release (Add to notes).
-3. Select recipients and Send notes now, or check Send when I save.
-4. Set status to Released when live (earns reward points).
+1. Open release (view or edit) → Add or edit release note points.
+2. Use **Add all fixed defects to notes** for bulk changelog, or add defects one by one.
+3. Select recipients and Send notes now, or check Send when I save (recipients get in-app notification).
+4. Set status to Released when live (project members are notified).
+
+### Delete / remove
+
+**How:**
+
+1. Open release edit → Delete (soft delete; linked defects are kept).
 
 ---
 
@@ -239,21 +245,22 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 **Steps:**
 
-1. Select project.
-2. Describe issue and steps to reproduce.
-3. Assign if known → Save.
+1. Select project (release and task lists update automatically).
+2. Describe issue and steps to reproduce; set due date if SLA applies.
+3. Assign if known; attach screenshots → Save (assignee is notified).
 
 ### Edit (update existing)
 
 **Steps:**
 
 1. Open defect → Edit status to Fixed/Verified/Closed when resolved.
+2. Post comments and upload attachments on the detail page.
 
 ### Delete / remove
 
 **How:**
 
-1. Open defect detail → Delete (admin).
+1. Open defect detail → Delete (soft delete, admin).
 
 ---
 

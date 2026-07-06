@@ -246,7 +246,7 @@ class Reports_base extends CI_Controller {
      *
      * @param string $userAlias
      * @param string $empAlias
-     * @param array $options middle_name, department, active_only
+     * @param array $options middle_name, department, active_only, inactive_only
      * @return void
      */
     protected function apply_user_employee_name_selects(
@@ -260,8 +260,18 @@ class Reports_base extends CI_Controller {
         if ($this->schema_has_column('users', 'name')) {
             $this->db->select($userAlias . '.name');
         }
-        if (!empty($options['active_only']) && $this->schema_has_column('users', 'status')) {
-            $this->db->where($userAlias . '.status', 'active');
+        if ($this->schema_has_column('users', 'status')) {
+            if (!empty($options['inactive_only'])) {
+                $this->db->group_start();
+                $this->db->where($userAlias . '.status', 'inactive');
+                $this->db->or_where($userAlias . '.status', 0);
+                $this->db->group_end();
+            } elseif (!empty($options['active_only'])) {
+                $this->db->group_start();
+                $this->db->where($userAlias . '.status', 'active');
+                $this->db->or_where($userAlias . '.status', 1);
+                $this->db->group_end();
+            }
         }
 
         if ($this->db->table_exists('employees') && $this->schema_has_column('employees', 'user_id')) {

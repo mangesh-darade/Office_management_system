@@ -185,6 +185,30 @@ $route['my-works/(:num)/download'] = 'my_works/download/$1';
 $route['my-works/(:num)/preview'] = 'my_works/preview/$1';
 $route['my-works/(:num)'] = 'my_works/show/$1';
 
+// SPL — rewards & recognition
+$route['spl'] = 'spl/index';
+$route['spl/submit-activity'] = 'spl/submit_activity';
+$route['spl/approve-activity/(:num)'] = 'spl/approve_activity/$1';
+$route['spl/reject-activity/(:num)'] = 'spl/reject_activity/$1';
+$route['spl/save-rule'] = 'spl/save_rule';
+$route['spl/save-level'] = 'spl/save_level';
+$route['spl/rules-import'] = 'spl/rules_import';
+$route['spl/rules-export'] = 'spl/rules_export_csv';
+$route['spl/rules-sample-csv'] = 'spl/rules_sample_csv';
+$route['spl/delete-rule/(:num)'] = 'spl/delete_rule/$1';
+$route['spl/rules-by-category'] = 'spl/rules_by_category';
+$route['spl/group-context'] = 'spl/group_context';
+$route['spl/groups'] = 'spl/groups';
+$route['spl/groups/save'] = 'spl/save_group';
+$route['spl/groups/save-board'] = 'spl/save_groups_board';
+$route['spl/groups/add'] = 'spl/add_group';
+$route['spl/groups/(:num)'] = 'spl/group/$1';
+$route['rewards'] = 'spl/index';
+$route['rewards/submit-claim'] = 'spl/submit_activity';
+$route['rewards/rules'] = 'spl/index';
+$route['rewards/submit-activity'] = 'spl/submit_activity';
+$route['rewards/approvals'] = 'spl/approvals';
+
 // Statuses Management
 $route['types'] = 'types/index';
 $route['types/create'] = 'types/create';
@@ -310,6 +334,8 @@ $route['settings/holidays/(:num)/edit'] = 'settings/holidays_edit/$1';
 $route['settings/holidays/(:num)/delete'] = 'settings/holidays_delete/$1';
 
 // Subscription Builder catalog (Settings)
+$route['settings/subscription-builder/included-order'] = 'settings/subscription_builder_included_order';
+$route['settings/subscription-builder/included-order/save'] = 'settings/subscription_builder_included_order_save';
 $route['settings/subscription-builder'] = 'settings/subscription_builder_catalog';
 $route['settings/subscription-builder/create'] = 'settings/subscription_builder_create';
 $route['settings/subscription-builder/import'] = 'settings/subscription_builder_import';
@@ -751,47 +777,25 @@ $route['email-settings/edit-template/(:num)'] = 'email_settings/edit_template/$1
 // Users destroy (actual delete POST action)
 $route['users/destroy/(:num)'] = 'users/destroy/$1';
 
-// Engagement modules (missing modules for rewards)
 $route['releases'] = 'releases/index';
+$route['releases/index/(:num)'] = 'releases/index/$1';
 $route['releases/create'] = 'releases/create';
+$route['releases/view/(:num)'] = 'releases/view/$1';
 $route['releases/edit/(:num)'] = 'releases/edit/$1';
+$route['releases/delete/(:num)'] = 'releases/delete/$1';
+$route['releases/export'] = 'releases/export';
 $route['releases/send-notes/(:num)'] = 'releases/send_notes/$1';
+$route['releases/add-all-fixed/(:num)'] = 'releases/add_all_fixed/$1';
 $route['defects'] = 'defects/index';
+$route['defects/index/(:num)'] = 'defects/index/$1';
 $route['defects/create'] = 'defects/create';
 $route['defects/view/(:num)'] = 'defects/view/$1';
 $route['defects/edit/(:num)'] = 'defects/edit/$1';
 $route['defects/delete/(:num)'] = 'defects/delete/$1';
-$route['knowledge-base'] = 'knowledge_base/index';
-$route['knowledge-base/create'] = 'knowledge_base/create';
-$route['knowledge-base/edit/(:num)'] = 'knowledge_base/edit/$1';
-$route['knowledge-base/view/(:num)'] = 'knowledge_base/view/$1';
-$route['helpdesk'] = 'helpdesk/index';
-$route['helpdesk/create'] = 'helpdesk/create';
-$route['helpdesk/edit/(:num)'] = 'helpdesk/edit/$1';
-$route['events'] = 'events/index';
-$route['events/create'] = 'events/create';
-$route['events/edit/(:num)'] = 'events/edit/$1';
-$route['certifications'] = 'certifications/index';
-$route['certifications/create'] = 'certifications/create';
-$route['certifications/approve/(:num)'] = 'certifications/approve/$1';
-$route['certifications/reject/(:num)'] = 'certifications/reject/$1';
-$route['customer-feedback'] = 'customer_feedback/index';
-$route['customer-feedback/create'] = 'customer_feedback/create';
-
-// Rewards & Recognition
-$route['rewards'] = 'rewards/index';
-$route['rewards/history'] = 'rewards/history';
-$route['rewards/leaderboard'] = 'rewards/leaderboard';
-$route['rewards/cheer'] = 'rewards/cheer';
-$route['rewards/rules'] = 'rewards/rules';
-$route['rewards/edit-rule'] = 'rewards/edit_rule';
-$route['rewards/edit-rule/(:num)'] = 'rewards/edit_rule/$1';
-$route['rewards/manual-grant'] = 'rewards/manual_grant';
-$route['rewards/submit-claim'] = 'rewards/submit_claim';
-$route['rewards/approvals'] = 'rewards/approvals';
-$route['rewards/approve-claim/(:num)'] = 'rewards/approve_claim/$1';
-$route['rewards/reject-claim/(:num)'] = 'rewards/reject_claim/$1';
-$route['rewards/office-closing'] = 'rewards/office_closing';
+$route['defects/export'] = 'defects/export';
+$route['defects/ajax-options/(:num)'] = 'defects/ajax_options/$1';
+$route['defects/add-comment/(:num)'] = 'defects/add_comment/$1';
+$route['defects/attachment/(:num)/(:num)/download'] = 'defects/attachment_download/$1/$2';
 
 // Office Meals
 $route['meals'] = 'meals/index';

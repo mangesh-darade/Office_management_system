@@ -200,6 +200,34 @@ class Reward_model extends CI_Model
         return $this->db->where('code', $code)->get('reward_levels')->row();
     }
 
+    public function list_levels($active_only = false)
+    {
+        if (!$this->db->table_exists('reward_levels')) {
+            return array();
+        }
+        if ($active_only) {
+            $this->db->where('is_active', 1);
+        }
+        $this->db->order_by('sort_order', 'ASC');
+        $this->db->order_by('min_lifetime_points', 'ASC');
+        return $this->db->get('reward_levels')->result();
+    }
+
+    public function get_level_by_id($id)
+    {
+        return $this->db->where('id', (int) $id)->get('reward_levels')->row();
+    }
+
+    public function save_level($data, $id = null)
+    {
+        if ($id) {
+            $this->db->where('id', (int) $id)->update('reward_levels', $data);
+            return (int) $id;
+        }
+        $this->db->insert('reward_levels', $data);
+        return (int) $this->db->insert_id();
+    }
+
     public function list_transactions($user_id, $limit = 50, $offset = 0)
     {
         $this->db->select('t.*, r.name AS rule_name');
@@ -209,6 +237,64 @@ class Reward_model extends CI_Model
         $this->db->order_by('t.id', 'DESC');
         $this->db->limit($limit, $offset);
         return $this->db->get()->result();
+    }
+
+    public function list_user_activity_feed($user_id, $limit = 20, $date_from = null, $date_to = null)
+    {
+        $this->db->select('t.*, r.name AS rule_name, r.code AS rule_code, COALESCE(c.name, rc.name) AS category_name', false);
+        $this->db->from('reward_transactions t');
+        $this->db->join('reward_rules r', 'r.id = t.rule_id', 'left');
+        $this->db->join('reward_categories c', 'c.id = t.category_id', 'left');
+        $this->db->join('reward_categories rc', 'rc.id = r.category_id', 'left');
+        $this->db->where('t.user_id', (int) $user_id);
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $this->db->order_by('t.created_at', 'DESC');
+        $this->db->order_by('t.id', 'DESC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
+    public function sum_user_activity_points($user_id, $date_from = null, $date_to = null)
+    {
+        $this->db->select(
+            'COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points > 0 THEN t.points ELSE 0 END), 0) AS positive_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points < 0 THEN ABS(t.points) ELSE 0 END), 0) AS negative_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' THEN t.points ELSE 0 END), 0) AS net_points,'
+            . ' SUM(CASE WHEN t.status = \'pending\' THEN 1 ELSE 0 END) AS pending_count,'
+            . ' SUM(CASE WHEN t.status = \'approved\' THEN 1 ELSE 0 END) AS approved_count,'
+            . ' SUM(CASE WHEN t.status = \'rejected\' THEN 1 ELSE 0 END) AS rejected_count',
+            false
+        );
+        $this->db->from('reward_transactions t');
+        $this->db->where('t.user_id', (int) $user_id);
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $row = $this->db->get()->row();
+        return array(
+            'positive' => $row ? (float) $row->positive_points : 0,
+            'negative' => $row ? (float) $row->negative_points : 0,
+            'net' => $row ? (float) $row->net_points : 0,
+            'pending_count' => $row ? (int) $row->pending_count : 0,
+            'approved_count' => $row ? (int) $row->approved_count : 0,
+            'rejected_count' => $row ? (int) $row->rejected_count : 0,
+        );
+    }
+
+    public function count_user_pending_transactions($user_id)
+    {
+        return (int) $this->db
+            ->where('user_id', (int) $user_id)
+            ->where('status', 'pending')
+            ->count_all_results('reward_transactions');
     }
 
     public function leaderboard($period_type, $period_key, $department_id = null, $limit = 20)
@@ -385,6 +471,61 @@ class Reward_model extends CI_Model
         return $this->db->where('id', (int) $id)->get('reward_approval_queue')->row();
     }
 
+    public function list_spl_pending_approvals($limit = 100)
+    {
+        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label', false);
+        $this->db->from('reward_approval_queue q');
+        $this->db->join('users u', 'u.id = q.user_id', 'left');
+        $this->db->join('users s', 's.id = q.submitted_by', 'left');
+        $this->db->join('reward_rules r', 'r.id = q.rule_id', 'left');
+        $this->db->join('reward_categories c', 'c.id = r.category_id', 'left');
+        $this->db->join('reward_transactions t', 't.id = q.transaction_id', 'left');
+        $this->db->where('q.status', 'pending');
+        $this->db->where('q.source_module', 'spl');
+        $this->db->order_by('q.submitted_at', 'DESC');
+        $this->db->limit($limit);
+        return $this->db->get()->result();
+    }
+
+    public function list_spl_approval_history($status = 'approved', $limit = 100)
+    {
+        $status = in_array($status, array('approved', 'rejected'), true) ? $status : 'approved';
+        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, a.name AS approver_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label', false);
+        $this->db->from('reward_approval_queue q');
+        $this->db->join('users u', 'u.id = q.user_id', 'left');
+        $this->db->join('users s', 's.id = q.submitted_by', 'left');
+        $this->db->join('users a', 'a.id = q.approver_id', 'left');
+        $this->db->join('reward_rules r', 'r.id = q.rule_id', 'left');
+        $this->db->join('reward_categories c', 'c.id = r.category_id', 'left');
+        $this->db->join('reward_transactions t', 't.id = q.transaction_id', 'left');
+        $this->db->where('q.status', $status);
+        $this->db->where('q.source_module', 'spl');
+        $this->db->order_by('q.decided_at', 'DESC');
+        $this->db->order_by('q.id', 'DESC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
+    public function count_spl_approvals_by_status($status)
+    {
+        $status = (string) $status;
+        if (!in_array($status, array('pending', 'approved', 'rejected'), true)) {
+            return 0;
+        }
+        return (int) $this->db
+            ->where('status', $status)
+            ->where('source_module', 'spl')
+            ->count_all_results('reward_approval_queue');
+    }
+
+    public function get_evidence_for_queue($queue_id)
+    {
+        if (!$this->db->table_exists('reward_evidence')) {
+            return null;
+        }
+        return $this->db->where('approval_queue_id', (int) $queue_id)->order_by('id', 'DESC')->limit(1)->get('reward_evidence')->row();
+    }
+
     public function approve_pending($queue_id, $approver_id, $comment = '')
     {
         $q = $this->get_approval_queue($queue_id);
@@ -418,7 +559,7 @@ class Reward_model extends CI_Model
                 'success',
                 'rewards',
                 (int) $q->transaction_id,
-                site_url('rewards/history')
+                site_url('spl?tab=my-reward')
             );
         }
         return true;

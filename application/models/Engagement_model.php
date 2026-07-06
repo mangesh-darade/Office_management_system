@@ -7,29 +7,103 @@ class Engagement_model extends CI_Model
     {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(array('engagement_schema', 'schema_columns'));
+        $this->load->helper(array('engagement_schema', 'schema_columns', 'defects_releases'));
         engagement_schema_ensure($this->db);
     }
 
-    public function list_releases($filters = array())
+    private function _apply_release_filters($filters = array())
     {
-        $this->db->select('r.*, p.name AS project_name, u.name AS creator_name');
-        $this->db->from('project_releases r');
-        $this->db->join('projects p', 'p.id = r.project_id', 'left');
-        $this->db->join('users u', 'u.id = r.created_by', 'left');
+        if (schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            $this->db->where('r.is_deleted', 0);
+        }
+        defects_releases_apply_project_scope($this->db, 'r', 'project_id');
         if (!empty($filters['status'])) {
             $this->db->where('r.status', $filters['status']);
         }
         if (!empty($filters['project_id'])) {
             $this->db->where('r.project_id', (int) $filters['project_id']);
         }
+    }
+
+    public function count_releases($filters = array())
+    {
+        $this->db->from('project_releases r');
+        $this->_apply_release_filters($filters);
+        return (int) $this->db->count_all_results();
+    }
+
+    public function list_releases($filters = array(), $limit = null, $offset = 0)
+    {
+        $this->db->select('r.*, p.name AS project_name, u.name AS creator_name');
+        $this->db->from('project_releases r');
+        $this->db->join('projects p', 'p.id = r.project_id', 'left');
+        $this->db->join('users u', 'u.id = r.created_by', 'left');
+        $this->_apply_release_filters($filters);
         $this->db->order_by('r.id', 'DESC');
+        if ($limit !== null) {
+            $this->db->limit((int) $limit, (int) $offset);
+        }
         return $this->db->get()->result();
     }
 
-    public function get_release($id)
+    public function get_release($id, $include_deleted = false)
     {
-        return $this->db->where('id', (int) $id)->get('project_releases')->row();
+        $this->db->where('id', (int) $id);
+        if (!$include_deleted && schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            $this->db->where('is_deleted', 0);
+        }
+        $row = $this->db->get('project_releases')->row();
+        if (!$row) {
+            return null;
+        }
+        if (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (!in_array((int) $row->project_id, $ids, true)) {
+                return null;
+            }
+        }
+        return $row;
+    }
+
+    public function version_exists($project_id, $version, $exclude_id = null)
+    {
+        $this->db->where('project_id', (int) $project_id);
+        $this->db->where('version', (string) $version);
+        if (schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            $this->db->where('is_deleted', 0);
+        }
+        if ($exclude_id) {
+            $this->db->where('id !=', (int) $exclude_id);
+        }
+        return $this->db->count_all_results('project_releases') > 0;
+    }
+
+    public function delete_release($id)
+    {
+        if (schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            return $this->db->where('id', (int) $id)->update('project_releases', array(
+                'is_deleted' => 1,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ));
+        }
+        return $this->db->where('id', (int) $id)->delete('project_releases');
+    }
+
+    public function dashboard_counts()
+    {
+        if (!$this->db->table_exists('project_releases')) {
+            return array('upcoming' => 0);
+        }
+        $this->db->from('project_releases r');
+        if (schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            $this->db->where('r.is_deleted', 0);
+        }
+        defects_releases_apply_project_scope($this->db, 'r', 'project_id');
+        $this->db->where_in('r.status', array('planned', 'in_progress'));
+        $this->db->where('r.planned_date IS NOT NULL', null, false);
+        $this->db->where('r.planned_date >=', date('Y-m-d'));
+        $this->db->where('r.planned_date <=', date('Y-m-d', strtotime('+14 days')));
+        return array('upcoming' => (int) $this->db->count_all_results());
     }
 
     public function save_release($data, $id = null)
@@ -281,6 +355,13 @@ class Engagement_model extends CI_Model
     {
         if (!$this->db->table_exists('projects')) {
             return array();
+        }
+        if (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (empty($ids)) {
+                return array();
+            }
+            $this->db->where_in('id', $ids);
         }
         return $this->db->select('id, name')->order_by('name')->get('projects')->result();
     }

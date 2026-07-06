@@ -1049,4 +1049,129 @@ class Settings extends CI_Controller {
             ->set_header('Content-Disposition: attachment; filename="subscription_builder_import_sample.xlsx"')
             ->set_output(file_get_contents($path));
     }
+
+    // GET /settings/subscription-builder/included-order
+    public function subscription_builder_included_order()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $this->load_subscription_builder_model();
+        $this->load->model('Subscription_builder_included_order_model', 'included_order');
+        $this->included_order->ensure_schema();
+
+        $plans = $this->subscription_builder->get_plan_order();
+        $industries = $this->subscription_builder->get_industry_order();
+        $plan = trim((string) $this->input->get('plan'));
+        $industry = trim((string) $this->input->get('industry'));
+
+        if ($plan === '' && !empty($plans)) {
+            $plan = 'Professional';
+            foreach ($plans as $p) {
+                if (strcasecmp($p, 'Professional') === 0) {
+                    $plan = $p;
+                    break;
+                }
+            }
+            if ($plan === '' || !in_array($plan, $plans, true)) {
+                $plan = $plans[0];
+            }
+        }
+        if ($industry === '' && !empty($industries)) {
+            $industry = 'Retail';
+            foreach ($industries as $ind) {
+                if (strcasecmp($ind, 'Retail') === 0) {
+                    $industry = $ind;
+                    break;
+                }
+            }
+            if ($industry === '' || !in_array($industry, $industries, true)) {
+                $industry = $industries[0];
+            }
+        }
+
+        $included_by_module = array();
+        if ($plan !== '' && $industry !== '') {
+            $included_by_module = $this->subscription_builder->get_included_by_module_for_order_editor(
+                $plan,
+                $industry,
+                $this->subscription_builder->get_default_country()
+            );
+        }
+
+        $this->load->view('settings/subscription_builder/included_order', array(
+            'plans' => $plans,
+            'industries' => $industries,
+            'plan' => $plan,
+            'industry' => $industry,
+            'included_by_module' => $included_by_module,
+            'save_url' => site_url('settings/subscription-builder/included-order/save'),
+        ));
+    }
+
+    // POST /settings/subscription-builder/included-order/save
+    public function subscription_builder_included_order_save()
+    {
+        require_module_access(array('subscription_builder', 'settings'), true);
+        $this->load->model('Subscription_builder_included_order_model', 'included_order');
+        $this->included_order->ensure_schema();
+
+        $plan = trim((string) $this->input->post('plan'));
+        $industry = trim((string) $this->input->post('industry'));
+        $module_order_raw = $this->input->post('module_order');
+        $feature_order_raw = $this->input->post('feature_order');
+
+        if ($plan === '' || $industry === '') {
+            if ($this->input->is_ajax_request()) {
+                return $this->output
+                    ->set_status_header(422)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(array(
+                        'status' => 'error',
+                        'message' => 'Plan and industry are required.',
+                    )));
+            }
+            $this->session->set_flashdata('error', 'Plan and industry are required.');
+            redirect('settings/subscription-builder/included-order');
+            return;
+        }
+
+        $module_order = json_decode((string) $module_order_raw, true);
+        $feature_order = json_decode((string) $feature_order_raw, true);
+        if (!is_array($module_order)) {
+            $module_order = array();
+        }
+        if (!is_array($feature_order)) {
+            $feature_order = array();
+        }
+
+        $ok = $this->included_order->save($plan, $industry, $module_order, $feature_order);
+        if (!$ok) {
+            if ($this->input->is_ajax_request()) {
+                return $this->output
+                    ->set_status_header(500)
+                    ->set_content_type('application/json')
+                    ->set_output(json_encode(array(
+                        'status' => 'error',
+                        'message' => 'Unable to save display order.',
+                    )));
+            }
+            $this->session->set_flashdata('error', 'Unable to save display order.');
+            redirect('settings/subscription-builder/included-order?plan=' . rawurlencode($plan) . '&industry=' . rawurlencode($industry));
+            return;
+        }
+
+        $this->load->helper('activity');
+        log_activity('subscription_builder', 'updated', 0, 'Included display order: ' . $plan . ' / ' . $industry);
+
+        if ($this->input->is_ajax_request()) {
+            return $this->output
+                ->set_content_type('application/json')
+                ->set_output(json_encode(array(
+                    'status' => 'success',
+                    'message' => 'Display order saved.',
+                )));
+        }
+
+        $this->session->set_flashdata('success', 'Included section display order saved.');
+        redirect('settings/subscription-builder/included-order?plan=' . rawurlencode($plan) . '&industry=' . rawurlencode($industry));
+    }
 }

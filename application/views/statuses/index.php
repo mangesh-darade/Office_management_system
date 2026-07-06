@@ -31,9 +31,9 @@
         <label class="form-label">Filter by Type</label>
         <select name="type" class="form-select" onchange="this.form.submit()">
           <option value="">All Types</option>
-          <?php foreach ($types as $type): ?>
-            <option value="<?php echo esc_view($type); ?>" <?php echo (isset($selected_type) && $selected_type === $type) ? 'selected' : ''; ?>>
-              <?php echo ucfirst($type); ?>
+          <?php foreach ($types as $key => $label): ?>
+            <option value="<?php echo esc_view($key); ?>" <?php echo (isset($selected_type) && $selected_type === $key) ? 'selected' : ''; ?>>
+              <?php echo esc_view($label); ?>
             </option>
           <?php endforeach; ?>
         </select>

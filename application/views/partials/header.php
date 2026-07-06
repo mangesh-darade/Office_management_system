@@ -18,7 +18,7 @@ if ($embed) {
   <link href="https://cdn.datatables.net/2.0.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
   <link href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.min.css" rel="stylesheet">
   <link rel="manifest" href="<?php echo base_url('assets/pwa/manifest.webmanifest'); ?>">
-  <link href="<?php echo base_url('assets/css/app.css'); ?>" rel="stylesheet">
+  <link href="<?php echo base_url('assets/css/app.css?v=' . (is_file(FCPATH . 'assets/css/app.css') ? filemtime(FCPATH . 'assets/css/app.css') : '1')); ?>" rel="stylesheet">
   <link href="<?php echo base_url('assets/css/compact-forms.css'); ?>" rel="stylesheet">
   <style>
     /* Show user avatar on mobile */
@@ -227,16 +227,17 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       $role_id = (int) $this->session->userdata('role_id');
       $is_superadmin = ($role_id === 1);
       ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='elintom-proposals'?'active':''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
-      <?php endif; ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
       <?php endif; ?>
+      <?php
+      $this->load->helper('spl');
+      if (function_exists('spl_can_access') && spl_can_access()):
+      ?>
+      <a class="nav-link sidebar-link <?php echo ($active==='spl' || $active==='rewards')?'active':''; ?>" href="<?php echo site_url('spl'); ?>"><i class="bi bi-trophy me-2"></i>SPL — My Reward</a>
+      <?php endif; ?>
+      <?php $this->load->view('partials/sidebar_sales_group', array('variant' => 'mobile', 'active' => $active, 'active_sub' => $active_sub)); ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item">
@@ -255,38 +256,6 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
-      <?php endif; ?>
-      <?php
-      $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
-          || $is_superadmin
-          || (function_exists('has_module_access') && has_module_access('whatsapp'));
-      if ($comm_show) {
-          if (function_exists('has_module_access') && has_module_access('mail')) {
-              $comm_mobile_open = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
-          } else {
-              $comm_mobile_open = ($active === 'whatsapp');
-          }
-      } else {
-          $comm_mobile_open = false;
-      }
-      ?>
-      <?php if ($comm_show): ?>
-      <div class="nav-item">
-        <a class="nav-link sidebar-link <?php echo $comm_mobile_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-communication-submenu" role="button" aria-expanded="<?php echo $comm_mobile_open ? 'true' : 'false'; ?>" aria-controls="mobile-communication-submenu">
-          <i class="bi bi-broadcast me-2"></i>Communication <i class="bi bi-chevron-down float-end"></i>
-        </a>
-        <div class="collapse <?php echo $comm_mobile_open ? 'show' : ''; ?>" id="mobile-communication-submenu">
-          <div class="ps-4">
-            <?php if (function_exists('has_module_access') && has_module_access('mail')): ?>
-            <a class="nav-link sidebar-link small <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
-            <a class="nav-link sidebar-link small <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-send me-2"></i>SendGrid (API)</a>
-            <?php endif; ?>
-            <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
-            <a class="nav-link sidebar-link small <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
-            <?php endif; ?>
-          </div>
-        </div>
-      </div>
       <?php endif; ?>
       
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
@@ -654,48 +623,46 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         </div>
       </div>
       <?php endif; ?>
-      
+
       <?php $this->load->view('partials/sidebar_meals_group', array('variant' => 'mobile', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
       <?php endif; ?>
-      <?php
-        $engagement_mobile_active = in_array($active, array('rewards','knowledge-base','helpdesk','events','certifications','customer-feedback'), true);
-        $engagement_mobile_any = function_exists('has_module_access') && (
-          has_module_access('rewards') || has_module_access('knowledge_base')
-          || has_module_access('helpdesk') || has_module_access('events') || has_module_access('certifications')
-          || has_module_access('customer_feedback')
-        );
-      ?>
-      <?php if ($engagement_mobile_any): ?>
-      <a class="nav-link sidebar-link <?php echo $engagement_mobile_active ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-engagement-submenu" role="button" aria-expanded="<?php echo $engagement_mobile_active ? 'true' : 'false'; ?>">
-        <i class="bi bi-trophy me-2"></i>Rewards & Engagement
-      </a>
-      <div class="collapse <?php echo $engagement_mobile_active ? 'show' : ''; ?>" id="mobile-engagement-submenu">
-        <div class="ps-3">
-          <?php if (has_module_access('rewards')): ?>
-          <a class="nav-link sidebar-link small <?php echo ($active==='rewards')?'active':''; ?>" href="<?php echo site_url('rewards'); ?>"><i class="bi bi-star me-2"></i>My Rewards</a>
-          <?php endif; ?>
-          <?php if (has_module_access('knowledge_base')): ?>
-          <a class="nav-link sidebar-link small <?php echo $active==='knowledge-base'?'active':''; ?>" href="<?php echo site_url('knowledge-base'); ?>"><i class="bi bi-journal-bookmark me-2"></i>Knowledge Base</a>
-          <?php endif; ?>
-          <?php if (has_module_access('helpdesk')): ?>
-          <a class="nav-link sidebar-link small <?php echo $active==='helpdesk'?'active':''; ?>" href="<?php echo site_url('helpdesk'); ?>"><i class="bi bi-life-preserver me-2"></i>Helpdesk</a>
-          <?php endif; ?>
-          <?php if (has_module_access('events')): ?>
-          <a class="nav-link sidebar-link small <?php echo $active==='events'?'active':''; ?>" href="<?php echo site_url('events'); ?>"><i class="bi bi-calendar-event me-2"></i>Events</a>
-          <?php endif; ?>
-          <?php if (has_module_access('certifications')): ?>
-          <a class="nav-link sidebar-link small <?php echo $active==='certifications'?'active':''; ?>" href="<?php echo site_url('certifications'); ?>"><i class="bi bi-patch-check me-2"></i>Certifications</a>
-          <?php endif; ?>
-          <?php if (has_module_access('customer_feedback')): ?>
-          <a class="nav-link sidebar-link small <?php echo $active==='customer-feedback'?'active':''; ?>" href="<?php echo site_url('customer-feedback'); ?>"><i class="bi bi-chat-heart me-2"></i>Customer Feedback</a>
-          <?php endif; ?>
-        </div>
-      </div>
-      <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
+      <?php endif; ?>
+      
+      <?php
+      $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
+          || $is_superadmin
+          || (function_exists('has_module_access') && has_module_access('whatsapp'));
+      if ($comm_show) {
+          if (function_exists('has_module_access') && has_module_access('mail')) {
+              $comm_mobile_open = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
+          } else {
+              $comm_mobile_open = ($active === 'whatsapp');
+          }
+      } else {
+          $comm_mobile_open = false;
+      }
+      ?>
+      <?php if ($comm_show): ?>
+      <div class="nav-item">
+        <a class="nav-link sidebar-link <?php echo $comm_mobile_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-communication-submenu" role="button" aria-expanded="<?php echo $comm_mobile_open ? 'true' : 'false'; ?>" aria-controls="mobile-communication-submenu">
+          <i class="bi bi-broadcast me-2"></i>Communication <i class="bi bi-chevron-down float-end"></i>
+        </a>
+        <div class="collapse <?php echo $comm_mobile_open ? 'show' : ''; ?>" id="mobile-communication-submenu">
+          <div class="ps-4">
+            <?php if (function_exists('has_module_access') && has_module_access('mail')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-2"></i>Mail (SMTP)</a>
+            <a class="nav-link sidebar-link small <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-send me-2"></i>SendGrid (API)</a>
+            <?php endif; ?>
+            <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
       <?php endif; ?>
       
       <?php
@@ -804,11 +771,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && has_module_access('approvals')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='approvals'?'active':''; ?>" href="<?php echo site_url('approvals'); ?>"><i class="bi bi-diagram-2 me-2"></i>Approval Workflows</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
-            <a class="nav-link sidebar-link small <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
-            <a class="nav-link sidebar-link small <?php echo ($active==='db' && $active_sub==='clients')?'active':''; ?>" href="<?php echo site_url('db/clients'); ?>"><i class="bi bi-diagram-3 me-2"></i>Client DB Panel</a>
-            <a class="nav-link sidebar-link small <?php echo ($active==='db' && $active_sub==='client-migrations')?'active':''; ?>" href="<?php echo site_url('db/client-migrations'); ?>"><i class="bi bi-clock-history me-2"></i>Client DB Migrations</a>
-            <?php endif; ?>
+            <?php $this->load->view('partials/sidebar_settings_database_group', array('variant' => 'mobile', 'active' => $active, 'active_sub' => $active_sub)); ?>
             <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
             <?php endif; ?>
@@ -821,12 +784,8 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php if(function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="nav-link sidebar-link small <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
-            <a class="nav-link sidebar-link small <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('subscription_builder')): ?>
-            <a class="nav-link sidebar-link small <?php echo ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false)?'active':''; ?>" href="<?php echo site_url('settings/subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder Catalog</a>
-            <?php endif; ?>
+            <?php $this->load->view('partials/sidebar_settings_leave_group', array('variant' => 'mobile', 'active' => $active)); ?>
+            <?php $this->load->view('partials/sidebar_settings_sales_group', array('variant' => 'mobile', 'active' => $active)); ?>
             <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>
             <?php endif; ?>

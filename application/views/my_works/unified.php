@@ -1,73 +1,74 @@
 <?php $this->load->view('partials/header', array(
-  'title' => 'My Workspace',
+  'title' => 'Second Brain',
   'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css')
 )); ?>
 
 <style>
 #unifiedDashboardTabs {
-  border-bottom: 1px solid #e2e8f0 !important;
-}
-#unifiedDashboardTabs .nav-link {
-  color: #64748b;
-  background-color: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  transition: all 0.2s ease-in-out;
-}
-#unifiedDashboardTabs .nav-link:hover {
-  color: #0f172a;
-  background-color: #e2e8f0;
-}
-#unifiedDashboardTabs .nav-link.active {
-  color: #ffffff !important;
-  background-color: #0d6efd;
-  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
-}
-.tab-loading-spinner {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 250px;
-}
-.tab-pane-content {
-  animation: fadeIn 0.3s ease-in-out;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  border-bottom: none !important;
 }
 </style>
 
-<div class="row mb-3 align-items-center">
-  <div class="col">
-    <h1 class="h4 mb-0"><i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>My Workspace</h1>
+<div class="mw-unified-shell">
+<div class="mw-unified-head card border-0 shadow-sm">
+  <div class="mw-unified-head-inner">
+    <div class="mw-unified-head-brand">
+      <span class="mw-unified-head-icon" aria-hidden="true">
+        <i class="oms-icon-brain"></i>
+      </span>
+      <div class="mw-unified-head-title-row">
+        <h1 class="mw-unified-head-title">Second Brain</h1>
+        <div class="mw-unified-head-week">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          <span><?php echo esc_view(my_works_dashboard_week_range_label(), ENT_QUOTES, 'UTF-8'); ?></span>
+        </div>
+        <?php
+          $this->load->helper('my_works_status');
+          $unified_status_legend = my_works_status_records();
+        ?>
+        <?php if (!empty($unified_status_legend)): ?>
+        <div class="mw-unified-head-status-legend" aria-label="Work item statuses">
+          <?php foreach ($unified_status_legend as $st): ?>
+            <?php $hex_color = my_works_status_hex_color($st->code); ?>
+            <span class="mw-unified-head-status-item"
+                  style="background-color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>12;
+                         color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>;
+                         border-color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>28;">
+              <?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?>
+            </span>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2 gap-2 flex-nowrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding-bottom: 8px;">
-  <ul class="nav nav-pills flex-nowrap" id="unifiedDashboardTabs" role="tablist" style="gap: 6px;">
+<div class="mw-unified-toolbar card border-0 shadow-sm">
+  <div class="mw-unified-toolbar-inner">
+  <ul class="nav nav-pills flex-nowrap mw-unified-tabs" id="unifiedDashboardTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link px-3 fw-semibold <?php echo $active_tab === 'overview' ? 'active' : ''; ?>" 
-              id="tab-overview" data-tab="overview" type="button" role="tab" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
-        <i class="bi bi-speedometer2 me-1.5"></i>Overview
+      <button class="nav-link <?php echo $active_tab === 'overview' ? 'active' : ''; ?>" 
+              id="tab-overview" data-tab="overview" type="button" role="tab">
+        <i class="bi bi-speedometer2 me-1"></i>Overview
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link px-3 fw-semibold <?php echo $active_tab === 'project-dashboard' ? 'active' : ''; ?>" 
-              id="tab-project-dashboard" data-tab="project-dashboard" type="button" role="tab" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
-        <i class="bi bi-columns-gap me-1.5"></i>Project Dashboard
+      <button class="nav-link <?php echo $active_tab === 'project-dashboard' ? 'active' : ''; ?>" 
+              id="tab-project-dashboard" data-tab="project-dashboard" type="button" role="tab">
+        <i class="bi bi-columns-gap me-1"></i>Project Dashboard
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link px-3 fw-semibold <?php echo $active_tab === 'team-dashboard' ? 'active' : ''; ?>" 
-              id="tab-team-dashboard" data-tab="team-dashboard" type="button" role="tab" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
-        <i class="bi bi-people me-1.5"></i>Team Dashboard
+      <button class="nav-link <?php echo $active_tab === 'team-dashboard' ? 'active' : ''; ?>" 
+              id="tab-team-dashboard" data-tab="team-dashboard" type="button" role="tab">
+        <i class="bi bi-people me-1"></i>Team Dashboard
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link px-3 fw-semibold <?php echo $active_tab === 'list' ? 'active' : ''; ?>" 
-              id="tab-list" data-tab="list" type="button" role="tab" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
-        <i class="bi bi-list-ul me-1.5"></i>List
+      <button class="nav-link <?php echo $active_tab === 'list' ? 'active' : ''; ?>" 
+              id="tab-list" data-tab="list" type="button" role="tab">
+        <i class="bi bi-list-ul me-1"></i>List
       </button>
     </li>
   </ul>
@@ -80,27 +81,24 @@
   }
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
   ?>
-  <div class="d-flex align-items-center gap-2 flex-nowrap" style="margin-bottom: 2px;">
-    <div class="d-flex align-items-center bg-light border rounded px-2.5 py-1 text-muted small fw-semibold" style="height: 31px; font-size: 0.8rem; white-space: nowrap;">
-      <i class="bi bi-calendar3 me-1.5 text-primary"></i>
-      <span><?php echo esc_view(my_works_dashboard_week_range_label(), ENT_QUOTES, 'UTF-8'); ?></span>
-    </div>
-
+  <div class="mw-unified-toolbar-actions">
     <?php if ($can_add): ?>
-    <a class="btn btn-outline-primary btn-sm fw-semibold d-inline-flex align-items-center" href="<?php echo esc_view($quickAddUrl); ?>" title="Quick add — full screen with rich text and attachments" style="font-size: 0.8rem; height: 31px; padding: 0.25rem 0.5rem;">
+    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($quickAddUrl); ?>" title="Quick add — full screen with rich text and attachments">
       <i class="bi bi-lightning-charge-fill me-1"></i>Quick add
     </a>
-    <a class="btn btn-primary btn-sm fw-semibold d-inline-flex align-items-center" href="<?php echo site_url('my-works/create'); ?>" style="font-size: 0.8rem; height: 31px; padding: 0.25rem 0.5rem;">
+    <a class="btn btn-primary btn-sm mw-unified-action-btn" href="<?php echo site_url('my-works/create'); ?>">
       <i class="bi bi-plus-lg me-1"></i>Create Task
     </a>
-    <a class="btn btn-outline-primary btn-sm fw-semibold d-inline-flex align-items-center" href="<?php echo site_url('my-works/template-tasks'); ?>" style="font-size: 0.8rem; height: 31px; padding: 0.25rem 0.5rem;">
+    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo site_url('my-works/template-tasks'); ?>">
       <i class="bi bi-collection me-1"></i>Template Task
     </a>
     <?php endif; ?>
   </div>
+  </div>
+</div>
 </div>
 
-<div class="tab-content" id="unifiedDashboardContent" style="min-height: 500px; position: relative;">
+<div class="tab-content mw-unified-tab-content" id="unifiedDashboardContent">
   <!-- Overview Tab -->
   <div class="tab-pane fade <?php echo $active_tab === 'overview' ? 'show active' : ''; ?>" id="pane-overview" role="tabpanel">
     <div class="tab-loading-spinner text-center py-5" style="display: none;">
@@ -267,7 +265,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       var isDashboardLink = href.indexOf('my-works') >= 0 || 
-                            href.indexOf('projects/dashboard') >= 0;
+                            href.indexOf('projects/dashboard') >= 0 ||
+                            href.indexOf('tasks/my-dashboard') >= 0;
                             
       if (isDashboardLink) {
         e.preventDefault();

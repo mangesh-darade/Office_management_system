@@ -5,6 +5,21 @@ $current_role_id = isset($role_id) ? (int)$role_id : 0;
 $show_group_indicator = !in_array($current_role_id, [1, 2], true);
 // Get accessible modules
 $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
+$meal_dashboard = isset($meal_dashboard) ? $meal_dashboard : null;
+$announcements = isset($announcements) ? $announcements : array();
+$can_dashboard = function ($module) {
+    return function_exists('dashboard_has_module_access') && dashboard_has_module_access($module);
+};
+$can_announcements = $can_dashboard('announcements');
+$can_attendance = $can_dashboard('attendance');
+$can_meals_dashboard = (
+    $meal_dashboard !== null
+    && (
+        (function_exists('meal_can_view_dashboard_announcement') && meal_can_view_dashboard_announcement())
+        || $can_dashboard('meals')
+    )
+);
+$show_announcements = ($can_announcements && !empty($announcements)) || $can_meals_dashboard;
 ?>
     <!-- Main content -->
     <div class="p-3 p-md-4">
@@ -28,11 +43,6 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       <?php endif; ?>
       
       <!-- Announcements at Top -->
-      <?php
-        $meal_dashboard = isset($meal_dashboard) ? $meal_dashboard : null;
-        $show_meal_grid = ($meal_dashboard !== null);
-        $show_announcements = !empty($announcements) || $show_meal_grid;
-      ?>
       <?php if ($show_announcements): ?>
       <div class="mb-4 dashboard-announcements">
         <div class="card shadow-sm announcement-panel">
@@ -41,17 +51,19 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
               <h5 class="announcement-panel__title mb-0">
                 <i class="bi bi-megaphone"></i>Latest Announcements
               </h5>
+              <?php if ($can_announcements): ?>
               <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('announcements'); ?>">View all</a>
+              <?php endif; ?>
             </div>
             <div class="announcements-feed">
-              <?php if ($show_meal_grid): ?>
+              <?php if ($can_meals_dashboard): ?>
                 <?php $this->load->view('meals/_dashboard_grid', array(
                   'meal_dashboard' => $meal_dashboard,
                   'can_order' => function_exists('meal_can_order') && meal_can_order(),
                   'can_provider' => function_exists('meal_can_access') && meal_can_access('meals_provider'),
                 )); ?>
               <?php endif; ?>
-              <?php if (!empty($announcements)): ?>
+              <?php if ($can_announcements && !empty($announcements)): ?>
                 <?php foreach ($announcements as $a):
                   $snippet = '';
                   if (!empty($a->content)) {
@@ -86,7 +98,8 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
       </div>
       <?php endif; ?>
 
-      <!-- Mark Attendance — first action for all users, directly below announcements -->
+      <!-- Mark Attendance — shown only when user has attendance permission -->
+      <?php if ($can_attendance): ?>
       <?php
         $ma = isset($mark_attendance) && is_array($mark_attendance) ? $mark_attendance : array();
         $ma_checkin  = !empty($ma['has_checkin']);
@@ -163,15 +176,31 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
           </div>
         </div>
       </div>
+      <?php endif; ?>
 
-      <!-- External Dashboards (after announcements) -->
+      <!-- External Dashboards -->
+      <?php
+        $visible_external_dashboards = array();
+        if (!empty($external_dashboards)) {
+            foreach ($external_dashboards as $dash) {
+                $permission_key = isset($dash['permission_key']) ? (string) $dash['permission_key'] : '';
+                if ($permission_key === '') {
+                    continue;
+                }
+                if (function_exists('dashboard_has_module_access') && dashboard_has_module_access($permission_key)) {
+                    $visible_external_dashboards[] = $dash;
+                    continue;
+                }
+                if (function_exists('has_module_access') && has_module_access($permission_key)) {
+                    $visible_external_dashboards[] = $dash;
+                }
+            }
+        }
+      ?>
+      <?php if (!empty($visible_external_dashboards)): ?>
       <div class="row g-3 mb-3">
-        <?php if (!empty($external_dashboards)): ?>
-          <?php foreach ($external_dashboards as $dash): ?>
+          <?php foreach ($visible_external_dashboards as $dash): ?>
             <?php
-              $permission_key = isset($dash['permission_key']) ? (string)$dash['permission_key'] : '';
-              $can_show = $permission_key !== '' && function_exists('has_module_access') && has_module_access($permission_key);
-              if (!$can_show) { continue; }
               $label = isset($dash['label']) ? (string)$dash['label'] : 'Dashboard';
               $url = isset($dash['url']) ? (string)$dash['url'] : '#';
               $icon_class = isset($dash['icon_class']) && trim($dash['icon_class']) !== '' ? trim($dash['icon_class']) : 'bi bi-bar-chart-line';
@@ -193,12 +222,46 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
               </a>
             </div>
           <?php endforeach; ?>
-        <?php endif; ?>
       </div>
+      <?php endif; ?>
 
       <!-- Dashboard Statistics Cards -->
       <div class="row g-3 mb-4">
-        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('employees')): ?>
+        <?php if ($can_dashboard('spl')): ?>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card stat-card bg-gradient-spl text-white h-100 hover-lift">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">SPL Rewards</h6>
+                  <h3 class="mb-0 fw-bold"><?php echo isset($stats['spl_points_week']) ? number_format($stats['spl_points_week']) : '0'; ?></h3>
+                  <small class="text-white-50">
+                    <?php if (!empty($stats['spl_level'])): ?>
+                      <?php echo esc_view($stats['spl_level']); ?> · this week
+                    <?php else: ?>
+                      Points this week
+                    <?php endif; ?>
+                  </small>
+                </div>
+                <div class="stat-icon">
+                  <i class="bi bi-trophy-fill fs-2"></i>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+              <div class="d-flex align-items-center justify-content-between gap-2">
+                <small class="text-white-50">
+                  <?php echo isset($stats['spl_pending']) ? number_format($stats['spl_pending']) : '0'; ?>
+                  <?php echo esc_view(isset($stats['spl_pending_label']) ? $stats['spl_pending_label'] : 'pending'); ?>
+                </small>
+                <a href="<?php echo site_url('spl'); ?>" class="btn btn-outline-light btn-sm">View SPL</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if($can_dashboard('employees')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-primary text-white h-100 hover-lift">
             <div class="card-body">
@@ -220,7 +283,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
         <?php endif; ?>
         
-        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('projects')): ?>
+        <?php if($can_dashboard('projects')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-success text-white h-100 hover-lift">
             <div class="card-body">
@@ -242,7 +305,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
         <?php endif; ?>
         
-        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('tasks')): ?>
+        <?php if($can_dashboard('tasks')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-warning text-white h-100 hover-lift">
             <div class="card-body">
@@ -264,7 +327,7 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
         </div>
         <?php endif; ?>
 
-        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('my_works')): ?>
+        <?php if ($can_dashboard('my_works')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="card stat-card bg-gradient-secondary text-white h-100 hover-lift">
             <div class="card-body">
@@ -285,175 +348,113 @@ $accessible_modules = isset($accessible_modules) ? $accessible_modules : [];
           </div>
         </div>
         <?php endif; ?>
-        
-        <?php if (function_exists('dashboard_has_module_access') && dashboard_has_module_access('attendance')): ?>
+
+        <?php if($can_dashboard('defects')): ?>
         <div class="col-12 col-sm-6 col-lg-3">
-          <div class="card stat-card bg-gradient-info text-white h-100 hover-lift">
+          <div class="card stat-card bg-gradient-danger text-white h-100 hover-lift">
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between">
                 <div>
-                  <h6 class="card-title text-white-50 mb-1">Today's Attendance</h6>
-                  <h3 class="mb-0 fw-bold"><?php echo isset($stats['attendance_today']) ? number_format($stats['attendance_today']) : '0'; ?></h3>
-                  <small class="text-white-50"><?php echo isset($stats['leaves_pending']) ? number_format($stats['leaves_pending']) : '0'; ?> leaves pending</small>
+                  <h6 class="card-title text-white-50 mb-1">Open Defects</h6>
+                  <h3 class="mb-0 fw-bold"><?php echo isset($stats['defects_open']) ? number_format($stats['defects_open']) : '0'; ?></h3>
+                  <small class="text-white-50"><?php echo isset($stats['defects_overdue']) ? number_format($stats['defects_overdue']) : '0'; ?> overdue</small>
                 </div>
                 <div class="stat-icon">
-                  <i class="bi bi-calendar-check fs-2"></i>
+                  <i class="bi bi-bug fs-2"></i>
                 </div>
               </div>
             </div>
             <div class="card-footer bg-transparent border-0 pt-0">
-              <a href="<?php echo site_url('attendance'); ?>" class="btn btn-outline-light btn-sm">View Attendance</a>
+              <a href="<?php echo site_url('defects'); ?>" class="btn btn-outline-light btn-sm">View Defects</a>
+            </div>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if($can_dashboard('releases')): ?>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <div class="card stat-card bg-gradient-dark text-white h-100 hover-lift">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">Upcoming Releases</h6>
+                  <h3 class="mb-0 fw-bold"><?php echo isset($stats['releases_upcoming']) ? number_format($stats['releases_upcoming']) : '0'; ?></h3>
+                  <small class="text-white-50">Next 14 days</small>
+                </div>
+                <div class="stat-icon">
+                  <i class="bi bi-rocket-takeoff fs-2"></i>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+              <a href="<?php echo site_url('releases'); ?>" class="btn btn-outline-light btn-sm">View Releases</a>
             </div>
           </div>
         </div>
         <?php endif; ?>
       </div>
 
-      <div class="row g-3">
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('employees')): ?>
-        <a href="<?php echo site_url('employees'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-primary text-white me-3">
-                  <i class="bi bi-people"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Employees</h5>
-              </div>
-              <p class="card-text text-muted">Manage employee profiles and records</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('projects')): ?>
-        <a href="<?php echo site_url('projects'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-success text-white me-3">
-                  <i class="bi bi-kanban"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Projects</h5>
-              </div>
-              <p class="card-text text-muted">Projects and team management</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('tasks')): ?>
-        <a href="<?php echo site_url('tasks/board'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-warning text-white me-3">
-                  <i class="bi bi-list-check"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Tasks</h5>
-              </div>
-              <p class="card-text text-muted">Task board and progress tracking</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('my_works')): ?>
-        <a href="<?php echo site_url('my-works'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-secondary text-white me-3">
-                  <i class="bi bi-clipboard2-check"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">My Works</h5>
-              </div>
-              <p class="card-text text-muted">Personal tasks and assignments you created or own</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('has_module_access') && has_module_access('chats')): ?>
-        <a href="<?php echo site_url('chats/app'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-info text-white me-3">
-                  <i class="bi bi-chat-dots"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Chat</h5>
-              </div>
-              <p class="card-text text-muted">Team messaging and video calls</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('attendance')): ?>
-        <a href="<?php echo site_url('attendance'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-secondary text-white me-3">
-                  <i class="bi bi-calendar-check"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Attendance</h5>
-              </div>
-              <p class="card-text text-muted">Punch in/out and reports</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('leaves')): ?>
-        <a href="<?php echo site_url('leave/apply'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-teal text-white me-3">
-                  <i class="bi bi-airplane-engines"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Leaves</h5>
-              </div>
-              <p class="card-text text-muted">Apply and manage leave requests</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('dashboard_has_module_access') && dashboard_has_module_access('reports')): ?>
-        <a href="<?php echo site_url('reports'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-indigo text-white me-3">
-                  <i class="bi bi-graph-up"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Reports</h5>
-              </div>
-              <p class="card-text text-muted">Analytics and insights</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
-        
-        <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
-        <a href="<?php echo site_url('settings'); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
-          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-dark text-white me-3">
-                  <i class="bi bi-gear"></i>
-                </div>
-                <h5 class="card-title mb-0 text-dark">Settings</h5>
-              </div>
-              <p class="card-text text-muted">System configuration</p>
-            </div>
-          </div>
-        </a>
-        <?php endif; ?>
+      <?php
+        $dashboard_quick_links = array();
+        if ($can_dashboard('chats')) {
+            $dashboard_quick_links[] = array(
+                'url' => site_url('chats/app'),
+                'icon' => 'bi-chat-dots',
+                'icon_class' => 'bg-info',
+                'title' => 'Chat',
+                'text' => 'Team messaging and video calls',
+            );
+        }
+        if ($can_dashboard('leaves')) {
+            $dashboard_quick_links[] = array(
+                'url' => site_url('leave/apply'),
+                'icon' => 'bi-airplane-engines',
+                'icon_class' => 'bg-teal',
+                'title' => 'Leaves',
+                'text' => 'Apply and manage leave requests',
+            );
+        }
+        if ($can_dashboard('reports')) {
+            $dashboard_quick_links[] = array(
+                'url' => site_url('reports'),
+                'icon' => 'bi-graph-up',
+                'icon_class' => 'bg-indigo',
+                'title' => 'Reports',
+                'text' => 'Analytics and insights',
+            );
+        }
+        if ($can_dashboard('settings')) {
+            $dashboard_quick_links[] = array(
+                'url' => site_url('settings'),
+                'icon' => 'bi-gear',
+                'icon_class' => 'bg-dark',
+                'title' => 'Settings',
+                'text' => 'System configuration',
+            );
+        }
+      ?>
+      <?php if (!empty($dashboard_quick_links)): ?>
+      <div class="mb-2">
+        <h6 class="text-muted text-uppercase small fw-semibold mb-0">Quick Links</h6>
       </div>
+      <div class="row g-3">
+        <?php foreach ($dashboard_quick_links as $link): ?>
+        <a href="<?php echo esc_view($link['url']); ?>" class="col-12 col-sm-6 col-lg-3 text-decoration-none">
+          <div class="card shadow-sm h-100 hover-lift fade-in module-card">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-3">
+                <div class="icon-circle <?php echo esc_view($link['icon_class']); ?> text-white me-3">
+                  <i class="bi <?php echo esc_view($link['icon']); ?>"></i>
+                </div>
+                <h5 class="card-title mb-0 text-dark"><?php echo esc_view($link['title']); ?></h5>
+              </div>
+              <p class="card-text text-muted"><?php echo esc_view($link['text']); ?></p>
+            </div>
+          </div>
+        </a>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
     </div>
 
 <style>

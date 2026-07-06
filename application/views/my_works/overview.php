@@ -24,7 +24,7 @@ if (!$embed) {
   }
 ?>
 
-<div class="mw-dash-page">
+<div class="mw-dash-page<?php echo $embed ? ' mw-dash-page--embed' : ''; ?>">
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show py-2 mx-3 mt-2 mb-0" role="alert">
@@ -35,9 +35,15 @@ if (!$embed) {
 
   <?php if (!$embed): ?>
   <header class="mw-dash-header">
-    <div class="mw-dash-header-left">
+    <div class="mw-dash-header-left d-flex align-items-start gap-2">
+      <?php $this->load->view('my_works/_back_btn', array(
+        'back_url' => site_url('dashboard'),
+        'back_title' => 'Back to Dashboard',
+      )); ?>
+      <div>
       <h1 class="mw-dash-title">My Work Overview</h1>
       <p class="mw-dash-subtitle">Organize, prioritize and track your work items efficiently.</p>
+      </div>
     </div>
     <div class="mw-dash-header-center">
       <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-search-form">
@@ -73,7 +79,7 @@ if (!$embed) {
     $this->load->view('my_works/_dash_view_tabs', array('active_tab' => 'overview'));
   } ?>
 
-  <div class="mw-dash-filters d-flex align-items-center justify-content-between gap-3 flex-nowrap" style="overflow-x: auto; white-space: nowrap; padding: 0.5rem 0.75rem; -webkit-overflow-scrolling: touch;">
+  <div class="mw-dash-filters<?php echo $embed ? ' mw-dash-filters--embed' : ''; ?>">
     <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-filter-form flex-nowrap mb-0" id="mwDashFilterForm">
       <input type="hidden" name="view" value="overview">
       <?php if (!empty($filters['q'])): ?>
@@ -102,35 +108,14 @@ if (!$embed) {
         </select>
       </label>
     </form>
-    <div class="mw-dash-legend flex-nowrap align-items-center mb-0" style="gap: 0.35rem;">
-      <?php $this->load->helper('my_works_status'); ?>
-      <?php foreach (my_works_status_records() as $st): ?>
-        <?php
-          $hex_color = my_works_status_hex_color($st->code);
-        ?>
-        <span class="badge rounded-pill" 
-              style="background-color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>12; 
-                     color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>; 
-                     border: 1px solid <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>24;
-                     font-weight: 600;
-                     font-size: 0.72rem;
-                     text-transform: uppercase;
-                     letter-spacing: 0.3px;
-                     padding: 4px 10px;
-                     display: inline-block;
-                     box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-          <?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?>
-        </span>
-      <?php endforeach; ?>
-    </div>
     <?php if ($embed): ?>
-      <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-search-form mb-0">
+      <form method="get" action="<?php echo site_url('my-works'); ?>" class="mw-dash-search-form mb-0 mw-dash-search-form--embed">
         <input type="hidden" name="view" value="overview">
         <?php foreach ($baseQuery as $qk => $qv): ?>
           <?php if ($qk === 'q' || $qk === 'view') { continue; } ?>
           <input type="hidden" name="<?php echo esc_view($qk); ?>" value="<?php echo esc_view((string) $qv, ENT_QUOTES, 'UTF-8'); ?>">
         <?php endforeach; ?>
-        <div class="mw-dash-search-wrap" style="padding: 0.3rem 0.60rem; border-radius: 8px; width: 220px; box-shadow: none; height: 31px;">
+        <div class="mw-dash-search-wrap mw-dash-search-wrap--compact">
           <i class="bi bi-search"></i>
           <input type="search" name="q" class="mw-dash-search-input" placeholder="Search..." value="<?php echo esc_view(isset($filters['q']) ? (string) $filters['q'] : '', ENT_QUOTES, 'UTF-8'); ?>">
         </div>

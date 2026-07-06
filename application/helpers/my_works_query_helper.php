@@ -47,12 +47,67 @@ if (!function_exists('my_works_sanitize_filters')) {
     }
 }
 
+if (!function_exists('my_works_warm_schema_cache')) {
+    /**
+     * Pre-load my_works column map before building list queries.
+     * schema_table_has_column() calls list_fields() on first use and resets the active QB.
+     */
+    function my_works_warm_schema_cache($db)
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        schema_table_has_column($db, 'my_works', 'client_id');
+        schema_table_has_column($db, 'my_works', 'project_id');
+        schema_table_has_column($db, 'my_works', 'work_type');
+        schema_table_has_column($db, 'my_works', 'due_date');
+    }
+}
+
+if (!function_exists('my_works_warm_status_cache')) {
+    /**
+     * Pre-load status codes before building list queries.
+     * my_works_status_is_valid() otherwise queries DB mid-build and resets the active QB.
+     */
+    function my_works_warm_status_cache()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
+        my_works_status_codes();
+    }
+}
+
+if (!function_exists('my_works_warm_query_caches')) {
+    function my_works_warm_query_caches($db)
+    {
+        my_works_warm_schema_cache($db);
+        my_works_warm_status_cache();
+    }
+}
+
+if (!function_exists('my_works_begin_scoped_query')) {
+    function my_works_begin_scoped_query($db, array $filters, $can_view_all, $user_id, $include_status = true)
+    {
+        my_works_warm_query_caches($db);
+        $db->reset_query();
+        $db->from('my_works w');
+        my_works_apply_list_scope($db, $can_view_all, $user_id);
+        my_works_apply_filters_to_query($db, $filters, $include_status);
+    }
+}
+
 if (!function_exists('my_works_apply_filters_to_query')) {
     function my_works_apply_filters_to_query($db, array $filters, $include_status = true)
     {
         if ($include_status && $filters['status'] !== '') {
-            $CI =& get_instance();
-            $CI->load->helper('my_works_status');
+            my_works_warm_status_cache();
             if (my_works_status_is_valid($filters['status'])) {
                 $db->where('w.status', $filters['status']);
             }
@@ -100,8 +155,7 @@ if (!function_exists('my_works_apply_filters_to_query')) {
         if ($filters['overdue_only'] && schema_table_has_column($db, 'my_works', 'due_date')) {
             $db->where('w.due_date IS NOT NULL', null, false);
             $db->where('w.due_date <', date('Y-m-d'));
-            $CI =& get_instance();
-            $CI->load->helper('my_works_status');
+            my_works_warm_status_cache();
             my_works_apply_open_status_filter($db, 'w.status');
         }
     }
@@ -110,9 +164,7 @@ if (!function_exists('my_works_apply_filters_to_query')) {
 if (!function_exists('my_works_count_rows')) {
     function my_works_count_rows($db, array $filters, $can_view_all, $user_id)
     {
-        $db->from('my_works w');
-        my_works_apply_list_scope($db, $can_view_all, $user_id);
-        my_works_apply_filters_to_query($db, $filters, true);
+        my_works_begin_scoped_query($db, $filters, $can_view_all, $user_id, true);
         return (int) $db->count_all_results();
     }
 }
@@ -120,6 +172,8 @@ if (!function_exists('my_works_count_rows')) {
 if (!function_exists('my_works_fetch_rows')) {
     function my_works_fetch_rows($db, array $filters, $can_view_all, $user_id, $limit = null, $offset = 0)
     {
+        my_works_warm_query_caches($db);
+        $db->reset_query();
         $db->select('w.*, cb.name AS created_by_name, cb.email AS created_by_email, cf.name AS created_for_name, cf.email AS created_for_email', false);
         if ($db->table_exists('clients') && schema_table_has_column($db, 'my_works', 'client_id')) {
             $db->select('cl.company_name AS client_name', false);
@@ -162,40 +216,33 @@ if (!function_exists('my_works_fetch_stats')) {
             $stats[$st] = 0;
         }
         $uid = $filters['current_user_id'];
+        my_works_warm_query_caches($db);
         foreach (my_works_status_codes() as $st) {
-            $db->from('my_works w');
-            my_works_apply_list_scope($db, $can_view_all, $user_id);
             $tmp = $filters;
             $tmp['status'] = '';
-            my_works_apply_filters_to_query($db, $tmp, false);
+            my_works_begin_scoped_query($db, $tmp, $can_view_all, $user_id, false);
             $db->where('w.status', $st);
             $stats[$st] = (int) $db->count_all_results();
         }
-        $db->from('my_works w');
-        my_works_apply_list_scope($db, $can_view_all, $user_id);
         $tmp = $filters;
         $tmp['status'] = '';
         $tmp['urgent_only'] = 0;
-        my_works_apply_filters_to_query($db, $tmp, false);
+        my_works_begin_scoped_query($db, $tmp, $can_view_all, $user_id, false);
         $stats['total'] = (int) $db->count_all_results();
 
-        $db->from('my_works w');
-        my_works_apply_list_scope($db, $can_view_all, $user_id);
         $tmp = $filters;
         $tmp['status'] = '';
         $tmp['urgent_only'] = 0;
-        my_works_apply_filters_to_query($db, $tmp, false);
+        my_works_begin_scoped_query($db, $tmp, $can_view_all, $user_id, false);
         $db->where('w.is_urgent', 1);
         my_works_apply_open_status_filter($db, 'w.status');
         $stats['urgent'] = (int) $db->count_all_results();
 
         if (schema_table_has_column($db, 'my_works', 'due_date')) {
-            $db->from('my_works w');
-            my_works_apply_list_scope($db, $can_view_all, $user_id);
             $tmp = $filters;
             $tmp['status'] = '';
             $tmp['overdue_only'] = 0;
-            my_works_apply_filters_to_query($db, $tmp, false);
+            my_works_begin_scoped_query($db, $tmp, $can_view_all, $user_id, false);
             $db->where('w.due_date IS NOT NULL', null, false);
             $db->where('w.due_date <', date('Y-m-d'));
             my_works_apply_open_status_filter($db, 'w.status');
@@ -203,6 +250,8 @@ if (!function_exists('my_works_fetch_stats')) {
         }
 
         if ($uid > 0) {
+            my_works_warm_query_caches($db);
+            $db->reset_query();
             $db->from('my_works w');
             my_works_apply_list_scope($db, $can_view_all, $user_id);
             $db->where('w.created_for', $uid);
@@ -220,6 +269,7 @@ if (!function_exists('my_works_list_view_data')) {
      */
     function my_works_list_view_data($db, $model, array $filters, $view_mode, $list_cap, $can_view_all, $user_id, $role_id, $scope_callback)
     {
+        my_works_warm_query_caches($db);
         $total = my_works_count_rows($db, $filters, $can_view_all, $user_id);
         $rows = my_works_fetch_rows($db, $filters, $can_view_all, $user_id, $list_cap, 0);
         $stats = my_works_fetch_stats($db, $filters, $can_view_all, $user_id);

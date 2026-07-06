@@ -5,6 +5,38 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Attendance list / popup helpers (monthly view, schema utilities).
  */
 
+if (!function_exists('attendance_list_apply_user_status_tab')) {
+    /**
+     * Filter users query by active/inactive tab.
+     *
+     * @param CI_DB_query_builder $db
+     * @param string $userAlias e.g. u
+     * @param string $statusTab active|inactive
+     */
+    function attendance_list_apply_user_status_tab($db, $userAlias = 'u', $statusTab = 'active')
+    {
+        if (!function_exists('schema_table_has_column') || !schema_table_has_column($db, 'users', 'status')) {
+            return;
+        }
+
+        $statusTab = ($statusTab === 'inactive') ? 'inactive' : 'active';
+        $col = $userAlias . '.status';
+
+        if ($statusTab === 'inactive') {
+            $db->group_start();
+            $db->where($col, 'inactive');
+            $db->or_where($col, 0);
+            $db->group_end();
+            return;
+        }
+
+        $db->group_start();
+        $db->where($col, 'active');
+        $db->or_where($col, 1);
+        $db->group_end();
+    }
+}
+
 if (!function_exists('attendance_schema_column_type')) {
     /**
      * @param CI_DB_query_builder $db

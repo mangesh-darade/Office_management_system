@@ -204,6 +204,47 @@ if (!function_exists('calculate_dashboard_stats')) {
             $CI->db->where('w.status !=', 'closed');
             $stats['my_works_urgent'] = (int) $CI->db->count_all_results();
         }
+
+        $stats['defects_open'] = 0;
+        $stats['defects_overdue'] = 0;
+        if (dashboard_has_module_access('defects')
+            && $CI->db->table_exists('project_defects')) {
+            $CI->load->model('Defect_model', 'dash_defects');
+            $defect_counts = $CI->dash_defects->dashboard_counts($user_id);
+            $stats['defects_open'] = (int) $defect_counts['open'];
+            $stats['defects_overdue'] = (int) $defect_counts['overdue'];
+        }
+
+        $stats['releases_upcoming'] = 0;
+        if (dashboard_has_module_access('releases') && $CI->db->table_exists('project_releases')) {
+            $CI->load->model('Engagement_model', 'dash_releases');
+            $rel_counts = $CI->dash_releases->dashboard_counts();
+            $stats['releases_upcoming'] = (int) $rel_counts['upcoming'];
+        }
+
+        $stats['spl_points_week'] = 0;
+        $stats['spl_level'] = '';
+        $stats['spl_pending'] = 0;
+        $stats['spl_pending_label'] = 'pending';
+        if (dashboard_has_module_access('spl')
+            && $CI->db->table_exists('user_reward_summary')
+            && $CI->db->table_exists('reward_transactions')) {
+            $CI->load->helper('spl');
+            $CI->load->model('Reward_model', 'dash_rewards');
+            $summary = $CI->dash_rewards->get_user_summary($user_id);
+            $bounds = spl_reward_period_bounds('week');
+            $totals = $CI->dash_rewards->sum_user_activity_points($user_id, $bounds['from'], $bounds['to']);
+            $stats['spl_points_week'] = (int) round($totals['net']);
+            $level = $CI->dash_rewards->get_level($summary->current_level_code);
+            $stats['spl_level'] = $level ? (string) $level->name : ucfirst((string) $summary->current_level_code);
+            if (function_exists('spl_can_approve') && spl_can_approve()) {
+                $stats['spl_pending'] = (int) $CI->dash_rewards->count_spl_approvals_by_status('pending');
+                $stats['spl_pending_label'] = 'approvals pending';
+            } else {
+                $stats['spl_pending'] = (int) $totals['pending_count'];
+                $stats['spl_pending_label'] = 'submissions pending';
+            }
+        }
         
         return $stats;
     }

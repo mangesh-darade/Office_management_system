@@ -1,0 +1,4 @@
+code,name,category,trigger_event,points,requires_approval,is_active,description,max_per_day
+team_help,Help a teammate,Collaboration,reward_claim,10,1,1,Optional notes for approver,
+on_time_checkin,On-time check-in,Attendance,attendance_checkin,5,0,1,,
+extra_effort,Extra effort on delivery,Performance,reward_claim,15,1,1,,

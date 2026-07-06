@@ -11,7 +11,7 @@
     qty: {},
     search: '',
     includedChecked: {},
-    includedExpanded: false,
+    includedModuleExpanded: {},
     includedSectionOpen: true,
     planSectionOpen: true,
     industrySectionOpen: true,
@@ -41,9 +41,7 @@
     'Services & AMC': 'bi-tools'
   };
 
-  var INCLUDED_PREVIEW_ROWS = 2;
-  var INCLUDED_COLS = 6;
-  var INCLUDED_PREVIEW_COUNT = INCLUDED_PREVIEW_ROWS * INCLUDED_COLS;
+  var INLINE_FEATURE_PREVIEW = 3;
 
   var currencyLocaleMap = {
     INR: 'en-IN',
@@ -235,16 +233,6 @@
     });
   }
 
-  function includedSelectedCount() {
-    var n = 0;
-    Object.keys(state.includedChecked).forEach(function (id) {
-      if (state.includedChecked[id]) {
-        n += 1;
-      }
-    });
-    return n;
-  }
-
   function updateIncludedCountBadge(total) {
     var $badge = $('#sb-included-count-badge');
     if (!$badge.length) {
@@ -257,30 +245,173 @@
     $badge.removeClass('d-none').text(total + ' feature' + (total === 1 ? '' : 's'));
   }
 
-  function updateIncludedViewAllButton(total) {
-    var $btn = $('#sb-included-view-all');
-    var $section = $('#sb-included-section');
-    if (!$btn.length) {
+  function syncIncludedCountBadge() {
+    if (!state.catalog) {
+      updateIncludedCountBadge(0);
       return;
     }
-    updateIncludedCountBadge(total);
-    if (!state.includedSectionOpen || total <= INCLUDED_PREVIEW_COUNT) {
-      $btn.addClass('d-none');
-      if (total <= INCLUDED_PREVIEW_COUNT) {
-        $section.removeClass('sb-included-list-expanded');
+    updateIncludedCountBadge(state.catalog.included_count || 0);
+  }
+
+  function getModuleIcon(moduleName) {
+    var mod = String(moduleName || '').toLowerCase();
+    var rules = [
+      { match: ['user', 'people', 'biller', 'customer', 'vendor', 'supplier'], icon: 'bi-people' },
+      { match: ['product', 'inventory', 'stock', 'catalog', 'variant'], icon: 'bi-box-seam' },
+      { match: ['tax', 'gst', 'tally'], icon: 'bi-percent' },
+      { match: ['payment', 'deposit', 'wallet'], icon: 'bi-credit-card' },
+      { match: ['sales', 'billing', 'invoice', 'pos'], icon: 'bi-receipt' },
+      { match: ['report', 'analytics', 'dashboard'], icon: 'bi-bar-chart-line' },
+      { match: ['location', 'geo', 'branch', 'multi location'], icon: 'bi-geo-alt' },
+      { match: ['purchase', 'procurement'], icon: 'bi-cart-plus' },
+      { match: ['manufactur', 'production', 'batch'], icon: 'bi-gear-wide-connected' },
+      { match: ['loyalty', 'reward', 'promo'], icon: 'bi-gift' },
+      { match: ['kitchen', 'food', 'recipe'], icon: 'bi-cup-hot' },
+      { match: ['integration', 'api', 'export'], icon: 'bi-plug' },
+      { match: ['security', 'permission', 'role'], icon: 'bi-shield-check' },
+      { match: ['account', 'ledger', 'finance'], icon: 'bi-journal-text' },
+      { match: ['service', 'amc', 'support'], icon: 'bi-tools' },
+      { match: ['retail', 'store', 'shop'], icon: 'bi-shop' },
+      { match: ['email', 'sms', 'notification', 'alert'], icon: 'bi-bell' },
+      { match: ['expense', 'cost'], icon: 'bi-wallet2' },
+      { match: ['hr', 'payroll', 'attendance', 'employee'], icon: 'bi-person-workspace' },
+      { match: ['clothing', 'apparel'], icon: 'bi-bag' },
+      { match: ['barcode', 'label'], icon: 'bi-upc-scan' },
+      { match: ['delivery', 'logistic', 'dispatch'], icon: 'bi-truck' }
+    ];
+    var i;
+    var j;
+    for (i = 0; i < rules.length; i++) {
+      for (j = 0; j < rules[i].match.length; j++) {
+        if (mod.indexOf(rules[i].match[j]) !== -1) {
+          return rules[i].icon;
+        }
       }
+    }
+    return 'bi-grid';
+  }
+
+  function moduleKey(moduleName) {
+    return String(moduleName || '').toLowerCase().trim();
+  }
+
+  function isModuleExpanded(moduleName) {
+    return !!state.includedModuleExpanded[moduleKey(moduleName)];
+  }
+
+  function setModuleExpanded(moduleName, expanded) {
+    state.includedModuleExpanded[moduleKey(moduleName)] = !!expanded;
+  }
+
+  function getIncludedModulesList(modules) {
+    var result = [];
+    Object.keys(modules || {}).forEach(function (mod) {
+      result.push({ name: mod, items: modules[mod] || [] });
+    });
+    return result;
+  }
+
+  function syncIncludedCheckboxUi(id, checked) {
+    state.includedChecked[id] = checked;
+    $('.sb-included-cb[data-id="' + id + '"]').prop('checked', checked);
+    $('.sb-included-item[data-id="' + id + '"], .sb-acc-inline-feat[data-id="' + id + '"]').each(function () {
+      var $el = $(this);
+      $el.toggleClass('is-unchecked', !checked);
+      $el.find('.sb-included-check-icon i').toggleClass('bi-check-circle-fill', checked).toggleClass('bi-circle', !checked);
+      $el.children('i.bi').toggleClass('bi-check-circle-fill', checked).toggleClass('bi-circle', !checked);
+    });
+  }
+
+  function renderInlineFeatures(mod, items) {
+    var preview = (items || []).slice(0, INLINE_FEATURE_PREVIEW);
+    var remaining = Math.max(0, (items || []).length - INLINE_FEATURE_PREVIEW);
+    var html = '<div class="sb-acc-inline">';
+    preview.forEach(function (item, idx) {
+      if (idx > 0) {
+        html += '<span class="sb-acc-sep" aria-hidden="true">·</span>';
+      }
+      var checked = !!state.includedChecked[item.id];
+      var uncheckedClass = checked ? '' : ' is-unchecked';
+      var iconClass = checked ? 'bi-check-circle-fill' : 'bi-circle';
+      html += '<label class="sb-acc-inline-feat' + uncheckedClass + '" data-id="' + item.id + '" title="' + escapeHtml(item.feature) + '">';
+      html += '<input type="checkbox" class="sb-included-cb visually-hidden" data-id="' + item.id + '"' + (checked ? ' checked' : '') + '>';
+      html += '<i class="bi ' + iconClass + '" aria-hidden="true"></i>';
+      html += '<span>' + escapeHtml(item.feature) + '</span>';
+      html += '</label>';
+    });
+    if (remaining > 0) {
+      html += '<button type="button" class="sb-acc-more" data-module="' + escapeHtml(mod) + '" title="Show all features">+' + remaining + ' More</button>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderIncludedFeatureList(items) {
+    var html = '<ul class="sb-acc-feature-list">';
+    (items || []).forEach(function (item) {
+      var checked = !!state.includedChecked[item.id];
+      var uncheckedClass = checked ? '' : ' is-unchecked';
+      var iconClass = checked ? 'bi-check-circle-fill' : 'bi-circle';
+      html += '<li>';
+      html += '<label class="sb-included-item' + uncheckedClass + '" data-id="' + item.id + '">';
+      html += '<input type="checkbox" class="sb-included-cb visually-hidden" data-id="' + item.id + '"' + (checked ? ' checked' : '') + '>';
+      html += '<span class="sb-included-check-icon" aria-hidden="true"><i class="bi ' + iconClass + '"></i></span>';
+      html += '<span class="sb-included-item-text">' + escapeHtml(item.feature) + '</span>';
+      html += '</label>';
+      html += '</li>';
+    });
+    html += '</ul>';
+    return html;
+  }
+
+  function renderIncludedAccordionRow(mod, items) {
+    var isOpen = isModuleExpanded(mod);
+    var icon = getModuleIcon(mod);
+    var count = (items || []).length;
+    var openClass = isOpen ? ' is-open' : '';
+    var html = '<div class="sb-acc-item' + openClass + '" data-module="' + escapeHtml(mod) + '">';
+    html += '<div class="sb-acc-header" data-module="' + escapeHtml(mod) + '">';
+    html += '<div class="sb-acc-module-meta" role="button" tabindex="0" aria-expanded="' + (isOpen ? 'true' : 'false') + '" data-module="' + escapeHtml(mod) + '">';
+    html += '<span class="sb-acc-chevron" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>';
+    html += '<span class="sb-acc-icon"><i class="bi ' + icon + '" aria-hidden="true"></i></span>';
+    html += '<span class="sb-acc-name">' + escapeHtml(mod) + '</span>';
+    html += '<span class="sb-acc-count-badge">' + count + '</span>';
+    html += '</div>';
+    if (!isOpen) {
+      html += renderInlineFeatures(mod, items);
+    }
+    html += '</div>';
+    html += '<div class="sb-acc-panel" role="region" aria-label="' + escapeHtml(mod) + ' features">';
+    html += '<div class="sb-acc-panel-inner">';
+    html += renderIncludedFeatureList(items);
+    html += '</div></div></div>';
+    return html;
+  }
+
+  function renderIncluded() {
+    var catalog = state.catalog;
+    if (!catalog) {
       return;
     }
-    $btn.removeClass('d-none');
-    if (state.includedExpanded) {
-      $btn.text('Show less');
-      $section.addClass('sb-included-list-expanded');
-    } else {
-      $btn.text('View all (' + total + ')');
-      $section.removeClass('sb-included-list-expanded');
+
+    $('#sb-included-title').text('Included in ' + planDisplayName(state.plan));
+
+    var modules = catalog.included_by_module || {};
+    var filtered = getIncludedModulesList(modules);
+    if (!filtered.length) {
+      $('#sb-included-wrap').html('<div class="sb-empty">No included features for this plan and industry.</div>');
+      syncIncludedCountBadge();
+      return;
     }
-    $btn.attr('title', includedSelectedCount() + ' of ' + total + ' selected');
-    $('.sb-main').toggleClass('sb-main-included-list-expanded', !!(state.includedExpanded && state.includedSectionOpen));
+
+    syncIncludedCountBadge();
+
+    var html = '<div class="sb-feature-accordion">';
+    filtered.forEach(function (entry) {
+      html += renderIncludedAccordionRow(entry.name, entry.items);
+    });
+    html += '</div>';
+    $('#sb-included-wrap').html(html);
   }
 
   function setSectionCollapsed(sectionSelector, toggleSelector, bodySelector, isOpen, collapsedClass) {
@@ -308,16 +439,6 @@
 
   function updateIncludedSectionCollapse() {
     setSectionCollapsed('#sb-included-section', '#sb-included-toggle', '#sb-included-body', state.includedSectionOpen, 'sb-included-collapsed');
-    if (!state.includedSectionOpen) {
-      state.includedExpanded = false;
-      $('.sb-main').removeClass('sb-main-included-list-expanded');
-      $('#sb-included-section').removeClass('sb-included-list-expanded');
-    }
-    if (state.catalog) {
-      updateIncludedViewAllButton(state.catalog.included_count || 0);
-    } else {
-      $('#sb-included-view-all').toggleClass('d-none', !state.includedSectionOpen);
-    }
     updateAddonsLayoutState();
   }
 
@@ -394,54 +515,6 @@
       html += '</button>';
     });
     $('#sb-industry-row').html(html || '<div class="sb-empty">No industries in catalog.</div>');
-  }
-
-  function renderIncluded() {
-    var catalog = state.catalog;
-    if (!catalog) {
-      return;
-    }
-
-    $('#sb-included-title').text('Included in ' + planDisplayName(state.plan));
-
-    var modules = catalog.included_by_module || {};
-    var keys = Object.keys(modules).sort();
-    if (!keys.length) {
-      $('#sb-included-wrap').html('<div class="sb-empty">No included features for this plan and industry.</div>');
-      updateIncludedCountBadge(0);
-      updateIncludedViewAllButton(0);
-      return;
-    }
-
-    var allItems = [];
-    keys.forEach(function (mod) {
-      (modules[mod] || []).forEach(function (item) {
-        allItems.push(item);
-      });
-    });
-
-    updateIncludedCountBadge(allItems.length);
-
-    var visibleItems = allItems;
-    if (!state.includedExpanded && allItems.length > INCLUDED_PREVIEW_COUNT) {
-      visibleItems = allItems.slice(0, INCLUDED_PREVIEW_COUNT);
-    }
-
-    updateIncludedViewAllButton(allItems.length);
-
-    var html = '<div class="sb-included-cards">';
-    visibleItems.forEach(function (item) {
-      var checked = !!state.includedChecked[item.id];
-      var uncheckedClass = checked ? '' : ' is-unchecked';
-      var iconClass = checked ? 'bi-check-circle-fill' : 'bi-circle';
-      html += '<label class="sb-included-card' + uncheckedClass + '" data-id="' + item.id + '">';
-      html += '<input type="checkbox" class="sb-included-cb visually-hidden" data-id="' + item.id + '"' + (checked ? ' checked' : '') + '>';
-      html += '<span class="sb-included-check-icon" aria-hidden="true"><i class="bi ' + iconClass + '"></i></span>';
-      html += '<span class="sb-included-card-text">' + escapeHtml(item.feature) + '</span>';
-      html += '</label>';
-    });
-    html += '</div>';
-    $('#sb-included-wrap').html(html);
   }
 
   function filteredChargeable() {
@@ -753,7 +826,7 @@
         state.qty = {};
         state.search = '';
         if (!preserveIncluded) {
-          state.includedExpanded = false;
+          state.includedModuleExpanded = {};
           initIncludedChecked(res);
         } else if (prevIncluded) {
           state.includedChecked = prevIncluded;
@@ -786,36 +859,51 @@
       loadCatalog();
     });
 
-    $(document).on('change', '.sb-included-cb', function () {
+    function toggleModuleRow(mod) {
+      setModuleExpanded(mod, !isModuleExpanded(mod));
+      renderIncluded();
+    }
+
+    $(document).on('change', '.sb-included-cb', function (e) {
+      e.stopPropagation();
       var id = $(this).data('id');
-      var checked = $(this).is(':checked');
-      state.includedChecked[id] = checked;
-      var $card = $(this).closest('.sb-included-card');
-      $card.toggleClass('is-unchecked', !checked);
-      $card.find('.sb-included-check-icon i')
-        .toggleClass('bi-check-circle-fill', checked)
-        .toggleClass('bi-circle', !checked);
-      if (state.catalog) {
-        var total = state.catalog.included_count || 0;
-        updateIncludedViewAllButton(total);
-      }
+      syncIncludedCheckboxUi(id, $(this).is(':checked'));
     });
 
-    $(document).on('click', '#sb-included-view-all', function (e) {
+    $(document).on('click', '.sb-acc-inline-feat, .sb-included-item', function (e) {
+      e.stopPropagation();
+    });
+
+    $(document).on('click', '.sb-acc-more', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      if (!state.catalog) {
+      var mod = $(this).data('module');
+      setModuleExpanded(mod, true);
+      renderIncluded();
+      window.requestAnimationFrame(function () {
+        var $item = $('.sb-acc-item').filter(function () {
+          return $(this).attr('data-module') === mod;
+        });
+        if ($item.length) {
+          $item[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
+    });
+
+    $(document).on('click', '.sb-acc-chevron, .sb-acc-name, .sb-acc-icon, .sb-acc-module-meta', function (e) {
+      if ($(e.target).closest('.sb-acc-more, .sb-acc-inline, .sb-included-cb, .sb-acc-inline-feat, .sb-included-item').length) {
         return;
       }
-      state.includedExpanded = !state.includedExpanded;
-      renderIncluded();
-      if (state.includedExpanded) {
-        window.requestAnimationFrame(function () {
-          var el = document.getElementById('sb-included-section');
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        });
+      e.stopPropagation();
+      var mod = $(this).closest('.sb-acc-header').data('module');
+      toggleModuleRow(mod);
+    });
+
+    $(document).on('keydown', '.sb-acc-module-meta', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        var mod = $(this).data('module');
+        toggleModuleRow(mod);
       }
     });
 

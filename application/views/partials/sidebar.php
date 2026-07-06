@@ -45,9 +45,45 @@ function initSidebarGroup(groupId, toggleId, parentId, submenuId, storageKey, fo
         }
         setOpen(willOpen);
     }
-    btn.addEventListener('click', function(ev) { ev.preventDefault(); toggle(); });
+    btn.addEventListener('click', function(ev) { ev.preventDefault(); ev.stopPropagation(); toggle(); });
     if (parentLink) {
         parentLink.addEventListener('click', function(ev) { ev.preventDefault(); toggle(); });
+    }
+}
+function initNestedSidebarGroup(toggleId, submenuId, forceOpen, parentId) {
+    var btn = document.getElementById(toggleId);
+    var box = document.getElementById(submenuId);
+    var parentLink = parentId ? document.getElementById(parentId) : null;
+    var group = btn ? btn.closest('.nav-item') : null;
+    if (!btn || !box) { return; }
+    function setOpen(open) {
+        box.style.display = open ? 'block' : 'none';
+        if (btn) {
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.classList.toggle('rot', open);
+        }
+        if (parentLink) {
+            parentLink.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        if (group) {
+            group.classList.toggle('open', open);
+        }
+    }
+    function toggleNested() {
+        setOpen(box.style.display === 'none');
+    }
+    setOpen(!!forceOpen);
+    btn.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        toggleNested();
+    });
+    if (parentLink) {
+        parentLink.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            toggleNested();
+        });
     }
 }
 function sidebarApplyInitialOpen() {
@@ -85,17 +121,22 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
       <?php endif; ?>
+      <?php
+      $this->load->helper('spl');
+      if (function_exists('spl_can_access') && spl_can_access()):
+      ?>
+      <a class="nav-link sidebar-link <?php echo ($active==='spl' || $active==='rewards')?'active':''; ?>" href="<?php echo site_url('spl'); ?>"><i class="bi bi-trophy me-2"></i>SPL — My Reward</a>
+      <?php endif; ?>
+      <?php $this->load->view('partials/sidebar_sales_group', array('variant' => 'desktop', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
       <div class="nav-item" id="daily-activity-group">
-        <div class="d-flex align-items-center justify-content-between">
-            <a id="daily-activity-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='daily-activity'||$active==='daily_activity')?'active':''; ?>" href="<?php echo site_url('daily-activity'); ?>">
-                <i class="bi bi-journal-check me-2"></i>Daily Activity
-            </a>
-            <button id="daily-activity-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="daily-activity-submenu" title="Toggle">
-                <i class="bi bi-chevron-right"></i>
-            </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="daily-activity-submenu">
+        <a id="daily-activity-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo ($active==='daily-activity'||$active==='daily_activity')?'active':''; ?>" href="<?php echo site_url('daily-activity'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-journal-check me-2"></i>Daily Activity</span>
+            <span class="sidebar-group-chevron" id="daily-activity-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="daily-activity-submenu">
             <div class="submenu-list">
                 <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='list')?'active':''; ?>" href="<?php echo site_url('daily-activity/list'); ?>"><i class="bi bi-list-ul me-1"></i>All Activities</a>
                 <a class="submenu-link <?php echo ($active==='daily-activity' && $active_sub==='export')?'active':''; ?>" href="<?php echo site_url('daily-activity/export'); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
@@ -103,45 +144,6 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
       </div>
       <script>initSidebarGroup('daily-activity-group','daily-activity-toggle','daily-activity-parent','daily-activity-submenu','sb_daily_activity_open',<?php echo ($active==='daily-activity'||$active==='daily_activity')?'true':'false'; ?>);</script>
-      <?php endif; ?>
-      <?php
-      $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
-          || $is_superadmin
-          || (function_exists('has_module_access') && has_module_access('whatsapp'));
-      if ($comm_show) {
-          if (function_exists('has_module_access') && has_module_access('mail')) {
-              $comm_parent_url = site_url('mail');
-          } elseif ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))) {
-              $comm_parent_url = site_url('whatsapp');
-          } else {
-              $comm_parent_url = site_url('dashboard');
-          }
-          $comm_nav_active = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
-      }
-      ?>
-      <?php if (!empty($comm_show) && $comm_show): ?>
-      <div class="nav-item" id="communication-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="communication-parent" class="nav-link sidebar-link flex-grow-1 <?php echo !empty($comm_nav_active) && $comm_nav_active ? 'active' : ''; ?>" href="<?php echo $comm_parent_url; ?>">
-            <i class="bi bi-broadcast me-2"></i>Communication
-          </a>
-          <button id="communication-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="communication-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="communication-submenu">
-          <div class="submenu-list">
-            <?php if (function_exists('has_module_access') && has_module_access('mail')): ?>
-            <a class="submenu-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-1"></i>Mail (SMTP)</a>
-            <a class="submenu-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-send me-1"></i>SendGrid (API)</a>
-            <?php endif; ?>
-            <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
-            <a class="submenu-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
-            <?php endif; ?>
-          </div>
-        </div>
-      </div>
-      <script>initSidebarGroup('communication-group','communication-toggle','communication-parent','communication-submenu','sb_communication_open',<?php echo !empty($comm_nav_active) && $comm_nav_active ? 'true' : 'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
@@ -162,15 +164,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($recruitment_show): ?>
       <div class="nav-item" id="recruitment-group">
-        <div class="d-flex align-items-center justify-content-between">
-            <a id="recruitment-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['recruitment']) ? 'active' : ''; ?>" href="<?php echo site_url('recruitment'); ?>">
-                <i class="bi bi-person-plus me-2"></i>Recruitment
-            </a>
-            <button id="recruitment-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="recruitment-submenu" title="Toggle">
-                <i class="bi bi-chevron-right"></i>
-            </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="recruitment-submenu">
+        <a id="recruitment-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['recruitment']) ? 'active' : ''; ?>" href="<?php echo site_url('recruitment'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-person-plus me-2"></i>Recruitment</span>
+            <span class="sidebar-group-chevron" id="recruitment-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="recruitment-submenu">
             <div class="submenu-list">
                 <a class="submenu-link <?php echo ($active==='recruitment' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('recruitment'); ?>"><i class="bi bi-briefcase me-1"></i>Job Openings</a>
                 <a class="submenu-link <?php echo ($active==='recruitment' && $active_sub==='candidates')?'active':''; ?>" href="<?php echo site_url('recruitment/candidates'); ?>"><i class="bi bi-people me-1"></i>Candidates</a>
@@ -183,15 +183,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <?php if((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && has_module_access('performance'))): ?>
       <div class="nav-item" id="performance-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="performance-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='performance'?'active':''; ?>" href="<?php echo site_url('performance'); ?>">
-            <i class="bi bi-award me-2"></i>Performance
-          </a>
-          <button id="performance-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="performance-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="performance-submenu">
+        <a id="performance-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo $active==='performance'?'active':''; ?>" href="<?php echo site_url('performance'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-award me-2"></i>Performance</span>
+            <span class="sidebar-group-chevron" id="performance-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="performance-submenu">
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($active==='performance' && (!$active_sub||$active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('performance'); ?>"><i class="bi bi-list-ul me-1"></i>All Appraisals</a>
             <a class="submenu-link <?php echo ($active==='performance'&&$active_sub==='self-assess')?'active':''; ?>" href="<?php echo site_url('performance/self-assess'); ?>"><i class="bi bi-person-check me-1"></i>Self-Assessment</a>
@@ -219,15 +217,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($coaching_group_show): ?>
       <div class="nav-item" id="coaching-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="coaching-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $coaching_nav_active ? 'active' : ''; ?>" href="<?php echo site_url('coaching'); ?>">
-            <i class="bi bi-person-hearts me-2"></i>Coaching
-          </a>
-          <button id="coaching-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="coaching-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="coaching-submenu">
+        <a id="coaching-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo $coaching_nav_active ? 'active' : ''; ?>" href="<?php echo site_url('coaching'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-person-hearts me-2"></i>Coaching</span>
+            <span class="sidebar-group-chevron" id="coaching-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="coaching-submenu">
           <div class="submenu-list">
             <?php if((isset($is_superadmin)&&$is_superadmin)||has_module_access('coaching')): ?>
             <a class="submenu-link <?php echo ($active==='coaching'&&(!$active_sub||$active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('coaching'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
@@ -315,15 +311,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if ($ta_show || $tl_show || $ext_train_show): ?>
       <div class="nav-item" id="training-assessment-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="training-assessment-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin'||$active==='external-training')?'active':''; ?>" href="<?php echo $ta_parent_url; ?>">
-            <i class="bi bi-mortarboard me-2"></i>Training &amp; Assessment
-          </a>
-          <button id="training-assessment-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="training-assessment-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="training-assessment-submenu">
+        <a id="training-assessment-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo ($active==='training-assessment'||$active==='training'||$active==='training-lms-admin'||$active==='external-training')?'active':''; ?>" href="<?php echo $ta_parent_url; ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-mortarboard me-2"></i>Training &amp; Assessment</span>
+            <span class="sidebar-group-chevron" id="training-assessment-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="training-assessment-submenu">
           <div class="submenu-list">
             <?php if ((isset($is_superadmin) && $is_superadmin) || (function_exists('training_ta_can_screen') && training_ta_can_screen('training_screen_ta_dashboard')) || (function_exists('has_module_access') && (has_module_access('training_assessment_take') || has_module_access('training_screen_ta_my_tests')))): ?>
             <a class="submenu-link <?php echo ($active==='training-assessment' && (!$active_sub || $active_sub==='dashboard'))?'active':''; ?>" href="<?php echo site_url('training-assessment'); ?>"><i class="bi bi-grid me-1"></i>Dashboard</a>
@@ -383,15 +377,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($user_group_show): ?>
       <div class="nav-item" id="user-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="user-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['users','roles','permissions','attendance','departments','designations','leave','assets-mgmt','shifts'], true) ? 'active' : ''; ?>" href="#">
-            <i class="bi bi-person-lines-fill me-2"></i>User
-          </a>
-          <button id="user-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="user-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="user-submenu">
+        <a id="user-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['users','roles','permissions','attendance','departments','designations','leave','assets-mgmt','shifts'], true) ? 'active' : ''; ?>" href="#">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-person-lines-fill me-2"></i>User</span>
+            <span class="sidebar-group-chevron" id="user-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="user-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && (has_module_access('users') || has_module_access('users_list') || has_module_access('users_add') || has_module_access('users_edit') || has_module_access('users_delete'))): ?>
             <a class="submenu-link <?php echo $active==='users'?'active':''; ?>" href="<?php echo site_url('users'); ?>"><i class="bi bi-people me-2"></i>Users</a>
@@ -422,15 +414,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
       <?php if(function_exists('has_module_access') && (has_module_access('payroll') || has_module_access('payroll_view') || has_module_access('payroll_manage'))): ?>
       <div class="nav-item" id="payroll-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="payroll-parent" class="nav-link sidebar-link flex-grow-1 <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>">
-            <i class="bi bi-cash-stack me-2"></i>Payroll
-          </a>
-          <button id="payroll-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="payroll-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="payroll-submenu">
+        <a id="payroll-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo ($active==='payroll' || ($active==='reports' && $active_sub==='payroll'))?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-cash-stack me-2"></i>Payroll</span>
+            <span class="sidebar-group-chevron" id="payroll-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="payroll-submenu">
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($active==='payroll'&&($active_sub===''||$active_sub==='payslips'))?'active':''; ?>" href="<?php echo site_url('payroll/payslips'); ?>"><i class="bi bi-file-earmark-text me-1"></i>Payslips</a>
             <a class="submenu-link <?php echo ($active==='payroll'&&$active_sub==='structures')?'active':''; ?>" href="<?php echo site_url('payroll/structures'); ?>"><i class="bi bi-diagram-3 me-1"></i>Pay Structures</a>
@@ -456,15 +446,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($expenses_group_show): ?>
       <div class="nav-item" id="expense-group">
-        <div class="d-flex align-items-center justify-content-between">
-            <a id="expense-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='expenses'?'active':''; ?>" href="<?php echo site_url('expenses'); ?>">
-            <i class="bi bi-wallet2 me-2"></i>Expenses
-            </a>
-            <button id="expense-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="expense-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-            </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="expense-submenu">
+        <a id="expense-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo $active==='expenses'?'active':''; ?>" href="<?php echo site_url('expenses'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-wallet2 me-2"></i>Expenses</span>
+            <span class="sidebar-group-chevron" id="expense-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="expense-submenu">
             <div class="submenu-list">
             <a class="submenu-link <?php echo ($active==='expenses' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('expenses'); ?>">My Expenses</a>
             <?php if(function_exists('has_module_access') && has_module_access('expenses_approve')): ?>
@@ -497,15 +485,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($leave_group_show): ?>
       <div class="nav-item" id="leave-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="leave-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='leave' ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">
-            <i class="bi bi-airplane-engines me-2"></i>Leave
-          </a>
-          <button id="leave-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="leave-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="leave-submenu">
+        <a id="leave-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo $active==='leave' ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-airplane-engines me-2"></i>Leave</span>
+            <span class="sidebar-group-chevron" id="leave-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="leave-submenu">
           <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
           <div class="submenu-list">
             <a class="submenu-link <?php echo ($seg1==='leave' && ($seg2==='' || $seg2===null || $seg2==='apply')) ? 'active' : ''; ?>" href="<?php echo site_url('leave/apply'); ?>">Apply Leave</a>
@@ -534,15 +520,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($project_group_show): ?>
       <div class="nav-item" id="project-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="project-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['projects','requirements','tasks','timesheets','releases','defects']) ? 'active' : ''; ?>" href="#">
-            <i class="bi bi-kanban me-2"></i>Project
-          </a>
-          <button id="project-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="project-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="project-submenu">
+        <a id="project-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['projects','requirements','tasks','timesheets','releases','defects']) ? 'active' : ''; ?>" href="#">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-kanban me-2"></i>Project</span>
+            <span class="sidebar-group-chevron" id="project-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="project-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('projects')): ?>
             <a class="submenu-link <?php echo ($active==='projects' && $active_sub!=='matrix')?'active':''; ?>" href="<?php echo site_url('projects'); ?>"><i class="bi bi-kanban me-2"></i>Projects</a>
@@ -583,66 +567,50 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php if(function_exists('has_module_access') && (has_module_access('ai') || has_module_access('ai_chat'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='ai_chat'?'active':''; ?>" href="<?php echo site_url('ai_chat'); ?>"><i class="bi bi-robot me-2"></i>AI Assistant</a>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('subscription_builder') || has_module_access('subscription_builder_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='subscription-builder'?'active':''; ?>" href="<?php echo site_url('subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder</a>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='elintom-proposals'?'active':''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
-      <?php endif; ?>
       <?php $this->load->view('partials/sidebar_meals_group', array('variant' => 'desktop', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('announcements')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
       <?php endif; ?>
 
+      <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
+      <?php endif; ?>
       <?php
-        $engagement_nav_active = in_array($active, array('rewards','knowledge-base','helpdesk','events','certifications','customer-feedback'), true);
-        $engagement_any = function_exists('has_module_access') && (
-          has_module_access('rewards') || has_module_access('knowledge_base')
-          || has_module_access('helpdesk') || has_module_access('events') || has_module_access('certifications')
-          || has_module_access('customer_feedback')
-        );
+      $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
+          || $is_superadmin
+          || (function_exists('has_module_access') && has_module_access('whatsapp'));
+      if ($comm_show) {
+          if (function_exists('has_module_access') && has_module_access('mail')) {
+              $comm_parent_url = site_url('mail');
+          } elseif ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))) {
+              $comm_parent_url = site_url('whatsapp');
+          } else {
+              $comm_parent_url = site_url('dashboard');
+          }
+          $comm_nav_active = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
+      }
       ?>
-      <?php if ($engagement_any): ?>
-      <div class="sidebar-group" id="engagement-group">
-        <div class="d-flex align-items-center">
-          <a id="engagement-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $engagement_nav_active ? 'active' : ''; ?>" href="<?php echo site_url('rewards'); ?>">
-            <i class="bi bi-trophy me-2"></i>Rewards & Engagement
-          </a>
-          <button id="engagement-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="engagement-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="engagement-submenu">
+      <?php if (!empty($comm_show) && $comm_show): ?>
+      <div class="nav-item" id="communication-group">
+        <a id="communication-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo !empty($comm_nav_active) && $comm_nav_active ? 'active' : ''; ?>" href="<?php echo $comm_parent_url; ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-broadcast me-2"></i>Communication</span>
+            <span class="sidebar-group-chevron" id="communication-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="communication-submenu">
           <div class="submenu-list">
-            <?php if (has_module_access('rewards')): ?>
-            <a class="submenu-link <?php echo ($active==='rewards' && (!$active_sub || $active_sub==='index'))?'active':''; ?>" href="<?php echo site_url('rewards'); ?>"><i class="bi bi-star me-1"></i>My Rewards</a>
-            <a class="submenu-link <?php echo ($active==='rewards' && $active_sub==='leaderboard')?'active':''; ?>" href="<?php echo site_url('rewards/leaderboard'); ?>"><i class="bi bi-bar-chart me-1"></i>Leaderboard</a>
+            <?php if (function_exists('has_module_access') && has_module_access('mail')): ?>
+            <a class="submenu-link <?php echo $active==='mail'?'active':''; ?>" href="<?php echo site_url('mail'); ?>"><i class="bi bi-envelope me-1"></i>Mail (SMTP)</a>
+            <a class="submenu-link <?php echo $active==='sendgrid'?'active':''; ?>" href="<?php echo site_url('sendgrid'); ?>"><i class="bi bi-send me-1"></i>SendGrid (API)</a>
             <?php endif; ?>
-            <?php if (has_module_access('knowledge_base')): ?>
-            <a class="submenu-link <?php echo $active==='knowledge-base'?'active':''; ?>" href="<?php echo site_url('knowledge-base'); ?>"><i class="bi bi-journal-bookmark me-1"></i>Knowledge Base</a>
-            <?php endif; ?>
-            <?php if (has_module_access('helpdesk')): ?>
-            <a class="submenu-link <?php echo $active==='helpdesk'?'active':''; ?>" href="<?php echo site_url('helpdesk'); ?>"><i class="bi bi-life-preserver me-1"></i>Helpdesk</a>
-            <?php endif; ?>
-            <?php if (has_module_access('events')): ?>
-            <a class="submenu-link <?php echo $active==='events'?'active':''; ?>" href="<?php echo site_url('events'); ?>"><i class="bi bi-calendar-event me-1"></i>Events</a>
-            <?php endif; ?>
-            <?php if (has_module_access('certifications')): ?>
-            <a class="submenu-link <?php echo $active==='certifications'?'active':''; ?>" href="<?php echo site_url('certifications'); ?>"><i class="bi bi-patch-check me-1"></i>Certifications</a>
-            <?php endif; ?>
-            <?php if (has_module_access('customer_feedback')): ?>
-            <a class="submenu-link <?php echo $active==='customer-feedback'?'active':''; ?>" href="<?php echo site_url('customer-feedback'); ?>"><i class="bi bi-chat-heart me-1"></i>Customer Feedback</a>
-            <?php endif; ?>
-            <?php if (has_module_access('rewards_rules') || has_module_access('rewards_admin')): ?>
-            <a class="submenu-link <?php echo ($active==='rewards' && $active_sub==='rules')?'active':''; ?>" href="<?php echo site_url('rewards/rules'); ?>"><i class="bi bi-gear me-1"></i>Reward Rules</a>
+            <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
+            <a class="submenu-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
             <?php endif; ?>
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('engagement-group','engagement-toggle','engagement-parent','engagement-submenu','sb_engagement_open',<?php echo $engagement_nav_active ? 'true' : 'false'; ?>);</script>
-      <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
+      <script>initSidebarGroup('communication-group','communication-toggle','communication-parent','communication-submenu','sb_communication_open',<?php echo !empty($comm_nav_active) && $comm_nav_active ? 'true' : 'false'; ?>);</script>
       <?php endif; ?>
       <?php
       $reports_group_show = function_exists('has_module_access') && (
@@ -664,15 +632,13 @@ document.addEventListener('DOMContentLoaded', function() {
       ?>
       <?php if($reports_group_show): ?>
       <div class="nav-item" id="reports-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="reports-parent" class="nav-link sidebar-link flex-grow-1 <?php echo $active==='reports'?'active':''; ?>" href="<?php echo site_url('reports'); ?>">
-            <i class="bi bi-graph-up me-2"></i>Reports
-          </a>
-          <button id="reports-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="reports-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="reports-submenu">
+        <a id="reports-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo $active==='reports'?'active':''; ?>" href="<?php echo site_url('reports'); ?>">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-graph-up me-2"></i>Reports</span>
+            <span class="sidebar-group-chevron" id="reports-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="reports-submenu">
           <?php $seg1 = $this->uri ? $this->uri->segment(1) : ''; $seg2 = $this->uri ? $this->uri->segment(2) : ''; ?>
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('analytics')): ?>
@@ -741,15 +707,13 @@ document.addEventListener('DOMContentLoaded', function() {
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
-        <div class="d-flex align-items-center justify-content-between">
-          <a id="settings-parent" class="nav-link sidebar-link flex-grow-1 <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
-            <i class="bi bi-gear me-2"></i>Settings
-          </a>
-          <button id="settings-toggle" class="btn btn-sm text-muted" type="button" aria-expanded="false" aria-controls="settings-submenu" title="Toggle">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </div>
-        <div class="ps-3 sidebar-submenu" id="settings-submenu">
+        <a id="settings-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
+          <span class="sidebar-group-row-inner">
+            <span><i class="bi bi-gear me-2"></i>Settings</span>
+            <span class="sidebar-group-chevron" id="settings-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+          </span>
+        </a>
+        <div class="sidebar-submenu" id="settings-submenu">
           <div class="submenu-list">
             <?php if(function_exists('has_module_access') && has_module_access('settings')): ?>
             <a class="submenu-link <?php echo $active==='settings'?'active':''; ?>" href="<?php echo site_url('settings'); ?>"><i class="bi bi-gear me-2"></i>System Settings</a>
@@ -769,12 +733,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
             <a class="submenu-link <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('leave_types') || has_module_access('settings') || has_module_access('admin'))): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'leave-types') !== false)?'active':''; ?>" href="<?php echo site_url('settings/leave-types'); ?>"><i class="bi bi-calendar-x me-2"></i>Leave Types</a>
-            <?php endif; ?>
-            <?php if(function_exists('has_module_access') && (has_module_access('holidays') || has_module_access('settings') || has_module_access('admin'))): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'holidays') !== false)?'active':''; ?>" href="<?php echo site_url('settings/holidays'); ?>"><i class="bi bi-calendar-event me-2"></i>Holidays</a>
-            <?php endif; ?>
+            <?php $this->load->view('partials/sidebar_settings_leave_group', array('variant' => 'desktop', 'active' => $active)); ?>
             <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
             <a class="submenu-link <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
             <?php endif; ?>
@@ -784,20 +743,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && has_module_access('lead_mapping')): ?>
             <a class="submenu-link <?php echo $active==='lead-mapping'?'active':''; ?>" href="<?php echo site_url('lead-mapping'); ?>"><i class="bi bi-diagram-2 me-2"></i>Lead Mapping</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('db')): ?>
-            <a class="submenu-link <?php echo ($active==='db' && $active_sub==='')?'active':''; ?>" href="<?php echo site_url('db'); ?>"><i class="bi bi-database me-2"></i>Database Manager</a>
-            <a class="submenu-link <?php echo ($active==='db' && $active_sub==='clients')?'active':''; ?>" href="<?php echo site_url('db/clients'); ?>"><i class="bi bi-diagram-3 me-2"></i>Client DB Panel</a>
-            <a class="submenu-link <?php echo ($active==='db' && $active_sub==='client-migrations')?'active':''; ?>" href="<?php echo site_url('db/client-migrations'); ?>"><i class="bi bi-clock-history me-2"></i>Client DB Migrations</a>
-            <?php endif; ?>
+            <?php $this->load->view('partials/sidebar_settings_database_group', array('variant' => 'desktop', 'active' => $active, 'active_sub' => $active_sub)); ?>
             <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
             <a class="submenu-link <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
             <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>
             <?php endif; ?>
-            <?php if(function_exists('has_module_access') && has_module_access('subscription_builder')): ?>
-            <a class="submenu-link <?php echo ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false)?'active':''; ?>" href="<?php echo site_url('settings/subscription-builder'); ?>"><i class="bi bi-sliders me-2"></i>Subscription Builder Catalog</a>
-            <?php endif; ?>
+            <?php $this->load->view('partials/sidebar_settings_sales_group', array('variant' => 'desktop', 'active' => $active)); ?>
           </div>
         </div>
       </div>

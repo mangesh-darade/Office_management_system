@@ -43,25 +43,26 @@ class Reports_attendance extends Reports_base {
         $dateCol = $cols['date_col'];
         $statusCol = $cols['status_col'];
 
-        $labels = array();
-        if ($this->db->table_exists('users')) {
-            $this->db->select('u.id, u.email');
-            $this->apply_user_employee_name_selects('u', 'e', array('middle_name' => true));
-            $this->db->from('users u');
-            apply_role_hierarchy_filter($this->db, 'u.id');
-            $users = $this->db->get()->result();
-            foreach ($users as $u) {
-                $labels[(int) $u->id] = $u;
-            }
-        }
-
-        $getName = function ($uid) use ($labels) {
-            return attendance_report_user_display_name(isset($labels[$uid]) ? $labels[$uid] : null, $uid);
-        };
-
         $user_id = $user_id ? (int) $user_id : 0;
+        $employeeTab = $this->input->get('tab');
+        $employeeTab = ($employeeTab === 'inactive') ? 'inactive' : 'active';
 
         if ($user_id > 0) {
+            $labels = array();
+            if ($this->db->table_exists('users')) {
+                $this->db->select('u.id, u.email');
+                $this->apply_user_employee_name_selects('u', 'e', array('middle_name' => true));
+                $this->db->from('users u');
+                $this->db->where('u.id', $user_id);
+                apply_role_hierarchy_filter($this->db, 'u.id');
+                $userRow = $this->db->get()->row();
+                if ($userRow) {
+                    $labels[$user_id] = $userRow;
+                }
+            }
+            $getName = function ($uid) use ($labels) {
+                return attendance_report_user_display_name(isset($labels[$uid]) ? $labels[$uid] : null, $uid);
+            };
             $user_label = isset($labels[$user_id]) ? $labels[$user_id] : null;
             $this->_attendance_employee_detail(
                 $user_id, $period, $month, $date, $from, $to, $fields,
@@ -73,8 +74,8 @@ class Reports_attendance extends Reports_base {
 
         $this->_attendance_employee_summary(
             $period, $month, $date, $from, $to, $today, $fields,
-            $userCol, $dateCol, $statusCol, $labels, $getName, $holidays,
-            $holidayDates, $totalWorkingDays
+            $userCol, $dateCol, $statusCol, $holidays,
+            $holidayDates, $totalWorkingDays, $employeeTab
         );
     }
 
@@ -284,6 +285,8 @@ class Reports_attendance extends Reports_base {
             $obj->worked_hours = round($workedHours, 2);
             $obj->extra_hours = round($extraHours, 2);
             $obj->late_hours = ($lateDisplay['late_minutes'] > 0) ? round($lateDisplay['late_minutes'] / 60, 2) : 0.0;
+            $obj->net_hours = round(attendance_report_compute_net_hours($obj->extra_hours, $obj->late_hours), 2);
+            $obj->net_hours_display = attendance_report_format_hours_hhmm_signed($obj->net_hours);
             $obj->worked_seconds = $workedSeconds;
             $obj->extra_seconds = $extraSeconds;
             $obj->notes = isset($notesMap[$d]) ? $notesMap[$d] : '—';
@@ -324,21 +327,32 @@ class Reports_attendance extends Reports_base {
      */
     private function _attendance_employee_summary(
         $period, $month, $date, $from, $to, $today, array $fields,
-        $userCol, $dateCol, $statusCol, array $labels, callable $getName, $holidays,
-        array $holidayDates, $totalWorkingDays
+        $userCol, $dateCol, $statusCol, $holidays,
+        array $holidayDates, $totalWorkingDays, $employeeTab = 'active'
     ) {
-        // Get all users/employees first
-        $allUsers = [];
+        $employeeTab = ($employeeTab === 'inactive') ? 'inactive' : 'active';
+        $allUsers = array();
         if ($this->db->table_exists('users')) {
+            $userOptions = array('middle_name' => true);
+            if ($employeeTab === 'inactive') {
+                $userOptions['inactive_only'] = true;
+            } else {
+                $userOptions['active_only'] = true;
+            }
+
             $this->db->select('u.id, u.email');
-            $this->apply_user_employee_name_selects('u', 'e', array('middle_name' => true, 'active_only' => true));
+            $this->apply_user_employee_name_selects('u', 'e', $userOptions);
             $this->db->from('users u');
             apply_role_hierarchy_filter($this->db, 'u.id');
             $users = $this->db->get()->result();
-            foreach ($users as $u) { 
-                $allUsers[(int)$u->id] = $u; 
+            foreach ($users as $u) {
+                $allUsers[(int) $u->id] = $u;
             }
         }
+
+        $getName = function ($uid) use ($allUsers) {
+            return attendance_report_user_display_name(isset($allUsers[$uid]) ? $allUsers[$uid] : null, $uid);
+        };
 
         $cols = array(
             'fields'     => $fields,
@@ -359,20 +373,17 @@ class Reports_attendance extends Reports_base {
         );
         $summary = $built['summaries'];
         $timing = $built['timing'];
-        $officeStart = $timing['office_start'];
-        $graceMinutes = $timing['grace_minutes'];
-        $standardHours = $timing['standard_hours'];
 
         $rowsOut = attendance_report_summary_output_rows($allUsers, $summary, $getName, $totalWorkingDays);
+        $visibleRows = array();
+        foreach ($rowsOut as $row) {
+            if ($employeeTab === 'inactive') {
+                $visibleRows[] = $row;
+            } elseif (attendance_report_summary_row_has_data($row)) {
+                $visibleRows[] = $row;
+            }
+        }
 
-        $attendanceNotes = attendance_report_fetch_notes_map($this->db, $userCol, $dateCol, $from, $to);
-        
-        // Get settings for display
-        $officeStartDisplay = $officeStart;
-        $officeEndDisplay = $timing['office_end'];
-        $graceMinutesDisplay = $graceMinutes;
-        $standardHoursDisplay = $standardHours;
-        
         $this->load->view('reports/attendance_employee', [
             'period' => $period,
             'month' => $month,
@@ -380,16 +391,16 @@ class Reports_attendance extends Reports_base {
             'from' => $from,
             'to' => $to,
             'total_working_days' => $totalWorkingDays,
-            'office_start_time' => $officeStartDisplay,
-            'office_end_time' => $officeEndDisplay,
-            'grace_minutes' => $graceMinutesDisplay,
-            'standard_working_hours' => $standardHoursDisplay,
-            'rows' => $rowsOut,
-            'attendance_notes' => $attendanceNotes,
+            'office_start_time' => $timing['office_start'],
+            'office_end_time' => $timing['office_end'],
+            'grace_minutes' => $timing['grace_minutes'],
+            'standard_working_hours' => $timing['standard_hours'],
+            'rows' => $visibleRows,
+            'total_employees_in_scope' => count($allUsers),
+            'employee_tab' => $employeeTab,
             'getName' => $getName,
-            'holidays' => $holidays
+            'holidays' => $holidays,
         ]);
-
     }
 
     // GET /reports/attendance?period=daily|weekly|monthly&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&department_id=X&export=csv|pdf
@@ -582,22 +593,72 @@ class Reports_attendance extends Reports_base {
         require_module_access(['reports', 'reports_attendance_employee'], true);
         
         try {
-            $format = $this->input->get('export'); // 'excel' or 'pdf'
-            $userIdsStr = $this->input->get('user_ids');
-            $period = $this->input->get('period') ?: 'monthly';
-            $month = $this->input->get('month');
-            $date = $this->input->get('date');
+            $format = $this->input->post('export');
+            if ($format === null || $format === '') {
+                $format = $this->input->get('export');
+            }
+            $period = attendance_report_normalize_period((string) ($this->input->post('period') ?: $this->input->get('period')));
+            $month = (string) ($this->input->post('month') ?: $this->input->get('month'));
+            $date = (string) ($this->input->post('date') ?: $this->input->get('date'));
+            $gridRowsJson = $this->input->post('grid_rows');
+            $sortColumn = (string) $this->input->post('sort_column');
+            $sortDirection = (string) $this->input->post('sort_direction');
             
-            // Validate format
-            if (!in_array($format, ['excel', 'pdf'])) {
+            if (!in_array($format, ['excel', 'pdf'], true)) {
                 $this->output
                     ->set_status_header(400)
                     ->set_content_type('application/json')
                     ->set_output(json_encode(['error' => 'Invalid export format. Use "excel" or "pdf".']));
                 return;
             }
+
+            $exportRange = attendance_report_date_range_view($period, $month, $date);
+            $from = $exportRange['from'];
+            $to = $exportRange['to'];
+            $month = $exportRange['month'];
+            $date = $exportRange['date'];
+
+            if ($gridRowsJson !== null && $gridRowsJson !== '') {
+                $gridRows = attendance_report_parse_grid_export_rows($gridRowsJson);
+                if (empty($gridRows)) {
+                    $this->output
+                        ->set_status_header(400)
+                        ->set_content_type('application/json')
+                        ->set_output(json_encode(['error' => 'Invalid grid export data.']));
+                    return;
+                }
+
+                foreach ($gridRows as $gridRow) {
+                    if (!hierarchy_user_can_access((int) $gridRow['user_id'])) {
+                        $this->output
+                            ->set_status_header(403)
+                            ->set_content_type('application/json')
+                            ->set_output(json_encode(['error' => 'You do not have permission to export data for one or more selected employees.']));
+                        return;
+                    }
+                }
+
+                $officeStart = (string) $this->input->post('office_start');
+                $officeEnd = (string) $this->input->post('office_end');
+                $graceMinutes = (string) $this->input->post('grace_minutes');
+                $standardHours = (string) $this->input->post('standard_hours');
+
+                if ($format === 'excel') {
+                    attendance_report_export_grid_summary_csv(
+                        $gridRows, $period, $from, $to, $sortColumn, $sortDirection,
+                        $officeStart, $officeEnd, $graceMinutes, $standardHours
+                    );
+                } else {
+                    attendance_report_export_grid_summary_pdf(
+                        $gridRows, $period, $from, $to, $sortColumn, $sortDirection,
+                        $officeStart, $officeEnd, $graceMinutes, $standardHours
+                    );
+                }
+                return;
+            }
+
+            $userIdsStr = $this->input->get('user_ids');
             
-            // Validate user IDs
             if (empty($userIdsStr)) {
                 $this->output
                     ->set_status_header(400)
@@ -625,11 +686,6 @@ class Reports_attendance extends Reports_base {
                 }
             }
             
-            $exportRange = attendance_report_date_range_export($period, $month, $date);
-            $from = $exportRange['from'];
-            $to = $exportRange['to'];
-            
-            // Check if it's a single user export (detail view) - export daily details
             if (count($userIds) === 1) {
                 if ($format === 'excel') {
                     $this->export_attendance_employee_detail_excel($userIds[0], $period, $from, $to, $month, $date);
@@ -637,7 +693,6 @@ class Reports_attendance extends Reports_base {
                     $this->export_attendance_employee_detail_pdf($userIds[0], $period, $from, $to, $month, $date);
                 }
             } else {
-                // Multiple users - export summary
                 if ($format === 'excel') {
                     $this->export_attendance_employee_excel($userIds, $period, $from, $to, $month, $date);
                 } elseif ($format === 'pdf') {
@@ -658,6 +713,11 @@ class Reports_attendance extends Reports_base {
         if (!$this->db->table_exists('users')) {
             return array();
         }
+        $userIds = array_values(array_unique(array_map('intval', array_filter($userIds))));
+        if (empty($userIds)) {
+            return array();
+        }
+
         $nameFlags = $this->user_employee_name_flags();
         $nameExpr = $this->user_display_name_sql_expr('u', 'e', $nameFlags);
         $this->db->select("u.id, ($nameExpr) AS name", false);
@@ -667,7 +727,21 @@ class Reports_attendance extends Reports_base {
         }
         $this->db->from('users u');
         apply_role_hierarchy_filter($this->db, 'u.id');
-        return $this->db->get()->result();
+        $rows = $this->db->get()->result();
+
+        $byId = array();
+        foreach ($rows as $user) {
+            $byId[(int) $user->id] = $user;
+        }
+
+        $ordered = array();
+        foreach ($userIds as $uid) {
+            if (isset($byId[$uid])) {
+                $ordered[] = $byId[$uid];
+            }
+        }
+
+        return $ordered;
     }
 
     private function _fetch_export_user_name($user_id)

@@ -11,6 +11,10 @@ if (!empty($month)) {
 if (!empty($date)) {
     $back_query['date'] = $date;
 }
+$tabParam = $this->input->get('tab');
+if ($tabParam === 'inactive') {
+    $back_query['tab'] = 'inactive';
+}
 $back_url = site_url('reports/attendance-employee') . '?' . http_build_query($back_query);
 ?>
 
@@ -688,8 +692,9 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
           <th style="width: 12%">Check-Out Location</th>
           <th style="width: 11%">Late/On Time</th>
           <th style="width: 10%">Worked Hours</th>
-          <th style="width: 10%">Extra Hours</th>
-          <th style="width: 15%">Notes</th>
+          <th style="width: 10%">Work</th>
+          <th style="width: 10%">Total</th>
+          <th style="width: 12%">Notes</th>
         </tr>
       </thead>
       <tbody id="detail-tbody">
@@ -847,6 +852,24 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
                     $seconds = $extraSeconds % 60;
                     $display = sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
                     echo '<span class="att-det-status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . esc_view($display) . '</span>';
+                  } else {
+                    echo '<span class="att-det-status-badge">—</span>';
+                  }
+                ?>
+              </td>
+              <td>
+                <?php
+                  $netHours = isset($d->net_hours) ? (float) $d->net_hours : attendance_report_compute_net_hours(
+                      isset($d->extra_hours) ? (float) $d->extra_hours : 0,
+                      isset($d->late_hours) ? (float) $d->late_hours : 0
+                  );
+                  $netDisplay = isset($d->net_hours_display)
+                      ? $d->net_hours_display
+                      : attendance_report_format_hours_hhmm_signed($netHours);
+                  if ($netHours < 0) {
+                    echo '<span class="att-det-status-badge" style="background: rgba(239, 68, 68, 0.12); color: #dc2626;"><i class="bi bi-dash-circle"></i>' . esc_view($netDisplay) . '</span>';
+                  } elseif ($netHours > 0) {
+                    echo '<span class="att-det-status-badge" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i class="bi bi-plus-circle"></i>' . esc_view($netDisplay) . '</span>';
                   } else {
                     echo '<span class="att-det-status-badge">—</span>';
                   }

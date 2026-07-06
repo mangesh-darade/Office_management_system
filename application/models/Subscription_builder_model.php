@@ -342,7 +342,7 @@ class Subscription_builder_model extends CI_Model
         return $this->db->get()->result();
     }
 
-    public function get_catalog($plan, $industry, $country = '')
+    public function get_catalog($plan, $industry, $country = '', $apply_display_order = true)
     {
         $plan = trim((string) $plan);
         $industry = trim((string) $industry);
@@ -357,22 +357,21 @@ class Subscription_builder_model extends CI_Model
         }
         $plan_rows = $this->dedupe_hierarchy_rows($country_rows, $plan);
 
-        $included = array();
-        $chargeable = array();
-        $included_by_module = array();
+        $built = $this->build_included_from_plan_rows($plan_rows);
+        $included_by_module = $built['included_by_module'];
+        $chargeable = $built['chargeable'];
 
-        foreach ($plan_rows as $row) {
-            $item = $this->row_to_array($row);
-            if ($this->is_chargeable_row($row)) {
-                $chargeable[] = $item;
-                continue;
+        if ($apply_display_order) {
+            $this->load->model('Subscription_builder_included_order_model', 'included_order');
+            $this->included_order->ensure_schema();
+            $included_by_module = $this->included_order->apply_to_included_by_module($plan, $industry, $included_by_module);
+        }
+
+        $included = array();
+        foreach ($included_by_module as $module_items) {
+            foreach ($module_items as $item) {
+                $included[] = $item;
             }
-            $included[] = $item;
-            $module_key = $item['module'];
-            if (!isset($included_by_module[$module_key])) {
-                $included_by_module[$module_key] = array();
-            }
-            $included_by_module[$module_key][] = $item;
         }
 
         return array(
@@ -380,6 +379,46 @@ class Subscription_builder_model extends CI_Model
             'included_by_module' => $included_by_module,
             'chargeable' => $chargeable,
         );
+    }
+
+    private function build_included_from_plan_rows($plan_rows)
+    {
+        $included_by_module = array();
+        $chargeable = array();
+
+        foreach ($plan_rows as $row) {
+            $item = $this->row_to_array($row);
+            if ($this->is_chargeable_row($row)) {
+                $chargeable[] = $item;
+                continue;
+            }
+            $module_key = $item['module'];
+            if (!isset($included_by_module[$module_key])) {
+                $included_by_module[$module_key] = array();
+            }
+            $included_by_module[$module_key][] = $item;
+        }
+
+        ksort($included_by_module, SORT_NATURAL | SORT_FLAG_CASE);
+        foreach ($included_by_module as $module_key => $items) {
+            usort($included_by_module[$module_key], function ($a, $b) {
+                return strcasecmp((string) ($a['feature'] ?? ''), (string) ($b['feature'] ?? ''));
+            });
+        }
+
+        return array(
+            'included_by_module' => $included_by_module,
+            'chargeable' => $chargeable,
+        );
+    }
+
+    public function get_included_by_module_for_order_editor($plan, $industry, $country = '')
+    {
+        $catalog = $this->get_catalog($plan, $industry, $country, false);
+        $raw = isset($catalog['included_by_module']) ? $catalog['included_by_module'] : array();
+        $this->load->model('Subscription_builder_included_order_model', 'included_order');
+        $this->included_order->ensure_schema();
+        return $this->included_order->apply_to_included_by_module($plan, $industry, $raw);
     }
 
     public function row_to_array($row)
