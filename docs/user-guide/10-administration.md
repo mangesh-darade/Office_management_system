@@ -2,7 +2,7 @@
 
 ## What is this module for?
 
-System settings, permissions, email, holidays, activity log, and database tools.
+System settings, permissions, email, holidays, attendance manage (admin), activity log, and database tools.
 
 ![Animated overview — Administration](videos/10-admin/settings-tour-voiced.webm)
 
@@ -102,6 +102,24 @@ System settings, permissions, email, holidays, activity log, and database tools.
 **How:**
 
 1. Delete holiday from list.
+
+---
+
+## Attendance Manage
+
+**Purpose:** Admin manually adds or corrects attendance (check-in, check-out, status) for any employee — bypasses holiday punch block.
+
+**Menu:** Settings → Attendance Manage (admin only)
+
+**Who can use:** Users in the admin group (`is_admin_group()`).
+
+**Steps:**
+
+1. Open list → filter by employee or date if needed.
+2. **Add:** Create → pick user, date, check-in/out, status, notes → Save.
+3. **Edit:** Open record → update times/status → Save.
+
+**Note:** Staff daily punch remains on **User Management → Attendance → Mark Attendance** or self punch at `/attendance/create`.
 
 ---
 

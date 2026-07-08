@@ -1174,4 +1174,150 @@ class Settings extends CI_Controller {
         $this->session->set_flashdata('success', 'Included section display order saved.');
         redirect('settings/subscription-builder/included-order?plan=' . rawurlencode($plan) . '&industry=' . rawurlencode($industry));
     }
+
+    private function require_attendance_manage_admin(){
+        if (!function_exists('is_admin_group') || !is_admin_group()) {
+            $this->session->set_flashdata('error', 'Attendance Manage is available to administrators only.');
+            redirect('dashboard');
+            return false;
+        }
+        return true;
+    }
+
+    // GET /settings/attendance-manage
+    public function attendance_manage(){
+        if (!$this->require_attendance_manage_admin()) {
+            return;
+        }
+        $this->load->helper(['attendance_manage', 'attendance_punch', 'attendance_list', 'hierarchy_filter']);
+
+        $current_user_id = (int) $this->session->userdata('user_id');
+        $current_role_id = (int) $this->session->userdata('role_id');
+        $filters = array(
+            'user_id'    => (int) $this->input->get('user_id'),
+            'from_date'  => trim((string) $this->input->get('from_date')),
+            'to_date'    => trim((string) $this->input->get('to_date')),
+        );
+
+        $rows = attendance_manage_fetch_records($this->db, $filters, $current_user_id, $current_role_id);
+        $ctx = attendance_manage_resolve_context($this->db);
+
+        $this->load->view('settings/attendance_manage/index', array(
+            'rows'    => $rows,
+            'users'   => attendance_manage_fetch_users($this->db),
+            'filters' => $filters,
+            'ctx'     => $ctx,
+            'can_add' => true,
+        ));
+    }
+
+    // GET/POST /settings/attendance-manage/create
+    public function attendance_manage_create(){
+        if (!$this->require_attendance_manage_admin()) {
+            return;
+        }
+        $this->load->helper(['attendance_manage', 'attendance_punch', 'attendance_list', 'hierarchy_filter', 'activity']);
+
+        if ($this->input->method() === 'post') {
+            $post = $this->input->post(null, true);
+            $errors = attendance_manage_validate_form($post, false);
+            if (!empty($errors)) {
+                $this->session->set_flashdata('error', implode(' ', array_values($errors)));
+                redirect('settings/attendance-manage/create');
+                return;
+            }
+
+            $target_user_id = (int) $post['user_id'];
+            require_hierarchy_user_access($target_user_id, true);
+
+            $att_date = trim((string) $post['att_date']);
+            $existing = attendance_manage_find_existing_for_date($this->db, $target_user_id, $att_date);
+            if ($existing) {
+                $this->session->set_flashdata('error', 'Attendance already exists for this employee on ' . $att_date . '. Please edit that record.');
+                redirect('settings/attendance-manage/' . (int) $existing->id . '/edit');
+                return;
+            }
+
+            $data = attendance_manage_build_save_data($this->db, $post, $target_user_id);
+            if ($this->db->field_exists('created_at', 'attendance') && !isset($data['created_at'])) {
+                $data['created_at'] = date('Y-m-d H:i:s');
+            }
+
+            $this->db->insert('attendance', $data);
+            $insert_id = (int) $this->db->insert_id();
+            if ($insert_id <= 0) {
+                $this->session->set_flashdata('error', 'Failed to create attendance record.');
+                redirect('settings/attendance-manage/create');
+                return;
+            }
+
+            log_activity('attendance', 'created', $insert_id, 'Admin attendance entry for user #' . $target_user_id . ' on ' . $att_date);
+            $this->session->set_flashdata('success', 'Attendance record created successfully.');
+            redirect('settings/attendance-manage?user_id=' . $target_user_id);
+            return;
+        }
+
+        $this->load->view('settings/attendance_manage/form', array(
+            'action' => 'create',
+            'row'    => null,
+            'users'  => attendance_manage_fetch_users($this->db),
+            'ctx'    => attendance_manage_resolve_context($this->db),
+        ));
+    }
+
+    // GET/POST /settings/attendance-manage/{id}/edit
+    public function attendance_manage_edit($id){
+        if (!$this->require_attendance_manage_admin()) {
+            return;
+        }
+        $this->load->helper(['attendance_manage', 'attendance_punch', 'attendance_list', 'hierarchy_filter', 'activity']);
+
+        $id = (int) $id;
+        $row = $this->db->where('id', $id)->limit(1)->get('attendance')->row();
+        if (!$row) {
+            show_404();
+        }
+
+        require_hierarchy_user_access((int) $row->user_id, true);
+
+        if ($this->input->method() === 'post') {
+            $post = $this->input->post(null, true);
+            $errors = attendance_manage_validate_form($post, true);
+            if (!empty($errors)) {
+                $this->session->set_flashdata('error', implode(' ', array_values($errors)));
+                redirect('settings/attendance-manage/' . $id . '/edit');
+                return;
+            }
+
+            $att_date = trim((string) $post['att_date']);
+            $existing = attendance_manage_find_existing_for_date($this->db, (int) $row->user_id, $att_date, $id);
+            if ($existing) {
+                $this->session->set_flashdata('error', 'Another attendance record already exists for this employee on ' . $att_date . '.');
+                redirect('settings/attendance-manage/' . $id . '/edit');
+                return;
+            }
+
+            $data = attendance_manage_build_save_data($this->db, $post, 0);
+            $ok = $this->db->where('id', $id)->update('attendance', $data);
+            if (!$ok) {
+                $this->session->set_flashdata('error', 'Failed to update attendance record.');
+                redirect('settings/attendance-manage/' . $id . '/edit');
+                return;
+            }
+
+            log_activity('attendance', 'updated', $id, 'Admin attendance update for user #' . (int) $row->user_id . ' on ' . $att_date);
+            $this->session->set_flashdata('success', 'Attendance record updated successfully.');
+            redirect('settings/attendance-manage?user_id=' . (int) $row->user_id);
+            return;
+        }
+
+        $user = $this->db->select('id, name, email')->from('users')->where('id', (int) $row->user_id)->get()->row();
+        $this->load->view('settings/attendance_manage/form', array(
+            'action' => 'edit',
+            'row'    => $row,
+            'user'   => $user,
+            'users'  => attendance_manage_fetch_users($this->db),
+            'ctx'    => attendance_manage_resolve_context($this->db),
+        ));
+    }
 }

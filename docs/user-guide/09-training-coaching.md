@@ -41,6 +41,24 @@ Tests, LMS courses, external training links, and coaching CRM.
 
 ---
 
+## Master CSV import (Training + LMS + Tests)
+
+**Purpose:** Bulk import training programs, topics, assessments, questions, and assignments from one spreadsheet.
+
+**Menu:** Training & Assessment → Master CSV Import
+
+**Route:** `/training/import`
+
+**Steps:**
+
+1. Download sample CSV (row 1 = section headers, row 2 = column names, row 3+ = data).
+2. Fill one block per row (TRAINING, TOPIC, TEST, QUESTION, or ASSIGNMENT).
+3. Upload CSV → Import.
+
+**Requires:** LMS and assessment tables installed (`database/training_lms_module.sql`, `database/training_assessment_module.sql`).
+
+---
+
 ## My Training
 
 **Purpose:** Courses assigned to you as a learner.

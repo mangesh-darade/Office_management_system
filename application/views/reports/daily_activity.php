@@ -278,7 +278,7 @@
                                 </td>
                                 <td>
                                     <div class="desc-preview"><?php echo esc_view($plain_desc); ?></div>
-                                    <div class="d-none full-description"><?php echo $r->description; ?></div>
+                                    <div class="d-none full-description"><?php echo sanitize_html_output($r->description); ?></div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

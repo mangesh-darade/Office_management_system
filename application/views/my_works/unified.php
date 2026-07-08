@@ -75,10 +75,7 @@
 
   <?php 
   $can_add = function_exists('has_module_access') && (has_module_access('my_works_add') || has_module_access('my_works'));
-  $redirectBack = 'my-works';
-  if (!empty($_SERVER['QUERY_STRING'])) {
-    $redirectBack .= '?' . $_SERVER['QUERY_STRING'];
-  }
+  $redirectBack = 'my-works' . safe_query_suffix();
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
   $complete_view_on = !empty($complete_view_on);
   $show_complete_toggle = in_array($active_tab, array('project-dashboard', 'team-dashboard'), true);

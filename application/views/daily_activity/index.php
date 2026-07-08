@@ -178,7 +178,7 @@
                                     <?php endif; ?>
                                 </div>
                                 <div class="activity-description mt-2">
-                                    <?php echo $log->description; // Already HTML safe from Summernote (but be careful of XSS if public input allowed. Internal tool -> acceptable risk if trusted users) ?> 
+                                    <?php echo sanitize_html_output($log->description); ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>

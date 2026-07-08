@@ -334,6 +334,11 @@ $route['settings/holidays/create'] = 'settings/holidays_create';
 $route['settings/holidays/(:num)/edit'] = 'settings/holidays_edit/$1';
 $route['settings/holidays/(:num)/delete'] = 'settings/holidays_delete/$1';
 
+// Attendance manage (Settings)
+$route['settings/attendance-manage'] = 'settings/attendance_manage';
+$route['settings/attendance-manage/create'] = 'settings/attendance_manage_create';
+$route['settings/attendance-manage/(:num)/edit'] = 'settings/attendance_manage_edit/$1';
+
 // Subscription Builder catalog (Settings)
 $route['settings/subscription-builder/included-order'] = 'settings/subscription_builder_included_order';
 $route['settings/subscription-builder/included-order/save'] = 'settings/subscription_builder_included_order_save';

@@ -223,12 +223,12 @@ class Activity extends CI_Controller {
                 }
 
                 if (!$header_written) {
-                    fputcsv($output, array_keys($rows[0]));
+                    fputcsv($output, array_keys($rows[0]), ',', '"', '\\');
                     $header_written = true;
                 }
 
                 foreach ($rows as $row) {
-                    fputcsv($output, $row);
+                    fputcsv($output, $row, ',', '"', '\\');
                     $total_exported++;
                     if ($total_exported >= $max_records) {
                         break;

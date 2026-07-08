@@ -550,7 +550,7 @@ class Users extends CI_Controller {
             if (count($parts) === 2) {
                 $meta = $parts[0];
                 $bin = base64_decode($parts[1]);
-                if ($bin !== false) {
+                if ($bin !== false && strlen($bin) <= 2097152) {
                     $ext = 'png';
                     if (strpos($meta, 'jpeg') !== false || strpos($meta, 'jpg') !== false) { $ext = 'jpg'; }
                     elseif (strpos($meta, 'webp') !== false) { $ext = 'webp'; }

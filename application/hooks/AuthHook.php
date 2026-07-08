@@ -69,6 +69,22 @@ class AuthHook {
             return;
         }
 
+        // Cron HTTP: Task Scheduler uses token only (no browser session).
+        if (preg_match('#^cron(/|$)#', $uri)) {
+            if (!isset($CI->settings)) {
+                $CI->load->model('Setting_model', 'settings');
+            }
+            $cron_token = isset($_GET['token']) ? (string) $_GET['token'] : '';
+            $expected_token = $CI->settings->get_setting('cron_secret_token', '');
+            if ($expected_token === '' || $expected_token === null) {
+                $expected_token = getenv('CRON_TOKEN');
+            }
+            if ($expected_token !== false && $expected_token !== '' && $expected_token !== null
+                && $cron_token !== '' && hash_equals((string) $expected_token, $cron_token)) {
+                return;
+            }
+        }
+
         $user_id = $CI->session->userdata('user_id');
         $role_id = (int)$CI->session->userdata('role_id');
 

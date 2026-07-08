@@ -301,9 +301,9 @@ class Daily_activity extends CI_Controller {
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="daily_activity_' . $date_from . '_to_' . $date_to . '.csv"');
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['Date', 'User', 'Email', 'Activity Title', 'Linked Task', 'Description', 'Logged At']);
+        fputcsv($out, array('Date', 'User', 'Email', 'Activity Title', 'Linked Task', 'Description', 'Logged At'), ',', '"', '\\');
         foreach ($logs as $row) {
-            fputcsv($out, [
+            fputcsv($out, array(
                 $row->work_date,
                 $row->user_name,
                 $row->user_email,
@@ -311,7 +311,7 @@ class Daily_activity extends CI_Controller {
                 $row->task_title,
                 strip_tags($row->description),
                 $row->created_at,
-            ]);
+            ), ',', '"', '\\');
         }
         fclose($out);
         exit;

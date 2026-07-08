@@ -105,7 +105,7 @@
                                         <?php else: ?>
                                             <span class="text-muted small">-</span>
                                         <?php endif; ?>
-                                        <div class="d-none full-description"><?php echo $log->description; ?></div>
+                                        <div class="d-none full-description"><?php echo sanitize_html_output($log->description); ?></div>
                                     </td>
                                     <td class="text-end" onclick="event.stopPropagation()">
                                         <div class="d-flex gap-1 justify-content-end">

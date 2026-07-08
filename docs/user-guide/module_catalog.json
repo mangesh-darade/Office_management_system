@@ -566,6 +566,15 @@
           "delete": {"steps": ["Delete assessment from dashboard."]}
         },
         {
+          "name": "Master CSV import",
+          "menu": "Training & Assessment → Master CSV Import",
+          "purpose": "Bulk import training programs, topics, tests, questions, and assignments from one CSV.",
+          "list": {"route": "training/import"},
+          "add": {"route": "training/import", "steps": ["Download sample CSV.", "Fill rows (one block per row).", "Upload and Import."]},
+          "edit": null,
+          "delete": null
+        },
+        {
           "name": "My Training",
           "menu": "Training → My Training",
           "purpose": "Courses assigned to you as a learner.",
@@ -608,7 +617,7 @@
       "slug": "10-administration",
       "file": "10-administration.md",
       "title": "Administration",
-      "purpose": "System settings, permissions, email, holidays, activity log, and database tools.",
+      "purpose": "System settings, permissions, email, holidays, attendance manage (admin), activity log, and database tools.",
       "video": "videos/10-admin/settings-tour.webm",
       "entities": [
         {
@@ -655,6 +664,15 @@
           "add": {"image": "images/10-admin/holidays-add.png", "route": "settings/holidays/create"},
           "edit": {"image": "images/10-admin/holidays-edit.png", "list_route": "settings/holidays"},
           "delete": {"steps": ["Delete holiday from list."]}
+        },
+        {
+          "name": "Attendance Manage",
+          "menu": "Settings → Attendance Manage",
+          "purpose": "Admin manually add or correct employee attendance (bypasses holiday punch block).",
+          "list": {"route": "settings/attendance-manage"},
+          "add": {"route": "settings/attendance-manage/create", "steps": ["Pick user, date, check-in/out, status, notes.", "Save."]},
+          "edit": {"list_route": "settings/attendance-manage", "steps": ["Open record → update times/status → Save."]},
+          "delete": {"steps": ["Admin only; use list actions where available."]}
         },
         {
           "name": "Leave types",

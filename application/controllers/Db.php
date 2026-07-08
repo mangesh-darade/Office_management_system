@@ -56,8 +56,7 @@ class Db extends CI_Controller {
     public function compare_update_file_missing(){
         // Security Check
         if (!db_verify_csrf($this->session, $this->input)) {
-           // header('HTTP/1.1 403 Forbidden'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
-           // Soft-fail for now until frontend sends token, or auto-generate
+           header('HTTP/1.1 403 Forbidden'); echo json_encode(['success'=>false,'message'=>'CSRF Token Mismatch']); return;
         }
 
         $file = $this->_safe_sql_path($this->input->post('file_path'));

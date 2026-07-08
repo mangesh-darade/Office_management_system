@@ -406,7 +406,7 @@ class Training_assessment_take extends CI_Controller
         }
         $base64 = substr($dataUrl, strlen('data:image/jpeg;base64,'));
         $raw = base64_decode($base64, true);
-        if ($raw === false || strlen($raw) < 100) {
+        if ($bin === false || strlen($raw) < 100 || strlen($raw) > 3145728) {
             echo json_encode(array('ok' => false, 'error' => 'Decode'));
             return;
         }

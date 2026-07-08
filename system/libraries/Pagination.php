@@ -498,9 +498,13 @@ class CI_Pagination {
 		$base_page = ($this->use_page_numbers) ? 1 : 0;
 
 		// Are we using query strings?
-		if ($this->page_query_string === TRUE)
+        if ($this->page_query_string === TRUE)
 		{
 			$this->cur_page = $this->CI->input->get($this->query_string_segment);
+			if ($this->cur_page === NULL || $this->cur_page === FALSE)
+			{
+				$this->cur_page = '';
+			}
 		}
 		elseif (empty($this->cur_page))
 		{
@@ -524,7 +528,7 @@ class CI_Pagination {
 		}
 
 		// If something isn't quite right, back to the default base page.
-		if ( ! ctype_digit($this->cur_page) OR ($this->use_page_numbers && (int) $this->cur_page === 0))
+		if ($this->cur_page === '' || $this->cur_page === NULL || ! ctype_digit((string) $this->cur_page) OR ($this->use_page_numbers && (int) $this->cur_page === 0))
 		{
 			$this->cur_page = $base_page;
 		}

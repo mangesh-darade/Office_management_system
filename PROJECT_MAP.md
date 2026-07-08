@@ -18,9 +18,33 @@ See `docs/FUNCTIONAL_GRAPH.md` (domain modules) and `docs/SIDEBAR_SCREEN_INDEX.m
 ## Routes
 
 - App routes: `application/config/routes.php`
-- User-guide route index: `docs/user-guide/_ROUTE_INDEX.md` (regenerate: `python tools/generate_user_guide_index.py`)
+- User-guide route index: `docs/user-guide/_ROUTE_INDEX.md` (regenerate: `python _unused/tools/generate_user_guide_index.py`)
 
-## DB tables
+## Dev / archive folder (`_unused/`)
+
+Non-runtime files moved here to keep the project root clean. See `_unused/README.md`.
+
+| Path | Contents |
+|------|----------|
+| `_unused/tools/` | Audit scripts, screenshot generators, one-off Python/PHP tools |
+| `_unused/dev_scripts/` | Root test/debug PHP, schema checker, deep login smoke test |
+| `_unused/database/` | One-time marketing/training seed SQL |
+| `_unused/samples/` | LMS import sample CSVs (reference only) |
+| `_unused/O_db/` | Old DB dump |
+| `_unused/sql/` | Demo data notes |
+
+**Still at root (in use):** `samples/training_assessment_import_sample.csv`, `database/subscription_builder_*`, `database/training_*_module.sql`, `reminders_cron.php`, `application/`, `assets/`, `docs/`.
+
+## Environment secrets (optional)
+
+| Variable / file | Purpose |
+|-----------------|--------|
+| `CI_ENCRYPTION_KEY` | Preferred encryption key (env) |
+| `application/config/local_secrets.php` | Gitignored override; copy from `local_secrets.example.php` |
+| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` | Override WAMP defaults in `database.php` |
+| `CRON_TOKEN` or Settings → `cron_secret_token` | HTTP cron / Task Scheduler token |
+| `AI_DB_RO_*` | Read-only DB user for AI Chat SQL (optional) |
+
 
 Schema reference: search `application/models/` and `application/migrations/`. No single generated schema doc in repo — check model `ensure_schema()` and migration files per module.
 
@@ -53,7 +77,7 @@ Module CSS/JS: `assets/css/`, `assets/js/`.
 | `reminders_cron.php` | Reminder processing entry | Task Scheduler via `.ps1`/`.bat` |
 | `reminders_cron_generate.ps1` | Generate reminders | Windows Task Scheduler |
 | `reminders_cron_send.ps1` | Send pending reminders | Windows Task Scheduler |
-| `application/controllers/Cron.php` | Web cron guard (CLI only) | — |
+| `application/controllers/Cron.php` | Web cron (`?token=`); AuthHook allows token without session | Task Scheduler or CLI |
 
 PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 
@@ -68,4 +92,6 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 
 | Issue | Owner | Status |
 |-------|-------|--------|
-| *(add active bugs/TODOs here)* | | |
+| Inactive holidays still appear in some attendance reports (no `status` filter) | — | Open |
+| Same holiday date cannot be re-added after soft delete (must edit existing row) | — | Open |
+| `holidays.date` / `holidays.type` legacy DB columns unused by code | — | Low / cleanup |

@@ -345,8 +345,17 @@ $config['cache_query_string'] = FALSE;
 */
 // Prefer environment variable so the key is not committed in code.
 // Set CI_ENCRYPTION_KEY in the server environment (Apache SetEnv / system env)
-// and rotate away from the legacy fallback below as soon as possible.
+// or copy application/config/local_secrets.example.php to local_secrets.php.
 $__enc_key = getenv('CI_ENCRYPTION_KEY');
+if ($__enc_key === false || $__enc_key === '') {
+    $__local_secrets = APPPATH . 'config/local_secrets.php';
+    if (is_file($__local_secrets)) {
+        $__secrets = include $__local_secrets;
+        if (is_array($__secrets) && !empty($__secrets['encryption_key'])) {
+            $__enc_key = (string) $__secrets['encryption_key'];
+        }
+    }
+}
 if ($__enc_key === false || $__enc_key === '') {
     // Legacy fallback — keeps existing signed URLs/data working until rotation.
     $__enc_key = 'a3f8d2e1b7c4590f6a1e3d8b2c7f4a9e5d1b8c3f7a2e6d9b4c1f8a3e7d2b5c9';

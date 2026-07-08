@@ -714,7 +714,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
-        <a id="settings-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
+        <a id="settings-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
           <span class="sidebar-group-row-inner">
             <span><i class="bi bi-gear me-2"></i>Settings</span>
             <span class="sidebar-group-chevron" id="settings-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
@@ -741,6 +741,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <a class="submenu-link <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
             <?php endif; ?>
             <?php $this->load->view('partials/sidebar_settings_leave_group', array('variant' => 'desktop', 'active' => $active)); ?>
+            <?php if(function_exists('is_admin_group') && is_admin_group()): ?>
+            <a class="submenu-link <?php echo ($active==='settings' && isset($active_sub) && $active_sub==='attendance-manage')?'active':''; ?>" href="<?php echo site_url('settings/attendance-manage'); ?>"><i class="bi bi-clock-history me-2"></i>Attendance Manage</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('email_settings')): ?>
             <a class="submenu-link <?php echo $active==='email-settings'?'active':''; ?>" href="<?php echo site_url('email-settings'); ?>"><i class="bi bi-envelope-gear me-2"></i>Email Settings</a>
             <?php endif; ?>
@@ -761,7 +764,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false))?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false))?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>

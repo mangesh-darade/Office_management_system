@@ -19,13 +19,9 @@
 
   $redirectBack = 'my-works';
 
-  if (!empty($_SERVER['QUERY_STRING'])) {
+  $qs = safe_query_string(array('view'));
 
-    $qs = preg_replace('/(^|&)view=[^&]*/', '', (string) $_SERVER['QUERY_STRING']);
-
-    $qs = ltrim($qs, '&');
-
-    if ($qs !== '') {
+  if ($qs !== '') {
 
       $overviewUrl .= '&' . $qs;
 
@@ -35,11 +31,9 @@
 
       $matrixUrl .= '&' . $qs;
 
-    }
-
-    $redirectBack .= '?' . (string) $_SERVER['QUERY_STRING'];
-
   }
+
+  $redirectBack .= safe_query_suffix();
 
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
 

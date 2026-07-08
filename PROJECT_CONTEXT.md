@@ -25,6 +25,7 @@ Modules include employees, attendance, leave, payroll, expenses, projects, tasks
 | `application/helpers/` | Shared functions (many autoloaded) |
 | `application/hooks/AuthHook.php` | Session auth + route RBAC |
 | `application/config/routes.php` | URL routing |
+| `_unused/` | Dev tools, seeds, test scripts (not runtime) |
 | `docs/FUNCTIONAL_GRAPH.md` | Module map, request flow, RBAC (read first for new work) |
 | `docs/SIDEBAR_SCREEN_INDEX.md` | Sidebar links and routes |
 | `docs/user-guide/` | End-user documentation + screenshots |

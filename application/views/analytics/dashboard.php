@@ -23,8 +23,8 @@
                         <?php foreach($attrition_risks as $risk): ?>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong><?php echo $risk['name']; ?></strong><br>
-                                    <small class="text-muted"><?php echo implode(', ', $risk['factors']); ?></small>
+                                    <strong><?php echo esc_view($risk['name']); ?></strong><br>
+                                    <small class="text-muted"><?php echo esc_view(implode(', ', $risk['factors'])); ?></small>
                                 </div>
                                 <span class="badge bg-<?php echo ($risk['risk_score'] > 70 ? 'danger' : 'warning'); ?> rounded-pill">
                                     <?php echo $risk['risk_score']; ?>% Risk
@@ -65,7 +65,7 @@
                 <div class="card-body">
                     <form action="<?php echo site_url('analytics/analyze_feedback'); ?>" method="post">
                         <div class="mb-3">
-                            <textarea name="feedback_text" class="form-control" rows="3" placeholder="Paste feedback text here..."><?php echo $this->session->flashdata('analyzed_text'); ?></textarea>
+                            <textarea name="feedback_text" class="form-control" rows="3" placeholder="Paste feedback text here..."><?php echo esc_view($this->session->flashdata('analyzed_text')); ?></textarea>
                         </div>
                         <button type="submit" class="btn btn-sm btn-outline-primary">Analyze Sentiment</button>
                     </form>
@@ -73,8 +73,8 @@
                     <?php if($this->session->flashdata('sentiment_result')): 
                         $res = $this->session->flashdata('sentiment_result'); ?>
                         <div class="mt-3 p-3 bg-light rounded">
-                            <h6>Result: <span class="badge bg-<?php echo ($res['label']=='Positive'?'success':($res['label']=='Negative'?'danger':'secondary')); ?>"><?php echo $res['label']; ?></span></h6>
-                            <small>Score: <?php echo $res['score']; ?></small>
+                            <h6>Result: <span class="badge bg-<?php echo ($res['label']=='Positive'?'success':($res['label']=='Negative'?'danger':'secondary')); ?>"><?php echo esc_view($res['label']); ?></span></h6>
+                            <small>Score: <?php echo esc_view($res['score']); ?></small>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -104,11 +104,11 @@
                             <?php if($this->session->flashdata('resume_result')): 
                                 $cv = $this->session->flashdata('resume_result'); ?>
                                 <div class="border p-3 rounded bg-light">
-                                    <p><strong>Email:</strong> <?php echo $cv['email'] ? $cv['email'] : 'Not found'; ?></p>
-                                    <p><strong>Phone:</strong> <?php echo $cv['phone'] ? $cv['phone'] : 'Not found'; ?></p>
+                                    <p><strong>Email:</strong> <?php echo $cv['email'] ? esc_view($cv['email']) : 'Not found'; ?></p>
+                                    <p><strong>Phone:</strong> <?php echo $cv['phone'] ? esc_view($cv['phone']) : 'Not found'; ?></p>
                                     <p><strong>Skills Detected:</strong> 
                                         <?php foreach($cv['skills'] as $skill): ?>
-                                            <span class="badge bg-secondary"><?php echo $skill; ?></span>
+                                            <span class="badge bg-secondary"><?php echo esc_view($skill); ?></span>
                                         <?php endforeach; ?>
                                     </p>
                                 </div>

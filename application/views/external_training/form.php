@@ -17,7 +17,7 @@ $this->load->view('partials/header', array(
 
   <?php if ($this->session->flashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <?php echo $this->session->flashdata('error'); ?>
+      <?php echo esc_view($this->session->flashdata('error')); ?>
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
   <?php endif; ?>

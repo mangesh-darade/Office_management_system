@@ -22,7 +22,7 @@
         </div>
         <?php if (isset($req->description) && $req->description !== ''): ?>
         <div class="border rounded p-3 bg-white">
-          <?php echo $req->description; ?>
+          <?php echo sanitize_html_output($req->description); ?>
         </div>
         <?php else: ?>
         <div class="text-muted small">No description provided.</div>

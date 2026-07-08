@@ -31,7 +31,7 @@ Extended reference (Copilot parity): `.github/copilot-instructions.md` and `.git
 - **POST**: PRG pattern — redirect after POST, flash messages, never re-render on POST
 - **API JSON**: `{ "status": "success|error", "message": "", "data": {} }`
 - **Models**: insert → `insert_id`/false; update/delete → true/false; lists → array (empty if none)
-- **Security**: Query Builder, CSRF on POST, escape output in views, secrets in DB settings
+- **Security**: Query Builder, CSRF on POST, escape output in views (`esc_view()`, `sanitize_html_output()` for rich text), secrets in DB settings or env
 - **RBAC**: `require_module_access()` in constructor; `has_module_access()` in views
 - **Diffs**: minimal, surgical; no refactors unrelated to the task
 
@@ -42,6 +42,19 @@ Extended reference (Copilot parity): `.github/copilot-instructions.md` and `.git
 3. Sidebar link if user-facing
 4. `docs/user-guide/module_catalog.json` + regenerate guide
 5. Document schema changes in `PROJECT_MAP.md` (get approval first)
+6. Production: set `CI_ENCRYPTION_KEY` and/or `application/config/local_secrets.php` (see `PROJECT_MAP.md`)
+
+## Audit scripts
+
+Scripts live under `_unused/tools/` (moved from root `tools/`):
+
+```bash
+python _unused/tools/audit_permission_modules.py
+python _unused/tools/audit_rbac_alignment.py
+python _unused/tools/generate_user_guide_modules.py
+```
+
+Deep logged-in smoke test (CLI): `_unused/dev_scripts/deep_login_check.php` with `TEST_LOGIN` and `TEST_PASS` env vars.
 
 ## Testing before done
 
@@ -49,11 +62,3 @@ Extended reference (Copilot parity): `.github/copilot-instructions.md` and `.git
 - JSON response keys unchanged for API edits
 - Permission checks for non-admin roles
 - No `var_dump` / `print_r` left in code
-
-## Audit scripts
-
-```bash
-python tools/audit_permission_modules.py
-python tools/audit_rbac_alignment.py
-python tools/generate_user_guide_modules.py
-```

@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Mail extends CI_Controller {
     public function __construct() {
         parent::__construct();
-        $this->load->helper(['url','form','email', 'permission']);
+        $this->load->helper(['url','form','email', 'permission', 'upload']);
         // Load email config BEFORE initializing email library (base defaults)
         $this->config->load('email');
         $this->load->library(['session','email']);
@@ -78,6 +78,15 @@ class Mail extends CI_Controller {
 
         // Handle single attachment field named 'attachment'
         if (!empty($_FILES['attachment']) && isset($_FILES['attachment']['tmp_name']) && is_uploaded_file($_FILES['attachment']['tmp_name'])) {
+            $upload_check = validate_uploaded_file($_FILES['attachment'], array(
+                'max_size' => 10485760,
+                'required' => false,
+            ));
+            if (!$upload_check['valid']) {
+                $this->session->set_flashdata('error', 'Invalid attachment: ' . implode(' ', $upload_check['errors']));
+                redirect('mail');
+                return;
+            }
             $name = isset($_FILES['attachment']['name']) ? $_FILES['attachment']['name'] : 'attachment';
             $type = isset($_FILES['attachment']['type']) ? $_FILES['attachment']['type'] : '';
             $this->email->attach($_FILES['attachment']['tmp_name'], 'attachment', $name, $type);

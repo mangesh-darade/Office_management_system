@@ -48,7 +48,7 @@ $stage_h = 'min(78vh, calc(100vh - 200px))';
         title="<?php echo esc_view($row->name); ?>"></iframe>
     <?php else: ?>
       <div class="et-embed-root position-absolute top-0 start-0 w-100 h-100 overflow-auto">
-        <?php echo $row->embed_code; ?>
+        <?php echo sanitize_embed_code($row->embed_code); ?>
       </div>
     <?php endif; ?>
   </div>

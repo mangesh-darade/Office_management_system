@@ -76,7 +76,7 @@ class System_settings extends CI_Controller {
     }
 
     public function index() {
-        $categories = $this->db->select('DISTINCT category')->order_by('category')->get('system_settings')->result();
+        $categories = $this->db->distinct()->select('category')->order_by('category')->get('system_settings')->result();
         
         $settings_by_category = [];
         foreach ($categories as $cat) {
@@ -137,7 +137,7 @@ class System_settings extends CI_Controller {
     public function permissions() {
         $this->ensure_external_training_role_permissions();
         $roles = $this->db->order_by('id')->get('roles')->result();
-        $modules = $this->db->select('DISTINCT module')->order_by('module')->get('role_permissions')->result();
+        $modules = $this->db->distinct()->select('module')->order_by('module')->get('role_permissions')->result();
         
         $permissions_matrix = [];
         foreach ($roles as $role) {

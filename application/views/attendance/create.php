@@ -16,6 +16,10 @@
   $st_out = $has_status && !empty($attendance_status['has_checkout']);
   $st_in_label  = $has_status ? $att_format_time(isset($attendance_status['checkin_time']) ? $attendance_status['checkin_time'] : '') : '';
   $st_out_label = $has_status ? $att_format_time(isset($attendance_status['checkout_time']) ? $attendance_status['checkout_time'] : '') : '';
+  $is_holiday_blocked = isset($is_holiday) && $is_holiday;
+  $can_manage_holidays = function_exists('has_module_access') && (
+      has_module_access('holidays') || has_module_access('settings') || has_module_access('admin')
+  );
 ?>
 <div class="oms-form-compact">
 <div class="container-fluid px-3 px-md-4 att-punch-page">
@@ -172,15 +176,52 @@
                 </div>
               <?php endif; ?>
             <?php elseif ($st_in): ?>
-              <strong>You're checked in<?php echo $st_in_label !== '' ? ' at ' . esc_view($st_in_label) : ''; ?>.</strong>
-              <div class="small mt-1">Select <strong>Check OUT</strong> below when you finish for the day.</div>
+              <?php if ($is_holiday_blocked): ?>
+                <strong>You're checked in<?php echo $st_in_label !== '' ? ' at ' . esc_view($st_in_label) : ''; ?>.</strong>
+                <div class="small mt-1">Attendance is closed for this holiday. Contact admin or HR if check-out is required.</div>
+              <?php else: ?>
+                <strong>You're checked in<?php echo $st_in_label !== '' ? ' at ' . esc_view($st_in_label) : ''; ?>.</strong>
+                <div class="small mt-1">Select <strong>Check OUT</strong> below when you finish for the day.</div>
+              <?php endif; ?>
             <?php else: ?>
-              <strong>Ready to start your day.</strong>
-              <div class="small mt-1">Tap <strong>Check IN</strong> below to mark your arrival.</div>
+              <?php if ($is_holiday_blocked): ?>
+                <strong>Company holiday today.</strong>
+                <div class="small mt-1">Attendance marking is not available.</div>
+              <?php else: ?>
+                <strong>Ready to start your day.</strong>
+                <div class="small mt-1">Tap <strong>Check IN</strong> below to mark your arrival.</div>
+              <?php endif; ?>
             <?php endif; ?>
           </div>
         </div>
         <?php endif; ?>
+
+        <?php if ($is_holiday_blocked): ?>
+        <div class="row mb-0">
+          <div class="col-12">
+            <div class="alert alert-warning mb-0">
+              <div class="d-flex align-items-start">
+                <i class="bi bi-calendar-event fs-4 me-3 flex-shrink-0"></i>
+                <div>
+                  <h5 class="alert-heading fw-bold mb-2">Today is a company holiday</h5>
+                  <?php if (!empty($holiday_name)): ?>
+                    <p class="mb-2"><strong><?php echo esc_view($holiday_name); ?></strong></p>
+                  <?php endif; ?>
+                  <p class="mb-2">Attendance marking is disabled on company holidays.</p>
+                  <?php if ($can_manage_holidays): ?>
+                    <p class="mb-2 small">If staff must work today, open <strong>Settings → Holidays</strong>, edit this holiday, and set status to <strong>Inactive</strong>. Attendance will be allowed until you set it back to Active.</p>
+                    <a href="<?php echo site_url('settings/holidays'); ?>" class="btn btn-outline-dark btn-sm">
+                      <i class="bi bi-calendar-event me-1"></i> Manage Holidays
+                    </a>
+                  <?php else: ?>
+                    <p class="mb-0 small text-muted">If you must work today, contact your admin or HR to allow attendance for this holiday.</p>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <?php else: ?>
 
         <!-- Action Selection -->
         <div class="mb-2">
@@ -210,23 +251,6 @@
             <?php endif; ?>
           </p>
         </div>
-
-        <?php if (isset($is_holiday) && $is_holiday): ?>
-        <div class="row mb-3">
-          <div class="col-12">
-            <div class="alert alert-warning d-flex align-items-center mb-0">
-              <i class="bi bi-calendar-event me-2"></i>
-              <div>
-                <strong>Today is a company holiday.</strong>
-                <?php if (!empty($holiday_name)): ?>
-                  <span class="ms-1"><?php echo esc_view($holiday_name); ?></span>
-                <?php endif; ?>
-                <div class="small text-muted">Attendance marking is disabled on company holidays.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <?php endif; ?>
 
         <!-- Notes and Location -->
         <div class="mb-3">
@@ -281,6 +305,7 @@
             </div>
         </div>
         <?php endif; ?>
+        <?php endif; ?>
       </form>
     </div>
   </div>
@@ -294,6 +319,11 @@
         try { tick(); setInterval(tick, 1000); } catch(e){}
         
         try {
+          var attendanceHolidayBlocked = <?php echo $is_holiday_blocked ? 'true' : 'false'; ?>;
+          if (attendanceHolidayBlocked) {
+            return;
+          }
+
           var hasLocation = false;
           var locationCaptured = false;
           var cameraStarted = false;

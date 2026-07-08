@@ -234,7 +234,7 @@ if (!$embed) {
 
                         <input type="hidden" name="id" value="<?php echo (int) $r->id; ?>">
 
-                        <input type="hidden" name="redirect" value="<?php echo esc_view(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>">
+                        <input type="hidden" name="redirect" value="<?php echo esc_view(current_url() . safe_query_suffix()); ?>">
 
                         <select name="status" class="form-select form-select-sm mw-status-select" onchange="this.form.submit()">
 
@@ -315,7 +315,7 @@ if (!$embed) {
   var form = document.getElementById('mwListCommentForm');
   if (!modal || !form) { return; }
   var commentBase = <?php echo json_encode(site_url('my-works/')); ?>;
-  var listRedirect = <?php echo json_encode(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>;
+  var listRedirect = <?php echo json_encode(current_url() . safe_query_suffix()); ?>;
   modal.addEventListener('show.bs.modal', function (event) {
     var btn = event.relatedTarget;
     if (!btn || !btn.classList.contains('mw-list-comment-btn')) { return; }

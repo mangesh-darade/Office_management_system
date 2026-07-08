@@ -110,10 +110,17 @@ class Analytics extends CI_Controller {
 
     public function parse_resume() {
         if (!empty($_FILES['resume_file']['name'])) {
-            // In a real app, use PDF parser. Here we assume text file or perform "mock" read
-            // Since we can't ensure `pdftotext` availability on WAMP without checking bins,
-            // we will try to read if it's .txt, otherwise simulate or read simple content.
-            
+            if (!isset($_FILES['resume_file']['tmp_name']) || !is_uploaded_file($_FILES['resume_file']['tmp_name'])) {
+                $this->session->set_flashdata('error', 'Invalid file upload.');
+                redirect('analytics');
+                return;
+            }
+            if ((int) $_FILES['resume_file']['size'] > 5242880) {
+                $this->session->set_flashdata('error', 'Resume file is too large (max 5 MB).');
+                redirect('analytics');
+                return;
+            }
+
             $content = file_get_contents($_FILES['resume_file']['tmp_name']);
             // Strip binary chars in case it's a PDF upload attempt (basic text recovery)
             $clean_content = preg_replace('/[^[:print:]\r\n]/', '', $content);

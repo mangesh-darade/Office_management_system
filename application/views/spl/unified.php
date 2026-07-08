@@ -248,6 +248,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (window.initSplRulesPanel && $content.find('#splRulesTable').length) {
       window.initSplRulesPanel($content[0]);
+      if (window.adjustSplRulesTable) {
+        window.adjustSplRulesTable($content[0]);
+      }
     }
     if (window.initSplApprovalsPanel && $content.find('#spl-tab-approvals').length) {
       window.initSplApprovalsPanel($content[0]);
@@ -326,6 +329,12 @@ document.addEventListener('DOMContentLoaded', function() {
       window.history.pushState({ path: newUrl }, '', newUrl);
     }
     updateGroupsBarVisibility();
+    if (tabName === 'rules' && window.adjustSplRulesTable) {
+      window.requestAnimationFrame(function () {
+        var pane = document.getElementById('pane-rules');
+        window.adjustSplRulesTable(pane || document);
+      });
+    }
   }
 
   buttons.forEach(function(btn) {

@@ -149,6 +149,7 @@ Defined by `meal_nav_screens()` and permission checks:
 - Leave Types -> `/settings/leave-types`
 - Module Types -> `/settings/types`
 - Holidays -> `/settings/holidays`
+- Attendance Manage -> `/settings/attendance-manage` (admin only)
 - Subscription Builder Catalog -> `/settings/subscription-builder`
 - Permission Manager -> `/permissions`
 - User Access -> `/system-settings/user-access`

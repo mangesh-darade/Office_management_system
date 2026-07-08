@@ -73,12 +73,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = TRUE;
 
+$__db_host = getenv('DB_HOST');
+$__db_user = getenv('DB_USERNAME');
+$__db_pass = getenv('DB_PASSWORD');
+$__db_name = getenv('DB_DATABASE');
+
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'root',
-	'password' => '',
-	'database' => 'admin_stadmin_internal_portal',
+	'hostname' => ($__db_host !== false && $__db_host !== '') ? $__db_host : 'localhost',
+	'username' => ($__db_user !== false && $__db_user !== '') ? $__db_user : 'root',
+	'password' => ($__db_pass !== false) ? $__db_pass : '',
+	'database' => ($__db_name !== false && $__db_name !== '') ? $__db_name : 'admin_stadmin_internal_portal',
 
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',

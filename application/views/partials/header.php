@@ -767,7 +767,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item">
-        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false); ?>
+        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false); ?>
         <a class="nav-link sidebar-link <?php echo $mobile_settings_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button" aria-expanded="<?php echo $mobile_settings_open ? 'true' : 'false'; ?>">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
@@ -802,6 +802,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <a class="nav-link sidebar-link small <?php echo ($active==='settings' && $active_sub==='types')?'active':''; ?>" href="<?php echo site_url('settings/types'); ?>"><i class="bi bi-ui-checks-grid me-2"></i>Module Types</a>
             <?php endif; ?>
             <?php $this->load->view('partials/sidebar_settings_leave_group', array('variant' => 'mobile', 'active' => $active)); ?>
+            <?php if(function_exists('is_admin_group') && is_admin_group()): ?>
+            <a class="nav-link sidebar-link small <?php echo ($active==='settings' && $active_sub==='attendance-manage')?'active':''; ?>" href="<?php echo site_url('settings/attendance-manage'); ?>"><i class="bi bi-clock-history me-2"></i>Attendance Manage</a>
+            <?php endif; ?>
             <?php $this->load->view('partials/sidebar_settings_sales_group', array('variant' => 'mobile', 'active' => $active)); ?>
             <?php if(function_exists('has_module_access') && (has_module_access('admin') || has_module_access('settings'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='api-integrations'?'active':''; ?>" href="<?php echo site_url('api-integrations'); ?>"><i class="bi bi-plug me-2"></i>API Integrations</a>

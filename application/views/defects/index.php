@@ -5,7 +5,7 @@ $can_add = function_exists('has_module_access') && (has_module_access('defects_a
 $can_export = function_exists('has_module_access') && (has_module_access('defects_export') || has_module_access('defects_list') || has_module_access('defects'));
 $actions = '';
 if ($can_export) {
-    $export_q = $_SERVER['QUERY_STRING'] ?? '';
+    $export_q = safe_query_string();
     $actions .= '<a class="btn btn-outline-secondary btn-sm me-1" href="'.site_url('defects/export'.($export_q ? '?'.$export_q : '')).'"><i class="bi bi-download me-1"></i>Export CSV</a>';
 }
 if ($can_add) {

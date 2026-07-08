@@ -294,7 +294,8 @@
         responsive: false,
         autoWidth: true,
         paging: false,
-        searching: false,
+        searching: true,
+        dom: 't',
         lengthChange: false,
         info: false,
         ordering: true,
@@ -343,13 +344,22 @@
     function applyRulesSearch() {
       var table = getRulesTable(root);
       var dt = getRulesDataTable(table);
-      var term = input.value || '';
+      var term = (input.value || '').trim();
       if (clearBtn) {
         clearBtn.classList.toggle('d-none', term === '');
       }
-      if (dt) {
-        dt.search(term).draw();
+      if (!table) {
+        return;
       }
+      if (dt) {
+        dt.search(term, false, false, true).draw();
+        return;
+      }
+      var q = term.toLowerCase();
+      table.querySelectorAll('tbody tr.spl-rule-row').forEach(function (row) {
+        var haystack = row.textContent.toLowerCase();
+        row.style.display = (q === '' || haystack.indexOf(q) !== -1) ? '' : 'none';
+      });
     }
 
     input.addEventListener('input', applyRulesSearch);
