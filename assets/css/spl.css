@@ -4604,6 +4604,15 @@ a.spl-board-head-view:focus {
   padding: 0;
 }
 
+.spl-unified-groups-bar {
+  margin-top: 0.65rem;
+  border-radius: 0.65rem;
+}
+
+.spl-unified-groups-bar-inner {
+  padding: 0.55rem 0.75rem;
+}
+
 .spl-groups-embed .spl-board-shell {
   margin-top: 0;
   padding: 0.65rem 0.75rem 0.75rem;

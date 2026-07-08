@@ -159,6 +159,7 @@ class Spl extends CI_Controller
         $data['can_levels'] = spl_can_view_levels();
         $data['can_approve'] = spl_can_approve();
         $data['can_groups'] = spl_can_view_groups();
+        $data['can_manage'] = spl_can_manage_groups();
         $data['approval_counts'] = array('pending' => 0, 'approved' => 0, 'rejected' => 0);
         if (spl_can_approve()) {
             $data['approval_counts']['pending'] = $this->rewards->count_spl_approvals_by_status('pending');

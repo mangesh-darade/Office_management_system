@@ -77,6 +77,20 @@ $approval_counts = isset($approval_counts) ? $approval_counts : array('pending' 
       </ul>
     </div>
 
+    <?php if (!empty($can_manage)): ?>
+    <div class="spl-unified-groups-bar card border-0 shadow-sm<?php echo $active_tab === 'groups' ? '' : ' d-none'; ?>" id="splUnifiedGroupsBar">
+      <div class="spl-unified-groups-bar-inner d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="splBoardEditBtn">
+          <i class="bi bi-pencil-square me-1"></i>Edit board
+        </button>
+        <button type="submit" form="splBoardForm" class="btn btn-warning btn-sm d-none" id="splBoardSaveBtn">
+          <i class="bi bi-check2-circle me-1"></i>Save all
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="splBoardCancelBtn">Cancel</button>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success py-2 mt-2 mb-0"><?php echo esc_view((string) $this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
@@ -143,6 +157,8 @@ $approval_counts = isset($approval_counts) ? $approval_counts : array('pending' 
   </div>
 </div>
 
+<script>window.SPL_BOARD_CONFIG = { canManage: <?php echo !empty($can_manage) ? 'true' : 'false'; ?> };</script>
+<script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   var buttons = document.querySelectorAll('#splUnifiedTabs button[data-tab]');
@@ -183,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
           url.searchParams.set('approval_view', approvalView);
         }
       }
-      if (tabName === 'my-reward') {
+      if (tabName === 'my-reward' || tabName === 'groups') {
         var rewardPeriod = pageParams.get('reward_period');
         if (rewardPeriod) {
           url.searchParams.set('reward_period', rewardPeriod);
@@ -192,6 +208,21 @@ document.addEventListener('DOMContentLoaded', function() {
       return url.toString();
     } catch (e) {
       return base;
+    }
+  }
+
+  function updateGroupsBarVisibility() {
+    var bar = document.getElementById('splUnifiedGroupsBar');
+    if (!bar) {
+      return;
+    }
+    var tab = getActiveTab();
+    bar.classList.toggle('d-none', tab !== 'groups');
+  }
+
+  function initSplEmbeddedPane($content) {
+    if (window.initSplBoard && $content.find('#splBoard').length) {
+      window.initSplBoard(document);
     }
   }
 
@@ -213,6 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $content.html(html);
         $pane.removeClass('is-tab-loading');
         $content.show();
+        initSplEmbeddedPane($content);
         if (window.DataTable) {
           $content.find('table.datatable, table.sortable-table').each(function() {
             var tbl = this;
@@ -262,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var newUrl = window.location.pathname + (query ? '?' + query : '');
       window.history.pushState({ path: newUrl }, '', newUrl);
     }
+    updateGroupsBarVisibility();
   }
 
   buttons.forEach(function(btn) {
@@ -336,6 +369,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }, true);
 
   var initialTab = <?php echo json_encode($active_tab); ?>;
+  updateGroupsBarVisibility();
+  if (window.initSplBoard && document.getElementById('splBoardEditBtn')) {
+    window.initSplBoard(document);
+  }
   if (initialTab && initialTab !== 'overview') {
     switchToTab(initialTab, false);
   }

@@ -58,17 +58,6 @@ $points_period_label = $use_period_points ? $reward_bounds['label'] : 'Lifetime'
     <?php else: ?>
     <div class="spl-board-shell<?php echo $embed ? '' : ' mt-3'; ?>">
       <?php if (!empty($can_manage)): ?>
-      <?php if ($embed): ?>
-      <div class="spl-board-toolbar d-flex flex-wrap gap-2 align-items-center">
-        <button type="button" class="btn btn-outline-secondary btn-sm spl-groups-btn-ghost" id="splBoardEditBtn">
-          <i class="bi bi-pencil-square me-1"></i>Edit board
-        </button>
-        <button type="submit" form="splBoardForm" class="btn btn-warning btn-sm d-none" id="splBoardSaveBtn">
-          <i class="bi bi-check2-circle me-1"></i>Save all
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="splBoardCancelBtn">Cancel</button>
-      </div>
-      <?php endif; ?>
       <form method="post" action="<?php echo site_url('spl/groups/save-board'); ?>" enctype="multipart/form-data" id="splBoardForm">
         <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
         <?php echo form_hidden('reward_period', $reward_period); ?>
@@ -185,7 +174,10 @@ $points_period_label = $use_period_points ? $reward_bounds['label'] : 'Lifetime'
 </div>
 
 <script>window.SPL_BOARD_CONFIG = { canManage: <?php echo !empty($can_manage) ? 'true' : 'false'; ?> };</script>
+<?php if (!$embed): ?>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
+<script>if (window.initSplBoard) { window.initSplBoard(document.querySelector('.spl-groups-page')); }</script>
+<?php endif; ?>
 
 <?php if (!$embed): ?>
 <?php $this->load->view('partials/footer'); ?>

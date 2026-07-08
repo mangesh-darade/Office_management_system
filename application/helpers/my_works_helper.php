@@ -687,11 +687,116 @@ if (!function_exists('my_works_lane_updates_for_drop')) {
     }
 }
 
+if (!function_exists('my_works_fetch_last_activity_dates')) {
+    /**
+     * Latest activity/comment calendar date per work id (Y-m-d).
+     *
+     * @param array $work_ids
+     * @return array<int, string>
+     */
+    function my_works_fetch_last_activity_dates(array $work_ids)
+    {
+        $work_ids = array_values(array_unique(array_filter(array_map('intval', $work_ids))));
+        if (empty($work_ids)) {
+            return array();
+        }
+
+        $CI =& get_instance();
+        if (!isset($CI->db)) {
+            return array();
+        }
+        $db = $CI->db;
+        $dates = array();
+
+        if ($db->table_exists('my_work_activity')) {
+            $rows = $db->select('work_id, MAX(created_at) AS last_at', false)
+                ->from('my_work_activity')
+                ->where_in('work_id', $work_ids)
+                ->group_by('work_id')
+                ->get()
+                ->result();
+            foreach ($rows as $row) {
+                $wid = (int) $row->work_id;
+                if ($wid > 0 && !empty($row->last_at)) {
+                    $dates[$wid] = substr((string) $row->last_at, 0, 10);
+                }
+            }
+        }
+
+        if ($db->table_exists('my_work_comments')) {
+            $rows = $db->select('work_id, MAX(created_at) AS last_at', false)
+                ->from('my_work_comments')
+                ->where_in('work_id', $work_ids)
+                ->group_by('work_id')
+                ->get()
+                ->result();
+            foreach ($rows as $row) {
+                $wid = (int) $row->work_id;
+                if ($wid > 0 && !empty($row->last_at)) {
+                    $day = substr((string) $row->last_at, 0, 10);
+                    if (!isset($dates[$wid]) || $day > $dates[$wid]) {
+                        $dates[$wid] = $day;
+                    }
+                }
+            }
+        }
+
+        return $dates;
+    }
+}
+
+if (!function_exists('my_works_dashboard_row_last_touch_date')) {
+    /**
+     * Most recent touch date from task updated_at and activity/comment history.
+     *
+     * @param object $row
+     * @param array<int, string> $last_activity_dates
+     * @return string Y-m-d or empty
+     */
+    function my_works_dashboard_row_last_touch_date($row, array $last_activity_dates = array())
+    {
+        $max = '';
+        if (!empty($row->updated_at)) {
+            $max = substr((string) $row->updated_at, 0, 10);
+        }
+        $wid = isset($row->id) ? (int) $row->id : 0;
+        if ($wid > 0 && isset($last_activity_dates[$wid])) {
+            $activity_day = (string) $last_activity_dates[$wid];
+            if ($activity_day !== '' && ($max === '' || $activity_day > $max)) {
+                $max = $activity_day;
+            }
+        }
+        return $max;
+    }
+}
+
+if (!function_exists('my_works_row_belongs_in_yesterday_lane')) {
+    /**
+     * Yesterday lane: due date was yesterday OR last touch (task/activity) was yesterday.
+     *
+     * @param object $row
+     * @param string $yesterday Y-m-d
+     * @param array<int, string> $last_activity_dates
+     * @return bool
+     */
+    function my_works_row_belongs_in_yesterday_lane($row, $yesterday, array $last_activity_dates = array())
+    {
+        $due = !empty($row->due_date) ? (string) $row->due_date : '';
+        if ($due === $yesterday) {
+            return true;
+        }
+        return my_works_dashboard_row_last_touch_date($row, $last_activity_dates) === $yesterday;
+    }
+}
+
 if (!function_exists('my_works_dashboard_lane_for_row')) {
     /**
-     * Overview column placement: status lanes first, then due-date lanes.
+     * Overview column placement: status lanes first, then due-date / last-touch lanes.
+     *
+     * @param object $row
+     * @param array<int, string> $last_activity_dates
      */
-    function my_works_dashboard_lane_for_row($row)
+    function my_works_dashboard_lane_for_row($row, array $last_activity_dates = array())
     {
         $CI =& get_instance();
         $CI->load->helper('my_works_status');
@@ -718,21 +823,16 @@ if (!function_exists('my_works_dashboard_lane_for_row')) {
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         $due = !empty($row->due_date) ? (string) $row->due_date : '';
-        if ($due !== '') {
-            if ($due > $today) {
-                return 'future_pipeline';
-            }
-            if ($due === $today) {
-                return 'todays_plan';
-            }
-            if ($due === $yesterday) {
-                return 'yesterday';
-            }
-            return 'back_log';
+        if ($due !== '' && $due > $today) {
+            return 'future_pipeline';
         }
-
-        // No due date: treat as recent/last-updated bucket (Yesterday lane).
-        return 'yesterday';
+        if ($due === $today) {
+            return 'todays_plan';
+        }
+        if (my_works_row_belongs_in_yesterday_lane($row, $yesterday, $last_activity_dates)) {
+            return 'yesterday';
+        }
+        return 'back_log';
     }
 }
 
@@ -753,11 +853,18 @@ if (!function_exists('my_works_build_dashboard_sections')) {
         }
         $CI =& get_instance();
         $CI->load->helper('my_works_status');
+        $work_ids = array();
+        foreach ($rows as $row) {
+            if (isset($row->id)) {
+                $work_ids[] = (int) $row->id;
+            }
+        }
+        $last_activity_dates = my_works_fetch_last_activity_dates($work_ids);
         foreach ($rows as $row) {
             if ($exclude_closed && isset($row->status) && my_works_status_is_closed($row->status)) {
                 continue;
             }
-            $lane = my_works_dashboard_lane_for_row($row);
+            $lane = my_works_dashboard_lane_for_row($row, $last_activity_dates);
             if (!isset($sections['ad_hoc'][$lane])) {
                 $lane = 'back_log';
             }
@@ -972,7 +1079,7 @@ if (!function_exists('my_works_dashboard_group_lane_by_project')) {
 if (!function_exists('my_works_dashboard_lane_shows_date')) {
     function my_works_dashboard_lane_shows_date($lane)
     {
-        return in_array((string) $lane, array('future_pipeline', 'back_log'), true);
+        return in_array((string) $lane, array('future_pipeline', 'back_log', 'yesterday'), true);
     }
 }
 

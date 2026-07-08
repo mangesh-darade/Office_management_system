@@ -113,10 +113,17 @@ if (!function_exists('spl_can_manage_groups')) {
         if (!function_exists('has_module_access')) {
             return false;
         }
+        if (function_exists('spl_can_manage_rules') && spl_can_manage_rules()) {
+            return true;
+        }
         if (has_module_access('spl')
             || has_module_access('spl_groups_manage')
             || has_module_access('rewards_admin')
             || has_module_access('rewards')) {
+            return true;
+        }
+        $CI =& get_instance();
+        if ($CI && $CI->session && (int) $CI->session->userdata('role_id') === 1) {
             return true;
         }
         if (function_exists('is_admin_group') && is_admin_group()) {

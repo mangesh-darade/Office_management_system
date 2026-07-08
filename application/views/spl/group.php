@@ -10,7 +10,7 @@ $poster = $poster_info['url'];
 <div class="container-fluid py-3 spl-page">
   <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
     <div class="d-flex align-items-start gap-2">
-      <a class="btn btn-outline-secondary btn-sm flex-shrink-0" href="<?php echo site_url('spl/groups'); ?>"><i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back</span></a>
+      <a class="btn btn-outline-secondary btn-sm flex-shrink-0" href="<?php echo spl_dashboard_url('groups'); ?>"><i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back to Groups</span></a>
       <div>
         <h1 class="h4 mb-1 fw-bold"><?php echo esc_view($group->name, ENT_QUOTES, 'UTF-8'); ?></h1>
         <p class="text-muted small mb-0"><?php echo esc_view($group->description ?: '', ENT_QUOTES, 'UTF-8'); ?></p>
