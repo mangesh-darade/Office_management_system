@@ -198,6 +198,37 @@ if (!function_exists('csv_import_resolve_client_id')) {
     }
 }
 
+if (!function_exists('csv_import_fail_redirect')) {
+    function csv_import_fail_redirect($message, $default_route)
+    {
+        $CI =& get_instance();
+        $CI->session->set_flashdata('error', (string) $message);
+        $return_to = trim((string) $CI->input->post('return_to'));
+        if (csv_import_safe_return_path($return_to)) {
+            redirect($return_to);
+            return;
+        }
+        redirect($default_route);
+    }
+}
+
+if (!function_exists('csv_import_safe_return_path')) {
+    function csv_import_safe_return_path($path)
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return false;
+        }
+        if (preg_match('#^(https?:)?//#i', $path)) {
+            return false;
+        }
+        if (strpos($path, '..') !== false) {
+            return false;
+        }
+        return (bool) preg_match('#^projects/\d+(\?tab=(tasks|requirements|defects|releases))?$#', $path);
+    }
+}
+
 if (!function_exists('csv_import_finish')) {
     /**
      * Set flash messages and redirect after CSV import.
@@ -205,6 +236,8 @@ if (!function_exists('csv_import_finish')) {
     function csv_import_finish($inserted, $skipped, $row_errors, $entity_label, $redirect_success, $redirect_import)
     {
         $CI =& get_instance();
+        $return_to = trim((string) $CI->input->post('return_to'));
+        $use_return = csv_import_safe_return_path($return_to);
         if ($inserted === 0) {
             $msg = 'No ' . $entity_label . ' were imported.';
             if (!empty($row_errors)) {
@@ -219,7 +252,7 @@ if (!function_exists('csv_import_finish')) {
             if (!empty($row_errors)) {
                 $CI->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
             }
-            redirect($redirect_import);
+            redirect($use_return ? $return_to : $redirect_import);
             return;
         }
         $msg = 'Imported ' . (int) $inserted . ' ' . $entity_label;
@@ -230,6 +263,6 @@ if (!function_exists('csv_import_finish')) {
         if (!empty($row_errors)) {
             $CI->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
         }
-        redirect($redirect_success);
+        redirect($use_return ? $return_to : $redirect_success);
     }
 }

@@ -34,6 +34,8 @@ class Releases extends CI_Controller
 
     {
 
+        require_module_access(array('releases_list', 'releases'), true);
+
         $filters = array(
 
             'status' => trim((string) $this->input->get('status')),
@@ -110,7 +112,7 @@ class Releases extends CI_Controller
 
         $out = fopen('php://output', 'w');
 
-        fputcsv($out, array('Version', 'Title', 'Project', 'Status', 'Planned Date', 'Released At', 'Notes Sent'));
+        fputcsv($out, array('Version', 'Title', 'Project', 'Status', 'Planned Date', 'Released At', 'Notes Sent'), ',', '"', '\\');
 
         foreach ($rows as $r) {
 
@@ -130,7 +132,7 @@ class Releases extends CI_Controller
 
                 isset($r->notes_sent_at) ? $r->notes_sent_at : '',
 
-            ));
+            ), ',', '"', '\\');
 
         }
 
@@ -142,11 +144,205 @@ class Releases extends CI_Controller
 
 
 
+    public function import()
+
+    {
+
+        require_module_access(array('releases_add', 'releases'), true);
+
+        if ($this->input->method() === 'post') {
+
+            $uid = (int) $this->session->userdata('user_id');
+
+            if ($uid < 1) {
+
+                redirect('auth/login');
+
+                return;
+
+            }
+
+            $this->load->helper(array('csv_import', 'module_status', 'change_tracker', 'activity'));
+
+            $opened = csv_import_open('file');
+
+            if (!$opened['ok']) {
+
+                csv_import_fail_redirect($opened['error'], 'releases/import');
+
+                return;
+
+            }
+
+            $columns = csv_import_require_columns($opened['map'], array('version', 'title'), array(array('project_name', 'project', 'project_id')));
+
+            if (!$columns['ok']) {
+
+                fclose($opened['handle']);
+
+                csv_import_fail_redirect($columns['error'], 'releases/import');
+
+                return;
+
+            }
+
+            $inserted = 0;
+
+            $skipped = 0;
+
+            $row_errors = array();
+
+            $project_cache = array();
+
+            $line = 1;
+
+            $allowed_status = array('planned', 'in_progress', 'released', 'cancelled');
+
+            $prev_debug = $this->db->db_debug;
+
+            $this->db->db_debug = false;
+
+            while (($row = fgetcsv($opened['handle'])) !== false) {
+
+                $line++;
+
+                $version = csv_import_get($opened['map'], $row, 'version');
+
+                $title = csv_import_get($opened['map'], $row, 'title');
+
+                if ($version === '' || $title === '') {
+
+                    $skipped++;
+
+                    csv_import_add_row_error($row_errors, $line, 'Missing version or title.');
+
+                    continue;
+
+                }
+
+                $project_id = csv_import_resolve_project_id($this->db, $opened['map'], $row, $project_cache);
+
+                if ($project_id <= 0) {
+
+                    $skipped++;
+
+                    csv_import_add_row_error($row_errors, $line, 'Unknown project name or code.');
+
+                    continue;
+
+                }
+
+                if ($this->eng->version_exists($project_id, $version)) {
+
+                    $skipped++;
+
+                    csv_import_add_row_error($row_errors, $line, 'Version already exists for this project.');
+
+                    continue;
+
+                }
+
+                $status = csv_import_validate_enum(
+
+                    csv_import_get($opened['map'], $row, 'status', 'planned'),
+
+                    $allowed_status,
+
+                    'planned',
+
+                    $row_errors,
+
+                    $line,
+
+                    'status'
+
+                );
+
+                if ($status === false) {
+
+                    $skipped++;
+
+                    continue;
+
+                }
+
+                $planned_raw = csv_import_get($opened['map'], $row, 'planned_date', '');
+
+                $planned_date = null;
+
+                if ($planned_raw !== '') {
+
+                    $planned_ts = strtotime($planned_raw);
+
+                    if ($planned_ts) {
+
+                        $planned_date = date('Y-m-d', $planned_ts);
+
+                    }
+
+                }
+
+                $id = $this->eng->save_release(array(
+
+                    'project_id' => $project_id,
+
+                    'version' => $version,
+
+                    'title' => $title,
+
+                    'description' => csv_import_get($opened['map'], $row, 'description', null) ?: null,
+
+                    'planned_date' => $planned_date,
+
+                    'status' => $status,
+
+                    'created_by' => $uid,
+
+                ));
+
+                if ($id) {
+
+                    $inserted++;
+
+                    auto_log_insert('releases', 'project_releases', $id, array('version' => $version), 'Release: ' . $version);
+
+                } else {
+
+                    $skipped++;
+
+                    $db_error = $this->db->error();
+
+                    $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+
+                    csv_import_add_row_error($row_errors, $line, $reason);
+
+                    log_message('error', 'Release import error: ' . $reason);
+
+                }
+
+            }
+
+            $this->db->db_debug = $prev_debug;
+
+            fclose($opened['handle']);
+
+            csv_import_finish($inserted, $skipped, $row_errors, 'releases', 'releases', 'releases/import');
+
+            return;
+
+        }
+
+        $this->load->view('releases/import');
+
+    }
+
+
+
     public function view($id)
 
     {
 
-        require_module_access(array('releases', 'releases_edit', 'releases_add'), true);
+        require_module_access(array('releases_view', 'releases_list', 'releases'), true);
 
         $item = $this->eng->get_release((int) $id);
 
@@ -244,7 +440,17 @@ class Releases extends CI_Controller
 
         }
 
-        $this->load->view('releases/form', $this->form_view_data('create', null));
+        $data = $this->form_view_data('create', null);
+
+        $preselect_project = (int) $this->input->get('project_id');
+
+        if ($preselect_project > 0) {
+
+            $data['item'] = (object) array('project_id' => $preselect_project);
+
+        }
+
+        $this->load->view('releases/form', $data);
 
     }
 
@@ -456,7 +662,7 @@ class Releases extends CI_Controller
 
     {
 
-        require_module_access(array('releases', 'releases_edit'), true);
+        require_module_access(array('releases_delete', 'releases'), true);
 
         if ($this->input->method() !== 'post') {
 

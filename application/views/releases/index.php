@@ -28,8 +28,8 @@ $this->load->view('partials/oms_page_head', ['title' => 'Release Management', 'i
   <td><?php echo esc_view($r->project_name ?: '—'); ?></td>
   <td><span class="badge bg-light text-dark border"><?php echo esc_view(str_replace('_',' ',$r->status)); ?></span></td>
   <td><?php echo esc_view($r->planned_date ?: '—'); ?></td>
-  <td class="text-nowrap">
-    <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('releases/view/'.$r->id); ?>">View</a>
+    <td class="text-nowrap">
+    <?php if (function_exists('has_module_access') && (has_module_access('releases_view') || has_module_access('releases_list') || has_module_access('releases'))): ?><a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('releases/view/'.$r->id); ?>">View</a><?php endif; ?>
     <?php if (function_exists('has_module_access') && (has_module_access('releases_edit') || has_module_access('releases'))): ?><a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('releases/edit/'.$r->id); ?>">Edit</a><?php endif; ?>
   </td>
 </tr>

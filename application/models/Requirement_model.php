@@ -41,6 +41,7 @@ class Requirement_model extends CI_Model {
         if (!empty($filters['priority'])){ $this->db->where($t.'priority', $filters['priority']); }
         if (!empty($filters['requirement_type'])){ $this->db->where($t.'requirement_type', $filters['requirement_type']); }
         if (!empty($filters['client_id'])){ $this->db->where($t.'client_id', (int)$filters['client_id']); }
+        if (!empty($filters['project_id'])){ $this->db->where($t.'project_id', (int)$filters['project_id']); }
         if (!empty($filters['assigned_to'])){ $this->db->where($t.'assigned_to', (int)$filters['assigned_to']); }
         if (!empty($filters['search'])){
             $q = trim((string)$filters['search']);

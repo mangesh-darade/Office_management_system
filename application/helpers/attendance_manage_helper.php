@@ -54,6 +54,13 @@ if (!function_exists('attendance_manage_resolve_context')) {
             'has_check_out'=> $time_cols['hasCheckOut'],
             'has_status'   => $has_column('status'),
             'has_notes'    => $has_column('notes'),
+            'has_checkin_location'  => $has_column('checkin_location_name'),
+            'has_checkout_location' => $has_column('checkout_location_name'),
+            'has_checkin_lat'       => $has_column('checkin_lat'),
+            'has_checkin_lng'       => $has_column('checkin_lng'),
+            'has_checkout_lat'      => $has_column('checkout_lat'),
+            'has_checkout_lng'      => $has_column('checkout_lng'),
+            'has_location_name'     => $has_column('location_name'),
             'get_col_type' => function ($table, $column) use ($db) {
                 return attendance_schema_column_type($db, $table, $column);
             },
@@ -285,6 +292,34 @@ if (!function_exists('attendance_manage_build_save_data')) {
             $data['notes'] = $notes;
         }
 
+        $check_in_loc = isset($post['check_in_location']) ? trim((string) $post['check_in_location']) : '';
+        $check_out_loc = isset($post['check_out_location']) ? trim((string) $post['check_out_location']) : '';
+
+        if ($ctx['has_checkin_location']) {
+            $data['checkin_location_name'] = $check_in_loc !== '' ? mb_substr($check_in_loc, 0, 255) : null;
+        }
+        if ($ctx['has_checkout_location']) {
+            $data['checkout_location_name'] = $check_out_loc !== '' ? mb_substr($check_out_loc, 0, 255) : null;
+        }
+
+        $check_in_lat = isset($post['check_in_lat']) ? trim((string) $post['check_in_lat']) : '';
+        $check_in_lng = isset($post['check_in_lng']) ? trim((string) $post['check_in_lng']) : '';
+        $check_out_lat = isset($post['check_out_lat']) ? trim((string) $post['check_out_lat']) : '';
+        $check_out_lng = isset($post['check_out_lng']) ? trim((string) $post['check_out_lng']) : '';
+
+        if ($ctx['has_checkin_lat']) {
+            $data['checkin_lat'] = $check_in_lat !== '' ? $check_in_lat : null;
+        }
+        if ($ctx['has_checkin_lng']) {
+            $data['checkin_lng'] = $check_in_lng !== '' ? $check_in_lng : null;
+        }
+        if ($ctx['has_checkout_lat']) {
+            $data['checkout_lat'] = $check_out_lat !== '' ? $check_out_lat : null;
+        }
+        if ($ctx['has_checkout_lng']) {
+            $data['checkout_lng'] = $check_out_lng !== '' ? $check_out_lng : null;
+        }
+
         if ($db->field_exists('updated_at', 'attendance')) {
             $data['updated_at'] = date('Y-m-d H:i:s');
         }
@@ -318,12 +353,35 @@ if (!function_exists('attendance_manage_row_display')) {
             $out_raw = $record->check_out;
         }
 
+        $cin_display = attendance_manage_extract_time_display($in_raw);
+        $cout_display = attendance_manage_extract_time_display($out_raw);
+
+        $check_in_location = '';
+        $check_out_location = '';
+        if (function_exists('attendance_list_checkin_location_label')) {
+            $check_in_location = attendance_list_checkin_location_label($record, $in_raw);
+        } elseif (isset($record->checkin_location_name) && $record->checkin_location_name !== '') {
+            $check_in_location = (string) $record->checkin_location_name;
+        }
+
+        if (function_exists('attendance_list_checkout_location_label')) {
+            $check_out_location = attendance_list_checkout_location_label($record, $out_raw);
+        } elseif (isset($record->checkout_location_name) && $record->checkout_location_name !== '') {
+            $check_out_location = (string) $record->checkout_location_name;
+        }
+
         return array(
-            'date'      => $date_val,
-            'check_in'  => attendance_manage_extract_time_display($in_raw),
-            'check_out' => attendance_manage_extract_time_display($out_raw),
-            'status'    => isset($record->status) ? (string) $record->status : '',
-            'notes'     => isset($record->notes) ? (string) $record->notes : '',
+            'date'              => $date_val,
+            'check_in'          => $cin_display,
+            'check_out'         => $cout_display,
+            'check_in_location' => $check_in_location,
+            'check_out_location'=> $check_out_location,
+            'check_in_lat'      => isset($record->checkin_lat) ? (string) $record->checkin_lat : '',
+            'check_in_lng'      => isset($record->checkin_lng) ? (string) $record->checkin_lng : '',
+            'check_out_lat'     => isset($record->checkout_lat) ? (string) $record->checkout_lat : '',
+            'check_out_lng'     => isset($record->checkout_lng) ? (string) $record->checkout_lng : '',
+            'status'            => isset($record->status) ? (string) $record->status : '',
+            'notes'             => isset($record->notes) ? (string) $record->notes : '',
         );
     }
 }

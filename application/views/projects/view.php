@@ -1,7 +1,15 @@
 <?php $this->load->view('partials/header', ['title' => 'Project Details', 'extra_css' => ['assets/css/projects.css']]); ?>
 
 <div class="container-fluid py-2 px-3 project-detail-page project-detail-compact">
-  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 project-detail-head">    <div>
+  <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success py-2 mb-2"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger py-2 mb-2"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
+  <?php $this->load->view('partials/import_errors'); ?>
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 project-detail-head">
+    <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
+      <a class="btn btn-outline-secondary btn-sm flex-shrink-0 mt-1" href="<?php echo site_url('projects'); ?>" title="Back to Projects">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </a>
+      <div class="min-w-0">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-1">
                 <li class="breadcrumb-item"><a href="<?php echo site_url('projects'); ?>">Projects</a></li>
@@ -12,10 +20,10 @@
         <?php if (!empty($project->reference_url)): ?>
         <?php $this->load->view('partials/reference_url_display', ['reference_url' => $project->reference_url, 'wrapper_class' => 'mt-2']); ?>
         <?php endif; ?>
+      </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-shrink-0">
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects/dashboard'); ?>">Dashboard</a>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects'); ?>">Back</a>
       <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects'))): ?>
       <a class="btn btn-primary btn-sm" href="<?php echo site_url('projects/'.$project->id.'/edit'); ?>">Edit Project</a>
       <?php endif; ?>
@@ -81,25 +89,33 @@
   <!-- Main Content Tabs -->
   <?php
     $show_defects_tab = function_exists('has_module_access') && (has_module_access('defects') || has_module_access('defects_list'));
+    $show_releases_tab = function_exists('has_module_access') && (has_module_access('releases') || has_module_access('releases_list'));
     $defects = isset($defects) ? $defects : array();
+    $releases = isset($releases) ? $releases : array();
     $assignable_users = isset($assignable_users) ? $assignable_users : array();
     $can_manage_tasks = !empty($can_manage_tasks);
     $can_manage_requirements = !empty($can_manage_requirements);
     $can_manage_defects = !empty($can_manage_defects);
+    $can_manage_releases = !empty($can_manage_releases);
     $can_delete_tasks = !empty($can_delete_tasks);
     $can_delete_requirements = !empty($can_delete_requirements);
     $can_delete_defects = !empty($can_delete_defects);
+    $can_delete_releases = !empty($can_delete_releases);
     $active_tab = trim((string) $this->input->get('tab'));
-    if ($active_tab === '' || !in_array($active_tab, array('tasks', 'requirements', 'defects'), true)) {
+    if ($active_tab === '' || !in_array($active_tab, array('tasks', 'requirements', 'defects', 'releases'), true)) {
       $active_tab = 'tasks';
     }
     if ($active_tab === 'defects' && !$show_defects_tab) {
+      $active_tab = 'tasks';
+    }
+    if ($active_tab === 'releases' && !$show_releases_tab) {
       $active_tab = 'tasks';
     }
 
     $task_statuses = array('pending', 'in_progress', 'completed', 'blocked');
     $req_statuses = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
     $defect_statuses = array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected');
+    $release_statuses = array('planned', 'in_progress', 'released', 'cancelled');
     $task_priorities = array('low', 'medium', 'high', 'urgent');
     $defect_priorities = array('low', 'medium', 'high', 'critical');
 
@@ -146,6 +162,11 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link<?php echo $active_tab === 'defects' ? ' active' : ''; ?>" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="<?php echo $active_tab === 'defects' ? 'true' : 'false'; ?>"><i class="bi bi-bug me-1"></i>Defects <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($defects); ?></span></button>    </li>
     <?php endif; ?>
+    <?php if ($show_releases_tab): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link<?php echo $active_tab === 'releases' ? ' active' : ''; ?>" id="releases-tab" data-bs-toggle="tab" data-bs-target="#releases" type="button" role="tab" aria-controls="releases" aria-selected="<?php echo $active_tab === 'releases' ? 'true' : 'false'; ?>"><i class="bi bi-rocket-takeoff me-1"></i>Releases <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($releases); ?></span></button>
+    </li>
+    <?php endif; ?>
   </ul>
 
   <div class="tab-content" id="projectTabsContent">
@@ -153,10 +174,16 @@
     <div class="tab-pane fade<?php echo $active_tab === 'tasks' ? ' show active' : ''; ?>" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
         <div class="card shadow-sm border-0 project-detail-panel">
             <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Tasks</h6>                <?php if(function_exists('has_module_access') && has_module_access('tasks_add')): ?>
-                <a href="<?php echo site_url('projects/'.$project->id.'/dashboard'); ?>" class="btn btn-outline-secondary btn-sm py-0 me-1"><i class="bi bi-speedometer2"></i><span class="d-none d-md-inline ms-1">Dashboard</span></a>
+                <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Tasks</h6>
+                <div class="d-flex gap-1 flex-wrap justify-content-end">
+                <?php if(function_exists('has_module_access') && (has_module_access('tasks_import') || has_module_access('tasks'))): ?>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportTasksModal" title="Import tasks from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
+                <?php endif; ?>
+                <?php if(function_exists('has_module_access') && has_module_access('tasks_add')): ?>
+                <a href="<?php echo site_url('projects/'.$project->id.'/dashboard'); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-speedometer2"></i><span class="d-none d-md-inline ms-1">Dashboard</span></a>
                 <a href="<?php echo site_url('tasks/board?project_id='.$project->id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-kanban"></i><span class="d-none d-md-inline ms-1">Board</span></a>
                 <?php endif; ?>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="task" data-save-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_tasks ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_tasks ? '1' : '0'; ?>">
@@ -261,6 +288,14 @@
         <div class="card shadow-sm border-0 project-detail-panel">
             <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Requirements</h6>
+                <div class="d-flex gap-1 flex-wrap justify-content-end">
+                <?php if(function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))): ?>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportRequirementsModal" title="Import requirements from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
+                <?php endif; ?>
+                <?php if(function_exists('has_module_access') && (has_module_access('requirements_export') || has_module_access('requirements'))): ?>
+                <a href="<?php echo site_url('requirements/export?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0" title="Export this project's requirements"><i class="bi bi-file-earmark-spreadsheet"></i><span class="d-none d-md-inline ms-1">Export</span></a>
+                <?php endif; ?>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="requirement" data-save-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_requirements ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_requirements ? '1' : '0'; ?>">
@@ -360,6 +395,12 @@
                 <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Defects</h6>
                 <div class="d-flex gap-1">
                     <a href="<?php echo site_url('defects?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
+                    <?php if (function_exists('has_module_access') && (has_module_access('defects_add') || has_module_access('defects'))): ?>
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportDefectsModal" title="Import defects from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
+                    <?php endif; ?>
+                    <?php if (function_exists('has_module_access') && (has_module_access('defects_export') || has_module_access('defects_list') || has_module_access('defects'))): ?>
+                    <a href="<?php echo site_url('defects/export?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0" title="Export this project's defects"><i class="bi bi-download"></i><span class="d-none d-md-inline ms-1">Export</span></a>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="table-responsive">
@@ -447,6 +488,61 @@
                         </tr>
                     </tfoot>
                     <?php endif; ?>
+                </table>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($show_releases_tab): ?>
+    <!-- Releases Tab -->
+    <div class="tab-pane fade<?php echo $active_tab === 'releases' ? ' show active' : ''; ?>" id="releases" role="tabpanel" aria-labelledby="releases-tab">
+        <div class="card shadow-sm border-0 project-detail-panel">
+            <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Releases</h6>
+                <div class="d-flex gap-1">
+                    <a href="<?php echo site_url('releases?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
+                    <?php if (function_exists('has_module_access') && (has_module_access('releases_add') || has_module_access('releases'))): ?>
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportReleasesModal" title="Import releases from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
+                    <?php endif; ?>
+                    <?php if ($can_manage_releases): ?>
+                    <a href="<?php echo site_url('releases/create?project_id=' . (int) $project->id); ?>" class="btn btn-primary btn-sm py-0"><i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1">New</span></a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="14%">Version</th>
+                            <th width="32%">Title</th>
+                            <th width="18%">Status</th>
+                            <th width="16%">Planned</th>
+                            <th width="16%">Released</th>
+                            <th width="4%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($releases)): ?>
+                        <tr><td colspan="6" class="text-center py-3 text-muted small">No releases for this project.</td></tr>
+                        <?php else: foreach ($releases as $rel): ?>
+                        <tr>
+                            <td><a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="text-decoration-none fw-medium"><?php echo esc_view($rel->version); ?></a></td>
+                            <td><?php echo esc_view($rel->title); ?></td>
+                            <td><span class="badge bg-light text-dark border"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $rel->status))); ?></span></td>
+                            <td><?php echo esc_view(!empty($rel->planned_date) ? $rel->planned_date : '—'); ?></td>
+                            <td><?php echo esc_view(!empty($rel->released_at) ? $rel->released_at : '—'); ?></td>
+                            <td class="text-end text-nowrap">
+                                <?php if (function_exists('has_module_access') && (has_module_access('releases_view') || has_module_access('releases_list') || has_module_access('releases'))): ?>
+                                <a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="btn btn-sm btn-light" title="View"><i class="bi bi-box-arrow-up-right"></i></a>
+                                <?php endif; ?>
+                                <?php if ($can_manage_releases): ?>
+                                <a href="<?php echo site_url('releases/edit/' . (int) $rel->id); ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -751,5 +847,7 @@
 })();
 </script>
 <?php endif; ?>
+
+<?php $this->load->view('projects/partials/import_modals', array('project' => $project)); ?>
 
 <?php $this->load->view('partials/footer'); ?>

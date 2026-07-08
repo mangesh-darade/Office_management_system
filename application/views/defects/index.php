@@ -9,6 +9,7 @@ if ($can_export) {
     $actions .= '<a class="btn btn-outline-secondary btn-sm me-1" href="'.site_url('defects/export'.($export_q ? '?'.$export_q : '')).'"><i class="bi bi-download me-1"></i>Export CSV</a>';
 }
 if ($can_add) {
+    $actions .= '<a class="btn btn-outline-secondary btn-sm me-1" href="'.site_url('defects/import').'"><i class="bi bi-upload me-1"></i>Import CSV</a>';
     $actions .= '<a class="btn btn-primary btn-sm" href="'.site_url('defects/create').'"><i class="bi bi-plus-lg me-1"></i>Log Defect</a>';
 }
 $this->load->view('partials/oms_page_head', ['title' => 'Defect Tracking', 'icon' => 'bi-bug', 'subtitle' => 'Report and resolve project bugs and issues', 'actions_html' => $actions]);

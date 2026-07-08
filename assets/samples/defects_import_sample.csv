@@ -1,0 +1,4 @@
+project_name,title,description,steps_to_reproduce,severity,priority,status,assigned_to,due_date
+ElintOm Product Transaction History,Login button not working,Clicking login shows a blank page after submit,1. Open login page 2. Enter valid credentials 3. Click Login,high,high,open,102,2026-07-15
+ElintOm Product Transaction History,Export CSV missing columns,Finance export omits status column,1. Go to Reports 2. Export tasks CSV 3. Open file,medium,medium,open,,2026-07-20
+ElintOm Product Transaction History,Mobile menu overlap,Navigation overlaps content on small screens,1. Open site on mobile 2. Open menu 3. Scroll page,low,low,in_progress,103,

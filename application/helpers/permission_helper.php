@@ -157,7 +157,7 @@ if (!function_exists('get_dashboard_module_groups')) {
             ],
             'reports' => [
                 'reports', 'analytics', 'reports_overview', 'reports_requirements',
-                'reports_tasks_assignment', 'reports_projects_status', 'reports_leaves',
+                'reports_tasks_assignment', 'reports_projects_status', 'reports_defects', 'reports_leaves',
                 'reports_attendance', 'reports_attendance_employee', 'reports_daily_activity',
                 'daily_activity_report', 'reports_payroll', 'reports_expenses', 'reports_performance',
             ],
@@ -179,7 +179,8 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'defects_view', 'defects_export',
             ],
             'releases' => [
-                'releases', 'releases_add', 'releases_edit', 'releases_send_notes', 'releases_export',
+                'releases', 'releases_list', 'releases_add', 'releases_edit', 'releases_delete',
+                'releases_view', 'releases_send_notes', 'releases_export',
             ],
             'spl' => [
                 'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
@@ -671,7 +672,8 @@ if (!function_exists('seed_project_extensions_permissions_if_needed')) {
         $all_roles = $CI->db->select('id')->from('roles')->get()->result();
         $staff_defect_keys = array('defects_list', 'defects_add', 'defects_view', 'defects_export');
         $admin_keys = array(
-            'releases', 'releases_add', 'releases_edit', 'releases_send_notes', 'releases_export',
+            'releases', 'releases_list', 'releases_view', 'releases_add', 'releases_edit',
+            'releases_delete', 'releases_send_notes', 'releases_export',
             'defects', 'defects_edit', 'defects_delete',
         );
 
@@ -855,16 +857,16 @@ if (!function_exists('get_controller_module_access_map')) {
             ],
             'reports' => [
                 'reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment',
-                'reports_projects_status', 'reports_leaves', 'reports_attendance', 'reports_attendance_employee',
-                'reports_daily_activity', 'daily_activity_report', 'analytics', 'reports_payroll',
-                'reports_expenses', 'reports_performance',
+                'reports_projects_status', 'reports_defects', 'reports_leaves', 'reports_attendance',
+                'reports_attendance_employee', 'reports_daily_activity', 'daily_activity_report', 'analytics',
+                'reports_payroll', 'reports_expenses', 'reports_performance',
             ],
             'reports_attendance' => [
                 'reports', 'reports_overview', 'reports_attendance', 'reports_attendance_employee',
             ],
             'reports_projects' => [
                 'reports', 'reports_overview', 'reports_requirements', 'reports_tasks_assignment',
-                'reports_projects_status', 'reports_daily_activity', 'daily_activity_report',
+                'reports_projects_status', 'reports_defects', 'reports_daily_activity', 'daily_activity_report',
             ],
             'reports_hr' => [
                 'reports', 'reports_overview', 'reports_leaves', 'reports_payroll',
@@ -897,7 +899,10 @@ if (!function_exists('get_controller_module_access_map')) {
             'superadmin' => ['superadmin'],
             'guide' => ['guide'],
             'lead_mapping' => ['lead_mapping'],
-            'releases' => ['releases', 'releases_add', 'releases_edit', 'releases_send_notes', 'releases_export'],
+            'releases' => [
+                'releases', 'releases_list', 'releases_add', 'releases_edit', 'releases_delete',
+                'releases_view', 'releases_send_notes', 'releases_export',
+            ],
             'defects' => [
                 'defects', 'defects_list', 'defects_add', 'defects_edit',
                 'defects_delete', 'defects_view', 'defects_export',

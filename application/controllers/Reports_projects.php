@@ -871,4 +871,144 @@ class Reports_projects extends Reports_base {
         fclose($output);
         exit;
     }
+
+    // GET /reports/defects
+    public function defects()
+    {
+        require_module_access(['reports', 'reports_defects'], true);
+        if (!$this->db->table_exists('project_defects')) {
+            show_error('Defects table not found', 500);
+            return;
+        }
+
+        $this->load->model('Defect_model', 'report_defects');
+        $this->load->helper('defects_releases');
+
+        $filters = array(
+            'status' => trim((string) $this->input->get('status')),
+            'severity' => trim((string) $this->input->get('severity')),
+            'project_id' => (int) $this->input->get('project_id'),
+            'overdue' => $this->input->get('overdue') === '1',
+            'search' => trim((string) $this->input->get('search')),
+        );
+        if ($filters['search'] !== '') {
+            $filters['q'] = $filters['search'];
+        }
+
+        $rows = $this->report_defects->list_defects($filters);
+
+        $by_status = array();
+        $by_severity = array();
+        $by_project = array();
+        $open_count = 0;
+        $overdue_count = 0;
+
+        foreach ($rows as $r) {
+            $st = (string) $r->status;
+            $sev = (string) $r->severity;
+            $pid = (int) $r->project_id;
+            $pname = isset($r->project_name) && $r->project_name !== '' ? (string) $r->project_name : '—';
+
+            if (!isset($by_status[$st])) {
+                $by_status[$st] = 0;
+            }
+            $by_status[$st]++;
+
+            if (!isset($by_severity[$sev])) {
+                $by_severity[$sev] = 0;
+            }
+            $by_severity[$sev]++;
+
+            if (!isset($by_project[$pid])) {
+                $by_project[$pid] = (object) array(
+                    'project_id' => $pid,
+                    'project_name' => $pname,
+                    'total' => 0,
+                    'open' => 0,
+                    'overdue' => 0,
+                    'critical' => 0,
+                    'high' => 0,
+                );
+            }
+            $by_project[$pid]->total++;
+            if (in_array($st, array('open', 'in_progress'), true)) {
+                $by_project[$pid]->open++;
+                $open_count++;
+            }
+            if (function_exists('defect_is_overdue') && defect_is_overdue($r)) {
+                $by_project[$pid]->overdue++;
+                $overdue_count++;
+            }
+            if ($sev === 'critical') {
+                $by_project[$pid]->critical++;
+            }
+            if ($sev === 'high') {
+                $by_project[$pid]->high++;
+            }
+        }
+
+        $project_summary = array_values($by_project);
+        usort($project_summary, function ($a, $b) {
+            if ($b->open === $a->open) {
+                return $b->total <=> $a->total;
+            }
+            return $b->open <=> $a->open;
+        });
+
+        $filter_options = array(
+            'projects' => $this->report_defects->project_options(),
+            'statuses' => array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected'),
+            'severities' => array('low', 'medium', 'high', 'critical'),
+        );
+
+        if ($this->input->get('export') === 'csv') {
+            $this->export_defects_csv($rows);
+        }
+
+        $this->load->view('reports/defects', array(
+            'rows' => $rows,
+            'filters' => $filters,
+            'filter_options' => $filter_options,
+            'summary' => array(
+                'total' => count($rows),
+                'open' => $open_count,
+                'overdue' => $overdue_count,
+                'by_status' => $by_status,
+                'by_severity' => $by_severity,
+            ),
+            'project_summary' => $project_summary,
+        ));
+    }
+
+    private function export_defects_csv($rows)
+    {
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="defects_report_' . date('Y-m-d') . '.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, array(
+            'Number', 'Title', 'Project', 'Severity', 'Priority', 'Status',
+            'Assignee', 'Due Date', 'Overdue', 'Reporter', 'Created'
+        ), ',', '"', '\\');
+
+        foreach ($rows as $r) {
+            $overdue = function_exists('defect_is_overdue') && defect_is_overdue($r) ? 'Yes' : 'No';
+            fputcsv($output, array(
+                isset($r->defect_number) ? $r->defect_number : '',
+                isset($r->title) ? $r->title : '',
+                isset($r->project_name) ? $r->project_name : '',
+                isset($r->severity) ? $r->severity : '',
+                isset($r->priority) ? $r->priority : '',
+                isset($r->status) ? $r->status : '',
+                isset($r->assignee_name) ? $r->assignee_name : '',
+                isset($r->due_date) ? $r->due_date : '',
+                $overdue,
+                isset($r->reporter_name) ? $r->reporter_name : '',
+                isset($r->created_at) ? $r->created_at : '',
+            ), ',', '"', '\\');
+        }
+
+        fclose($output);
+        exit;
+    }
 }

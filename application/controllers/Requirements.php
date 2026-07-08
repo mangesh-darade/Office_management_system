@@ -476,15 +476,13 @@ class Requirements extends CI_Controller {
             $this->load->helper('csv_import');
             $opened = csv_import_open('file');
             if (!$opened['ok']) {
-                $this->session->set_flashdata('error', $opened['error']);
-                redirect('requirements/import');
+                csv_import_fail_redirect($opened['error'], 'requirements/import');
                 return;
             }
             $columns = csv_import_require_columns($opened['map'], array('title', 'client_name'));
             if (!$columns['ok']) {
                 fclose($opened['handle']);
-                $this->session->set_flashdata('error', $columns['error']);
-                redirect('requirements/import');
+                csv_import_fail_redirect($columns['error'], 'requirements/import');
                 return;
             }
             $inserted = 0;
@@ -591,6 +589,7 @@ class Requirements extends CI_Controller {
             'status' => $this->input->get('status'),
             'priority' => $this->input->get('priority'),
             'client_id' => $this->input->get('client_id'),
+            'project_id' => (int) $this->input->get('project_id'),
         );
         $rows = $this->requirements->get_requirements($filters, null, 0);
         header('Content-Type: text/csv');

@@ -326,6 +326,14 @@ class Projects extends CI_Controller {
                 $this->load->model('Defect_model', 'project_defects');
                 $defects = $this->project_defects->list_defects(array('project_id' => (int) $id));
             }
+
+            $releases = array();
+            if ($this->db->table_exists('project_releases')
+                && function_exists('has_module_access')
+                && (has_module_access('releases') || has_module_access('releases_list'))) {
+                $this->load->model('Engagement_model', 'project_releases');
+                $releases = $this->project_releases->list_releases(array('project_id' => (int) $id));
+            }
             
             $assignable_users = $this->_load_assignable_users();
             $can_manage_tasks = function_exists('has_module_access')
@@ -340,6 +348,10 @@ class Projects extends CI_Controller {
                 && (has_module_access('requirements_delete') || has_module_access('requirements'));
             $can_delete_defects = function_exists('has_module_access')
                 && (has_module_access('defects_delete') || has_module_access('defects'));
+            $can_manage_releases = function_exists('has_module_access')
+                && (has_module_access('releases_add') || has_module_access('releases_edit') || has_module_access('releases'));
+            $can_delete_releases = function_exists('has_module_access')
+                && (has_module_access('releases_delete') || has_module_access('releases'));
 
             $data = [
                 'project' => $project,
@@ -347,6 +359,7 @@ class Projects extends CI_Controller {
                 'members' => $members,
                 'requirements' => $requirements,
                 'defects' => $defects,
+                'releases' => $releases,
                 'progress' => $progress,
                 'stats' => $stats,
                 'assignable_users' => $assignable_users,
@@ -356,6 +369,8 @@ class Projects extends CI_Controller {
                 'can_delete_tasks' => $can_delete_tasks,
                 'can_delete_requirements' => $can_delete_requirements,
                 'can_delete_defects' => $can_delete_defects,
+                'can_manage_releases' => $can_manage_releases,
+                'can_delete_releases' => $can_delete_releases,
             ];
             
             $this->load->view('projects/view', $data);

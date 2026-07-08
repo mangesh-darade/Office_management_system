@@ -110,6 +110,11 @@
             <i class="bi bi-diagram-3 me-2"></i>Projects
           </a>
           <?php endif; ?>
+          <?php if(function_exists('has_module_access') && (has_module_access('reports_defects') || has_module_access('reports'))): ?>
+          <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/defects'); ?>">
+            <i class="bi bi-bug me-2"></i>Defects
+          </a>
+          <?php endif; ?>
           <?php if(function_exists('has_module_access') && (has_module_access('reports_leaves') || has_module_access('reports'))): ?>
           <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('reports/leaves'); ?>">
             <i class="bi bi-calendar-check me-2"></i>Leaves

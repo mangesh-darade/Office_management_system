@@ -663,6 +663,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && has_module_access('reports_projects_status')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='projects-status')?'active':''; ?>" href="<?php echo site_url('reports/projects-status'); ?>">Projects by Status</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('reports_defects')): ?>
+            <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='defects')?'active':''; ?>" href="<?php echo site_url('reports/defects'); ?>">Defect Summary</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('reports_leaves')): ?>
             <a class="submenu-link <?php echo ($seg1==='reports' && $seg2==='leaves')?'active':''; ?>" href="<?php echo site_url('reports/leaves'); ?>">Leaves Report</a>
             <?php endif; ?>

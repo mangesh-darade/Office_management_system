@@ -1,0 +1,3 @@
+project_name,version,title,description,status,planned_date
+ElintOm Product Transaction History,1.2.0,July feature pack,Stability and UI fixes,planned,2026-07-20
+ElintOm Product Transaction History,1.1.1,Hotfix login,Patch for session timeout,in_progress,2026-07-10

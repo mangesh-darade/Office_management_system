@@ -134,7 +134,7 @@ class Defects extends CI_Controller
 
         $out = fopen('php://output', 'w');
 
-        fputcsv($out, array('Number', 'Title', 'Project', 'Severity', 'Priority', 'Status', 'Assignee', 'Due Date', 'Reporter', 'Created'));
+        fputcsv($out, array('Number', 'Title', 'Project', 'Severity', 'Priority', 'Status', 'Assignee', 'Due Date', 'Reporter', 'Created'), ',', '"', '\\');
 
         foreach ($rows as $r) {
 
@@ -160,13 +160,275 @@ class Defects extends CI_Controller
 
                 $r->created_at,
 
-            ));
+            ), ',', '"', '\\');
 
         }
 
         fclose($out);
 
         exit;
+
+    }
+
+
+
+    public function import()
+
+    {
+
+        require_module_access(array('defects_add', 'defects'), true);
+
+        if ($this->input->method() === 'post') {
+
+            $uid = (int) $this->session->userdata('user_id');
+
+            if ($uid < 1) {
+
+                redirect('auth/login');
+
+                return;
+
+            }
+
+            $this->load->helper(array('csv_import', 'change_tracker', 'activity'));
+
+            $opened = csv_import_open('file');
+
+            if (!$opened['ok']) {
+
+                csv_import_fail_redirect($opened['error'], 'defects/import');
+
+                return;
+
+            }
+
+            $columns = csv_import_require_columns($opened['map'], array('title'), array(array('project_name', 'project', 'project_id')));
+
+            if (!$columns['ok']) {
+
+                fclose($opened['handle']);
+
+                csv_import_fail_redirect($columns['error'], 'defects/import');
+
+                return;
+
+            }
+
+            $inserted = 0;
+
+            $skipped = 0;
+
+            $row_errors = array();
+
+            $project_cache = array();
+
+            $line = 1;
+
+            $allowed_status = array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected');
+
+            $allowed_level = array('low', 'medium', 'high', 'critical');
+
+            $prev_debug = $this->db->db_debug;
+
+            $this->db->db_debug = false;
+
+            while (($row = fgetcsv($opened['handle'])) !== false) {
+
+                $line++;
+
+                $title = csv_import_get($opened['map'], $row, 'title');
+
+                if ($title === '') {
+
+                    $skipped++;
+
+                    csv_import_add_row_error($row_errors, $line, 'Missing defect title.');
+
+                    continue;
+
+                }
+
+                $project_id = csv_import_resolve_project_id($this->db, $opened['map'], $row, $project_cache);
+
+                if ($project_id <= 0) {
+
+                    $skipped++;
+
+                    csv_import_add_row_error($row_errors, $line, 'Unknown project name or code.');
+
+                    continue;
+
+                }
+
+                $status = csv_import_validate_enum(
+
+                    csv_import_get($opened['map'], $row, 'status', 'open'),
+
+                    $allowed_status,
+
+                    'open',
+
+                    $row_errors,
+
+                    $line,
+
+                    'status'
+
+                );
+
+                if ($status === false) {
+
+                    $skipped++;
+
+                    continue;
+
+                }
+
+                $severity = csv_import_validate_enum(
+
+                    csv_import_get($opened['map'], $row, 'severity', 'medium'),
+
+                    $allowed_level,
+
+                    'medium',
+
+                    $row_errors,
+
+                    $line,
+
+                    'severity'
+
+                );
+
+                if ($severity === false) {
+
+                    $skipped++;
+
+                    continue;
+
+                }
+
+                $priority = csv_import_validate_enum(
+
+                    csv_import_get($opened['map'], $row, 'priority', 'medium'),
+
+                    $allowed_level,
+
+                    'medium',
+
+                    $row_errors,
+
+                    $line,
+
+                    'priority'
+
+                );
+
+                if ($priority === false) {
+
+                    $skipped++;
+
+                    continue;
+
+                }
+
+                $assigned_to = null;
+
+                $assignee_raw = csv_import_get($opened['map'], $row, 'assigned_to', '');
+
+                if ($assignee_raw !== '') {
+
+                    $assigned_to = (int) $assignee_raw;
+
+                }
+
+                $due_raw = csv_import_get($opened['map'], $row, 'due_date', '');
+
+                $due_date = null;
+
+                if ($due_raw !== '') {
+
+                    $due_ts = strtotime($due_raw);
+
+                    if ($due_ts) {
+
+                        $due_date = date('Y-m-d', $due_ts);
+
+                    }
+
+                }
+
+                $payload = array(
+
+                    'defect_number' => $this->defects->next_defect_number(),
+
+                    'project_id' => $project_id,
+
+                    'release_id' => null,
+
+                    'task_id' => null,
+
+                    'title' => $title,
+
+                    'description' => csv_import_get($opened['map'], $row, 'description', null) ?: null,
+
+                    'steps_to_reproduce' => csv_import_get($opened['map'], $row, 'steps_to_reproduce', null) ?: null,
+
+                    'severity' => $severity,
+
+                    'priority' => $priority,
+
+                    'status' => $status,
+
+                    'assigned_to' => $assigned_to,
+
+                    'due_date' => $due_date,
+
+                    'reported_by' => $uid,
+
+                );
+
+                $id = $this->defects->save_defect($payload);
+
+                if ($id) {
+
+                    $inserted++;
+
+                    $this->defects->log_activity($id, $uid, 'created', 'Imported from CSV');
+
+                    if ($assigned_to) {
+
+                        defect_notify_assignee($id, $assigned_to, $title, $uid);
+
+                    }
+
+                } else {
+
+                    $skipped++;
+
+                    $db_error = $this->db->error();
+
+                    $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+
+                    csv_import_add_row_error($row_errors, $line, $reason);
+
+                    log_message('error', 'Defect import error: ' . $reason);
+
+                }
+
+            }
+
+            $this->db->db_debug = $prev_debug;
+
+            fclose($opened['handle']);
+
+            csv_import_finish($inserted, $skipped, $row_errors, 'defects', 'defects', 'defects/import');
+
+            return;
+
+        }
+
+        $this->load->view('defects/import');
 
     }
 

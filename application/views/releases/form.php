@@ -118,7 +118,7 @@
   <?php if ($action === 'edit' && !empty($can_send_notes)): ?>
   <button class="btn btn-success" type="button" id="btnSendNotesNow">Send notes now</button>
   <?php endif; ?>
-  <?php if ($action === 'edit' && (function_exists('has_module_access') && (has_module_access('releases_edit') || has_module_access('releases')))): ?>
+  <?php if ($action === 'edit' && (function_exists('has_module_access') && (has_module_access('releases_delete') || has_module_access('releases')))): ?>
   <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteReleaseModal">Delete</button>
   <?php endif; ?>
   <a class="btn btn-outline-secondary" href="<?php echo site_url('releases'); ?>">Cancel</a>

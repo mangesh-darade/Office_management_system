@@ -2047,15 +2047,13 @@ class Tasks extends CI_Controller {
             $this->load->helper('csv_import');
             $opened = csv_import_open('file');
             if (!$opened['ok']) {
-                $this->session->set_flashdata('error', $opened['error']);
-                redirect('tasks/import');
+                csv_import_fail_redirect($opened['error'], 'tasks/import');
                 return;
             }
             $columns = csv_import_require_columns($opened['map'], array('title'), array(array('project_name', 'project', 'project_id')));
             if (!$columns['ok']) {
                 fclose($opened['handle']);
-                $this->session->set_flashdata('error', $columns['error']);
-                redirect('tasks/import');
+                csv_import_fail_redirect($columns['error'], 'tasks/import');
                 return;
             }
             $inserted = 0;
