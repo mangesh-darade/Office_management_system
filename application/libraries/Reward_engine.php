@@ -167,6 +167,27 @@ class Reward_engine
             }
         }
 
+        if (isset($cond['attendance_tier'])) {
+            $actual = isset($payload['attendance_tier']) ? (string) $payload['attendance_tier'] : '';
+            if ($actual !== (string) $cond['attendance_tier']) {
+                return false;
+            }
+        }
+
+        if (isset($cond['checkout_tier'])) {
+            $actual = isset($payload['checkout_tier']) ? (string) $payload['checkout_tier'] : '';
+            if ($actual !== (string) $cond['checkout_tier']) {
+                return false;
+            }
+        }
+
+        if (isset($cond['leave_outcome'])) {
+            $actual = isset($payload['leave_outcome']) ? (string) $payload['leave_outcome'] : '';
+            if ($actual !== (string) $cond['leave_outcome']) {
+                return false;
+            }
+        }
+
         if (isset($cond['streak_type'])) {
             $actual = isset($payload['streak_type']) ? (string) $payload['streak_type'] : '';
             if ($actual !== (string) $cond['streak_type']) {

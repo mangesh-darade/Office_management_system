@@ -154,7 +154,20 @@ if (!function_exists('rewards_automation_penalize_missed_checkout')) {
             return;
         }
         $times = rewards_automation_attendance_row_times($row, $cols);
-        if ($times['cin'] === '' || $times['cout'] !== '') {
+        if ($times['cin'] === '') {
+            return;
+        }
+        $missedCheckout = false;
+        if ($times['cout'] === '') {
+            $missedCheckout = true;
+        } else {
+            $checkoutTs = strtotime($times['cout']);
+            $cutoffTs = strtotime($date . ' 11:00:00');
+            if ($checkoutTs !== false && $cutoffTs !== false && $checkoutTs < $cutoffTs) {
+                $missedCheckout = true;
+            }
+        }
+        if (!$missedCheckout) {
             return;
         }
         reward_engine_dispatch('attendance_penalty', array(
@@ -235,9 +248,13 @@ if (!function_exists('rewards_automation_daily_attendance_penalties')) {
             if ($times['cin'] === '') {
                 rewards_automation_penalize_missed_checkin($db, $uid, $date, $cols);
                 $missedIn++;
-            } elseif ($times['cout'] === '') {
-                rewards_automation_penalize_missed_checkout($db, $uid, $date, $cols);
-                $missedOut++;
+            } else {
+                $checkoutTs = $times['cout'] !== '' ? strtotime($times['cout']) : false;
+                $cutoffTs = strtotime($date . ' 11:00:00');
+                if ($times['cout'] === '' || ($checkoutTs !== false && $cutoffTs !== false && $checkoutTs < $cutoffTs)) {
+                    rewards_automation_penalize_missed_checkout($db, $uid, $date, $cols);
+                    $missedOut++;
+                }
             }
         }
         return array('missed_checkin' => $missedIn, 'missed_checkout' => $missedOut, 'date' => $date);
@@ -351,5 +368,196 @@ if (!function_exists('rewards_automation_consistency_monthly')) {
             'on_time' => $onTime,
             'no_missed_checkout' => $noMissedCheckout,
         );
+    }
+}
+
+if (!function_exists('rewards_automation_leave_timely_cutoff')) {
+    function rewards_automation_leave_timely_cutoff($db)
+    {
+        $cutoff = '09:00:00';
+        if ($db->table_exists('settings')) {
+            $row = $db->select('setting_value')
+                ->from('settings')
+                ->where('setting_key', 'spl_leave_timely_cutoff')
+                ->limit(1)
+                ->get()
+                ->row();
+            if ($row && trim((string) $row->setting_value) !== '') {
+                $cutoff = trim((string) $row->setting_value);
+            }
+        }
+        if (preg_match('/^\d{1,2}:\d{2}$/', $cutoff)) {
+            $cutoff .= ':00';
+        }
+        return $cutoff;
+    }
+}
+
+if (!function_exists('rewards_automation_leave_is_wfh')) {
+    function rewards_automation_leave_is_wfh($db, $leave)
+    {
+        if (!$leave) {
+            return false;
+        }
+        if (isset($leave->reason) && strpos((string) $leave->reason, 'WFH:') === 0) {
+            return true;
+        }
+        if (!$db->table_exists('leave_types') || empty($leave->type_id)) {
+            return false;
+        }
+        $leave_type = $db->select('name')->from('leave_types')->where('id', (int) $leave->type_id)->limit(1)->get()->row();
+        return ($leave_type && strtolower(trim((string) $leave_type->name)) === 'work from home');
+    }
+}
+
+if (!function_exists('rewards_automation_classify_leave_outcome')) {
+    /**
+     * @return string preapproved|timely|late_intimation|''
+     */
+    function rewards_automation_classify_leave_outcome($db, $leave)
+    {
+        if (!$leave || empty($leave->created_at) || empty($leave->start_date)) {
+            return '';
+        }
+        $createdDate = date('Y-m-d', strtotime((string) $leave->created_at));
+        $startDate = (string) $leave->start_date;
+        if ($startDate > $createdDate) {
+            return 'preapproved';
+        }
+        if ($startDate === $createdDate) {
+            $cutoff = rewards_automation_leave_timely_cutoff($db);
+            $createdTime = date('H:i:s', strtotime((string) $leave->created_at));
+            if ($createdTime <= $cutoff) {
+                return 'timely';
+            }
+            return 'late_intimation';
+        }
+        return '';
+    }
+}
+
+if (!function_exists('rewards_automation_after_daily_activity_saved')) {
+    function rewards_automation_after_daily_activity_saved($db, $user_id, $log_id, $work_date)
+    {
+        $user_id = (int) $user_id;
+        $log_id = (int) $log_id;
+        if ($user_id <= 0 || $log_id <= 0 || !$db->table_exists('reward_rules')) {
+            return;
+        }
+        $CI =& get_instance();
+        $CI->load->helper('rewards');
+        if (!function_exists('reward_engine_dispatch')) {
+            return;
+        }
+        $label = 'Daily activity';
+        if ($work_date !== '') {
+            $label .= ' ' . $work_date;
+        }
+        reward_engine_dispatch('daily_activity_logged', array(
+            'user_id' => $user_id,
+            'actor_id' => $user_id,
+            'source_module' => 'daily_activity',
+            'source_record_id' => $log_id,
+            'reference_label' => $label,
+            'occurred_at' => date('Y-m-d H:i:s'),
+            'payload' => array(),
+        ));
+    }
+}
+
+if (!function_exists('rewards_automation_on_leave_approved')) {
+    function rewards_automation_on_leave_approved($db, $leave_id, $approved_by = 0)
+    {
+        $leave_id = (int) $leave_id;
+        if ($leave_id <= 0 || !$db->table_exists('leave_requests') || !$db->table_exists('reward_rules')) {
+            return;
+        }
+        $leave = $db->where('id', $leave_id)->limit(1)->get('leave_requests')->row();
+        if (!$leave) {
+            return;
+        }
+        $approved_statuses = array('approved', 'lead_approved', 'hr_approved');
+        if (!in_array((string) $leave->status, $approved_statuses, true)) {
+            return;
+        }
+        $outcome = rewards_automation_classify_leave_outcome($db, $leave);
+        if ($outcome === '') {
+            return;
+        }
+        $CI =& get_instance();
+        $CI->load->helper('rewards');
+        if (!function_exists('reward_engine_dispatch')) {
+            return;
+        }
+        $user_id = (int) $leave->user_id;
+        $actor_id = (int) $approved_by > 0 ? (int) $approved_by : $user_id;
+        $is_wfh = rewards_automation_leave_is_wfh($db, $leave);
+        $type_label = $is_wfh ? 'WFH' : 'Leave';
+        $base = array(
+            'user_id' => $user_id,
+            'actor_id' => $actor_id,
+            'source_module' => 'leave_requests',
+            'source_record_id' => $leave_id,
+            'occurred_at' => date('Y-m-d H:i:s'),
+            'period_key' => substr((string) $leave->start_date, 0, 7),
+        );
+        if ($outcome === 'preapproved') {
+            reward_engine_dispatch('leave_approved', array_merge($base, array(
+                'reference_label' => 'Preapproved ' . $type_label . ' ' . $leave->start_date,
+                'payload' => array('leave_outcome' => 'preapproved'),
+            )));
+            return;
+        }
+        if ($outcome === 'timely') {
+            reward_engine_dispatch('leave_approved', array_merge($base, array(
+                'reference_label' => 'Timely ' . $type_label . ' intimation ' . $leave->start_date,
+                'payload' => array('leave_outcome' => 'timely'),
+            )));
+        }
+    }
+}
+
+if (!function_exists('rewards_automation_on_leave_rejected')) {
+    function rewards_automation_on_leave_rejected($db, $leave_id, $rejected_by = 0)
+    {
+        $leave_id = (int) $leave_id;
+        if ($leave_id <= 0 || !$db->table_exists('leave_requests') || !$db->table_exists('reward_rules')) {
+            return;
+        }
+        $leave = $db->where('id', $leave_id)->limit(1)->get('leave_requests')->row();
+        if (!$leave || (string) $leave->status !== 'rejected') {
+            return;
+        }
+        $outcome = rewards_automation_classify_leave_outcome($db, $leave);
+        $CI =& get_instance();
+        $CI->load->helper('rewards');
+        if (!function_exists('reward_engine_dispatch')) {
+            return;
+        }
+        $user_id = (int) $leave->user_id;
+        $actor_id = (int) $rejected_by > 0 ? (int) $rejected_by : $user_id;
+        $is_wfh = rewards_automation_leave_is_wfh($db, $leave);
+        $type_label = $is_wfh ? 'WFH' : 'Leave';
+        $base = array(
+            'user_id' => $user_id,
+            'actor_id' => $actor_id,
+            'source_module' => 'leave_requests',
+            'source_record_id' => $leave_id,
+            'occurred_at' => date('Y-m-d H:i:s'),
+            'period_key' => substr((string) $leave->start_date, 0, 7),
+        );
+        if ($outcome === 'late_intimation') {
+            reward_engine_dispatch('leave_penalty', array_merge($base, array(
+                'reference_label' => 'Late ' . $type_label . ' intimation rejected ' . $leave->start_date,
+                'payload' => array('leave_outcome' => 'late_intimation'),
+            )));
+            return;
+        }
+        if ($outcome === 'preapproved') {
+            reward_engine_dispatch('leave_penalty', array_merge($base, array(
+                'reference_label' => 'Rejected preapproved ' . $type_label . ' request ' . $leave->start_date,
+                'payload' => array('leave_outcome' => 'rejected_unapproved'),
+            )));
+        }
     }
 }

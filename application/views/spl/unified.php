@@ -220,9 +220,40 @@ document.addEventListener('DOMContentLoaded', function() {
     bar.classList.toggle('d-none', tab !== 'groups');
   }
 
+  function runSplEmbeddedScripts($content) {
+    $content.find('script').each(function() {
+      if (this.src) {
+        return;
+      }
+      var code = this.textContent || this.innerHTML || '';
+      if (code.trim() === '') {
+        return;
+      }
+      try {
+        if (typeof jQuery !== 'undefined' && jQuery.globalEval) {
+          jQuery.globalEval(code);
+        } else {
+          (new Function(code))();
+        }
+      } catch (e) {
+        console.warn('SPL embed script failed:', e);
+      }
+    });
+  }
+
   function initSplEmbeddedPane($content) {
+    runSplEmbeddedScripts($content);
     if (window.initSplBoard && $content.find('#splBoard').length) {
       window.initSplBoard(document);
+    }
+    if (window.initSplRulesPanel && $content.find('#splRulesTable').length) {
+      window.initSplRulesPanel($content[0]);
+    }
+    if (window.initSplApprovalsPanel && $content.find('#spl-tab-approvals').length) {
+      window.initSplApprovalsPanel($content[0]);
+    }
+    if (window.initSplActivityPanel && $content.find('#splSubmitForm').length) {
+      window.initSplActivityPanel($content[0]);
     }
   }
 
@@ -372,6 +403,9 @@ document.addEventListener('DOMContentLoaded', function() {
   updateGroupsBarVisibility();
   if (window.initSplBoard && document.getElementById('splBoardEditBtn')) {
     window.initSplBoard(document);
+  }
+  if (window.initSplRulesPanel && document.getElementById('splRulesTable')) {
+    window.initSplRulesPanel(document);
   }
   if (initialTab && initialTab !== 'overview') {
     switchToTab(initialTab, false);

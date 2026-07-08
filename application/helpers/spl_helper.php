@@ -531,6 +531,8 @@ if (!function_exists('spl_activity_title')) {
             'attendance_penalty' => 'Attendance penalty',
             'reward_claim' => 'Activity claim',
             'daily_activity_logged' => 'Daily activity',
+            'leave_approved' => 'Leave approved',
+            'leave_penalty' => 'Leave penalty',
             'project_status_update' => 'Project status update',
             'manual_award' => 'Manual award',
             'peer_cheer_sent' => 'Cheer sent',
@@ -554,6 +556,12 @@ if (!function_exists('spl_activity_source_label')) {
         }
         if ($module === 'spl') {
             return 'Manual · SPL';
+        }
+        if ($module === 'daily_activity') {
+            return 'Daily Activity';
+        }
+        if ($module === 'leave_requests') {
+            return 'Leaves';
         }
         if ($module === 'rewards') {
             return 'Rewards';
@@ -633,6 +641,100 @@ if (!function_exists('spl_activity_note_preview')) {
     }
 }
 
+if (!function_exists('spl_get_user_shift')) {
+    function spl_get_user_shift($db, $user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0 || !$db->table_exists('employees') || !$db->table_exists('shifts')) {
+            return null;
+        }
+        $employee = $db->select('shift_id')->from('employees')->where('user_id', $user_id)->limit(1)->get()->row();
+        if (!$employee || empty($employee->shift_id)) {
+            return null;
+        }
+        return $db->where('id', (int) $employee->shift_id)->limit(1)->get('shifts')->row();
+    }
+}
+
+if (!function_exists('spl_classify_checkin_tier')) {
+    /**
+     * @return string on_time|late|very_late
+     */
+    function spl_classify_checkin_tier($shift, $checkInDateTime, $date)
+    {
+        $checkIn = new DateTime($checkInDateTime);
+        $veryLateCutoff = new DateTime($date . ' 11:00:00');
+        if ($checkIn >= $veryLateCutoff) {
+            return 'very_late';
+        }
+        if (!$shift || empty($shift->start_time)) {
+            return 'late';
+        }
+        $shiftStart = new DateTime($date . ' ' . $shift->start_time);
+        $onTimeCutoff = clone $shiftStart;
+        $onTimeCutoff->add(new DateInterval('PT5M'));
+        if ($checkIn <= $onTimeCutoff) {
+            return 'on_time';
+        }
+        $graceMinutes = isset($shift->late_grace_period) ? (int) $shift->late_grace_period : 0;
+        $graceCutoff = clone $shiftStart;
+        if ($graceMinutes > 0) {
+            $graceCutoff->add(new DateInterval('PT' . $graceMinutes . 'M'));
+        }
+        if ($checkIn > $graceCutoff) {
+            return 'late';
+        }
+        return 'late';
+    }
+}
+
+if (!function_exists('spl_classify_checkout_tier')) {
+    /**
+     * @return string|null perfect|complete_shift|early_valid
+     */
+    function spl_classify_checkout_tier($shift, $checkInDateTime, $checkOutDateTime, $date, $checkInTier)
+    {
+        if ($checkOutDateTime === '' || $checkInDateTime === '') {
+            return null;
+        }
+        $checkOut = new DateTime($checkOutDateTime);
+        $earlyValidStart = new DateTime($date . ' 17:00:00');
+        if (!$shift || empty($shift->end_time)) {
+            if ($checkInTier === 'on_time' && $checkOut >= $earlyValidStart) {
+                return 'perfect';
+            }
+            if ($checkOut >= $earlyValidStart) {
+                return 'complete_shift';
+            }
+            return null;
+        }
+        $shiftEnd = new DateTime($date . ' ' . $shift->end_time);
+        if ($checkInTier === 'on_time' && $checkOut > $shiftEnd) {
+            return 'perfect';
+        }
+        if ($checkOut > $shiftEnd) {
+            return 'complete_shift';
+        }
+        if ($checkOut >= $earlyValidStart && $checkOut <= $shiftEnd) {
+            return 'early_valid';
+        }
+        return null;
+    }
+}
+
+if (!function_exists('spl_dispatch_attendance_reward')) {
+    function spl_dispatch_attendance_reward(array $base, $triggerEvent, $referenceLabel, array $payload)
+    {
+        if (!function_exists('reward_engine_dispatch')) {
+            return;
+        }
+        reward_engine_dispatch($triggerEvent, array_merge($base, array(
+            'reference_label' => $referenceLabel,
+            'payload' => $payload,
+        )));
+    }
+}
+
 if (!function_exists('spl_award_attendance_points')) {
     /**
      * Auto-award SPL points for check-in / check-out only (no approval).
@@ -647,33 +749,29 @@ if (!function_exists('spl_award_attendance_points')) {
         if ($user_id <= 0) {
             return;
         }
-        $CI->load->helper('rewards');
+        $CI->load->helper(array('rewards', 'rewards_automation', 'attendance_punch'));
         if (!function_exists('reward_engine_dispatch')) {
             return;
         }
 
+        $occurred_at = $occurred_at !== '' ? $occurred_at : date('Y-m-d H:i:s');
+        $date = date('Y-m-d', strtotime($occurred_at));
         $base = array(
             'user_id' => $user_id,
             'actor_id' => $user_id,
             'source_module' => 'attendance',
             'source_record_id' => (int) $attendance_id > 0 ? (int) $attendance_id : null,
-            'occurred_at' => $occurred_at !== '' ? $occurred_at : date('Y-m-d H:i:s'),
+            'occurred_at' => $occurred_at,
         );
+        $shift = spl_get_user_shift($CI->db, $user_id);
 
         if ($action === 'in') {
-            $rewardStatus = 'present';
-            if ($status === 'ontime' || $status === 'on_time') {
-                $rewardStatus = 'ontime';
-            } elseif ($status === 'present') {
-                $rewardStatus = 'present';
-            } elseif ($status === 'late') {
-                $rewardStatus = 'late';
+            $tier = spl_classify_checkin_tier($shift, $occurred_at, $date);
+            if ($tier === 'very_late') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkin', 'Very Late Check-In', array('attendance_tier' => 'very_late'));
+            } elseif ($tier === 'late') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkin', 'Late Check-In', array('attendance_tier' => 'late'));
             }
-            reward_engine_dispatch('attendance_checkin', array_merge($base, array(
-                'reference_label' => 'Check-in',
-                'payload' => array('status' => $rewardStatus),
-            )));
-            $CI->load->helper('rewards_automation');
             if (function_exists('rewards_automation_after_checkin')) {
                 rewards_automation_after_checkin($CI->db, $user_id);
             }
@@ -681,10 +779,33 @@ if (!function_exists('spl_award_attendance_points')) {
         }
 
         if ($action === 'out') {
-            reward_engine_dispatch('attendance_checkout', array_merge($base, array(
-                'reference_label' => 'Check-out',
-                'payload' => array(),
-            )));
+            $attendance_id = (int) $attendance_id;
+            if ($attendance_id <= 0) {
+                return;
+            }
+            $row = $CI->db->where('id', $attendance_id)->limit(1)->get('attendance')->row();
+            if (!$row) {
+                return;
+            }
+            $cols = rewards_automation_attendance_meta($CI->db);
+            $times = rewards_automation_attendance_row_times($row, $cols);
+            if ($times['cin'] === '' || $times['cout'] === '') {
+                return;
+            }
+            $checkInTier = spl_classify_checkin_tier($shift, $times['cin'], $date);
+            $checkoutTier = spl_classify_checkout_tier($shift, $times['cin'], $times['cout'], $date, $checkInTier);
+            if ($checkoutTier === 'perfect') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Perfect Attendance', array('checkout_tier' => 'perfect'));
+                return;
+            }
+            if ($checkoutTier === 'complete_shift') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Complete Shift', array('checkout_tier' => 'complete_shift'));
+            } elseif ($checkoutTier === 'early_valid') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Early Valid Check-Out', array('checkout_tier' => 'early_valid'));
+            }
+            if ($checkInTier === 'on_time' && $checkoutTier !== 'complete_shift') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkin', 'On-Time Check-In', array('attendance_tier' => 'on_time'));
+            }
         }
     }
 }

@@ -299,7 +299,7 @@ $reward_period_options = array(
             <p class="spl-panel-sub">
               <?php if ($approval_view === 'approved'): ?>Points were added to each employee after approval
               <?php elseif ($approval_view === 'rejected'): ?>These activities were not awarded points
-              <?php else: ?>Review and approve to add points<?php endif; ?>
+              <?php else: ?>Click a card to review details, add a comment, and approve or reject<?php endif; ?>
             </p>
           </div>
         </div>
@@ -315,7 +315,27 @@ $reward_period_options = array(
         <?php else: ?>
         <div class="spl-approval-grid">
           <?php foreach ($approval_rows as $row): ?>
-          <article class="spl-approval-card<?php echo $approval_view === 'approved' ? ' is-approved' : ($approval_view === 'rejected' ? ' is-rejected' : ''); ?>">
+          <?php
+            $approval_payload = array(
+              'id' => (int) $row->id,
+              'view' => $approval_view,
+              'recipient_name' => (string) ($row->recipient_name ?: ''),
+              'submitter_name' => (string) ($row->submitter_name ?: ''),
+              'submitted_at' => spl_format_activity_datetime($row->submitted_at),
+              'category_name' => (string) ($row->category_name ?: ''),
+              'rule_name' => (string) ($row->rule_name ?: ''),
+              'rule_code' => (string) ($row->rule_code ?: ''),
+              'requested_points' => (float) $row->requested_points,
+              'reference_label' => spl_sanitize_note_html(isset($row->reference_label) ? $row->reference_label : ''),
+              'evidence_file' => !empty($row->evidence_file) ? base_url($row->evidence_file) : '',
+              'evidence_name' => (string) (isset($row->evidence_name) ? $row->evidence_name : ''),
+              'decided_at' => !empty($row->decided_at) ? spl_format_activity_datetime($row->decided_at) : '',
+              'approver_name' => (string) (isset($row->approver_name) ? $row->approver_name : ''),
+              'decision_comment' => (string) (isset($row->decision_comment) ? $row->decision_comment : ''),
+            );
+            $approval_json = htmlspecialchars(json_encode($approval_payload, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+          ?>
+          <article class="spl-approval-card is-clickable<?php echo $approval_view === 'approved' ? ' is-approved' : ($approval_view === 'rejected' ? ' is-rejected' : ''); ?>" role="button" tabindex="0" data-spl-approval="<?php echo $approval_json; ?>" aria-label="View activity details">
             <div class="spl-approval-card-head">
               <div>
                 <div class="spl-approval-card-name"><?php echo esc_view($row->recipient_name ?: '—', ENT_QUOTES, 'UTF-8'); ?></div>
@@ -347,27 +367,48 @@ $reward_period_options = array(
             </div>
             <?php endif; ?>
             <?php if ($approval_view === 'pending'): ?>
-            <div class="spl-approval-card-actions">
-              <form method="post" action="<?php echo site_url('spl/approve-activity/' . (int) $row->id); ?>" class="d-inline">
-                <?php echo form_hidden($csrf_name, $csrf_hash); ?>
-                <button type="submit" class="btn btn-sm btn-success">Approve</button>
-              </form>
-              <form method="post" action="<?php echo site_url('spl/reject-activity/' . (int) $row->id); ?>" class="d-inline" onsubmit="return confirm('Reject this activity?');">
-                <?php echo form_hidden($csrf_name, $csrf_hash); ?>
-                <button type="submit" class="btn btn-sm btn-outline-danger">Reject</button>
-              </form>
-            </div>
+            <div class="spl-approval-card-hint"><i class="bi bi-eye me-1"></i>Click to review and approve</div>
             <?php else: ?>
             <div class="spl-approval-card-status">
               <span class="badge rounded-pill text-bg-<?php echo $approval_view === 'approved' ? 'success' : 'secondary'; ?>">
                 <?php echo $approval_view === 'approved' ? 'Approved' : 'Rejected'; ?>
               </span>
             </div>
+            <?php if (!empty($row->decision_comment)): ?>
+            <div class="spl-approval-card-comment-preview"><?php echo esc_view($row->decision_comment, ENT_QUOTES, 'UTF-8'); ?></div>
+            <?php endif; ?>
+            <div class="spl-approval-card-hint"><i class="bi bi-eye me-1"></i>Click to view details</div>
             <?php endif; ?>
           </article>
           <?php endforeach; ?>
         </div>
         <?php endif; ?>
+      </div>
+      <div class="modal fade" id="splApprovalDetailModal" tabindex="-1" aria-labelledby="splApprovalDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+          <div class="modal-content spl-approval-modal">
+            <div class="modal-header">
+              <h5 class="modal-title" id="splApprovalDetailModalLabel">Activity details</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="splApprovalDetailBody"></div>
+            <div class="modal-footer flex-column align-items-stretch" id="splApprovalDetailFooter">
+              <form id="splApprovalModalActionForm" method="post" class="spl-approval-modal-form d-none">
+                <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" id="splApprovalModalCsrf" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+                <label class="form-label" for="splApprovalModalComment">Comment</label>
+                <textarea class="form-control" name="comment" id="splApprovalModalComment" rows="3" placeholder="Why are you approving or rejecting this activity?"></textarea>
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-outline-danger" id="splApprovalModalRejectBtn">Reject</button>
+                  <button type="button" class="btn btn-success" id="splApprovalModalApproveBtn">Approve</button>
+                </div>
+              </form>
+              <div class="d-flex justify-content-end" id="splApprovalDetailFooterReadonly">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <?php endif; ?>
@@ -454,7 +495,7 @@ $reward_period_options = array(
         <div class="spl-panel-head spl-rules-panel-head">
           <div>
             <h2 class="spl-panel-title">Reward rules</h2>
-            <p class="spl-panel-sub mb-0">Click <strong>Edit</strong> on a row to change it. Click column headers to sort.</p>
+            <p class="spl-panel-sub mb-0">Click <strong>Edit</strong> on a row to change it. Use search or column headers to filter and sort.</p>
           </div>
           <div class="spl-rules-toolbar">
             <div class="spl-rule-save-msg alert alert-success py-1 px-2 mb-0 d-none" id="splRuleSaveMsg" role="status"></div>
@@ -473,6 +514,15 @@ $reward_period_options = array(
           <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
           <input type="file" name="file" id="splRulesImportFile" accept=".csv,text/csv">
         </form>
+        <div class="spl-rules-filter-bar">
+          <div class="spl-rules-search-wrap">
+            <i class="bi bi-search spl-rules-search-icon" aria-hidden="true"></i>
+            <input type="search" class="form-control form-control-sm spl-rules-search-input" id="splRulesSearch" placeholder="Search rules by category, name, trigger, code, points…" autocomplete="off">
+            <button type="button" class="btn btn-link btn-sm spl-rules-search-clear d-none" id="splRulesSearchClear" title="Clear search" aria-label="Clear search">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
         <div class="table-responsive spl-rules-wrap">
           <table class="table table-sm table-hover align-middle mb-0 spl-rules-table" id="splRulesTable" data-dt-manual data-order-col="0" data-order-dir="asc" data-order-disable-cols="5">
             <thead>
@@ -555,6 +605,8 @@ window.SPL_CONFIG = {
   canManageLevels: <?php echo !empty($can_rules) ? 'true' : 'false'; ?>,
   csrfName: <?php echo json_encode($csrf_name); ?>,
   csrfHash: <?php echo json_encode($csrf_hash); ?>,
+  approveActivityUrlBase: <?php echo json_encode(site_url('spl/approve-activity/')); ?>,
+  rejectActivityUrlBase: <?php echo json_encode(site_url('spl/reject-activity/')); ?>,
   categories: <?php echo json_encode(array_map(function ($c) {
       return array('id' => (int) $c->id, 'name' => (string) $c->name);
   }, $categories)); ?>
@@ -607,7 +659,9 @@ window.SPL_CONFIG = {
 })();
 </script>
 <?php endif; ?>
+<?php if (!$embed): ?>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
+<?php endif; ?>
 
 <?php if (!$embed): ?>
 <?php $this->load->view('partials/footer'); ?>
