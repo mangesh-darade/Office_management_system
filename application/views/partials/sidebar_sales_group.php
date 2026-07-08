@@ -42,7 +42,7 @@ if ($variant === 'mobile'):
       <a class="nav-link sidebar-link small <?php echo $active === 'elintom-proposals' ? 'active' : ''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
       <?php endif; ?>
       <?php if ($has_eba_platform): ?>
-      <a class="nav-link sidebar-link small <?php echo $active === 'eba-platform' ? 'active' : ''; ?>" href="<?php echo site_url('eba-platform'); ?>"><i class="bi bi-graph-up-arrow me-2"></i>EBA Platform</a>
+      <a class="nav-link sidebar-link small <?php echo $active === 'eba-platform' ? 'active' : ''; ?>" href="<?php echo site_url('eba-platform'); ?>"><i class="bi bi-graph-up-arrow me-2"></i>Business Assessment</a>
       <?php endif; ?>
     </div>
   </div>
@@ -64,7 +64,7 @@ if ($variant === 'mobile'):
       <a class="submenu-link <?php echo $active === 'elintom-proposals' ? 'active' : ''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
       <?php endif; ?>
       <?php if ($has_eba_platform): ?>
-      <a class="submenu-link <?php echo $active === 'eba-platform' ? 'active' : ''; ?>" href="<?php echo site_url('eba-platform'); ?>"><i class="bi bi-graph-up-arrow me-2"></i>EBA Platform</a>
+      <a class="submenu-link <?php echo $active === 'eba-platform' ? 'active' : ''; ?>" href="<?php echo site_url('eba-platform'); ?>"><i class="bi bi-graph-up-arrow me-2"></i>Business Assessment</a>
       <?php endif; ?>
     </div>
   </div>

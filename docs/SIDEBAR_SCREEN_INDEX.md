@@ -10,7 +10,7 @@ Visibility is role/permission based in `application/views/partials/sidebar.php`.
 - Today's Focus -> `/my-works/todays-focus`
 - Subscription Builder -> `/subscription-builder`
 - ElintOm Proposals -> `/elintom-proposals`
-- EBA Platform -> `/eba-platform`
+- Business Assessment -> `/eba-platform`
 - Clients -> `/clients`
 - Employees -> `/employees`
 - Chats -> `/chats/app`

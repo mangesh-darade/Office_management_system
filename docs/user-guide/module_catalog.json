@@ -903,17 +903,17 @@
       "id": "13",
       "slug": "13-sales-eba",
       "file": "13-sales-eba.md",
-      "title": "Sales — EBA Platform",
-      "purpose": "Run the ElintOm Business Assessment (EBA) ROI calculator from Sales — fully client-side, no server save.",
+      "title": "Sales — Business Assessment",
+      "purpose": "Run the Business Assessment ROI calculator from Sales — fully client-side, no server save.",
       "entities": [
         {
-          "name": "EBA Platform",
-          "menu": "Sales → EBA Platform",
+          "name": "Business Assessment",
+          "menu": "Sales → Business Assessment",
           "purpose": "Open the ROI assessment tool to model leakage and savings for a prospect. Calculations stay in the browser.",
           "list": {
             "route": "eba-platform",
             "steps": [
-              "Open Sales → EBA Platform.",
+              "Open Sales → Business Assessment.",
               "Fill assessment sections (workforce, inventory, billing, sales, purchase, owner time).",
               "Review sticky ROI summary at the bottom.",
               "Use Open full screen if you need a larger workspace."

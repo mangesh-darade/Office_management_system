@@ -152,4 +152,4 @@ Order breakfast and lunch, manage the meal calendar, provider counts, change req
 
 ---
 
-**Next module:** [13 — Sales — EBA Platform](13-sales-eba.md)
+**Next module:** [13 — Sales — Business Assessment](13-sales-eba.md)
