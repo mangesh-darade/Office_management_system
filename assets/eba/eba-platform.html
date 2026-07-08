@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EBA Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <style>
+        :root {
+            --bg-light: #f4f6f9;
+            --card-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.05);
+            --bs-border-radius: 12px;
+            --sidebar-active: #0d6efd;
+            --accent-green: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #334155;
+            overflow-x: hidden;
+        }
+
+        /* Expanded Workspace Wrapper (No Left Sidebar) */
+        .main-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+            padding-bottom: 120px;
+        }
+
+        .premium-card {
+            background: #ffffff;
+            border: none;
+            border-radius: var(--bs-border-radius);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+        }
+
+        .accordion-item {
+            border: none;
+            background: transparent;
+            margin-bottom: 16px;
+        }
+
+        .accordion-button {
+            background-color: #ffffff !important;
+            border-radius: var(--bs-border-radius) !important;
+            box-shadow: var(--card-shadow) !important;
+            color: #1e293b !important;
+            font-weight: 600;
+            padding: 20px;
+        }
+
+        .accordion-button:not(.collapsed) {
+            border-bottom-left-radius: 0px !important;
+            border-bottom-right-radius: 0px !important;
+            color: var(--sidebar-active) !important;
+        }
+
+        .accordion-body {
+            background: #ffffff;
+            border-bottom-left-radius: var(--bs-border-radius);
+            border-bottom-right-radius: var(--bs-border-radius);
+            box-shadow: var(--card-shadow);
+            padding: 24px;
+        }
+
+        /* Progress Ring Styling */
+        .progress-circle {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent-green) 0% 0%, #e2e8f0 0% 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .progress-circle::before {
+            content: "";
+            position: absolute;
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background-color: #ffffff;
+        }
+
+        .progress-circle-inner {
+            position: relative;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #0f172a;
+            text-align: center;
+        }
+
+        /* Sticky Bottom Ribbon Dashboard Grid */
+        .sticky-dashboard {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.08);
+            z-index: 999;
+            padding: 12px 30px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .summary-box {
+            text-align: center;
+            padding: 4px 12px;
+            border-right: 1px solid #e2e8f0;
+            min-width: 100px;
+        }
+
+        .summary-box:last-child {
+            border-right: none;
+        }
+
+        .summary-box .val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+        }
+
+        .summary-box .lbl {
+            font-size: 0.72rem;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .form-label {
+            font-weight: 500;
+            font-size: 0.88rem;
+            color: #475569;
+        }
+
+        .form-control, .form-select {
+            border-color: #cbd5e1;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            border-radius: 8px;
+        }
+
+        /* Switch positioning adjustment in headers */
+        .accordion-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding-right: 20px;
+        }
+
+        .form-switch .form-check-input {
+            cursor: pointer;
+            width: 2.5em;
+            height: 1.25em;
+        }
+
+        @media print {
+            .sticky-dashboard, .btn, .accordion-button::after, .form-switch {
+                display: none !important;
+            }
+            .main-wrapper {
+                padding: 0 !important;
+            }
+            .accordion-collapse {
+                display: block !important;
+            }
+            .accordion-button {
+                background-color: #f1f5f9 !important;
+                color: #000 !important;
+                page-break-inside: avoid;
+            }
+            .premium-card, .accordion-item {
+                page-break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        
+        <header class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 pb-3 border-bottom bg-white p-4 rounded-3 shadow-sm gap-3">
+            <div>
+                <h1 class="h3 mb-1 fw-bold text-dark">EBA Platform</h1>
+                <p class="text-muted mb-0">Discover operational leakages and calculate your enterprise metrics instantly.</p>
+            </div>
+            <div class="d-flex align-items-center gap-3 align-self-end align-self-sm-center">
+                <div class="text-end">
+                    <span class="text-muted d-block small font-weight-bold">BUSINESS HEALTH SCORE</span>
+                    <strong class="text-dark fs-5" id="healthScoreTxt">72/100</strong>
+                </div>
+                <div class="progress-circle" id="healthScoreCircle">
+                    <div class="progress-circle-inner" id="healthScoreInner">72</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary" onclick="loadSampleData()"><i class="fa-solid fa-database me-2"></i>Load Sample Data</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="resetForm()"><i class="fa-solid fa-arrow-rotate-left me-2"></i>Reset</button>
+            </div>
+            <div>
+                <button type="button" class="btn btn-dark" onclick="window.print()"><i class="fa-solid fa-print me-2"></i>Print / Save Report</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-xl-8 col-lg-7">
+                <div class="accordion" id="roiAssessmentAccordion">
+
+                    <div class="accordion-item" id="section1">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true">
+                                <i class="fa-solid fa-building text-primary me-3"></i> 1. Company Information
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Company Name</label>
+                                        <input type="text" id="companyName" class="form-control" value="Acme Industries">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Industry Sector</label>
+                                        <select id="industryType" class="form-select">
+                                            <option value="Retail">Retail</option>
+                                            <option value="Restaurant">Restaurant</option>
+                                            <option value="Warehouse">Warehouse</option>
+                                            <option value="Manufacturing" selected>Manufacturing</option>
+                                            <option value="Distributor">Distributor</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Annual Turnover (₹)</label>
+                                        <input type="number" id="annualTurnover" class="form-control" value="50000000">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Total Employees</label>
+                                        <input type="number" id="companyEmployees" class="form-control" value="25">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Number of Branches</label>
+                                        <input type="number" id="companyBranches" class="form-control" value="3">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Current Software / Stack</label>
+                                        <select id="currentSoftware" class="form-select">
+                                            <option value="Excel">Excel / Manual Sheets</option>
+                                            <option value="Tally" selected>Tally</option>
+                                            <option value="ERP">Legacy Enterprise ERP</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section2">
+                        <div class="accordion-header d-flex align-items-center bg-white border rounded-3 position-relative shadow-sm">
+                            <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" style="box-shadow:none!important;">
+                                <i class="fa-solid fa-users text-primary me-3"></i> 2. Employee Productivity
+                            </button>
+                            <div class="form-check form-switch me-4 position-absolute end-0 top-50 translate-middle-y" style="z-index: 10;">
+                                <input class="form-check-input section-toggle" type="checkbox" id="toggleSec2" checked>
+                                <label class="form-check-label small text-muted d-none d-sm-inline ms-1" for="toggleSec2">Include</label>
+                            </div>
+                        </div>
+                        <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Productive Staff Count</label>
+                                        <input type="number" id="empCount" class="form-control" value="25">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Avg Monthly Salary (₹)</label>
+                                        <input type="number" id="empSalary" class="form-control" value="30000">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Working Days / Month</label>
+                                        <input type="number" id="empDays" class="form-control" value="26">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Working Hours / Day</label>
+                                        <input type="number" id="empHours" class="form-control" value="8">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Est. Daily Lost Mins / Employee</label>
+                                        <input type="number" id="empMinsLost" class="form-control" value="45">
+                                    </div>
+                                </div>
+                                <div class="mt-3 p-3 bg-light rounded-3">
+                                    <div class="row text-center">
+                                        <div class="col-6">
+                                            <span class="d-block text-muted small">Current Monthly Loss</span>
+                                            <strong class="text-danger" id="sec2Loss">₹0</strong>
+                                        </div>
+                                        <div class="col-6">
+                                            <span class="d-block text-muted small">Potential Savings</span>
+                                            <strong class="text-success" id="sec2Saving">₹0</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section3">
+                        <div class="accordion-header d-flex align-items-center bg-white border rounded-3 position-relative shadow-sm">
+                            <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" style="box-shadow:none!important;">
+                                <i class="fa-solid fa-boxes-stacked text-primary me-3"></i> 3. Inventory Management
+                            </button>
+                            <div class="form-check form-switch me-4 position-absolute end-0 top-50 translate-middle-y" style="z-index: 10;">
+                                <input class="form-check-input section-toggle" type="checkbox" id="toggleSec3" checked>
+                                <label class="form-check-label small text-muted d-none d-sm-inline ms-1" for="toggleSec3">Include</label>
+                            </div>
+                        </div>
+                        <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Total Stock / Inventory Value (₹)</label>
+                                        <input type="number" id="invValue" class="form-control" value="800000">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Current Accuracy %</label>
+                                        <input type="number" id="invCurrAcc" class="form-control" value="85">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Target Accuracy %</label>
+                                        <input type="number" id="invExpAcc" class="form-control" value="98">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Estimated Stock Loss %</label>
+                                        <input type="number" id="invLossPct" class="form-control" value="2">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Annual Expired Stock Value (₹)</label>
+                                        <input type="number" id="invExpired" class="form-control" value="120000">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section4">
+                        <div class="accordion-header d-flex align-items-center bg-white border rounded-3 position-relative shadow-sm">
+                            <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" style="box-shadow:none!important;">
+                                <i class="fa-solid fa-receipt text-primary me-3"></i> 4. Billing & POS Efficiency
+                            </button>
+                            <div class="form-check form-switch me-4 position-absolute end-0 top-50 translate-middle-y" style="z-index: 10;">
+                                <input class="form-check-input section-toggle" type="checkbox" id="toggleSec4" checked>
+                                <label class="form-check-label small text-muted d-none d-sm-inline ms-1" for="toggleSec4">Include</label>
+                            </div>
+                        </div>
+                        <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Invoices Issued / Month</label>
+                                        <input type="number" id="billingCount" class="form-control" value="1200">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Avg Loss Per Billing Error (₹)</label>
+                                        <input type="number" id="billingErrorVal" class="form-control" value="100">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Erroneous Discounts given / Month</label>
+                                        <input type="number" id="billingDiscounts" class="form-control" value="45">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section5">
+                        <div class="accordion-header d-flex align-items-center bg-white border rounded-3 position-relative shadow-sm">
+                            <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" style="box-shadow:none!important;">
+                                <i class="fa-solid fa-arrow-trend-up text-primary me-3"></i> 5. Sales Follow-Up Optimization
+                            </button>
+                            <div class="form-check form-switch me-4 position-absolute end-0 top-50 translate-middle-y" style="z-index: 10;">
+                                <input class="form-check-input section-toggle" type="checkbox" id="toggleSec5" checked>
+                                <label class="form-check-label small text-muted d-none d-sm-inline ms-1" for="toggleSec5">Include</label>
+                            </div>
+                        </div>
+                        <div id="collapseFive" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Leads / Enquiries Per Month</label>
+                                        <input type="number" id="salesLeads" class="form-control" value="200">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Current Conversion Rate (%)</label>
+                                        <input type="number" id="salesConv" class="form-control" value="18">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Average Deal Size (₹)</label>
+                                        <input type="number" id="salesAov" class="form-control" value="25000">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label">Estimated Untracked / Missed Follow-ups %</label>
+                                        <input type="number" id="salesMissed" class="form-control" value="20">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section6">
+                        <div class="accordion-header d-flex align-items-center bg-white border rounded-3 position-relative shadow-sm">
+                            <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" style="box-shadow:none!important;">
+                                <i class="fa-solid fa-cart-shopping text-primary me-3"></i> 6. Purchase Procurement & Leakage
+                            </button>
+                            <div class="form-check form-switch me-4 position-absolute end-0 top-50 translate-middle-y" style="z-index: 10;">
+                                <input class="form-check-input section-toggle" type="checkbox" id="toggleSec6" checked>
+                                <label class="form-check-label small text-muted d-none d-sm-inline ms-1" for="toggleSec6">Include</label>
+                            </div>
+                        </div>
+                        <div id="collapseSix" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Monthly Purchase Value (₹)</label>
+                                        <input type="number" id="purValue" class="form-control" value="5000000">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Estimated Procurement Overspend %</label>
+                                        <input type="number" id="purLeakage" class="form-control" value="3">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section7">
+                        <div class="accordion-header d-flex align-items-center bg-white border rounded-3 position-relative shadow-sm">
+                            <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSeven" style="box-shadow:none!important;">
+                                <i class="fa-solid fa-user-tie text-primary me-3"></i> 7. Leadership & Executive Overhead
+                            </button>
+                            <div class="form-check form-switch me-4 position-absolute end-0 top-50 translate-middle-y" style="z-index: 10;">
+                                <input class="form-check-input section-toggle" type="checkbox" id="toggleSec7" checked>
+                                <label class="form-check-label small text-muted d-none d-sm-inline ms-1" for="toggleSec7">Include</label>
+                            </div>
+                        </div>
+                        <div id="collapseSeven" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Hours Saved Per Day (Est.)</label>
+                                        <input type="number" id="ownerHoursSaved" class="form-control" value="2">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Value of 1 Hour (₹)</label>
+                                        <input type="number" id="ownerHourlyValue" class="form-control" value="2500">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item" id="section8">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEight">
+                                <i class="fa-solid fa-credit-card text-primary me-3"></i> 8. Software Investment Structure
+                            </button>
+                        </h2>
+                        <div id="collapseEight" class="accordion-collapse collapse" data-bs-parent="#roiAssessmentAccordion">
+                            <div class="accordion-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">One-Time Implementation (₹)</label>
+                                        <input type="number" id="costImplementation" class="form-control" value="50000">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Proposed Monthly Subscription (₹)</label>
+                                        <input type="number" id="costSubscription" class="form-control" value="20000">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="card premium-card border-start border-4 border-primary mt-4 p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold text-dark mb-0">
+                            <i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i> Executive Assessment Summary
+                        </h4>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
+                            High Operational Delta
+                        </span>
+                    </div>
+                    <p class="text-muted small">
+                        Comprehensive infrastructure diagnostics for <strong class="text-dark" id="summaryCompName">Acme Industries</strong> (<span id="summaryIndustry">Manufacturing</span>). Transitioning from your current setup (<span id="summarySoftware">Tally</span>) to ElintOm generates immediate bottom-line leak containment.
+                    </p>
+                    
+                    <hr class="my-3">
+
+                    <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-list-check text-success me-2"></i>Detailed Operational Breakdown & Key Takeaways</h5>
+                    <div class="row g-4">
+                        <div class="col-md-7">
+                            <table class="table table-bordered align-middle text-center small bg-white shadow-sm">
+                                <thead class="table-light text-secondary">
+                                    <tr>
+                                        <th class="text-start">Category</th>
+                                        <th>Current Loss (₹)</th>
+                                        <th>Potential Savings (₹)</th>
+                                        <th>Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="rowEmp">
+                                        <td class="text-start fw-medium">Employee Productivity</td>
+                                        <td id="tableEmpLoss">₹0</td>
+                                        <td id="tableEmpSave" class="text-success fw-bold">₹0</td>
+                                        <td><span class="badge bg-danger">High</span></td>
+                                    </tr>
+                                    <tr id="rowInv">
+                                        <td class="text-start fw-medium">Inventory Leakage</td>
+                                        <td id="tableInvLoss">₹0</td>
+                                        <td id="tableInvSave" class="text-success fw-bold">₹0</td>
+                                        <td><span class="badge bg-danger">High</span></td>
+                                    </tr>
+                                    <tr id="rowBill">
+                                        <td class="text-start fw-medium">Billing Errors</td>
+                                        <td id="tableBillLoss">₹0</td>
+                                        <td id="tableBillSave" class="text-success fw-bold">₹0</td>
+                                        <td><span class="badge bg-warning text-dark">Medium</span></td>
+                                    </tr>
+                                    <tr id="rowSales">
+                                        <td class="text-start fw-medium">Sales Follow-up</td>
+                                        <td id="tableSalesLoss">₹0</td>
+                                        <td id="tableSalesSave" class="text-success fw-bold">₹0</td>
+                                        <td><span class="badge bg-danger">High</span></td>
+                                    </tr>
+                                    <tr id="rowPur">
+                                        <td class="text-start fw-medium">Purchase Leakage</td>
+                                        <td id="tablePurLoss">₹0</td>
+                                        <td id="tablePurSave" class="text-success fw-bold">₹0</td>
+                                        <td><span class="badge bg-danger">High</span></td>
+                                    </tr>
+                                    <tr id="rowOwner">
+                                        <td class="text-start fw-medium">Owner / Management Time</td>
+                                        <td id="tableOwnerLoss">₹0</td>
+                                        <td id="tableOwnerSave" class="text-success fw-bold">₹0</td>
+                                        <td><span class="badge bg-warning text-dark">Medium</span></td>
+                                    </tr>
+                                    <tr class="table-light fw-bold text-dark">
+                                        <td class="text-start">Total Active</td>
+                                        <td id="tableTotalLoss">₹0</td>
+                                        <td id="tableTotalSave" class="text-success">₹0</td>
+                                        <td>—</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="p-3 border rounded-3 bg-light h-100">
+                                <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-star text-warning me-2"></i>Key Takeaways</h6>
+                                <ul class="list-unstyled small d-flex flex-column gap-2 text-dark">
+                                    <li class="d-flex align-items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-success mt-1"></i>
+                                        <div>You can save <strong id="takeawayMo">₹0</strong> every single month.</div>
+                                    </li>
+                                    <li class="d-flex align-items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-success mt-1"></i>
+                                        <div>Annualized cumulative savings of <strong id="takeawayYr">₹0</strong> with ElintOm ecosystem integration.</div>
+                                    </li>
+                                    <li class="d-flex align-items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-success mt-1"></i>
+                                        <div>Full payback achieved in just <strong id="takeawayPayback">0.0 months</strong>.</div>
+                                    </li>
+                                    <li class="d-flex align-items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-success mt-1"></i>
+                                        <div>Radically minimize manual lookups and entry mistakes.</div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-xl-4 col-lg-5">
+                <div class="card premium-card p-3 mb-4">
+                    <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-pie text-primary me-2"></i>Savings Allocation Structure</h5>
+                    <div style="position: relative; height:240px; width:100%">
+                        <canvas id="doughnutChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card premium-card p-3 mb-4">
+                    <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-bar text-primary me-2"></i>Leakage Profile Comparison</h5>
+                    <div style="position: relative; height:220px; width:100%">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="sticky-dashboard d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center flex-grow-1 overflow-x-auto py-1">
+            <div class="summary-box">
+                <div class="val text-success" id="lblTotalMonthlySaving">₹0</div>
+                <div class="lbl text-success fw-bold">Net Mo. Savings</div>
+            </div>
+            <div class="summary-box">
+                <div class="val text-dark" id="lblAnnualSaving">₹0</div>
+                <div class="lbl">Annual Value</div>
+            </div>
+            <div class="summary-box">
+                <div class="val text-primary" id="lblRoi">0%</div>
+                <div class="lbl">ROI %</div>
+            </div>
+            <div class="summary-box">
+                <div class="val text-secondary" id="lblPayback">0 Mo</div>
+                <div class="lbl">Payback Period</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let doughnutChartObj = null;
+        let barChartObj = null;
+
+        function formatINR(val) {
+            return "₹" + Math.round(val).toLocaleString('en-IN');
+        }
+
+        function performAssessmentCalculations() {
+            // Read Section Enable Toggles
+            const includeEmp = document.getElementById('toggleSec2').checked;
+            const includeInv = document.getElementById('toggleSec3').checked;
+            const includeBill = document.getElementById('toggleSec4').checked;
+            const includeSales = document.getElementById('toggleSec5').checked;
+            const includePur = document.getElementById('toggleSec6').checked;
+            const includeOwner = document.getElementById('toggleSec7').checked;
+
+            // Visual Table striking styling updates
+            document.getElementById('rowEmp').style.opacity = includeEmp ? "1" : "0.4";
+            document.getElementById('rowInv').style.opacity = includeInv ? "1" : "0.4";
+            document.getElementById('rowBill').style.opacity = includeBill ? "1" : "0.4";
+            document.getElementById('rowSales').style.opacity = includeSales ? "1" : "0.4";
+            document.getElementById('rowPur').style.opacity = includePur ? "1" : "0.4";
+            document.getElementById('rowOwner').style.opacity = includeOwner ? "1" : "0.4";
+
+            // Extraction values
+            const empCount = parseFloat(document.getElementById('empCount').value) || 0;
+            const empSalary = parseFloat(document.getElementById('empSalary').value) || 0;
+            const empDays = parseFloat(document.getElementById('empDays').value) || 26;
+            const empHours = parseFloat(document.getElementById('empHours').value) || 8;
+            const empMinsLost = parseFloat(document.getElementById('empMinsLost').value) || 0;
+
+            const invValue = parseFloat(document.getElementById('invValue').value) || 0;
+            const invCurrAcc = parseFloat(document.getElementById('invCurrAcc').value) || 0;
+            const invExpAcc = parseFloat(document.getElementById('invExpAcc').value) || 98;
+            const invLossPct = parseFloat(document.getElementById('invLossPct').value) || 0;
+            const invExpired = parseFloat(document.getElementById('invExpired').value) || 0;
+
+            const billingCount = parseFloat(document.getElementById('billingCount').value) || 0;
+            const billingErrorVal = parseFloat(document.getElementById('billingErrorVal').value) || 0;
+            const billingDiscounts = parseFloat(document.getElementById('billingDiscounts').value) || 0;
+
+            const salesLeads = parseFloat(document.getElementById('salesLeads').value) || 0;
+            const salesConv = parseFloat(document.getElementById('salesConv').value) || 0;
+            const salesAov = parseFloat(document.getElementById('salesAov').value) || 0;
+            const salesMissed = parseFloat(document.getElementById('salesMissed').value) || 0;
+
+            const purValue = parseFloat(document.getElementById('purValue').value) || 0;
+            const purLeakage = parseFloat(document.getElementById('purLeakage').value) || 0;
+
+            const ownerHoursSaved = parseFloat(document.getElementById('ownerHoursSaved').value) || 0;
+            const ownerHourlyValue = parseFloat(document.getElementById('ownerHourlyValue').value) || 0;
+
+            const costImplementation = parseFloat(document.getElementById('costImplementation').value) || 0;
+            const costSubscription = parseFloat(document.getElementById('costSubscription').value) || 0;
+
+            // Calculations applying conditionally
+            const hourlyRate = (empSalary / empDays) / empHours;
+            const empMonthlyLoss = includeEmp ? ((empCount * empMinsLost * empDays / 60) * hourlyRate) : 0;
+            const empSaving = empMonthlyLoss * 0.60;
+
+            const invMonthlyLoss = includeInv ? ((invValue * (invLossPct / 100)) + (invExpired / 12)) : 0;
+            const invSaving = invMonthlyLoss * ((invExpAcc - invCurrAcc) / 100 || 0.75);
+
+            const billMonthlyLoss = includeBill ? ((billingCount * billingErrorVal) + (billingDiscounts * 150)) : 0;
+            const billSaving = billMonthlyLoss * 0.50;
+
+            const salesMonthlyLoss = includeSales ? ((salesLeads * (salesMissed / 100)) * salesAov * (salesConv / 100)) : 0;
+            const salesSaving = salesMonthlyLoss * 0.60; 
+
+            const purMonthlyLoss = includePur ? (purValue * (purLeakage / 100)) : 0;
+            const purSaving = purMonthlyLoss * 0.60;
+
+            const ownerMonthlyLoss = includeOwner ? ((ownerHoursSaved * ownerHourlyValue) * 22) : 0;
+            const ownerSaving = ownerMonthlyLoss * 0.75;
+
+            // Totals
+            const totalLoss = empMonthlyLoss + invMonthlyLoss + billMonthlyLoss + salesMonthlyLoss + purMonthlyLoss + ownerMonthlyLoss;
+            const totalMonthlySaving = empSaving + invSaving + billSaving + salesSaving + purSaving + ownerSaving;
+            const totalAnnualSaving = totalMonthlySaving * 12;
+            const netMonthlyBenefit = Math.max(0, totalMonthlySaving - costSubscription);
+            
+            const roiPercent = costSubscription > 0 ? ((netMonthlyBenefit / costSubscription) * 100) : 0;
+            const paybackPeriodMonths = totalMonthlySaving > 0 ? (costImplementation / totalMonthlySaving) : 0;
+
+            // Health Calculation based only on items included
+            let pointsDeducted = 0;
+            if (includeEmp) pointsDeducted += (empMinsLost * 0.4);
+            if (includeInv) pointsDeducted += (100 - invCurrAcc);
+            let structuralHealthScore = Math.max(20, Math.min(96, 100 - pointsDeducted));
+
+            // UI updates
+            document.getElementById('sec2Loss').innerText = formatINR(empMonthlyLoss);
+            document.getElementById('sec2Saving').innerText = formatINR(empSaving);
+
+            document.getElementById('tableEmpLoss').innerText = formatINR(empMonthlyLoss);
+            document.getElementById('tableEmpSave').innerText = formatINR(empSaving);
+            document.getElementById('tableInvLoss').innerText = formatINR(invMonthlyLoss);
+            document.getElementById('tableInvSave').innerText = formatINR(invSaving);
+            document.getElementById('tableBillLoss').innerText = formatINR(billMonthlyLoss);
+            document.getElementById('tableBillSave').innerText = formatINR(billSaving);
+            document.getElementById('tableSalesLoss').innerText = formatINR(salesMonthlyLoss);
+            document.getElementById('tableSalesSave').innerText = formatINR(salesSaving);
+            document.getElementById('tablePurLoss').innerText = formatINR(purMonthlyLoss);
+            document.getElementById('tablePurSave').innerText = formatINR(purSaving);
+            document.getElementById('tableOwnerLoss').innerText = formatINR(ownerMonthlyLoss);
+            document.getElementById('tableOwnerSave').innerText = formatINR(ownerSaving);
+            document.getElementById('tableTotalLoss').innerText = formatINR(totalLoss);
+            document.getElementById('tableTotalSave').innerText = formatINR(totalMonthlySaving);
+
+            document.getElementById('takeawayMo').innerText = formatINR(totalMonthlySaving);
+            document.getElementById('takeawayYr').innerText = formatINR(totalAnnualSaving);
+            document.getElementById('takeawayPayback').innerText = paybackPeriodMonths.toFixed(1) + " months";
+
+            document.getElementById('lblTotalMonthlySaving').innerText = formatINR(netMonthlyBenefit);
+            document.getElementById('lblAnnualSaving').innerText = formatINR(totalAnnualSaving);
+            document.getElementById('lblRoi').innerText = Math.round(roiPercent) + "%";
+            document.getElementById('lblPayback').innerText = paybackPeriodMonths.toFixed(1) + " Mo";
+
+            document.getElementById('healthScoreTxt').innerText = Math.round(structuralHealthScore) + "/100";
+            document.getElementById('healthScoreInner').innerText = Math.round(structuralHealthScore);
+            document.getElementById('healthScoreCircle').style.background = `conic-gradient(#10b981 ${structuralHealthScore}%, #e2e8f0 ${structuralHealthScore}% 100%)`;
+
+            document.getElementById('summaryCompName').innerText = document.getElementById('companyName').value || 'The Client';
+            document.getElementById('summaryIndustry').innerText = document.getElementById('industryType').value;
+            document.getElementById('summarySoftware').innerText = document.getElementById('currentSoftware').value;
+
+            renderOperationalCharts(empSaving, invSaving, billSaving, salesSaving, purSaving, ownerSaving, empMonthlyLoss, billMonthlyLoss);
+        }
+
+        function renderOperationalCharts(emp, inv, bill, sales, pur, owner, rawEmp, rawBill) {
+            const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+            if(doughnutChartObj) { doughnutChartObj.destroy(); }
+            
+            // Build dataset array only using entries with positive values to keep graph clean
+            doughnutChartObj = new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Staff Prod.', 'Inventory', 'POS Errors', 'Sales Delta', 'Procurement', 'Executive Mgmt.'],
+                    datasets: [{
+                        data: [emp, inv, bill, sales, pur, owner],
+                        backgroundColor: ['#0d6efd', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#64748b']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } } }
+            });
+
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            if(barChartObj) { barChartObj.destroy(); }
+            barChartObj = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Staff Leakage', 'Billing Errors'],
+                    datasets: [
+                        { label: 'Current State', data: [rawEmp, rawBill], backgroundColor: '#ef4444' },
+                        { label: 'With ElintOm', data: [rawEmp - emp, rawBill - bill], backgroundColor: '#10b981' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function loadSampleData() {
+            document.getElementById('companyName').value = "Sateri Industries";
+            document.getElementById('empCount').value = 30;
+            document.getElementById('invValue').value = 1500000;
+            document.getElementById('salesLeads').value = 450;
+            document.getElementById('purValue').value = 6500000;
+            performAssessmentCalculations();
+        }
+
+        function resetForm() {
+            document.querySelectorAll('input[type="number"]').forEach(input => input.value = input.defaultValue || 0);
+            document.querySelectorAll('.section-toggle').forEach(checkbox => checkbox.checked = true);
+            performAssessmentCalculations();
+        }
+
+        // Attach global event binding listeners
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', performAssessmentCalculations);
+            el.addEventListener('change', performAssessmentCalculations);
+        });
+
+        window.onload = function() { performAssessmentCalculations(); };
+    </script>
+</body>
+</html>

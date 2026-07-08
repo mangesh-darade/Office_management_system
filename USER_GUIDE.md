@@ -18,7 +18,9 @@ Detailed guides with screenshots live in [`docs/user-guide/`](docs/user-guide/).
 | 08 | Finance | [docs/user-guide/08-finance.md](docs/user-guide/08-finance.md) |
 | 09 | Training & Coaching | [docs/user-guide/09-training-coaching.md](docs/user-guide/09-training-coaching.md) |
 | 10 | Administration | [docs/user-guide/10-administration.md](docs/user-guide/10-administration.md) |
-| 11 | Office Meals | [docs/user-guide/12-office-meals.md](docs/user-guide/12-office-meals.md) |
+| 11 | Engagement & Rewards | [docs/user-guide/11-engagement-rewards.md](docs/user-guide/11-engagement-rewards.md) |
+| 12 | Office Meals | [docs/user-guide/12-office-meals.md](docs/user-guide/12-office-meals.md) |
+| 13 | Sales — EBA Platform | [docs/user-guide/13-sales-eba.md](docs/user-guide/13-sales-eba.md) |
 
 ## Maintain the guide
 

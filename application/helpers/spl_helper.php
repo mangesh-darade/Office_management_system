@@ -658,7 +658,13 @@ if (!function_exists('spl_get_user_shift')) {
 
 if (!function_exists('spl_classify_checkin_tier')) {
     /**
-     * @return string on_time|late|very_late
+     * Matrix:
+     * - on_time: first punch <= Shift Start + 5 minutes
+     * - late: first punch after Grace Period and before 11:00 AM
+     * - very_late: first punch >= 11:00 AM
+     * - null: between (Shift Start + 5) and Grace Period (no allot / no deduct)
+     *
+     * @return string|null on_time|late|very_late|null
      */
     function spl_classify_checkin_tier($shift, $checkInDateTime, $date)
     {
@@ -668,6 +674,7 @@ if (!function_exists('spl_classify_checkin_tier')) {
             return 'very_late';
         }
         if (!$shift || empty($shift->start_time)) {
+            // Without shift config, treat pre-11:00 as late (0 pts) per matrix late band.
             return 'late';
         }
         $shiftStart = new DateTime($date . ' ' . $shift->start_time);
@@ -677,19 +684,34 @@ if (!function_exists('spl_classify_checkin_tier')) {
             return 'on_time';
         }
         $graceMinutes = isset($shift->late_grace_period) ? (int) $shift->late_grace_period : 0;
+        if ($graceMinutes < 0) {
+            $graceMinutes = 0;
+        }
         $graceCutoff = clone $shiftStart;
         if ($graceMinutes > 0) {
             $graceCutoff->add(new DateInterval('PT' . $graceMinutes . 'M'));
         }
-        if ($checkIn > $graceCutoff) {
-            return 'late';
+        // Keep on-time band (+5) as floor when grace is smaller than 5 minutes.
+        if ($graceCutoff < $onTimeCutoff) {
+            $graceCutoff = clone $onTimeCutoff;
         }
+        // After +5 mins but still inside grace: no late allotment yet.
+        if ($checkIn <= $graceCutoff) {
+            return null;
+        }
+        // After grace and before 11:00 AM.
         return 'late';
     }
 }
 
 if (!function_exists('spl_classify_checkout_tier')) {
     /**
+     * Matrix:
+     * - early_valid: last punch between 5:00 PM and Shift End (inclusive)
+     * - complete_shift: last punch after Shift End
+     * - perfect: on-time check-in AND last punch after Shift End
+     *   (replaces separate On-Time + Complete Shift awards)
+     *
      * @return string|null perfect|complete_shift|early_valid
      */
     function spl_classify_checkout_tier($shift, $checkInDateTime, $checkOutDateTime, $date, $checkInTier)
@@ -700,11 +722,15 @@ if (!function_exists('spl_classify_checkout_tier')) {
         $checkOut = new DateTime($checkOutDateTime);
         $earlyValidStart = new DateTime($date . ' 17:00:00');
         if (!$shift || empty($shift->end_time)) {
-            if ($checkInTier === 'on_time' && $checkOut >= $earlyValidStart) {
+            // Fallback when shift end missing: treat post-5PM as complete / perfect.
+            if ($checkInTier === 'on_time' && $checkOut > $earlyValidStart) {
                 return 'perfect';
             }
-            if ($checkOut >= $earlyValidStart) {
+            if ($checkOut > $earlyValidStart) {
                 return 'complete_shift';
+            }
+            if ($checkOut >= $earlyValidStart) {
+                return 'early_valid';
             }
             return null;
         }
@@ -766,12 +792,16 @@ if (!function_exists('spl_award_attendance_points')) {
         $shift = spl_get_user_shift($CI->db, $user_id);
 
         if ($action === 'in') {
+            // Immediate: Late (+0) / Very Late (-10).
+            // On-Time (+20) is deferred until checkout so Perfect Attendance (30)
+            // can replace On-Time + Complete Shift instead of stacking.
             $tier = spl_classify_checkin_tier($shift, $occurred_at, $date);
             if ($tier === 'very_late') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkin', 'Very Late Check-In', array('attendance_tier' => 'very_late'));
             } elseif ($tier === 'late') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkin', 'Late Check-In', array('attendance_tier' => 'late'));
             }
+            // Next working day: check previous working-day missed checkout (-10).
             if (function_exists('rewards_automation_after_checkin')) {
                 rewards_automation_after_checkin($CI->db, $user_id);
             }
@@ -795,6 +825,7 @@ if (!function_exists('spl_award_attendance_points')) {
             $checkInTier = spl_classify_checkin_tier($shift, $times['cin'], $date);
             $checkoutTier = spl_classify_checkout_tier($shift, $times['cin'], $times['cout'], $date, $checkInTier);
             if ($checkoutTier === 'perfect') {
+                // Award Perfect (30) instead of On-Time (20) + Complete Shift (20).
                 spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Perfect Attendance', array('checkout_tier' => 'perfect'));
                 return;
             }
@@ -803,7 +834,8 @@ if (!function_exists('spl_award_attendance_points')) {
             } elseif ($checkoutTier === 'early_valid') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Early Valid Check-Out', array('checkout_tier' => 'early_valid'));
             }
-            if ($checkInTier === 'on_time' && $checkoutTier !== 'complete_shift') {
+            // On-Time only when Perfect was NOT awarded (covers early-valid / no checkout tier).
+            if ($checkInTier === 'on_time') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkin', 'On-Time Check-In', array('attendance_tier' => 'on_time'));
             }
         }

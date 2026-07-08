@@ -11,15 +11,20 @@ $has_subscription_builder = function_exists('has_module_access') && (
 $has_elintom_proposals = function_exists('has_module_access') && (
     has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list')
 );
+$has_eba_platform = function_exists('has_module_access') && (
+    has_module_access('eba_platform') || has_module_access('eba_platform_list')
+);
 
-if (!$has_subscription_builder && !$has_elintom_proposals) {
+if (!$has_subscription_builder && !$has_elintom_proposals && !$has_eba_platform) {
     return;
 }
 
-$sales_nav_active = in_array($active, array('subscription-builder', 'elintom-proposals'), true);
+$sales_nav_active = in_array($active, array('subscription-builder', 'elintom-proposals', 'eba-platform'), true);
 $sales_parent_href = site_url('subscription-builder');
 if (!$has_subscription_builder && $has_elintom_proposals) {
     $sales_parent_href = site_url('elintom-proposals');
+} elseif (!$has_subscription_builder && !$has_elintom_proposals && $has_eba_platform) {
+    $sales_parent_href = site_url('eba-platform');
 }
 
 if ($variant === 'mobile'):
@@ -35,6 +40,9 @@ if ($variant === 'mobile'):
       <?php endif; ?>
       <?php if ($has_elintom_proposals): ?>
       <a class="nav-link sidebar-link small <?php echo $active === 'elintom-proposals' ? 'active' : ''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
+      <?php endif; ?>
+      <?php if ($has_eba_platform): ?>
+      <a class="nav-link sidebar-link small <?php echo $active === 'eba-platform' ? 'active' : ''; ?>" href="<?php echo site_url('eba-platform'); ?>"><i class="bi bi-graph-up-arrow me-2"></i>EBA Platform</a>
       <?php endif; ?>
     </div>
   </div>
@@ -54,6 +62,9 @@ if ($variant === 'mobile'):
       <?php endif; ?>
       <?php if ($has_elintom_proposals): ?>
       <a class="submenu-link <?php echo $active === 'elintom-proposals' ? 'active' : ''; ?>" href="<?php echo site_url('elintom-proposals'); ?>"><i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals</a>
+      <?php endif; ?>
+      <?php if ($has_eba_platform): ?>
+      <a class="submenu-link <?php echo $active === 'eba-platform' ? 'active' : ''; ?>" href="<?php echo site_url('eba-platform'); ?>"><i class="bi bi-graph-up-arrow me-2"></i>EBA Platform</a>
       <?php endif; ?>
     </div>
   </div>

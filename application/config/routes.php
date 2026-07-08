@@ -410,6 +410,9 @@ $route['subscription-builder/quote-save'] = 'subscription_builder/quote_save';
 $route['elintom-proposals'] = 'elintom_proposals/index';
 $route['elintom-proposals/(:num)/download'] = 'elintom_proposals/download/$1';
 
+// EBA Platform (static ROI assessment — client-side only)
+$route['eba-platform'] = 'eba_platform/index';
+
 // Announcements
 $route['announcements'] = 'announcements/index';
 $route['announcements/create'] = 'announcements/create';

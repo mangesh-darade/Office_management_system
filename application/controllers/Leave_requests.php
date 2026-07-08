@@ -552,6 +552,7 @@ class Leave_requests extends CI_Controller {
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
         $approved_by = (int)$this->session->userdata('user_id');
+        $this->load->helper('rewards_automation');
 
         $this->load->model('Approval_model');
         
@@ -574,6 +575,7 @@ class Leave_requests extends CI_Controller {
                 $this->leaves->update_status($id, 'approved');
                 $this->leaves->add_approval_log($id, 'approved', $comments, $approved_by); // Keep legacy log
                 leave_requests_notify_change($id, 'approved', $comments);
+                rewards_automation_on_leave_approved($this->db, $id, $approved_by);
             } elseif ($result === 'pending_next_approval') {
                 // Moved to next step
                 // Ideally update 'current_approver_id' but complex to find who that is without logic
@@ -583,6 +585,7 @@ class Leave_requests extends CI_Controller {
             // Legacy Logic
             $ok = $this->leaves->approve_reject_leave($id, 'lead_approved', $comments, $approved_by);
             leave_requests_notify_change($id, 'approved', $comments);
+            rewards_automation_on_leave_approved($this->db, $id, $approved_by);
         }
 
         $success_msg = get_notification_message('leave_requests', 'approve', 'success');
@@ -597,6 +600,7 @@ class Leave_requests extends CI_Controller {
         $id = (int)$id;
         $comments = trim((string)$this->input->post('comments'));
         $approved_by = (int)$this->session->userdata('user_id');
+        $this->load->helper('rewards_automation');
 
         $this->load->model('Approval_model');
         
@@ -615,11 +619,13 @@ class Leave_requests extends CI_Controller {
             $this->leaves->update_status($id, 'rejected');
             $this->leaves->add_approval_log($id, 'rejected', $comments, $approved_by);
             leave_requests_notify_change($id, 'rejected', $comments);
+            rewards_automation_on_leave_rejected($this->db, $id, $approved_by);
 
         } else {
             // Legacy Logic
             $ok = $this->leaves->approve_reject_leave($id, 'rejected', $comments, $approved_by);
             leave_requests_notify_change($id, 'rejected', $comments);
+            rewards_automation_on_leave_rejected($this->db, $id, $approved_by);
         }
 
         $success_msg = get_notification_message('leave_requests', 'reject', 'success');

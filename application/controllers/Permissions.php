@@ -339,6 +339,8 @@ class Permissions extends CI_Controller {
                     'subscription_builder_list'  => 'View Subscription Builder Catalog',
                     'elintom_proposals'          => 'ElintOm Proposals (Full Access)',
                     'elintom_proposals_list'     => 'View ElintOm Proposals',
+                    'eba_platform'               => 'EBA Platform (Full Access)',
+                    'eba_platform_list'          => 'View EBA Platform',
                     'payroll'              => 'Payroll (Full Access)',
                     'payroll_view'         => 'View Own Payslips',
                     'payroll_manage'       => 'Manage Salary Structures & Generate Payslips',

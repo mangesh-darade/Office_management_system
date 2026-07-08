@@ -42,6 +42,7 @@ Pinned in `application/views/partials/header.php` and `footer.php`:
 | jQuery | 3.7.1 | code.jquery.com |
 | DataTables | 2.0.7 | cdn.datatables.net |
 | DataTables Responsive | 3.0.2 | cdn.datatables.net |
+| Chart.js (EBA Platform) | 4.4.1 | jsDelivr (`assets/eba/eba-platform.html`) |
 
 Module CSS/JS: `assets/css/`, `assets/js/`.
 

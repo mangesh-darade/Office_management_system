@@ -376,14 +376,35 @@ if (!function_exists('rewards_automation_leave_timely_cutoff')) {
     {
         $cutoff = '09:00:00';
         if ($db->table_exists('settings')) {
-            $row = $db->select('setting_value')
-                ->from('settings')
-                ->where('setting_key', 'spl_leave_timely_cutoff')
-                ->limit(1)
-                ->get()
-                ->row();
-            if ($row && trim((string) $row->setting_value) !== '') {
-                $cutoff = trim((string) $row->setting_value);
+            $CI =& get_instance();
+            if (!function_exists('schema_table_has_column')) {
+                $CI->load->helper('schema_columns');
+            }
+
+            $key_column = null;
+            $value_column = null;
+            if (schema_table_has_column($db, 'settings', 'key')) {
+                $key_column = 'key';
+            } elseif (schema_table_has_column($db, 'settings', 'setting_key')) {
+                $key_column = 'setting_key';
+            }
+
+            if (schema_table_has_column($db, 'settings', 'value')) {
+                $value_column = 'value';
+            } elseif (schema_table_has_column($db, 'settings', 'setting_value')) {
+                $value_column = 'setting_value';
+            }
+
+            if ($key_column !== null && $value_column !== null) {
+                $row = $db->select($value_column)
+                    ->from('settings')
+                    ->where($key_column, 'spl_leave_timely_cutoff')
+                    ->limit(1)
+                    ->get()
+                    ->row();
+                if ($row && isset($row->{$value_column}) && trim((string) $row->{$value_column}) !== '') {
+                    $cutoff = trim((string) $row->{$value_column});
+                }
             }
         }
         if (preg_match('/^\d{1,2}:\d{2}$/', $cutoff)) {
