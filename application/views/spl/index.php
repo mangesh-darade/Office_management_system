@@ -1,8 +1,11 @@
 <?php
-$this->load->view('partials/header', array(
-    'title' => 'SPL — My Reward',
-    'extra_css' => array('assets/css/spl.css'),
-));
+$embed = !empty($embed);
+if (!$embed) {
+    $this->load->view('partials/header', array(
+        'title' => 'SPL — My Reward',
+        'extra_css' => array('assets/css/spl.css'),
+    ));
+}
 $levelName = $level ? $level->name : ucfirst($summary->current_level_code);
 $levelColor = $level ? $level->badge_color : '#6c757d';
 $csrf_name = $this->security->get_csrf_token_name();
@@ -18,6 +21,7 @@ $reward_period_options = array(
 );
 ?>
 
+<?php if (!$embed): ?>
 <div class="container-fluid py-2 spl-page spl-index-page">
   <div class="spl-index-hero">
     <div class="spl-index-hero-main">
@@ -26,10 +30,13 @@ $reward_period_options = array(
     </div>
     <div class="spl-index-hero-actions">
       <?php if (!empty($can_groups)): ?>
-      <a class="btn btn-outline-light btn-sm" href="<?php echo site_url('spl/groups'); ?>"><i class="bi bi-collection me-1"></i>Groups</a>
+      <a class="btn btn-outline-light btn-sm" href="<?php echo spl_dashboard_url('groups'); ?>"><i class="bi bi-collection me-1"></i>Groups</a>
       <?php endif; ?>
     </div>
   </div>
+<?php else: ?>
+<div class="spl-embed-pane spl-page spl-index-page">
+<?php endif; ?>
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success py-2 mt-3 mb-0"><?php echo esc_view((string) $this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></div>
@@ -38,6 +45,7 @@ $reward_period_options = array(
     <div class="alert alert-danger py-2 mt-3 mb-0"><?php echo esc_view((string) $this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
   <?php endif; ?>
 
+  <?php if (!$embed): ?>
   <ul class="nav nav-pills spl-index-tabs mt-2" role="tablist">
     <?php if (!empty($can_my_reward)): ?>
     <li class="nav-item">
@@ -78,9 +86,10 @@ $reward_period_options = array(
     </li>
     <?php endif; ?>
   </ul>
+  <?php endif; ?>
 
-  <div class="tab-content mt-2">
-    <?php if (!empty($can_my_reward)): ?>
+  <?php if (!$embed): ?><div class="tab-content mt-2"><?php endif; ?>
+    <?php if (!empty($can_my_reward) && (!$embed || $active_tab === 'my-reward')): ?>
     <div class="tab-pane fade <?php echo $active_tab === 'my-reward' ? 'show active' : ''; ?>" id="spl-tab-my-reward">
       <div class="spl-stat-grid mb-2">
         <div class="spl-stat-tile">
@@ -115,7 +124,7 @@ $reward_period_options = array(
             </div>
             <div class="spl-reward-period-tabs" role="tablist" aria-label="Activity period">
               <?php foreach ($reward_period_options as $periodKey => $periodLabel): ?>
-              <a class="spl-reward-period-tab<?php echo $reward_period === $periodKey ? ' is-active' : ''; ?>" href="<?php echo site_url('spl?tab=my-reward&reward_period=' . urlencode($periodKey)); ?>">
+              <a class="spl-reward-period-tab<?php echo $reward_period === $periodKey ? ' is-active' : ''; ?>" href="<?php echo spl_dashboard_url('my-reward', array('reward_period' => $periodKey)); ?>">
                 <?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?>
               </a>
               <?php endforeach; ?>
@@ -196,7 +205,7 @@ $reward_period_options = array(
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($can_submit)): ?>
+    <?php if (!empty($can_submit) && (!$embed || $active_tab === 'activity')): ?>
     <div class="tab-pane fade <?php echo $active_tab === 'activity' ? 'show active' : ''; ?>" id="spl-tab-activity">
       <div class="spl-panel-card spl-submit-card">
         <div class="spl-panel-head">
@@ -252,7 +261,7 @@ $reward_period_options = array(
     </div>
     <?php endif; ?>
 
-        <?php if (!empty($can_approve)): ?>
+    <?php if (!empty($can_approve) && (!$embed || $active_tab === 'approvals')): ?>
     <div class="tab-pane fade <?php echo $active_tab === 'approvals' ? 'show active' : ''; ?>" id="spl-tab-approvals">
       <?php
       $approval_view = isset($approval_view) ? $approval_view : 'pending';
@@ -269,13 +278,13 @@ $reward_period_options = array(
       }
       ?>
       <div class="spl-approval-view-tabs mb-2">
-        <a class="spl-approval-view-tab<?php echo $approval_view === 'pending' ? ' is-active' : ''; ?>" href="<?php echo site_url('spl?tab=approvals&approval_view=pending'); ?>">
+        <a class="spl-approval-view-tab<?php echo $approval_view === 'pending' ? ' is-active' : ''; ?>" href="<?php echo spl_dashboard_url('approvals', array('approval_view' => 'pending')); ?>">
           Pending<?php if (!empty($approval_counts['pending'])): ?> <span class="badge rounded-pill text-bg-danger"><?php echo (int) $approval_counts['pending']; ?></span><?php endif; ?>
         </a>
-        <a class="spl-approval-view-tab<?php echo $approval_view === 'approved' ? ' is-active' : ''; ?>" href="<?php echo site_url('spl?tab=approvals&approval_view=approved'); ?>">
+        <a class="spl-approval-view-tab<?php echo $approval_view === 'approved' ? ' is-active' : ''; ?>" href="<?php echo spl_dashboard_url('approvals', array('approval_view' => 'approved')); ?>">
           Approved<?php if (!empty($approval_counts['approved'])): ?> <span class="badge rounded-pill text-bg-success"><?php echo (int) $approval_counts['approved']; ?></span><?php endif; ?>
         </a>
-        <a class="spl-approval-view-tab<?php echo $approval_view === 'rejected' ? ' is-active' : ''; ?>" href="<?php echo site_url('spl?tab=approvals&approval_view=rejected'); ?>">
+        <a class="spl-approval-view-tab<?php echo $approval_view === 'rejected' ? ' is-active' : ''; ?>" href="<?php echo spl_dashboard_url('approvals', array('approval_view' => 'rejected')); ?>">
           Rejected<?php if (!empty($approval_counts['rejected'])): ?> <span class="badge rounded-pill text-bg-secondary"><?php echo (int) $approval_counts['rejected']; ?></span><?php endif; ?>
         </a>
       </div>
@@ -363,7 +372,7 @@ $reward_period_options = array(
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($can_levels)): ?>
+    <?php if (!empty($can_levels) && (!$embed || $active_tab === 'levels')): ?>
     <div class="tab-pane fade <?php echo $active_tab === 'levels' ? 'show active' : ''; ?>" id="spl-tab-levels">
       <div class="spl-panel-card">
         <div class="spl-panel-head spl-levels-panel-head">
@@ -439,7 +448,7 @@ $reward_period_options = array(
     </div>
     <?php endif; ?>
 
-    <?php if (!empty($can_rules)): ?>
+    <?php if (!empty($can_rules) && (!$embed || $active_tab === 'rules')): ?>
     <div class="tab-pane fade <?php echo $active_tab === 'rules' ? 'show active' : ''; ?>" id="spl-tab-rules">
       <div class="spl-panel-card">
         <div class="spl-panel-head spl-rules-panel-head">
@@ -465,12 +474,11 @@ $reward_period_options = array(
           <input type="file" name="file" id="splRulesImportFile" accept=".csv,text/csv">
         </form>
         <div class="table-responsive spl-rules-wrap">
-          <table class="table table-sm table-hover align-middle mb-0 spl-rules-table" id="splRulesTable" data-dt-manual data-order-col="1" data-order-dir="asc" data-order-disable-cols="6">
+          <table class="table table-sm table-hover align-middle mb-0 spl-rules-table" id="splRulesTable" data-dt-manual data-order-col="0" data-order-dir="asc" data-order-disable-cols="5">
             <thead>
               <tr>
-                <th>Code</th>
-                <th>Name</th>
                 <th>Category</th>
+                <th>Name</th>
                 <th>Trigger</th>
                 <th class="text-end">Points</th>
                 <th class="text-center">Active</th>
@@ -485,14 +493,6 @@ $reward_period_options = array(
                 $points_val = (float) $r->points;
               ?>
               <tr class="spl-rule-row" data-rule-id="<?php echo (int) $r->id; ?>">
-                <td data-order="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
-                  <span class="spl-rule-display spl-rule-display-code" title="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?></span>
-                  <input class="form-control form-control-sm spl-rule-field spl-rule-code d-none" value="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
-                </td>
-                <td data-order="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
-                  <span class="spl-rule-display spl-rule-display-name" title="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?></span>
-                  <input class="form-control form-control-sm spl-rule-field spl-rule-name d-none" value="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
-                </td>
                 <td data-order="<?php echo esc_view($cat_label, ENT_QUOTES, 'UTF-8'); ?>">
                   <span class="spl-rule-display spl-rule-display-category"><?php echo $cat_label !== '' ? esc_view($cat_label, ENT_QUOTES, 'UTF-8') : '—'; ?></span>
                   <select class="form-select form-select-sm spl-rule-field spl-rule-category d-none">
@@ -501,6 +501,10 @@ $reward_period_options = array(
                     <option value="<?php echo (int) $c->id; ?>" <?php echo (int) $r->category_id === (int) $c->id ? 'selected' : ''; ?>><?php echo esc_view($c->name, ENT_QUOTES, 'UTF-8'); ?></option>
                     <?php endforeach; ?>
                   </select>
+                </td>
+                <td data-order="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
+                  <span class="spl-rule-display spl-rule-display-name" title="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?></span>
+                  <input class="form-control form-control-sm spl-rule-field spl-rule-name d-none" value="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
                 </td>
                 <td data-order="<?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?>">
                   <span class="spl-rule-display spl-rule-display-trigger"><code><?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?></code></span>
@@ -526,6 +530,10 @@ $reward_period_options = array(
                   <button type="button" class="btn btn-sm btn-outline-primary spl-toggle-rule">Edit</button>
                   <button type="button" class="btn btn-sm btn-outline-danger spl-delete-rule">Delete</button>
                 </td>
+                <td class="d-none spl-rule-code-col" aria-hidden="true" data-order="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
+                  <span class="spl-rule-display spl-rule-display-code" title="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?></span>
+                  <input class="form-control form-control-sm spl-rule-field spl-rule-code d-none" value="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
+                </td>
               </tr>
               <?php endforeach; ?>
             </tbody>
@@ -534,7 +542,7 @@ $reward_period_options = array(
       </div>
     </div>
     <?php endif; ?>
-  </div>
+  <?php if (!$embed): ?></div><?php endif; ?>
 </div>
 
 <script>
@@ -601,4 +609,6 @@ window.SPL_CONFIG = {
 <?php endif; ?>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
 
+<?php if (!$embed): ?>
 <?php $this->load->view('partials/footer'); ?>
+<?php endif; ?>

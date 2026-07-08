@@ -187,6 +187,7 @@ $route['my-works/(:num)'] = 'my_works/show/$1';
 
 // SPL — rewards & recognition
 $route['spl'] = 'spl/index';
+$route['spl/dashboard'] = 'spl/dashboard';
 $route['spl/submit-activity'] = 'spl/submit_activity';
 $route['spl/approve-activity/(:num)'] = 'spl/approve_activity/$1';
 $route['spl/reject-activity/(:num)'] = 'spl/reject_activity/$1';

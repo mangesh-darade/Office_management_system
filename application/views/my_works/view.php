@@ -62,7 +62,23 @@
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
 
       <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
-        <?php $this->load->view('my_works/_back_btn', array('back_url' => site_url('my-works'))); ?>
+        <?php
+          $parent_tab = trim((string) $this->input->get('parent_tab'));
+          if ($parent_tab === 'team-dashboard') {
+              $back_params = array('parent_tab' => 'team-dashboard');
+              if ($embed) {
+                  $back_params['embed'] = 1;
+                  $back_url = site_url('tasks/my-dashboard') . '?' . http_build_query($back_params);
+              } else {
+                  $back_url = site_url('my-works') . '?tab=team-dashboard';
+              }
+          } elseif ($parent_tab !== '') {
+              $back_url = site_url('my-works') . '?tab=' . rawurlencode($parent_tab);
+          } else {
+              $back_url = site_url('my-works');
+          }
+          $this->load->view('my_works/_back_btn', array('back_url' => $back_url));
+        ?>
         <div class="min-w-0 flex-grow-1">
 
         <h1 class="mw-detail-title mb-2"><?php echo esc_view($item->title); ?></h1>

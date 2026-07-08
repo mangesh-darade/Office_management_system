@@ -11,6 +11,13 @@ $type_counts = isset($type_counts) ? $type_counts : array(
     'requirement'  => 0,
 );
 $my_works_status_rows = isset($my_works_status_rows) ? $my_works_status_rows : array();
+$requirement_status_rows = isset($requirement_status_rows) ? $requirement_status_rows : array();
+$team_dash_status_options = isset($team_dash_status_options) ? $team_dash_status_options : array(
+    'task'        => $status_rows,
+    'my_work'     => $my_works_status_rows,
+    'requirement' => $requirement_status_rows,
+);
+$complete_view_on = !empty($complete_view_on);
 $empty_message = 'No tasks, requirements, Second Brain items, or ad hoc items found for your team.';
 
 $embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
@@ -142,6 +149,12 @@ if (!$embed) {
       <?php if ($embed): ?>
       <input type="hidden" name="embed" value="1">
       <?php endif; ?>
+      <?php if (!empty($complete_view_on)): ?>
+      <input type="hidden" name="complete_view" value="1">
+      <?php endif; ?>
+      <?php if ($this->input->get('parent_tab')): ?>
+      <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+      <?php endif; ?>
       <?php if (!empty($filter_projects)): ?>
       <label class="project-dash-filter-label me-3">
         <span class="project-dash-filter-label-text">Project</span>
@@ -213,11 +226,14 @@ if (!$embed) {
     <?php 
       $backParams = $_GET;
       unset($backParams['user_id'], $backParams['focus']);
+      $parentTab = isset($backParams['parent_tab']) ? trim((string) $backParams['parent_tab']) : '';
       if ($embed) {
           $backParams['embed'] = 1;
           $backUrl = site_url('tasks/my-dashboard') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
-      } elseif (isset($_GET['tab'])) {
-          $backUrl = site_url('my-works') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
+      } elseif ($parentTab !== '') {
+          unset($backParams['parent_tab']);
+          $backParams['tab'] = $parentTab;
+          $backUrl = site_url('my-works') . '?' . http_build_query($backParams);
       } else {
           $backUrl = site_url('tasks/my-dashboard') . (empty($backParams) ? '' : '?' . http_build_query($backParams));
       }
@@ -252,7 +268,7 @@ if (!$embed) {
   </div>
 <?php else: ?>
   <?php
-  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($status_rows) {
+  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options) {
       if (empty($section_items)) {
           echo '<div class="project-dash-section-empty"><span>No items</span></div>';
           return;
@@ -283,6 +299,15 @@ if (!$embed) {
           $item_title = isset($item['title']) ? (string) $item['title'] : '';
           $item_url = isset($item['url']) ? (string) $item['url'] : '#';
           $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
+          $status_scope = isset($item['status_scope']) ? (string) $item['status_scope'] : 'task';
+          $item_status_options = isset($team_dash_status_options[$status_scope]) ? $team_dash_status_options[$status_scope] : (isset($team_dash_status_options['task']) ? $team_dash_status_options['task'] : array());
+          $has_status_match = false;
+          foreach ($item_status_options as $sr) {
+              if (isset($sr->code) && (string) $sr->code === $item_status) {
+                  $has_status_match = true;
+                  break;
+              }
+          }
           $row_bg = $badge_color . ($is_full ? '08' : '14');
           $detail_max = $is_full ? '30rem' : '9rem';
           ?>
@@ -311,7 +336,12 @@ if (!$embed) {
                       data-item-source="<?php echo esc_view(isset($item['item_source']) ? (string) $item['item_source'] : '', ENT_QUOTES, 'UTF-8'); ?>"
                       style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
                       title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>">
-                <?php foreach ($status_rows as $sr): ?>
+                <?php if (!$has_status_match && $item_label !== ''): ?>
+                  <option value="<?php echo esc_view($item_status, ENT_QUOTES, 'UTF-8'); ?>" selected data-color="<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php echo esc_view($item_label); ?>
+                  </option>
+                <?php endif; ?>
+                <?php foreach ($item_status_options as $sr): ?>
                   <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"
                           data-color="<?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>"
                           style="color: <?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>; font-weight: 600;"
@@ -369,6 +399,14 @@ if (!$embed) {
                       $linkExtra = array($paramName => (int) $entity->id, 'focus' => 1);
                       if ($embed) {
                           $linkParams['embed'] = 1;
+                      }
+                      if ($complete_view_on) {
+                          $linkParams['complete_view'] = 1;
+                      } else {
+                          unset($linkParams['complete_view']);
+                      }
+                      if ($this->input->get('parent_tab')) {
+                          $linkParams['parent_tab'] = (string) $this->input->get('parent_tab');
                       }
                       $targetUrl = site_url('tasks/my-dashboard') . '?' . http_build_query(array_merge($linkParams, $linkExtra)); 
                     ?>

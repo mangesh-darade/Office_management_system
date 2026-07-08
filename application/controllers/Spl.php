@@ -17,6 +17,17 @@ class Spl extends CI_Controller
     public function index()
     {
         require_module_access(spl_access_module_keys(), true);
+        $embed = (bool) $this->input->get('embed');
+        if (!$embed) {
+            $params = $_GET;
+            unset($params['embed'], $params['parent_tab']);
+            if (empty($params['tab'])) {
+                $params['tab'] = spl_resolve_default_tab();
+            }
+            redirect('spl/dashboard?' . http_build_query($params));
+            return;
+        }
+
         $uid = (int) $this->session->userdata('user_id');
         $tab = trim((string) $this->input->get('tab'));
         if ($tab === '') {
@@ -38,11 +49,7 @@ class Spl extends CI_Controller
             $tab = spl_resolve_default_tab();
         }
 
-        if (!spl_has_any_index_tab()) {
-            if (spl_can_view_groups()) {
-                redirect('spl/groups');
-                return;
-            }
+        if (!spl_has_any_index_tab() && !spl_can_view_groups()) {
             show_error('You do not have permission to access SPL.', 403);
             return;
         }
@@ -129,7 +136,46 @@ class Spl extends CI_Controller
             'can_levels' => spl_can_view_levels(),
             'can_approve' => spl_can_approve(),
             'can_groups' => spl_can_view_groups(),
+            'embed' => true,
         ));
+    }
+
+    public function dashboard()
+    {
+        if (!spl_can_access()) {
+            show_error('You do not have permission to access SPL.', 403);
+            return;
+        }
+
+        $embed = (bool) $this->input->get('embed');
+        $uid = (int) $this->session->userdata('user_id');
+        $tab = spl_resolve_unified_tab($this->input->get('tab'));
+
+        $data = spl_build_dashboard_data($uid);
+        $data['active_tab'] = $tab;
+        $data['can_submit'] = spl_can_submit();
+        $data['can_my_reward'] = spl_can_my_reward();
+        $data['can_rules'] = spl_can_manage_rules();
+        $data['can_levels'] = spl_can_view_levels();
+        $data['can_approve'] = spl_can_approve();
+        $data['can_groups'] = spl_can_view_groups();
+        $data['approval_counts'] = array('pending' => 0, 'approved' => 0, 'rejected' => 0);
+        if (spl_can_approve()) {
+            $data['approval_counts']['pending'] = $this->rewards->count_spl_approvals_by_status('pending');
+            $data['approval_counts']['approved'] = $this->rewards->count_spl_approvals_by_status('approved');
+            $data['approval_counts']['rejected'] = $this->rewards->count_spl_approvals_by_status('rejected');
+        }
+
+        if ($embed) {
+            if ($tab === 'overview') {
+                $this->load->view('spl/_dashboard_body', $data);
+                return;
+            }
+            show_404();
+            return;
+        }
+
+        $this->load->view('spl/unified', $data);
     }
 
     public function submit_activity()
@@ -144,12 +190,12 @@ class Spl extends CI_Controller
         $rule = $this->rewards->get_rule_by_code($ruleCode);
         if (!$rule || $rule->trigger_event !== 'reward_claim') {
             $this->session->set_flashdata('error', 'Invalid activity selected.');
-            redirect('spl?tab=activity');
+            redirect('spl/dashboard?tab=activity');
             return;
         }
         if ((int) $rule->requires_approval !== 1) {
             $this->session->set_flashdata('error', 'This activity is tracked automatically and cannot be submitted manually.');
-            redirect('spl?tab=activity');
+            redirect('spl/dashboard?tab=activity');
             return;
         }
 
@@ -180,13 +226,13 @@ class Spl extends CI_Controller
 
         if (empty($txIds)) {
             $this->session->set_flashdata('error', 'Could not submit activity. It may already be pending or capped for today.');
-            redirect('spl?tab=activity');
+            redirect('spl/dashboard?tab=activity');
             return;
         }
 
         $this->session->set_flashdata('success', 'Activity submitted for approval. Points will be added after admin approval.');
         $redirectTab = spl_can_my_reward() ? 'my-reward' : 'activity';
-        redirect('spl?tab=' . $redirectTab);
+        redirect('spl/dashboard?tab=' . $redirectTab);
     }
 
     public function approve_activity($id = 0)
@@ -199,13 +245,13 @@ class Spl extends CI_Controller
         $q = $this->rewards->get_approval_queue($id);
         if (!$q || $q->source_module !== 'spl') {
             $this->session->set_flashdata('error', 'Invalid approval request.');
-            redirect('spl?tab=approvals&approval_view=pending');
+            redirect('spl/dashboard?tab=approvals&approval_view=pending');
             return;
         }
         $comment = trim((string) $this->input->post('comment'));
         $ok = $this->rewards->approve_pending($id, (int) $this->session->userdata('user_id'), $comment);
         $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Activity approved. Points added to user.' : 'Could not approve activity.');
-        redirect('spl?tab=approvals&approval_view=' . ($ok ? 'approved' : 'pending'));
+        redirect('spl/dashboard?tab=approvals&approval_view=' . ($ok ? 'approved' : 'pending'));
     }
 
     public function reject_activity($id = 0)
@@ -218,13 +264,13 @@ class Spl extends CI_Controller
         $q = $this->rewards->get_approval_queue($id);
         if (!$q || $q->source_module !== 'spl') {
             $this->session->set_flashdata('error', 'Invalid approval request.');
-            redirect('spl?tab=approvals&approval_view=pending');
+            redirect('spl/dashboard?tab=approvals&approval_view=pending');
             return;
         }
         $comment = trim((string) $this->input->post('comment'));
         $ok = $this->rewards->reject_pending($id, (int) $this->session->userdata('user_id'), $comment);
         $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Activity rejected.' : 'Could not reject activity.');
-        redirect('spl?tab=approvals&approval_view=' . ($ok ? 'rejected' : 'pending'));
+        redirect('spl/dashboard?tab=approvals&approval_view=' . ($ok ? 'rejected' : 'pending'));
     }
 
     public function approvals()
@@ -233,7 +279,7 @@ class Spl extends CI_Controller
         if (!in_array($view, array('pending', 'approved', 'rejected'), true)) {
             $view = 'pending';
         }
-        redirect('spl?tab=approvals&approval_view=' . $view);
+        redirect('spl/dashboard?tab=approvals&approval_view=' . $view);
     }
 
     public function save_rule()
@@ -357,7 +403,7 @@ class Spl extends CI_Controller
         $opened = csv_import_open('file');
         if (!$opened['ok']) {
             $this->session->set_flashdata('error', $opened['error']);
-            redirect('spl?tab=rules');
+            redirect('spl/dashboard?tab=rules');
             return;
         }
 
@@ -365,7 +411,7 @@ class Spl extends CI_Controller
         if (!$columns['ok']) {
             fclose($opened['handle']);
             $this->session->set_flashdata('error', $columns['error']);
-            redirect('spl?tab=rules');
+            redirect('spl/dashboard?tab=rules');
             return;
         }
 
@@ -476,7 +522,7 @@ class Spl extends CI_Controller
             if (!empty($row_errors)) {
                 $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
             }
-            redirect('spl?tab=rules');
+            redirect('spl/dashboard?tab=rules');
             return;
         }
 
@@ -491,7 +537,7 @@ class Spl extends CI_Controller
         if (!empty($row_errors)) {
             $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
         }
-        redirect('spl?tab=rules');
+        redirect('spl/dashboard?tab=rules');
     }
 
     public function delete_rule($id = 0)
@@ -587,7 +633,18 @@ class Spl extends CI_Controller
     public function groups()
     {
         require_module_access(array('spl', 'spl_groups', 'spl_groups_manage', 'rewards', 'rewards_admin'), true);
-        $reward_period = spl_normalize_reward_period($this->input->get('reward_period'));
+        $embed = (bool) $this->input->get('embed');
+        if (!$embed) {
+            $params = array('tab' => 'groups');
+            $reward_period = $this->input->get('reward_period');
+            if ($reward_period !== null && $reward_period !== '') {
+                $params['reward_period'] = spl_normalize_reward_period($reward_period);
+            }
+            redirect('spl/dashboard?' . http_build_query($params));
+            return;
+        }
+
+        $reward_period = spl_normalize_reward_period($this->input->get('reward_period') ?: 'all');
         $reward_bounds = spl_reward_period_bounds($reward_period);
         $use_period_points = ($reward_period !== 'all');
         $this->spl->sync_all_rules_to_all_groups();
@@ -636,6 +693,7 @@ class Spl extends CI_Controller
             'reward_period' => $reward_period,
             'reward_bounds' => $reward_bounds,
             'use_period_points' => $use_period_points,
+            'embed' => true,
         ));
     }
 
@@ -658,7 +716,7 @@ class Spl extends CI_Controller
 
     public function save_groups_board()
     {
-        require_module_access(array('spl', 'spl_groups_manage', 'rewards_admin', 'rewards'), true);
+        spl_require_manage_groups();
         if ($this->input->method() !== 'post') {
             show_error('Invalid request', 405);
         }
@@ -725,7 +783,7 @@ class Spl extends CI_Controller
 
     public function save_group()
     {
-        require_module_access(array('spl', 'spl_groups_manage', 'rewards_admin', 'rewards'), true);
+        spl_require_manage_groups();
         if ($this->input->method() !== 'post') {
             show_error('Invalid request', 405);
         }
@@ -786,7 +844,7 @@ class Spl extends CI_Controller
 
     public function add_group()
     {
-        require_module_access(array('spl', 'spl_groups_manage', 'rewards_admin', 'rewards'), true);
+        spl_require_manage_groups();
         if ($this->input->method() !== 'post') {
             show_error('Invalid request', 405);
         }
@@ -799,7 +857,7 @@ class Spl extends CI_Controller
             'is_active' => 1,
         ), null);
         $this->session->set_flashdata('success', 'Group added.');
-        redirect('spl/groups');
+        redirect('spl/dashboard?tab=groups');
     }
 
     private function _spl_csv_bool($value, $default = 1)

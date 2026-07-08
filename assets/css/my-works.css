@@ -3290,6 +3290,27 @@ a.mw-dash-lane-title-link:focus {
   flex-shrink: 0;
 }
 
+.mw-unified-complete-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.65rem 0.15rem 0;
+  margin-right: 0.15rem;
+  border-right: 1px solid #e5e7eb;
+}
+
+.mw-unified-complete-toggle .form-check-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mw-unified-complete-toggle .form-check-input {
+  cursor: pointer;
+}
+
 .mw-unified-action-btn {
   font-size: 0.8rem;
   font-weight: 600;

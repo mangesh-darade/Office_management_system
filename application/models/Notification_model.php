@@ -71,6 +71,70 @@ class Notification_model extends CI_Model {
 
         $this->load->helper('notifications_schema');
         notifications_schema_ensure_push_subscriptions($this->db);
+
+        $this->backfill_legacy_notifications();
+    }
+
+    /**
+     * One-time-safe migration for legacy rows (body/payload/read_at).
+     */
+    private function backfill_legacy_notifications() {
+        if (!$this->db->table_exists($this->table)) {
+            return;
+        }
+
+        if ($this->has_column('body') && $this->has_column('message')) {
+            $this->db->query(
+                "UPDATE `{$this->table}` SET `message` = `body`"
+                . " WHERE (`message` IS NULL OR `message` = '') AND `body` IS NOT NULL AND TRIM(`body`) != ''"
+            );
+        }
+
+        if ($this->has_column('read_at') && $this->has_column('is_read')) {
+            $this->db->query(
+                "UPDATE `{$this->table}` SET `is_read` = 1"
+                . " WHERE `read_at` IS NOT NULL AND `is_read` = 0"
+            );
+        }
+
+        if (!$this->has_column('payload')) {
+            return;
+        }
+
+        $rows = $this->db->query(
+            "SELECT id, module, related_id, action_url, payload FROM `{$this->table}`"
+            . " WHERE payload IS NOT NULL AND TRIM(payload) != ''"
+            . " AND ((module IS NULL OR module = '') OR action_url IS NULL OR action_url = '')"
+            . " LIMIT 300"
+        )->result();
+
+        foreach ($rows as $row) {
+            $payload = json_decode((string) $row->payload, true);
+            if (!is_array($payload)) {
+                continue;
+            }
+            $update = array();
+            if ((empty($row->module) || trim((string) $row->module) === '') && !empty($payload['module'])) {
+                $update['module'] = (string) $payload['module'];
+            }
+            if (empty($row->related_id) && !empty($payload['related_id'])) {
+                $update['related_id'] = (int) $payload['related_id'];
+            }
+            if ((empty($row->action_url) || trim((string) $row->action_url) === '') && !empty($payload['action_url'])) {
+                $update['action_url'] = (string) $payload['action_url'];
+            }
+            if (!empty($update)) {
+                $this->db->where('id', (int) $row->id)->update($this->table, $update);
+            }
+        }
+    }
+
+    private function normalize_rows($rows) {
+        $this->load->helper('notification');
+        if (!is_array($rows)) {
+            return $rows;
+        }
+        return notification_normalize_rows($rows);
     }
 
     /**
@@ -145,13 +209,14 @@ class Notification_model extends CI_Model {
      * @return array
      */
     public function get_for_user($user_id, $limit = 50, $offset = 0) {
-        return $this->db
+        $rows = $this->db
             ->where('user_id', (int)$user_id)
             ->where('is_deleted', 0)
             ->order_by('created_at', 'DESC')
             ->limit($limit, $offset)
             ->get($this->table)
             ->result();
+        return $this->normalize_rows($rows);
     }
 
     /**
@@ -162,7 +227,7 @@ class Notification_model extends CI_Model {
      * @return array
      */
     public function get_unread($user_id, $limit = 20) {
-        return $this->db
+        $rows = $this->db
             ->where('user_id', (int)$user_id)
             ->where('is_read', 0)
             ->where('is_deleted', 0)
@@ -170,6 +235,7 @@ class Notification_model extends CI_Model {
             ->limit($limit)
             ->get($this->table)
             ->result();
+        return $this->normalize_rows($rows);
     }
 
     /**
@@ -179,11 +245,24 @@ class Notification_model extends CI_Model {
      * @return int
      */
     public function count_unread($user_id) {
-        return $this->db
-            ->where('user_id', (int)$user_id)
-            ->where('is_read', 0)
-            ->where('is_deleted', 0)
-            ->count_all_results($this->table);
+        $this->db->where('user_id', (int)$user_id);
+        $this->db->where('is_deleted', 0);
+        $this->apply_unread_where();
+        return (int) $this->db->count_all_results($this->table);
+    }
+
+    private function apply_unread_where() {
+        $this->db->group_start();
+        $this->db->where('is_read', 0);
+        if ($this->has_column('read_at')) {
+            $this->db->or_group_start();
+            $this->db->where('is_read IS NULL', null, false);
+            $this->db->where('read_at IS NULL', null, false);
+            $this->db->group_end();
+        } else {
+            $this->db->or_where('is_read IS NULL', null, false);
+        }
+        $this->db->group_end();
     }
 
     /**
@@ -195,10 +274,12 @@ class Notification_model extends CI_Model {
     public function mark_read($id, $user_id) {
         $this->db->where('id', (int)$id)
                  ->where('user_id', (int)$user_id)
+                 ->where('is_deleted', 0)
                  ->update($this->table, [
                      'is_read' => 1,
                      'read_at' => date('Y-m-d H:i:s'),
                  ]);
+        return $this->db->affected_rows() > 0;
     }
 
     /**
@@ -207,12 +288,14 @@ class Notification_model extends CI_Model {
      * @param int $user_id
      */
     public function mark_all_read($user_id) {
-        $this->db->where('user_id', (int)$user_id)
-                 ->where('is_read', 0)
-                 ->update($this->table, [
-                     'is_read' => 1,
-                     'read_at' => date('Y-m-d H:i:s'),
-                 ]);
+        $this->db->where('user_id', (int)$user_id);
+        $this->db->where('is_deleted', 0);
+        $this->apply_unread_where();
+        $this->db->update($this->table, [
+            'is_read' => 1,
+            'read_at' => date('Y-m-d H:i:s'),
+        ]);
+        return (int) $this->db->affected_rows();
     }
 
     /**
@@ -244,6 +327,8 @@ class Notification_model extends CI_Model {
      * @return object|null
      */
     public function get($id) {
-        return $this->db->get_where($this->table, ['id' => (int)$id])->row();
+        $row = $this->db->get_where($this->table, ['id' => (int)$id])->row();
+        $this->load->helper('notification');
+        return notification_normalize_row($row);
     }
 }

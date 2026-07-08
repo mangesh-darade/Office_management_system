@@ -17,7 +17,7 @@ $poster = $poster_info['url'];
       </div>
     </div>
     <?php if (!empty($can_submit)): ?>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('spl?tab=activity'); ?>"><i class="bi bi-plus-circle me-1"></i>Submit Activity</a>
+    <a class="btn btn-primary btn-sm" href="<?php echo spl_dashboard_url('activity'); ?>"><i class="bi bi-plus-circle me-1"></i>Submit Activity</a>
     <?php endif; ?>
   </div>
 
@@ -114,7 +114,7 @@ $poster = $poster_info['url'];
           </div>
         </div>
         <label class="form-label small fw-semibold">Linked reward rules</label>
-        <p class="small text-muted mb-2">All active SPL rules are automatically linked to every group. Manage rules from <a href="<?php echo site_url('spl?tab=rules'); ?>">SPL Rules</a>.</p>
+        <p class="small text-muted mb-2">All active SPL rules are automatically linked to every group. Manage rules from <a href="<?php echo spl_dashboard_url('rules'); ?>">SPL Rules</a>.</p>
         <div class="row g-2 spl-rule-check-grid mb-3">
           <?php if (empty($rules)): ?>
             <div class="col-12 text-muted small">No rules linked yet.</div>

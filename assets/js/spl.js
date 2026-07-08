@@ -67,6 +67,17 @@
     }
   }
 
+  function setRuleCellOrder(row, selector, value) {
+    var field = row.querySelector(selector);
+    if (!field) {
+      return;
+    }
+    var cell = field.closest('td');
+    if (cell) {
+      cell.setAttribute('data-order', value);
+    }
+  }
+
   function syncRuleRowOrder(row) {
     if (!row) {
       return;
@@ -77,25 +88,24 @@
     var triggerInput = row.querySelector('.spl-rule-trigger');
     var pointsInput = row.querySelector('.spl-rule-points');
     var activeInput = row.querySelector('.spl-rule-active');
-    var cells = row.querySelectorAll('td');
-    if (cells[0] && codeInput) {
-      cells[0].setAttribute('data-order', codeInput.value.trim());
-    }
-    if (cells[1] && nameInput) {
-      cells[1].setAttribute('data-order', nameInput.value.trim());
-    }
-    if (cells[2] && catSelect) {
+    if (catSelect) {
       var catLabel = catSelect.options[catSelect.selectedIndex] ? catSelect.options[catSelect.selectedIndex].textContent.trim() : '';
-      cells[2].setAttribute('data-order', catLabel);
+      setRuleCellOrder(row, '.spl-rule-category', catLabel);
     }
-    if (cells[3] && triggerInput) {
-      cells[3].setAttribute('data-order', triggerInput.value.trim());
+    if (nameInput) {
+      setRuleCellOrder(row, '.spl-rule-name', nameInput.value.trim());
     }
-    if (cells[4] && pointsInput) {
-      cells[4].setAttribute('data-order', pointsInput.value || '0');
+    if (triggerInput) {
+      setRuleCellOrder(row, '.spl-rule-trigger', triggerInput.value.trim());
     }
-    if (cells[5] && activeInput) {
-      cells[5].setAttribute('data-order', activeInput.checked ? '1' : '0');
+    if (pointsInput) {
+      setRuleCellOrder(row, '.spl-rule-points', pointsInput.value || '0');
+    }
+    if (activeInput) {
+      setRuleCellOrder(row, '.spl-rule-active', activeInput.checked ? '1' : '0');
+    }
+    if (codeInput) {
+      setRuleCellOrder(row, '.spl-rule-code', codeInput.value.trim());
     }
   }
 
@@ -210,6 +220,11 @@
       el.classList.toggle('d-none', editing);
     });
     row.querySelectorAll('.spl-rule-field').forEach(function (el) {
+      if (el.classList.contains('spl-rule-code')) {
+        el.classList.add('d-none');
+        el.disabled = !editing;
+        return;
+      }
       el.classList.toggle('d-none', !editing);
     });
     row.querySelectorAll('.spl-rule-code, .spl-rule-name, .spl-rule-category, .spl-rule-trigger, .spl-rule-points, .spl-rule-active').forEach(function (el) {
@@ -224,6 +239,23 @@
     if (!editing) {
       syncRuleRowDisplay(row);
     }
+  }
+
+  function slugifyRuleCode(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  function ensureRuleCode(row) {
+    var codeInput = row.querySelector('.spl-rule-code');
+    var nameInput = row.querySelector('.spl-rule-name');
+    if (!codeInput || codeInput.value.trim() !== '') {
+      return;
+    }
+    var fromName = nameInput ? slugifyRuleCode(nameInput.value.trim()) : '';
+    codeInput.value = fromName || ('rule_' + Date.now());
   }
 
   function ruleRowPayload(row) {
@@ -286,6 +318,7 @@
           setRuleRowEditing(row, true);
           return;
         }
+        ensureRuleCode(row);
         postForm(cfg.saveRuleUrl, ruleRowPayload(row)).then(function (res) {
           if (res && res.status === 'success' && res.data && res.data.id) {
             row.setAttribute('data-rule-id', res.data.id);
@@ -333,12 +366,10 @@
         catOptions += '<option value="' + c.id + '">' + c.name + '</option>';
       });
       tr.innerHTML = ''
-        + '<td data-order=""><span class="spl-rule-display spl-rule-display-code d-none"></span>'
-        + '<input class="form-control form-control-sm spl-rule-field spl-rule-code" placeholder="code"></td>'
-        + '<td data-order=""><span class="spl-rule-display spl-rule-display-name d-none"></span>'
-        + '<input class="form-control form-control-sm spl-rule-field spl-rule-name" placeholder="Name"></td>'
         + '<td data-order=""><span class="spl-rule-display spl-rule-display-category d-none">—</span>'
         + '<select class="form-select form-select-sm spl-rule-field spl-rule-category">' + catOptions + '</select></td>'
+        + '<td data-order=""><span class="spl-rule-display spl-rule-display-name d-none"></span>'
+        + '<input class="form-control form-control-sm spl-rule-field spl-rule-name" placeholder="Name"></td>'
         + '<td data-order="reward_claim"><span class="spl-rule-display spl-rule-display-trigger d-none"><code>reward_claim</code></span>'
         + '<input class="form-control form-control-sm spl-rule-field spl-rule-trigger" value="reward_claim"></td>'
         + '<td class="text-end" data-order="10"><span class="spl-rule-display spl-rule-display-points d-none">10</span>'
@@ -349,9 +380,15 @@
         + '<input type="checkbox" class="form-check-input spl-rule-active" role="switch" checked></div></td>'
         + '<td class="text-end text-nowrap spl-rules-actions-cell no-sort">'
         + '<button type="button" class="btn btn-sm btn-primary spl-toggle-rule">Save</button> '
-        + '<button type="button" class="btn btn-sm btn-outline-danger spl-delete-rule">Delete</button></td>';
+        + '<button type="button" class="btn btn-sm btn-outline-danger spl-delete-rule">Delete</button></td>'
+        + '<td class="d-none spl-rule-code-col" aria-hidden="true" data-order="">'
+        + '<span class="spl-rule-display spl-rule-display-code d-none"></span>'
+        + '<input class="form-control form-control-sm spl-rule-field spl-rule-code" placeholder="code"></td>';
       appendRuleRow(tr);
-      tr.querySelector('.spl-rule-code').focus();
+      var nameField = tr.querySelector('.spl-rule-name');
+      if (nameField) {
+        nameField.focus();
+      }
     });
   }
 
@@ -378,11 +415,12 @@
         lengthChange: false,
         info: false,
         ordering: true,
-        order: [[1, 'asc']],
+        order: [[0, 'asc']],
         columnDefs: [
-          { orderable: false, targets: [6] },
-          { className: 'text-end', targets: [4, 6] },
-          { className: 'text-center', targets: [5] }
+          { orderable: false, targets: [5] },
+          { visible: false, targets: [6] },
+          { className: 'text-end', targets: [3, 5] },
+          { className: 'text-center', targets: [4] }
         ]
       });
       rulesTable.dataset.dtInited = '1';
@@ -578,10 +616,6 @@
 
   if (boardCfg.canManage && editBtn) {
     editBtn.addEventListener('click', function () {
-      var allTab = document.querySelector('.spl-groups-view-tab[data-spl-view="all-groups"]');
-      if (allTab) {
-        allTab.click();
-      }
       setBoardEditing(true);
     });
   }
@@ -591,30 +625,6 @@
       window.location.reload();
     });
   }
-
-  document.querySelectorAll('.spl-groups-view-tab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      var view = tab.getAttribute('data-spl-view');
-      document.querySelectorAll('.spl-groups-view-tab').forEach(function (t) {
-        t.classList.toggle('is-active', t === tab);
-      });
-      document.querySelectorAll('.spl-groups-view-panel').forEach(function (panel) {
-        panel.classList.remove('is-active');
-      });
-      if (view === 'my-group') {
-        var myPanel = document.getElementById('splViewMyGroup');
-        if (myPanel) {
-          myPanel.classList.add('is-active');
-        }
-      }
-      if (view === 'all-groups') {
-        var allPanel = document.getElementById('splViewAllGroups');
-        if (allPanel) {
-          allPanel.classList.add('is-active');
-        }
-      }
-    });
-  });
 
   document.querySelectorAll('.spl-board-poster-input').forEach(function (input) {
     input.addEventListener('change', function () {

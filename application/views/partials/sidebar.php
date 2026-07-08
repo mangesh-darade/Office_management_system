@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         if (localStorage.getItem('oms_sidebar_collapsed') === '1') {
             document.body.classList.add('sidebar-collapsed');
+            document.documentElement.setAttribute('data-sidebar-collapsed', '1');
         }
     } catch (e) {}
 })();
@@ -125,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
       $this->load->helper('spl');
       if (function_exists('spl_can_access') && spl_can_access()):
       ?>
-      <a class="nav-link sidebar-link <?php echo ($active==='spl' || $active==='rewards')?'active':''; ?>" href="<?php echo site_url('spl'); ?>"><i class="bi bi-trophy me-2"></i>SPL — My Reward</a>
+      <a class="nav-link sidebar-link <?php echo ($active==='spl')?'active':''; ?>" href="<?php echo site_url('spl/dashboard'); ?>"><i class="bi bi-trophy me-2"></i>SPL</a>
       <?php endif; ?>
       <?php $this->load->view('partials/sidebar_sales_group', array('variant' => 'desktop', 'active' => $active, 'active_sub' => $active_sub)); ?>
       <?php if(function_exists('has_module_access') && has_module_access('daily_activity')): ?>
@@ -573,7 +574,13 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php endif; ?>
 
       <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
+      <?php $sidebar_unread_count = function_exists('get_unread_notification_count') ? (int) get_unread_notification_count() : 0; ?>
+      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>">
+        <i class="bi bi-bell me-2"></i>Notifications
+        <?php if ($sidebar_unread_count > 0): ?>
+        <span class="badge bg-danger ms-1"><?php echo $sidebar_unread_count > 99 ? '99+' : $sidebar_unread_count; ?></span>
+        <?php endif; ?>
+      </a>
       <?php endif; ?>
       <?php
       $comm_show = (function_exists('has_module_access') && has_module_access('mail'))
@@ -765,8 +772,10 @@ document.addEventListener('DOMContentLoaded', function() {
     </nav>
   </div>
 </aside>
-<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true" title="Collapse sidebar">
-  <i class="bi bi-chevron-left"></i>
-</button>
+<div class="sidebar-collapse-rail">
+  <button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true" title="Collapse sidebar">
+    <i class="bi bi-chevron-left"></i>
+  </button>
+</div>
 </div>
 

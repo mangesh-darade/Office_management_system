@@ -13,6 +13,11 @@
 }
 
 body { background-color: #f5f7fb; }
+
+.container-fluid > .row.gx-0 {
+  align-items: stretch;
+}
+
 .navbar-brand { font-weight: 700; letter-spacing: .2px; }
 .card { border: 0; border-radius: .75rem; }
 .card .card-title { font-weight: 600; }
@@ -69,14 +74,20 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
 /* Sidebar layout - dark theme with enhanced visual effects */
 .sidebar-shell {
   position: relative;
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  min-height: calc(100vh - var(--navbar-h));
   padding: 0;
   flex-shrink: 0;
+  overflow: visible;
   transition: flex-basis 0.25s ease, max-width 0.25s ease, width 0.25s ease;
-  overflow-x: hidden;
 }
 
 .sidebar-left {
   background: linear-gradient(180deg, var(--sidebar-bg) 0%, #0f1922 100%);
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: calc(100vh - var(--navbar-h));
   position: sticky;
   top: var(--navbar-h);
@@ -86,15 +97,25 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
   overflow-y: auto;
 }
 
+.sidebar-collapse-rail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 100%;
+  min-height: calc(100vh - var(--navbar-h));
+  z-index: 1050;
+  pointer-events: none;
+}
+
 .sidebar-collapse-toggle {
   position: absolute;
-  top: auto;
-  bottom: 2rem;
+  top: 50%;
   right: 0;
-  transform: translateX(50%);
-  z-index: 1050;
-  width: 22px;
-  height: 46px;
+  transform: translate(50%, -50%);
+  z-index: 1051;
+  width: 24px;
+  height: 48px;
   padding: 0;
   border: 1px solid rgba(255,255,255,0.18);
   border-left: none;
@@ -106,7 +127,8 @@ main > .container { min-height: calc(100vh - 64px - 40px); }
   justify-content: center;
   cursor: pointer;
   box-shadow: 2px 0 10px rgba(0,0,0,0.28);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  pointer-events: auto;
 }
 
 .sidebar-collapse-toggle:hover {
@@ -180,7 +202,12 @@ body.sidebar-collapsed .sidebar-collapse-toggle i {
   transform: rotate(180deg);
 }
 
-body.sidebar-collapsed main.col-md-9.col-lg-10 {
+body.sidebar-collapsed .sidebar-collapse-toggle {
+  transform: translate(50%, -50%);
+}
+
+body.sidebar-collapsed main.col-md-9.col-lg-10,
+body.sidebar-collapsed main.col-lg-10 {
   flex: 1 1 auto !important;
   max-width: calc(100% - 68px) !important;
 }

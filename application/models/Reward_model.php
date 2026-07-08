@@ -487,6 +487,30 @@ class Reward_model extends CI_Model
         return $this->db->get()->result();
     }
 
+    public function list_spl_user_pending_approvals($user_id, $limit = 20)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return array();
+        }
+        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label', false);
+        $this->db->from('reward_approval_queue q');
+        $this->db->join('users u', 'u.id = q.user_id', 'left');
+        $this->db->join('users s', 's.id = q.submitted_by', 'left');
+        $this->db->join('reward_rules r', 'r.id = q.rule_id', 'left');
+        $this->db->join('reward_categories c', 'c.id = r.category_id', 'left');
+        $this->db->join('reward_transactions t', 't.id = q.transaction_id', 'left');
+        $this->db->where('q.status', 'pending');
+        $this->db->where('q.source_module', 'spl');
+        $this->db->group_start()
+            ->where('q.user_id', $user_id)
+            ->or_where('q.submitted_by', $user_id)
+            ->group_end();
+        $this->db->order_by('q.submitted_at', 'DESC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
     public function list_spl_approval_history($status = 'approved', $limit = 100)
     {
         $status = in_array($status, array('approved', 'rejected'), true) ? $status : 'approved';
@@ -559,7 +583,7 @@ class Reward_model extends CI_Model
                 'success',
                 'rewards',
                 (int) $q->transaction_id,
-                site_url('spl?tab=my-reward')
+                site_url('spl/dashboard?tab=my-reward')
             );
         }
         return true;

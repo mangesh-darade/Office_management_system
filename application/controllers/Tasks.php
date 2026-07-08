@@ -861,6 +861,24 @@ class Tasks extends CI_Controller {
         if ($filter_status === '') {
             $filter_status = 'all';
         }
+        $this->load->helper('my_works');
+        $complete_view = dashboard_parse_complete_view($this->input);
+        $this->load->helper('my_works_status');
+        $my_works_status_rows = my_works_status_records();
+        $requirement_status_rows = $this->statuses->get_by_type('requirements', true);
+        if (empty($requirement_status_rows)) {
+            $requirement_status_rows = array(
+                (object) array('code' => 'received', 'name' => 'Received', 'color' => '#17a2b8'),
+                (object) array('code' => 'under_review', 'name' => 'Under Review', 'color' => '#ffc107'),
+                (object) array('code' => 'approved', 'name' => 'Approved', 'color' => '#28a745'),
+                (object) array('code' => 'in_progress', 'name' => 'In Progress', 'color' => '#007bff'),
+                (object) array('code' => 'completed', 'name' => 'Completed', 'color' => '#28a745'),
+                (object) array('code' => 'on_hold', 'name' => 'On Hold', 'color' => '#ffc107'),
+                (object) array('code' => 'rejected', 'name' => 'Rejected', 'color' => '#dc3545'),
+                (object) array('code' => 'cancelled', 'name' => 'Cancelled', 'color' => '#6c757d'),
+            );
+        }
+        $team_dash_status_maps = $this->_user_dashboard_status_maps($status_rows, $my_works_status_rows, $requirement_status_rows);
 
         // When viewing a specific employee's detail, resolve their name (not the logged-in user's name)
         $display_name = ($filter_user_id > 0)
@@ -877,7 +895,7 @@ class Tasks extends CI_Controller {
             $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
         }
 
-        $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id, $filter_project_id, $filter_status);
+        $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
 
         $type_counts = array(
             'total'        => count($tasks),
@@ -894,12 +912,12 @@ class Tasks extends CI_Controller {
         }
 
         if ($can_view_all) {
-            $group_cards = $this->_user_dashboard_employee_cards($tasks, $status_rows, $filter_user_id);
+            $group_cards = $this->_user_dashboard_employee_cards($tasks, $team_dash_status_maps, $filter_user_id, $complete_view);
             $group_mode = 'employee';
             $page_title = 'Team Dashboard';
             $subtitle = 'All employee tasks, requirements, and work items';
         } else {
-            $group_cards = $this->_user_dashboard_project_cards($tasks, $status_rows);
+            $group_cards = $this->_user_dashboard_project_cards($tasks, $team_dash_status_maps);
             $group_mode = 'project';
             $page_title = 'My Team Dashboard';
             $subtitle = 'Items assigned to you or created by you';
@@ -910,6 +928,13 @@ class Tasks extends CI_Controller {
 
         $this->load->view('tasks/user_dashboard', array(
             'status_rows'   => $status_rows,
+            'my_works_status_rows' => $my_works_status_rows,
+            'requirement_status_rows' => $requirement_status_rows,
+            'team_dash_status_options' => array(
+                'task'        => $status_rows,
+                'my_work'     => $my_works_status_rows,
+                'requirement' => $requirement_status_rows,
+            ),
             'group_cards'   => $group_cards,
             'group_mode'    => $group_mode,
             'page_title'    => $page_title,
@@ -923,6 +948,8 @@ class Tasks extends CI_Controller {
             'filter_status'     => $filter_status,
             'filter_projects'   => $filter_projects,
             'filter_users'      => $filter_users,
+            'complete_view'     => $complete_view,
+            'complete_view_on'  => ($complete_view === 'only'),
         ));
     }
 
@@ -950,7 +977,7 @@ class Tasks extends CI_Controller {
         $assigned_field = '';
         $created_field = '';
 
-        if ($source === 'my_works' || $type === 'my_work') {
+        if ($source === 'my_works' || $type === 'my_work' || ($type === 'ad_hoc' && $source === 'my_works')) {
             $table = 'my_works';
             $assigned_field = 'created_for';
             $created_field = 'created_by';
@@ -1039,11 +1066,88 @@ class Tasks extends CI_Controller {
     }
 
     /**
-     * @param object $t
-     * @param array $status_map
+     * @param array $task_status_rows
+     * @param array $my_work_status_rows
+     * @param array $requirement_status_rows
      * @return array
      */
-    private function _user_dashboard_format_item($t, $status_map = array())
+    private function _user_dashboard_status_maps($task_status_rows, $my_work_status_rows, $requirement_status_rows)
+    {
+        $build = function ($rows) {
+            $map = array();
+            if (!is_array($rows)) {
+                return $map;
+            }
+            foreach ($rows as $sr) {
+                if (isset($sr->code)) {
+                    $map[(string) $sr->code] = $sr;
+                }
+            }
+            return $map;
+        };
+        return array(
+            'task'        => $build($task_status_rows),
+            'my_work'     => $build($my_work_status_rows),
+            'requirement' => $build($requirement_status_rows),
+        );
+    }
+
+    /**
+     * @param object $item
+     * @return int
+     */
+    private function _user_dashboard_item_assignee_id($item)
+    {
+        $assignee_id = isset($item->assigned_to) ? (int) $item->assigned_to : 0;
+        if ($assignee_id < 1 && isset($item->created_by)) {
+            $assignee_id = (int) $item->created_by;
+        }
+        return $assignee_id;
+    }
+
+    /**
+     * @param array $items
+     * @return array
+     */
+    private function _user_dashboard_dedupe_items(array $items)
+    {
+        if (empty($items)) {
+            return $items;
+        }
+        $linked_task_ids = array();
+        foreach ($items as $item) {
+            if (!is_object($item)) {
+                continue;
+            }
+            $source = isset($item->item_source) ? (string) $item->item_source : '';
+            if ($source === 'my_works' && !empty($item->task_id)) {
+                $linked_task_ids[(int) $item->task_id] = true;
+            }
+        }
+        if (empty($linked_task_ids)) {
+            return $items;
+        }
+        $deduped = array();
+        foreach ($items as $item) {
+            if (!is_object($item)) {
+                $deduped[] = $item;
+                continue;
+            }
+            $source = isset($item->item_source) ? (string) $item->item_source : '';
+            if ($source === 'tasks' && isset($linked_task_ids[(int) $item->id])) {
+                continue;
+            }
+            $deduped[] = $item;
+        }
+        return $deduped;
+    }
+
+    /**
+     * @param object $t
+     * @param array $status_maps
+     * @return array
+     */
+    private function _user_dashboard_format_item($t, $status_maps = array())
     {
         $item_type = isset($t->item_type) ? (string) $t->item_type : 'project_task';
         $item_source = isset($t->item_source) ? (string) $t->item_source : '';
@@ -1057,6 +1161,13 @@ class Tasks extends CI_Controller {
             }
         }
 
+        $status_scope = 'task';
+        if ($item_source === 'my_works' || $item_type === 'my_work' || ($item_type === 'ad_hoc' && $item_source === 'my_works')) {
+            $status_scope = 'my_work';
+        } else if ($item_type === 'requirement' || $item_source === 'requirements') {
+            $status_scope = 'requirement';
+        }
+
         $url = '#';
         if ($item_source === 'tasks') {
             $url = site_url('tasks/view/' . $t->id);
@@ -1066,12 +1177,15 @@ class Tasks extends CI_Controller {
             $url = site_url('my-works/' . $t->id);
         }
 
-        $status = isset($t->status) ? $t->status : 'pending';
+        $status = isset($t->status) ? (string) $t->status : 'pending';
         $status_label = ucfirst(str_replace('_', ' ', $status));
         $status_color = '#6b7280';
-        if (isset($status_map[$status])) {
-            $status_label = isset($status_map[$status]->name) ? $status_map[$status]->name : $status_label;
-            $status_color = isset($status_map[$status]->color) ? $status_map[$status]->color : $status_color;
+        $scope_map = isset($status_maps[$status_scope]) ? $status_maps[$status_scope] : array();
+        if (isset($scope_map[$status])) {
+            $status_label = isset($scope_map[$status]->name) ? (string) $scope_map[$status]->name : $status_label;
+            $status_color = isset($scope_map[$status]->color) ? (string) $scope_map[$status]->color : $status_color;
+        } elseif ($status_scope === 'my_work' && function_exists('my_works_status_hex_color')) {
+            $status_color = my_works_status_hex_color($status);
         }
 
         $detail = '';
@@ -1080,16 +1194,17 @@ class Tasks extends CI_Controller {
         }
 
         return array(
-            'item_type'    => $item_type,
-            'item_source'  => $item_source,
-            'id'           => $t->id,
-            'title'        => isset($t->title) ? $t->title : '',
-            'status'       => $status,
-            'status_label' => $status_label,
-            'status_color' => $status_color,
-            'date'         => isset($t->due_date) ? $t->due_date : '',
-            'url'          => $url,
-            'detail'       => $detail,
+            'item_type'     => $item_type,
+            'item_source'   => $item_source,
+            'status_scope'  => $status_scope,
+            'id'            => $t->id,
+            'title'         => isset($t->title) ? $t->title : '',
+            'status'        => $status,
+            'status_label'  => $status_label,
+            'status_color'  => $status_color,
+            'date'          => isset($t->due_date) ? $t->due_date : '',
+            'url'           => $url,
+            'detail'        => $detail,
         );
     }
 
@@ -1138,7 +1253,7 @@ class Tasks extends CI_Controller {
      * @param string $filter_status
      * @return array
      */
-    private function _user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id = -1, $filter_project_id = -1, $filter_status = 'all')
+    private function _user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id = -1, $filter_project_id = -1, $filter_status = 'all', $complete_view = 'hide')
     {
         $user_id = (int) $user_id;
         if ($user_id < 1) {
@@ -1146,7 +1261,7 @@ class Tasks extends CI_Controller {
         }
 
         $all_items = array();
-        $this->load->helper('my_works_status');
+        $this->load->helper(array('my_works', 'my_works_status'));
 
         // 1. Fetch Tasks
         if ($this->db->table_exists('tasks')) {
@@ -1211,6 +1326,7 @@ class Tasks extends CI_Controller {
             if ($filter_status !== 'all' && schema_table_has_column($this->db, 'tasks', 'status')) {
                 $this->db->where('t.status', $filter_status);
             }
+            dashboard_apply_complete_view_to_query($this->db, 't.status', $complete_view, $filter_status, 'task');
             if ($filter_user_id > 0 && schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
                 $this->db->where('t.assigned_to', $filter_user_id);
             }
@@ -1299,6 +1415,7 @@ class Tasks extends CI_Controller {
             if ($filter_status !== 'all' && schema_table_has_column($this->db, 'requirements', 'status')) {
                 $this->db->where('r.status', $filter_status);
             }
+            dashboard_apply_complete_view_to_query($this->db, 'r.status', $complete_view, $filter_status, 'task');
             if ($filter_user_id > 0 && schema_table_has_column($this->db, 'requirements', 'assigned_to')) {
                 $this->db->where('r.assigned_to', $filter_user_id);
             }
@@ -1330,6 +1447,12 @@ class Tasks extends CI_Controller {
             );
             if (schema_table_has_column($this->db, 'my_works', 'due_date')) {
                 $select[] = 'm.due_date';
+            }
+            if (schema_table_has_column($this->db, 'my_works', 'task_id')) {
+                $select[] = 'm.task_id';
+            }
+            if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
+                $select[] = 'm.created_by';
             }
             if (schema_table_has_column($this->db, 'my_works', 'created_for')) {
                 $select[] = 'm.created_for AS assigned_to';
@@ -1403,9 +1526,22 @@ class Tasks extends CI_Controller {
             if ($filter_status !== 'all' && schema_table_has_column($this->db, 'my_works', 'status')) {
                 $this->db->where('m.status', $filter_status);
             }
+            dashboard_apply_complete_view_to_query($this->db, 'm.status', $complete_view, $filter_status, 'my_work');
             if ($filter_user_id > 0) {
                 if (schema_table_has_column($this->db, 'my_works', 'created_for')) {
+                    $this->db->group_start();
                     $this->db->where('m.created_for', $filter_user_id);
+                    if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
+                        $this->db->or_group_start();
+                        $this->db->where('m.created_for IS NULL', null, false);
+                        $this->db->where('m.created_by', $filter_user_id);
+                        $this->db->group_end();
+                        $this->db->or_group_start();
+                        $this->db->where('m.created_for', 0);
+                        $this->db->where('m.created_by', $filter_user_id);
+                        $this->db->group_end();
+                    }
+                    $this->db->group_end();
                 } else if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
                     $this->db->where('m.created_by', $filter_user_id);
                 }
@@ -1430,11 +1566,24 @@ class Tasks extends CI_Controller {
                 $has_project = $project_id > 0 || !empty($row->project_name);
                 $row->item_source = 'my_works';
                 $row->item_type = $has_project ? 'my_work' : 'ad_hoc';
-                if ($filter_status === 'all' && isset($row->status) && my_works_status_is_closed($row->status)) {
-                    continue;
-                }
                 $all_items[] = $row;
             }
+        }
+
+        $all_items = $this->_user_dashboard_dedupe_items($all_items);
+
+        if ($filter_status === 'all' && ($complete_view === 'hide' || $complete_view === 'only')) {
+            $all_items = dashboard_filter_items_by_complete_view($all_items, $complete_view);
+        }
+
+        if ($filter_user_id > 0) {
+            $scoped = array();
+            foreach ($all_items as $item) {
+                if ($this->_user_dashboard_item_assignee_id($item) === $filter_user_id) {
+                    $scoped[] = $item;
+                }
+            }
+            $all_items = $scoped;
         }
 
         usort($all_items, function ($a, $b) {
@@ -1456,17 +1605,8 @@ class Tasks extends CI_Controller {
      * @param array $status_rows
      * @return array
      */
-    private function _user_dashboard_employee_cards($tasks, $status_rows = array(), $filter_user_id = -1)
+    private function _user_dashboard_employee_cards($tasks, $status_maps = array(), $filter_user_id = -1, $complete_view = 'hide')
     {
-        $status_map = array();
-        if (is_array($status_rows)) {
-            foreach ($status_rows as $sr) {
-                if (isset($sr->code)) {
-                    $status_map[$sr->code] = $sr;
-                }
-            }
-        }
-
         $grouped = array();
         $employees_info = array();
 
@@ -1497,7 +1637,7 @@ class Tasks extends CI_Controller {
         }
 
         foreach ($tasks as $task) {
-            $assignee_id = isset($task->assigned_to) ? (int) $task->assigned_to : 0;
+            $assignee_id = $this->_user_dashboard_item_assignee_id($task);
             if (!isset($grouped[$assignee_id])) {
                 $grouped[$assignee_id] = array();
             }
@@ -1563,7 +1703,11 @@ class Tasks extends CI_Controller {
 
             $formatted_items = array();
             foreach ($employee_tasks as $t) {
-                $formatted_items[] = $this->_user_dashboard_format_item($t, $status_map);
+                $formatted_items[] = $this->_user_dashboard_format_item($t, $status_maps);
+            }
+
+            if (empty($formatted_items) && ($complete_view === 'only' || $complete_view === 'hide')) {
+                continue;
             }
 
             $cards[] = array(
@@ -1597,17 +1741,8 @@ class Tasks extends CI_Controller {
      * @param array $status_rows
      * @return array
      */
-    private function _user_dashboard_project_cards($tasks, $status_rows = array())
+    private function _user_dashboard_project_cards($tasks, $status_maps = array())
     {
-        $status_map = array();
-        if (is_array($status_rows)) {
-            foreach ($status_rows as $sr) {
-                if (isset($sr->code)) {
-                    $status_map[$sr->code] = $sr;
-                }
-            }
-        }
-
         $grouped = array();
         foreach ($tasks as $task) {
             $project_id = isset($task->project_id) ? (int) $task->project_id : 0;
@@ -1652,7 +1787,7 @@ class Tasks extends CI_Controller {
 
             $formatted_items = array();
             foreach ($project_tasks as $t) {
-                $formatted_items[] = $this->_user_dashboard_format_item($t, $status_map);
+                $formatted_items[] = $this->_user_dashboard_format_item($t, $status_maps);
             }
 
             $cards[] = array(

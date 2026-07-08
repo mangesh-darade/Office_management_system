@@ -153,6 +153,8 @@ if ($embed) {
               } else if (typeof settings.data === 'object' && settings.data !== null) {
                 // If it's an object, add the token
                 settings.data.ci_csrf_token = token;
+              } else {
+                settings.data = { ci_csrf_token: token };
               }
             }
           }
@@ -177,6 +179,15 @@ if ($embed) {
       <div class="me-auto"></div>
       <div class="d-flex align-items-center gap-2">
         <?php if($this->session->userdata('user_id')): ?>
+          <?php if (function_exists('has_module_access') && has_module_access('notifications')): ?>
+          <?php $header_unread_count = function_exists('get_unread_notification_count') ? (int) get_unread_notification_count() : 0; ?>
+          <a href="<?php echo site_url('notifications'); ?>" class="btn btn-sm btn-outline-light position-relative" title="Notifications">
+            <i class="bi bi-bell"></i>
+            <?php if ($header_unread_count > 0): ?>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"><?php echo $header_unread_count > 99 ? '99+' : $header_unread_count; ?></span>
+            <?php endif; ?>
+          </a>
+          <?php endif; ?>
           <button type="button" id="btnEnablePortalAlerts" class="btn btn-sm btn-outline-light d-none" title="Enable call and chat alerts">
             <i class="bi bi-bell"></i><span class="d-none d-md-inline ms-1">Enable Alerts</span>
           </button>
@@ -235,7 +246,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       $this->load->helper('spl');
       if (function_exists('spl_can_access') && spl_can_access()):
       ?>
-      <a class="nav-link sidebar-link <?php echo ($active==='spl' || $active==='rewards')?'active':''; ?>" href="<?php echo site_url('spl'); ?>"><i class="bi bi-trophy me-2"></i>SPL — My Reward</a>
+      <a class="nav-link sidebar-link <?php echo ($active==='spl')?'active':''; ?>" href="<?php echo site_url('spl/dashboard'); ?>"><i class="bi bi-trophy me-2"></i>SPL</a>
       <?php endif; ?>
       <?php $this->load->view('partials/sidebar_sales_group', array('variant' => 'mobile', 'active' => $active, 'active_sub' => $active_sub)); ?>
       
@@ -629,7 +640,13 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link <?php echo $active==='announcements'?'active':''; ?>" href="<?php echo site_url('announcements'); ?>"><i class="bi bi-megaphone me-2"></i>Announcements</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('notifications')): ?>
-      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>"><i class="bi bi-bell me-2"></i>Notifications</a>
+      <?php $mobile_unread_count = function_exists('get_unread_notification_count') ? (int) get_unread_notification_count() : 0; ?>
+      <a class="nav-link sidebar-link <?php echo $active==='notifications'?'active':''; ?>" href="<?php echo site_url('notifications'); ?>">
+        <i class="bi bi-bell me-2"></i>Notifications
+        <?php if ($mobile_unread_count > 0): ?>
+        <span class="badge bg-danger ms-1"><?php echo $mobile_unread_count > 99 ? '99+' : $mobile_unread_count; ?></span>
+        <?php endif; ?>
+      </a>
       <?php endif; ?>
       
       <?php

@@ -6,10 +6,69 @@
  * Helper functions for creating and managing notifications
  */
 
+if (!function_exists('notification_normalize_row')) {
+    /**
+     * Normalize a notification row for display (legacy body/payload/read_at support).
+     *
+     * @param object|null $row
+     * @return object|null
+     */
+    function notification_normalize_row($row)
+    {
+        if (!$row) {
+            return $row;
+        }
+
+        if ((empty($row->message) || trim((string) $row->message) === '') && !empty($row->body)) {
+            $row->message = (string) $row->body;
+        }
+
+        if (!empty($row->payload)) {
+            $payload = json_decode((string) $row->payload, true);
+            if (is_array($payload)) {
+                if (empty($row->module) && !empty($payload['module'])) {
+                    $row->module = (string) $payload['module'];
+                }
+                if (empty($row->related_id) && !empty($payload['related_id'])) {
+                    $row->related_id = (int) $payload['related_id'];
+                }
+                if (empty($row->action_url) && !empty($payload['action_url'])) {
+                    $row->action_url = (string) $payload['action_url'];
+                }
+                if (!empty($payload['original_type']) && in_array($payload['original_type'], array('info', 'success', 'warning', 'error'), true)) {
+                    $row->type = (string) $payload['original_type'];
+                }
+            }
+        }
+
+        if (!isset($row->is_read)) {
+            $row->is_read = !empty($row->read_at) ? 1 : 0;
+        } elseif ((int) $row->is_read === 0 && !empty($row->read_at)) {
+            $row->is_read = 1;
+        }
+
+        if (!isset($row->is_deleted)) {
+            $row->is_deleted = 0;
+        }
+
+        return $row;
+    }
+}
+
+if (!function_exists('notification_normalize_rows')) {
+    function notification_normalize_rows(array $rows)
+    {
+        foreach ($rows as $idx => $row) {
+            $rows[$idx] = notification_normalize_row($row);
+        }
+        return $rows;
+    }
+}
+
 if (!function_exists('create_notification')) {
     /**
      * Create a notification for a user
-     * 
+     *
      * @param int $user_id User ID to notify
      * @param string $title Notification title
      * @param string $message Notification message
@@ -22,36 +81,26 @@ if (!function_exists('create_notification')) {
     function create_notification($user_id, $title, $message, $type = 'info', $module = null, $related_id = null, $action_url = null)
     {
         $CI =& get_instance();
-        
-        // Ensure notifications table exists
-        if (!$CI->db->table_exists('notifications')) {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
             return false;
         }
-        
-        // Map types to supported ENUM values
-        $valid_types = ['task_assigned', 'leave_request', 'leave_status', 'deadline_reminder', 'system'];
-        $db_type = in_array($type, $valid_types) ? $type : 'system';
-        
-        // Pack additional data into payload
-        $payload = [
-            'original_type' => $type,
-            'module' => $module,
-            'related_id' => $related_id,
-            'action_url' => $action_url
-        ];
 
-        $data = [
-            'user_id' => (int)$user_id,
-            'title' => $title,
-            'body' => $message, // Changed from message to body
-            'type' => $db_type,
-            'payload' => json_encode($payload),
-            'channel' => 'in_app',
-            'created_at' => date('Y-m-d H:i:s')
-        ];
-        
-        $CI->db->insert('notifications', $data);
-        return $CI->db->insert_id();
+        $valid_types = array('info', 'success', 'warning', 'error');
+        if (!in_array($type, $valid_types, true)) {
+            $type = 'info';
+        }
+
+        $CI->load->model('Notification_model');
+        return $CI->Notification_model->create(
+            $user_id,
+            (string) $title,
+            (string) $message,
+            $type,
+            $module !== null ? (string) $module : null,
+            $related_id !== null ? (int) $related_id : null,
+            $action_url !== null ? (string) $action_url : null
+        );
     }
 }
 
@@ -70,8 +119,14 @@ if (!function_exists('notify_task_assigned')) {
         $CI =& get_instance();
         
         // Get assigner name
-        $assigner = $CI->db->get_where('users', ['id' => $assigned_by_id])->row();
-        $assigner_name = $assigner ? $assigner->username : 'Someone';
+        $assigner = $CI->db->select('name, email')->where('id', (int) $assigned_by_id)->get('users')->row();
+        $assigner_name = 'Someone';
+        if ($assigner) {
+            $assigner_name = trim((string) $assigner->name);
+            if ($assigner_name === '') {
+                $assigner_name = (string) $assigner->email;
+            }
+        }
         
         return create_notification(
             $user_id,
@@ -169,19 +224,19 @@ if (!function_exists('get_unread_notification_count')) {
     function get_unread_notification_count($user_id = null)
     {
         $CI =& get_instance();
-        
+
         if (!$user_id) {
-            $user_id = (int)$CI->session->userdata('user_id');
+            $user_id = (int) $CI->session->userdata('user_id');
+        } else {
+            $user_id = (int) $user_id;
         }
-        
-        if (!$user_id || !$CI->db->table_exists('notifications')) {
+
+        if ($user_id <= 0 || !$CI->db->table_exists('notifications')) {
             return 0;
         }
-        
-        $CI->db->where('user_id', $user_id);
-        $CI->db->where('is_read', 0);
-        $CI->db->where('is_deleted', 0);
-        return $CI->db->count_all_results('notifications');
+
+        $CI->load->model('Notification_model');
+        return (int) $CI->Notification_model->count_unread($user_id);
     }
 }
 

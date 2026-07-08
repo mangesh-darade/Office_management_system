@@ -80,8 +80,16 @@
     $redirectBack .= '?' . $_SERVER['QUERY_STRING'];
   }
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
+  $complete_view_on = !empty($complete_view_on);
+  $show_complete_toggle = in_array($active_tab, array('project-dashboard', 'team-dashboard'), true);
   ?>
   <div class="mw-unified-toolbar-actions">
+    <div class="mw-unified-complete-toggle<?php echo $show_complete_toggle ? '' : ' d-none'; ?>" id="mwDashCompleteToggleWrap">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="mwDashCompleteToggle"<?php echo $complete_view_on ? ' checked' : ''; ?>>
+        <label class="form-check-label" for="mwDashCompleteToggle">Completed only</label>
+      </div>
+    </div>
     <?php if ($can_add): ?>
     <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($quickAddUrl); ?>" title="Quick add — full screen with rich text and attachments">
       <i class="bi bi-lightning-charge-fill me-1"></i>Quick add
@@ -177,16 +185,124 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  function getActiveUnifiedTab() {
+    var activeBtn = document.querySelector('#unifiedDashboardTabs button.active');
+    return activeBtn ? activeBtn.getAttribute('data-tab') : '';
+  }
+
   function getEmbedUrl(urlString) {
     try {
-      // Use standard URL API to safely append/overwrite query parameters
       var url = new URL(urlString, window.location.origin);
       url.searchParams.set('embed', '1');
+      var tab = getActiveUnifiedTab();
+      if (tab) {
+        url.searchParams.set('parent_tab', tab);
+      }
+      applyCompleteViewParam(url);
       return url.toString();
     } catch(e) {
       var cleanUrl = urlString.replace(/([?&])embed=[^&]*/, '');
-      return cleanUrl + (cleanUrl.indexOf('?') >= 0 ? '&' : '?') + 'embed=1';
+      var out = cleanUrl + (cleanUrl.indexOf('?') >= 0 ? '&' : '?') + 'embed=1';
+      var tab = getActiveUnifiedTab();
+      if (tab) {
+        out += '&parent_tab=' + encodeURIComponent(tab);
+      }
+      var toggle = document.getElementById('mwDashCompleteToggle');
+      if (toggle && toggle.checked) {
+        out += '&complete_view=1';
+      }
+      return out;
     }
+  }
+
+  function applyCompleteViewParam(url) {
+    var toggle = document.getElementById('mwDashCompleteToggle');
+    if (toggle && toggle.checked) {
+      url.searchParams.set('complete_view', '1');
+    } else {
+      url.searchParams.delete('complete_view');
+    }
+  }
+
+  function updateCompleteToggleVisibility() {
+    var tab = getActiveUnifiedTab();
+    var wrap = document.getElementById('mwDashCompleteToggleWrap');
+    if (wrap) {
+      wrap.classList.toggle('d-none', tab !== 'project-dashboard' && tab !== 'team-dashboard');
+    }
+  }
+
+  function syncToggleFromUrl() {
+    var toggle = document.getElementById('mwDashCompleteToggle');
+    if (!toggle) {
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    toggle.checked = params.get('complete_view') === '1';
+  }
+
+  function syncPageUrlWithCompleteToggle() {
+    var toggle = document.getElementById('mwDashCompleteToggle');
+    if (!toggle) {
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    var activeTab = getActiveUnifiedTab();
+    if (activeTab) {
+      params.set('tab', activeTab);
+    }
+    if (toggle.checked) {
+      params.set('complete_view', '1');
+    } else {
+      params.delete('complete_view');
+    }
+    var query = params.toString();
+    var nextUrl = window.location.pathname + (query ? '?' + query : '');
+    window.history.replaceState({ path: nextUrl }, '', nextUrl);
+  }
+
+  function reloadActiveDashboardTab() {
+    var tab = getActiveUnifiedTab();
+    if (tab !== 'project-dashboard' && tab !== 'team-dashboard') {
+      return;
+    }
+    var $pane = $('#pane-' + tab);
+    var url = $pane.data('last-loaded-url');
+    if (!url) {
+      if (tab === 'project-dashboard') {
+        url = '<?php echo site_url("projects/dashboard"); ?>';
+      } else if (tab === 'team-dashboard') {
+        url = '<?php echo site_url("tasks/my-dashboard"); ?>';
+      }
+    }
+    if (url) {
+      try {
+        var parsed = new URL(url, window.location.origin);
+        applyCompleteViewParam(parsed);
+        url = parsed.pathname + parsed.search;
+      } catch (e) {}
+      loadTabContent($pane, url, 'GET');
+    }
+  }
+
+  function resolveUnifiedBackUrl(href) {
+    var activeTab = getActiveUnifiedTab();
+    if (activeTab !== 'team-dashboard') {
+      return href;
+    }
+    try {
+      var url = new URL(href, window.location.origin);
+      var path = url.pathname.replace(/\/+$/, '');
+      var isMyWorksRoot = /\/my-works$/i.test(path);
+      if (isMyWorksRoot) {
+        return '<?php echo site_url("tasks/my-dashboard"); ?>';
+      }
+    } catch (e) {
+      if (/\/my-works\/?(\?|$)/i.test(href) && href.indexOf('my-works/') < 0) {
+        return '<?php echo site_url("tasks/my-dashboard"); ?>';
+      }
+    }
+    return href;
   }
 
   function loadTabContent($pane, url, method, data) {
@@ -206,6 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
       url: getEmbedUrl(url),
       type: upperMethod,
       data: data || {},
+      cache: false,
       success: function(html) {
         $content.html(html);
         $spinner.hide();
@@ -271,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (isDashboardLink) {
         e.preventDefault();
         var $pane = $(anchor).closest('.tab-pane');
-        loadTabContent($pane, href, 'GET');
+        loadTabContent($pane, resolveUnifiedBackUrl(href), 'GET');
       }
     }
   }, true);
@@ -286,29 +403,46 @@ document.addEventListener('DOMContentLoaded', function() {
       var tabName = btn.getAttribute('data-tab');
       var $pane = $('#pane-' + tabName);
       $pane.addClass('active show');
+      updateCompleteToggleVisibility();
       
-      // Lazy load only if empty
       var $content = $pane.find('.tab-pane-content');
-      if ($content.children().length === 0) {
-        var initialUrl = '';
-        if (tabName === 'overview') {
+      var initialUrl = '';
+      if (tabName === 'overview') {
+        if ($content.children().length === 0) {
           initialUrl = '<?php echo site_url("my-works?view=overview"); ?>';
-        } else if (tabName === 'project-dashboard') {
-          initialUrl = '<?php echo site_url("projects/dashboard"); ?>';
-        } else if (tabName === 'team-dashboard') {
-          initialUrl = '<?php echo site_url("tasks/my-dashboard"); ?>';
-        } else if (tabName === 'list') {
+        }
+      } else if (tabName === 'project-dashboard') {
+        initialUrl = '<?php echo site_url("projects/dashboard"); ?>';
+      } else if (tabName === 'team-dashboard') {
+        initialUrl = '<?php echo site_url("tasks/my-dashboard"); ?>';
+      } else if (tabName === 'list') {
+        if ($content.children().length === 0) {
           initialUrl = '<?php echo site_url("my-works?view=list"); ?>';
         }
-        if (initialUrl) {
-          loadTabContent($pane, initialUrl, 'GET');
-        }
+      }
+      if (initialUrl) {
+        loadTabContent($pane, initialUrl, 'GET');
       }
       
-      var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?tab=' + tabName;
+      var params = new URLSearchParams(window.location.search);
+      params.set('tab', tabName);
+      applyCompleteViewParam(params);
+      var query = params.toString();
+      var newUrl = window.location.pathname + (query ? '?' + query : '');
       window.history.pushState({ path: newUrl }, '', newUrl);
     });
   });
+
+  var completeToggle = document.getElementById('mwDashCompleteToggle');
+  if (completeToggle) {
+    completeToggle.addEventListener('change', function() {
+      syncPageUrlWithCompleteToggle();
+      reloadActiveDashboardTab();
+    });
+  }
+
+  syncToggleFromUrl();
+  updateCompleteToggleVisibility();
 
   // Load the active tab initially
   var initialTabBtn = document.querySelector('#unifiedDashboardTabs button.active');

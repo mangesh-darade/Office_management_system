@@ -304,8 +304,10 @@ class My_works extends CI_Controller
     {
         $embed = (bool)$this->input->get('embed');
         if (!$embed) {
+            $this->load->helper('my_works');
             $this->load->view('my_works/unified', [
-                'active_tab' => $this->input->get('tab') ?: 'overview'
+                'active_tab' => $this->input->get('tab') ?: 'overview',
+                'complete_view_on' => dashboard_parse_complete_view($this->input) === 'only',
             ]);
             return;
         }

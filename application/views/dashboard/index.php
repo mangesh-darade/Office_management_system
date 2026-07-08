@@ -254,7 +254,7 @@ $show_announcements = ($can_announcements && !empty($announcements)) || $can_mea
                   <?php echo isset($stats['spl_pending']) ? number_format($stats['spl_pending']) : '0'; ?>
                   <?php echo esc_view(isset($stats['spl_pending_label']) ? $stats['spl_pending_label'] : 'pending'); ?>
                 </small>
-                <a href="<?php echo site_url('spl'); ?>" class="btn btn-outline-light btn-sm">View SPL</a>
+                <a href="<?php echo site_url('spl/dashboard'); ?>" class="btn btn-outline-light btn-sm">View SPL</a>
               </div>
             </div>
           </div>

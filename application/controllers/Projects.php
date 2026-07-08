@@ -376,6 +376,8 @@ class Projects extends CI_Controller {
         $filter_project_id = $this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1;
         $filter_status = $this->input->get('status') !== null ? (string)$this->input->get('status') : 'all';
         $filter_department_id = $this->input->get('department_id') !== null ? (int)$this->input->get('department_id') : -1;
+        $this->load->helper('my_works');
+        $complete_view = dashboard_parse_complete_view($this->input);
 
         $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
             || has_module_access('projects_view_all');
@@ -422,7 +424,7 @@ class Projects extends CI_Controller {
         foreach ($projects as $project) {
             $project_ids[] = (int) $project->id;
         }
-        $tasks_by_project = $this->_project_dashboard_tasks_for_projects($project_ids, $filter_user_id, $filter_project_id, $filter_status);
+        $tasks_by_project = $this->_project_dashboard_tasks_for_projects($project_ids, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
 
         $project_cards = array();
         foreach ($projects as $project) {
@@ -444,7 +446,10 @@ class Projects extends CI_Controller {
             // But let's just show it empty if it matches the project_id (or if no project_id filter).
             $project_cards[] = array(
                 'project' => $project,
-                'tasks'   => isset($tasks_by_project[$project_id]) ? $tasks_by_project[$project_id] : array(),
+                'tasks'   => isset($tasks_by_project[$project_id]) ? dashboard_filter_items_by_complete_view(
+                    $tasks_by_project[$project_id],
+                    ($filter_status === 'all') ? $complete_view : 'all'
+                ) : array(),
             );
         }
 
@@ -458,6 +463,8 @@ class Projects extends CI_Controller {
             'filter_users'      => $filter_users,
             'filter_departments' => $filter_departments,
             'filter_department_id' => $filter_department_id,
+            'complete_view'     => $complete_view,
+            'complete_view_on'  => ($complete_view === 'only'),
         ));
     }
 
@@ -1181,7 +1188,7 @@ class Projects extends CI_Controller {
      * @param string $filter_status
      * @return array<int, array>
      */
-    private function _project_dashboard_tasks_for_projects($project_ids, $filter_user_id = -1, $filter_project_id = -1, $filter_status = 'all')
+    private function _project_dashboard_tasks_for_projects($project_ids, $filter_user_id = -1, $filter_project_id = -1, $filter_status = 'all', $complete_view = 'hide')
     {
         $grouped = array();
         if (empty($project_ids) || !$this->db->table_exists('tasks')) {
@@ -1232,6 +1239,7 @@ class Projects extends CI_Controller {
         if ($filter_status !== 'all' && schema_table_has_column($this->db, 'tasks', 'status')) {
             $this->db->where('t.status', $filter_status);
         }
+        dashboard_apply_complete_view_to_query($this->db, 't.status', $complete_view, $filter_status, 'task');
         if ($filter_user_id > 0 && schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
             $this->db->where('t.assigned_to', $filter_user_id);
         }

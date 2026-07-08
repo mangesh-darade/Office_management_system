@@ -107,6 +107,15 @@ $assignee_label = function ($task) {
 <?php if (!empty($filter_projects)): ?>
 <div class="project-dash-filters">
   <form method="get" action="<?php echo site_url('projects/dashboard'); ?>" class="project-dash-filter-form" id="projectDashFilterForm">
+    <?php if ($embed): ?>
+    <input type="hidden" name="embed" value="1">
+    <?php endif; ?>
+    <?php if ($this->input->get('parent_tab')): ?>
+    <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <?php if (!empty($complete_view_on)): ?>
+    <input type="hidden" name="complete_view" value="1">
+    <?php endif; ?>
     <?php if (isset($filter_departments) && !empty($filter_departments)): ?>
     <label class="project-dash-filter-label me-3">
       <span class="project-dash-filter-label-text">Department</span>

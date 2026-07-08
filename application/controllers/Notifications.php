@@ -33,9 +33,9 @@ class Notifications extends CI_Controller {
 
         // Apply filter client-side by pre-filtering here
         if ($filter === 'unread') {
-            $notifications = array_values(array_filter($notifications, function($n) { return !$n->is_read; }));
+            $notifications = array_values(array_filter($notifications, function($n) { return (int) $n->is_read === 0; }));
         } elseif ($filter === 'read') {
-            $notifications = array_values(array_filter($notifications, function($n) { return $n->is_read; }));
+            $notifications = array_values(array_filter($notifications, function($n) { return (int) $n->is_read === 1; }));
         }
 
         $unread_count = $this->Notification_model->count_unread($user_id);
@@ -55,7 +55,12 @@ class Notifications extends CI_Controller {
     {
         $user_id = (int)$this->session->userdata('user_id');
         $count   = $this->Notification_model->count_unread($user_id);
-        $this->output->set_content_type('application/json')->set_output(json_encode(['count' => $count]));
+        $this->output->set_content_type('application/json')->set_output(json_encode([
+            'status' => 'success',
+            'message' => '',
+            'data' => array('count' => $count),
+            'count' => $count,
+        ]));
     }
     
     /**
@@ -68,6 +73,12 @@ class Notifications extends CI_Controller {
         $notifications = $this->Notification_model->get_for_user($user_id, 10);
         $count         = $this->Notification_model->count_unread($user_id);
         $this->output->set_content_type('application/json')->set_output(json_encode([
+            'status' => 'success',
+            'message' => '',
+            'data' => array(
+                'notifications' => $notifications,
+                'unread_count' => $count,
+            ),
             'notifications' => $notifications,
             'unread_count'  => $count,
         ]));
@@ -79,10 +90,21 @@ class Notifications extends CI_Controller {
      */
     public function mark_read($id)
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
         $user_id = (int)$this->session->userdata('user_id');
-        $this->Notification_model->mark_read((int)$id, $user_id);
+        $ok = $this->Notification_model->mark_read((int)$id, $user_id);
+        $unread = $this->Notification_model->count_unread($user_id);
+        $payload = array(
+            'status' => $ok ? 'success' : 'error',
+            'success' => $ok,
+            'message' => $ok ? '' : 'Notification not found.',
+            'data' => array('unread_count' => $unread),
+            'unread_count' => $unread,
+        );
         if ($this->input->is_ajax_request()) {
-            $this->output->set_content_type('application/json')->set_output(json_encode(['success' => true]));
+            $this->output->set_content_type('application/json')->set_output(json_encode($payload));
         } else {
             redirect('notifications');
         }
@@ -94,10 +116,25 @@ class Notifications extends CI_Controller {
      */
     public function mark_all_read()
     {
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
         $user_id = (int)$this->session->userdata('user_id');
-        $this->Notification_model->mark_all_read($user_id);
+        $updated = $this->Notification_model->mark_all_read($user_id);
+        $unread = $this->Notification_model->count_unread($user_id);
+        $payload = array(
+            'status' => 'success',
+            'success' => true,
+            'message' => '',
+            'data' => array(
+                'updated' => $updated,
+                'unread_count' => $unread,
+            ),
+            'updated' => $updated,
+            'unread_count' => $unread,
+        );
         if ($this->input->is_ajax_request()) {
-            $this->output->set_content_type('application/json')->set_output(json_encode(['success' => true]));
+            $this->output->set_content_type('application/json')->set_output(json_encode($payload));
         } else {
             $this->session->set_flashdata('success', 'All notifications marked as read.');
             redirect('notifications');
@@ -112,8 +149,15 @@ class Notifications extends CI_Controller {
     {
         $user_id = (int)$this->session->userdata('user_id');
         $this->Notification_model->delete((int)$id, $user_id);
+        $unread = $this->Notification_model->count_unread($user_id);
         if ($this->input->is_ajax_request()) {
-            $this->output->set_content_type('application/json')->set_output(json_encode(['success' => true]));
+            $this->output->set_content_type('application/json')->set_output(json_encode([
+                'status' => 'success',
+                'success' => true,
+                'message' => '',
+                'data' => array('unread_count' => $unread),
+                'unread_count' => $unread,
+            ]));
         } else {
             $this->session->set_flashdata('success', 'Notification deleted.');
             redirect('notifications');

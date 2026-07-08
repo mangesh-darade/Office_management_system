@@ -216,7 +216,7 @@ class Spl_model extends CI_Model
         return $map;
     }
 
-    public function list_group_members_with_points($group_id, array $period_map = null, $use_period = false)
+    public function list_group_members_with_points($group_id, ?array $period_map = null, $use_period = false)
     {
         $members = $this->list_group_members($group_id);
         if (empty($members)) {
@@ -443,5 +443,237 @@ class Spl_model extends CI_Model
             ->limit(1)
             ->get('reward_approval_queue')
             ->row();
+    }
+
+    public function count_reward_users()
+    {
+        if (!$this->db->table_exists('user_reward_summary')) {
+            return 0;
+        }
+        return (int) $this->db->count_all('user_reward_summary');
+    }
+
+    public function get_user_lifetime_rank($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0 || !$this->db->table_exists('user_reward_summary')) {
+            return 0;
+        }
+        $row = $this->db->select('lifetime_points')->where('user_id', $user_id)->get('user_reward_summary')->row();
+        $pts = $row ? (float) $row->lifetime_points : 0;
+        $higher = (int) $this->db->where('lifetime_points >', $pts)->count_all_results('user_reward_summary');
+        return $higher + 1;
+    }
+
+    public function get_user_month_rank($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0 || !$this->db->table_exists('user_reward_summary')) {
+            return 0;
+        }
+        $row = $this->db->select('month_points')->where('user_id', $user_id)->get('user_reward_summary')->row();
+        $pts = $row ? (float) $row->month_points : 0;
+        $higher = (int) $this->db->where('month_points >', $pts)->count_all_results('user_reward_summary');
+        return $higher + 1;
+    }
+
+    public function list_org_activity_feed($limit = 20)
+    {
+        if (!$this->db->table_exists('reward_transactions')) {
+            return array();
+        }
+        $this->db->select('t.*, r.name AS rule_name, COALESCE(c.name, rc.name) AS category_name, u.name AS user_name', false);
+        $this->db->from('reward_transactions t');
+        $this->db->join('reward_rules r', 'r.id = t.rule_id', 'left');
+        $this->db->join('reward_categories c', 'c.id = t.category_id', 'left');
+        $this->db->join('reward_categories rc', 'rc.id = r.category_id', 'left');
+        $this->db->join('users u', 'u.id = t.user_id', 'left');
+        $this->db->where_in('t.status', array('approved', 'pending'));
+        $this->db->order_by('t.created_at', 'DESC');
+        $this->db->order_by('t.id', 'DESC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
+    public function sum_group_member_points_by_status($group_id, $date_from = null, $date_to = null)
+    {
+        $members = $this->list_group_members((int) $group_id);
+        if (empty($members) || !$this->db->table_exists('reward_transactions')) {
+            return (object) array(
+                'approved' => 0,
+                'pending' => 0,
+                'deducted' => 0,
+                'net' => 0,
+            );
+        }
+        $user_ids = array();
+        foreach ($members as $member) {
+            $user_ids[] = (int) $member->id;
+        }
+        $this->db->select(
+            'COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points > 0 THEN t.points ELSE 0 END), 0) AS approved_positive,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'pending\' THEN t.points ELSE 0 END), 0) AS pending_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points < 0 THEN ABS(t.points) ELSE 0 END), 0) AS deducted,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' THEN t.points ELSE 0 END), 0) AS net',
+            false
+        );
+        $this->db->from('reward_transactions t');
+        $this->db->where_in('t.user_id', $user_ids);
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $row = $this->db->get()->row();
+        return (object) array(
+            'approved' => $row ? (float) $row->approved_positive : 0,
+            'pending' => $row ? (float) $row->pending_points : 0,
+            'deducted' => $row ? (float) $row->deducted : 0,
+            'net' => $row ? (float) $row->net : 0,
+        );
+    }
+
+    public function compute_points_streak_days($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0 || !$this->db->table_exists('reward_transactions')) {
+            return array('current' => 0, 'best' => 0);
+        }
+        $this->db->select('DATE(created_at) AS award_date', false);
+        $this->db->from('reward_transactions');
+        $this->db->where('user_id', $user_id);
+        $this->db->where('status', 'approved');
+        $this->db->where('points >', 0);
+        $this->db->group_by('DATE(created_at)');
+        $this->db->order_by('award_date', 'DESC');
+        $rows = $this->db->get()->result();
+        if (empty($rows)) {
+            return array('current' => 0, 'best' => 0);
+        }
+        $dates = array();
+        foreach ($rows as $row) {
+            $dates[] = (string) $row->award_date;
+        }
+        $dateSet = array_flip($dates);
+        $current = 0;
+        $cursor = date('Y-m-d');
+        while (isset($dateSet[$cursor])) {
+            $current++;
+            $cursor = date('Y-m-d', strtotime($cursor . ' -1 day'));
+        }
+        $best = 0;
+        $run = 0;
+        $prev = null;
+        foreach (array_reverse($dates) as $d) {
+            if ($prev === null) {
+                $run = 1;
+            } elseif (strtotime($d) === strtotime($prev . ' +1 day')) {
+                $run++;
+            } else {
+                $run = 1;
+            }
+            if ($run > $best) {
+                $best = $run;
+            }
+            $prev = $d;
+        }
+        return array('current' => $current, 'best' => $best);
+    }
+
+    public function list_top_users_by_period($date_from, $date_to, $limit = 4)
+    {
+        if (!$this->db->table_exists('reward_transactions')) {
+            return array();
+        }
+        $this->db->select('t.user_id, SUM(t.points) AS net_points, u.name AS user_name', false);
+        $this->db->from('reward_transactions t');
+        $this->db->join('users u', 'u.id = t.user_id', 'left');
+        $this->db->where('t.status', 'approved');
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $this->db->group_by('t.user_id');
+        $this->db->order_by('net_points', 'DESC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
+    public function list_top_user_by_category($category_code, $date_from, $date_to)
+    {
+        if (!$this->db->table_exists('reward_transactions') || !$this->db->table_exists('reward_categories')) {
+            return null;
+        }
+        $cat = $this->db->where('code', (string) $category_code)->get('reward_categories')->row();
+        if (!$cat) {
+            return null;
+        }
+        $cat_id = (int) $cat->id;
+        $this->db->select('t.user_id, SUM(t.points) AS net_points, u.name AS user_name', false);
+        $this->db->from('reward_transactions t');
+        $this->db->join('reward_rules r', 'r.id = t.rule_id', 'left');
+        $this->db->join('users u', 'u.id = t.user_id', 'left');
+        $this->db->where('t.status', 'approved');
+        $this->db->group_start()
+            ->where('t.category_id', $cat_id)
+            ->or_where('r.category_id', $cat_id)
+            ->group_end();
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $this->db->group_by('t.user_id');
+        $this->db->order_by('net_points', 'DESC');
+        $this->db->limit(1);
+        return $this->db->get()->row();
+    }
+
+    public function list_category_leaders($date_from, $date_to, $limit = 5)
+    {
+        if (!$this->db->table_exists('reward_transactions') || !$this->db->table_exists('reward_categories')) {
+            return array();
+        }
+        $categories = $this->db->where('is_active', 1)->order_by('sort_order')->limit(20)->get('reward_categories')->result();
+        $leaders = array();
+        foreach ($categories as $cat) {
+            $cat_id = (int) $cat->id;
+            $this->db->select('t.user_id, SUM(t.points) AS net_points, u.name AS user_name', false);
+            $this->db->from('reward_transactions t');
+            $this->db->join('reward_rules r', 'r.id = t.rule_id', 'left');
+            $this->db->join('users u', 'u.id = t.user_id', 'left');
+            $this->db->where('t.status', 'approved');
+            $this->db->group_start()
+                ->where('t.category_id', $cat_id)
+                ->or_where('r.category_id', $cat_id)
+                ->group_end();
+            if ($date_from !== null && $date_from !== '') {
+                $this->db->where('DATE(t.created_at) >=', $date_from);
+            }
+            if ($date_to !== null && $date_to !== '') {
+                $this->db->where('DATE(t.created_at) <=', $date_to);
+            }
+            $this->db->group_by('t.user_id');
+            $this->db->order_by('net_points', 'DESC');
+            $this->db->limit(1);
+            $top = $this->db->get()->row();
+            if ($top && (float) $top->net_points > 0) {
+                $leaders[] = (object) array(
+                    'category_code' => (string) $cat->code,
+                    'category_name' => (string) $cat->name,
+                    'user_id' => (int) $top->user_id,
+                    'user_name' => (string) $top->user_name,
+                    'net_points' => (float) $top->net_points,
+                );
+            }
+            if (count($leaders) >= (int) $limit) {
+                break;
+            }
+        }
+        return $leaders;
     }
 }

@@ -1052,3 +1052,104 @@ if (!function_exists('my_works_dashboard_week_range_label')) {
         return date('j M', $start) . ' – ' . date('j M Y', $end);
     }
 }
+
+if (!function_exists('dashboard_parse_complete_view')) {
+    /**
+     * @param CI_Input $input
+     * @return string hide|only
+     */
+    function dashboard_parse_complete_view($input)
+    {
+        $val = $input->get('complete_view');
+        if ($val === null || $val === '' || $val === '0' || $val === 'hide' || $val === 'false') {
+            return 'hide';
+        }
+        if ($val === '1' || $val === 1 || $val === 'only' || $val === 'true') {
+            return 'only';
+        }
+        return 'hide';
+    }
+}
+
+if (!function_exists('dashboard_complete_status_codes')) {
+    function dashboard_complete_status_codes($item_kind = 'task')
+    {
+        if ($item_kind === 'my_work') {
+            return array('closed');
+        }
+        return array('completed');
+    }
+}
+
+if (!function_exists('dashboard_apply_complete_view_to_query')) {
+    /**
+     * @param CI_DB_query_builder $db
+     * @param string $status_column e.g. t.status
+     * @param string $complete_view hide|only
+     * @param string $filter_status
+     * @param string $item_kind task|my_work
+     */
+    function dashboard_apply_complete_view_to_query($db, $status_column, $complete_view, $filter_status, $item_kind = 'task')
+    {
+        if ($filter_status !== 'all' || ($complete_view !== 'hide' && $complete_view !== 'only')) {
+            return;
+        }
+        $done_codes = dashboard_complete_status_codes($item_kind);
+        if ($complete_view === 'only') {
+            $db->where_in($status_column, $done_codes);
+        } elseif ($complete_view === 'hide') {
+            $db->where_not_in($status_column, $done_codes);
+        }
+    }
+}
+
+if (!function_exists('dashboard_item_is_complete')) {
+    function dashboard_item_is_complete($status, $item_type = '')
+    {
+        $CI =& get_instance();
+        if (!function_exists('my_works_status_is_closed')) {
+            $CI->load->helper('my_works_status');
+        }
+        $status = strtolower(trim((string) $status));
+        $item_type = strtolower(trim((string) $item_type));
+        if ($item_type === 'my_work' || $item_type === 'ad_hoc') {
+            return my_works_status_is_closed($status);
+        }
+        return ($status === 'completed' || $status === 'closed');
+    }
+}
+
+if (!function_exists('dashboard_filter_items_by_complete_view')) {
+    /**
+     * @param array $items
+     * @param string $complete_view hide|only
+     * @return array
+     */
+    function dashboard_filter_items_by_complete_view(array $items, $complete_view)
+    {
+        if ($complete_view !== 'hide' && $complete_view !== 'only') {
+            return $items;
+        }
+        $filtered = array();
+        foreach ($items as $item) {
+            $status = '';
+            $type = '';
+            if (is_object($item)) {
+                $status = isset($item->status) ? (string) $item->status : '';
+                if (isset($item->item_type)) {
+                    $type = (string) $item->item_type;
+                }
+            } elseif (is_array($item)) {
+                $status = isset($item['status']) ? (string) $item['status'] : '';
+                $type = isset($item['item_type']) ? (string) $item['item_type'] : '';
+            }
+            $is_complete = dashboard_item_is_complete($status, $type);
+            if ($complete_view === 'only' && $is_complete) {
+                $filtered[] = $item;
+            } elseif ($complete_view === 'hide' && !$is_complete) {
+                $filtered[] = $item;
+            }
+        }
+        return $filtered;
+    }
+}

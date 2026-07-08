@@ -9,10 +9,33 @@
 
     var storageKey = 'oms_sidebar_collapsed';
 
+    function syncCollapsedLinkTitles(collapsed) {
+      var links = shell.querySelectorAll('.sidebar-left .sidebar-link');
+      links.forEach(function(link) {
+        if (collapsed) {
+          if (!link.dataset.sidebarTitle) {
+            link.dataset.sidebarTitle = (link.textContent || '').replace(/\s+/g, ' ').trim();
+          }
+          if (link.dataset.sidebarTitle) {
+            link.setAttribute('title', link.dataset.sidebarTitle);
+          }
+        } else {
+          link.removeAttribute('title');
+        }
+      });
+    }
+
     function applyCollapsed(collapsed) {
       document.body.classList.toggle('sidebar-collapsed', collapsed);
+      if (collapsed) {
+        document.documentElement.setAttribute('data-sidebar-collapsed', '1');
+      } else {
+        document.documentElement.removeAttribute('data-sidebar-collapsed');
+      }
       toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
       toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      syncCollapsedLinkTitles(collapsed);
     }
 
     var saved = false;
@@ -23,6 +46,7 @@
 
     toggle.addEventListener('click', function(ev) {
       ev.preventDefault();
+      ev.stopPropagation();
       var collapsed = !document.body.classList.contains('sidebar-collapsed');
       applyCollapsed(collapsed);
       try {
