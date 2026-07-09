@@ -431,9 +431,26 @@
     html += '</dl>';
     html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Description / notes</div>';
     html += '<div class="spl-approval-modal-note">' + (payload.reference_label ? payload.reference_label : '—') + '</div></div>';
-    if (payload.evidence_file) {
+    if (payload.evidence_preview_url || payload.evidence_download_url || payload.evidence_file) {
       html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Attachment</div>';
-      html += '<a href="' + escapeHtml(payload.evidence_file) + '" target="_blank" rel="noopener" class="spl-approval-modal-file"><i class="bi bi-paperclip me-1"></i>' + escapeHtml(payload.evidence_name || 'Attachment') + '</a></div>';
+      if (payload.evidence_is_image && payload.evidence_preview_url) {
+        html += '<a href="' + escapeHtml(payload.evidence_preview_url) + '" target="_blank" rel="noopener" class="spl-activity-detail-preview-link">';
+        html += '<img src="' + escapeHtml(payload.evidence_preview_url) + '" alt="" class="spl-activity-detail-preview-img">';
+        html += '</a>';
+      }
+      html += '<div class="spl-activity-detail-attachment-actions">';
+      if (payload.evidence_preview_url) {
+        html += '<a href="' + escapeHtml(payload.evidence_preview_url) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>View</a>';
+      } else if (payload.evidence_file) {
+        html += '<a href="' + escapeHtml(payload.evidence_file) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>View</a>';
+      }
+      if (payload.evidence_download_url) {
+        html += '<a href="' + escapeHtml(payload.evidence_download_url) + '" class="btn btn-sm btn-primary"><i class="bi bi-download me-1"></i>Download</a>';
+      }
+      if (payload.evidence_name) {
+        html += '<span class="spl-activity-detail-file-name"><i class="bi bi-paperclip me-1"></i>' + escapeHtml(payload.evidence_name) + '</span>';
+      }
+      html += '</div></div>';
     }
     if (payload.view !== 'pending' && payload.decided_at) {
       html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Decision</div>';
@@ -452,15 +469,16 @@
     return html;
   }
 
-  function openSplApprovalModal(card, root) {
-    var raw = card.getAttribute('data-spl-approval');
-    if (!raw) {
-      return;
+  function getApprovalPayloadMap() {
+    var map = {};
+    if (window.SPL_APPROVAL_PAYLOADS) {
+      Object.assign(map, window.SPL_APPROVAL_PAYLOADS);
     }
-    var payload;
-    try {
-      payload = JSON.parse(raw);
-    } catch (e) {
+    return map;
+  }
+
+  function showSplApprovalModal(payload, root) {
+    if (!payload) {
       return;
     }
     var modalEl = getApprovalModal(root);
@@ -518,10 +536,135 @@
     modal.show();
   }
 
+  function openSplApprovalFromId(approvalId, root) {
+    if (!approvalId) {
+      return;
+    }
+    var map = getApprovalPayloadMap();
+    var payload = map[approvalId] || map[parseInt(approvalId, 10)];
+    if (!payload) {
+      return;
+    }
+    showSplApprovalModal(payload, root);
+  }
+
+  function openSplApprovalModal(card, root) {
+    if (!card) {
+      return;
+    }
+    var approvalId = card.getAttribute('data-approval-id');
+    if (approvalId) {
+      openSplApprovalFromId(approvalId, root);
+      return;
+    }
+    var raw = card.getAttribute('data-spl-approval');
+    if (!raw) {
+      return;
+    }
+    var payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch (e) {
+      return;
+    }
+    showSplApprovalModal(payload, root);
+  }
+
+  function initSplApprovalTable(root) {
+    root = root || document;
+    var tables = root.querySelectorAll ? root.querySelectorAll('.spl-approval-table') : [];
+    tables.forEach(function (table) {
+      if (!table || table.dataset.dtInited === '1' || !window.DataTable) {
+        return;
+      }
+      var pageLength = parseInt(table.getAttribute('data-page-length') || '25', 10);
+      if (isNaN(pageLength) || pageLength <= 0) {
+        pageLength = 25;
+      }
+      var headerCells = table.querySelectorAll('thead th');
+      var actionColIndex = headerCells.length - 1;
+      var compact = table.classList.contains('spl-approval-table--compact');
+      var nonSortable = [actionColIndex];
+      if (compact) {
+        headerCells.forEach(function (th, idx) {
+          if (th.classList.contains('spl-approval-col-icon')) {
+            nonSortable.push(idx);
+          }
+        });
+      }
+      var config = {
+        responsive: !compact,
+        autoWidth: false,
+        pageLength: pageLength,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        order: [[1, 'desc']],
+        columnDefs: [
+          { orderable: false, searchable: false, targets: nonSortable },
+          { className: 'text-end', targets: [actionColIndex] },
+          { className: 'text-nowrap', targets: [actionColIndex] }
+        ]
+      };
+      try {
+        new DataTable(table, config);
+        table.dataset.dtInited = '1';
+      } catch (e) {
+        console.warn('SPL approval DataTable init failed:', e);
+      }
+    });
+
+    var scopes = [];
+    if (root.querySelectorAll) {
+      root.querySelectorAll('.spl-approval-table-wrap').forEach(function (wrap) {
+        scopes.push(wrap);
+      });
+    }
+    scopes.forEach(function (scope) {
+      if (scope.getAttribute('data-spl-approval-bound') === '1') {
+        return;
+      }
+      scope.setAttribute('data-spl-approval-bound', '1');
+      scope.addEventListener('click', function (e) {
+        var viewBtn = e.target.closest('.spl-approval-view-btn');
+        if (viewBtn) {
+          e.preventDefault();
+          openSplApprovalFromId(viewBtn.getAttribute('data-approval-id'), root);
+          return;
+        }
+        if (e.target.closest('a, button, input, textarea, select, label, form')) {
+          return;
+        }
+        var row = e.target.closest('.spl-approval-row');
+        if (!row) {
+          return;
+        }
+        openSplApprovalFromId(row.getAttribute('data-approval-id'), root);
+      });
+      scope.querySelectorAll('.spl-approval-row').forEach(function (row) {
+        row.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openSplApprovalFromId(row.getAttribute('data-approval-id'), root);
+          }
+        });
+      });
+      scope.querySelectorAll('.spl-approval-reject-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+          if (!window.confirm('Reject this activity?')) {
+            e.preventDefault();
+          }
+        });
+      });
+    });
+  }
+
   function initSplApprovalsPanel(root) {
     var scope = root && root.querySelector ? root : document;
     var tab = scope.querySelector ? scope.querySelector('#spl-tab-approvals') : document.getElementById('spl-tab-approvals');
-    if (!tab || tab.getAttribute('data-spl-approvals-bound') === '1') {
+    if (!tab) {
+      return;
+    }
+    initSplApprovalTable(scope);
+    if (tab.getAttribute('data-spl-approvals-bound') === '1') {
       return;
     }
     tab.setAttribute('data-spl-approvals-bound', '1');
@@ -549,6 +692,208 @@
   }
 
   window.initSplApprovalsPanel = initSplApprovalsPanel;
+  window.initSplApprovalTable = initSplApprovalTable;
+
+  function getActivityDetailModal(root) {
+    if (root && root.querySelector) {
+      var scoped = root.querySelector('#splActivityDetailModal');
+      if (scoped) {
+        return scoped;
+      }
+    }
+    return document.getElementById('splActivityDetailModal');
+  }
+
+  function buildActivityDetailBody(payload) {
+    var html = '<dl class="spl-approval-modal-details">';
+    html += '<div class="spl-approval-modal-row"><dt>Activity</dt><dd>' + escapeHtml(payload.title || '—') + '</dd></div>';
+    html += '<div class="spl-approval-modal-row"><dt>Date</dt><dd>' + escapeHtml(payload.created_at || '—') + '</dd></div>';
+    html += '<div class="spl-approval-modal-row"><dt>Category</dt><dd>' + escapeHtml(payload.category_name || '—') + '</dd></div>';
+    html += '<div class="spl-approval-modal-row"><dt>Source</dt><dd>' + escapeHtml(payload.source_label || '—') + '</dd></div>';
+    if (payload.rule_code) {
+      html += '<div class="spl-approval-modal-row"><dt>Rule code</dt><dd><code>' + escapeHtml(payload.rule_code) + '</code></dd></div>';
+    }
+    html += '<div class="spl-approval-modal-row"><dt>Points</dt><dd class="spl-approval-modal-points">' + escapeHtml(payload.points_label || formatApprovalPoints(payload.points)) + '</dd></div>';
+    html += '<div class="spl-approval-modal-row"><dt>Status</dt><dd><span class="badge rounded-pill text-bg-' + escapeHtml(payload.status_class || 'secondary') + '">' + escapeHtml(payload.status_label || payload.status || '—') + '</span></dd></div>';
+    if (payload.approved_at) {
+      html += '<div class="spl-approval-modal-row"><dt>Approved</dt><dd>' + escapeHtml(payload.approved_at) + '</dd></div>';
+    }
+    html += '</dl>';
+    html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Description / notes</div>';
+    html += '<div class="spl-approval-modal-note">' + (payload.reference_label ? payload.reference_label : '—') + '</div></div>';
+    if (payload.notes) {
+      html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Internal notes</div>';
+      html += '<div class="spl-approval-modal-comment-display">' + escapeHtml(payload.notes) + '</div></div>';
+    }
+    if (payload.evidence_preview_url || payload.evidence_download_url) {
+      html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Attachment</div>';
+      if (payload.evidence_is_image && payload.evidence_preview_url) {
+        html += '<a href="' + escapeHtml(payload.evidence_preview_url) + '" target="_blank" rel="noopener" class="spl-activity-detail-preview-link">';
+        html += '<img src="' + escapeHtml(payload.evidence_preview_url) + '" alt="" class="spl-activity-detail-preview-img">';
+        html += '</a>';
+      }
+      html += '<div class="spl-activity-detail-attachment-actions">';
+      if (payload.evidence_preview_url) {
+        html += '<a href="' + escapeHtml(payload.evidence_preview_url) + '" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i>View</a>';
+      }
+      if (payload.evidence_download_url) {
+        html += '<a href="' + escapeHtml(payload.evidence_download_url) + '" class="btn btn-sm btn-primary"><i class="bi bi-download me-1"></i>Download</a>';
+      }
+      if (payload.evidence_name) {
+        html += '<span class="spl-activity-detail-file-name"><i class="bi bi-paperclip me-1"></i>' + escapeHtml(payload.evidence_name) + '</span>';
+      }
+      html += '</div></div>';
+    }
+    if (payload.decided_at) {
+      html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Decision</div>';
+      html += '<div class="spl-approval-modal-decision">';
+      html += escapeHtml(payload.status_label || payload.status || '—');
+      if (payload.approver_name) {
+        html += ' by ' + escapeHtml(payload.approver_name);
+      }
+      html += ' · ' + escapeHtml(payload.decided_at);
+      html += '</div></div>';
+    }
+    if (payload.decision_comment) {
+      html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Decision comment</div>';
+      html += '<div class="spl-approval-modal-comment-display">' + escapeHtml(payload.decision_comment) + '</div></div>';
+    }
+    return html;
+  }
+
+  function showSplActivityDetail(payload, root) {
+    if (!payload) {
+      return;
+    }
+    var modalEl = getActivityDetailModal(root);
+    if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+      return;
+    }
+    var titleEl = modalEl.querySelector('#splActivityDetailModalLabel');
+    var bodyEl = modalEl.querySelector('#splActivityDetailBody');
+    if (!bodyEl) {
+      return;
+    }
+    if (titleEl) {
+      titleEl.textContent = payload.title || 'Activity details';
+    }
+    bodyEl.innerHTML = buildActivityDetailBody(payload);
+    var modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+
+  function getActivityPayloadMap() {
+    var map = {};
+    if (window.SPL_ACTIVITY_PAYLOADS) {
+      Object.assign(map, window.SPL_ACTIVITY_PAYLOADS);
+    }
+    if (window.SPL_MEMBER_ACTIVITIES) {
+      Object.assign(map, window.SPL_MEMBER_ACTIVITIES);
+    }
+    if (window.SPL_DASHBOARD_ACTIVITY_PAYLOADS) {
+      Object.assign(map, window.SPL_DASHBOARD_ACTIVITY_PAYLOADS);
+    }
+    return map;
+  }
+
+  function openSplActivityDetailFromId(activityId, root) {
+    if (!activityId) {
+      return;
+    }
+    var map = getActivityPayloadMap();
+    var payload = map[activityId] || map[parseInt(activityId, 10)];
+    showSplActivityDetail(payload, root);
+  }
+
+  function openSplActivityDetailModal(card, root) {
+    if (!card) {
+      return;
+    }
+    openSplActivityDetailFromId(card.getAttribute('data-activity-id'), root);
+  }
+
+  function initSplActivityTable(root) {
+    root = root || document;
+    var tables = root.querySelectorAll ? root.querySelectorAll('.spl-activity-table') : [];
+    tables.forEach(function (table) {
+      if (!table || table.dataset.dtInited === '1' || !window.DataTable) {
+        return;
+      }
+      var compact = table.classList.contains('spl-activity-table--compact');
+      var pageLength = parseInt(table.getAttribute('data-page-length') || '25', 10);
+      if (isNaN(pageLength) || pageLength <= 0) {
+        pageLength = 25;
+      }
+      var actionColIndex = table.querySelectorAll('thead th').length - 1;
+      var config = {
+        responsive: true,
+        autoWidth: false,
+        pageLength: pageLength,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        order: [[0, 'desc']],
+        columnDefs: [
+          { orderable: false, searchable: false, targets: [actionColIndex] },
+          { className: 'text-end', targets: [actionColIndex] }
+        ]
+      };
+      if (compact) {
+        config.paging = false;
+        config.searching = false;
+        config.info = false;
+        config.lengthChange = false;
+        config.dom = 't';
+      }
+      try {
+        new DataTable(table, config);
+        table.dataset.dtInited = '1';
+      } catch (e) {
+        console.warn('SPL activity DataTable init failed:', e);
+      }
+    });
+
+    var scopes = [];
+    if (root.querySelectorAll) {
+      root.querySelectorAll('.spl-activity-table-wrap').forEach(function (wrap) {
+        scopes.push(wrap);
+      });
+    }
+    if (!scopes.length && root.classList && root.classList.contains('spl-activity-table-wrap')) {
+      scopes.push(root);
+    }
+    scopes.forEach(function (scope) {
+      if (scope.getAttribute('data-spl-activity-bound') === '1') {
+        return;
+      }
+      scope.setAttribute('data-spl-activity-bound', '1');
+      scope.addEventListener('click', function (e) {
+        var viewBtn = e.target.closest('.spl-activity-view-btn');
+        if (viewBtn) {
+          e.preventDefault();
+          openSplActivityDetailFromId(viewBtn.getAttribute('data-activity-id'), root);
+          return;
+        }
+        if (e.target.closest('a, button, input, textarea, select, label')) {
+          return;
+        }
+        var row = e.target.closest('tr[data-activity-id]');
+        if (!row) {
+          return;
+        }
+        openSplActivityDetailFromId(row.getAttribute('data-activity-id'), root);
+      });
+      scope.querySelectorAll('tr[data-activity-id]').forEach(function (row) {
+        row.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openSplActivityDetailFromId(row.getAttribute('data-activity-id'), root);
+          }
+        });
+      });
+    });
+  }
+
+  window.initSplActivityTable = initSplActivityTable;
+  window.initSplMemberActivityPage = initSplActivityTable;
 
   function loadActivities(categoryId, root) {
     var els = getActivityForm(root);
@@ -597,12 +942,172 @@
     }
   }
 
+  var SPL_TINYMCE_SRC = 'https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js';
+
+  function loadSplTinyMceScript() {
+    if (window.tinymce) {
+      return Promise.resolve(window.tinymce);
+    }
+    if (window.__splTinyMceLoading) {
+      return window.__splTinyMceLoading;
+    }
+    window.__splTinyMceLoading = new Promise(function (resolve, reject) {
+      var existing = document.querySelector('script[data-spl-tinymce="1"]');
+      if (existing) {
+        if (window.tinymce) {
+          resolve(window.tinymce);
+          return;
+        }
+        existing.addEventListener('load', function () { resolve(window.tinymce); });
+        existing.addEventListener('error', function () { reject(new Error('TinyMCE load failed')); });
+        return;
+      }
+      var script = document.createElement('script');
+      script.src = SPL_TINYMCE_SRC;
+      script.referrerPolicy = 'origin';
+      script.setAttribute('data-spl-tinymce', '1');
+      script.onload = function () { resolve(window.tinymce); };
+      script.onerror = function () { reject(new Error('TinyMCE load failed')); };
+      document.head.appendChild(script);
+    });
+    return window.__splTinyMceLoading;
+  }
+
+  function restoreSplNoteTextarea(textarea) {
+    if (!textarea) {
+      return;
+    }
+    textarea.style.removeProperty('display');
+    textarea.removeAttribute('aria-hidden');
+    textarea.removeAttribute('data-spl-note-editor');
+    var wrap = textarea.closest('.spl-note-field-wrap');
+    if (wrap) {
+      wrap.classList.remove('is-editor-ready');
+    }
+  }
+
+  function hideSplNoteTextarea(textarea) {
+    if (!textarea) {
+      return;
+    }
+    textarea.style.display = 'none';
+    textarea.setAttribute('aria-hidden', 'true');
+    textarea.setAttribute('data-spl-note-editor', 'ready');
+    var wrap = textarea.closest('.spl-note-field-wrap');
+    if (wrap) {
+      wrap.classList.add('is-editor-ready');
+    }
+  }
+
+  function bindSplNoteFormSubmit(scope) {
+    var form = scope.querySelector ? scope.querySelector('#splSubmitForm') : document.getElementById('splSubmitForm');
+    if (!form || form.getAttribute('data-spl-note-submit-bound') === '1') {
+      return;
+    }
+    form.setAttribute('data-spl-note-submit-bound', '1');
+    form.addEventListener('submit', function () {
+      if (window.tinymce && tinymce.get('splNoteInput')) {
+        tinymce.get('splNoteInput').save();
+      }
+    });
+  }
+
+  function initSplNoteEditor(root) {
+    var scope = root && root.querySelector ? root : document;
+    var textarea = scope.querySelector ? scope.querySelector('#splNoteInput') : document.getElementById('splNoteInput');
+    if (!textarea) {
+      return;
+    }
+    bindSplNoteFormSubmit(scope);
+
+    var existing = window.tinymce ? tinymce.get('splNoteInput') : null;
+    if (existing && !existing.removed) {
+      hideSplNoteTextarea(textarea);
+      existing.show();
+      window.requestAnimationFrame(function () {
+        if (typeof existing.fire === 'function') {
+          existing.fire('ResizeEditor');
+        }
+      });
+      return;
+    }
+
+    if (textarea.getAttribute('data-spl-note-editor') === 'loading') {
+      return;
+    }
+
+    if (window.__splTinyMceLoading && !window.tinymce) {
+      textarea.setAttribute('data-spl-note-editor', 'loading');
+      window.__splTinyMceLoading.then(function () {
+        textarea.removeAttribute('data-spl-note-editor');
+        initSplNoteEditor(root);
+      }).catch(function () {
+        textarea.removeAttribute('data-spl-note-editor');
+        restoreSplNoteTextarea(textarea);
+      });
+      return;
+    }
+
+    textarea.setAttribute('data-spl-note-editor', 'loading');
+    loadSplTinyMceScript().then(function () {
+      var current = document.getElementById('splNoteInput');
+      if (!current) {
+        return;
+      }
+      if (window.tinymce && tinymce.get('splNoteInput')) {
+        tinymce.get('splNoteInput').remove();
+      }
+      var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
+      tinymce.init({
+        selector: '#splNoteInput',
+        menubar: false,
+        statusbar: !isMobile,
+        plugins: 'lists link autolink code wordcount',
+        toolbar: isMobile
+          ? 'bold italic underline | bullist numlist | link | removeformat'
+          : 'undo redo | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link | removeformat | code',
+        toolbar_mode: isMobile ? 'scrolling' : 'wrap',
+        branding: false,
+        height: isMobile ? 140 : 180,
+        width: '100%',
+        resize: !isMobile,
+        convert_urls: false,
+        default_link_target: '_blank',
+        content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }',
+        formats: {
+          bold: { inline: 'strong' },
+          italic: { inline: 'em' },
+          underline: { inline: 'u' },
+          strikethrough: { inline: 'del' }
+        },
+        setup: function (editor) {
+          editor.on('init', function () {
+            hideSplNoteTextarea(current);
+            current.removeAttribute('data-spl-note-editor');
+            current.setAttribute('data-spl-note-editor', 'ready');
+            window.requestAnimationFrame(function () {
+              if (typeof editor.fire === 'function') {
+                editor.fire('ResizeEditor');
+              }
+            });
+          });
+        }
+      });
+    }).catch(function () {
+      textarea.removeAttribute('data-spl-note-editor');
+      restoreSplNoteTextarea(textarea);
+    });
+  }
+
+  window.initSplNoteEditor = initSplNoteEditor;
+
   function initSplActivityPanel(root) {
     var scope = root && root.querySelector ? root : document;
     var els = getActivityForm(scope);
     if (!els.form || !els.categorySelect || !els.activitySelect) {
       return;
     }
+    initSplNoteEditor(scope);
     if (els.form.getAttribute('data-spl-activity-bound') === '1') {
       return;
     }

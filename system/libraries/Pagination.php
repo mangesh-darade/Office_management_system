@@ -521,14 +521,31 @@ class CI_Pagination {
 			{
 				$this->cur_page = str_replace(array($this->prefix, $this->suffix), '', $this->cur_page);
 			}
+
+			if ($this->cur_page === FALSE || $this->cur_page === NULL)
+			{
+				$this->cur_page = '';
+			}
+			else
+			{
+				$this->cur_page = (string) $this->cur_page;
+			}
 		}
 		else
 		{
-			$this->cur_page = (string) $this->cur_page;
+			if ($this->cur_page === FALSE || $this->cur_page === NULL)
+			{
+				$this->cur_page = '';
+			}
+			else
+			{
+				$this->cur_page = (string) $this->cur_page;
+			}
 		}
 
 		// If something isn't quite right, back to the default base page.
-		if ($this->cur_page === '' || $this->cur_page === NULL || ! ctype_digit((string) $this->cur_page) OR ($this->use_page_numbers && (int) $this->cur_page === 0))
+		$cur_page_str = ($this->cur_page === FALSE || $this->cur_page === NULL) ? '' : (string) $this->cur_page;
+		if ($cur_page_str === '' || ! ctype_digit($cur_page_str) OR ($this->use_page_numbers && (int) $cur_page_str === 0))
 		{
 			$this->cur_page = $base_page;
 		}

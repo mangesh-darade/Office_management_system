@@ -471,8 +471,10 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
             return;
         }
         $label = 'Daily activity';
-        if ($work_date !== '') {
+        $occurred_at = date('Y-m-d H:i:s');
+        if ($work_date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $work_date)) {
             $label .= ' ' . $work_date;
+            $occurred_at = $work_date . ' 12:00:00';
         }
         reward_engine_dispatch('daily_activity_logged', array(
             'user_id' => $user_id,
@@ -480,7 +482,7 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
             'source_module' => 'daily_activity',
             'source_record_id' => $log_id,
             'reference_label' => $label,
-            'occurred_at' => date('Y-m-d H:i:s'),
+            'occurred_at' => $occurred_at,
             'payload' => array(),
         ));
     }

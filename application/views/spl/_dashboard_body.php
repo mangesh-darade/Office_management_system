@@ -3,9 +3,30 @@ $levelName = $level ? (string) $level->name : ucfirst((string) $summary->current
 $levelColor = $level ? (string) $level->badge_color : '#6c757d';
 $levelEmoji = spl_level_emoji($summary->current_level_code);
 $teamName = $team_overview ? strtoupper((string) $team_overview->name) : '—';
-$todayTotal = isset($kpi_today['net']) ? (float) $kpi_today['net'] : 0;
+$reward_period = isset($reward_period) ? $reward_period : 'week';
+$reward_bounds = isset($reward_bounds) ? $reward_bounds : spl_reward_period_bounds($reward_period);
+$prev_period_bounds = isset($prev_period_bounds) ? $prev_period_bounds : spl_reward_period_previous_bounds($reward_period);
+$kpi_period = isset($kpi_period) ? $kpi_period : array('positive' => 0, 'negative' => 0, 'net' => 0, 'pending_points' => 0, 'pending_count' => 0);
+$org_period_totals = isset($org_period_totals) ? $org_period_totals : $kpi_period;
+$periodNet = (float) $kpi_period['net'];
+$periodDeducted = (float) $kpi_period['negative'];
+$periodEarned = (float) $kpi_period['positive'];
+$periodPendingPoints = (float) $kpi_period['pending_points'];
+$periodPendingCount = (int) $kpi_period['pending_count'];
 $weekNet = isset($kpi_week['net']) ? (float) $kpi_week['net'] : 0;
 $weekDeducted = isset($kpi_week['negative']) ? (float) $kpi_week['negative'] : 0;
+$kpi_today = isset($kpi_today) ? $kpi_today : array('positive' => 0, 'negative' => 0, 'net' => 0, 'pending_points' => 0, 'pending_count' => 0);
+$kpi_week = isset($kpi_week) ? $kpi_week : array('positive' => 0, 'negative' => 0, 'net' => 0, 'pending_points' => 0, 'pending_count' => 0);
+$kpi_month = isset($kpi_month) ? $kpi_month : array('positive' => 0, 'negative' => 0, 'net' => 0, 'pending_points' => 0, 'pending_count' => 0);
+$kpi_pending_activities = isset($kpi_pending_activities)
+    ? (int) $kpi_pending_activities
+    : (isset($pending_count) ? (int) $pending_count : $periodPendingCount);
+$activity_period_totals = !empty($is_org_view) ? $org_period_totals : $kpi_period;
+$activityPeriodNet = (float) $activity_period_totals['net'];
+$activityPeriodPending = (float) $activity_period_totals['pending_points'];
+$periodLabel = (string) $reward_bounds['label'];
+$trendLabel = !empty($prev_period_bounds['label']) ? (string) $prev_period_bounds['label'] : '';
+$periodTotal = $activityPeriodNet;
 $teamTotal = count($team_standings) > 0 ? count($team_standings) : 5;
 $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
 $is_user_scoped = !empty($is_user_scoped);
@@ -110,7 +131,7 @@ $cat_icon_map = array(
         <span class="spl-dash-kpi-icon"><i class="bi bi-clock-fill"></i></span>
         <div>
           <div class="spl-dash-kpi-label">Pending Approval</div>
-          <div class="spl-dash-kpi-value"><?php echo (int) $pending_count; ?> <span class="spl-dash-kpi-unit">Activities</span></div>
+          <div class="spl-dash-kpi-value"><?php echo (int) $kpi_pending_activities; ?> <span class="spl-dash-kpi-unit">Activities</span></div>
         </div>
       </div>
       <div class="spl-dash-kpi spl-dash-kpi--icon is-red">
@@ -148,22 +169,43 @@ $cat_icon_map = array(
               if ($row->status === 'pending') {
                   $ptsClass = 'is-muted';
               }
+              $memberName = (!$is_user_scoped) ? spl_activity_table_member_name($row) : '';
             ?>
-            <div class="spl-dash-activity-row">
+            <div class="spl-dash-activity-row<?php echo $memberName !== '' ? ' has-member' : ''; ?>">
               <span class="spl-dash-activity-icon"><i class="bi <?php echo esc_view(spl_activity_icon_class($row), ENT_QUOTES, 'UTF-8'); ?>"></i></span>
               <div class="spl-dash-activity-main">
-                <div class="spl-dash-activity-title"><?php echo esc_view(spl_activity_title($row), ENT_QUOTES, 'UTF-8'); ?></div>
-                <div class="spl-dash-activity-meta"><?php echo esc_view(spl_format_activity_datetime($row->created_at), ENT_QUOTES, 'UTF-8'); ?></div>
+                <div class="spl-dash-activity-title">
+                  <span class="spl-dash-activity-label"><?php echo esc_view(spl_activity_title($row), ENT_QUOTES, 'UTF-8'); ?></span>
+                  <?php if ($row->status === 'pending'): ?>
+                  <span class="spl-dash-activity-badge">Pending</span>
+                  <?php endif; ?>
+                </div>
+                <div class="spl-dash-activity-meta">
+                  <?php if ($memberName !== ''): ?>
+                  <span class="spl-dash-activity-user"><?php echo esc_view($memberName, ENT_QUOTES, 'UTF-8'); ?></span>
+                  <span class="spl-dash-activity-meta-sep" aria-hidden="true">·</span>
+                  <?php endif; ?>
+                  <span class="spl-dash-activity-time"><?php echo esc_view(spl_format_activity_datetime($row->created_at), ENT_QUOTES, 'UTF-8'); ?></span>
+                </div>
               </div>
               <div class="spl-dash-activity-pts <?php echo esc_view($ptsClass, ENT_QUOTES, 'UTF-8'); ?>">
+                <?php if ($row->status === 'approved' && abs($pts) < 0.00001): ?>
+                0
+                <?php else: ?>
                 <?php echo ($pts >= 0 ? '+' : '') . number_format($pts, 0); ?>
+                <?php endif; ?>
               </div>
             </div>
             <?php endforeach; ?>
             <?php endif; ?>
             </div>
           </div>
-          <div class="spl-dash-panel-foot">Today Total <strong><?php echo ($todayTotal >= 0 ? '+' : '') . number_format($todayTotal, 0); ?></strong></div>
+          <div class="spl-dash-panel-foot">
+            <?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?> approved <strong><?php echo ($activityPeriodNet >= 0 ? '+' : '') . number_format($activityPeriodNet, 0); ?></strong>
+            <?php if ($activityPeriodPending > 0): ?>
+            · pending <strong>+<?php echo number_format($activityPeriodPending, 0); ?></strong>
+            <?php endif; ?>
+          </div>
         </div>
       </div>
 
@@ -183,12 +225,12 @@ $cat_icon_map = array(
               <?php endif; ?>
               <span class="spl-team-card__name">Team <?php echo esc_view($team_overview->name, ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <a href="<?php echo spl_dashboard_url('groups'); ?>" class="spl-team-card__link">View Team</a>
+            <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>" class="spl-team-card__link">View Team</a>
           </div>
 
           <div class="spl-team-card__scores">
             <div class="spl-team-card__score-main">
-              <div class="spl-team-card__score-label">Team Score (This Week)</div>
+              <div class="spl-team-card__score-label">Team Score (<?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?>)</div>
               <div class="spl-team-card__score-row">
                 <span class="spl-team-card__score-value"><?php echo number_format((float) $team_overview->score, 0); ?></span>
                 <span class="spl-team-card__trend-arrow <?php echo $team_trend_up ? 'is-up' : 'is-down'; ?>">
@@ -197,7 +239,11 @@ $cat_icon_map = array(
               </div>
               <div class="spl-team-card__trend-sub <?php echo $team_trend_up ? 'is-up' : 'is-down'; ?>">
                 <i class="bi bi-diamond-fill"></i>
-                <?php echo ($team_trend_up ? '+' : '') . number_format((float) $team_overview->trend, 0); ?> from last week
+                <?php if ($trendLabel !== ''): ?>
+                <?php echo ($team_trend_up ? '+' : '') . number_format((float) $team_overview->trend, 0); ?> from <?php echo esc_view($trendLabel, ENT_QUOTES, 'UTF-8'); ?>
+                <?php else: ?>
+                All-time score
+                <?php endif; ?>
               </div>
             </div>
             <div class="spl-team-card__score-divider" aria-hidden="true"></div>
@@ -223,7 +269,7 @@ $cat_icon_map = array(
           <div class="spl-team-card__contributors">
             <div class="spl-team-card__contrib-head">
               <span class="spl-team-card__contrib-title">Top Contributors</span>
-              <a href="<?php echo spl_dashboard_url('groups'); ?>" class="spl-team-card__contrib-link">View All</a>
+              <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>" class="spl-team-card__contrib-link">View All</a>
             </div>
             <div class="spl-dash-scroll spl-dash-scroll--contributor spl-team-card__contrib-list">
             <?php foreach (array_slice($team_overview->members, 0, 20) as $member): ?>
@@ -257,7 +303,7 @@ $cat_icon_map = array(
             </div>
           </div>
           <div class="spl-team-card__empty-body">
-            <div class="spl-dash-empty">You are not assigned to a team yet. <a href="<?php echo spl_dashboard_url('groups'); ?>">Browse groups</a></div>
+            <div class="spl-dash-empty">You are not assigned to a team yet. <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>">Browse groups</a></div>
           </div>
         </div>
         <?php endif; ?>
@@ -267,7 +313,7 @@ $cat_icon_map = array(
         <div class="spl-standings-card">
           <div class="spl-standings-card__head">
             <h2 class="spl-standings-card__title">Team League Standings</h2>
-            <a href="<?php echo spl_dashboard_url('groups'); ?>" class="spl-standings-card__link">View Full Table</a>
+            <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>" class="spl-standings-card__link">View Full Table</a>
           </div>
           <div class="spl-standings-card__body">
             <?php if (empty($team_standings)): ?>
@@ -396,13 +442,13 @@ $cat_icon_map = array(
 
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
-          <h3 class="spl-widget-card__title">This Week's Top Performers</h3>
+          <h3 class="spl-widget-card__title">Top Performers (<?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?>)</h3>
           <span class="spl-widget-card__head-end spl-widget-card__head-end--placeholder">View All</span>
         </div>
         <div class="spl-widget-card__body">
           <div class="spl-widget-card__scroll spl-widget-card__scroll--static spl-widget-card__scroll--performers">
           <?php if (empty($top_performers)): ?>
-          <div class="spl-dash-empty">No performers yet this week.</div>
+          <div class="spl-dash-empty">No performers yet for <?php echo esc_view(strtolower($periodLabel), ENT_QUOTES, 'UTF-8'); ?>.</div>
           <?php else: ?>
           <div class="spl-widget-performers">
             <?php foreach ($top_performers as $pi => $perf): ?>
@@ -427,7 +473,7 @@ $cat_icon_map = array(
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title">Category Leaders</h3>
-          <span class="spl-widget-card__head-end spl-widget-card__sub">This month</span>
+          <span class="spl-widget-card__head-end spl-widget-card__sub"><?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?></span>
         </div>
         <div class="spl-widget-card__body">
           <div class="spl-widget-card__scroll">

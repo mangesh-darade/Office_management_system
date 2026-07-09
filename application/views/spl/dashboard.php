@@ -9,6 +9,7 @@ $levelColor = $level ? (string) $level->badge_color : '#6c757d';
 $levelEmoji = spl_level_emoji($summary->current_level_code);
 $teamName = $team_overview ? strtoupper((string) $team_overview->name) : '—';
 $todayTotal = isset($kpi_today['net']) ? (float) $kpi_today['net'] : 0;
+$kpi_pending_activities = isset($kpi_pending_activities) ? (int) $kpi_pending_activities : 0;
 $weekNet = isset($kpi_week['net']) ? (float) $kpi_week['net'] : 0;
 $weekDeducted = isset($kpi_week['negative']) ? (float) $kpi_week['negative'] : 0;
 $teamTotal = count($team_standings) > 0 ? count($team_standings) : 5;
@@ -127,7 +128,7 @@ $cat_icon_map = array(
         <span class="spl-dash-kpi-icon"><i class="bi bi-clock-fill"></i></span>
         <div>
           <div class="spl-dash-kpi-label">Pending Approval</div>
-          <div class="spl-dash-kpi-value"><?php echo (int) $pending_count; ?> <span class="spl-dash-kpi-unit">Activities</span></div>
+          <div class="spl-dash-kpi-value"><?php echo (int) $kpi_pending_activities; ?> <span class="spl-dash-kpi-unit">Activities</span></div>
         </div>
       </div>
       <div class="spl-dash-kpi spl-dash-kpi--icon is-red">

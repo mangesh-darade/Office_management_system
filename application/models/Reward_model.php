@@ -265,6 +265,7 @@ class Reward_model extends CI_Model
             'COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points > 0 THEN t.points ELSE 0 END), 0) AS positive_points,'
             . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points < 0 THEN ABS(t.points) ELSE 0 END), 0) AS negative_points,'
             . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' THEN t.points ELSE 0 END), 0) AS net_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'pending\' THEN t.points ELSE 0 END), 0) AS pending_points,'
             . ' SUM(CASE WHEN t.status = \'pending\' THEN 1 ELSE 0 END) AS pending_count,'
             . ' SUM(CASE WHEN t.status = \'approved\' THEN 1 ELSE 0 END) AS approved_count,'
             . ' SUM(CASE WHEN t.status = \'rejected\' THEN 1 ELSE 0 END) AS rejected_count',
@@ -283,6 +284,7 @@ class Reward_model extends CI_Model
             'positive' => $row ? (float) $row->positive_points : 0,
             'negative' => $row ? (float) $row->negative_points : 0,
             'net' => $row ? (float) $row->net_points : 0,
+            'pending_points' => $row ? (float) $row->pending_points : 0,
             'pending_count' => $row ? (int) $row->pending_count : 0,
             'approved_count' => $row ? (int) $row->approved_count : 0,
             'rejected_count' => $row ? (int) $row->rejected_count : 0,
@@ -548,6 +550,14 @@ class Reward_model extends CI_Model
             return null;
         }
         return $this->db->where('approval_queue_id', (int) $queue_id)->order_by('id', 'DESC')->limit(1)->get('reward_evidence')->row();
+    }
+
+    public function get_evidence($evidence_id)
+    {
+        if (!$this->db->table_exists('reward_evidence')) {
+            return null;
+        }
+        return $this->db->where('id', (int) $evidence_id)->limit(1)->get('reward_evidence')->row();
     }
 
     public function approve_pending($queue_id, $approver_id, $comment = '')

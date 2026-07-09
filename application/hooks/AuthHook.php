@@ -92,7 +92,12 @@ class AuthHook {
             redirect('auth/login');
             exit;
         }
-        
+
+        if (!function_exists('oms_ensure_schemas_on_login')) {
+            $CI->load->helper('schema_automation');
+        }
+        oms_ensure_schemas_on_login($CI->session, $role_id);
+
         // Load settings and audit model
         if (!isset($CI->settings)) {
             $CI->load->model('Setting_model', 'settings');

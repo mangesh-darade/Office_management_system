@@ -23,11 +23,15 @@ $config['schema_automation'] = array(
     array('type' => 'helper', 'helper' => 'email_settings_schema', 'function' => 'email_settings_schema_ensure', 'label' => 'Email settings'),
     array('type' => 'helper', 'helper' => 'system_settings_schema', 'function' => 'system_settings_schema_ensure', 'label' => 'System settings'),
     array('type' => 'helper', 'helper' => 'coaching', 'function' => 'coaching_ensure_schema', 'label' => 'Coaching'),
+    array('type' => 'helper', 'helper' => 'meal_schema', 'function' => 'meal_schema_ensure', 'label' => 'Office meals'),
+    array('type' => 'helper', 'helper' => 'timesheet_schema', 'function' => 'timesheet_schema_ensure', 'label' => 'Timesheets'),
+    array('type' => 'helper', 'helper' => 'subscription_builder_countries_schema', 'function' => 'subscription_builder_countries_schema_ensure', 'label' => 'Subscription Builder countries'),
+    array('type' => 'helper', 'helper' => 'subscription_builder_included_order_schema', 'function' => 'subscription_builder_included_order_schema_ensure', 'label' => 'Subscription Builder included order'),
     array('type' => 'model', 'class' => 'Setting_model', 'alias' => 'settings', 'method' => 'ensure_schema', 'label' => 'Settings'),
     array('type' => 'model', 'class' => 'Security_audit_model', 'alias' => 'security_audit', 'method' => 'ensure_schema', 'label' => 'Security audit'),
     array('type' => 'model', 'class' => 'User_model', 'alias' => 'users', 'method' => 'ensure_schema', 'label' => 'Users columns'),
     array('type' => 'model', 'class' => 'Employee_model', 'alias' => 'employees', 'method' => 'ensure_schema', 'label' => 'Employees columns'),
-    array('type' => 'model', 'class' => 'Reminder_model', 'alias' => 'reminders', 'method' => 'ensure_schema', 'label' => 'Reminders'),
+    array('type' => 'model', 'class' => 'Reminder_model', 'alias' => 'reminders', 'method' => 'ensure_schema', 'call_method' => true, 'label' => 'Reminders'),
     array('type' => 'model', 'class' => 'Training_assessment_model', 'alias' => 'training_assessment', 'method' => 'ensure_schema', 'label' => 'Training assessment'),
     array('type' => 'model', 'class' => 'Api_integration_model', 'alias' => 'api_integration', 'method' => 'ensure_schema', 'label' => 'API integrations'),
     array('type' => 'model', 'class' => 'Notification_model', 'alias' => 'notifications', 'method' => 'ensure_schema', 'label' => 'Notifications'),
@@ -40,13 +44,27 @@ $config['schema_automation'] = array(
     array('type' => 'model', 'class' => 'Approval_model', 'alias' => 'approvals', 'method' => 'ensure_schema', 'label' => 'Approvals'),
     array('type' => 'model', 'class' => 'Chat_model', 'alias' => 'chats', 'method' => 'ensure_schema', 'label' => 'Chats'),
     array('type' => 'model', 'class' => 'Call_model', 'alias' => 'calls', 'method' => 'ensure_schema', 'label' => 'Calls'),
-    array('type' => 'model', 'class' => 'Face_model', 'alias' => 'faces', 'method' => 'ensure_schema', 'label' => 'Face recognition'),
-    array('type' => 'model', 'class' => 'External_dashboard_model', 'alias' => 'external_dashboards', 'method' => 'ensure_schema', 'label' => 'External dashboards'),
+    array('type' => 'model', 'class' => 'Face_model', 'alias' => 'faces', 'method' => 'ensure_schema', 'call_method' => true, 'label' => 'Face recognition'),
+    array('type' => 'model', 'class' => 'External_dashboard_model', 'alias' => 'external_dashboards', 'method' => 'ensure_schema', 'call_method' => true, 'label' => 'External dashboards'),
     array('type' => 'model', 'class' => 'Asset_model', 'alias' => 'assets', 'method' => 'ensure_schema', 'label' => 'Assets'),
     array('type' => 'model', 'class' => 'Status_model', 'alias' => 'statuses', 'method' => 'ensure_schema', 'label' => 'Statuses'),
     array('type' => 'model', 'class' => 'Type_model', 'alias' => 'module_types', 'method' => 'ensure_schema', 'label' => 'Module types'),
     array('type' => 'model', 'class' => 'Lead_user_mapping_model', 'alias' => 'lead_user_mapping', 'method' => 'ensure_schema', 'label' => 'Lead user mapping'),
+    array('type' => 'model', 'class' => 'Meeting_model', 'alias' => 'meetings', 'method' => 'ensure_schema', 'call_method' => true, 'label' => 'Meetings'),
+    array('type' => 'model', 'class' => 'Training_lms_module_model', 'alias' => 'lms_mod', 'method' => 'ensure_extensions', 'call_method' => true, 'label' => 'Training LMS extensions'),
 );
+
+/**
+ * On auth/login page visit: auto-create missing tables/columns (no login required).
+ */
+$config['login_page_schema_ensure'] = true;
+
+/**
+ * After successful login: auto-create only missing tables/columns (idempotent, once per session).
+ * Set login_schema_ensure_admin_only to false to run for every role.
+ */
+$config['login_schema_ensure'] = true;
+$config['login_schema_ensure_admin_only'] = true;
 
 /** Table name prefixes included in module-aware DB diff highlights */
 $config['schema_table_prefixes'] = array(
@@ -69,4 +87,10 @@ $config['schema_table_prefixes'] = array(
     'system_settings',
     'role_permissions',
     'user_module_access',
+    'meal_',
+    'reward_',
+    'spl_',
+    'timesheet',
+    'defect',
+    'scheduled_meeting',
 );

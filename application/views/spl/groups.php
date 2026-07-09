@@ -16,7 +16,7 @@ foreach ($groups as $g) {
     }
     $memberIdsByGroup[(int) $g->id] = $ids;
 }
-$reward_period = isset($reward_period) ? $reward_period : 'all';
+$reward_period = isset($reward_period) ? $reward_period : 'week';
 $reward_bounds = isset($reward_bounds) ? $reward_bounds : spl_reward_period_bounds($reward_period);
 $use_period_points = !empty($use_period_points);
 $points_period_label = $use_period_points ? $reward_bounds['label'] : 'Lifetime';
@@ -108,11 +108,11 @@ $points_period_label = $use_period_points ? $reward_bounds['label'] : 'Lifetime'
 
             <div class="spl-board-avg spl-board-avg-view">
               <div class="spl-board-avg-main">
-                <span class="spl-board-avg-label">Team avg<?php echo $use_period_points ? ' (' . esc_view($points_period_label, ENT_QUOTES, 'UTF-8') . ')' : ''; ?></span>
-                <span class="spl-board-avg-value"><?php echo number_format($use_period_points ? (float) $g->avg_period_points : (float) $g->avg_lifetime_points, 0); ?></span>
+                <span class="spl-board-avg-label"><?php echo $use_period_points ? 'Team score' : 'Team score'; ?><?php echo ' (' . esc_view($points_period_label, ENT_QUOTES, 'UTF-8') . ')'; ?></span>
+                <span class="spl-board-avg-value"><?php echo number_format($use_period_points ? (float) $g->total_period_net : (float) $g->total_lifetime_points, 0); ?></span>
               </div>
               <div class="spl-board-avg-sub">
-                <?php echo (int) $g->member_count; ?> members<?php if ($use_period_points): ?> · net <?php echo number_format((float) $g->total_period_net, 0); ?><?php else: ?> · <?php echo number_format((float) $g->avg_month_points, 0); ?> mo avg<?php endif; ?>
+                <?php echo (int) $g->member_count; ?> members<?php if ($use_period_points): ?> · avg <?php echo number_format((float) $g->avg_period_points, 0); ?><?php else: ?> · avg <?php echo number_format((float) $g->avg_lifetime_points, 0); ?> lifetime<?php endif; ?>
               </div>
             </div>
 
@@ -128,18 +128,21 @@ $points_period_label = $use_period_points ? $reward_bounds['label'] : 'Lifetime'
               <?php if (empty($members)): ?>
                 <div class="spl-board-cell"><span class="spl-board-member-name text-muted">No members</span></div>
               <?php else: foreach ($members as $member): ?>
-                <div class="spl-board-member-card<?php echo (int) $member->id === (int) $current_user_id ? ' is-you' : ''; ?>">
-                  <div class="spl-board-member-card-top">
-                    <span class="spl-board-member-name"><?php echo esc_view($member->name, ENT_QUOTES, 'UTF-8'); ?></span>
-                    <span class="spl-board-member-points"><?php echo number_format((float) $member->display_points, 0); ?></span>
+                <a href="<?php echo esc_view(spl_member_url($member->id, array('reward_period' => $reward_period, 'from' => 'groups')), ENT_QUOTES, 'UTF-8'); ?>" class="spl-board-member-card-link" title="View all activities for <?php echo esc_view($member->name, ENT_QUOTES, 'UTF-8'); ?>">
+                  <div class="spl-board-member-card<?php echo (int) $member->id === (int) $current_user_id ? ' is-you' : ''; ?>">
+                    <div class="spl-board-member-card-top">
+                      <span class="spl-board-member-name"><?php echo esc_view($member->name, ENT_QUOTES, 'UTF-8'); ?></span>
+                      <span class="spl-board-member-points"><?php echo number_format((float) $member->display_points, 0); ?></span>
+                    </div>
+                    <div class="spl-board-member-card-meta">
+                      <span class="spl-board-level-pill" style="--spl-level-color: <?php echo esc_view($member->level_color, ENT_QUOTES, 'UTF-8'); ?>;">
+                        <?php echo esc_view($member->level_name, ENT_QUOTES, 'UTF-8'); ?>
+                      </span>
+                      <span class="spl-board-member-month"><?php if ($use_period_points): ?>+<?php echo number_format((float) $member->period_positive, 0); ?> / -<?php echo number_format((float) $member->period_negative, 0); ?><?php else: ?><?php echo number_format((float) $member->month_points, 0); ?> mo<?php endif; ?></span>
+                    </div>
+                    <span class="spl-board-member-view-hint"><i class="bi bi-chevron-right"></i></span>
                   </div>
-                  <div class="spl-board-member-card-meta">
-                    <span class="spl-board-level-pill" style="--spl-level-color: <?php echo esc_view($member->level_color, ENT_QUOTES, 'UTF-8'); ?>;">
-                      <?php echo esc_view($member->level_name, ENT_QUOTES, 'UTF-8'); ?>
-                    </span>
-                    <span class="spl-board-member-month"><?php if ($use_period_points): ?>+<?php echo number_format((float) $member->period_positive, 0); ?> / -<?php echo number_format((float) $member->period_negative, 0); ?><?php else: ?><?php echo number_format((float) $member->month_points, 0); ?> mo<?php endif; ?></span>
-                  </div>
-                </div>
+                </a>
               <?php endforeach; endif; ?>
             </div>
 

@@ -13,8 +13,14 @@ class Lead_user_mapping_model extends CI_Model {
 
     public function ensure_schema()
     {
-        if (!$this->db->table_exists($this->table)) {
-            $this->db->query("CREATE TABLE `{$this->table}` (
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $this->load->helper('schema_columns');
+        schema_safe_create_table($this->db, $this->table, "CREATE TABLE `{$this->table}` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `lead_id` int(11) NOT NULL,
                 `user_id` int(11) NOT NULL,
@@ -24,7 +30,6 @@ class Lead_user_mapping_model extends CI_Model {
                 KEY `idx_lead` (`lead_id`),
                 KEY `idx_user` (`user_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
-        }
     }
 
     public function get_all_grouped()

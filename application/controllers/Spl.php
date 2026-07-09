@@ -150,8 +150,9 @@ class Spl extends CI_Controller
         $embed = (bool) $this->input->get('embed');
         $uid = (int) $this->session->userdata('user_id');
         $tab = spl_resolve_unified_tab($this->input->get('tab'));
+        $reward_period = spl_normalize_reward_period($this->input->get('reward_period') ?: 'week');
 
-        $data = spl_build_dashboard_data($uid);
+        $data = spl_build_dashboard_data($uid, $reward_period);
         $data['active_tab'] = $tab;
         $data['can_submit'] = spl_can_submit();
         $data['can_my_reward'] = spl_can_my_reward();
@@ -636,7 +637,7 @@ class Spl extends CI_Controller
         require_module_access(array('spl', 'spl_groups', 'spl_groups_manage', 'rewards', 'rewards_admin'), true);
         $embed = (bool) $this->input->get('embed');
         if (!$embed) {
-            $params = array('tab' => 'groups');
+            $params = array('tab' => 'groups', 'reward_period' => 'week');
             $reward_period = $this->input->get('reward_period');
             if ($reward_period !== null && $reward_period !== '') {
                 $params['reward_period'] = spl_normalize_reward_period($reward_period);
@@ -645,7 +646,7 @@ class Spl extends CI_Controller
             return;
         }
 
-        $reward_period = spl_normalize_reward_period($this->input->get('reward_period') ?: 'all');
+        $reward_period = spl_normalize_reward_period($this->input->get('reward_period') ?: 'week');
         $reward_bounds = spl_reward_period_bounds($reward_period);
         $use_period_points = ($reward_period !== 'all');
         $this->spl->sync_all_rules_to_all_groups();
@@ -695,6 +696,70 @@ class Spl extends CI_Controller
             'reward_bounds' => $reward_bounds,
             'use_period_points' => $use_period_points,
             'embed' => true,
+        ));
+    }
+
+    public function member($user_id = 0)
+    {
+        require_module_access(array('spl', 'spl_groups', 'spl_groups_manage', 'spl_my_reward', 'rewards', 'rewards_admin'), true);
+        $target_id = (int) $user_id;
+        if ($target_id <= 0) {
+            show_404();
+            return;
+        }
+        if (!spl_can_view_member_activity($target_id)) {
+            show_error('You do not have permission to view this member activity.', 403);
+            return;
+        }
+
+        $viewer_id = (int) $this->session->userdata('user_id');
+        $reward_period = spl_normalize_reward_period($this->input->get('reward_period') ?: 'week');
+        $reward_bounds = spl_reward_period_bounds($reward_period);
+        $use_period_points = ($reward_period !== 'all');
+        $period_from = $use_period_points ? $reward_bounds['from'] : null;
+        $period_to = $use_period_points ? $reward_bounds['to'] : null;
+
+        $user = spl_dashboard_user_row($target_id);
+        if (!$user) {
+            show_404();
+            return;
+        }
+
+        $summary = $this->rewards->get_user_summary($target_id);
+        $level = $this->rewards->get_level($summary->current_level_code);
+        $reward_totals = $this->rewards->sum_user_activity_points($target_id, $period_from, $period_to);
+        $activities = $this->rewards->list_user_activity_feed($target_id, 200, $period_from, $period_to);
+        $activities = spl_enrich_user_activity_rows($this->rewards, $activities);
+        $member_groups = $this->spl->list_groups_for_user($target_id, true);
+
+        $from = trim((string) $this->input->get('from'));
+        if ($from === 'groups') {
+            $back_url = spl_dashboard_url('groups', array('reward_period' => $reward_period));
+            $back_label = 'Back to Groups';
+        } else {
+            $back_url = spl_dashboard_url('overview', array('reward_period' => $reward_period));
+            $back_label = 'Back to Dashboard';
+        }
+
+        $display_name = !empty($user->display_name) ? (string) $user->display_name : 'User';
+        $is_self = ($viewer_id > 0 && $target_id === $viewer_id);
+
+        $this->load->view('spl/member', array(
+            'member' => $user,
+            'display_name' => $display_name,
+            'avatar_url' => spl_user_avatar_url($user),
+            'initials' => spl_user_initials($display_name),
+            'summary' => $summary,
+            'level' => $level,
+            'reward_period' => $reward_period,
+            'reward_bounds' => $reward_bounds,
+            'reward_totals' => $reward_totals,
+            'activities' => $activities,
+            'member_groups' => $member_groups,
+            'back_url' => $back_url,
+            'back_label' => $back_label,
+            'is_self' => $is_self,
+            'current_user_id' => $viewer_id,
         ));
     }
 
@@ -859,6 +924,73 @@ class Spl extends CI_Controller
         ), null);
         $this->session->set_flashdata('success', 'Group added.');
         redirect('spl/dashboard?tab=groups');
+    }
+
+    public function evidence_download($id = 0)
+    {
+        $evidence = $this->_resolve_reward_evidence_access((int) $id);
+        $path = FCPATH . ltrim((string) $evidence->file_path, '/');
+        if (!is_file($path)) {
+            show_404();
+            return;
+        }
+        $this->load->helper('download');
+        $name = !empty($evidence->file_name) ? (string) $evidence->file_name : basename($path);
+        force_download($name, file_get_contents($path));
+    }
+
+    public function evidence_preview($id = 0)
+    {
+        $evidence = $this->_resolve_reward_evidence_access((int) $id);
+        $path = FCPATH . ltrim((string) $evidence->file_path, '/');
+        if (!is_file($path)) {
+            show_404();
+            return;
+        }
+        $name = !empty($evidence->file_name) ? (string) $evidence->file_name : basename($path);
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $mimeMap = array(
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        $mime = isset($mimeMap[$ext]) ? $mimeMap[$ext] : 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: inline; filename="' . rawurlencode($name) . '"');
+        header('Content-Length: ' . (string) filesize($path));
+        readfile($path);
+        exit;
+    }
+
+    private function _resolve_reward_evidence_access($evidence_id)
+    {
+        require_module_access(array('spl', 'spl_groups', 'spl_groups_manage', 'spl_my_reward', 'rewards', 'rewards_admin'), true);
+        if ($evidence_id <= 0) {
+            show_404();
+            exit;
+        }
+        $evidence = $this->rewards->get_evidence($evidence_id);
+        if (!$evidence || empty($evidence->file_path)) {
+            show_404();
+            exit;
+        }
+        $queue = $this->rewards->get_approval_queue((int) $evidence->approval_queue_id);
+        if (!$queue) {
+            show_404();
+            exit;
+        }
+        if (!spl_can_view_member_activity((int) $queue->user_id)) {
+            show_error('You do not have permission to access this attachment.', 403);
+            exit;
+        }
+        return $evidence;
     }
 
     private function _spl_csv_bool($value, $default = 1)

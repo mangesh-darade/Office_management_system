@@ -6,10 +6,12 @@ $this->load->view('partials/header', array(
 
 $active_tab = isset($active_tab) ? (string) $active_tab : 'overview';
 $approval_counts = isset($approval_counts) ? $approval_counts : array('pending' => 0, 'approved' => 0, 'rejected' => 0);
+$reward_period = isset($reward_period) ? $reward_period : spl_normalize_reward_period($this->input->get('reward_period') ?: 'week');
+$reward_bounds = isset($reward_bounds) ? $reward_bounds : spl_reward_period_bounds($reward_period);
 ?>
 
 <div class="spl-unified-shell">
-  <div class="spl-dash-page spl-dash-page--compact">
+  <div class="spl-dash-page spl-dash-page--compact spl-dash-page--layout">
     <header class="spl-dash-header">
       <div class="spl-dash-header-brand">
         <div class="spl-dash-logo"><i class="bi bi-trophy-fill"></i></div>
@@ -76,6 +78,22 @@ $approval_counts = isset($approval_counts) ? $approval_counts : array('pending' 
         <?php endif; ?>
       </ul>
     </div>
+
+    <?php if (spl_tab_allowed('overview') || !empty($can_groups)): ?>
+    <div class="spl-unified-period-bar card border-0 shadow-sm<?php echo in_array($active_tab, array('overview', 'groups'), true) ? '' : ' d-none'; ?>" id="splUnifiedPeriodBar">
+      <div class="spl-unified-period-bar-inner">
+        <div class="spl-period-filter-heading">
+          <span class="spl-period-filter-heading__icon" aria-hidden="true"><i class="bi bi-calendar3"></i></span>
+          <div class="spl-period-filter-heading__text">
+            <span class="spl-period-filter-heading__label">Score period</span>
+            <span class="spl-period-filter-heading__value" id="splPeriodLabelText"><?php echo esc_view($reward_bounds['label'], ENT_QUOTES, 'UTF-8'); ?></span>
+            <span class="spl-period-filter-heading__note">Scores count approved points only</span>
+          </div>
+        </div>
+        <?php $this->load->view('spl/_period_filter', array('reward_period' => $reward_period)); ?>
+      </div>
+    </div>
+    <?php endif; ?>
 
     <?php if (!empty($can_manage)): ?>
     <div class="spl-unified-groups-bar card border-0 shadow-sm<?php echo $active_tab === 'groups' ? '' : ' d-none'; ?>" id="splUnifiedGroupsBar">
@@ -157,6 +175,8 @@ $approval_counts = isset($approval_counts) ? $approval_counts : array('pending' 
   </div>
 </div>
 
+<?php $this->load->view('spl/_activity_detail_modal'); ?>
+
 <script>window.SPL_BOARD_CONFIG = { canManage: <?php echo !empty($can_manage) ? 'true' : 'false'; ?> };</script>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
 <script>
@@ -199,10 +219,12 @@ document.addEventListener('DOMContentLoaded', function() {
           url.searchParams.set('approval_view', approvalView);
         }
       }
-      if (tabName === 'my-reward' || tabName === 'groups') {
+      if (tabName === 'overview' || tabName === 'groups' || tabName === 'my-reward') {
         var rewardPeriod = pageParams.get('reward_period');
         if (rewardPeriod) {
           url.searchParams.set('reward_period', rewardPeriod);
+        } else if (tabName === 'overview' || tabName === 'groups') {
+          url.searchParams.set('reward_period', 'week');
         }
       }
       return url.toString();
@@ -218,6 +240,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     var tab = getActiveTab();
     bar.classList.toggle('d-none', tab !== 'groups');
+  }
+
+  var periodLabels = <?php echo json_encode(spl_reward_period_options()); ?>;
+
+  function getRewardPeriod() {
+    var params = new URLSearchParams(window.location.search);
+    return params.get('reward_period') || 'week';
+  }
+
+  function updatePeriodBarVisibility() {
+    var bar = document.getElementById('splUnifiedPeriodBar');
+    if (!bar) {
+      return;
+    }
+    var tab = getActiveTab();
+    bar.classList.toggle('d-none', tab !== 'overview' && tab !== 'groups');
+  }
+
+  function syncPeriodTabs(period) {
+    document.querySelectorAll('[data-spl-period]').forEach(function(btn) {
+      var isActive = btn.getAttribute('data-spl-period') === period;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    var labelNode = document.getElementById('splPeriodLabelText');
+    if (labelNode && periodLabels[period]) {
+      labelNode.textContent = periodLabels[period];
+    }
+  }
+
+  function setRewardPeriod(period, reload) {
+    if (!period || !periodLabels[period]) {
+      period = 'week';
+    }
+    var params = new URLSearchParams(window.location.search);
+    params.set('reward_period', period);
+    var query = params.toString();
+    var newUrl = window.location.pathname + (query ? '?' + query : '');
+    window.history.pushState({ path: newUrl }, '', newUrl);
+    syncPeriodTabs(period);
+    if (reload !== false) {
+      var tab = getActiveTab();
+      if (tab === 'overview' || tab === 'groups') {
+        var $pane = $('#pane-' + tab);
+        $pane.find('.tab-pane-content').empty();
+        loadTabContent($pane, buildTabUrl(tab), 'GET');
+      }
+    }
   }
 
   function runSplEmbeddedScripts($content) {
@@ -257,6 +327,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (window.initSplActivityPanel && $content.find('#splSubmitForm').length) {
       window.initSplActivityPanel($content[0]);
+    }
+    if (window.initSplActivityTable) {
+      window.initSplActivityTable($content[0]);
     }
   }
 
@@ -308,10 +381,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var $pane = $('#pane-' + tabName);
     $pane.addClass('active show');
     var $content = $pane.find('.tab-pane-content');
-    if (tabName === 'overview') {
-      if ($content.children().length === 0) {
-        loadTabContent($pane, tabUrls.overview, 'GET');
-      }
+    if (tabName === 'overview' || tabName === 'groups') {
+      loadTabContent($pane, buildTabUrl(tabName), 'GET');
     } else if ($content.children().length === 0) {
       loadTabContent($pane, buildTabUrl(tabName), 'GET');
     }
@@ -329,10 +400,20 @@ document.addEventListener('DOMContentLoaded', function() {
       window.history.pushState({ path: newUrl }, '', newUrl);
     }
     updateGroupsBarVisibility();
+    updatePeriodBarVisibility();
     if (tabName === 'rules' && window.adjustSplRulesTable) {
       window.requestAnimationFrame(function () {
         var pane = document.getElementById('pane-rules');
         window.adjustSplRulesTable(pane || document);
+      });
+    }
+    if (tabName === 'activity' && window.initSplActivityPanel) {
+      window.requestAnimationFrame(function () {
+        var pane = document.getElementById('pane-activity');
+        var content = pane ? pane.querySelector('.tab-pane-content') : null;
+        if (content && content.querySelector('#splSubmitForm')) {
+          window.initSplActivityPanel(content);
+        }
       });
     }
   }
@@ -343,12 +424,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  document.addEventListener('click', function(e) {
+    var periodBtn = e.target.closest('[data-spl-period]');
+    if (!periodBtn) {
+      return;
+    }
+    e.preventDefault();
+    setRewardPeriod(periodBtn.getAttribute('data-spl-period'));
+  });
+
   document.getElementById('splUnifiedContent').addEventListener('submit', function(e) {
     var form = e.target;
     if (form.tagName !== 'FORM') {
       return;
     }
     if (form.getAttribute('enctype') === 'multipart/form-data') {
+      return;
+    }
+    if (form.classList.contains('spl-approval-inline-form') || form.id === 'splApprovalModalActionForm') {
       return;
     }
     e.preventDefault();
@@ -409,7 +502,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }, true);
 
   var initialTab = <?php echo json_encode($active_tab); ?>;
+  syncPeriodTabs(getRewardPeriod());
   updateGroupsBarVisibility();
+  updatePeriodBarVisibility();
   if (window.initSplBoard && document.getElementById('splBoardEditBtn')) {
     window.initSplBoard(document);
   }

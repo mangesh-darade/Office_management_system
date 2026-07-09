@@ -477,7 +477,7 @@ class Spl_model extends CI_Model
         return $higher + 1;
     }
 
-    public function list_org_activity_feed($limit = 20)
+    public function list_org_activity_feed($limit = 20, $date_from = null, $date_to = null)
     {
         if (!$this->db->table_exists('reward_transactions')) {
             return array();
@@ -488,11 +488,59 @@ class Spl_model extends CI_Model
         $this->db->join('reward_categories c', 'c.id = t.category_id', 'left');
         $this->db->join('reward_categories rc', 'rc.id = r.category_id', 'left');
         $this->db->join('users u', 'u.id = t.user_id', 'left');
-        $this->db->where_in('t.status', array('approved', 'pending'));
+        $this->db->where('t.status', 'approved');
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
         $this->db->order_by('t.created_at', 'DESC');
         $this->db->order_by('t.id', 'DESC');
         $this->db->limit((int) $limit);
         return $this->db->get()->result();
+    }
+
+    public function sum_org_activity_points($date_from = null, $date_to = null)
+    {
+        if (!$this->db->table_exists('reward_transactions')) {
+            return array(
+                'positive' => 0,
+                'negative' => 0,
+                'net' => 0,
+                'pending_points' => 0,
+                'pending_count' => 0,
+                'approved_count' => 0,
+                'rejected_count' => 0,
+            );
+        }
+        $this->db->select(
+            'COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points > 0 THEN t.points ELSE 0 END), 0) AS positive_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' AND t.points < 0 THEN ABS(t.points) ELSE 0 END), 0) AS negative_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'approved\' THEN t.points ELSE 0 END), 0) AS net_points,'
+            . ' COALESCE(SUM(CASE WHEN t.status = \'pending\' THEN t.points ELSE 0 END), 0) AS pending_points,'
+            . ' SUM(CASE WHEN t.status = \'pending\' THEN 1 ELSE 0 END) AS pending_count,'
+            . ' SUM(CASE WHEN t.status = \'approved\' THEN 1 ELSE 0 END) AS approved_count,'
+            . ' SUM(CASE WHEN t.status = \'rejected\' THEN 1 ELSE 0 END) AS rejected_count',
+            false
+        );
+        $this->db->from('reward_transactions t');
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $row = $this->db->get()->row();
+        return array(
+            'positive' => $row ? (float) $row->positive_points : 0,
+            'negative' => $row ? (float) $row->negative_points : 0,
+            'net' => $row ? (float) $row->net_points : 0,
+            'pending_points' => $row ? (float) $row->pending_points : 0,
+            'pending_count' => $row ? (int) $row->pending_count : 0,
+            'approved_count' => $row ? (int) $row->approved_count : 0,
+            'rejected_count' => $row ? (int) $row->rejected_count : 0,
+        );
     }
 
     public function sum_group_member_points_by_status($group_id, $date_from = null, $date_to = null)

@@ -108,6 +108,10 @@ class Cron extends CI_Controller {
         $this->coaching_automation();
         echo str_repeat("-", 50) . "\n";
 
+        // SPL attendance penalties (yesterday missed check-in/out)
+        $this->reward_attendance_penalties();
+        echo str_repeat("-", 50) . "\n";
+
         echo str_repeat("=", 50) . "\n";
         
         echo "✅ All cron jobs completed at " . date('Y-m-d H:i:s') . "\n";
@@ -132,6 +136,12 @@ class Cron extends CI_Controller {
 
         echo "# Coaching automation rules every 30 minutes\n";
         echo "*/30 * * * * curl -s " . site_url('cron/coaching_automation') . " >/dev/null 2>&1\n\n";
+
+        echo "# SPL attendance penalties daily at 1:00 AM\n";
+        echo "0 1 * * * curl -s " . site_url('cron/reward_attendance_penalties') . " >/dev/null 2>&1\n\n";
+
+        echo "# SPL monthly consistency review on 1st of month at 2:00 AM\n";
+        echo "0 2 1 * * curl -s " . site_url('cron/reward_consistency_monthly') . " >/dev/null 2>&1\n\n";
         
         echo "# Or run all tasks every 5 minutes\n";
         echo "*/5 * * * * curl -s " . site_url('cron/run_all') . " >/dev/null 2>&1\n\n";
@@ -148,6 +158,50 @@ class Cron extends CI_Controller {
         echo "Run All: " . site_url('cron/run_all') . "\n";
         echo "Coaching Session Reminders: " . site_url('cron/coaching_session_reminders') . "\n";
         echo "Coaching Automation: " . site_url('cron/coaching_automation') . "\n";
+        echo "SPL Attendance Penalties: " . site_url('cron/reward_attendance_penalties') . "\n";
+        echo "SPL Consistency Monthly: " . site_url('cron/reward_consistency_monthly') . "\n";
+    }
+
+    /**
+     * Penalize yesterday missed check-ins / checkouts for all active users.
+     */
+    public function reward_attendance_penalties()
+    {
+        if (!$this->db->table_exists('reward_rules')) {
+            echo "⏭ SPL rewards not installed — skipping attendance penalties.\n";
+            return;
+        }
+        $this->load->helper(array('rewards_automation', 'rewards_schema'));
+        rewards_schema_ensure($this->db);
+        try {
+            $stats = rewards_automation_daily_attendance_penalties($this->db);
+            if (!empty($stats['skipped'])) {
+                echo "⏭ Attendance penalties skipped (non-workday) at " . date('Y-m-d H:i:s') . "\n";
+                return;
+            }
+            echo "✅ Attendance penalties for " . $stats['date'] . ": missed check-in " . (int) $stats['missed_checkin'] . ", missed checkout " . (int) $stats['missed_checkout'] . " at " . date('Y-m-d H:i:s') . "\n";
+        } catch (Exception $e) {
+            echo "❌ Error running attendance penalties: " . $e->getMessage() . "\n";
+        }
+    }
+
+    /**
+     * Award monthly consistency bonuses for the previous calendar month.
+     */
+    public function reward_consistency_monthly()
+    {
+        if (!$this->db->table_exists('reward_rules')) {
+            echo "⏭ SPL rewards not installed — skipping consistency review.\n";
+            return;
+        }
+        $this->load->helper(array('rewards_automation', 'rewards_schema'));
+        rewards_schema_ensure($this->db);
+        try {
+            $stats = rewards_automation_consistency_monthly($this->db);
+            echo "✅ Consistency review for " . $stats['month'] . ": self-updates " . (int) $stats['self_updates'] . ", on-time " . (int) $stats['on_time'] . ", no missed checkout " . (int) $stats['no_missed_checkout'] . " at " . date('Y-m-d H:i:s') . "\n";
+        } catch (Exception $e) {
+            echo "❌ Error running consistency review: " . $e->getMessage() . "\n";
+        }
     }
 
     /**

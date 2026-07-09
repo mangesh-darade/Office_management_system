@@ -188,6 +188,36 @@ if (!function_exists('spl_dashboard_url')) {
     }
 }
 
+if (!function_exists('spl_member_url')) {
+    function spl_member_url($user_id, $extra = array())
+    {
+        $params = is_array($extra) ? $extra : array();
+        return site_url('spl/member/' . (int) $user_id . ($params ? '?' . http_build_query($params) : ''));
+    }
+}
+
+if (!function_exists('spl_can_view_member_activity')) {
+    function spl_can_view_member_activity($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return false;
+        }
+        $CI =& get_instance();
+        $viewer_id = (int) $CI->session->userdata('user_id');
+        if ($viewer_id > 0 && $user_id === $viewer_id) {
+            return true;
+        }
+        if (function_exists('is_admin_group') && is_admin_group()) {
+            return true;
+        }
+        if (spl_can_approve() || spl_can_manage_groups() || spl_can_view_groups()) {
+            return true;
+        }
+        return false;
+    }
+}
+
 if (!function_exists('spl_normalize_unified_tab')) {
     function spl_normalize_unified_tab($tab)
     {
@@ -294,6 +324,18 @@ if (!function_exists('spl_normalize_reward_period')) {
     }
 }
 
+if (!function_exists('spl_reward_period_options')) {
+    function spl_reward_period_options()
+    {
+        return array(
+            'today' => 'Today',
+            'week' => 'This week',
+            'month' => 'This month',
+            'all' => 'All time',
+        );
+    }
+}
+
 if (!function_exists('spl_reward_period_bounds')) {
     function spl_reward_period_bounds($period)
     {
@@ -330,6 +372,42 @@ if (!function_exists('spl_reward_period_bounds')) {
             'from' => null,
             'to' => null,
             'label' => 'All time',
+        );
+    }
+}
+
+if (!function_exists('spl_reward_period_previous_bounds')) {
+    function spl_reward_period_previous_bounds($period)
+    {
+        $period = spl_normalize_reward_period($period);
+        if ($period === 'all') {
+            return array(
+                'from' => null,
+                'to' => null,
+                'label' => '',
+            );
+        }
+        $bounds = spl_reward_period_bounds($period);
+        if ($period === 'today') {
+            $yesterday = date('Y-m-d', strtotime($bounds['from'] . ' -1 day'));
+            return array(
+                'from' => $yesterday,
+                'to' => $yesterday,
+                'label' => 'yesterday',
+            );
+        }
+        if ($period === 'week') {
+            return array(
+                'from' => date('Y-m-d', strtotime($bounds['from'] . ' -7 days')),
+                'to' => date('Y-m-d', strtotime($bounds['to'] . ' -7 days')),
+                'label' => 'last week',
+            );
+        }
+        $prev_from = date('Y-m-01', strtotime($bounds['from'] . ' -1 month'));
+        return array(
+            'from' => $prev_from,
+            'to' => date('Y-m-t', strtotime($prev_from)),
+            'label' => 'last month',
         );
     }
 }
@@ -490,8 +568,188 @@ if (!function_exists('spl_enrich_approval_rows')) {
             $evidence = $rewards->get_evidence_for_queue((int) $row->id);
             $rows[$idx]->evidence_file = ($evidence && !empty($evidence->file_path)) ? $evidence->file_path : '';
             $rows[$idx]->evidence_name = ($evidence && !empty($evidence->file_name)) ? $evidence->file_name : '';
+            $rows[$idx]->evidence_id = ($evidence && !empty($evidence->id)) ? (int) $evidence->id : 0;
         }
         return $rows;
+    }
+}
+
+if (!function_exists('spl_evidence_is_image')) {
+    function spl_evidence_is_image($file_path, $file_name = '')
+    {
+        $name = $file_name !== '' ? (string) $file_name : (string) $file_path;
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        return in_array($ext, array('png', 'jpg', 'jpeg', 'gif', 'webp'), true);
+    }
+}
+
+if (!function_exists('spl_enrich_user_activity_rows')) {
+    function spl_enrich_user_activity_rows($rewards, array $rows)
+    {
+        $CI =& get_instance();
+        if (!isset($CI->spl)) {
+            $CI->load->model('Spl_model', 'spl');
+        }
+        foreach ($rows as $idx => $row) {
+            $rows[$idx]->evidence_id = 0;
+            $rows[$idx]->evidence_file = '';
+            $rows[$idx]->evidence_name = '';
+            $rows[$idx]->decision_comment = '';
+            $rows[$idx]->approver_name = '';
+            $rows[$idx]->decided_at = '';
+            $queue = $CI->spl->get_latest_queue_for_transaction((int) $row->id);
+            if (!$queue) {
+                continue;
+            }
+            $rows[$idx]->decision_comment = isset($queue->decision_comment) ? (string) $queue->decision_comment : '';
+            $rows[$idx]->decided_at = !empty($queue->decided_at) ? (string) $queue->decided_at : '';
+            if (!empty($queue->approver_id) && $CI->db->table_exists('users')) {
+                $approver = $CI->db->select('name')->from('users')->where('id', (int) $queue->approver_id)->limit(1)->get()->row();
+                $rows[$idx]->approver_name = $approver ? (string) $approver->name : '';
+            }
+            $evidence = $rewards->get_evidence_for_queue((int) $queue->id);
+            if ($evidence && !empty($evidence->file_path)) {
+                $rows[$idx]->evidence_id = (int) $evidence->id;
+                $rows[$idx]->evidence_file = (string) $evidence->file_path;
+                $rows[$idx]->evidence_name = !empty($evidence->file_name)
+                    ? (string) $evidence->file_name
+                    : basename((string) $evidence->file_path);
+            }
+        }
+        return $rows;
+    }
+}
+
+if (!function_exists('spl_activity_detail_payload')) {
+    function spl_activity_detail_payload($row)
+    {
+        $statusMeta = spl_activity_status_meta($row->status);
+        $points = (float) $row->points;
+        $evidenceId = !empty($row->evidence_id) ? (int) $row->evidence_id : 0;
+        $evidenceFile = !empty($row->evidence_file) ? (string) $row->evidence_file : '';
+        $evidenceName = !empty($row->evidence_name) ? (string) $row->evidence_name : '';
+        $payload = array(
+            'id' => (int) $row->id,
+            'title' => spl_activity_title($row),
+            'points' => $points,
+            'points_label' => ($points >= 0 ? '+' : '') . number_format($points, 0),
+            'status' => (string) $row->status,
+            'status_label' => $statusMeta['label'],
+            'status_class' => $statusMeta['class'],
+            'category_name' => !empty($row->category_name) ? (string) $row->category_name : '',
+            'source_label' => spl_activity_source_label($row),
+            'source_event' => !empty($row->source_event) ? (string) $row->source_event : '',
+            'rule_code' => !empty($row->rule_code) ? (string) $row->rule_code : '',
+            'created_at' => spl_format_activity_datetime($row->created_at),
+            'approved_at' => !empty($row->approved_at) ? spl_format_activity_datetime($row->approved_at) : '',
+            'reference_label' => spl_sanitize_note_html(isset($row->reference_label) ? $row->reference_label : ''),
+            'notes' => trim((string) (isset($row->notes) ? $row->notes : '')),
+            'decision_comment' => !empty($row->decision_comment) ? (string) $row->decision_comment : '',
+            'approver_name' => !empty($row->approver_name) ? (string) $row->approver_name : '',
+            'decided_at' => !empty($row->decided_at) ? spl_format_activity_datetime($row->decided_at) : '',
+            'evidence_id' => $evidenceId,
+            'evidence_name' => $evidenceName,
+            'evidence_is_image' => ($evidenceFile !== '' && spl_evidence_is_image($evidenceFile, $evidenceName)),
+            'evidence_preview_url' => $evidenceId > 0 ? site_url('spl/evidence/' . $evidenceId . '/preview') : '',
+            'evidence_download_url' => $evidenceId > 0 ? site_url('spl/evidence/' . $evidenceId . '/download') : '',
+        );
+        return $payload;
+    }
+}
+
+if (!function_exists('spl_prepare_activity_table_context')) {
+    function spl_prepare_activity_table_context(array $activities)
+    {
+        $CI =& get_instance();
+        if (!isset($CI->rewards)) {
+            $CI->load->model('Reward_model', 'rewards');
+        }
+        $enriched = spl_enrich_user_activity_rows($CI->rewards, $activities);
+        $payloads = array();
+        foreach ($enriched as $row) {
+            $payloads[(int) $row->id] = spl_activity_detail_payload($row);
+        }
+        return array(
+            'activities' => $enriched,
+            'payloads' => $payloads,
+        );
+    }
+}
+
+if (!function_exists('spl_approval_status_meta')) {
+    function spl_approval_status_meta($view)
+    {
+        $view = (string) $view;
+        if ($view === 'approved') {
+            return array('label' => 'Approved', 'class' => 'success');
+        }
+        if ($view === 'rejected') {
+            return array('label' => 'Rejected', 'class' => 'secondary');
+        }
+        return array('label' => 'Pending', 'class' => 'warning');
+    }
+}
+
+if (!function_exists('spl_approval_detail_payload')) {
+    function spl_approval_detail_payload($row, $view = 'pending')
+    {
+        $evidenceId = !empty($row->evidence_id) ? (int) $row->evidence_id : 0;
+        $evidenceFile = !empty($row->evidence_file) ? (string) $row->evidence_file : '';
+        $evidenceName = !empty($row->evidence_name) ? (string) $row->evidence_name : '';
+        $points = (float) $row->requested_points;
+        return array(
+            'id' => (int) $row->id,
+            'view' => (string) $view,
+            'recipient_name' => (string) ($row->recipient_name ?: ''),
+            'submitter_name' => (string) ($row->submitter_name ?: ''),
+            'submitted_at' => spl_format_activity_datetime($row->submitted_at),
+            'category_name' => (string) ($row->category_name ?: ''),
+            'rule_name' => (string) ($row->rule_name ?: ''),
+            'rule_code' => (string) ($row->rule_code ?: ''),
+            'requested_points' => $points,
+            'reference_label' => spl_sanitize_note_html(isset($row->reference_label) ? $row->reference_label : ''),
+            'evidence_id' => $evidenceId,
+            'evidence_file' => $evidenceFile !== '' ? base_url($evidenceFile) : '',
+            'evidence_name' => $evidenceName,
+            'evidence_is_image' => ($evidenceFile !== '' && spl_evidence_is_image($evidenceFile, $evidenceName)),
+            'evidence_preview_url' => $evidenceId > 0 ? site_url('spl/evidence/' . $evidenceId . '/preview') : '',
+            'evidence_download_url' => $evidenceId > 0 ? site_url('spl/evidence/' . $evidenceId . '/download') : '',
+            'decided_at' => !empty($row->decided_at) ? spl_format_activity_datetime($row->decided_at) : '',
+            'approver_name' => (string) (isset($row->approver_name) ? $row->approver_name : ''),
+            'decision_comment' => (string) (isset($row->decision_comment) ? $row->decision_comment : ''),
+        );
+    }
+}
+
+if (!function_exists('spl_prepare_approval_table_context')) {
+    function spl_prepare_approval_table_context(array $rows, $view = 'pending')
+    {
+        $view = (string) $view;
+        $payloads = array();
+        foreach ($rows as $row) {
+            $payloads[(int) $row->id] = spl_approval_detail_payload($row, $view);
+        }
+        return array(
+            'rows' => $rows,
+            'payloads' => $payloads,
+            'view' => $view,
+        );
+    }
+}
+
+if (!function_exists('spl_activity_table_member_name')) {
+    function spl_activity_table_member_name($row)
+    {
+        if (!empty($row->user_name)) {
+            return (string) $row->user_name;
+        }
+        if (!empty($row->display_name)) {
+            return (string) $row->display_name;
+        }
+        if (!empty($row->name)) {
+            return (string) $row->name;
+        }
+        return '';
     }
 }
 
@@ -621,6 +879,29 @@ if (!function_exists('spl_format_activity_datetime')) {
         $ts = strtotime($datetime);
         if (!$ts) {
             return $datetime;
+        }
+        return date('M j, Y · g:i A', $ts);
+    }
+}
+
+if (!function_exists('spl_format_activity_datetime_compact')) {
+    function spl_format_activity_datetime_compact($datetime)
+    {
+        $datetime = trim((string) $datetime);
+        if ($datetime === '') {
+            return '—';
+        }
+        $ts = strtotime($datetime);
+        if (!$ts) {
+            return $datetime;
+        }
+        $today = date('Y-m-d');
+        $rowDate = date('Y-m-d', $ts);
+        if ($rowDate === $today) {
+            return 'Today ' . date('g:i A', $ts);
+        }
+        if (date('Y', $ts) === date('Y')) {
+            return date('M j · g:i A', $ts);
         }
         return date('M j, Y · g:i A', $ts);
     }
@@ -761,6 +1042,69 @@ if (!function_exists('spl_dispatch_attendance_reward')) {
     }
 }
 
+if (!function_exists('spl_attendance_reward_exists')) {
+    function spl_attendance_reward_exists($user_id, $rule_code, $attendance_id)
+    {
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('reward_transactions') || !$CI->db->table_exists('reward_rules')) {
+            return false;
+        }
+        if (!isset($CI->rewards)) {
+            $CI->load->model('Reward_model', 'rewards');
+        }
+        $rule = $CI->rewards->get_rule_by_code((string) $rule_code);
+        if (!$rule) {
+            return false;
+        }
+        $CI->db->where('user_id', (int) $user_id);
+        $CI->db->where('rule_id', (int) $rule->id);
+        $CI->db->where('source_module', 'attendance');
+        $CI->db->where('source_record_id', (int) $attendance_id);
+        $CI->db->where('status', 'approved');
+        return $CI->db->count_all_results('reward_transactions') > 0;
+    }
+}
+
+if (!function_exists('spl_dispatch_attendance_topup')) {
+    function spl_dispatch_attendance_topup(array $base, $points, $reference_label, $attendance_id)
+    {
+        $CI =& get_instance();
+        if (!isset($CI->rewards)) {
+            $CI->load->model('Reward_model', 'rewards');
+        }
+        $user_id = (int) $base['user_id'];
+        $attendance_id = (int) $attendance_id;
+        $points = (float) $points;
+        if ($user_id <= 0 || $attendance_id <= 0 || $points == 0.0) {
+            return;
+        }
+        $occurred_at = !empty($base['occurred_at']) ? (string) $base['occurred_at'] : date('Y-m-d H:i:s');
+        $day = date('Y-m-d', strtotime($occurred_at));
+        $idem = sha1('attendance_topup|' . $user_id . '|' . $attendance_id . '|' . $reference_label . '|' . $day);
+        if ($CI->rewards->rule_exists_by_key($idem)) {
+            return;
+        }
+        $txId = $CI->rewards->insert_transaction(array(
+            'user_id' => $user_id,
+            'rule_id' => null,
+            'points' => $points,
+            'status' => 'approved',
+            'source_module' => 'attendance',
+            'source_record_id' => $attendance_id,
+            'source_event' => 'attendance_checkout',
+            'idempotency_key' => $idem,
+            'reference_label' => (string) $reference_label,
+            'granted_by' => isset($base['actor_id']) ? (int) $base['actor_id'] : $user_id,
+            'period_key' => date('Y-m', strtotime($occurred_at)),
+            'created_at' => $occurred_at,
+        ));
+        if ($txId) {
+            $CI->rewards->update_user_summary($user_id);
+            $CI->rewards->audit('transaction', $txId, 'created', $user_id, null, array('label' => $reference_label, 'points' => $points));
+        }
+    }
+}
+
 if (!function_exists('spl_award_attendance_points')) {
     /**
      * Auto-award SPL points for check-in / check-out only (no approval).
@@ -792,14 +1136,13 @@ if (!function_exists('spl_award_attendance_points')) {
         $shift = spl_get_user_shift($CI->db, $user_id);
 
         if ($action === 'in') {
-            // Immediate: Late (+0) / Very Late (-10).
-            // On-Time (+20) is deferred until checkout so Perfect Attendance (30)
-            // can replace On-Time + Complete Shift instead of stacking.
             $tier = spl_classify_checkin_tier($shift, $occurred_at, $date);
             if ($tier === 'very_late') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkin', 'Very Late Check-In', array('attendance_tier' => 'very_late'));
             } elseif ($tier === 'late') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkin', 'Late Check-In', array('attendance_tier' => 'late'));
+            } elseif ($tier === 'on_time') {
+                spl_dispatch_attendance_reward($base, 'attendance_checkin', 'On-Time Check-In', array('attendance_tier' => 'on_time'));
             }
             // Next working day: check previous working-day missed checkout (-10).
             if (function_exists('rewards_automation_after_checkin')) {
@@ -822,21 +1165,24 @@ if (!function_exists('spl_award_attendance_points')) {
             if ($times['cin'] === '' || $times['cout'] === '') {
                 return;
             }
-            $checkInTier = spl_classify_checkin_tier($shift, $times['cin'], $date);
-            $checkoutTier = spl_classify_checkout_tier($shift, $times['cin'], $times['cout'], $date, $checkInTier);
+            $attendance_date = $date;
+            if (!empty($cols['col_date']) && isset($row->{$cols['col_date']}) && (string) $row->{$cols['col_date']} !== '') {
+                $attendance_date = (string) $row->{$cols['col_date']};
+            }
+            $checkInTier = spl_classify_checkin_tier($shift, $times['cin'], $attendance_date);
+            $checkoutTier = spl_classify_checkout_tier($shift, $times['cin'], $times['cout'], $attendance_date, $checkInTier);
             if ($checkoutTier === 'perfect') {
-                // Award Perfect (30) instead of On-Time (20) + Complete Shift (20).
-                spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Perfect Attendance', array('checkout_tier' => 'perfect'));
+                if (spl_attendance_reward_exists($user_id, 'attendance_on_time_checkin', $attendance_id)) {
+                    spl_dispatch_attendance_topup($base, 10, 'Perfect Attendance', $attendance_id);
+                } else {
+                    spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Perfect Attendance', array('checkout_tier' => 'perfect'));
+                }
                 return;
             }
             if ($checkoutTier === 'complete_shift') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Complete Shift', array('checkout_tier' => 'complete_shift'));
             } elseif ($checkoutTier === 'early_valid') {
                 spl_dispatch_attendance_reward($base, 'attendance_checkout', 'Early Valid Check-Out', array('checkout_tier' => 'early_valid'));
-            }
-            // On-Time only when Perfect was NOT awarded (covers early-valid / no checkout tier).
-            if ($checkInTier === 'on_time') {
-                spl_dispatch_attendance_reward($base, 'attendance_checkin', 'On-Time Check-In', array('attendance_tier' => 'on_time'));
             }
         }
     }
@@ -1068,7 +1414,7 @@ if (!function_exists('spl_enrich_user_activity_feed_names')) {
 }
 
 if (!function_exists('spl_build_dashboard_data')) {
-    function spl_build_dashboard_data($user_id)
+    function spl_build_dashboard_data($user_id, $reward_period = 'week')
     {
         $CI =& get_instance();
         $uid = (int) $user_id;
@@ -1076,8 +1422,12 @@ if (!function_exists('spl_build_dashboard_data')) {
         $is_org_view = !$is_user_scoped;
         $CI->load->model(array('Reward_model' => 'rewards', 'Spl_model' => 'spl'));
 
-        $today_bounds = spl_reward_period_bounds('today');
-        $week_bounds = spl_reward_period_bounds('week');
+        $reward_period = spl_normalize_reward_period($reward_period);
+        $period_bounds = spl_reward_period_bounds($reward_period);
+        $prev_bounds = spl_reward_period_previous_bounds($reward_period);
+        $use_period_points = ($reward_period !== 'all');
+        $period_from = $use_period_points ? $period_bounds['from'] : null;
+        $period_to = $use_period_points ? $period_bounds['to'] : null;
         $month_bounds = spl_reward_period_bounds('month');
         $season = spl_season_info();
 
@@ -1093,28 +1443,44 @@ if (!function_exists('spl_build_dashboard_data')) {
         $month_rank = $CI->spl->get_user_month_rank($uid);
         $streak = $CI->spl->compute_points_streak_days($uid);
 
-        $kpi_today = $CI->rewards->sum_user_activity_points($uid, $today_bounds['from'], $today_bounds['to']);
-        $kpi_week = $CI->rewards->sum_user_activity_points($uid, $week_bounds['from'], $week_bounds['to']);
-        $kpi_month = $CI->rewards->sum_user_activity_points($uid, $month_bounds['from'], $month_bounds['to']);
-        $pending_count = (int) $CI->rewards->count_user_pending_transactions($uid);
+        $kpi_period = $CI->rewards->sum_user_activity_points($uid, $period_from, $period_to);
+        $today_bounds = spl_reward_period_bounds('today');
+        $week_bounds = spl_reward_period_bounds('week');
+        $month_bounds = spl_reward_period_bounds('month');
+        if ($is_org_view) {
+            $kpi_today = $CI->spl->sum_org_activity_points($today_bounds['from'], $today_bounds['to']);
+            $kpi_week = $CI->spl->sum_org_activity_points($week_bounds['from'], $week_bounds['to']);
+            $kpi_month = $CI->spl->sum_org_activity_points($month_bounds['from'], $month_bounds['to']);
+            $kpi_pending_activities = spl_can_approve()
+                ? (int) $CI->rewards->count_spl_approvals_by_status('pending')
+                : (int) $CI->spl->sum_org_activity_points(null, null)['pending_count'];
+        } else {
+            $kpi_today = $CI->rewards->sum_user_activity_points($uid, $today_bounds['from'], $today_bounds['to']);
+            $kpi_week = $CI->rewards->sum_user_activity_points($uid, $week_bounds['from'], $week_bounds['to']);
+            $kpi_month = $CI->rewards->sum_user_activity_points($uid, $month_bounds['from'], $month_bounds['to']);
+            $kpi_pending_activities = (int) $CI->rewards->count_user_pending_transactions($uid);
+        }
+        $org_period_totals = $is_org_view
+            ? $CI->spl->sum_org_activity_points($period_from, $period_to)
+            : $kpi_period;
 
         if ($is_user_scoped) {
-            $recent = $CI->rewards->list_user_activity_feed($uid, 20, $today_bounds['from'], $today_bounds['to']);
-            if (empty($recent)) {
-                $recent = $CI->rewards->list_user_activity_feed($uid, 20, $week_bounds['from'], $week_bounds['to']);
-            }
+            $recent = $CI->rewards->list_user_activity_feed($uid, 20, $period_from, $period_to);
         } else {
-            $recent = $CI->spl->list_org_activity_feed(20);
+            $recent = $CI->spl->list_org_activity_feed(20, $period_from, $period_to);
         }
 
         $CI->spl->sync_all_rules_to_all_groups();
-        $board_groups = $CI->spl->list_groups_board(true, $week_bounds['from'], $week_bounds['to']);
+        $board_groups = $CI->spl->list_groups_board(true, $period_from, $period_to);
         $my_group = null;
         $my_group_rank = 0;
         $team_standings = array();
         $rank = 0;
-        usort($board_groups, function ($a, $b) {
-            return (float) $b->total_period_net <=> (float) $a->total_period_net;
+        usort($board_groups, function ($a, $b) use ($use_period_points) {
+            if ($use_period_points) {
+                return (float) $b->total_period_net <=> (float) $a->total_period_net;
+            }
+            return (float) $b->total_lifetime_points <=> (float) $a->total_lifetime_points;
         });
         $user_groups = $CI->spl->list_groups_for_user($uid, true);
         $my_group_ids = array();
@@ -1123,16 +1489,21 @@ if (!function_exists('spl_build_dashboard_data')) {
         }
         foreach ($board_groups as $group) {
             $rank++;
-            $prev_week_from = date('Y-m-d', strtotime($week_bounds['from'] . ' -7 days'));
-            $prev_week_to = date('Y-m-d', strtotime($week_bounds['to'] . ' -7 days'));
-            $prev_stats = $CI->spl->sum_group_member_points_by_status((int) $group->id, $prev_week_from, $prev_week_to);
-            $trend = (float) $group->total_period_net - (float) $prev_stats->net;
+            $group_points = $use_period_points
+                ? (float) $group->total_period_net
+                : (float) $group->total_lifetime_points;
+            $prev_stats = $CI->spl->sum_group_member_points_by_status(
+                (int) $group->id,
+                $prev_bounds['from'],
+                $prev_bounds['to']
+            );
+            $trend = $use_period_points ? $group_points - (float) $prev_stats->net : 0;
             $team_standings[] = (object) array(
                 'rank' => $rank,
                 'id' => (int) $group->id,
                 'name' => (string) $group->name,
                 'code' => (string) $group->code,
-                'points' => (float) $group->total_period_net,
+                'points' => $group_points,
                 'trend' => $trend,
                 'poster_path' => isset($group->poster_path) ? (string) $group->poster_path : '',
             );
@@ -1144,10 +1515,15 @@ if (!function_exists('spl_build_dashboard_data')) {
 
         $team_overview = null;
         if ($my_group) {
-            $team_status = $CI->spl->sum_group_member_points_by_status((int) $my_group->id, $week_bounds['from'], $week_bounds['to']);
-            $prev_week_from = date('Y-m-d', strtotime($week_bounds['from'] . ' -7 days'));
-            $prev_week_to = date('Y-m-d', strtotime($week_bounds['to'] . ' -7 days'));
-            $prev_team = $CI->spl->sum_group_member_points_by_status((int) $my_group->id, $prev_week_from, $prev_week_to);
+            $team_status = $CI->spl->sum_group_member_points_by_status((int) $my_group->id, $period_from, $period_to);
+            $prev_team = $CI->spl->sum_group_member_points_by_status(
+                (int) $my_group->id,
+                $prev_bounds['from'],
+                $prev_bounds['to']
+            );
+            $team_score = $use_period_points
+                ? (float) $my_group->total_period_net
+                : (float) $my_group->total_lifetime_points;
             $members = !empty($my_group->members) ? $my_group->members : array();
             usort($members, function ($a, $b) {
                 return (float) $b->display_points <=> (float) $a->display_points;
@@ -1163,8 +1539,8 @@ if (!function_exists('spl_build_dashboard_data')) {
                 'id' => (int) $my_group->id,
                 'name' => (string) $my_group->name,
                 'poster_path' => isset($my_group->poster_path) ? (string) $my_group->poster_path : '',
-                'score' => (float) $my_group->total_period_net,
-                'trend' => (float) $my_group->total_period_net - (float) $prev_team->net,
+                'score' => $team_score,
+                'trend' => $use_period_points ? $team_score - (float) $prev_team->net : 0,
                 'approved' => (float) $team_status->approved,
                 'pending' => (float) $team_status->pending,
                 'deducted' => (float) $team_status->deducted,
@@ -1181,12 +1557,15 @@ if (!function_exists('spl_build_dashboard_data')) {
         }
 
         if ($is_user_scoped) {
-            $live_feed = spl_enrich_user_activity_feed_names($CI->rewards->list_user_activity_feed($uid, 20), $display_name);
+            $live_feed = spl_enrich_user_activity_feed_names(
+                $CI->rewards->list_user_activity_feed($uid, 20, $period_from, $period_to),
+                $display_name
+            );
         } else {
-            $live_feed = $CI->spl->list_org_activity_feed(20);
+            $live_feed = $CI->spl->list_org_activity_feed(20, $period_from, $period_to);
         }
-        $week_top = $CI->spl->list_top_users_by_period($week_bounds['from'], $week_bounds['to'], 4);
-        $category_leaders = $CI->spl->list_category_leaders($month_bounds['from'], $month_bounds['to'], 10);
+        $week_top = $CI->spl->list_top_users_by_period($period_from, $period_to, 4);
+        $category_leaders = $CI->spl->list_category_leaders($period_from, $period_to, 10);
 
         $top_performers = array();
         $performer_defs = array(
@@ -1200,7 +1579,7 @@ if (!function_exists('spl_build_dashboard_data')) {
             if ($def['category'] === null && !empty($week_top)) {
                 $row = $week_top[0];
             } elseif ($def['category'] !== null) {
-                $row = $CI->spl->list_top_user_by_category($def['category'], $week_bounds['from'], $week_bounds['to']);
+                $row = $CI->spl->list_top_user_by_category($def['category'], $period_from, $period_to);
             }
             if ($row) {
                 $top_performers[] = (object) array(
@@ -1234,10 +1613,13 @@ if (!function_exists('spl_build_dashboard_data')) {
             'month_rank' => $month_rank,
             'total_users' => $total_users,
             'streak' => $streak,
+            'kpi_period' => $kpi_period,
             'kpi_today' => $kpi_today,
             'kpi_week' => $kpi_week,
             'kpi_month' => $kpi_month,
-            'pending_count' => $pending_count,
+            'kpi_pending_activities' => $kpi_pending_activities,
+            'org_period_totals' => $org_period_totals,
+            'pending_count' => $kpi_pending_activities,
             'recent' => $recent,
             'team_overview' => $team_overview,
             'my_group_rank' => $my_group_rank,
@@ -1249,7 +1631,10 @@ if (!function_exists('spl_build_dashboard_data')) {
             'badges' => $badges,
             'season' => $season,
             'notification_count' => $notification_count,
-            'week_bounds' => $week_bounds,
+            'reward_period' => $reward_period,
+            'reward_bounds' => $period_bounds,
+            'prev_period_bounds' => $prev_bounds,
+            'use_period_points' => $use_period_points,
             'month_bounds' => $month_bounds,
             'can_approve' => spl_can_approve(),
             'can_submit' => spl_can_submit(),

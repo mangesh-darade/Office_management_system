@@ -159,49 +159,24 @@ $reward_period_options = array(
           <?php endif; ?>
         </div>
 
-        <?php if (empty($recent)): ?>
-        <div class="spl-empty-state">
-          <i class="bi bi-inbox"></i>
-          <p>No activity for <?php echo esc_view(strtolower($reward_bounds['label']), ENT_QUOTES, 'UTF-8'); ?></p>
-          <?php if (!empty($can_submit)): ?>
-          <a class="btn btn-sm btn-primary" href="#" onclick="document.querySelector('[data-bs-target=\'#spl-tab-activity\']').click(); return false;">Submit activity</a>
-          <?php endif; ?>
+        <?php
+        $activity_table_ctx = spl_prepare_activity_table_context(!empty($recent) ? $recent : array());
+        $activity_payloads = $activity_table_ctx['payloads'];
+        $recent_activities = $activity_table_ctx['activities'];
+        ?>
+        <div class="spl-panel-body spl-panel-body--table pt-0">
+          <?php $this->load->view('spl/_activity_table', array(
+              'activities' => $recent_activities,
+              'table_id' => 'splMyRewardActivityTable',
+              'page_length' => 25,
+              'empty_message' => 'No activity for ' . strtolower($reward_bounds['label']),
+          )); ?>
         </div>
-        <?php else: ?>
-        <div class="spl-activity-grid">
-          <?php foreach ($recent as $t):
-            $statusMeta = spl_activity_status_meta($t->status);
-            $points = (float) $t->points;
-            $notePreview = spl_activity_note_preview($t->reference_label, 70);
-            $isPending = ((string) $t->status === 'pending');
-            $isRejected = ((string) $t->status === 'rejected');
-          ?>
-          <article class="spl-activity-card<?php echo $isPending ? ' is-pending' : ''; ?><?php echo $isRejected ? ' is-rejected' : ''; ?>">
-            <div class="spl-activity-card-top">
-              <span class="spl-activity-card-icon"><i class="bi <?php echo esc_view(spl_activity_icon_class($t), ENT_QUOTES, 'UTF-8'); ?>"></i></span>
-              <span class="spl-activity-card-points <?php echo ($points >= 0) ? 'is-positive' : 'is-negative'; ?><?php echo ($isPending || $isRejected) ? ' is-muted' : ''; ?>">
-                <?php echo ($points >= 0 ? '+' : '') . number_format($points, 0); ?>
-              </span>
-            </div>
-            <h3 class="spl-activity-card-title"><?php echo esc_view(spl_activity_title($t), ENT_QUOTES, 'UTF-8'); ?></h3>
-            <div class="spl-activity-card-meta">
-              <?php if (!empty($t->category_name)): ?>
-              <span><?php echo esc_view($t->category_name, ENT_QUOTES, 'UTF-8'); ?></span>
-              <?php endif; ?>
-              <span><?php echo esc_view(spl_activity_source_label($t), ENT_QUOTES, 'UTF-8'); ?></span>
-            </div>
-            <div class="spl-activity-card-foot">
-              <time class="spl-activity-card-date"><?php echo esc_view(spl_format_activity_datetime($t->created_at), ENT_QUOTES, 'UTF-8'); ?></time>
-              <span class="badge rounded-pill text-bg-<?php echo esc_view($statusMeta['class'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($statusMeta['label'], ENT_QUOTES, 'UTF-8'); ?></span>
-            </div>
-            <?php if ($notePreview !== ''): ?>
-            <p class="spl-activity-card-note"><?php echo esc_view($notePreview, ENT_QUOTES, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </article>
-          <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
       </div>
+      <script>
+      window.SPL_ACTIVITY_PAYLOADS = Object.assign(window.SPL_ACTIVITY_PAYLOADS || {}, <?php echo json_encode($activity_payloads, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+      if (window.initSplActivityTable) { window.initSplActivityTable(document); }
+      </script>
     </div>
     <?php endif; ?>
 
@@ -235,7 +210,7 @@ $reward_period_options = array(
                 </select>
                 <div class="form-text" id="splActivityPointsHint"></div>
               </div>
-              <div class="col-12">
+              <div class="col-12 spl-note-field-wrap">
                 <label class="form-label fw-semibold" for="splNoteInput">Note</label>
                 <textarea name="reference_label" id="splNoteInput" class="form-control" rows="6" placeholder="Brief description for approver"></textarea>
               </div>
@@ -299,89 +274,39 @@ $reward_period_options = array(
             <p class="spl-panel-sub">
               <?php if ($approval_view === 'approved'): ?>Points were added to each employee after approval
               <?php elseif ($approval_view === 'rejected'): ?>These activities were not awarded points
-              <?php else: ?>Click a card to review details, add a comment, and approve or reject<?php endif; ?>
+              <?php else: ?>Use row actions to approve or reject, or click a row to review details<?php endif; ?>
             </p>
           </div>
         </div>
-        <?php if (empty($approval_rows)): ?>
-        <div class="spl-empty-state">
-          <i class="bi bi-<?php echo $approval_view === 'approved' ? 'check2-circle' : ($approval_view === 'rejected' ? 'x-circle' : 'inbox'); ?>"></i>
-          <p>
-            <?php if ($approval_view === 'approved'): ?>No approved activities yet
-            <?php elseif ($approval_view === 'rejected'): ?>No rejected activities
-            <?php else: ?>No pending submissions<?php endif; ?>
-          </p>
+        <?php
+        $approval_table_ctx = spl_prepare_approval_table_context($approval_rows, $approval_view);
+        $approval_payloads = $approval_table_ctx['payloads'];
+        $approval_table_rows = $approval_table_ctx['rows'];
+        $approval_empty_message = 'No submissions found.';
+        if ($approval_view === 'approved') {
+            $approval_empty_message = 'No approved activities yet';
+        } elseif ($approval_view === 'rejected') {
+            $approval_empty_message = 'No rejected activities';
+        } else {
+            $approval_empty_message = 'No pending submissions';
+        }
+        ?>
+        <div class="spl-panel-body spl-panel-body--table pt-0">
+          <?php $this->load->view('spl/_approval_table', array(
+              'rows' => $approval_table_rows,
+              'approval_view' => $approval_view,
+              'table_id' => 'splApprovalTable',
+              'page_length' => ($approval_view === 'pending') ? 50 : 25,
+              'empty_message' => $approval_empty_message,
+              'csrf_name' => $csrf_name,
+              'csrf_hash' => $csrf_hash,
+          )); ?>
         </div>
-        <?php else: ?>
-        <div class="spl-approval-grid">
-          <?php foreach ($approval_rows as $row): ?>
-          <?php
-            $approval_payload = array(
-              'id' => (int) $row->id,
-              'view' => $approval_view,
-              'recipient_name' => (string) ($row->recipient_name ?: ''),
-              'submitter_name' => (string) ($row->submitter_name ?: ''),
-              'submitted_at' => spl_format_activity_datetime($row->submitted_at),
-              'category_name' => (string) ($row->category_name ?: ''),
-              'rule_name' => (string) ($row->rule_name ?: ''),
-              'rule_code' => (string) ($row->rule_code ?: ''),
-              'requested_points' => (float) $row->requested_points,
-              'reference_label' => spl_sanitize_note_html(isset($row->reference_label) ? $row->reference_label : ''),
-              'evidence_file' => !empty($row->evidence_file) ? base_url($row->evidence_file) : '',
-              'evidence_name' => (string) (isset($row->evidence_name) ? $row->evidence_name : ''),
-              'decided_at' => !empty($row->decided_at) ? spl_format_activity_datetime($row->decided_at) : '',
-              'approver_name' => (string) (isset($row->approver_name) ? $row->approver_name : ''),
-              'decision_comment' => (string) (isset($row->decision_comment) ? $row->decision_comment : ''),
-            );
-            $approval_json = htmlspecialchars(json_encode($approval_payload, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
-          ?>
-          <article class="spl-approval-card is-clickable<?php echo $approval_view === 'approved' ? ' is-approved' : ($approval_view === 'rejected' ? ' is-rejected' : ''); ?>" role="button" tabindex="0" data-spl-approval="<?php echo $approval_json; ?>" aria-label="View activity details">
-            <div class="spl-approval-card-head">
-              <div>
-                <div class="spl-approval-card-name"><?php echo esc_view($row->recipient_name ?: '—', ENT_QUOTES, 'UTF-8'); ?></div>
-                <div class="spl-approval-card-date">
-                  Submitted <?php echo esc_view(spl_format_activity_datetime($row->submitted_at), ENT_QUOTES, 'UTF-8'); ?>
-                </div>
-                <?php if ($approval_view !== 'pending' && !empty($row->decided_at)): ?>
-                <div class="spl-approval-card-decided">
-                  <?php echo $approval_view === 'approved' ? 'Approved' : 'Rejected'; ?>
-                  <?php if (!empty($row->approver_name)): ?> by <?php echo esc_view($row->approver_name, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?>
-                  · <?php echo esc_view(spl_format_activity_datetime($row->decided_at), ENT_QUOTES, 'UTF-8'); ?>
-                </div>
-                <?php endif; ?>
-              </div>
-              <div class="spl-approval-card-points <?php echo ((float) $row->requested_points >= 0) ? 'is-positive' : 'is-negative'; ?>">
-                <?php echo ((float) $row->requested_points >= 0 ? '+' : '') . number_format((float) $row->requested_points, 0); ?>
-              </div>
-            </div>
-            <div class="spl-approval-card-meta">
-              <span><?php echo esc_view($row->category_name ?: '—', ENT_QUOTES, 'UTF-8'); ?></span>
-              <span><?php echo esc_view($row->rule_name ?: $row->rule_code, ENT_QUOTES, 'UTF-8'); ?></span>
-            </div>
-            <?php if (!empty($row->reference_label)): ?>
-            <div class="spl-approval-card-note"><?php echo spl_render_note_html($row->reference_label); ?></div>
-            <?php endif; ?>
-            <?php if (!empty($row->evidence_file)): ?>
-            <div class="spl-approval-card-file">
-              <a href="<?php echo esc_view(base_url($row->evidence_file), ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener"><i class="bi bi-paperclip me-1"></i><?php echo esc_view($row->evidence_name ?: 'Attachment', ENT_QUOTES, 'UTF-8'); ?></a>
-            </div>
-            <?php endif; ?>
-            <?php if ($approval_view === 'pending'): ?>
-            <div class="spl-approval-card-hint"><i class="bi bi-eye me-1"></i>Click to review and approve</div>
-            <?php else: ?>
-            <div class="spl-approval-card-status">
-              <span class="badge rounded-pill text-bg-<?php echo $approval_view === 'approved' ? 'success' : 'secondary'; ?>">
-                <?php echo $approval_view === 'approved' ? 'Approved' : 'Rejected'; ?>
-              </span>
-            </div>
-            <?php if (!empty($row->decision_comment)): ?>
-            <div class="spl-approval-card-comment-preview"><?php echo esc_view($row->decision_comment, ENT_QUOTES, 'UTF-8'); ?></div>
-            <?php endif; ?>
-            <div class="spl-approval-card-hint"><i class="bi bi-eye me-1"></i>Click to view details</div>
-            <?php endif; ?>
-          </article>
-          <?php endforeach; ?>
-        </div>
+        <?php if (!empty($approval_table_rows)): ?>
+        <script>
+        window.SPL_APPROVAL_PAYLOADS = Object.assign(window.SPL_APPROVAL_PAYLOADS || {}, <?php echo json_encode($approval_payloads, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+        if (window.initSplApprovalsPanel) { window.initSplApprovalsPanel(document); }
+        </script>
         <?php endif; ?>
       </div>
       <div class="modal fade" id="splApprovalDetailModal" tabindex="-1" aria-labelledby="splApprovalDetailModalLabel" aria-hidden="true">
@@ -612,53 +537,6 @@ window.SPL_CONFIG = {
   }, $categories)); ?>
 };
 </script>
-<?php if (!empty($can_submit)): ?>
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
-<script>
-(function () {
-  function initSplNoteEditor() {
-    if (typeof tinymce === 'undefined') {
-      setTimeout(initSplNoteEditor, 50);
-      return;
-    }
-    var isMobile = window.matchMedia('(max-width: 767.98px)').matches;
-    tinymce.init({
-      selector: '#splNoteInput',
-      menubar: false,
-      statusbar: !isMobile,
-      plugins: 'lists link autolink code wordcount',
-      toolbar: isMobile
-        ? 'bold italic underline | bullist numlist | link | removeformat'
-        : 'undo redo | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link | removeformat | code',
-      toolbar_mode: isMobile ? 'scrolling' : 'wrap',
-      branding: false,
-      height: isMobile ? 140 : 180,
-      width: '100%',
-      resize: !isMobile,
-      convert_urls: false,
-      default_link_target: '_blank',
-      placeholder: 'Brief description for approver',
-      content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }',
-      formats: {
-        bold: { inline: 'strong' },
-        italic: { inline: 'em' },
-        underline: { inline: 'u' },
-        strikethrough: { inline: 'del' }
-      }
-    });
-  }
-  initSplNoteEditor();
-  var form = document.getElementById('splSubmitForm');
-  if (form) {
-    form.addEventListener('submit', function () {
-      if (window.tinymce && tinymce.get('splNoteInput')) {
-        tinymce.get('splNoteInput').save();
-      }
-    });
-  }
-})();
-</script>
-<?php endif; ?>
 <?php if (!$embed): ?>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
 <?php endif; ?>

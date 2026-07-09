@@ -211,5 +211,9 @@ if (!function_exists('auth_complete_login')) {
     {
         $session->sess_regenerate(true);
         auth_session_write_user($session, $user);
+
+        $CI =& get_instance();
+        $CI->load->helper('schema_automation');
+        oms_ensure_schemas_on_login($session, (int) $user->role_id);
     }
 }

@@ -15,8 +15,14 @@ class Api_integration_model extends CI_Model {
     }
     
     public function ensure_schema() {
-        if (!$this->db->table_exists($this->table)) {
-            $sql = "CREATE TABLE `{$this->table}` (
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+
+        $this->load->helper('schema_columns');
+        schema_safe_create_table($this->db, $this->table, "CREATE TABLE `{$this->table}` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `service_type` varchar(50) NOT NULL COMMENT 'sendgrid, whatsapp, smtp',
                 `service_name` varchar(100) NOT NULL,
@@ -35,12 +41,13 @@ class Api_integration_model extends CI_Model {
                 KEY `idx_service_type` (`service_type`),
                 KEY `idx_is_active` (`is_active`),
                 KEY `idx_is_default` (`is_default`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            $this->db->query($sql);
-        }
-        if ($this->db->table_exists($this->table) && !$this->has_column('created_by')) {
-            $this->db->query("ALTER TABLE `{$this->table}` ADD `created_by` int(11) DEFAULT NULL");
-            $this->db->query("ALTER TABLE `{$this->table}` ADD KEY `idx_created_by` (`created_by`)");
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        schema_safe_add_column($this->db, $this->table, 'created_by', "ALTER TABLE `{$this->table}` ADD `created_by` int(11) DEFAULT NULL");
+        if ($this->db->table_exists($this->table) && schema_table_has_column($this->db, $this->table, 'created_by')) {
+            $idx = $this->db->query("SHOW INDEX FROM `{$this->table}` WHERE Key_name = 'idx_created_by'")->row();
+            if (!$idx) {
+                $this->db->query("ALTER TABLE `{$this->table}` ADD KEY `idx_created_by` (`created_by`)");
+            }
         }
     }
     

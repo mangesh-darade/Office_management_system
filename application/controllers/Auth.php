@@ -48,6 +48,9 @@ class Auth extends CI_Controller {
             return;
         }
 
+        $this->load->helper('schema_automation');
+        oms_ensure_schemas_on_login_page($this->session);
+
         if ($this->input->method() !== 'post') {
             $this->load->view('auth/login');
             return;
