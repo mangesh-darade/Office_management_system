@@ -226,7 +226,7 @@ if (!function_exists('calculate_dashboard_stats')) {
         $stats['spl_level'] = '';
         $stats['spl_pending'] = 0;
         $stats['spl_pending_label'] = 'pending';
-        if (dashboard_has_module_access('spl')
+        if (function_exists('spl_can_access') && spl_can_access()
             && $CI->db->table_exists('user_reward_summary')
             && $CI->db->table_exists('reward_transactions')) {
             $CI->load->helper('spl');

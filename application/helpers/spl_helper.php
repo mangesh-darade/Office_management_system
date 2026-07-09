@@ -5,7 +5,7 @@ if (!function_exists('spl_access_module_keys')) {
     function spl_access_module_keys()
     {
         return array(
-            'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules',
+            'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules',
             'spl_groups', 'spl_groups_manage',
             'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
         );
@@ -55,10 +55,17 @@ if (!function_exists('spl_can_submit')) {
 if (!function_exists('spl_can_view_levels')) {
     function spl_can_view_levels()
     {
-        return spl_can_my_reward()
-            || spl_can_submit()
-            || spl_can_approve()
-            || spl_can_manage_rules();
+        if (!function_exists('has_module_access')) {
+            return false;
+        }
+        return has_module_access('spl')
+            || has_module_access('spl_leaderboard')
+            || has_module_access('spl_my_reward')
+            || has_module_access('spl_submit')
+            || has_module_access('spl_approve')
+            || has_module_access('spl_rules')
+            || has_module_access('rewards_leaderboard')
+            || has_module_access('rewards');
     }
 }
 
@@ -116,20 +123,10 @@ if (!function_exists('spl_can_manage_groups')) {
         if (function_exists('spl_can_manage_rules') && spl_can_manage_rules()) {
             return true;
         }
-        if (has_module_access('spl')
+        return has_module_access('spl')
             || has_module_access('spl_groups_manage')
             || has_module_access('rewards_admin')
-            || has_module_access('rewards')) {
-            return true;
-        }
-        $CI =& get_instance();
-        if ($CI && $CI->session && (int) $CI->session->userdata('role_id') === 1) {
-            return true;
-        }
-        if (function_exists('is_admin_group') && is_admin_group()) {
-            return true;
-        }
-        return false;
+            || has_module_access('rewards');
     }
 }
 
@@ -206,12 +203,12 @@ if (!function_exists('spl_can_view_member_activity')) {
         $CI =& get_instance();
         $viewer_id = (int) $CI->session->userdata('user_id');
         if ($viewer_id > 0 && $user_id === $viewer_id) {
+            return spl_can_my_reward() || spl_can_submit() || spl_can_access();
+        }
+        if (spl_can_approve() || spl_can_manage_groups()) {
             return true;
         }
-        if (function_exists('is_admin_group') && is_admin_group()) {
-            return true;
-        }
-        if (spl_can_approve() || spl_can_manage_groups() || spl_can_view_groups()) {
+        if (spl_can_view_groups()) {
             return true;
         }
         return false;
@@ -1188,6 +1185,65 @@ if (!function_exists('spl_award_attendance_points')) {
     }
 }
 
+if (!function_exists('spl_upsert_role_permission')) {
+    function spl_upsert_role_permission($role_id, $module, $can_access = 1)
+    {
+        $role_id = (int) $role_id;
+        $module = strtolower(trim((string) $module));
+        if ($role_id <= 0 || $module === '') {
+            return false;
+        }
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions')) {
+            return false;
+        }
+        $exists = $CI->db
+            ->where('role_id', $role_id)
+            ->where('module', $module)
+            ->limit(1)
+            ->get('permissions')
+            ->row();
+        if ($exists) {
+            if ((int) $exists->can_access === (int) $can_access) {
+                return true;
+            }
+            return (bool) $CI->db
+                ->where('id', (int) $exists->id)
+                ->update('permissions', array('can_access' => (int) $can_access));
+        }
+        return (bool) $CI->db->insert('permissions', array(
+            'role_id' => $role_id,
+            'module' => $module,
+            'can_access' => (int) $can_access,
+        ));
+    }
+}
+
+if (!function_exists('spl_ensure_user_group_staff_permissions')) {
+    function spl_ensure_user_group_staff_permissions($role_id, array $staff_keys)
+    {
+        $role_id = (int) $role_id;
+        if ($role_id <= 0 || empty($staff_keys)) {
+            return;
+        }
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db->table_exists('permissions')) {
+            return;
+        }
+        $CI->db->from('permissions');
+        $CI->db->where('role_id', $role_id);
+        $CI->db->where_in('module', $staff_keys);
+        $CI->db->where('can_access', 1);
+        $enabled_count = (int) $CI->db->count_all_results();
+        if ($enabled_count > 0) {
+            return;
+        }
+        foreach ($staff_keys as $module) {
+            spl_upsert_role_permission($role_id, $module, 1);
+        }
+    }
+}
+
 if (!function_exists('seed_spl_default_permissions_if_needed')) {
     function seed_spl_default_permissions_if_needed()
     {
@@ -1203,7 +1259,7 @@ if (!function_exists('seed_spl_default_permissions_if_needed')) {
         }
         $CI->load->helper('schema_columns');
 
-        $staff_keys = array('spl_my_reward', 'spl_submit');
+        $staff_keys = array('spl_my_reward', 'spl_submit', 'spl_leaderboard');
         $admin_extra = array(
             'spl', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
             'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
@@ -1211,9 +1267,16 @@ if (!function_exists('seed_spl_default_permissions_if_needed')) {
 
         $all_roles = $CI->db->select('id')->from('roles')->get()->result();
         $admin_role_ids = array();
+        $user_role_ids = array();
         if (schema_table_has_column($CI->db, 'roles', 'group_type')) {
-            foreach ($CI->db->select('id')->from('roles')->where('group_type', 'admin')->get()->result() as $r) {
-                $admin_role_ids[(int) $r->id] = true;
+            foreach ($CI->db->select('id, group_type')->from('roles')->get()->result() as $r) {
+                $rid = (int) $r->id;
+                $group_type = strtolower(trim((string) $r->group_type));
+                if ($group_type === 'admin') {
+                    $admin_role_ids[$rid] = true;
+                } elseif ($group_type === 'user') {
+                    $user_role_ids[$rid] = true;
+                }
             }
         }
         if (empty($admin_role_ids)) {
@@ -1221,10 +1284,17 @@ if (!function_exists('seed_spl_default_permissions_if_needed')) {
                 $admin_role_ids[$rid] = true;
             }
         }
+        if (empty($user_role_ids)) {
+            $user_role_ids[4] = true;
+        }
 
         foreach ($all_roles as $role) {
             $role_id = (int) $role->id;
             if ($role_id <= 0) {
+                continue;
+            }
+            if (isset($user_role_ids[$role_id])) {
+                spl_ensure_user_group_staff_permissions($role_id, $staff_keys);
                 continue;
             }
             $keys = $staff_keys;
@@ -1451,14 +1521,18 @@ if (!function_exists('spl_build_dashboard_data')) {
             $kpi_today = $CI->spl->sum_org_activity_points($today_bounds['from'], $today_bounds['to']);
             $kpi_week = $CI->spl->sum_org_activity_points($week_bounds['from'], $week_bounds['to']);
             $kpi_month = $CI->spl->sum_org_activity_points($month_bounds['from'], $month_bounds['to']);
-            $kpi_pending_activities = spl_can_approve()
-                ? (int) $CI->rewards->count_spl_approvals_by_status('pending')
-                : (int) $CI->spl->sum_org_activity_points(null, null)['pending_count'];
+            if (spl_can_approve()) {
+                $kpi_pending_activities = (int) $CI->rewards->count_spl_approvals_by_status('pending');
+            } else {
+                $kpi_pending_activities = 0;
+            }
         } else {
             $kpi_today = $CI->rewards->sum_user_activity_points($uid, $today_bounds['from'], $today_bounds['to']);
             $kpi_week = $CI->rewards->sum_user_activity_points($uid, $week_bounds['from'], $week_bounds['to']);
             $kpi_month = $CI->rewards->sum_user_activity_points($uid, $month_bounds['from'], $month_bounds['to']);
-            $kpi_pending_activities = (int) $CI->rewards->count_user_pending_transactions($uid);
+            $kpi_pending_activities = spl_can_my_reward() || spl_can_submit()
+                ? (int) $CI->rewards->count_user_pending_transactions($uid)
+                : 0;
         }
         $org_period_totals = $is_org_view
             ? $CI->spl->sum_org_activity_points($period_from, $period_to)
@@ -1638,6 +1712,11 @@ if (!function_exists('spl_build_dashboard_data')) {
             'month_bounds' => $month_bounds,
             'can_approve' => spl_can_approve(),
             'can_submit' => spl_can_submit(),
+            'can_my_reward' => spl_can_my_reward(),
+            'can_groups' => spl_can_view_groups(),
+            'can_levels' => spl_can_view_levels(),
+            'can_rules' => spl_can_manage_rules(),
+            'can_manage' => spl_can_manage_groups(),
             'current_user_id' => $uid,
             'is_user_scoped' => $is_user_scoped,
             'is_org_view' => $is_org_view,

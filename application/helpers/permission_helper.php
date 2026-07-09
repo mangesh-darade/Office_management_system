@@ -183,7 +183,7 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'releases_view', 'releases_send_notes', 'releases_export',
             ],
             'spl' => [
-                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_groups', 'spl_groups_manage',
                 'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
             ],
             'chats' => ['chats', 'chats_list', 'chats_add', 'chatsgrouping', 'calls'],
@@ -760,11 +760,11 @@ if (!function_exists('get_controller_module_access_map')) {
                 'my_works_view_all', 'my_works_export',
             ],
             'spl' => array(
-                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_groups', 'spl_groups_manage',
                 'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
             ),
             'rewards' => array(
-                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_groups', 'spl_groups_manage',
                 'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
             ),
             'requirements' => [

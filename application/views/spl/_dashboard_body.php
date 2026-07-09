@@ -31,11 +31,30 @@ $teamTotal = count($team_standings) > 0 ? count($team_standings) : 5;
 $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
 $is_user_scoped = !empty($is_user_scoped);
 $is_org_view = !empty($is_org_view);
+$can_my_reward = isset($can_my_reward) ? !empty($can_my_reward) : (function_exists('spl_can_my_reward') && spl_can_my_reward());
+$can_groups = isset($can_groups) ? !empty($can_groups) : (function_exists('spl_can_view_groups') && spl_can_view_groups());
+$can_approve = isset($can_approve) ? !empty($can_approve) : (function_exists('spl_can_approve') && spl_can_approve());
+$can_submit = isset($can_submit) ? !empty($can_submit) : (function_exists('spl_can_submit') && spl_can_submit());
+$can_levels = isset($can_levels) ? !empty($can_levels) : (function_exists('spl_can_view_levels') && spl_can_view_levels());
+$show_pending_panel = ($is_user_scoped && ($can_my_reward || $can_submit)) || ($is_org_view && $can_approve);
+$show_pending_kpi = $show_pending_panel;
 $recent_panel_title = $is_user_scoped ? 'My Recent Activities' : 'Recent League Activity';
 $pending_panel_title = $is_user_scoped ? 'My Pending Activities' : 'Pending Approvals';
 $live_feed_title = $is_user_scoped ? 'My Activity Feed' : 'Live Activity Feed';
+if ($can_my_reward) {
+    $recent_view_url = spl_dashboard_url('my-reward');
+    $live_feed_view_url = spl_dashboard_url('my-reward');
+} elseif ($can_approve) {
+    $recent_view_url = spl_dashboard_url('approvals');
+    $live_feed_view_url = spl_dashboard_url('overview');
+} elseif ($can_levels) {
+    $recent_view_url = spl_dashboard_url('levels');
+    $live_feed_view_url = spl_dashboard_url('overview');
+} else {
+    $recent_view_url = spl_dashboard_url('overview');
+    $live_feed_view_url = spl_dashboard_url('overview');
+}
 $pending_view_url = $is_user_scoped ? spl_dashboard_url('my-reward') : spl_dashboard_url('approvals');
-$live_feed_view_url = $is_user_scoped ? spl_dashboard_url('my-reward') : spl_dashboard_url('overview');
 $pending_shown = !empty($pending_approvals) ? array_slice($pending_approvals, 0, 10) : array();
 $pending_more = !empty($pending_approvals) ? max(0, count($pending_approvals) - count($pending_shown)) : 0;
 $performer_accents = array(
@@ -127,7 +146,7 @@ $cat_icon_map = array(
           <div class="spl-dash-kpi-value"><?php echo number_format((float) $kpi_month['net'], 0); ?> <span class="spl-dash-kpi-unit">Points</span></div>
         </div>
       </div>
-      <div class="spl-dash-kpi spl-dash-kpi--icon is-orange">
+      <div class="spl-dash-kpi spl-dash-kpi--icon is-orange<?php echo $show_pending_kpi ? '' : ' d-none'; ?>">
         <span class="spl-dash-kpi-icon"><i class="bi bi-clock-fill"></i></span>
         <div>
           <div class="spl-dash-kpi-label">Pending Approval</div>
@@ -155,7 +174,9 @@ $cat_icon_map = array(
         <div class="spl-dash-panel">
           <div class="spl-dash-panel-head">
             <h2 class="spl-dash-panel-title"><i class="bi bi-clock-history me-1"></i><?php echo esc_view($recent_panel_title, ENT_QUOTES, 'UTF-8'); ?></h2>
-            <a href="<?php echo spl_dashboard_url('my-reward'); ?>" class="spl-dash-link">View all</a>
+            <?php if ($can_my_reward || $can_approve || $can_levels): ?>
+            <a href="<?php echo esc_view($recent_view_url, ENT_QUOTES, 'UTF-8'); ?>" class="spl-dash-link">View all</a>
+            <?php endif; ?>
           </div>
           <div class="spl-dash-panel-body spl-dash-panel-body--pad-0">
             <div class="spl-dash-scroll spl-dash-scroll--activity">
@@ -202,7 +223,7 @@ $cat_icon_map = array(
           </div>
           <div class="spl-dash-panel-foot">
             <?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?> approved <strong><?php echo ($activityPeriodNet >= 0 ? '+' : '') . number_format($activityPeriodNet, 0); ?></strong>
-            <?php if ($activityPeriodPending > 0): ?>
+            <?php if ($show_pending_kpi && $activityPeriodPending > 0): ?>
             · pending <strong>+<?php echo number_format($activityPeriodPending, 0); ?></strong>
             <?php endif; ?>
           </div>
@@ -225,7 +246,7 @@ $cat_icon_map = array(
               <?php endif; ?>
               <span class="spl-team-card__name">Team <?php echo esc_view($team_overview->name, ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>" class="spl-team-card__link">View Team</a>
+            <a href="<?php echo $can_groups ? esc_view(spl_dashboard_url('groups', array('reward_period' => $reward_period)), ENT_QUOTES, 'UTF-8') : '#'; ?>" class="spl-team-card__link<?php echo $can_groups ? '' : ' pe-none text-muted'; ?>">View Team</a>
           </div>
 
           <div class="spl-team-card__scores">
@@ -269,7 +290,9 @@ $cat_icon_map = array(
           <div class="spl-team-card__contributors">
             <div class="spl-team-card__contrib-head">
               <span class="spl-team-card__contrib-title">Top Contributors</span>
-              <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>" class="spl-team-card__contrib-link">View All</a>
+              <?php if ($can_groups): ?>
+              <a href="<?php echo esc_view(spl_dashboard_url('groups', array('reward_period' => $reward_period)), ENT_QUOTES, 'UTF-8'); ?>" class="spl-team-card__contrib-link">View All</a>
+              <?php endif; ?>
             </div>
             <div class="spl-dash-scroll spl-dash-scroll--contributor spl-team-card__contrib-list">
             <?php foreach (array_slice($team_overview->members, 0, 20) as $member): ?>
@@ -303,7 +326,7 @@ $cat_icon_map = array(
             </div>
           </div>
           <div class="spl-team-card__empty-body">
-            <div class="spl-dash-empty">You are not assigned to a team yet. <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>">Browse groups</a></div>
+            <div class="spl-dash-empty">You are not assigned to a team yet.<?php if ($can_groups): ?> <a href="<?php echo esc_view(spl_dashboard_url('groups', array('reward_period' => $reward_period)), ENT_QUOTES, 'UTF-8'); ?>">Browse groups</a><?php endif; ?></div>
           </div>
         </div>
         <?php endif; ?>
@@ -313,7 +336,9 @@ $cat_icon_map = array(
         <div class="spl-standings-card">
           <div class="spl-standings-card__head">
             <h2 class="spl-standings-card__title">Team League Standings</h2>
-            <a href="<?php echo spl_dashboard_url('groups', array('reward_period' => $reward_period)); ?>" class="spl-standings-card__link">View Full Table</a>
+            <?php if ($can_groups): ?>
+            <a href="<?php echo esc_view(spl_dashboard_url('groups', array('reward_period' => $reward_period)), ENT_QUOTES, 'UTF-8'); ?>" class="spl-standings-card__link">View Full Table</a>
+            <?php endif; ?>
           </div>
           <div class="spl-standings-card__body">
             <?php if (empty($team_standings)): ?>
@@ -365,6 +390,7 @@ $cat_icon_map = array(
     </div>
 
     <div class="spl-widgets-row spl-widgets-row--4">
+      <?php if ($show_pending_panel): ?>
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title"><?php echo esc_view($pending_panel_title, ENT_QUOTES, 'UTF-8'); ?></h3>
@@ -408,11 +434,16 @@ $cat_icon_map = array(
           </div>
         </div>
       </div>
+      <?php endif; ?>
 
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title"><?php echo esc_view($live_feed_title, ENT_QUOTES, 'UTF-8'); ?></h3>
+          <?php if ($can_my_reward || (!$is_user_scoped && $can_approve)): ?>
           <a href="<?php echo esc_view($live_feed_view_url, ENT_QUOTES, 'UTF-8'); ?>" class="spl-widget-card__link">View All</a>
+          <?php else: ?>
+          <span class="spl-widget-card__head-end spl-widget-card__head-end--placeholder">View All</span>
+          <?php endif; ?>
         </div>
         <div class="spl-widget-card__body">
           <div class="spl-widget-card__scroll">
@@ -440,6 +471,7 @@ $cat_icon_map = array(
         </div>
       </div>
 
+      <?php if ($is_org_view): ?>
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title">Top Performers (<?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?>)</h3>
@@ -469,7 +501,9 @@ $cat_icon_map = array(
           </div>
         </div>
       </div>
+      <?php endif; ?>
 
+      <?php if ($is_org_view): ?>
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title">Category Leaders</h3>
@@ -499,9 +533,11 @@ $cat_icon_map = array(
           </div>
         </div>
       </div>
+      <?php endif; ?>
     </div>
 
     <div class="spl-widgets-row spl-widgets-row--3">
+      <?php if ($can_my_reward): ?>
       <div class="spl-widget-card spl-widget-card--badges">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title">My Badges</h3>
@@ -521,6 +557,7 @@ $cat_icon_map = array(
           <?php endif; ?>
         </div>
       </div>
+      <?php endif; ?>
 
       <div class="spl-widget-card spl-widget-card--season">
         <div class="spl-widget-card__head">

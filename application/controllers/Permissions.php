@@ -160,19 +160,62 @@ class Permissions extends CI_Controller {
             'SPL & Rewards' => [
                 'icon' => 'bi-trophy',
                 'modules' => [
-                    'spl'                  => 'SPL — Full Access (All Screens)',
-                    'spl_my_reward'        => 'SPL — My Reward',
-                    'spl_submit'           => 'SPL — Submit Activity',
-                    'spl_approve'          => 'SPL — Approvals',
-                    'spl_rules'            => 'SPL — Rules',
-                    'spl_groups'           => 'SPL — View Groups',
-                    'spl_groups_manage'    => 'SPL — Manage Groups & Posters',
-                    'rewards'              => 'Rewards — Legacy Full Access',
-                    'rewards_submit'       => 'Rewards — Legacy Submit',
-                    'rewards_rules'        => 'Rewards — Legacy Rules',
-                    'rewards_admin'        => 'Rewards — Legacy Admin',
-                    'rewards_approve'      => 'Rewards — Legacy Approve',
-                    'rewards_leaderboard'  => 'Rewards — Leaderboard',
+                    'spl' => array(
+                        'label' => 'Full Access (All SPL Screens)',
+                        'tag'   => 'Full',
+                    ),
+                    'spl_my_reward' => array(
+                        'label' => 'Dashboard & My Reward',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_submit' => array(
+                        'label' => 'Submit Activity',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_approve' => array(
+                        'label' => 'Approvals',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_leaderboard' => array(
+                        'label' => 'Leaderboard',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_rules' => array(
+                        'label' => 'Rules',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_groups' => array(
+                        'label' => 'View Groups',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_groups_manage' => array(
+                        'label' => 'Manage Groups & Posters',
+                        'tag'   => 'Action',
+                    ),
+                    'rewards' => array(
+                        'label' => 'Legacy Full Access',
+                        'tag'   => 'Legacy',
+                    ),
+                    'rewards_submit' => array(
+                        'label' => 'Legacy Submit',
+                        'tag'   => 'Legacy',
+                    ),
+                    'rewards_rules' => array(
+                        'label' => 'Legacy Rules',
+                        'tag'   => 'Legacy',
+                    ),
+                    'rewards_admin' => array(
+                        'label' => 'Legacy Admin',
+                        'tag'   => 'Legacy',
+                    ),
+                    'rewards_approve' => array(
+                        'label' => 'Legacy Approve',
+                        'tag'   => 'Legacy',
+                    ),
+                    'rewards_leaderboard' => array(
+                        'label' => 'Legacy Leaderboard',
+                        'tag'   => 'Legacy',
+                    ),
                 ]
             ],
             'Office Meals' => [
