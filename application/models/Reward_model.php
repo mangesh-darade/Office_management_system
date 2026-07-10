@@ -366,6 +366,25 @@ class Reward_model extends CI_Model
         return (int) $this->db->insert_id();
     }
 
+    public function delete_rule($id)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            return false;
+        }
+        $rule = $this->get_rule($id);
+        if (!$rule) {
+            return false;
+        }
+        $this->load->helper('rewards_schema');
+        rewards_schema_suppress_rule_code($this->db, (string) $rule->code);
+        if ($this->db->table_exists('spl_group_rules')) {
+            $this->db->where('rule_id', $id)->delete('spl_group_rules');
+        }
+        $this->db->where('id', $id)->delete('reward_rules');
+        return $this->db->affected_rows() > 0;
+    }
+
     public function audit($entity_type, $entity_id, $action, $actor_id, $old = null, $new = null)
     {
         $CI =& get_instance();
@@ -487,6 +506,22 @@ class Reward_model extends CI_Model
         $this->db->order_by('q.submitted_at', 'DESC');
         $this->db->limit($limit);
         return $this->db->get()->result();
+    }
+
+    public function count_spl_user_pending_approvals($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return 0;
+        }
+        $this->db->from('reward_approval_queue q');
+        $this->db->where('q.status', 'pending');
+        $this->db->where('q.source_module', 'spl');
+        $this->db->group_start()
+            ->where('q.user_id', $user_id)
+            ->or_where('q.submitted_by', $user_id)
+            ->group_end();
+        return (int) $this->db->count_all_results();
     }
 
     public function list_spl_user_pending_approvals($user_id, $limit = 20)

@@ -46,7 +46,7 @@
         <?php $this->load->view('my_works/_csrf'); ?>
 
         <div class="row g-2 oms-form-grid">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label" for="mw-tt-client">
               <i class="bi bi-building me-1"></i>Client
             </label>
@@ -67,40 +67,18 @@
             <?php endif; ?>
           </div>
 
-          <div class="col-md-6">
-            <label class="form-label" for="mw-tt-team">
-              <i class="bi bi-people me-1"></i>Team <span class="text-danger">*</span>
-            </label>
-            <select name="team" id="mw-tt-team" class="form-select" required>
-              <option value="">-- Select team --</option>
-              <?php foreach ($teams as $team): ?>
-                <option value="<?php echo esc_view($team, ENT_QUOTES, 'UTF-8'); ?>">
-                  <?php echo esc_view($team, ENT_QUOTES, 'UTF-8'); ?>
-                </option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label" for="mw-tt-type">
-              <i class="bi bi-tags me-1"></i>Type <span class="text-danger">*</span>
-            </label>
-            <select name="template_type" id="mw-tt-type" class="form-select" required disabled>
-              <option value="">-- Select type --</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label" for="mw-tt-task">
-              <i class="bi bi-check2-square me-1"></i>Task <span class="text-danger">*</span>
-            </label>
-            <select name="template_id" id="mw-tt-task" class="form-select" required disabled>
-              <option value="">-- Select task --</option>
+          <div class="col-md-4">
+            <label class="form-label"><i class="bi bi-flag me-1"></i>Priority</label>
+            <select name="priority" class="form-select">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
             </select>
           </div>
 
           <div class="col-md-4">
-            <label class="form-label" for="mw-tt-assign">Assign to <span class="text-danger">*</span></label>
+            <label class="form-label" for="mw-tt-assign">Assigned To <span class="text-danger">*</span></label>
             <select name="created_for" id="mw-tt-assign" class="form-select" required>
               <?php
                 $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
@@ -120,47 +98,54 @@
           </div>
 
           <div class="col-md-4">
-            <label class="form-label"><i class="bi bi-flag me-1"></i>Priority</label>
-            <select name="priority" class="form-select">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
+            <label class="form-label" for="mw-tt-team">
+              <i class="bi bi-people me-1"></i>Team <span class="text-danger">*</span>
+            </label>
+            <select name="team" id="mw-tt-team" class="form-select" required>
+              <option value="">-- Select team --</option>
+              <?php foreach ($teams as $team): ?>
+                <option value="<?php echo esc_view($team, ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php echo esc_view($team, ENT_QUOTES, 'UTF-8'); ?>
+                </option>
+              <?php endforeach; ?>
             </select>
           </div>
 
           <div class="col-md-4">
-            <label class="form-label" for="mw-tt-status"><i class="bi bi-arrow-right-circle me-1"></i>Status</label>
-            <?php $default_status = isset($default_status) ? (string) $default_status : 'new'; ?>
-            <select name="status" id="mw-tt-status" class="form-select" <?php echo empty($statuses) ? 'disabled' : ''; ?>>
-              <?php if (!empty($statuses)): ?>
-                <?php foreach ($statuses as $st): ?>
-                  <?php $code = is_object($st) ? (string) $st->code : (string) $st['code']; ?>
-                  <?php $name = is_object($st) ? (string) $st->name : (string) $st['name']; ?>
-                  <option value="<?php echo esc_view($code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $code === $default_status ? 'selected' : ''; ?>>
-                    <?php echo esc_view($name, ENT_QUOTES, 'UTF-8'); ?>
-                  </option>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <option value="new">New</option>
-              <?php endif; ?>
+            <label class="form-label" for="mw-tt-type">
+              <i class="bi bi-tags me-1"></i>Type <span class="text-danger">*</span>
+            </label>
+            <select name="template_type" id="mw-tt-type" class="form-select" required disabled>
+              <option value="">-- Select type --</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="mw-tt-task">
+              <i class="bi bi-check2-square me-1"></i>Task <span class="text-danger">*</span>
+            </label>
+            <select name="template_id" id="mw-tt-task" class="form-select" required disabled>
+              <option value="">-- Select task --</option>
             </select>
           </div>
 
           <div class="col-md-6">
-            <label class="form-label"><i class="bi bi-calendar-check me-1"></i>Due date</label>
+            <label class="form-label"><i class="bi bi-calendar-check me-1"></i>Due Date</label>
             <input type="date" name="due_date" class="form-control">
           </div>
 
           <div class="col-md-6">
             <label class="form-label" for="mw-tt-attachment">
-              <i class="bi bi-paperclip me-1"></i>Attachment (optional)
+              <i class="bi bi-paperclip me-1"></i>Attachment
             </label>
             <?php $this->load->view('my_works/_attachment_field', array(
               'input_id' => 'mw-tt-attachment',
               'input_name' => 'attachments[]',
             )); ?>
           </div>
+
+          <?php $default_status = isset($default_status) ? (string) $default_status : 'new'; ?>
+          <input type="hidden" name="status" value="<?php echo esc_view($default_status, ENT_QUOTES, 'UTF-8'); ?>">
 
           <div class="col-12">
             <label class="form-label" for="mw-tt-description">

@@ -202,12 +202,67 @@ if (!function_exists('rewards_schema_upsert_category')) {
     }
 }
 
+if (!function_exists('rewards_schema_get_suppressed_rule_codes')) {
+    function rewards_schema_get_suppressed_rule_codes($db)
+    {
+        $codes = array();
+        if (!$db->table_exists('settings')) {
+            return $codes;
+        }
+        $row = $db->where('key', 'spl_suppressed_rule_codes')->get('settings')->row();
+        if (!$row || $row->value === '' || $row->value === null) {
+            return $codes;
+        }
+        $decoded = json_decode((string) $row->value, true);
+        if (!is_array($decoded)) {
+            return $codes;
+        }
+        foreach ($decoded as $code) {
+            $code = trim((string) $code);
+            if ($code !== '') {
+                $codes[$code] = true;
+            }
+        }
+        return $codes;
+    }
+}
+
+if (!function_exists('rewards_schema_suppress_rule_code')) {
+    function rewards_schema_suppress_rule_code($db, $code)
+    {
+        $code = trim((string) $code);
+        if ($code === '') {
+            return false;
+        }
+        $codes = rewards_schema_get_suppressed_rule_codes($db);
+        if (isset($codes[$code])) {
+            return true;
+        }
+        $codes[$code] = true;
+        $json = json_encode(array_keys($codes));
+        if ($json === false) {
+            return false;
+        }
+        $exists = $db->where('key', 'spl_suppressed_rule_codes')->get('settings')->row();
+        if ($exists) {
+            $db->where('id', (int) $exists->id)->update('settings', array('value' => $json));
+            return true;
+        }
+        $db->insert('settings', array('key' => 'spl_suppressed_rule_codes', 'value' => $json));
+        return true;
+    }
+}
+
 if (!function_exists('rewards_schema_upsert_rule')) {
     function rewards_schema_upsert_rule($db, array $catIds, array $r)
     {
         $cat = isset($r['category']) ? $r['category'] : 'recognition';
         unset($r['category']);
         $code = $r['code'];
+        $suppressed = rewards_schema_get_suppressed_rule_codes($db);
+        if (isset($suppressed[$code])) {
+            return 0;
+        }
         $data = array(
             'code' => $code,
             'name' => $r['name'],

@@ -562,10 +562,16 @@ class Spl extends CI_Controller
         if ($id <= 0) {
             $this->_json_error('Invalid rule.', 422);
         }
-        $this->db->where('id', $id)->update('reward_rules', array('is_active' => 0, 'updated_at' => date('Y-m-d H:i:s')));
-        $this->rewards->audit('rule', $id, 'deactivated', (int) $this->session->userdata('user_id'));
+        $rule = $this->rewards->get_rule($id);
+        if (!$rule) {
+            $this->_json_error('Rule not found.', 404);
+        }
+        if (!$this->rewards->delete_rule($id)) {
+            $this->_json_error('Could not delete rule.', 500);
+        }
+        $this->rewards->audit('rule', $id, 'deleted', (int) $this->session->userdata('user_id'), $rule, null);
         $this->spl->sync_all_rules_to_all_groups();
-        $this->_json_success(array());
+        $this->_json_success(array('id' => $id));
     }
 
     public function rules_by_category()
@@ -1020,18 +1026,26 @@ class Spl extends CI_Controller
 
     private function _json_success($data = array())
     {
-        $this->output->set_content_type('application/json')->set_output(json_encode(array(
+        $payload = array(
             'status' => 'success',
             'data' => $data,
-        )));
+        );
+        if (isset($this->security)) {
+            $payload['csrfHash'] = $this->security->get_csrf_hash();
+        }
+        $this->output->set_content_type('application/json')->set_output(json_encode($payload));
     }
 
     private function _json_error($message, $http = 400)
     {
         $this->output->set_status_header((int) $http);
-        $this->output->set_content_type('application/json')->set_output(json_encode(array(
+        $payload = array(
             'status' => 'error',
             'message' => (string) $message,
-        )));
+        );
+        if (isset($this->security)) {
+            $payload['csrfHash'] = $this->security->get_csrf_hash();
+        }
+        $this->output->set_content_type('application/json')->set_output(json_encode($payload));
     }
 }

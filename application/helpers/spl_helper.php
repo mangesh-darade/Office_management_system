@@ -1602,19 +1602,12 @@ if (!function_exists('spl_build_dashboard_data')) {
             $kpi_today = $CI->spl->sum_org_activity_points($today_bounds['from'], $today_bounds['to']);
             $kpi_week = $CI->spl->sum_org_activity_points($week_bounds['from'], $week_bounds['to']);
             $kpi_month = $CI->spl->sum_org_activity_points($month_bounds['from'], $month_bounds['to']);
-            if (spl_can_approve()) {
-                $kpi_pending_activities = (int) $CI->rewards->count_spl_approvals_by_status('pending');
-            } else {
-                $kpi_pending_activities = 0;
-            }
         } else {
             $kpi_today = $CI->rewards->sum_user_activity_points($uid, $today_bounds['from'], $today_bounds['to']);
             $kpi_week = $CI->rewards->sum_user_activity_points($uid, $week_bounds['from'], $week_bounds['to']);
             $kpi_month = $CI->rewards->sum_user_activity_points($uid, $month_bounds['from'], $month_bounds['to']);
-            $kpi_pending_activities = spl_can_my_reward() || spl_can_submit()
-                ? (int) $CI->rewards->count_user_pending_transactions($uid)
-                : 0;
         }
+        $kpi_pending_activities = (int) $CI->rewards->count_spl_user_pending_approvals($uid);
         $org_period_totals = $is_org_view
             ? $CI->spl->sum_org_activity_points($period_from, $period_to)
             : $kpi_period;
@@ -1705,11 +1698,10 @@ if (!function_exists('spl_build_dashboard_data')) {
         }
 
         $pending_approvals = array();
-        if ($is_user_scoped) {
-            $pending_approvals = spl_enrich_approval_rows($CI->rewards, $CI->rewards->list_spl_user_pending_approvals($uid, 20));
-        } elseif (spl_can_approve()) {
-            $pending_approvals = spl_enrich_approval_rows($CI->rewards, $CI->rewards->list_spl_pending_approvals(20));
-        }
+        $pending_approvals = spl_enrich_approval_rows(
+            $CI->rewards,
+            $CI->rewards->list_spl_user_pending_approvals($uid, 20)
+        );
 
         if ($is_user_scoped) {
             $live_feed = spl_enrich_user_activity_feed_names(
@@ -1719,33 +1711,40 @@ if (!function_exists('spl_build_dashboard_data')) {
         } else {
             $live_feed = $CI->spl->list_org_activity_feed(20, $period_from, $period_to);
         }
-        $week_top = $CI->spl->list_top_users_by_period($period_from, $period_to, 4);
+        $week_top = array();
+        $top_performers_title = 'Top 3 Performers (' . (string) $period_bounds['label'] . ')';
+        $top_performers_subtitle = 'All groups';
+        if ($is_user_scoped) {
+            $top_performers_title = 'Top 3 in My Group (' . (string) $period_bounds['label'] . ')';
+            if ($my_group) {
+                $top_performers_subtitle = (string) $my_group->name;
+                $week_top = $CI->spl->list_top_users_in_group_by_period((int) $my_group->id, $period_from, $period_to, 3);
+            } else {
+                $top_performers_subtitle = '';
+            }
+        } else {
+            $week_top = $CI->spl->list_top_users_by_period($period_from, $period_to, 3);
+        }
         $category_leaders = $CI->spl->list_category_leaders($period_from, $period_to, 10);
 
         $top_performers = array();
-        $performer_defs = array(
-            array('key' => 'top_scorer', 'title' => 'Top Scorer', 'icon' => 'bi-trophy-fill', 'category' => null),
-            array('key' => 'most_innovative', 'title' => 'Most Innovative', 'icon' => 'bi-lightbulb-fill', 'category' => 'innovation'),
-            array('key' => 'team_player', 'title' => 'Team Player', 'icon' => 'bi-people-fill', 'category' => 'team'),
-            array('key' => 'learning_star', 'title' => 'Learning Star', 'icon' => 'bi-mortarboard-fill', 'category' => 'learning'),
+        $performer_rank_defs = array(
+            array('key' => 'rank_1', 'title' => '1st Place', 'icon' => 'bi-trophy-fill'),
+            array('key' => 'rank_2', 'title' => '2nd Place', 'icon' => 'bi-award-fill'),
+            array('key' => 'rank_3', 'title' => '3rd Place', 'icon' => 'bi-award'),
         );
-        foreach ($performer_defs as $def) {
-            $row = null;
-            if ($def['category'] === null && !empty($week_top)) {
-                $row = $week_top[0];
-            } elseif ($def['category'] !== null) {
-                $row = $CI->spl->list_top_user_by_category($def['category'], $period_from, $period_to);
-            }
-            if ($row) {
-                $top_performers[] = (object) array(
-                    'key' => $def['key'],
-                    'title' => $def['title'],
-                    'icon' => $def['icon'],
-                    'user_id' => (int) $row->user_id,
-                    'user_name' => (string) $row->user_name,
-                    'points' => (float) $row->net_points,
-                );
-            }
+        foreach ($week_top as $idx => $row) {
+            $def = isset($performer_rank_defs[$idx])
+                ? $performer_rank_defs[$idx]
+                : array('key' => 'rank_' . ($idx + 1), 'title' => '#' . ($idx + 1), 'icon' => 'bi-star-fill');
+            $top_performers[] = (object) array(
+                'key' => $def['key'],
+                'title' => $def['title'],
+                'icon' => $def['icon'],
+                'user_id' => (int) $row->user_id,
+                'user_name' => (string) $row->user_name,
+                'points' => (float) $row->net_points,
+            );
         }
 
         $badges = spl_compute_user_badges($uid, $summary, $streak, $level);
@@ -1782,6 +1781,8 @@ if (!function_exists('spl_build_dashboard_data')) {
             'pending_approvals' => $pending_approvals,
             'live_feed' => $live_feed,
             'top_performers' => $top_performers,
+            'top_performers_title' => $top_performers_title,
+            'top_performers_subtitle' => $top_performers_subtitle,
             'category_leaders' => $category_leaders,
             'badges' => $badges,
             'season' => $season,

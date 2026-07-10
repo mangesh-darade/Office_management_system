@@ -36,10 +36,10 @@ $can_groups = isset($can_groups) ? !empty($can_groups) : (function_exists('spl_c
 $can_approve = isset($can_approve) ? !empty($can_approve) : (function_exists('spl_can_approve') && spl_can_approve());
 $can_submit = isset($can_submit) ? !empty($can_submit) : (function_exists('spl_can_submit') && spl_can_submit());
 $can_levels = isset($can_levels) ? !empty($can_levels) : (function_exists('spl_can_view_levels') && spl_can_view_levels());
-$show_pending_panel = ($is_user_scoped && ($can_my_reward || $can_submit)) || ($is_org_view && $can_approve);
+$show_pending_panel = true;
 $show_pending_kpi = $show_pending_panel;
 $recent_panel_title = $is_user_scoped ? 'My Recent Activities' : 'Recent League Activity';
-$pending_panel_title = $is_user_scoped ? 'My Pending Activities' : 'Pending Approvals';
+$pending_panel_title = 'Pending Approvals';
 $live_feed_title = $is_user_scoped ? 'My Activity Feed' : 'Live Activity Feed';
 if ($can_my_reward) {
     $recent_view_url = spl_dashboard_url('my-reward');
@@ -54,9 +54,11 @@ if ($can_my_reward) {
     $recent_view_url = spl_dashboard_url('overview');
     $live_feed_view_url = spl_dashboard_url('overview');
 }
-$pending_view_url = $is_user_scoped ? spl_dashboard_url('my-reward') : spl_dashboard_url('approvals');
+$pending_view_url = spl_dashboard_url('my-reward');
 $pending_shown = !empty($pending_approvals) ? array_slice($pending_approvals, 0, 10) : array();
 $pending_more = !empty($pending_approvals) ? max(0, count($pending_approvals) - count($pending_shown)) : 0;
+$top_performers_title = isset($top_performers_title) ? (string) $top_performers_title : 'Top 3 Performers (' . $periodLabel . ')';
+$top_performers_subtitle = isset($top_performers_subtitle) ? trim((string) $top_performers_subtitle) : '';
 $performer_accents = array(
     array('border' => '#f59e0b', 'bg' => '#fffbeb', 'icon' => '#d97706'),
     array('border' => '#3b82f6', 'bg' => '#eff6ff', 'icon' => '#2563eb'),
@@ -389,25 +391,17 @@ $cat_icon_map = array(
       </div>
     </div>
 
-    <div class="spl-widgets-row spl-widgets-row--4">
+    <div class="spl-widgets-row spl-widgets-row--3">
       <?php if ($show_pending_panel): ?>
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title"><?php echo esc_view($pending_panel_title, ENT_QUOTES, 'UTF-8'); ?></h3>
-          <?php if ($is_org_view && !empty($can_approve)): ?>
           <a href="<?php echo esc_view($pending_view_url, ENT_QUOTES, 'UTF-8'); ?>" class="spl-widget-card__link">View All</a>
-          <?php elseif ($is_user_scoped): ?>
-          <a href="<?php echo esc_view($pending_view_url, ENT_QUOTES, 'UTF-8'); ?>" class="spl-widget-card__link">View All</a>
-          <?php else: ?>
-          <span class="spl-widget-card__head-end spl-widget-card__head-end--placeholder">View All</span>
-          <?php endif; ?>
         </div>
         <div class="spl-widget-card__body">
           <div class="spl-widget-card__scroll">
-          <?php if ($is_org_view && empty($can_approve)): ?>
-          <div class="spl-dash-empty">Approval access required.</div>
-          <?php elseif (empty($pending_shown)): ?>
-          <div class="spl-dash-empty"><?php echo $is_user_scoped ? 'No pending activities.' : 'No pending approvals.'; ?></div>
+          <?php if (empty($pending_shown)): ?>
+          <div class="spl-dash-empty">No pending approvals.</div>
           <?php else: ?>
           <?php foreach ($pending_shown as $idx => $row): ?>
           <?php $picon = $pending_icon_classes[$idx % count($pending_icon_classes)]; ?>
@@ -425,8 +419,8 @@ $cat_icon_map = array(
           <?php endforeach; ?>
           <?php endif; ?>
           </div>
-          <div class="spl-widget-card__foot<?php echo ($pending_more > 0 && ($is_user_scoped || !empty($can_approve))) ? '' : ' spl-widget-card__foot--empty'; ?>">
-            <?php if ($pending_more > 0 && ($is_user_scoped || !empty($can_approve))): ?>
+          <div class="spl-widget-card__foot<?php echo ($pending_more > 0) ? '' : ' spl-widget-card__foot--empty'; ?>">
+            <?php if ($pending_more > 0): ?>
             <a href="<?php echo esc_view($pending_view_url, ENT_QUOTES, 'UTF-8'); ?>" class="spl-widget-more-btn"><?php echo (int) $pending_more; ?> More Pending</a>
             <?php else: ?>
             <span class="spl-widget-card__foot-placeholder" aria-hidden="true"></span>
@@ -436,6 +430,7 @@ $cat_icon_map = array(
       </div>
       <?php endif; ?>
 
+      <?php if (false): ?>
       <div class="spl-widget-card">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title"><?php echo esc_view($live_feed_title, ENT_QUOTES, 'UTF-8'); ?></h3>
@@ -470,19 +465,23 @@ $cat_icon_map = array(
           </div>
         </div>
       </div>
+      <?php endif; ?>
 
-      <?php if ($is_org_view): ?>
-      <div class="spl-widget-card">
+      <div class="spl-widget-card spl-widget-card--performers">
         <div class="spl-widget-card__head">
-          <h3 class="spl-widget-card__title">Top Performers (<?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?>)</h3>
+          <h3 class="spl-widget-card__title"><?php echo esc_view($top_performers_title, ENT_QUOTES, 'UTF-8'); ?></h3>
+          <?php if ($top_performers_subtitle !== ''): ?>
+          <span class="spl-widget-card__head-end spl-widget-card__sub"><?php echo esc_view($top_performers_subtitle, ENT_QUOTES, 'UTF-8'); ?></span>
+          <?php else: ?>
           <span class="spl-widget-card__head-end spl-widget-card__head-end--placeholder">View All</span>
+          <?php endif; ?>
         </div>
         <div class="spl-widget-card__body">
           <div class="spl-widget-card__scroll spl-widget-card__scroll--static spl-widget-card__scroll--performers">
           <?php if (empty($top_performers)): ?>
-          <div class="spl-dash-empty">No performers yet for <?php echo esc_view(strtolower($periodLabel), ENT_QUOTES, 'UTF-8'); ?>.</div>
+          <div class="spl-dash-empty"><?php echo $is_user_scoped ? 'No performers in your group yet for ' . esc_view(strtolower($periodLabel), ENT_QUOTES, 'UTF-8') . '.' : 'No performers yet for ' . esc_view(strtolower($periodLabel), ENT_QUOTES, 'UTF-8') . '.'; ?></div>
           <?php else: ?>
-          <div class="spl-widget-performers">
+          <div class="spl-widget-performers spl-widget-performers--count-<?php echo min(3, max(1, (int) count($top_performers))); ?>">
             <?php foreach ($top_performers as $pi => $perf): ?>
             <?php $accent = $performer_accents[$pi % count($performer_accents)]; ?>
             <div class="spl-widget-performer" style="--perf-border:<?php echo esc_view($accent['border'], ENT_QUOTES, 'UTF-8'); ?>;--perf-bg:<?php echo esc_view($accent['bg'], ENT_QUOTES, 'UTF-8'); ?>;--perf-icon:<?php echo esc_view($accent['icon'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -501,7 +500,6 @@ $cat_icon_map = array(
           </div>
         </div>
       </div>
-      <?php endif; ?>
 
       <?php if ($is_org_view): ?>
       <div class="spl-widget-card">
@@ -536,8 +534,8 @@ $cat_icon_map = array(
       <?php endif; ?>
     </div>
 
-    <div class="spl-widgets-row spl-widgets-row--3">
-      <?php if ($can_my_reward): ?>
+    <div class="spl-widgets-row spl-widgets-row--bottom">
+      <?php if (false && $can_my_reward): ?>
       <div class="spl-widget-card spl-widget-card--badges">
         <div class="spl-widget-card__head">
           <h3 class="spl-widget-card__title">My Badges</h3>

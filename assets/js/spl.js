@@ -138,14 +138,20 @@
   }
 
   function removeRuleRow(row) {
-    var dt = getRulesDataTable();
-    if (dt) {
-      dt.row(row).remove().draw(false);
+    if (!row) {
       return;
     }
-    if (row) {
-      row.remove();
+    var table = row.closest('table') || getRulesTable();
+    var dt = getRulesDataTable(table);
+    if (dt) {
+      try {
+        dt.row(row).remove().draw(false);
+        return;
+      } catch (e) {
+        // fall through to DOM remove
+      }
     }
+    row.remove();
   }
 
   function appendRuleRow(row) {
@@ -216,21 +222,27 @@
         });
       }
       if (delBtn) {
+        e.preventDefault();
+        e.stopPropagation();
         var delRow = delBtn.closest('tr');
-        var id = delRow.getAttribute('data-rule-id');
+        var id = delRow ? String(delRow.getAttribute('data-rule-id') || '').trim() : '';
         if (!id) {
           removeRuleRow(delRow);
           return;
         }
-        if (!confirm('Deactivate this rule?')) {
+        if (!confirm('Delete this rule permanently?')) {
           return;
         }
-        postForm(activeCfg.deleteRuleUrlBase + id, {}).then(function (res) {
+        var deleteBase = String(activeCfg.deleteRuleUrlBase || '').replace(/\/?$/, '/');
+        postForm(deleteBase + id, {}).then(function (res) {
           if (res && res.status === 'success') {
             removeRuleRow(delRow);
+            showRuleSaveMessage('Rule deleted successfully.');
           } else {
             alert((res && res.message) ? res.message : 'Could not delete rule.');
           }
+        }).catch(function (err) {
+          alert((err && err.message) ? err.message : 'Could not delete rule. Please refresh and try again.');
         });
       }
     });
@@ -1266,7 +1278,7 @@
   function postForm(url, data) {
     var activeCfg = getSplCfg();
     var body = new URLSearchParams();
-    Object.keys(data).forEach(function (k) {
+    Object.keys(data || {}).forEach(function (k) {
       body.append(k, data[k]);
     });
     if (activeCfg.csrfName && activeCfg.csrfHash) {
@@ -1277,7 +1289,28 @@
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' },
       body: body.toString()
-    }).then(function (r) { return r.json(); });
+    }).then(function (r) {
+      return r.text().then(function (text) {
+        var payload = null;
+        try {
+          payload = text ? JSON.parse(text) : null;
+        } catch (e) {
+          payload = null;
+        }
+        if (!r.ok) {
+          var errMsg = (payload && payload.message) ? payload.message : ('Request failed (' + r.status + ')');
+          return Promise.reject(new Error(errMsg));
+        }
+        if (!payload) {
+          return Promise.reject(new Error('Invalid server response'));
+        }
+        if (payload.csrfHash && activeCfg) {
+          activeCfg.csrfHash = payload.csrfHash;
+          window.SPL_CONFIG = activeCfg;
+        }
+        return payload;
+      });
+    });
   }
 
   function showRuleSaveMessage(message) {

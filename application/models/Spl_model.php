@@ -650,6 +650,30 @@ class Spl_model extends CI_Model
         return $this->db->get()->result();
     }
 
+    public function list_top_users_in_group_by_period($group_id, $date_from, $date_to, $limit = 3)
+    {
+        $group_id = (int) $group_id;
+        if ($group_id <= 0 || !$this->db->table_exists('reward_transactions') || !$this->db->table_exists('spl_group_members')) {
+            return array();
+        }
+        $this->db->select('t.user_id, SUM(t.points) AS net_points, u.name AS user_name', false);
+        $this->db->from('reward_transactions t');
+        $this->db->join('spl_group_members m', 'm.user_id = t.user_id', 'inner');
+        $this->db->join('users u', 'u.id = t.user_id', 'left');
+        $this->db->where('m.group_id', $group_id);
+        $this->db->where('t.status', 'approved');
+        if ($date_from !== null && $date_from !== '') {
+            $this->db->where('DATE(t.created_at) >=', $date_from);
+        }
+        if ($date_to !== null && $date_to !== '') {
+            $this->db->where('DATE(t.created_at) <=', $date_to);
+        }
+        $this->db->group_by('t.user_id');
+        $this->db->order_by('net_points', 'DESC');
+        $this->db->limit((int) $limit);
+        return $this->db->get()->result();
+    }
+
     public function list_top_user_by_category($category_code, $date_from, $date_to)
     {
         if (!$this->db->table_exists('reward_transactions') || !$this->db->table_exists('reward_categories')) {
