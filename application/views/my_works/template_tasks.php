@@ -1,4 +1,4 @@
-<?php $this->load->view('partials/header', array('title' => 'Template Task', 'extra_css' => array('assets/css/my-works.css', 'assets/css/tasks.css'))); ?>
+<?php $this->load->view('partials/header', array('title' => 'Create Template Task', 'extra_css' => array('assets/css/my-works.css', 'assets/css/tasks.css'))); ?>
 <div class="oms-form-compact">
 
 <?php
@@ -6,9 +6,7 @@
   $users = isset($users) ? $users : array();
   $teams = isset($teams) ? $teams : array();
   $statuses = isset($statuses) ? $statuses : array();
-  $projects_have_client = !empty($projects_have_client);
   $template_json = isset($template_json) ? $template_json : array();
-  $projects_json = isset($projects_json) ? $projects_json : array();
 ?>
 
 <div class="container-fluid py-2 mw-page">
@@ -18,12 +16,12 @@
       'back_title' => 'Back to Second Brain',
     )); ?>
     <div class="min-w-0 flex-grow-1">
-      <h1 class="h5 mb-0 fw-semibold">Create Task from Template</h1>
-      <p class="text-muted small mb-0">Select client, team, and one template task — saved to the Tasks module.</p>
+      <h1 class="h5 mb-0 fw-semibold">Create Template Task</h1>
+      <p class="text-muted small mb-0">Select client, team, type, and one task — saved to My Works.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap ms-sm-auto">
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks'); ?>">
-        <i class="bi bi-list-task me-1"></i>Tasks List
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">
+        <i class="bi bi-list-task me-1"></i>My Works
       </a>
     </div>
   </div>
@@ -44,17 +42,17 @@
 
   <div class="card shadow-sm border-0 oms-form-card">
     <div class="card-body">
-      <form method="post" action="<?php echo site_url('my-works/template-tasks'); ?>" id="mw-template-task-form">
+      <form method="post" action="<?php echo site_url('my-works/template-tasks'); ?>" id="mw-template-task-form" enctype="multipart/form-data">
         <?php $this->load->view('my_works/_csrf'); ?>
 
         <div class="row g-2 oms-form-grid">
           <div class="col-md-6">
             <label class="form-label" for="mw-tt-client">
-              <i class="bi bi-building me-1"></i>Client <?php if ($projects_have_client): ?><span class="text-danger">*</span><?php endif; ?>
+              <i class="bi bi-building me-1"></i>Client
             </label>
             <?php if (!empty($clients)): ?>
-              <select name="client_id" id="mw-tt-client" class="form-select" <?php echo $projects_have_client ? 'required' : ''; ?>>
-                <option value=""><?php echo $projects_have_client ? '-- Select client --' : '-- All clients / optional --'; ?></option>
+              <select name="client_id" id="mw-tt-client" class="form-select">
+                <option value="">-- Optional --</option>
                 <?php foreach ($clients as $client): ?>
                   <option value="<?php echo (int) $client->id; ?>">
                     <?php echo esc_view((string) $client->company_name, ENT_QUOTES, 'UTF-8'); ?>
@@ -67,15 +65,6 @@
               </select>
               <input type="hidden" name="client_id" value="0">
             <?php endif; ?>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label" for="mw-tt-project">
-              <i class="bi bi-folder me-1"></i>Project <span class="text-danger">*</span>
-            </label>
-            <select name="project_id" id="mw-tt-project" class="form-select" required>
-              <option value="">-- Select project --</option>
-            </select>
           </div>
 
           <div class="col-md-6">
@@ -93,20 +82,29 @@
           </div>
 
           <div class="col-md-6">
+            <label class="form-label" for="mw-tt-type">
+              <i class="bi bi-tags me-1"></i>Type <span class="text-danger">*</span>
+            </label>
+            <select name="template_type" id="mw-tt-type" class="form-select" required disabled>
+              <option value="">-- Select type --</option>
+            </select>
+          </div>
+
+          <div class="col-md-6">
             <label class="form-label" for="mw-tt-task">
-              <i class="bi bi-check2-square me-1"></i>Template task <span class="text-danger">*</span>
+              <i class="bi bi-check2-square me-1"></i>Task <span class="text-danger">*</span>
             </label>
             <select name="template_id" id="mw-tt-task" class="form-select" required disabled>
-              <option value="">-- Select template task --</option>
+              <option value="">-- Select task --</option>
             </select>
           </div>
 
           <div class="col-md-4">
-            <label class="form-label">Assign to</label>
-            <select name="assigned_to" class="form-select">
-              <option value="">-- Unassigned --</option>
-              <?php foreach ($users as $u): ?>
-                <?php
+            <label class="form-label" for="mw-tt-assign">Assign to <span class="text-danger">*</span></label>
+            <select name="created_for" id="mw-tt-assign" class="form-select" required>
+              <?php
+                $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
+                foreach ($users as $u):
                   if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
                     $label = trim((string) $u->emp_name);
                   } else {
@@ -114,8 +112,9 @@
                   }
                   $label = trim((string) $label);
                   $label = $label !== '' ? $label . ' (' . $u->email . ')' : $u->email;
-                ?>
-                <option value="<?php echo (int) $u->id; ?>"><?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?></option>
+                  $uid = (int) $u->id;
+              ?>
+                <option value="<?php echo $uid; ?>" <?php echo $uid === $current_user_id ? 'selected' : ''; ?>><?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -132,23 +131,20 @@
 
           <div class="col-md-4">
             <label class="form-label" for="mw-tt-status"><i class="bi bi-arrow-right-circle me-1"></i>Status</label>
+            <?php $default_status = isset($default_status) ? (string) $default_status : 'new'; ?>
             <select name="status" id="mw-tt-status" class="form-select" <?php echo empty($statuses) ? 'disabled' : ''; ?>>
               <?php if (!empty($statuses)): ?>
                 <?php foreach ($statuses as $st): ?>
-                  <option value="<?php echo esc_view((string) $st->code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo (string) $st->code === 'pending' ? 'selected' : ''; ?>>
-                    <?php echo esc_view((string) $st->name, ENT_QUOTES, 'UTF-8'); ?>
+                  <?php $code = is_object($st) ? (string) $st->code : (string) $st['code']; ?>
+                  <?php $name = is_object($st) ? (string) $st->name : (string) $st['name']; ?>
+                  <option value="<?php echo esc_view($code, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $code === $default_status ? 'selected' : ''; ?>>
+                    <?php echo esc_view($name, ENT_QUOTES, 'UTF-8'); ?>
                   </option>
                 <?php endforeach; ?>
               <?php else: ?>
-                <option value="">— No task statuses configured —</option>
+                <option value="new">New</option>
               <?php endif; ?>
             </select>
-            <div class="form-text">From <a href="<?php echo site_url('statuses?type=tasks'); ?>">Statuses (Tasks)</a></div>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label"><i class="bi bi-calendar-event me-1"></i>Start date</label>
-            <input type="date" name="start_date" class="form-control">
           </div>
 
           <div class="col-md-6">
@@ -156,11 +152,21 @@
             <input type="date" name="due_date" class="form-control">
           </div>
 
+          <div class="col-md-6">
+            <label class="form-label" for="mw-tt-attachment">
+              <i class="bi bi-paperclip me-1"></i>Attachment (optional)
+            </label>
+            <?php $this->load->view('my_works/_attachment_field', array(
+              'input_id' => 'mw-tt-attachment',
+              'input_name' => 'attachments[]',
+            )); ?>
+          </div>
+
           <div class="col-12">
             <label class="form-label" for="mw-tt-description">
               <i class="bi bi-file-text me-1"></i>Description
             </label>
-            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new task"></textarea>
+            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new work item"></textarea>
             <div class="form-text">Rich text — bold, italic, colors, lists, and links supported.</div>
           </div>
         </div>
@@ -179,16 +185,12 @@
 <script>
 (function () {
   var templates = <?php echo json_encode($template_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-  var projects = <?php echo json_encode($projects_json, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-  var hasClient = <?php echo ($projects_have_client && !empty($clients)) ? 'true' : 'false'; ?>;
-  var hasClientSelect = <?php echo !empty($clients) ? 'true' : 'false'; ?>;
 
-  var clientSel = document.getElementById('mw-tt-client');
-  var projectSel = document.getElementById('mw-tt-project');
   var teamSel = document.getElementById('mw-tt-team');
+  var typeSel = document.getElementById('mw-tt-type');
   var taskSel = document.getElementById('mw-tt-task');
 
-  function clearSelect(sel, placeholder) {
+  function clearSelect(sel, placeholder, disabled) {
     if (!sel) {
       return;
     }
@@ -197,70 +199,86 @@
     opt.value = '';
     opt.textContent = placeholder;
     sel.appendChild(opt);
+    sel.disabled = !!disabled;
   }
 
-  function fillProjects() {
-    if (!projectSel) {
-      return;
-    }
-    projectSel.innerHTML = '<option value="">-- Select project --</option>';
-    projects.forEach(function (p) {
-      if (hasClient) {
-        var selectedClient = parseInt(clientSel ? clientSel.value : '0', 10) || 0;
-        if (selectedClient < 1) {
-          return;
-        }
-        if (parseInt(p.client_id, 10) !== selectedClient) {
-          return;
-        }
+  function typesForTeam(team) {
+    var seen = {};
+    var out = [];
+    templates.forEach(function (t) {
+      if (t.team !== team || !t.template_type || seen[t.template_type]) {
+        return;
       }
-      var opt = document.createElement('option');
-      opt.value = String(p.id);
-      opt.textContent = p.name || ('Project #' + p.id);
-      projectSel.appendChild(opt);
+      seen[t.template_type] = true;
+      out.push(t.template_type);
     });
+    out.sort(function (a, b) {
+      return String(a).localeCompare(String(b));
+    });
+    return out;
   }
 
-  function tasksForTeam(team) {
+  function tasksForTeamType(team, type) {
     return templates.filter(function (t) {
-      return t.team === team;
+      return t.team === team && t.template_type === type;
     }).sort(function (a, b) {
       return String(a.title).localeCompare(String(b.title));
     });
   }
 
-  function fillTasks() {
-    if (!taskSel || !teamSel) {
+  function fillTypes() {
+    if (!typeSel || !teamSel) {
       return;
     }
     var team = teamSel.value;
-    clearSelect(taskSel, '-- Select template task --');
-    taskSel.disabled = team === '';
+    clearSelect(typeSel, '-- Select type --', team === '');
+    clearSelect(taskSel, '-- Select task --', true);
     if (team === '') {
       return;
     }
-    tasksForTeam(team).forEach(function (t) {
+    typesForTeam(team).forEach(function (type) {
+      var opt = document.createElement('option');
+      opt.value = type;
+      opt.textContent = type;
+      typeSel.appendChild(opt);
+    });
+    if (typeSel.options.length === 2) {
+      typeSel.selectedIndex = 1;
+      fillTasks();
+    }
+  }
+
+  function fillTasks() {
+    if (!taskSel || !teamSel || !typeSel) {
+      return;
+    }
+    var team = teamSel.value;
+    var type = typeSel.value;
+    clearSelect(taskSel, '-- Select task --', team === '' || type === '');
+    if (team === '' || type === '') {
+      return;
+    }
+    tasksForTeamType(team, type).forEach(function (t) {
       var opt = document.createElement('option');
       opt.value = String(t.id);
       opt.textContent = t.title;
       taskSel.appendChild(opt);
     });
-  }
-
-  if (hasClientSelect && clientSel) {
-    clientSel.addEventListener('change', fillProjects);
-  }
-  if (teamSel) {
-    teamSel.addEventListener('change', fillTasks);
-  }
-
-  fillProjects();
-  if (teamSel && teamSel.options.length === 2) {
-    teamSel.selectedIndex = 1;
-    fillTasks();
-    if (taskSel && taskSel.options.length === 2) {
+    if (taskSel.options.length === 2) {
       taskSel.selectedIndex = 1;
     }
+  }
+
+  if (teamSel) {
+    teamSel.addEventListener('change', fillTypes);
+  }
+  if (typeSel) {
+    typeSel.addEventListener('change', fillTasks);
+  }
+
+  if (teamSel && teamSel.options.length === 2) {
+    teamSel.selectedIndex = 1;
+    fillTypes();
   }
 })();
 </script>
@@ -311,6 +329,8 @@
   }
 })();
 </script>
+
+<script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
 
 </div>
 <?php $this->load->view('partials/footer'); ?>

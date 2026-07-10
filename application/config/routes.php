@@ -147,6 +147,7 @@ $route['email-settings/test-email'] = 'email_settings/test_email';
 // Tasks
 $route['tasks'] = 'tasks/index';
 $route['tasks/create'] = 'tasks/create';
+$route['tasks/view/(:num)'] = 'tasks/show/$1';
 $route['tasks/(:num)'] = 'tasks/show/$1';
 $route['tasks/(:num)/edit'] = 'tasks/edit/$1';
 $route['tasks/(:num)/delete'] = 'tasks/delete/$1';

@@ -919,18 +919,99 @@ if (!function_exists('spl_activity_note_preview')) {
     }
 }
 
+if (!function_exists('spl_normalize_hhmm_time')) {
+    /**
+     * Normalize HH:MM or HH:MM:SS to HH:MM:SS for DateTime construction.
+     *
+     * @param string $time
+     * @param string $fallback
+     * @return string
+     */
+    function spl_normalize_hhmm_time($time, $fallback = '09:30:00')
+    {
+        $time = trim((string) $time);
+        if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $time)) {
+            return $time;
+        }
+        if (preg_match('/^\d{1,2}:\d{2}$/', $time)) {
+            return $time . ':00';
+        }
+        $fallback = trim((string) $fallback);
+        if (preg_match('/^\d{1,2}:\d{2}$/', $fallback)) {
+            return $fallback . ':00';
+        }
+        if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $fallback)) {
+            return $fallback;
+        }
+        return '09:30:00';
+    }
+}
+
+if (!function_exists('spl_get_attendance_settings_shift')) {
+    /**
+     * Build a shift-like object from Settings → Attendance times
+     * (attendance_start_time / attendance_end_time / attendance_grace_minutes).
+     *
+     * @return object
+     */
+    function spl_get_attendance_settings_shift()
+    {
+        $CI =& get_instance();
+        $office_start = '09:30';
+        $office_end = '18:30';
+        $grace_minutes = 15;
+
+        if (!isset($CI->settings)) {
+            $CI->load->model('Setting_model', 'settings');
+        }
+        if (isset($CI->settings) && method_exists($CI->settings, 'get_setting')) {
+            $st = $CI->settings->get_setting('attendance_start_time', $office_start);
+            if (is_string($st) && preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $st)) {
+                $office_start = $st;
+            }
+            $et = $CI->settings->get_setting('attendance_end_time', $office_end);
+            if (is_string($et) && preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $et)) {
+                $office_end = $et;
+            }
+            $gm = $CI->settings->get_setting('attendance_grace_minutes', $grace_minutes);
+            if (is_numeric($gm)) {
+                $grace_minutes = max(0, (int) $gm);
+            }
+        }
+
+        return (object) array(
+            'id' => 0,
+            'name' => 'Attendance Settings',
+            'start_time' => spl_normalize_hhmm_time($office_start, '09:30:00'),
+            'end_time' => spl_normalize_hhmm_time($office_end, '18:30:00'),
+            'late_grace_period' => $grace_minutes,
+            'early_exit_grace_period' => 0,
+            'is_settings_fallback' => 1,
+        );
+    }
+}
+
 if (!function_exists('spl_get_user_shift')) {
+    /**
+     * Prefer employee-assigned shift; if none, use Settings → Attendance times.
+     *
+     * @param CI_DB_query_builder $db
+     * @param int $user_id
+     * @return object|null
+     */
     function spl_get_user_shift($db, $user_id)
     {
         $user_id = (int) $user_id;
-        if ($user_id <= 0 || !$db->table_exists('employees') || !$db->table_exists('shifts')) {
-            return null;
+        if ($user_id > 0 && $db->table_exists('employees') && $db->table_exists('shifts')) {
+            $employee = $db->select('shift_id')->from('employees')->where('user_id', $user_id)->limit(1)->get()->row();
+            if ($employee && !empty($employee->shift_id)) {
+                $shift = $db->where('id', (int) $employee->shift_id)->limit(1)->get('shifts')->row();
+                if ($shift && !empty($shift->start_time)) {
+                    return $shift;
+                }
+            }
         }
-        $employee = $db->select('shift_id')->from('employees')->where('user_id', $user_id)->limit(1)->get()->row();
-        if (!$employee || empty($employee->shift_id)) {
-            return null;
-        }
-        return $db->where('id', (int) $employee->shift_id)->limit(1)->get('shifts')->row();
+        return spl_get_attendance_settings_shift();
     }
 }
 

@@ -405,6 +405,27 @@
     return (n >= 0 ? '+' : '') + Math.round(n).toLocaleString();
   }
 
+  function syncApprovalPtsHidden(row) {
+    if (!row) {
+      return;
+    }
+    var input = row.querySelector('.spl-approval-pts-input');
+    var hidden = row.querySelector('.spl-approval-pts-hidden');
+    if (!input || !hidden) {
+      return;
+    }
+    hidden.value = input.value;
+  }
+
+  function getApprovalPtsFromRow(approvalId, root) {
+    var scope = root && root.querySelector ? root : document;
+    var input = scope.querySelector('.spl-approval-pts-input[data-approval-id="' + approvalId + '"]');
+    if (!input) {
+      return null;
+    }
+    return input.value;
+  }
+
   function getApprovalModal(root) {
     if (root && root.querySelector) {
       var scoped = root.querySelector('#splApprovalDetailModal');
@@ -427,7 +448,9 @@
     if (payload.rule_code) {
       html += '<div class="spl-approval-modal-row"><dt>Rule code</dt><dd><code>' + escapeHtml(payload.rule_code) + '</code></dd></div>';
     }
-    html += '<div class="spl-approval-modal-row"><dt>Points</dt><dd class="spl-approval-modal-points">' + escapeHtml(formatApprovalPoints(payload.requested_points)) + '</dd></div>';
+    if (payload.view !== 'pending') {
+      html += '<div class="spl-approval-modal-row"><dt>Points</dt><dd class="spl-approval-modal-points">' + escapeHtml(formatApprovalPoints(payload.requested_points)) + '</dd></div>';
+    }
     html += '</dl>';
     html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Description / notes</div>';
     html += '<div class="spl-approval-modal-note">' + (payload.reference_label ? payload.reference_label : '—') + '</div></div>';
@@ -491,6 +514,7 @@
     var actionForm = modalEl.querySelector('#splApprovalModalActionForm');
     var readonlyFooter = modalEl.querySelector('#splApprovalDetailFooterReadonly');
     var commentInput = modalEl.querySelector('#splApprovalModalComment');
+    var pointsInput = modalEl.querySelector('#splApprovalModalPoints');
     var csrfInput = modalEl.querySelector('#splApprovalModalCsrf');
     var approveBtn = modalEl.querySelector('#splApprovalModalApproveBtn');
     var rejectBtn = modalEl.querySelector('#splApprovalModalRejectBtn');
@@ -507,12 +531,21 @@
       if (commentInput) {
         commentInput.value = '';
       }
+      if (pointsInput) {
+        var rowPts = getApprovalPtsFromRow(payload.id, root);
+        var ptsVal = rowPts !== null && rowPts !== '' ? rowPts : payload.requested_points;
+        pointsInput.value = ptsVal !== null && ptsVal !== undefined && ptsVal !== '' ? Math.round(parseFloat(ptsVal)) : '';
+      }
       if (csrfInput && cfgLocal.csrfName && cfgLocal.csrfHash) {
         csrfInput.name = cfgLocal.csrfName;
         csrfInput.value = cfgLocal.csrfHash;
       }
       if (approveBtn) {
         approveBtn.onclick = function () {
+          if (pointsInput && pointsInput.value !== '' && isNaN(parseFloat(pointsInput.value))) {
+            window.alert('Points must be a valid number.');
+            return;
+          }
           var base = cfgLocal.approveActivityUrlBase || '';
           actionForm.action = base + payload.id;
           actionForm.submit();
@@ -525,7 +558,13 @@
           }
           var base = cfgLocal.rejectActivityUrlBase || '';
           actionForm.action = base + payload.id;
+          if (pointsInput) {
+            pointsInput.disabled = true;
+          }
           actionForm.submit();
+          if (pointsInput) {
+            pointsInput.disabled = false;
+          }
         };
       }
     } else {
@@ -639,12 +678,41 @@
         }
         openSplApprovalFromId(row.getAttribute('data-approval-id'), root);
       });
+      scope.addEventListener('input', function (e) {
+        var ptsInput = e.target.closest('.spl-approval-pts-input');
+        if (!ptsInput) {
+          return;
+        }
+        var row = ptsInput.closest('.spl-approval-row');
+        syncApprovalPtsHidden(row);
+        var n = parseFloat(ptsInput.value);
+        ptsInput.classList.toggle('is-positive', !isNaN(n) && n >= 0);
+        ptsInput.classList.toggle('is-negative', !isNaN(n) && n < 0);
+        var cell = ptsInput.closest('td');
+        if (cell && !isNaN(n)) {
+          cell.setAttribute('data-order', n.toFixed(2));
+        }
+      });
+      scope.addEventListener('keydown', function (e) {
+        if (!e.target.closest('.spl-approval-pts-input')) {
+          return;
+        }
+        e.stopPropagation();
+      });
       scope.querySelectorAll('.spl-approval-row').forEach(function (row) {
         row.addEventListener('keydown', function (e) {
+          if (e.target.closest('.spl-approval-pts-input')) {
+            return;
+          }
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             openSplApprovalFromId(row.getAttribute('data-approval-id'), root);
           }
+        });
+      });
+      scope.querySelectorAll('.spl-approval-approve-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+          syncApprovalPtsHidden(form.closest('.spl-approval-row'));
         });
       });
       scope.querySelectorAll('.spl-approval-reject-form').forEach(function (form) {

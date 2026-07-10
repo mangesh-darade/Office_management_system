@@ -30,6 +30,8 @@
 
     : in_array($section_key, array('project', 'focus'), true);
 
+  $hide_empty_lanes = !empty($hide_empty_lanes);
+
   $uid = (int) $this->session->userdata('user_id');
 
   $lanes_class = 'mw-dash-lanes';
@@ -57,6 +59,12 @@
     <?php
 
       $laneItems = isset($section_lanes[$lane]) ? $section_lanes[$lane] : array();
+
+      if ($hide_empty_lanes && empty($laneItems)) {
+
+        continue;
+
+      }
 
       if (!empty($laneItems)) {
 

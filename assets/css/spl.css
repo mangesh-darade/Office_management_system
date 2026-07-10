@@ -2129,7 +2129,28 @@ button.spl-reward-period-tab {
 
 .spl-approval-col-points {
   white-space: nowrap;
-  width: 52px;
+  width: 72px;
+}
+
+.spl-approval-pts-input {
+  width: 4.25rem;
+  margin-left: auto;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.spl-approval-pts-input.is-positive {
+  color: #15803d;
+}
+
+.spl-approval-pts-input.is-negative {
+  color: #b91c1c;
+}
+
+.spl-approval-table--compact .spl-approval-col-points {
+  width: 72px;
 }
 
 .spl-approval-col-icon {

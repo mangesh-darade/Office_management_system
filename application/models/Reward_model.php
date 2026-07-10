@@ -560,23 +560,29 @@ class Reward_model extends CI_Model
         return $this->db->where('id', (int) $evidence_id)->limit(1)->get('reward_evidence')->row();
     }
 
-    public function approve_pending($queue_id, $approver_id, $comment = '')
+    public function approve_pending($queue_id, $approver_id, $comment = '', $requested_points = null)
     {
         $q = $this->get_approval_queue($queue_id);
         if (!$q || $q->status !== 'pending') {
             return false;
         }
+        $pts = ($requested_points !== null && $requested_points !== '')
+            ? (float) $requested_points
+            : (float) $q->requested_points;
         $now = date('Y-m-d H:i:s');
-        $this->db->where('id', (int) $q->transaction_id)->update('reward_transactions', array(
+        $tx_update = array(
             'status' => 'approved',
             'approved_by' => (int) $approver_id,
             'approved_at' => $now,
-        ));
+            'points' => $pts,
+        );
+        $this->db->where('id', (int) $q->transaction_id)->update('reward_transactions', $tx_update);
         $this->db->where('id', (int) $queue_id)->update('reward_approval_queue', array(
             'status' => 'approved',
             'approver_id' => (int) $approver_id,
             'decided_at' => $now,
             'decision_comment' => $comment !== '' ? $comment : null,
+            'requested_points' => $pts,
         ));
         $this->update_user_summary((int) $q->user_id);
         $CI =& get_instance();
@@ -584,7 +590,6 @@ class Reward_model extends CI_Model
         if (function_exists('create_notification')) {
             $rule = $q->rule_id ? $this->get_rule((int) $q->rule_id) : null;
             $label = $rule ? $rule->name : 'Reward claim';
-            $pts = (float) $q->requested_points;
             $sign = $pts >= 0 ? '+' : '';
             create_notification(
                 (int) $q->user_id,

@@ -280,7 +280,7 @@ if (!function_exists('rewards_schema_seed_defaults')) {
         $rules = array(
             // --- Daily ---
             array('code' => 'office_closing_checklist', 'name' => 'Office Closing Checklist', 'description' => 'Form for submission.', 'trigger_event' => 'office_closing_checklist', 'condition_json' => '{}', 'points' => 30, 'max_per_day' => 1, 'requires_approval' => 1, 'category' => 'daily'),
-            array('code' => 'self_work_update_submitted', 'name' => 'Self Work Update Submitted', 'description' => 'Daily Activity submitted.', 'trigger_event' => 'daily_activity_logged', 'condition_json' => '{}', 'points' => 20, 'max_per_day' => 1, 'requires_approval' => 1, 'category' => 'daily'),
+            array('code' => 'self_work_update_submitted', 'name' => 'Self Work Update Submitted', 'description' => 'Daily Activity submitted.', 'trigger_event' => 'daily_activity_logged', 'condition_json' => '{}', 'points' => 20, 'max_per_day' => 1, 'requires_approval' => 0, 'category' => 'daily'),
             array('code' => 'project_status_update_submitted', 'name' => 'Project Status Update Submitted', 'description' => 'Project status shared.', 'trigger_event' => 'project_status_update', 'condition_json' => '{}', 'points' => 20, 'max_per_day' => 1, 'requires_approval' => 1, 'category' => 'daily'),
 
             // --- Daily Attendance (auto on punch) ---

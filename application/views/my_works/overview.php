@@ -13,6 +13,8 @@ if (!$embed) {
   $dashboard_counts = isset($dashboard_counts) ? $dashboard_counts : array('ad_hoc' => 0, 'project' => 0, 'total' => 0);
   $filterProjectId = isset($filters['project_id']) ? (int) $filters['project_id'] : 0;
   $filterAssignee = isset($filters['created_for']) ? (int) $filters['created_for'] : 0;
+  $filterSearch = isset($filters['q']) ? trim((string) $filters['q']) : '';
+  $hide_empty_lanes = ($filterAssignee > 0 || $filterProjectId > 0 || $filterSearch !== '');
   $baseQuery = array('view' => 'overview');
   foreach ($filters as $k => $v) {
     if ($k === 'current_user_id') {
@@ -123,6 +125,7 @@ if (!$embed) {
     <?php endif; ?>
   </div>
 
+  <?php if (!$hide_empty_lanes || (int) $dashboard_counts['ad_hoc'] > 0): ?>
   <section class="mw-dash-section">
     <h2 class="mw-dash-section-title">
       Ad hoc tasks
@@ -133,9 +136,12 @@ if (!$embed) {
       'dashboard_sections' => $dashboard_sections,
       'can_add' => !empty($can_add),
       'can_view_all' => !empty($can_view_all),
+      'hide_empty_lanes' => $hide_empty_lanes,
     )); ?>
   </section>
+  <?php endif; ?>
 
+  <?php if (!$hide_empty_lanes || (int) $dashboard_counts['project'] > 0): ?>
   <section class="mw-dash-section">
     <h2 class="mw-dash-section-title">
       Project Tasks
@@ -146,8 +152,16 @@ if (!$embed) {
       'dashboard_sections' => $dashboard_sections,
       'can_add' => !empty($can_add),
       'can_view_all' => !empty($can_view_all),
+      'hide_empty_lanes' => $hide_empty_lanes,
     )); ?>
   </section>
+  <?php endif; ?>
+
+  <?php if ($hide_empty_lanes && (int) $dashboard_counts['total'] < 1): ?>
+  <div class="mw-dash-empty-filter alert alert-light border text-muted mx-3">
+    No work items match the selected filters.
+  </div>
+  <?php endif; ?>
 
   <footer class="mw-dash-footer-note">
     <i class="bi bi-info-circle"></i>
@@ -228,6 +242,46 @@ if (!$embed) {
   function removeEmptyRow(body) {
     var empty = body.querySelector('.mw-dash-lane-empty-row');
     if (empty) { empty.remove(); }
+  }
+
+  function formatLaneDate(raw) {
+    if (!raw) { return { label: '—', title: 'No due date' }; }
+    var parts = String(raw).substring(0, 10).split('-');
+    if (parts.length !== 3) {
+      return { label: String(raw), title: String(raw) };
+    }
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var m = parseInt(parts[1], 10) - 1;
+    var d = parseInt(parts[2], 10);
+    var y = parts[0];
+    if (m < 0 || m > 11 || !d) {
+      return { label: String(raw), title: String(raw) };
+    }
+    return {
+      label: months[m] + ' ' + d + ', ' + y,
+      title: parts[0] + '-' + parts[1] + '-' + parts[2]
+    };
+  }
+
+  function adaptRowToLane(row, body, dueDate) {
+    if (!row || !body) { return; }
+    var laneEl = body.closest('.mw-dash-lane');
+    var showsDate = !!(laneEl && laneEl.classList.contains('mw-dash-lane-has-date'));
+    var dateCell = row.querySelector('.mw-dash-col-date-cell');
+    if (!showsDate) {
+      if (dateCell) {
+        dateCell.remove();
+      }
+      return;
+    }
+    var formatted = formatLaneDate(dueDate || '');
+    if (!dateCell) {
+      dateCell = document.createElement('td');
+      dateCell.className = 'mw-dash-col-date-cell';
+      row.appendChild(dateCell);
+    }
+    dateCell.textContent = formatted.label;
+    dateCell.setAttribute('title', formatted.title);
   }
 
   function clearDropTargets() {
@@ -320,6 +374,7 @@ if (!$embed) {
     removeEmptyRow(body);
     body.appendChild(movingRow);
     movingRow.setAttribute('data-lane', newLane);
+    adaptRowToLane(movingRow, body, '');
     ensureEmptyRow(fromBody);
     refreshLaneCount(oldSection, oldLane);
     refreshLaneCount(newSection, newLane);
@@ -339,7 +394,9 @@ if (!$embed) {
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (!data || !data.ok || (data.computed_lane && data.computed_lane !== newLane)) {
         window.location.reload();
+        return;
       }
+      adaptRowToLane(movingRow, body, data.due_date || '');
     }).catch(function () {
       window.location.reload();
     });

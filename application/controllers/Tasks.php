@@ -1170,7 +1170,7 @@ class Tasks extends CI_Controller {
 
         $url = '#';
         if ($item_source === 'tasks') {
-            $url = site_url('tasks/view/' . $t->id);
+            $url = site_url('tasks/' . $t->id);
         } else if ($item_source === 'requirements') {
             $url = site_url('requirements/view/' . $t->id);
         } else if ($item_source === 'my_works') {

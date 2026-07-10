@@ -59,7 +59,7 @@ $cat_icon_map = array(
         <span class="spl-dash-hero-avatar spl-dash-avatar--initials is-dark"><?php echo esc_view($initials, ENT_QUOTES, 'UTF-8'); ?></span>
         <?php endif; ?>
         <div>
-          <div class="spl-dash-hero-title">Welcome back, <?php echo esc_view($display_name, ENT_QUOTES, 'UTF-8'); ?>! 👋</div>
+          <div class="spl-dash-hero-title">Welcome back, <?php echo esc_view($display_name, ENT_QUOTES, 'UTF-8'); ?>!</div>
           <div class="spl-dash-hero-sub">Keep going, champion!</div>
         </div>
       </div>

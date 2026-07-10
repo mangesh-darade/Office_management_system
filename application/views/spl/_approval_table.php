@@ -97,9 +97,21 @@ if ($compact) {
         <td><?php echo esc_view(!empty($row->category_name) ? $row->category_name : '—', ENT_QUOTES, 'UTF-8'); ?></td>
         <?php endif; ?>
         <td class="text-end spl-approval-col-points" data-order="<?php echo esc_view(number_format($points, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+          <?php if ($approval_view === 'pending' && $csrf_name !== ''): ?>
+          <input
+            type="number"
+            step="1"
+            class="form-control form-control-sm text-end spl-approval-pts-input <?php echo $points >= 0 ? 'is-positive' : 'is-negative'; ?>"
+            value="<?php echo esc_view(number_format($points, 0, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+            data-approval-id="<?php echo (int) $row->id; ?>"
+            aria-label="Points to approve"
+            title="Edit points before approve"
+          >
+          <?php else: ?>
           <span class="spl-activity-table-points <?php echo $points >= 0 ? 'is-positive' : 'is-negative'; ?>">
             <?php echo ($points >= 0 ? '+' : '') . number_format($points, 0); ?>
           </span>
+          <?php endif; ?>
         </td>
         <?php if (!$compact): ?>
         <td data-order="<?php echo esc_view($statusMeta['label'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -144,8 +156,9 @@ if ($compact) {
               <i class="bi bi-eye"></i>
             </button>
             <?php if ($approval_view === 'pending' && $csrf_name !== ''): ?>
-            <form method="post" action="<?php echo esc_view(site_url('spl/approve-activity/' . (int) $row->id), ENT_QUOTES, 'UTF-8'); ?>" class="spl-approval-inline-form">
+            <form method="post" action="<?php echo esc_view(site_url('spl/approve-activity/' . (int) $row->id), ENT_QUOTES, 'UTF-8'); ?>" class="spl-approval-inline-form spl-approval-approve-form">
               <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+              <input type="hidden" name="requested_points" class="spl-approval-pts-hidden" value="<?php echo esc_view(number_format($points, 0, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
               <button type="submit" class="btn btn-sm btn-success spl-approval-approve-btn" title="Approve" aria-label="Approve">
                 <i class="bi bi-check-lg"></i>
               </button>

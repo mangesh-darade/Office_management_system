@@ -320,6 +320,10 @@ $reward_period_options = array(
             <div class="modal-footer flex-column align-items-stretch" id="splApprovalDetailFooter">
               <form id="splApprovalModalActionForm" method="post" class="spl-approval-modal-form d-none">
                 <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" id="splApprovalModalCsrf" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="mb-3">
+                  <label class="form-label" for="splApprovalModalPoints">Points</label>
+                  <input type="number" step="1" class="form-control" name="requested_points" id="splApprovalModalPoints" aria-label="Points to approve">
+                </div>
                 <label class="form-label" for="splApprovalModalComment">Comment</label>
                 <textarea class="form-control" name="comment" id="splApprovalModalComment" rows="3" placeholder="Why are you approving or rejecting this activity?"></textarea>
                 <div class="d-flex justify-content-end gap-2 mt-3">

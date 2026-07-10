@@ -251,7 +251,17 @@ class Spl extends CI_Controller
             return;
         }
         $comment = trim((string) $this->input->post('comment'));
-        $ok = $this->rewards->approve_pending($id, (int) $this->session->userdata('user_id'), $comment);
+        $requested_points_raw = $this->input->post('requested_points');
+        $requested_points = null;
+        if ($requested_points_raw !== null && $requested_points_raw !== '') {
+            if (!is_numeric($requested_points_raw)) {
+                $this->session->set_flashdata('error', 'Points must be a valid number.');
+                redirect('spl/dashboard?tab=approvals&approval_view=pending');
+                return;
+            }
+            $requested_points = (float) $requested_points_raw;
+        }
+        $ok = $this->rewards->approve_pending($id, (int) $this->session->userdata('user_id'), $comment, $requested_points);
         $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Activity approved. Points added to user.' : 'Could not approve activity.');
         redirect('spl/dashboard?tab=approvals&approval_view=' . ($ok ? 'approved' : 'pending'));
     }
