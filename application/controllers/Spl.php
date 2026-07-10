@@ -326,6 +326,10 @@ class Spl extends CI_Controller
         }
 
         $savedId = $this->rewards->save_rule($data, $id > 0 ? $id : null);
+        if (!$savedId) {
+            $this->_json_error('Could not save rule.', 500);
+            return;
+        }
         $this->rewards->audit('rule', $savedId, $id > 0 ? 'updated' : 'created', (int) $this->session->userdata('user_id'));
         if ($data['trigger_event'] === 'reward_claim' && (int) $data['is_active'] === 1) {
             $this->spl->sync_all_rules_to_all_groups();

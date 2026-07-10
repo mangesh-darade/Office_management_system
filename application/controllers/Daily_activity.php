@@ -6,7 +6,7 @@ class Daily_activity extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter','schema_columns']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter', 'schema_columns', 'view_output']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -50,6 +50,58 @@ class Daily_activity extends CI_Controller {
         }
     }
 
+    private function sanitize_activity_description($raw)
+    {
+        return sanitize_html_output(trim((string) $raw));
+    }
+
+    private function fetch_activity_tasks($linked_task_id = 0)
+    {
+        $this->db->select('id, title');
+        $this->db->from('tasks');
+        apply_role_hierarchy_filter($this->db, 'created_by');
+        $this->db->where_in('status', array('pending', 'in_progress'));
+        $this->db->order_by('id', 'DESC');
+        $tasks = $this->db->get()->result();
+
+        $linked_task_id = (int) $linked_task_id;
+        if ($linked_task_id > 0) {
+            $linked = $this->db->select('id, title')->from('tasks')->where('id', $linked_task_id)->get()->row();
+            if ($linked) {
+                $found = false;
+                foreach ($tasks as $task) {
+                    if ((int) $task->id === (int) $linked->id) {
+                        $found = true;
+                        break;
+                    }
+                }
+                if (!$found) {
+                    array_unshift($tasks, $linked);
+                }
+            }
+        }
+
+        return $tasks;
+    }
+
+    private function resolve_activity_title_value($log, array $tasks)
+    {
+        $title = !empty($log->activity_title) ? trim((string) $log->activity_title) : '';
+        if ($title !== '') {
+            return $title;
+        }
+        $task_id = (int) $log->task_id;
+        if ($task_id <= 0) {
+            return '';
+        }
+        foreach ($tasks as $task) {
+            if ((int) $task->id === $task_id) {
+                return (string) $task->title;
+            }
+        }
+        return '';
+    }
+
     public function index() {
         require_module_access(['daily_activity_add', 'daily_activity'], true);
         $user_id = (int)$this->session->userdata('user_id');
@@ -66,15 +118,7 @@ class Daily_activity extends CI_Controller {
         $logs = $this->db->get()->result();
 
         // Fetch user's tasks for dropdown
-        $current_user_id = $this->session->userdata('user_id');
-        $is_admin = is_admin_group() || has_module_access('daily_activity_view_all');
-        
-        $this->db->select('id, title');
-        $this->db->from('tasks');
-        apply_role_hierarchy_filter($this->db, 'created_by');
-        $this->db->where_in('status', ['pending', 'in_progress']); // Only active tasks
-        $this->db->order_by('id', 'DESC');
-        $tasks = $this->db->get()->result();
+        $tasks = $this->fetch_activity_tasks();
 
         $this->load->view('daily_activity/index', [
             'logs' => $logs,
@@ -193,14 +237,14 @@ class Daily_activity extends CI_Controller {
         if ($this->input->method() !== 'post') { show_404(); }
 
         $user_id = (int)$this->session->userdata('user_id');
-        $description = trim($this->input->post('description', TRUE));
+        $description = $this->sanitize_activity_description($this->input->post('description'));
         $activity_title = trim($this->input->post('activity_title'));
-        $task_id = (int)$this->input->post('task_id'); // Optional hidden or from datalist match?
+        $task_id = (int)$this->input->post('task_id');
         $work_date = $this->input->post('work_date');
 
-        if (empty($description)) {
+        if ($description === '') {
             $this->session->set_flashdata('error', 'Description is required');
-            redirect('daily_activity?date=' . $work_date);
+            redirect('daily-activity?date=' . $work_date);
             return;
         }
 
@@ -246,12 +290,12 @@ class Daily_activity extends CI_Controller {
             if ((int)$log->user_id !== $user_id) {
                 require_module_access(['daily_activity_edit', 'daily_activity'], true);
             }
-            $description    = trim($this->input->post('description', TRUE));
+            $description    = $this->sanitize_activity_description($this->input->post('description'));
             $activity_title = trim($this->input->post('activity_title'));
             $task_id        = (int)$this->input->post('task_id');
             $work_date      = $this->input->post('work_date');
 
-            if (empty($description)) {
+            if ($description === '') {
                 $this->session->set_flashdata('error', 'Description is required.');
                 redirect('daily-activity/edit/' . $id);
                 return;
@@ -268,14 +312,13 @@ class Daily_activity extends CI_Controller {
             return;
         }
 
-        // Fetch tasks for dropdown
-        $this->db->select('id, title')->from('tasks');
-        apply_role_hierarchy_filter($this->db, 'created_by');
-        $tasks = $this->db->order_by('id', 'DESC')->get()->result();
+        $tasks = $this->fetch_activity_tasks((int) $log->task_id);
+        $activity_title_value = $this->resolve_activity_title_value($log, $tasks);
 
         $this->load->view('daily_activity/edit', [
-            'log'   => $log,
+            'log' => $log,
             'tasks' => $tasks,
+            'activity_title_value' => $activity_title_value,
         ]);
     }
 
@@ -343,11 +386,11 @@ class Daily_activity extends CI_Controller {
             $this->session->set_flashdata('error', 'Activity not found');
         }
         
-        $referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-        if(strpos($referer, 'list_all') !== false) {
-             redirect('daily_activity/list_all');
+        $referer = isset($_SERVER['HTTP_REFERER']) ? (string) $_SERVER['HTTP_REFERER'] : '';
+        if (strpos($referer, 'list') !== false) {
+             redirect('daily-activity/list');
         } else {
-             redirect('daily_activity?date=' . ($log ? $log->work_date : date('Y-m-d')));
+             redirect('daily-activity?date=' . ($log ? $log->work_date : date('Y-m-d')));
         }
     }
 }

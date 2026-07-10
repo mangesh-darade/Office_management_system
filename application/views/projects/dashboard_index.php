@@ -106,6 +106,14 @@ $assignee_label = function ($task) {
 
 <?php if (!empty($filter_projects)): ?>
 <div class="project-dash-filters">
+  <?php if (!$embed): ?>
+  <div class="project-dash-complete-toggle" id="projectDashCompleteToggleWrap">
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" role="switch" id="projectDashCompleteToggle"<?php echo !empty($complete_view_on) ? ' checked' : ''; ?>>
+      <label class="form-check-label" for="projectDashCompleteToggle">Completed</label>
+    </div>
+  </div>
+  <?php endif; ?>
   <form method="get" action="<?php echo site_url('projects/dashboard'); ?>" class="project-dash-filter-form" id="projectDashFilterForm">
     <?php if ($embed): ?>
     <input type="hidden" name="embed" value="1">
@@ -340,6 +348,19 @@ $assignee_label = function ($task) {
       form.submit();
     });
   });
+
+  var completeToggle = document.getElementById('projectDashCompleteToggle');
+  if (completeToggle) {
+    completeToggle.addEventListener('change', function () {
+      var params = new URLSearchParams(window.location.search);
+      if (this.checked) {
+        params.set('complete_view', '1');
+      } else {
+        params.delete('complete_view');
+      }
+      window.location.search = params.toString();
+    });
+  }
 
   $(document).on('change', '.project-dash-status-select', function() {
     var $select = $(this);

@@ -59,10 +59,10 @@
                         <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-pencil-square me-2 text-primary"></i>Log Activity</h5>
                         <div class="text-muted small mt-1">For <span class="fw-semibold text-primary"><?php echo date('M d, Y', strtotime($date)); ?></span></div>
                     </div>
-                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-sm btn-outline-primary d-lg-none" title="View History"><i class="bi bi-list-ul"></i></a>
+                    <a href="<?php echo site_url('daily-activity/list'); ?>" class="btn btn-sm btn-outline-primary d-lg-none" title="View History"><i class="bi bi-list-ul"></i></a>
                 </div>
                 <div class="card-body">
-                    <?php echo form_open('daily_activity/save'); ?>
+                    <?php echo form_open('daily-activity/save'); ?>
                         <input type="hidden" name="work_date" value="<?php echo $date; ?>">
                         
                         <div class="mb-3">
@@ -124,7 +124,7 @@
                     <p class="text-muted small mb-0">Track your daily progress</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="<?php echo site_url('daily_activity/list_all'); ?>" class="btn btn-sm btn-outline-secondary d-flex align-items-center"><i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">History</span></a>
+                    <a href="<?php echo site_url('daily-activity/list'); ?>" class="btn btn-sm btn-outline-secondary d-flex align-items-center"><i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">History</span></a>
                     <form class="d-flex position-relative" method="get">
                         <input type="date" class="form-control form-control-sm" name="date" value="<?php echo $date; ?>" onchange="this.form.submit()" style="min-width: 130px;">
                     </form>
@@ -171,11 +171,16 @@
                                         <?php endif; ?>
                                     </div>
                                     
+                                    <div class="d-flex gap-2 align-items-center">
+                                    <?php if (function_exists('has_module_access') && (has_module_access('daily_activity_edit') || has_module_access('daily_activity'))): ?>
+                                        <a href="<?php echo site_url('daily-activity/edit/' . (int) $log->id); ?>" class="btn btn-sm btn-link text-primary p-0 opacity-50 hover-opacity-100" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <?php endif; ?>
                                     <?php if(function_exists('has_module_access') && (has_module_access('daily_activity_delete') || has_module_access('daily_activity'))): ?>
-                                    <?php echo form_open('daily_activity/delete/' . $log->id, ['onsubmit' => "return confirm('Delete this log?');", 'class' => 'opacity-50 hover-opacity-100']); ?>
+                                    <?php echo form_open('daily-activity/delete/' . $log->id, ['onsubmit' => "return confirm('Delete this log?');", 'class' => 'opacity-50 hover-opacity-100']); ?>
                                         <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Delete"><i class="bi bi-x-lg"></i></button>
                                     <?php echo form_close(); ?>
                                     <?php endif; ?>
+                                    </div>
                                 </div>
                                 <div class="activity-description mt-2">
                                     <?php echo sanitize_html_output($log->description); ?>

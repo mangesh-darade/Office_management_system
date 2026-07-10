@@ -177,7 +177,26 @@ $reward_bounds = isset($reward_bounds) ? $reward_bounds : spl_reward_period_boun
 
 <?php $this->load->view('spl/_activity_detail_modal'); ?>
 
+<?php
+$spl_csrf_name = $this->security->get_csrf_token_name();
+$spl_csrf_hash = $this->security->get_csrf_hash();
+?>
 <script>window.SPL_BOARD_CONFIG = { canManage: <?php echo !empty($can_manage) ? 'true' : 'false'; ?> };</script>
+<script>
+window.SPL_CONFIG = Object.assign(window.SPL_CONFIG || {}, {
+  rulesUrl: <?php echo json_encode(site_url('spl/rules-by-category')); ?>,
+  saveRuleUrl: <?php echo json_encode(site_url('spl/save-rule')); ?>,
+  deleteRuleUrlBase: <?php echo json_encode(site_url('spl/delete-rule/')); ?>,
+  importRulesUrl: <?php echo json_encode(site_url('spl/rules-import')); ?>,
+  saveLevelUrl: <?php echo json_encode(site_url('spl/save-level')); ?>,
+  canManageLevels: <?php echo !empty($can_rules) ? 'true' : 'false'; ?>,
+  csrfName: <?php echo json_encode($spl_csrf_name); ?>,
+  csrfHash: <?php echo json_encode($spl_csrf_hash); ?>,
+  approveActivityUrlBase: <?php echo json_encode(site_url('spl/approve-activity/')); ?>,
+  rejectActivityUrlBase: <?php echo json_encode(site_url('spl/reject-activity/')); ?>,
+  categories: []
+});
+</script>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

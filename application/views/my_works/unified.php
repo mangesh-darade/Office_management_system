@@ -84,7 +84,7 @@
     <div class="mw-unified-complete-toggle<?php echo $show_complete_toggle ? '' : ' d-none'; ?>" id="mwDashCompleteToggleWrap">
       <div class="form-check form-switch mb-0">
         <input class="form-check-input" type="checkbox" role="switch" id="mwDashCompleteToggle"<?php echo $complete_view_on ? ' checked' : ''; ?>>
-        <label class="form-check-label" for="mwDashCompleteToggle">Completed only</label>
+        <label class="form-check-label" for="mwDashCompleteToggle">Completed</label>
       </div>
     </div>
     <?php if ($can_add): ?>

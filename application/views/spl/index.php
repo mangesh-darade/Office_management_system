@@ -462,6 +462,7 @@ $reward_period_options = array(
                 <th class="text-end">Points</th>
                 <th class="text-center">Active</th>
                 <th class="text-end no-sort">Actions</th>
+                <th class="d-none" aria-hidden="true">Code</th>
               </tr>
             </thead>
             <tbody>
@@ -471,7 +472,7 @@ $reward_period_options = array(
                 $is_active_order = (int) $r->is_active === 1 ? 1 : 0;
                 $points_val = (float) $r->points;
               ?>
-              <tr class="spl-rule-row" data-rule-id="<?php echo (int) $r->id; ?>">
+              <tr class="spl-rule-row" data-rule-id="<?php echo (int) $r->id; ?>" data-rule-code="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
                 <td data-order="<?php echo esc_view($cat_label, ENT_QUOTES, 'UTF-8'); ?>">
                   <span class="spl-rule-display spl-rule-display-category"><?php echo $cat_label !== '' ? esc_view($cat_label, ENT_QUOTES, 'UTF-8') : '—'; ?></span>
                   <select class="form-select form-select-sm spl-rule-field spl-rule-category d-none">
@@ -525,7 +526,7 @@ $reward_period_options = array(
 </div>
 
 <script>
-window.SPL_CONFIG = {
+window.SPL_CONFIG = Object.assign(window.SPL_CONFIG || {}, {
   rulesUrl: <?php echo json_encode(site_url('spl/rules-by-category')); ?>,
   saveRuleUrl: <?php echo json_encode(site_url('spl/save-rule')); ?>,
   deleteRuleUrlBase: <?php echo json_encode(site_url('spl/delete-rule/')); ?>,
@@ -539,7 +540,7 @@ window.SPL_CONFIG = {
   categories: <?php echo json_encode(array_map(function ($c) {
       return array('id' => (int) $c->id, 'name' => (string) $c->name);
   }, $categories)); ?>
-};
+});
 </script>
 <?php if (!$embed): ?>
 <script src="<?php echo base_url('assets/js/spl.js?v=' . (is_file(FCPATH . 'assets/js/spl.js') ? filemtime(FCPATH . 'assets/js/spl.js') : '1')); ?>"></script>

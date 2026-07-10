@@ -150,7 +150,18 @@
       echo '<option value="' . $uid . '">' . esc_view($ulabel) . '</option>';
     }
     $inline_user_options = ob_get_clean();
+
+    $complete_view_on = !empty($complete_view_on);
+    $show_complete_toggle = in_array($active_tab, array('tasks', 'requirements', 'defects'), true);
   ?>
+  <div class="d-flex justify-content-end align-items-center mb-2">
+    <div class="project-detail-complete-toggle<?php echo $show_complete_toggle ? '' : ' d-none'; ?>" id="projDetailCompleteToggleWrap">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="projDetailCompleteToggle"<?php echo $complete_view_on ? ' checked' : ''; ?>>
+        <label class="form-check-label" for="projDetailCompleteToggle">Completed</label>
+      </div>
+    </div>
+  </div>
   <ul class="nav nav-tabs nav-tabs-sm mb-2 project-detail-tabs" id="projectTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link<?php echo $active_tab === 'tasks' ? ' active' : ''; ?>" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="<?php echo $active_tab === 'tasks' ? 'true' : 'false'; ?>"><i class="bi bi-list-check me-1"></i>Tasks <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($tasks); ?></span></button>
@@ -847,6 +858,48 @@
 })();
 </script>
 <?php endif; ?>
+<script>
+(function () {
+  var toggle = document.getElementById('projDetailCompleteToggle');
+  var wrap = document.getElementById('projDetailCompleteToggleWrap');
+  if (!toggle || !wrap) {
+    return;
+  }
+
+  function updateToggleVisibility(tabId) {
+    var show = tabId === 'tasks' || tabId === 'requirements' || tabId === 'defects';
+    wrap.classList.toggle('d-none', !show);
+  }
+
+  toggle.addEventListener('change', function () {
+    var params = new URLSearchParams(window.location.search);
+    if (this.checked) {
+      params.set('complete_view', '1');
+    } else {
+      params.delete('complete_view');
+    }
+    window.location.search = params.toString();
+  });
+
+  document.querySelectorAll('#projectTabs button[data-bs-toggle="tab"]').forEach(function (btn) {
+    btn.addEventListener('shown.bs.tab', function (e) {
+      var tabId = (e.target.getAttribute('data-bs-target') || '').replace('#', '');
+      var params = new URLSearchParams(window.location.search);
+      if (tabId !== '') {
+        params.set('tab', tabId);
+      }
+      if (toggle.checked) {
+        params.set('complete_view', '1');
+      } else {
+        params.delete('complete_view');
+      }
+      var qs = params.toString();
+      history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+      updateToggleVisibility(tabId);
+    });
+  });
+})();
+</script>
 
 <?php $this->load->view('projects/partials/import_modals', array('project' => $project)); ?>
 

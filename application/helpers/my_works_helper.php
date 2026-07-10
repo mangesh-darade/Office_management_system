@@ -1184,6 +1184,12 @@ if (!function_exists('dashboard_complete_status_codes')) {
         if ($item_kind === 'my_work') {
             return array('closed');
         }
+        if ($item_kind === 'requirement') {
+            return array('completed');
+        }
+        if ($item_kind === 'defect') {
+            return array('closed', 'verified');
+        }
         return array('completed');
     }
 }
@@ -1194,7 +1200,7 @@ if (!function_exists('dashboard_apply_complete_view_to_query')) {
      * @param string $status_column e.g. t.status
      * @param string $complete_view hide|only
      * @param string $filter_status
-     * @param string $item_kind task|my_work
+     * @param string $item_kind task|my_work|requirement|defect
      */
     function dashboard_apply_complete_view_to_query($db, $status_column, $complete_view, $filter_status, $item_kind = 'task')
     {
@@ -1222,7 +1228,42 @@ if (!function_exists('dashboard_item_is_complete')) {
         if ($item_type === 'my_work' || $item_type === 'ad_hoc') {
             return my_works_status_is_closed($status);
         }
+        if ($item_type === 'defect') {
+            return in_array($status, array('closed', 'verified'), true);
+        }
+        if ($item_type === 'requirement') {
+            return $status === 'completed';
+        }
         return ($status === 'completed' || $status === 'closed');
+    }
+}
+
+if (!function_exists('dashboard_filter_rows_by_kind')) {
+    /**
+     * @param array $rows
+     * @param string $complete_view hide|only
+     * @param string $kind task|requirement|defect
+     * @return array
+     */
+    function dashboard_filter_rows_by_kind(array $rows, $complete_view, $kind)
+    {
+        if ($complete_view !== 'hide' && $complete_view !== 'only') {
+            return $rows;
+        }
+        $filtered = array();
+        foreach ($rows as $row) {
+            $status = '';
+            if (is_object($row) && isset($row->status)) {
+                $status = (string) $row->status;
+            } elseif (is_array($row) && isset($row['status'])) {
+                $status = (string) $row['status'];
+            }
+            $is_complete = dashboard_item_is_complete($status, $kind);
+            if (($complete_view === 'only' && $is_complete) || ($complete_view === 'hide' && !$is_complete)) {
+                $filtered[] = $row;
+            }
+        }
+        return $filtered;
     }
 }
 

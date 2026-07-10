@@ -334,6 +334,12 @@ class Projects extends CI_Controller {
                 $this->load->model('Engagement_model', 'project_releases');
                 $releases = $this->project_releases->list_releases(array('project_id' => (int) $id));
             }
+
+            $this->load->helper('my_works');
+            $complete_view = dashboard_parse_complete_view($this->input);
+            $tasks = dashboard_filter_rows_by_kind($tasks, $complete_view, 'task');
+            $requirements = dashboard_filter_rows_by_kind($requirements, $complete_view, 'requirement');
+            $defects = dashboard_filter_rows_by_kind($defects, $complete_view, 'defect');
             
             $assignable_users = $this->_load_assignable_users();
             $can_manage_tasks = function_exists('has_module_access')
@@ -371,6 +377,8 @@ class Projects extends CI_Controller {
                 'can_delete_defects' => $can_delete_defects,
                 'can_manage_releases' => $can_manage_releases,
                 'can_delete_releases' => $can_delete_releases,
+                'complete_view'    => $complete_view,
+                'complete_view_on' => ($complete_view === 'only'),
             ];
             
             $this->load->view('projects/view', $data);

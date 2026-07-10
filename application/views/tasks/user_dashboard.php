@@ -143,8 +143,18 @@ if (!$embed) {
 ?>
 
 <?php if (!$is_user_focused): ?>
+  <?php if (!$embed || !empty($filter_users)): ?>
+  <div class="project-dash-filters<?php echo !$embed ? ' project-dash-filters--with-toggle' : ''; ?>">
+    <?php if (!$embed): ?>
+    <div class="project-dash-complete-toggle" id="teamDashCompleteToggleWrap">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="teamDashCompleteToggle"<?php echo $complete_view_on ? ' checked' : ''; ?>>
+        <label class="form-check-label" for="teamDashCompleteToggle">Completed</label>
+      </div>
+    </div>
+    <?php endif; ?>
   <?php if (!empty($filter_users)): ?>
-  <div class="project-dash-filters">
+  <div class="project-dash-filter-fields">
     <form method="get" action="<?php echo site_url('tasks/my-dashboard'); ?>" class="project-dash-filter-form" id="teamDashFilterForm">
       <?php if ($embed): ?>
       <input type="hidden" name="embed" value="1">
@@ -192,6 +202,8 @@ if (!$embed) {
         </select>
       </label>
     </form>
+  </div>
+  <?php endif; ?>
   </div>
   <?php endif; ?>
 
@@ -255,6 +267,14 @@ if (!$embed) {
     ?>
     <h1 class="mw-focus-screen-title"><?php echo esc_view($display_name_header); ?></h1>
     <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2 align-self-center"><?php echo (int) $focus_item_count; ?> item<?php echo (int) $focus_item_count === 1 ? '' : 's'; ?></span>
+    <?php if (!$embed): ?>
+    <div class="project-dash-complete-toggle ms-auto" id="teamDashCompleteToggleWrap">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="teamDashCompleteToggle"<?php echo $complete_view_on ? ' checked' : ''; ?>>
+        <label class="form-check-label" for="teamDashCompleteToggle">Completed</label>
+      </div>
+    </div>
+    <?php endif; ?>
   </header>
 <?php endif; ?>
 
@@ -448,22 +468,30 @@ if (!$embed) {
   <?php endif; ?>
 <?php endif; ?>
 </div>
-<?php if (!empty($filter_users)): ?>
 <script>
 (function () {
-  var form = document.getElementById('teamDashFilterForm');
-  if (!form) {
-    return;
-  }
-  var selects = form.querySelectorAll('select.project-dash-filter-select');
-  if (selects.length === 0) {
-    return;
-  }
-  selects.forEach(function (select) {
-    select.addEventListener('change', function () {
-      form.submit();
+  var completeToggle = document.getElementById('teamDashCompleteToggle');
+  if (completeToggle) {
+    completeToggle.addEventListener('change', function () {
+      var params = new URLSearchParams(window.location.search);
+      if (this.checked) {
+        params.set('complete_view', '1');
+      } else {
+        params.delete('complete_view');
+      }
+      window.location.search = params.toString();
     });
-  });
+  }
+
+  var form = document.getElementById('teamDashFilterForm');
+  if (form) {
+    var selects = form.querySelectorAll('select.project-dash-filter-select');
+    selects.forEach(function (select) {
+      select.addEventListener('change', function () {
+        form.submit();
+      });
+    });
+  }
 
   $(document).on('change', '.project-dash-status-select', function() {
       var $select = $(this);
@@ -507,7 +535,6 @@ if (!$embed) {
   });
 })();
 </script>
-<?php endif; ?>
 <?php if (!$embed) {
   $this->load->view('partials/footer');
 } ?>

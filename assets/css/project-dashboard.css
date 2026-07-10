@@ -49,7 +49,48 @@
 
 /* Dashboard filters */
 .project-dash-compact .project-dash-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.project-dash-compact .project-dash-filters--with-toggle {
+  justify-content: space-between;
+}
+
+.project-dash-compact .project-dash-filter-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+}
+
+.project-dash-compact .project-dash-complete-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.65rem 0.15rem 0;
+  flex-shrink: 0;
+}
+
+.project-dash-compact .project-dash-complete-toggle .form-check-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.project-dash-compact .project-dash-complete-toggle .form-check-input {
+  cursor: pointer;
+}
+
+.project-dash-compact .mw-focus-screen-head .project-dash-complete-toggle {
+  padding-right: 0;
+  border-right: none;
 }
 
 .project-dash-compact .project-dash-filter-form {

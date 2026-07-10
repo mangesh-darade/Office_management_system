@@ -187,65 +187,103 @@
   }
 
   function bindSplRulesTable(table) {
-    if (!table || table.getAttribute('data-spl-rules-bound') === '1') {
+    if (!table) {
       return;
     }
-    table.setAttribute('data-spl-rules-bound', '1');
+    ensureSplRulesClickDelegation();
     table.querySelectorAll('tbody tr.spl-rule-row').forEach(function (row) {
       setRuleRowEditing(row, false);
     });
-    table.addEventListener('click', function (e) {
-      var activeCfg = getSplCfg();
-      var toggleBtn = e.target.closest('.spl-toggle-rule');
-      var delBtn = e.target.closest('.spl-delete-rule');
-      if (toggleBtn) {
-        var row = toggleBtn.closest('tr');
-        if (!row.classList.contains('is-editing')) {
-          setRuleRowEditing(row, true);
-          return;
-        }
-        ensureRuleCode(row);
-        postForm(activeCfg.saveRuleUrl, ruleRowPayload(row)).then(function (res) {
-          if (res && res.status === 'success' && res.data && res.data.id) {
-            row.setAttribute('data-rule-id', res.data.id);
-            row.classList.add('spl-rule-row');
-            syncRuleRowOrder(row);
-            syncRuleRowDisplay(row);
-            setRuleRowEditing(row, false);
-            drawRulesTable();
-            var ruleName = row.querySelector('.spl-rule-name');
-            var label = ruleName && ruleName.value.trim() ? ruleName.value.trim() : 'Rule';
-            showRuleSaveMessage(label + ' saved successfully.');
-          } else {
-            alert((res && res.message) ? res.message : 'Could not save rule.');
-          }
-        });
+  }
+
+  function ensureSplRulesClickDelegation() {
+    if (document.documentElement.getAttribute('data-spl-rules-click') === '1') {
+      return;
+    }
+    document.documentElement.setAttribute('data-spl-rules-click', '1');
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('#splRulesTable')) {
+        return;
       }
-      if (delBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        var delRow = delBtn.closest('tr');
-        var id = delRow ? String(delRow.getAttribute('data-rule-id') || '').trim() : '';
-        if (!id) {
-          removeRuleRow(delRow);
-          return;
-        }
-        if (!confirm('Delete this rule permanently?')) {
-          return;
-        }
-        var deleteBase = String(activeCfg.deleteRuleUrlBase || '').replace(/\/?$/, '/');
-        postForm(deleteBase + id, {}).then(function (res) {
-          if (res && res.status === 'success') {
-            removeRuleRow(delRow);
-            showRuleSaveMessage('Rule deleted successfully.');
-          } else {
-            alert((res && res.message) ? res.message : 'Could not delete rule.');
-          }
-        }).catch(function (err) {
-          alert((err && err.message) ? err.message : 'Could not delete rule. Please refresh and try again.');
-        });
-      }
+      handleSplRulesTableClick(e);
     });
+  }
+
+  function handleSplRulesTableClick(e) {
+    var activeCfg = getSplCfg();
+    var toggleBtn = e.target.closest('.spl-toggle-rule');
+    var delBtn = e.target.closest('.spl-delete-rule');
+    if (toggleBtn) {
+      e.preventDefault();
+      var row = toggleBtn.closest('tr');
+      if (!row) {
+        return;
+      }
+      if (!row.classList.contains('is-editing')) {
+        setRuleRowEditing(row, true);
+        return;
+      }
+      if (!activeCfg.saveRuleUrl) {
+        showSplToast('Cannot save rule. Reload the Rules tab and try again.', 'danger');
+        return;
+      }
+      ensureRuleCode(row);
+      var payload = ruleRowPayload(row);
+      if (!payload) {
+        showSplToast('Name is required.', 'danger');
+        return;
+      }
+      postForm(activeCfg.saveRuleUrl, payload).then(function (res) {
+        var savedId = res && res.data ? parseInt(res.data.id, 10) : 0;
+        if (res && res.status === 'success' && savedId > 0) {
+          row.setAttribute('data-rule-id', String(savedId));
+          if (payload.code) {
+            row.setAttribute('data-rule-code', payload.code);
+          }
+          row.classList.add('spl-rule-row');
+          syncRuleRowOrder(row);
+          syncRuleRowDisplay(row);
+          setRuleRowEditing(row, false);
+          drawRulesTable();
+          var ruleName = row.querySelector('.spl-rule-name');
+          var label = ruleName && ruleName.value.trim() ? ruleName.value.trim() : 'Rule';
+          showRuleSaveMessage(label + ' saved successfully.');
+        } else {
+          showSplToast((res && res.message) ? res.message : 'Could not save rule.', 'danger');
+        }
+      }).catch(function (err) {
+        showSplToast((err && err.message) ? err.message : 'Could not save rule. Please try again.', 'danger');
+      });
+      return;
+    }
+    if (delBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var delRow = delBtn.closest('tr');
+      var id = delRow ? String(delRow.getAttribute('data-rule-id') || '').trim() : '';
+      if (!id) {
+        removeRuleRow(delRow);
+        return;
+      }
+      if (!confirm('Delete this rule permanently?')) {
+        return;
+      }
+      if (!activeCfg.deleteRuleUrlBase) {
+        showSplToast('Cannot delete rule. Reload the Rules tab and try again.', 'danger');
+        return;
+      }
+      var deleteBase = String(activeCfg.deleteRuleUrlBase || '').replace(/\/?$/, '/');
+      postForm(deleteBase + id, {}).then(function (res) {
+        if (res && res.status === 'success') {
+          removeRuleRow(delRow);
+          showRuleSaveMessage('Rule deleted successfully.');
+        } else {
+          showSplToast((res && res.message) ? res.message : 'Could not delete rule.', 'danger');
+        }
+      }).catch(function (err) {
+        showSplToast((err && err.message) ? err.message : 'Could not delete rule. Please refresh and try again.', 'danger');
+      });
+    }
   }
 
   function bindSplAddRuleButton(root, table) {
@@ -389,6 +427,7 @@
     if (window.SPL_CONFIG) {
       cfg = window.SPL_CONFIG;
     }
+    ensureSplRulesClickDelegation();
     var table = getRulesTable(root);
     if (!table) {
       return;
@@ -1258,19 +1297,41 @@
       return;
     }
     var fromName = nameInput ? slugifyRuleCode(nameInput.value.trim()) : '';
-    codeInput.value = fromName || ('rule_' + Date.now());
+    var code = fromName || ('rule_' + Date.now());
+    codeInput.value = code;
+    row.setAttribute('data-rule-code', code);
   }
 
   function ruleRowPayload(row) {
+    if (!row) {
+      return null;
+    }
+    var codeEl = row.querySelector('.spl-rule-code');
+    var nameEl = row.querySelector('.spl-rule-name');
+    var catEl = row.querySelector('.spl-rule-category');
+    var triggerEl = row.querySelector('.spl-rule-trigger');
+    var pointsEl = row.querySelector('.spl-rule-points');
+    var activeEl = row.querySelector('.spl-rule-active');
+    if (!nameEl) {
+      return null;
+    }
+    var name = nameEl.value.trim();
+    if (name === '') {
+      return null;
+    }
+    var code = codeEl ? codeEl.value.trim() : '';
+    if (code === '') {
+      code = String(row.getAttribute('data-rule-code') || '').trim();
+    }
     return {
       id: row.getAttribute('data-rule-id') || '',
-      code: row.querySelector('.spl-rule-code').value.trim(),
-      name: row.querySelector('.spl-rule-name').value.trim(),
-      category_id: row.querySelector('.spl-rule-category').value,
-      trigger_event: row.querySelector('.spl-rule-trigger').value.trim() || 'reward_claim',
-      points: row.querySelector('.spl-rule-points').value,
+      code: code,
+      name: name,
+      category_id: catEl ? catEl.value : '',
+      trigger_event: triggerEl && triggerEl.value.trim() ? triggerEl.value.trim() : 'reward_claim',
+      points: pointsEl ? pointsEl.value : '0',
       requires_approval: 1,
-      is_active: row.querySelector('.spl-rule-active').checked ? 1 : 0,
+      is_active: activeEl && activeEl.checked ? 1 : 0,
       condition_json: ''
     };
   }
@@ -1313,7 +1374,33 @@
     });
   }
 
+  function showSplToast(message, type) {
+    type = type || 'success';
+    var container = document.getElementById('toast-container');
+    if (!container || !window.bootstrap || !bootstrap.Toast) {
+      return false;
+    }
+    var bg = type === 'danger' ? 'danger' : (type === 'warning' ? 'warning' : 'success');
+    var toastEl = document.createElement('div');
+    toastEl.className = 'toast align-items-center text-bg-' + bg + ' border-0';
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+    toastEl.innerHTML = '<div class="d-flex"><div class="toast-body">' + escapeHtml(message || '') + '</div>'
+      + '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>';
+    container.appendChild(toastEl);
+    var toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+    toastEl.addEventListener('hidden.bs.toast', function () {
+      toastEl.remove();
+    });
+    toast.show();
+    return true;
+  }
+
   function showRuleSaveMessage(message) {
+    if (showSplToast(message, 'success')) {
+      return;
+    }
     var el = document.getElementById('splRuleSaveMsg');
     if (!el) {
       return;
@@ -1428,6 +1515,9 @@
   }
 
   function showLevelSaveMessage(message) {
+    if (showSplToast(message, 'success')) {
+      return;
+    }
     var el = document.getElementById('splLevelSaveMsg');
     if (!el) {
       return;
@@ -1470,8 +1560,10 @@
           var label = row.querySelector('.spl-level-name');
           showLevelSaveMessage((label && label.value.trim() ? label.value.trim() : 'Level') + ' saved successfully.');
         } else {
-          alert((res && res.message) ? res.message : 'Could not save level.');
+          showSplToast((res && res.message) ? res.message : 'Could not save level.', 'danger');
         }
+      }).catch(function (err) {
+        showSplToast((err && err.message) ? err.message : 'Could not save level. Please try again.', 'danger');
       });
     });
   }
