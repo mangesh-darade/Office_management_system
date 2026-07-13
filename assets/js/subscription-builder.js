@@ -331,6 +331,7 @@
       $el.find('.sb-included-check-icon i').toggleClass('bi-check-circle-fill', checked).toggleClass('bi-circle', !checked);
       $el.children('i.bi').toggleClass('bi-check-circle-fill', checked).toggleClass('bi-circle', !checked);
     });
+    renderSummary();
   }
 
   function renderInlineFeatures(mod, items) {
@@ -683,13 +684,36 @@
 
     function featureAddonLinesHtml(lines) {
       if (!lines.length) {
-        return '<div class="text-muted small">None selected</div>';
+        return '<div class="text-muted small py-1">None selected</div>';
       }
       return lines.map(function (l) {
-        var label = escapeHtml(l.module + ' — ' + l.label);
-        var unit = l.unit ? ' · ' + escapeHtml(l.unit) : '';
-        return '<div class="sb-summary-line"><span>' + label + unit + '</span><span>Qty ' + l.qty + '</span></div>';
+        var module = escapeHtml(l.module);
+        var feature = escapeHtml(l.label);
+        var unit = l.unit ? '<span class="sb-summary-addon-unit">' + escapeHtml(l.unit) + '</span>' : '';
+        return '<div class="sb-summary-addon-line">' +
+          '<div class="sb-summary-addon-label">' +
+            '<span class="sb-summary-addon-module">' + module + '</span>' +
+            '<span class="sb-summary-addon-feature">' + feature + '</span>' +
+            unit +
+          '</div>' +
+          '<span class="sb-summary-addon-qty">Qty ' + l.qty + '</span>' +
+        '</div>';
       }).join('');
+    }
+
+    var includedCount = 0;
+    Object.keys(state.includedChecked || {}).forEach(function (id) {
+      if (state.includedChecked[id]) {
+        includedCount += 1;
+      }
+    });
+    if (includedCount > 0) {
+      $('#sb-included-summary-text').html(
+        '<div class="sb-summary-included-count"><i class="bi bi-check-circle-fill me-1"></i>' +
+        includedCount + ' feature' + (includedCount === 1 ? '' : 's') + ' included</div>'
+      );
+    } else {
+      $('#sb-included-summary-text').html('<div class="text-muted small py-1">None for this plan</div>');
     }
 
     $('#sb-feature-addon-lines').html(featureAddonLinesHtml(buildFeatureAddonLines()));

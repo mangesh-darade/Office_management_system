@@ -24,22 +24,6 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
 </div>
 <?php endif; ?>
 
-<div class="sb-view-mode-bar d-flex align-items-center justify-content-end mb-2">
-  <label class="sb-proposal-toggle" for="sb-show-payment-toggle">
-    
-    <span class="sb-proposal-toggle-switch">
-      <input class="sb-proposal-toggle-input" type="checkbox" id="sb-show-payment-toggle" role="switch" aria-controls="sb-addons-section sb-summary-payment">
-      <span class="sb-proposal-toggle-track" aria-hidden="true">
-        <span class="sb-proposal-toggle-thumb"></span>
-      </span>
-    </span>
-    <span class="sb-view-mode-option sb-view-mode-option-proposal" data-mode="proposal">
-      <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
-      <span>Proposal Summary</span>
-    </span>
-  </label>
-</div>
-
 <div class="sb-layout">
   <div class="sb-main">
 
@@ -89,7 +73,7 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
       </div>
       <div id="sb-included-body" class="sb-included-body">
         <div id="sb-loading" class="sb-loading d-none"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
-        <div id="sb-included-wrap" class="sb-included-panel sb-scroll-area"></div>
+        <div id="sb-included-wrap" class="sb-included-panel"></div>
       </div>
     </section>
 
@@ -110,7 +94,7 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
             <div class="sb-addons-currency sb-payment-only" id="sb-currency-display" aria-live="polite"></div>
           </div>
         </div>
-        <div class="table-responsive sb-addons-table-wrap sb-scroll-area">
+        <div class="table-responsive sb-addons-table-wrap">
           <table class="table table-sm sb-addons-table mb-0">
             <colgroup>
               <col class="sb-col-num">
@@ -149,7 +133,7 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
   </div>
 
   <aside class="sb-summary-col">
-    <div class="sb-summary-card h-100 d-flex flex-column">
+    <div class="sb-summary-card d-flex flex-column">
       <div class="sb-summary-header">
         <h2 id="sb-summary-title">FEATURE SUMMARY</h2>
         <div class="sb-summary-meta-row">
@@ -163,8 +147,22 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
           </a>
           <?php endif; ?>
         </div>
+        <div class="sb-summary-mode-toggle">
+          <label class="sb-proposal-toggle sb-proposal-toggle-in-card" for="sb-show-payment-toggle">
+            <span class="sb-proposal-toggle-switch">
+              <input class="sb-proposal-toggle-input" type="checkbox" id="sb-show-payment-toggle" role="switch" aria-controls="sb-addons-section sb-summary-payment">
+              <span class="sb-proposal-toggle-track" aria-hidden="true">
+                <span class="sb-proposal-toggle-thumb"></span>
+              </span>
+            </span>
+            <span class="sb-view-mode-option sb-view-mode-option-proposal" data-mode="proposal">
+              <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+              <span>Proposal Summary</span>
+            </span>
+          </label>
+        </div>
       </div>
-      <div class="sb-summary-client-fields px-2 pt-2">
+      <div class="sb-summary-client-fields">
         <div class="mb-2">
           <label class="form-label small mb-1" for="sb-client-name">Client Name</label>
           <input type="text" class="form-control form-control-sm" id="sb-client-name" placeholder="Client full name">
@@ -174,13 +172,17 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
           <input type="text" class="form-control form-control-sm" id="sb-client-business" placeholder="Business / company name">
         </div>
       </div>
-      <div class="sb-summary-body sb-scroll-area flex-grow-1" id="sb-summary-payment">
-        <div class="sb-proposal-only-hint text-muted small px-2 py-2">
+      <div class="sb-summary-body flex-grow-1" id="sb-summary-payment">
+        <div class="sb-proposal-only-hint">
           Included features and selected add-on quantities. Turn on <strong>Proposal Summary</strong> to show charges, discounts, and tax.
+        </div>
+        <div class="sb-summary-block sb-feature-only" id="sb-included-summary-block">
+          <div class="sb-summary-block-title">Included Features</div>
+          <div id="sb-included-summary-text"></div>
         </div>
         <div class="sb-summary-block sb-feature-only">
           <div class="sb-summary-block-title">Chargeable Add-ons</div>
-          <div id="sb-feature-addon-lines"></div>
+          <div id="sb-feature-addon-lines" class="sb-feature-addon-list"></div>
         </div>
         <div class="sb-summary-block sb-payment-only">
           <div class="sb-summary-block-title">Setup Charges (One Time)</div>
