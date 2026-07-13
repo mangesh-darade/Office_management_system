@@ -14,6 +14,7 @@
 
   $show_project_dashboard = function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'));
   $show_task_dashboard = function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_list'));
+  $can_req_add = function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'));
   $projectDashboardUrl = site_url('projects/dashboard');
   $taskDashboardUrl = site_url('tasks/my-dashboard');
 
@@ -36,6 +37,7 @@
   $redirectBack .= safe_query_suffix();
 
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
+  $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works');
 
 ?>
 
@@ -147,6 +149,14 @@
             <i class="bi bi-collection me-1"></i><span class="d-none d-sm-inline">Template Task</span><span class="d-inline d-sm-none">Template</span>
 
           </a>
+
+          <?php if ($can_req_add): ?>
+          <a class="btn btn-primary btn-sm" href="<?php echo esc_view($reqCreateUrl, ENT_QUOTES, 'UTF-8'); ?>">
+
+            <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Add Requirement</span><span class="d-inline d-sm-none">Add Req</span>
+
+          </a>
+          <?php endif; ?>
 
         </div>
 

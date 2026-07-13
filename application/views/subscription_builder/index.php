@@ -9,7 +9,7 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
   'title' => 'Subscription Builder',
   'extra_css' => ['assets/css/subscription-builder.css'],
 ]); ?>
-<div class="container-fluid sb-page px-2 px-md-3 py-1">
+<div class="container-fluid sb-page sb-proposal-only px-2 px-md-3 py-1">
 
 <?php if ((int) $total_rows === 0): ?>
 <div class="alert alert-info py-2 mb-2 small">
@@ -23,6 +23,22 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
   <?php echo esc_view($this->session->flashdata('warning')); ?>
 </div>
 <?php endif; ?>
+
+<div class="sb-view-mode-bar d-flex align-items-center justify-content-end mb-2">
+  <label class="sb-proposal-toggle" for="sb-show-payment-toggle">
+    
+    <span class="sb-proposal-toggle-switch">
+      <input class="sb-proposal-toggle-input" type="checkbox" id="sb-show-payment-toggle" role="switch" aria-controls="sb-addons-section sb-summary-payment">
+      <span class="sb-proposal-toggle-track" aria-hidden="true">
+        <span class="sb-proposal-toggle-thumb"></span>
+      </span>
+    </span>
+    <span class="sb-view-mode-option sb-view-mode-option-proposal" data-mode="proposal">
+      <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+      <span>Proposal Summary</span>
+    </span>
+  </label>
+</div>
 
 <div class="sb-layout">
   <div class="sb-main">
@@ -52,7 +68,8 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
         <div id="sb-industry-row" class="sb-industry-row"></div>
         <div class="sb-info-banner">
           <i class="bi bi-check-circle me-1"></i>
-          Features and pricing update based on the selected industry and plan.
+          <span class="sb-industry-note-default">Features update based on the selected industry and plan.</span>
+          <span class="sb-industry-note-pricing sb-payment-only">Features and pricing update based on the selected industry and plan.</span>
         </div>
       </div>
     </section>
@@ -90,7 +107,7 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
           <div class="sb-addons-country-wrap">
             <label class="sb-addons-country-label" for="sb-country-select">Country</label>
             <select id="sb-country-select" class="form-select form-select-sm sb-country-select" aria-label="Country for add-on pricing"></select>
-            <div class="sb-addons-currency" id="sb-currency-display" aria-live="polite"></div>
+            <div class="sb-addons-currency sb-payment-only" id="sb-currency-display" aria-live="polite"></div>
           </div>
         </div>
         <div class="table-responsive sb-addons-table-wrap sb-scroll-area">
@@ -101,24 +118,24 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
               <col class="sb-col-feature">
               <col class="sb-col-qty">
               <col class="sb-col-unit">
-              <col class="sb-col-per-item">
-              <col class="sb-col-monthly">
-              <col class="sb-col-setup">
-              <col class="sb-col-total-setup">
-              <col class="sb-col-total-monthly">
+              <col class="sb-col-per-item sb-payment-only">
+              <col class="sb-col-monthly sb-payment-only">
+              <col class="sb-col-setup sb-payment-only">
+              <col class="sb-col-total-setup sb-payment-only">
+              <col class="sb-col-total-monthly sb-payment-only">
             </colgroup>
             <thead class="sticky-top">
               <tr>
                 <th>#</th>
                 <th>Module</th>
                 <th>Feature / Item</th>
-                <th class="text-center">Qty</th>
-                <th class="d-none d-lg-table-cell">Unit</th>
-                <th class="text-end d-none d-xl-table-cell sb-th-multiline">Per Item<br>Setup</th>
-                <th class="text-end d-none d-md-table-cell sb-th-multiline">Per Item<br>Per Month</th>
-                <th class="text-end d-none d-md-table-cell sb-th-multiline">One Time<br>Setup</th>
-                <th class="text-end">Total <br>Setup</th>
-                <th class="text-end">Total <br>Monthly</th>
+                <th class="text-center sb-col-qty-head">Qty</th>
+                <th class="sb-addon-col-unit d-none d-lg-table-cell">Unit</th>
+                <th class="text-end d-none d-xl-table-cell sb-th-multiline sb-payment-only">Per Item<br>Setup</th>
+                <th class="text-end d-none d-md-table-cell sb-th-multiline sb-payment-only">Per Item<br>Per Month</th>
+                <th class="text-end d-none d-md-table-cell sb-th-multiline sb-payment-only">One Time<br>Setup</th>
+                <th class="text-end sb-payment-only">Total <br>Setup</th>
+                <th class="text-end sb-payment-only">Total <br>Monthly</th>
               </tr>
             </thead>
             <tbody id="sb-addons-rows">
@@ -134,10 +151,10 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
   <aside class="sb-summary-col">
     <div class="sb-summary-card h-100 d-flex flex-column">
       <div class="sb-summary-header">
-        <h2>PROPOSAL SUMMARY</h2>
+        <h2 id="sb-summary-title">FEATURE SUMMARY</h2>
         <div class="sb-summary-meta-row">
           <div class="sb-summary-context">
-            <span id="sb-summary-industry">—</span> · <span id="sb-summary-plan">—</span> · <span id="sb-summary-country">—</span> · <span id="sb-summary-currency">—</span>
+            <span id="sb-summary-industry">—</span> · <span id="sb-summary-plan">—</span><span class="sb-payment-only"> · <span id="sb-summary-country">—</span> · <span id="sb-summary-currency">—</span></span>
           </div>
           <?php if (function_exists('has_module_access') && (has_module_access('elintom_proposals') || has_module_access('elintom_proposals_list'))): ?>
           <a href="<?php echo site_url('elintom-proposals'); ?>" class="btn btn-outline-light btn-sm sb-summary-saved-btn" title="View Saved Proposals">
@@ -157,8 +174,15 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
           <input type="text" class="form-control form-control-sm" id="sb-client-business" placeholder="Business / company name">
         </div>
       </div>
-      <div class="sb-summary-body sb-scroll-area flex-grow-1">
-        <div class="sb-summary-block">
+      <div class="sb-summary-body sb-scroll-area flex-grow-1" id="sb-summary-payment">
+        <div class="sb-proposal-only-hint text-muted small px-2 py-2">
+          Included features and selected add-on quantities. Turn on <strong>Proposal Summary</strong> to show charges, discounts, and tax.
+        </div>
+        <div class="sb-summary-block sb-feature-only">
+          <div class="sb-summary-block-title">Chargeable Add-ons</div>
+          <div id="sb-feature-addon-lines"></div>
+        </div>
+        <div class="sb-summary-block sb-payment-only">
           <div class="sb-summary-block-title">Setup Charges (One Time)</div>
           <div id="sb-setup-lines"></div>
           <div class="sb-summary-line">
@@ -194,7 +218,7 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
             </div>
           </div>
         </div>
-        <div class="sb-summary-block">
+        <div class="sb-summary-block sb-payment-only">
           <div class="sb-summary-block-title">Monthly Charges</div>
           <div id="sb-monthly-lines"></div>
           <div class="sb-summary-line">
@@ -230,17 +254,17 @@ $default_country_meta_json = json_encode($default_country_meta ?? array(), JSON_
             </div>
           </div>
         </div>
-        <div class="sb-net-total mb-2">
+        <div class="sb-net-total mb-2 sb-payment-only">
           <div class="label">Net Setup Payable</div>
           <div class="amount" id="sb-net-setup">₹ 0</div>
         </div>
-        <div class="sb-net-total">
+        <div class="sb-net-total sb-payment-only">
           <div class="label">Net Monthly Payable</div>
           <div class="amount" id="sb-net-monthly">₹ 0</div>
         </div>
       </div>
       <div class="sb-summary-footer">
-        <p class="sb-summary-note mb-2">Setup and monthly charges each have their own discount and tax. Use flat amount (e.g. 10) or add % (e.g. 10%). Tax is calculated after discount.</p>
+        <p class="sb-summary-note mb-2 sb-payment-only">Setup and monthly charges each have their own discount and tax. Use flat amount (e.g. 10) or add % (e.g. 10%). Tax is calculated after discount.</p>
         <div class="sb-summary-actions">
           <button type="button" class="btn btn-outline-primary btn-sm sb-summary-action-btn" id="sb-preview-quote" title="Preview Proposal">
             <i class="bi bi-eye"></i>

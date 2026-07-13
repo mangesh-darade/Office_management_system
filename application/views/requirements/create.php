@@ -1,8 +1,20 @@
 <?php $this->load->view('partials/header', ['title' => 'New Requirement']); ?>
+<?php
+$redirect_path = isset($redirect_path) ? trim((string) $redirect_path) : '';
+if ($redirect_path === '' || strpos($redirect_path, '://') !== false) {
+    $redirect_path = '';
+}
+$this->load->helper('my_works');
+$back_url = $redirect_path !== '' ? my_works_safe_redirect($redirect_path, 'my-works') : site_url('requirements');
+$back_title = $redirect_path !== '' ? 'Back to Second Brain' : 'Back to Requirements';
+?>
 <div class="oms-form-compact">
-<div class="oms-form-page-head d-flex justify-content-between align-items-center mb-2">
+<div class="oms-form-page-head mw-page-head-with-back d-flex align-items-center gap-2 mb-2">
+  <?php $this->load->view('my_works/_back_btn', array(
+    'back_url' => $back_url,
+    'back_title' => $back_title,
+  )); ?>
   <h1 class="h4 mb-0">New Requirement</h1>
-  <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements'); ?>">Back</a>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
   <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
@@ -13,6 +25,9 @@
 <div class="card shadow-soft oms-form-card">
   <div class="card-body">
     <form method="post" action="" class="vstack gap-3" enctype="multipart/form-data" data-validate="true">
+      <?php if ($redirect_path !== ''): ?>
+      <input type="hidden" name="redirect" value="<?php echo esc_view($redirect_path, ENT_QUOTES, 'UTF-8'); ?>">
+      <?php endif; ?>
       <div class="row g-2 oms-form-grid">
         <div class="col-md-6">
           <label class="form-label">Client <span class="text-danger">*</span></label>
@@ -124,7 +139,7 @@
       </div>
       <div>
         <button class="btn btn-primary">Create</button>
-        <a class="btn btn-light" href="<?php echo site_url('requirements'); ?>">Cancel</a>
+        <a class="btn btn-light" href="<?php echo esc_view($back_url, ENT_QUOTES, 'UTF-8'); ?>">Cancel</a>
       </div>
     </form>
   </div>

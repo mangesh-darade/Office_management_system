@@ -26,6 +26,33 @@ class Requirements extends CI_Controller {
         return module_type_options_resolved('requirements');
     }
 
+    private function _requirement_create_redirect_path()
+    {
+        $redirect = '';
+        if ($this->input->method() === 'post') {
+            $redirect = trim((string) $this->input->post('redirect'));
+        }
+        if ($redirect === '') {
+            $redirect = trim((string) $this->input->get('redirect'));
+        }
+        if ($redirect === '' || strpos($redirect, '://') !== false) {
+            return '';
+        }
+        if ($redirect[0] === '/') {
+            return ltrim($redirect, '/');
+        }
+        return $redirect;
+    }
+
+    private function _redirect_requirement_create_form($redirect_path = '')
+    {
+        $url = 'requirements/create';
+        if ($redirect_path !== '') {
+            $url .= '?redirect=' . rawurlencode($redirect_path);
+        }
+        redirect($url);
+    }
+
     private function _resolve_requirement_type($posted, $fallback = 'new_feature')
     {
         $type = module_type_validate_code($posted, 'requirements', false, $fallback);
@@ -58,11 +85,12 @@ class Requirements extends CI_Controller {
     // GET/POST /requirements/create
     public function create(){
         require_module_access(['requirements_add', 'requirements'], true);
+        $redirect_path = $this->_requirement_create_redirect_path();
         if ($this->input->method() === 'post'){
             $owner_raw = $this->input->post('owner_id');
             if ($owner_raw === '' || $owner_raw === null) {
                 $this->session->set_flashdata('error', 'Owner is required.');
-                redirect('requirements/create');
+                $this->_redirect_requirement_create_form($redirect_path);
                 return;
             }
             $received_date = $this->input->post('received_date') ?: date('Y-m-d');
@@ -71,14 +99,14 @@ class Requirements extends CI_Controller {
             // Server-side date validation
             if ($received_date && $expected_delivery_date && $expected_delivery_date < $received_date) {
                 $this->session->set_flashdata('error', 'Expected delivery date must be on or after received date.');
-                redirect('requirements/create');
+                $this->_redirect_requirement_create_form($redirect_path);
                 return;
             }
 
             $reference_url = normalize_optional_url($this->input->post('reference_url'));
             if ($reference_url === false) {
                 $this->session->set_flashdata('error', 'Please enter a valid URL or leave it blank.');
-                redirect('requirements/create');
+                $this->_redirect_requirement_create_form($redirect_path);
                 return;
             }
             
@@ -208,6 +236,11 @@ class Requirements extends CI_Controller {
                 }
             }
             $this->session->set_flashdata('success','Requirement created');
+            if ($redirect_path !== '') {
+                $this->load->helper('my_works');
+                redirect(my_works_safe_redirect($redirect_path, 'my-works'));
+                return;
+            }
             redirect('requirements/view/'.$id);
             return;
         }
@@ -234,6 +267,7 @@ class Requirements extends CI_Controller {
             'projects'=>$projects,
             'statuses'=>$statuses_list,
             'requirement_types'=>$this->_requirement_type_options(),
+            'redirect_path' => $redirect_path,
         ]);
     }
 

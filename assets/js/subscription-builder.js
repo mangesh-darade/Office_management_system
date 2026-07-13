@@ -23,7 +23,8 @@
     setupGstPercent: 18,
     monthlyDiscountPercent: 0,
     monthlyDiscountFlat: 0,
-    monthlyGstPercent: 18
+    monthlyGstPercent: 18,
+    showPayment: false
   };
 
   var planDescriptions = {
@@ -183,6 +184,16 @@
     var label = formatCurrencyLabel(meta);
     $('#sb-currency-display').text(label);
     $('#sb-summary-currency').text(label);
+  }
+
+  function applyPaymentViewMode() {
+    var show = !!state.showPayment;
+    $('.sb-page').toggleClass('sb-proposal-only', !show);
+    $('#sb-show-payment-toggle').prop('checked', show);
+    $('.sb-view-mode-option-feature').toggleClass('is-active', !show);
+    $('.sb-view-mode-option-proposal').toggleClass('is-active', show);
+    $('#sb-summary-title').text(show ? 'PROPOSAL SUMMARY' : 'FEATURE SUMMARY');
+    updateAddonsLayoutState();
   }
 
   function formatMoney(n) {
@@ -448,13 +459,7 @@
   }
 
   function updateAddonsLayoutState() {
-    var desktop = isDesktopLayout();
-    var compactUpper = desktop && !state.planSectionOpen && !state.industrySectionOpen;
-    var allUpperCollapsed = compactUpper && !state.includedSectionOpen;
-    var addonsOpen = state.addonsSectionOpen;
-    $('.sb-main')
-      .toggleClass('sb-main-compact-upper', compactUpper && addonsOpen)
-      .toggleClass('sb-main-upper-collapsed', allUpperCollapsed && addonsOpen);
+    $('.sb-main').toggleClass('sb-addons-open', !!state.addonsSectionOpen);
   }
 
   function isDesktopLayout() {
@@ -562,12 +567,12 @@
       html += '<input type="number" min="0" step="1" class="sb-qty-input" data-id="' + item.id + '" value="' + qty + '">';
       html += '<button type="button" class="sb-qty-plus" data-id="' + item.id + '">+</button>';
       html += '</div></td>';
-      html += '<td class="d-none d-lg-table-cell"><span class="sb-cell-text" title="' + escapeHtml(item.item_unit || '') + '">' + escapeHtml(item.item_unit || '—') + '</span></td>';
-      html += '<td class="text-end sb-money d-none d-xl-table-cell">' + (item.per_item_set_up_charges ? formatMoney(item.per_item_set_up_charges) : '—') + '</td>';
-      html += '<td class="text-end sb-money d-none d-md-table-cell">' + (item.per_item_per_month_maintenances ? formatMoney(item.per_item_per_month_maintenances) : '—') + '</td>';
-      html += '<td class="text-end sb-money d-none d-md-table-cell">' + (item.common_set_up_fees ? formatMoney(item.common_set_up_fees) : '—') + '</td>';
-      html += '<td class="text-end sb-money sb-line-setup">' + formatMoney(line.setup) + '</td>';
-      html += '<td class="text-end sb-money sb-line-monthly">' + formatMoney(line.monthly) + '</td>';
+      html += '<td class="sb-addon-col-unit d-none d-lg-table-cell"><span class="sb-cell-text" title="' + escapeHtml(item.item_unit || '') + '">' + escapeHtml(item.item_unit || '—') + '</span></td>';
+      html += '<td class="text-end sb-money d-none d-xl-table-cell sb-payment-only">' + (item.per_item_set_up_charges ? formatMoney(item.per_item_set_up_charges) : '—') + '</td>';
+      html += '<td class="text-end sb-money d-none d-md-table-cell sb-payment-only">' + (item.per_item_per_month_maintenances ? formatMoney(item.per_item_per_month_maintenances) : '—') + '</td>';
+      html += '<td class="text-end sb-money d-none d-md-table-cell sb-payment-only">' + (item.common_set_up_fees ? formatMoney(item.common_set_up_fees) : '—') + '</td>';
+      html += '<td class="text-end sb-money sb-line-setup sb-payment-only">' + formatMoney(line.setup) + '</td>';
+      html += '<td class="text-end sb-money sb-line-monthly sb-payment-only">' + formatMoney(line.monthly) + '</td>';
       html += '</tr>';
     });
     $('#sb-addons-rows').html(html);
@@ -676,6 +681,19 @@
     $('#sb-summary-industry').text(state.industry);
     $('#sb-summary-country').text(state.country);
 
+    function featureAddonLinesHtml(lines) {
+      if (!lines.length) {
+        return '<div class="text-muted small">None selected</div>';
+      }
+      return lines.map(function (l) {
+        var label = escapeHtml(l.module + ' — ' + l.label);
+        var unit = l.unit ? ' · ' + escapeHtml(l.unit) : '';
+        return '<div class="sb-summary-line"><span>' + label + unit + '</span><span>Qty ' + l.qty + '</span></div>';
+      }).join('');
+    }
+
+    $('#sb-feature-addon-lines').html(featureAddonLinesHtml(buildFeatureAddonLines()));
+
     function linesHtml(lines) {
       if (!lines.length) {
         return '<div class="text-muted small">None selected</div>';
@@ -699,6 +717,24 @@
     $('#sb-net-monthly').text(formatMoney(financials.netMonthly));
   }
 
+  function buildFeatureAddonLines() {
+    var lines = [];
+    var list = (state.catalog && state.catalog.chargeable) ? state.catalog.chargeable : [];
+    list.forEach(function (item) {
+      var qty = parseInt(state.qty[item.id], 10) || 0;
+      if (qty <= 0) {
+        return;
+      }
+      lines.push({
+        module: item.module,
+        label: item.feature,
+        qty: qty,
+        unit: item.item_unit || ''
+      });
+    });
+    return lines;
+  }
+
   function buildQuoteTotals() {
     var setupLines = [];
     var monthlyLines = [];
@@ -713,11 +749,11 @@
       }
       var line = calcLine(item, qty);
       if (line.setup > 0) {
-        setupLines.push({ label: item.feature, amount: line.setup, qty: qty, module: item.module });
+        setupLines.push({ label: item.feature, amount: line.setup, qty: qty, module: item.module, unit: item.item_unit || '' });
         totalSetup += line.setup;
       }
       if (line.monthly > 0) {
-        monthlyLines.push({ label: item.feature, amount: line.monthly, qty: qty, module: item.module });
+        monthlyLines.push({ label: item.feature, amount: line.monthly, qty: qty, module: item.module, unit: item.item_unit || '' });
         totalMonthly += line.monthly;
       }
     });
@@ -769,7 +805,9 @@
       total_monthly: totals.totalMonthly,
       net_setup: financials.netSetup,
       net_monthly: financials.netMonthly,
-      included: included
+      included: included,
+      addon_lines: buildFeatureAddonLines(),
+      show_payment: !!state.showPayment
     };
   }
 
@@ -1026,6 +1064,11 @@
       renderSummary();
     });
 
+    $('#sb-show-payment-toggle').on('change', function () {
+      state.showPayment = $(this).is(':checked');
+      applyPaymentViewMode();
+    });
+
     $(window).on('resize.sbLayout', function () {
       updateAddonsLayoutState();
     });
@@ -1037,6 +1080,7 @@
     renderIndustries();
     renderCountries();
     bindEvents();
+    applyPaymentViewMode();
     applyDesktopSectionDefaults();
     updatePlanSectionCollapse();
     updateIndustrySectionCollapse();

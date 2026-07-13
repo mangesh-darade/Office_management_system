@@ -3247,18 +3247,18 @@ a.mw-dash-lane-title-link:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  white-space: nowrap;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  flex-wrap: wrap;
+  row-gap: 0.4rem;
 }
 
 .mw-unified-tabs {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  gap: 0.3rem;
   margin: 0;
+  min-width: 0;
 }
 
 .mw-unified-tabs .nav-link {
@@ -3266,9 +3266,9 @@ a.mw-dash-lane-title-link:focus {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 8px;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  padding: 0.38rem 0.75rem;
+  padding: 0.32rem 0.5rem;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -3286,8 +3286,10 @@ a.mw-dash-lane-title-link:focus {
 .mw-unified-toolbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   flex-shrink: 0;
+  justify-content: flex-end;
 }
 
 .mw-unified-complete-toggle {
@@ -3312,10 +3314,10 @@ a.mw-dash-lane-title-link:focus {
 }
 
 .mw-unified-action-btn {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  height: 31px;
-  padding: 0.25rem 0.55rem;
+  height: 29px;
+  padding: 0.2rem 0.42rem;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;

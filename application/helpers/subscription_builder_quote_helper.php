@@ -16,6 +16,13 @@ if (!function_exists('subscription_builder_quote_parse_payload')) {
     }
 }
 
+if (!function_exists('subscription_builder_quote_show_payment')) {
+    function subscription_builder_quote_show_payment($quote)
+    {
+        return !empty($quote['show_payment']);
+    }
+}
+
 if (!function_exists('subscription_builder_quote_money')) {
     function subscription_builder_quote_money($amount, $quote = array())
     {
@@ -49,7 +56,6 @@ if (!function_exists('subscription_builder_quote_logo_data_uri')) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             if ($finfo) {
                 $detected = finfo_file($finfo, $absolute);
-                finfo_close($finfo);
                 if (is_string($detected) && strpos($detected, 'image/') === 0) {
                     $mime = $detected;
                 }
@@ -488,6 +494,127 @@ if (!function_exists('subscription_builder_quote_group_included')) {
     }
 }
 
+if (!function_exists('subscription_builder_quote_collect_addon_lines')) {
+    function subscription_builder_quote_collect_addon_lines($quote)
+    {
+        if (!empty($quote['addon_lines']) && is_array($quote['addon_lines'])) {
+            return $quote['addon_lines'];
+        }
+
+        $merged = array();
+        foreach (array('setup_lines', 'monthly_lines') as $key) {
+            foreach ((array) ($quote[$key] ?? array()) as $line) {
+                $module = trim((string) ($line['module'] ?? ''));
+                $label = trim((string) ($line['label'] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+                $merge_key = $module . '|' . $label;
+                if (!isset($merged[$merge_key])) {
+                    $merged[$merge_key] = array(
+                        'module' => $module,
+                        'label' => $label,
+                        'qty' => (int) ($line['qty'] ?? 0),
+                        'unit' => (string) ($line['unit'] ?? ''),
+                    );
+                }
+            }
+        }
+
+        return array_values($merged);
+    }
+}
+
+if (!function_exists('subscription_builder_quote_render_addon_feature_rows')) {
+    function subscription_builder_quote_render_addon_feature_rows($lines, $empty_label = 'No chargeable add-ons selected')
+    {
+        $rows = '';
+        $index = 0;
+        foreach ((array) $lines as $line) {
+            $qty = (int) ($line['qty'] ?? 0);
+            if ($qty <= 0) {
+                continue;
+            }
+            $index++;
+            $module = esc_view((string) ($line['module'] ?? '—'), ENT_QUOTES, 'UTF-8');
+            $label = esc_view((string) ($line['label'] ?? ''), ENT_QUOTES, 'UTF-8');
+            $unit = trim((string) ($line['unit'] ?? ''));
+            $unit_display = $unit !== '' ? esc_view($unit, ENT_QUOTES, 'UTF-8') : '—';
+            $rows .= '<tr>'
+                . '<td class="col-num">' . $index . '</td>'
+                . '<td>' . $module . '</td>'
+                . '<td>' . $label . '</td>'
+                . '<td class="col-qty">' . $qty . '</td>'
+                . '<td>' . $unit_display . '</td>'
+                . '</tr>';
+        }
+
+        if ($rows === '') {
+            $rows = '<tr><td colspan="5" class="empty-row">' . esc_view($empty_label, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+        }
+
+        return $rows;
+    }
+}
+
+if (!function_exists('subscription_builder_quote_collect_charge_lines')) {
+    function subscription_builder_quote_collect_charge_lines($quote, $type)
+    {
+        $key = ($type === 'monthly') ? 'monthly_lines' : 'setup_lines';
+        $lines = array();
+        foreach ((array) ($quote[$key] ?? array()) as $line) {
+            $qty = (int) ($line['qty'] ?? 0);
+            if ($qty <= 0) {
+                continue;
+            }
+            $lines[] = array(
+                'module' => $line['module'] ?? '',
+                'label' => $line['label'] ?? '',
+                'qty' => $qty,
+                'unit' => $line['unit'] ?? '',
+            );
+        }
+        return $lines;
+    }
+}
+
+if (!function_exists('subscription_builder_quote_render_feature_charge_section')) {
+    function subscription_builder_quote_render_feature_charge_section($title, $lines, $empty_label)
+    {
+        $rows = subscription_builder_quote_render_addon_feature_rows($lines, $empty_label);
+        return '<div class="sq-section">'
+            . '<div class="sq-section-title">' . esc_view($title, ENT_QUOTES, 'UTF-8') . '</div>'
+            . '<table class="sq-charges-table">'
+            . '<thead>'
+            . '<tr>'
+            . '<th class="col-num">#</th>'
+            . '<th>Module</th>'
+            . '<th>Feature / Item</th>'
+            . '<th class="col-qty">Qty</th>'
+            . '<th>Unit</th>'
+            . '</tr>'
+            . '</thead>'
+            . '<tbody>' . $rows . '</tbody>'
+            . '</table>'
+            . '</div>';
+    }
+}
+
+if (!function_exists('subscription_builder_quote_render_feature_charge_export_section')) {
+    function subscription_builder_quote_render_feature_charge_export_section($title, $lines, $empty_label, $table_style, $th_style)
+    {
+        $rows = subscription_builder_quote_render_addon_feature_rows($lines, $empty_label);
+        return '<h3>' . esc_view($title, ENT_QUOTES, 'UTF-8') . '</h3>'
+            . '<table style="' . $table_style . '"><thead><tr>'
+            . '<th style="' . $th_style . '">#</th>'
+            . '<th style="' . $th_style . '">Module</th>'
+            . '<th style="' . $th_style . '">Feature / Item</th>'
+            . '<th style="' . $th_style . '">Qty</th>'
+            . '<th style="' . $th_style . '">Unit</th>'
+            . '</tr></thead><tbody>' . $rows . '</tbody></table>';
+    }
+}
+
 if (!function_exists('subscription_builder_quote_render_line_rows')) {
     function subscription_builder_quote_render_line_rows($lines, $type_label, $quote = array())
     {
@@ -569,6 +696,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         }
 
         $financials = subscription_builder_quote_compute_financials($quote);
+        $show_payment = subscription_builder_quote_show_payment($quote);
         $total_setup = subscription_builder_quote_money($financials['net_setup'], $quote);
         $total_monthly = subscription_builder_quote_money($financials['net_monthly'], $quote);
         $setup_subtotal_display = subscription_builder_quote_money($financials['setup_subtotal'], $quote);
@@ -581,6 +709,101 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $tax_header = esc_view(subscription_builder_quote_tax_header($financials, $quote), ENT_QUOTES, 'UTF-8');
         $tax_note = subscription_builder_quote_tax_note($financials, $quote);
         $discount_note = subscription_builder_quote_discount_note($financials, $quote);
+
+        $payment_sections_html = '';
+        if ($show_payment) {
+            $setup_rows = subscription_builder_quote_render_line_rows($quote['setup_lines'] ?? array(), 'setup charges', $quote);
+            $monthly_rows = subscription_builder_quote_render_line_rows($quote['monthly_lines'] ?? array(), 'monthly charges', $quote);
+            $financial_summary_html = '<div class="sq-section">'
+                . '<div class="sq-section-title">Financial Summary</div>'
+                . '<table class="sq-charges-table">'
+                . '<thead><tr><th>Type</th><th class="col-amt">Subtotal</th><th class="col-amt">' . $discount_label . '</th><th class="col-amt">' . $tax_header . '</th><th class="col-amt">Net Payable</th></tr></thead>'
+                . '<tbody>'
+                . '<tr><td>One-Time Setup</td><td class="col-amt">' . $setup_subtotal_display . '</td><td class="col-amt">-' . $discount_setup_display . '</td><td class="col-amt">' . $gst_setup_display . '</td><td class="col-amt">' . $total_setup . '</td></tr>'
+                . '<tr><td>Monthly Recurring</td><td class="col-amt">' . $monthly_subtotal_display . '</td><td class="col-amt">-' . $discount_monthly_display . '</td><td class="col-amt">' . $gst_monthly_display . '</td><td class="col-amt">' . $total_monthly . '</td></tr>'
+                . '</tbody></table></div>';
+
+            $payment_sections_html = '<div class="sq-section">'
+                . '<div class="sq-section-title">One-Time Setup Charges</div>'
+                . '<table class="sq-charges-table">'
+                . '<thead>'
+                . '<tr>'
+                . '<th class="col-num">#</th>'
+                . '<th>Module</th>'
+                . '<th>Feature / Item</th>'
+                . '<th class="col-qty">Qty</th>'
+                . '<th class="col-amt">Amount (INR)</th>'
+                . '</tr>'
+                . '</thead>'
+                . '<tbody>' . $setup_rows . '</tbody>'
+                . '</table>'
+                . '<table class="sq-totals-table">'
+                . '<tr class="sq-total-setup">'
+                . '<td class="sq-total-label">Net Setup Payable (One Time)</td>'
+                . '<td class="sq-total-amount">' . $total_setup . '</td>'
+                . '</tr>'
+                . '</table>'
+                . '</div>'
+                . '<div class="sq-section">'
+                . '<div class="sq-section-title">Recurring Monthly Charges</div>'
+                . '<table class="sq-charges-table">'
+                . '<thead>'
+                . '<tr>'
+                . '<th class="col-num">#</th>'
+                . '<th>Module</th>'
+                . '<th>Feature / Item</th>'
+                . '<th class="col-qty">Qty</th>'
+                . '<th class="col-amt">Amount (INR)</th>'
+                . '</tr>'
+                . '</thead>'
+                . '<tbody>' . $monthly_rows . '</tbody>'
+                . '</table>'
+                . '<table class="sq-totals-table">'
+                . '<tr class="sq-total-monthly">'
+                . '<td class="sq-total-label">Net Monthly Payable</td>'
+                . '<td class="sq-total-amount">' . $total_monthly . '</td>'
+                . '</tr>'
+                . '</table>'
+                . '</div>'
+                . $financial_summary_html;
+        }
+
+        $feature_addons_html = '';
+        if (!$show_payment) {
+            $setup_feature_lines = subscription_builder_quote_collect_charge_lines($quote, 'setup');
+            $monthly_feature_lines = subscription_builder_quote_collect_charge_lines($quote, 'monthly');
+            $feature_addons_html = subscription_builder_quote_render_feature_charge_section(
+                'One-Time Setup Charges',
+                $setup_feature_lines,
+                'No one-time setup charges selected'
+            ) . subscription_builder_quote_render_feature_charge_section(
+                'Recurring Monthly Charges',
+                $monthly_feature_lines,
+                'No recurring monthly charges selected'
+            );
+        }
+
+        $terms_notes = array();
+        if ($show_payment) {
+            $terms_notes[] = esc_view($tax_note, ENT_QUOTES, 'UTF-8');
+            $terms_notes[] = esc_view($discount_note, ENT_QUOTES, 'UTF-8');
+            $terms_notes[] = 'Setup charges are payable once; monthly charges are recurring as per billing cycle.';
+            $terms_notes[] = 'Included features are part of the selected plan and carry no additional charge unless upgraded.';
+            $terms_notes[] = 'This proposal is computer-generated and valid until ' . esc_view($valid_until) . ' unless revised.';
+        }
+        $terms_notes_html = '';
+        foreach ($terms_notes as $note) {
+            $terms_notes_html .= '<li>' . $note . '</li>';
+        }
+        $terms_section_html = '';
+        if ($show_payment && $terms_notes_html !== '') {
+            $terms_section_html = '<div class="sq-notes">'
+                . '<strong>Terms &amp; Notes</strong>'
+                . '<ul>'
+                . $terms_notes_html
+                . '</ul>'
+                . '</div>';
+        }
 
         $client_meta = '';
         if ($client_name !== '' || $client_business !== '') {
@@ -595,18 +818,6 @@ if (!function_exists('subscription_builder_quote_render_html')) {
                 . '</td>'
                 . '</tr>';
         }
-
-        $setup_rows = subscription_builder_quote_render_line_rows($quote['setup_lines'] ?? array(), 'setup charges', $quote);
-        $monthly_rows = subscription_builder_quote_render_line_rows($quote['monthly_lines'] ?? array(), 'monthly charges', $quote);
-
-        $financial_summary_html = '<div class="sq-section">'
-            . '<div class="sq-section-title">Financial Summary</div>'
-            . '<table class="sq-charges-table">'
-            . '<thead><tr><th>Type</th><th class="col-amt">Subtotal</th><th class="col-amt">' . $discount_label . '</th><th class="col-amt">' . $tax_header . '</th><th class="col-amt">Net Payable</th></tr></thead>'
-            . '<tbody>'
-            . '<tr><td>One-Time Setup</td><td class="col-amt">' . $setup_subtotal_display . '</td><td class="col-amt">-' . $discount_setup_display . '</td><td class="col-amt">' . $gst_setup_display . '</td><td class="col-amt">' . $total_setup . '</td></tr>'
-            . '<tr><td>Monthly Recurring</td><td class="col-amt">' . $monthly_subtotal_display . '</td><td class="col-amt">-' . $discount_monthly_display . '</td><td class="col-amt">' . $gst_monthly_display . '</td><td class="col-amt">' . $total_monthly . '</td></tr>'
-            . '</tbody></table></div>';
 
         $included_groups = subscription_builder_quote_group_included($quote['included'] ?? array());
         $included_html = '';
@@ -1042,62 +1253,11 @@ if (!function_exists('subscription_builder_quote_render_html')) {
 
     ' . $included_html . '
 
-    <div class="sq-section">
-      <div class="sq-section-title">One-Time Setup Charges</div>
-      <table class="sq-charges-table">
-        <thead>
-          <tr>
-            <th class="col-num">#</th>
-            <th>Module</th>
-            <th>Feature / Item</th>
-            <th class="col-qty">Qty</th>
-            <th class="col-amt">Amount (INR)</th>
-          </tr>
-        </thead>
-        <tbody>' . $setup_rows . '</tbody>
-      </table>
-      <table class="sq-totals-table">
-        <tr class="sq-total-setup">
-          <td class="sq-total-label">Net Setup Payable (One Time)</td>
-          <td class="sq-total-amount">' . $total_setup . '</td>
-        </tr>
-      </table>
-    </div>
+    ' . $feature_addons_html . '
 
-    <div class="sq-section">
-      <div class="sq-section-title">Recurring Monthly Charges</div>
-      <table class="sq-charges-table">
-        <thead>
-          <tr>
-            <th class="col-num">#</th>
-            <th>Module</th>
-            <th>Feature / Item</th>
-            <th class="col-qty">Qty</th>
-            <th class="col-amt">Amount (INR)</th>
-          </tr>
-        </thead>
-        <tbody>' . $monthly_rows . '</tbody>
-      </table>
-      <table class="sq-totals-table">
-        <tr class="sq-total-monthly">
-          <td class="sq-total-label">Net Monthly Payable</td>
-          <td class="sq-total-amount">' . $total_monthly . '</td>
-        </tr>
-      </table>
-    </div>
+    ' . $payment_sections_html . '
 
-    ' . $financial_summary_html . '
-
-    <div class="sq-notes">
-      <strong>Terms &amp; Notes</strong>
-      <ul>
-        <li>' . esc_view($tax_note, ENT_QUOTES, 'UTF-8') . '</li>
-        <li>' . esc_view($discount_note, ENT_QUOTES, 'UTF-8') . '</li>
-        <li>Included features are part of the selected plan and carry no additional charge unless upgraded.</li>
-        <li>Setup charges are payable once; monthly charges are recurring as per billing cycle.</li>
-        <li>This proposal is computer-generated and valid until ' . esc_view($valid_until) . ' unless revised.</li>
-      </ul>
-    </div>
+    ' . $terms_section_html . '
   </div>
 
   <div class="sq-footer">
@@ -1242,13 +1402,92 @@ if (!function_exists('subscription_builder_quote_render_export_html')) {
         $client_business = esc_view(trim((string) ($quote['client_business'] ?? '')), ENT_QUOTES, 'UTF-8');
         $quote_ref = esc_view(subscription_builder_quote_reference($quote), ENT_QUOTES, 'UTF-8');
         $financials = subscription_builder_quote_compute_financials($quote);
+        $show_payment = subscription_builder_quote_show_payment($quote);
         $discount_label = esc_view(subscription_builder_quote_discount_label($financials, $quote), ENT_QUOTES, 'UTF-8');
         $tax_header = esc_view(subscription_builder_quote_tax_header($financials, $quote), ENT_QUOTES, 'UTF-8');
         $tax_note = esc_view(subscription_builder_quote_tax_note($financials, $quote), ENT_QUOTES, 'UTF-8');
         $discount_note = esc_view(subscription_builder_quote_discount_note($financials, $quote), ENT_QUOTES, 'UTF-8');
 
-        $setup_rows = subscription_builder_quote_render_line_rows($quote['setup_lines'] ?? array(), 'setup charges', $quote);
-        $monthly_rows = subscription_builder_quote_render_line_rows($quote['monthly_lines'] ?? array(), 'monthly charges', $quote);
+        $table_style = 'border-collapse:collapse;width:100%;';
+        $th_style = 'border:1px solid #d1d5db;padding:6px;background:#f8fafc;text-align:left;';
+        $td_style = 'border:1px solid #d1d5db;padding:6px;';
+        $amt_style = $td_style . 'text-align:right;';
+
+        $payment_export_html = '';
+        if ($show_payment) {
+            $setup_rows = subscription_builder_quote_render_line_rows($quote['setup_lines'] ?? array(), 'setup charges', $quote);
+            $monthly_rows = subscription_builder_quote_render_line_rows($quote['monthly_lines'] ?? array(), 'monthly charges', $quote);
+            $payment_export_html = '<h3>One-Time Setup Charges</h3>'
+                . '<table style="' . $table_style . '"><thead><tr>'
+                . '<th style="' . $th_style . '">#</th>'
+                . '<th style="' . $th_style . '">Module</th>'
+                . '<th style="' . $th_style . '">Feature / Item</th>'
+                . '<th style="' . $th_style . '">Qty</th>'
+                . '<th style="' . $th_style . 'text-align:right;">Amount</th>'
+                . '</tr></thead><tbody>' . $setup_rows . '</tbody></table>'
+                . '<h3>Monthly Recurring Charges</h3>'
+                . '<table style="' . $table_style . '"><thead><tr>'
+                . '<th style="' . $th_style . '">#</th>'
+                . '<th style="' . $th_style . '">Module</th>'
+                . '<th style="' . $th_style . '">Feature / Item</th>'
+                . '<th style="' . $th_style . '">Qty</th>'
+                . '<th style="' . $th_style . 'text-align:right;">Amount</th>'
+                . '</tr></thead><tbody>' . $monthly_rows . '</tbody></table>'
+                . '<h3>Financial Summary</h3>'
+                . '<table style="' . $table_style . '"><thead><tr>'
+                . '<th style="' . $th_style . '">Type</th>'
+                . '<th style="' . $th_style . 'text-align:right;">Subtotal</th>'
+                . '<th style="' . $th_style . 'text-align:right;">' . $discount_label . '</th>'
+                . '<th style="' . $th_style . 'text-align:right;">' . $tax_header . '</th>'
+                . '<th style="' . $th_style . 'text-align:right;">Net Payable</th>'
+                . '</tr></thead><tbody>'
+                . '<tr>'
+                . '<td style="' . $td_style . '">One-Time Setup</td>'
+                . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['setup_subtotal'], $quote) . '</td>'
+                . '<td style="' . $amt_style . '">-' . subscription_builder_quote_money($financials['discount_setup'], $quote) . '</td>'
+                . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['gst_setup'], $quote) . '</td>'
+                . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['net_setup'], $quote) . '</td>'
+                . '</tr>'
+                . '<tr>'
+                . '<td style="' . $td_style . '">Monthly Recurring</td>'
+                . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['monthly_subtotal'], $quote) . '</td>'
+                . '<td style="' . $amt_style . '">-' . subscription_builder_quote_money($financials['discount_monthly'], $quote) . '</td>'
+                . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['gst_monthly'], $quote) . '</td>'
+                . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['net_monthly'], $quote) . '</td>'
+                . '</tr>'
+                . '</tbody></table>';
+        }
+
+        $feature_addons_export_html = '';
+        if (!$show_payment) {
+            $setup_feature_lines = subscription_builder_quote_collect_charge_lines($quote, 'setup');
+            $monthly_feature_lines = subscription_builder_quote_collect_charge_lines($quote, 'monthly');
+            $feature_addons_export_html = subscription_builder_quote_render_feature_charge_export_section(
+                'One-Time Setup Charges',
+                $setup_feature_lines,
+                'No one-time setup charges selected',
+                $table_style,
+                $th_style
+            ) . subscription_builder_quote_render_feature_charge_export_section(
+                'Recurring Monthly Charges',
+                $monthly_feature_lines,
+                'No recurring monthly charges selected',
+                $table_style,
+                $th_style
+            );
+        }
+
+        $notes_html = '';
+        if ($show_payment) {
+            $notes_html .= '<li>' . $tax_note . '</li><li>' . $discount_note . '</li>';
+            $notes_html .= '<li>Setup charges are payable once; monthly charges are recurring as per billing cycle.</li>';
+            $notes_html .= '<li>Included features are part of the selected plan and carry no additional charge unless upgraded.</li>';
+            $notes_html .= '<li>This proposal is computer-generated and valid until ' . esc_view(date('d M Y', strtotime('+30 days')), ENT_QUOTES, 'UTF-8') . ' unless revised.</li>';
+        }
+        $notes_section_html = '';
+        if ($show_payment && $notes_html !== '') {
+            $notes_section_html = '<h3>Notes</h3><ul>' . $notes_html . '</ul>';
+        }
 
         $included_groups = subscription_builder_quote_group_included($quote['included'] ?? array());
         $included_html = '';
@@ -1263,10 +1502,6 @@ if (!function_exists('subscription_builder_quote_render_export_html')) {
             $included_html = '<tr><td colspan="2">No included features selected</td></tr>';
         }
 
-        $table_style = 'border-collapse:collapse;width:100%;';
-        $th_style = 'border:1px solid #d1d5db;padding:6px;background:#f8fafc;text-align:left;';
-        $td_style = 'border:1px solid #d1d5db;padding:6px;';
-        $amt_style = $td_style . 'text-align:right;';
         $styles = '<style>'
             . 'table{border-collapse:collapse;width:100%;}'
             . 'th,td{border:1px solid #d1d5db;padding:6px;}'
@@ -1284,55 +1519,14 @@ if (!function_exists('subscription_builder_quote_render_export_html')) {
             . '<strong>Country:</strong> ' . $country . '<br>'
             . '<strong>Client Name:</strong> ' . ($client_name !== '' ? $client_name : '—') . '<br>'
             . '<strong>Client Business:</strong> ' . ($client_business !== '' ? $client_business : '—') . '</p>'
-            . '<h3>One-Time Setup Charges</h3>'
-            . '<table style="' . $table_style . '"><thead><tr>'
-            . '<th style="' . $th_style . '">#</th>'
-            . '<th style="' . $th_style . '">Module</th>'
-            . '<th style="' . $th_style . '">Feature / Item</th>'
-            . '<th style="' . $th_style . '">Qty</th>'
-            . '<th style="' . $th_style . 'text-align:right;">Amount</th>'
-            . '</tr></thead><tbody>' . $setup_rows . '</tbody></table>'
-            . '<h3>Monthly Recurring Charges</h3>'
-            . '<table style="' . $table_style . '"><thead><tr>'
-            . '<th style="' . $th_style . '">#</th>'
-            . '<th style="' . $th_style . '">Module</th>'
-            . '<th style="' . $th_style . '">Feature / Item</th>'
-            . '<th style="' . $th_style . '">Qty</th>'
-            . '<th style="' . $th_style . 'text-align:right;">Amount</th>'
-            . '</tr></thead><tbody>' . $monthly_rows . '</tbody></table>'
-            . '<h3>Financial Summary</h3>'
-            . '<table style="' . $table_style . '"><thead><tr>'
-            . '<th style="' . $th_style . '">Type</th>'
-            . '<th style="' . $th_style . 'text-align:right;">Subtotal</th>'
-            . '<th style="' . $th_style . 'text-align:right;">' . $discount_label . '</th>'
-            . '<th style="' . $th_style . 'text-align:right;">' . $tax_header . '</th>'
-            . '<th style="' . $th_style . 'text-align:right;">Net Payable</th>'
-            . '</tr></thead><tbody>'
-            . '<tr>'
-            . '<td style="' . $td_style . '">One-Time Setup</td>'
-            . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['setup_subtotal'], $quote) . '</td>'
-            . '<td style="' . $amt_style . '">-' . subscription_builder_quote_money($financials['discount_setup'], $quote) . '</td>'
-            . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['gst_setup'], $quote) . '</td>'
-            . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['net_setup'], $quote) . '</td>'
-            . '</tr>'
-            . '<tr>'
-            . '<td style="' . $td_style . '">Monthly Recurring</td>'
-            . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['monthly_subtotal'], $quote) . '</td>'
-            . '<td style="' . $amt_style . '">-' . subscription_builder_quote_money($financials['discount_monthly'], $quote) . '</td>'
-            . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['gst_monthly'], $quote) . '</td>'
-            . '<td style="' . $amt_style . '">' . subscription_builder_quote_money($financials['net_monthly'], $quote) . '</td>'
-            . '</tr>'
-            . '</tbody></table>'
+            . $feature_addons_export_html
+            . $payment_export_html
             . '<h3>Included in ' . $plan . '</h3>'
             . '<table style="' . $table_style . '"><thead><tr>'
             . '<th style="' . $th_style . '">Module</th>'
             . '<th style="' . $th_style . '">Features</th>'
             . '</tr></thead><tbody>' . $included_html . '</tbody></table>'
-            . '<h3>Notes</h3>'
-            . '<ul>'
-            . '<li>' . $tax_note . '</li>'
-            . '<li>' . $discount_note . '</li>'
-            . '</ul>'
+            . $notes_section_html
             . '</body></html>';
     }
 }

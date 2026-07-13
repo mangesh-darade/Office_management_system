@@ -1,6 +1,13 @@
-<?php $this->load->view('partials/header', ['title' => 'Requirements']); ?>
-<div class="container-fluid py-3">
-<?php $this->load->view('partials/import_errors'); ?>
+<?php
+$embed = (bool) $this->input->get('embed');
+if (!$embed) {
+  $this->load->view('partials/header', ['title' => 'Requirements']);
+}
+?>
+<div class="container-fluid py-3<?php echo $embed ? ' mw-req-embed' : ''; ?>">
+<?php if (!$embed) {
+  $this->load->view('partials/import_errors');
+} ?>
 <?php
 ob_start();
 if(function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))):
@@ -15,17 +22,27 @@ if(function_exists('has_module_access') && (has_module_access('requirements_add'
 <?php if(function_exists('has_module_access') && (has_module_access('requirements_export') || has_module_access('requirements') || is_admin_group())): ?>
 <a class="btn btn-success btn-sm" href="<?php echo site_url('requirements/export'); ?>"><i class="bi bi-download me-1"></i>Export</a>
 <?php endif;
-$this->load->view('partials/oms_page_head', [
-  'title' => 'Requirements',
-  'subtitle' => 'Track client and internal requirements',
-  'icon' => 'bi-list-check',
-  'actions_html' => ob_get_clean(),
-]);
+if (!$embed) {
+  $this->load->view('partials/oms_page_head', [
+    'title' => 'Requirements',
+    'subtitle' => 'Track client and internal requirements',
+    'icon' => 'bi-list-check',
+    'actions_html' => ob_get_clean(),
+  ]);
+} else {
+  $req_embed_actions = ob_get_clean();
+  if (trim($req_embed_actions) !== '') {
+    echo '<div class="d-flex flex-wrap gap-2 mb-3">' . $req_embed_actions . '</div>';
+  }
+}
 ?>
 
 <div class="card shadow-soft mb-3">
   <div class="card-body">
     <form method="get" action="<?php echo site_url('requirements'); ?>" class="row g-2 align-items-end">
+      <?php if ($embed): ?>
+      <input type="hidden" name="embed" value="1">
+      <?php endif; ?>
       <div class="col-md-2">
         <label class="form-label">Status</label>
         <?php $fs = isset($filters['status']) ? (string)$filters['status'] : ''; ?>
@@ -130,4 +147,6 @@ $this->load->view('partials/oms_page_head', [
   </div>
 </div>
 </div>
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed) {
+  $this->load->view('partials/footer');
+} ?>

@@ -46,7 +46,17 @@
 
 <div class="mw-unified-toolbar card border-0 shadow-sm">
   <div class="mw-unified-toolbar-inner">
-  <ul class="nav nav-pills flex-nowrap mw-unified-tabs" id="unifiedDashboardTabs" role="tablist">
+  <?php
+  $can_add = function_exists('has_module_access') && (has_module_access('my_works_add') || has_module_access('my_works'));
+  $can_req_list = function_exists('has_module_access') && (has_module_access('requirements_list') || has_module_access('requirements'));
+  $can_req_add = function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'));
+  $redirectBack = 'my-works' . safe_query_suffix();
+  $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
+  $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works');
+  $complete_view_on = !empty($complete_view_on);
+  $show_complete_toggle = in_array($active_tab, array('project-dashboard', 'team-dashboard'), true);
+  ?>
+  <ul class="nav nav-pills mw-unified-tabs" id="unifiedDashboardTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link <?php echo $active_tab === 'overview' ? 'active' : ''; ?>" 
               id="tab-overview" data-tab="overview" type="button" role="tab">
@@ -55,14 +65,16 @@
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link <?php echo $active_tab === 'project-dashboard' ? 'active' : ''; ?>" 
-              id="tab-project-dashboard" data-tab="project-dashboard" type="button" role="tab">
-        <i class="bi bi-columns-gap me-1"></i>Project Dashboard
+              id="tab-project-dashboard" data-tab="project-dashboard" type="button" role="tab"
+              title="Project Dashboard">
+        <i class="bi bi-columns-gap me-1"></i>Projects
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link <?php echo $active_tab === 'team-dashboard' ? 'active' : ''; ?>" 
-              id="tab-team-dashboard" data-tab="team-dashboard" type="button" role="tab">
-        <i class="bi bi-people me-1"></i>Team Dashboard
+              id="tab-team-dashboard" data-tab="team-dashboard" type="button" role="tab"
+              title="Team Dashboard">
+        <i class="bi bi-people me-1"></i>Team
       </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -71,15 +83,17 @@
         <i class="bi bi-list-ul me-1"></i>List
       </button>
     </li>
+    <?php if ($can_req_list): ?>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <?php echo $active_tab === 'requirements' ? 'active' : ''; ?>" 
+              id="tab-requirements" data-tab="requirements" type="button" role="tab"
+              title="Requirements">
+        <i class="bi bi-clipboard-check me-1"></i>Reqs
+      </button>
+    </li>
+    <?php endif; ?>
   </ul>
 
-  <?php 
-  $can_add = function_exists('has_module_access') && (has_module_access('my_works_add') || has_module_access('my_works'));
-  $redirectBack = 'my-works' . safe_query_suffix();
-  $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
-  $complete_view_on = !empty($complete_view_on);
-  $show_complete_toggle = in_array($active_tab, array('project-dashboard', 'team-dashboard'), true);
-  ?>
   <div class="mw-unified-toolbar-actions">
     <div class="mw-unified-complete-toggle<?php echo $show_complete_toggle ? '' : ' d-none'; ?>" id="mwDashCompleteToggleWrap">
       <div class="form-check form-switch mb-0">
@@ -89,13 +103,18 @@
     </div>
     <?php if ($can_add): ?>
     <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($quickAddUrl); ?>" title="Quick add — full screen with rich text and attachments">
-      <i class="bi bi-lightning-charge-fill me-1"></i>Quick add
+      <i class="bi bi-lightning-charge-fill me-1"></i>Quick
     </a>
-    <a class="btn btn-primary btn-sm mw-unified-action-btn" href="<?php echo site_url('my-works/create'); ?>">
-      <i class="bi bi-plus-lg me-1"></i>Create Task
+    <a class="btn btn-primary btn-sm mw-unified-action-btn" href="<?php echo site_url('my-works/create'); ?>" title="Create Task">
+      <i class="bi bi-plus-lg me-1"></i>New Task
     </a>
-    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo site_url('my-works/template-tasks'); ?>">
-      <i class="bi bi-collection me-1"></i>Template Task
+    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo site_url('my-works/template-tasks'); ?>" title="Template Task">
+      <i class="bi bi-collection me-1"></i>Template
+    </a>
+    <?php endif; ?>
+    <?php if ($can_req_add): ?>
+    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($reqCreateUrl, ENT_QUOTES, 'UTF-8'); ?>" title="Add Requirement">
+      <i class="bi bi-plus-lg me-1"></i>Add Req
     </a>
     <?php endif; ?>
   </div>
@@ -135,6 +154,16 @@
     </div>
     <div class="tab-pane-content"></div>
   </div>
+
+  <?php if ($can_req_list): ?>
+  <!-- Requirements Tab -->
+  <div class="tab-pane fade <?php echo $active_tab === 'requirements' ? 'show active' : ''; ?>" id="pane-requirements" role="tabpanel">
+    <div class="tab-loading-spinner text-center py-5" style="display: none;">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    <div class="tab-pane-content"></div>
+  </div>
+  <?php endif; ?>
 </div>
 
 <script>
@@ -380,7 +409,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       var isDashboardLink = href.indexOf('my-works') >= 0 || 
                             href.indexOf('projects/dashboard') >= 0 ||
-                            href.indexOf('tasks/my-dashboard') >= 0;
+                            href.indexOf('tasks/my-dashboard') >= 0 ||
+                            href.indexOf('requirements') >= 0;
                             
       if (isDashboardLink) {
         e.preventDefault();
@@ -416,6 +446,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if ($content.children().length === 0) {
           initialUrl = '<?php echo site_url("my-works?view=list"); ?>';
         }
+      } else if (tabName === 'requirements') {
+        initialUrl = '<?php echo site_url("requirements"); ?>';
       }
       if (initialUrl) {
         loadTabContent($pane, initialUrl, 'GET');
