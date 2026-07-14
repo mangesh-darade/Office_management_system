@@ -261,8 +261,15 @@ if (!function_exists('my_works_normalize_tags')) {
 if (!function_exists('my_works_is_overdue')) {
     function my_works_is_overdue($row)
     {
-        if (!$row || empty($row->due_date) || (isset($row->status) && $row->status === 'closed')) {
+        if (!$row || empty($row->due_date)) {
             return false;
+        }
+        if (isset($row->status)) {
+            $CI =& get_instance();
+            $CI->load->helper('my_works_status');
+            if (my_works_status_is_closed($row->status)) {
+                return false;
+            }
         }
         $due = strtotime((string) $row->due_date);
         if (!$due) {
@@ -357,13 +364,15 @@ if (!function_exists('my_works_build_matrix_columns')) {
      */
     function my_works_build_matrix_columns(array $rows, $exclude_closed = true)
     {
+        $CI =& get_instance();
+        $CI->load->helper('my_works_status');
         $defs = my_works_matrix_quadrants();
         $columns = array();
         foreach (array_keys($defs) as $key) {
             $columns[$key] = array();
         }
         foreach ($rows as $row) {
-            if ($exclude_closed && isset($row->status) && (string) $row->status === 'closed') {
+            if ($exclude_closed && isset($row->status) && my_works_status_is_closed($row->status)) {
                 continue;
             }
             $q = my_works_matrix_quadrant_for_row($row);
@@ -792,6 +801,7 @@ if (!function_exists('my_works_row_belongs_in_yesterday_lane')) {
 if (!function_exists('my_works_dashboard_lane_for_row')) {
     /**
      * Overview column placement: status lanes first, then due-date / last-touch lanes.
+     * Closed/Complete never route into Future Pipeline (caller also skips Back Log).
      *
      * @param object $row
      * @param array<int, string> $last_activity_dates
@@ -802,28 +812,33 @@ if (!function_exists('my_works_dashboard_lane_for_row')) {
         $CI->load->helper('my_works_status');
 
         $st = isset($row->status) ? strtolower(trim((string) $row->status)) : '';
+        $is_finished = my_works_status_is_closed($st);
+
         if ($st === 'need_discussion' || $st === 'needs_discussion') {
             return 'need_discussion';
         }
-        if ($st === 'postponed') {
-            return 'future_pipeline';
-        }
 
-        $tags = my_works_parse_tags(isset($row->tag) ? $row->tag : '');
-        foreach ($tags as $tag) {
-            $tl = strtolower((string) $tag);
-            if (strpos($tl, 'discussion') !== false) {
-                return 'need_discussion';
-            }
-            if (strpos($tl, 'postponed') !== false) {
+        if (!$is_finished) {
+            if ($st === 'postponed') {
                 return 'future_pipeline';
+            }
+
+            $tags = my_works_parse_tags(isset($row->tag) ? $row->tag : '');
+            foreach ($tags as $tag) {
+                $tl = strtolower((string) $tag);
+                if (strpos($tl, 'discussion') !== false) {
+                    return 'need_discussion';
+                }
+                if (strpos($tl, 'postponed') !== false) {
+                    return 'future_pipeline';
+                }
             }
         }
 
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         $due = !empty($row->due_date) ? (string) $row->due_date : '';
-        if ($due !== '' && $due > $today) {
+        if (!$is_finished && $due !== '' && $due > $today) {
             return 'future_pipeline';
         }
         if ($due === $today) {
@@ -860,13 +875,19 @@ if (!function_exists('my_works_build_dashboard_sections')) {
             }
         }
         $last_activity_dates = my_works_fetch_last_activity_dates($work_ids);
+        // Future Pipeline + Back Log are planning lanes — never show finished (closed/complete) work.
+        $lanes_hide_complete = array('future_pipeline', 'back_log');
         foreach ($rows as $row) {
-            if ($exclude_closed && isset($row->status) && my_works_status_is_closed($row->status)) {
+            $is_complete = isset($row->status) && my_works_status_is_closed($row->status);
+            if ($exclude_closed && $is_complete) {
                 continue;
             }
             $lane = my_works_dashboard_lane_for_row($row, $last_activity_dates);
             if (!isset($sections['ad_hoc'][$lane])) {
                 $lane = 'back_log';
+            }
+            if ($is_complete && in_array($lane, $lanes_hide_complete, true)) {
+                continue;
             }
             $has_project = (!empty($row->project_id) && (int) $row->project_id > 0) || !empty($row->project_name);
             if ($has_project) {

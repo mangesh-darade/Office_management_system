@@ -29,7 +29,13 @@
         <?php if (!empty($unified_status_legend)): ?>
         <div class="mw-unified-head-status-legend" aria-label="Work item statuses">
           <?php foreach ($unified_status_legend as $st): ?>
-            <?php $hex_color = my_works_status_hex_color($st->code); ?>
+            <?php
+              // Closed/Complete is not shown on Overview planning columns — keep legend aligned.
+              if (my_works_status_is_closed($st->code)) {
+                  continue;
+              }
+              $hex_color = my_works_status_hex_color($st->code);
+            ?>
             <span class="mw-unified-head-status-item"
                   style="background-color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>12;
                          color: <?php echo esc_view($hex_color, ENT_QUOTES, 'UTF-8'); ?>;

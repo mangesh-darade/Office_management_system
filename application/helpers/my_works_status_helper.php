@@ -161,9 +161,13 @@ if (!function_exists('my_works_status_bootstrap_class')) {
 }
 
 if (!function_exists('my_works_status_is_closed')) {
+    /**
+     * True for finished work (Closed / Complete / Completed / Done).
+     */
     function my_works_status_is_closed($code)
     {
-        return (string) $code === 'closed';
+        $code = strtolower(trim((string) $code));
+        return in_array($code, array('closed', 'complete', 'completed', 'done'), true);
     }
 }
 
@@ -212,13 +216,13 @@ if (!function_exists('my_works_status_sanitize')) {
 
 if (!function_exists('my_works_apply_open_status_filter')) {
     /**
-     * Query builder: exclude closed status rows.
+     * Query builder: exclude finished (closed/complete) status rows.
      *
      * @param CI_DB_query_builder $db
      * @param string              $column e.g. w.status
      */
     function my_works_apply_open_status_filter($db, $column = 'w.status')
     {
-        $db->where($column . ' !=', 'closed');
+        $db->where_not_in($column, array('closed', 'complete', 'completed', 'done'));
     }
 }

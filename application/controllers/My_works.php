@@ -323,9 +323,8 @@ class My_works extends CI_Controller
         }
         $data = $this->_list_view_data($filters, $view_mode);
         if ($view_mode === 'overview') {
-            $c = $this->_ctx();
-            $exclude_closed = ($filters['status'] === '');
-            $dash = my_works_build_dashboard_sections($data['rows'], $exclude_closed);
+            // Overview lanes are for open planning work only — never list Closed/Complete.
+            $dash = my_works_build_dashboard_sections($data['rows'], true);
             $data['dashboard_sections'] = $dash['sections'];
             $data['dashboard_counts'] = $dash['counts'];
             $this->load->view('my_works/overview', $data);
@@ -362,8 +361,8 @@ class My_works extends CI_Controller
         require_module_access(array('my_works_list', 'my_works'), true);
         $filters = $this->_sanitize_filters($this->_parse_filters());
         $data = $this->_list_view_data($filters, 'overview');
-        $exclude_closed = ($filters['status'] === '');
-        $focus = my_works_build_lane_focus_sections($data['rows'], $lane_key, $exclude_closed);
+        // Lane focus mirrors overview: always hide Closed/Complete from planning lanes.
+        $focus = my_works_build_lane_focus_sections($data['rows'], $lane_key, true);
         $data['dashboard_sections'] = $focus['sections'];
         $data['focus_count'] = $focus['count'];
         $data['lane_key'] = $lane_key;
