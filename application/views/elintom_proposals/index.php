@@ -1,4 +1,7 @@
 <?php $this->load->view('partials/header', ['title' => 'ElintOm Proposals']); ?>
+<?php
+$can_export = !empty($can_export);
+?>
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
   <h1 class="h3 mb-0">
     <i class="bi bi-file-earmark-text me-2"></i>ElintOm Proposals
@@ -57,10 +60,34 @@
               <td><?php echo esc_view($row->created_by_name ?: ('User #' . (int) $row->created_by)); ?></td>
               <td><?php echo !empty($row->created_at) ? esc_view(date('d M Y, h:i A', strtotime($row->created_at))) : '—'; ?></td>
               <td class="text-nowrap">
-                <?php if (!empty($row->document_path)): ?>
-                <a href="<?php echo site_url('elintom-proposals/' . (int) $row->id . '/download'); ?>" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-file-earmark-pdf"></i> Download PDF
-                </a>
+                <?php if (!empty($row->document_path) && $can_export): ?>
+                <div class="btn-group btn-group-sm">
+                  <a href="<?php echo site_url('elintom-proposals/' . (int) $row->id . '/export/pdf'); ?>" class="btn btn-outline-primary">
+                    <i class="bi bi-download"></i> Export
+                  </a>
+                  <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Export formats">
+                    <span class="visually-hidden">Toggle export formats</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <a class="dropdown-item" href="<?php echo site_url('elintom-proposals/' . (int) $row->id . '/export/pdf'); ?>">
+                        <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>PDF
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="<?php echo site_url('elintom-proposals/' . (int) $row->id . '/export/excel'); ?>">
+                        <i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="<?php echo site_url('elintom-proposals/' . (int) $row->id . '/export/doc'); ?>">
+                        <i class="bi bi-file-earmark-word me-2 text-primary"></i>Word (DOC)
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <?php elseif (!empty($row->document_path)): ?>
+                  <span class="text-muted small">No export access</span>
                 <?php else: ?>
                   <span class="text-muted small">No file</span>
                 <?php endif; ?>

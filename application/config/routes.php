@@ -419,6 +419,7 @@ $route['subscription-builder/quote-save'] = 'subscription_builder/quote_save';
 // ElintOm Proposals
 $route['elintom-proposals'] = 'elintom_proposals/index';
 $route['elintom-proposals/(:num)/download'] = 'elintom_proposals/download/$1';
+$route['elintom-proposals/(:num)/export/(:any)'] = 'elintom_proposals/export/$1/$2';
 
 // Business Assessment (static ROI tool — client-side only)
 $route['eba-platform'] = 'eba_platform/index';

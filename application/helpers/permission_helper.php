@@ -627,7 +627,7 @@ if (!function_exists('seed_subscription_builder_permissions_if_needed')) {
 
         $keys = array(
             'subscription_builder', 'subscription_builder_list',
-            'elintom_proposals', 'elintom_proposals_list',
+            'elintom_proposals', 'elintom_proposals_list', 'elintom_proposals_export',
             'eba_platform', 'eba_platform_list',
         );
         foreach ($admin_role_ids as $role_id => $_) {
@@ -841,7 +841,7 @@ if (!function_exists('get_controller_module_access_map')) {
                 'subscription_builder', 'subscription_builder_list',
             ],
             'elintom_proposals' => [
-                'elintom_proposals', 'elintom_proposals_list',
+                'elintom_proposals', 'elintom_proposals_list', 'elintom_proposals_export',
             ],
             'eba_platform' => [
                 'eba_platform', 'eba_platform_list',

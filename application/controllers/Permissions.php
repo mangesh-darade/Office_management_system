@@ -385,6 +385,7 @@ class Permissions extends CI_Controller {
                     'subscription_builder_list'  => 'View Subscription Builder Catalog',
                     'elintom_proposals'          => 'ElintOm Proposals (Full Access)',
                     'elintom_proposals_list'     => 'View ElintOm Proposals',
+                    'elintom_proposals_export'   => 'Export ElintOm Proposals (PDF/Excel/Word)',
                     'eba_platform'               => 'Business Assessment (Full Access)',
                     'eba_platform_list'          => 'View Business Assessment',
                     'payroll'              => 'Payroll (Full Access)',

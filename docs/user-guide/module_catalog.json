@@ -942,6 +942,49 @@
           "delete": null
         }
       ]
+    },
+    {
+      "id": "14",
+      "slug": "14-sales-proposals",
+      "file": "14-sales-proposals.md",
+      "title": "Sales — Subscription Builder & Proposals",
+      "purpose": "Build ElintOm subscription proposals and download or re-export saved proposal files.",
+      "entities": [
+        {
+          "name": "Subscription Builder",
+          "menu": "Sales → Subscription Builder",
+          "purpose": "Configure plan, industry, country, and chargeable add-ons, then preview or export a client proposal.",
+          "list": {
+            "route": "subscription-builder",
+            "steps": [
+              "Open Sales → Subscription Builder.",
+              "Select plan, industry, and country.",
+              "Set client name/business and add-on quantities.",
+              "Use Preview Proposal, or Export as PDF / Excel / Word."
+            ]
+          },
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
+          "name": "ElintOm Proposals",
+          "menu": "Sales → ElintOm Proposals",
+          "purpose": "Browse saved proposals and export each file as PDF, Excel, or Word.",
+          "list": {
+            "route": "elintom-proposals",
+            "steps": [
+              "Open Sales → ElintOm Proposals.",
+              "Review client, business, creator, and date columns.",
+              "Use Export → PDF, Excel, or Word (DOC) for a row.",
+              "Excel/Word need a proposal re-saved from Subscription Builder if the HTML source is missing."
+            ]
+          },
+          "add": null,
+          "edit": null,
+          "delete": null
+        }
+      ]
     }
   ]
 }

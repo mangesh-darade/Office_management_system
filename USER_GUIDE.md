@@ -21,6 +21,7 @@ Detailed guides with screenshots live in [`docs/user-guide/`](docs/user-guide/).
 | 11 | Engagement & Rewards | [docs/user-guide/11-engagement-rewards.md](docs/user-guide/11-engagement-rewards.md) |
 | 12 | Office Meals | [docs/user-guide/12-office-meals.md](docs/user-guide/12-office-meals.md) |
 | 13 | Sales — Business Assessment | [docs/user-guide/13-sales-eba.md](docs/user-guide/13-sales-eba.md) |
+| 14 | Sales — Subscription Builder & Proposals | [docs/user-guide/14-sales-proposals.md](docs/user-guide/14-sales-proposals.md) |
 
 ## Maintain the guide
 

@@ -80,6 +80,19 @@ if (!function_exists('subscription_builder_quote_logo_data_uri')) {
             return '';
         }
 
+        // Dompdf/live servers often fail on multi-megabyte base64 logos.
+        if (strlen($binary) > 300000) {
+            if (function_exists('log_message')) {
+                log_message('error', 'subscription_builder_quote_logo_data_uri: logo too large (' . strlen($binary) . ' bytes), skipping: ' . $logo_path);
+            }
+            return '';
+        }
+
+        // SVG data-URIs are unreliable in Dompdf.
+        if ($mime === 'image/svg+xml') {
+            return '';
+        }
+
         return 'data:' . $mime . ';base64,' . base64_encode($binary);
     }
 }
@@ -149,7 +162,7 @@ if (!function_exists('subscription_builder_quote_issuer_profile')) {
             'address' => "2nd Floor, Neelprabha Apt, Right Bhusari Colony,\nPaud Road, Pune, Maharashtra, India - 411038.",
             'cin'     => 'U72900PN2022PTC215872',
             'gst'     => '27ABJCS6705P1ZM',
-            'website' => 'https://sateridigital.com',
+            'website' => 'https://elintom.io',
             'email'   => $email,
             'phone'   => $phone,
         );
@@ -652,8 +665,6 @@ if (!function_exists('subscription_builder_quote_render_html')) {
 
         $profile = subscription_builder_quote_issuer_profile();
         $company_name = esc_view($profile['name'], ENT_QUOTES, 'UTF-8');
-        $company_email = esc_view($profile['email'], ENT_QUOTES, 'UTF-8');
-        $company_phone = esc_view($profile['phone'], ENT_QUOTES, 'UTF-8');
         $company_cin = esc_view($profile['cin'], ENT_QUOTES, 'UTF-8');
         $company_gst = esc_view($profile['gst'], ENT_QUOTES, 'UTF-8');
         $company_address = nl2br(esc_view(trim($profile['address']), ENT_QUOTES, 'UTF-8'));
@@ -678,10 +689,7 @@ if (!function_exists('subscription_builder_quote_render_html')) {
         $company_block = '<div class="sq-company-name">' . $company_name . '</div>'
             . '<div class="sq-company-meta">'
             . $company_address . '<br><br>'
-            . 'CIN: ' . $company_cin . '<br>'
-            . 'GST No.: ' . $company_gst
-            . ($company_phone !== '' ? '<br>Phone: ' . $company_phone : '')
-            . ($company_email !== '' ? ' &nbsp;|&nbsp; Email: ' . $company_email : '')
+            . 'CIN: ' . $company_cin . ' &nbsp;|&nbsp; GST No.: ' . $company_gst
             . '<br>Website: ' . $site_url_link
             . '</div>';
 
@@ -1196,6 +1204,17 @@ if (!function_exists('subscription_builder_quote_render_html')) {
     background: #fafafa;
   }
   .sq-footer strong { color: #0F0B45; }
+  .sq-powered-by {
+    margin-top: 6px;
+    font-size: 9px;
+    letter-spacing: 0.3px;
+    color: #9ca3af;
+  }
+  .sq-powered-by a {
+    color: #0F0B45;
+    text-decoration: none;
+    font-weight: 600;
+  }
   @media print {
     .no-print { display: none !important; }
     body { background: #fff; }
@@ -1261,8 +1280,8 @@ if (!function_exists('subscription_builder_quote_render_html')) {
   </div>
 
   <div class="sq-footer">
-    <strong>' . $company_name . '</strong> &mdash; ElintOm Proposal<br>
-    ' . $site_url_link . ' &nbsp;|&nbsp; ' . $company_email . ' &nbsp;|&nbsp; ' . $company_phone . '
+    <strong>' . $company_name . '</strong> &mdash; ElintOm Proposal
+    <div class="sq-powered-by">Powered by <a href="' . $site_url . '" target="_blank" rel="noopener noreferrer">ElintOm</a></div>
   </div>
 </div>
 </body>
@@ -1275,23 +1294,44 @@ if (!function_exists('subscription_builder_quote_ensure_proposals_dir')) {
     {
         $upload_dir = FCPATH . 'uploads/elintom_proposals/';
         if (!is_dir($upload_dir)) {
-            @mkdir($upload_dir, 0777, true);
+            if (!@mkdir($upload_dir, 0777, true) && !is_dir($upload_dir)) {
+                return false;
+            }
         }
         if (is_dir($upload_dir) && !is_writable($upload_dir)) {
             @chmod($upload_dir, 0777);
         }
+        if (!is_dir($upload_dir)) {
+            return false;
+        }
 
-        return is_dir($upload_dir) && is_writable($upload_dir);
+        // is_writable() is unreliable on Windows; probe with an actual write.
+        $probe = $upload_dir . '.write_probe_' . str_replace('.', '', uniqid('', true));
+        $written = @file_put_contents($probe, '1');
+        if ($written === false) {
+            return false;
+        }
+        @unlink($probe);
+
+        return true;
     }
 }
 
 if (!function_exists('subscription_builder_quote_save_pdf')) {
-    function subscription_builder_quote_save_pdf($html, $filename)
+    /**
+     * @param string $html
+     * @param string $filename
+     * @param string|null $error Populated with a user-safe reason when save fails
+     * @return string Relative path on success, empty string on failure
+     */
+    function subscription_builder_quote_save_pdf($html, $filename, &$error = null)
     {
+        $error = null;
         $CI =& get_instance();
         $CI->load->helper('dompdf_bootstrap');
 
         if (!subscription_builder_quote_ensure_proposals_dir()) {
+            $error = 'Unable to save proposal file. Check uploads/elintom_proposals folder permissions.';
             log_message('error', 'subscription_builder_quote_save_pdf: uploads/elintom_proposals is missing or not writable.');
             return '';
         }
@@ -1305,17 +1345,35 @@ if (!function_exists('subscription_builder_quote_save_pdf')) {
             $safe_name .= '.pdf';
         }
 
+        // Avoid overwrite failures on same-day same-client filenames.
         $absolute_path = $upload_dir . $safe_name;
+        if (is_file($absolute_path)) {
+            $safe_name = preg_replace('/\.pdf$/i', '', $safe_name) . '_' . date('His') . '.pdf';
+            $absolute_path = $upload_dir . $safe_name;
+        }
         $relative_path = 'uploads/elintom_proposals/' . $safe_name;
 
-        $pdf_binary = dompdf_render_html($html, 'A4', 'portrait');
+        $pdf_error = null;
+        $pdf_binary = dompdf_render_html($html, 'A4', 'portrait', $pdf_error);
         if ($pdf_binary === false) {
-            log_message('error', 'subscription_builder_quote_save_pdf: Dompdf could not render proposal HTML.');
+            $error = $pdf_error
+                ? ('Unable to generate proposal PDF. ' . $pdf_error)
+                : 'Unable to generate proposal PDF. Please try again or contact an administrator.';
+            log_message('error', 'subscription_builder_quote_save_pdf: Dompdf could not render proposal HTML.' . ($pdf_error ? (' ' . $pdf_error) : ''));
             return '';
         }
         if (@file_put_contents($absolute_path, $pdf_binary) === false) {
+            $error = 'Unable to save proposal file. Check uploads/elintom_proposals folder permissions.';
             log_message('error', 'subscription_builder_quote_save_pdf: failed writing ' . $absolute_path);
             return '';
+        }
+
+        // Sidecar HTML enables Excel/Word re-export from Saved Proposals.
+        $html_sidecar = preg_replace('/\.pdf$/i', '.html', $absolute_path);
+        if (is_string($html_sidecar) && $html_sidecar !== $absolute_path) {
+            if (@file_put_contents($html_sidecar, $html) === false) {
+                log_message('error', 'subscription_builder_quote_save_pdf: failed writing HTML sidecar ' . $html_sidecar);
+            }
         }
 
         return $relative_path;

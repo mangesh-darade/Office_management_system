@@ -24,6 +24,8 @@ Complete guides in **simple English** with **readable screenshots** for every sc
 | 10 Administration | 9 | [10-administration.md](10-administration.md) |
 | 11 Engagement & Rewards | 10 | [11-engagement-rewards.md](11-engagement-rewards.md) |
 | 12 Office Meals | 7 | [12-office-meals.md](12-office-meals.md) |
+| 13 Sales — Business Assessment | 1 | [13-sales-eba.md](13-sales-eba.md) |
+| 14 Sales — Subscription Builder & Proposals | 2 | [14-sales-proposals.md](14-sales-proposals.md) |
 
 **Total: 63+ screenshots + 13 animated videos** at readable size (add engagement screenshots via capture script).
 

@@ -213,17 +213,20 @@ class Subscription_builder extends CI_Controller
 
     private function persist_quote_proposal($quote, $html = null)
     {
+        @ini_set('memory_limit', '512M');
+        @ini_set('max_execution_time', '120');
         $this->load->helper('subscription_builder_quote');
         if ($html === null) {
             $html = subscription_builder_quote_render_html($quote, false);
         }
 
         $filename = subscription_builder_quote_build_export_filename($quote, 'pdf');
-        $document_path = subscription_builder_quote_save_pdf($html, $filename);
+        $save_error = null;
+        $document_path = subscription_builder_quote_save_pdf($html, $filename, $save_error);
         if ($document_path === '') {
             return array(
                 'ok' => false,
-                'error' => 'Unable to save proposal file. Check uploads/elintom_proposals folder permissions.',
+                'error' => $save_error ? $save_error : 'Unable to save proposal file. Check uploads/elintom_proposals folder permissions.',
             );
         }
 
