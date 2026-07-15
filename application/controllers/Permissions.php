@@ -155,6 +155,7 @@ class Permissions extends CI_Controller {
                     'my_works_delete'      => 'Delete My Work Item',
                     'my_works_view_all'    => 'View All My Works (Admin roles only — data scope)',
                     'my_works_export'      => 'Export My Works (CSV)',
+                    'my_works_import'      => 'Import Template Tasks (CSV)',
                 ]
             ],
             'SPL & Rewards' => [

@@ -57,6 +57,37 @@ class Template_task_model extends CI_Model
         return (int) $this->db->insert_id();
     }
 
+    /**
+     * True when the same team + type + title already exists.
+     */
+    public function exists_combo($team, $template_type, $title)
+    {
+        if (!$this->db->table_exists($this->table)) {
+            return false;
+        }
+        $n = (int) $this->db->from($this->table)
+            ->where('team', (string) $team)
+            ->where('template_type', (string) $template_type)
+            ->where('title', (string) $title)
+            ->count_all_results();
+        return $n > 0;
+    }
+
+    public function next_sort_order($team, $template_type)
+    {
+        if (!$this->db->table_exists($this->table)) {
+            return 1;
+        }
+        $row = $this->db->select_max('sort_order', 'max_sort')
+            ->from($this->table)
+            ->where('team', (string) $team)
+            ->where('template_type', (string) $template_type)
+            ->get()
+            ->row();
+        $max = ($row && isset($row->max_sort)) ? (int) $row->max_sort : 0;
+        return $max + 1;
+    }
+
     public function delete($id)
     {
         $this->db->where('id', (int) $id)->delete($this->table);

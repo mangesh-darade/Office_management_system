@@ -7,6 +7,8 @@
   $teams = isset($teams) ? $teams : array();
   $statuses = isset($statuses) ? $statuses : array();
   $template_json = isset($template_json) ? $template_json : array();
+  $can_import_templates = !empty($can_import_templates);
+  $import_errors = $this->session->flashdata('import_errors');
 ?>
 
 <div class="container-fluid py-2 mw-page">
@@ -20,6 +22,11 @@
       <p class="text-muted small mb-0">Select client, team, type, and one task — saved to My Works.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap ms-sm-auto">
+      <?php if ($can_import_templates): ?>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mwTemplateImportModal">
+          <i class="bi bi-upload me-1"></i>Import Task
+        </button>
+      <?php endif; ?>
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">
         <i class="bi bi-list-task me-1"></i>My Works
       </a>
@@ -37,6 +44,17 @@
     <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
       <?php echo esc_view((string) $this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?>
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($import_errors) && is_array($import_errors)): ?>
+    <div class="alert alert-warning py-2 small">
+      <div class="fw-semibold mb-1">Import notes</div>
+      <ul class="mb-0 ps-3">
+        <?php foreach ($import_errors as $err_line): ?>
+          <li><?php echo esc_view((string) $err_line, ENT_QUOTES, 'UTF-8'); ?></li>
+        <?php endforeach; ?>
+      </ul>
     </div>
   <?php endif; ?>
 
@@ -316,6 +334,126 @@
 </script>
 
 <script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
+
+<?php if ($can_import_templates): ?>
+<div class="modal fade" id="mwTemplateImportModal" tabindex="-1" aria-labelledby="mwTemplateImportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered mw-tt-import-dialog">
+    <div class="modal-content mw-tt-import-content">
+      <form method="post" action="<?php echo site_url('my-works/template-tasks/import'); ?>" enctype="multipart/form-data" id="mw-tt-import-form">
+        <?php $this->load->view('my_works/_csrf'); ?>
+        <div class="modal-header mw-tt-import-header border-0">
+          <div class="mw-tt-import-title-wrap">
+            <span class="mw-tt-import-icon" aria-hidden="true"><i class="bi bi-file-earmark-spreadsheet"></i></span>
+            <div>
+              <h2 class="modal-title h6 mb-0" id="mwTemplateImportModalLabel">Import Template Tasks</h2>
+              <p class="mw-tt-import-subtitle mb-0">Add catalog rows from CSV</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body mw-tt-import-body pt-0">
+          <div class="mw-tt-import-cols" aria-label="Required CSV columns">
+            <span class="mw-tt-import-col-chip">team</span>
+            <span class="mw-tt-import-col-chip">template_type</span>
+            <span class="mw-tt-import-col-chip">title</span>
+            <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">sort_order</span>
+            <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">is_active</span>
+          </div>
+          <p class="mw-tt-import-hint mb-3">
+            Duplicates (same team + type + title) are skipped. Max 500 rows per file.
+          </p>
+
+          <a class="mw-tt-import-sample" href="<?php echo site_url('my-works/template-tasks/sample-csv'); ?>">
+            <span class="mw-tt-import-sample-icon" aria-hidden="true"><i class="bi bi-filetype-csv"></i></span>
+            <span class="mw-tt-import-sample-text">
+              <strong>Download sample CSV</strong>
+              <span>Ready-to-edit format with example rows</span>
+            </span>
+            <i class="bi bi-download mw-tt-import-sample-dl" aria-hidden="true"></i>
+          </a>
+
+          <label class="mw-tt-import-drop" for="mw-tt-import-file" id="mw-tt-import-drop">
+            <input type="file" name="file" id="mw-tt-import-file" class="mw-tt-import-file-input" accept=".csv,text/csv" required>
+            <span class="mw-tt-import-drop-icon" aria-hidden="true"><i class="bi bi-cloud-arrow-up"></i></span>
+            <span class="mw-tt-import-drop-title">Drop CSV here or <em>browse</em></span>
+            <span class="mw-tt-import-drop-meta" id="mw-tt-import-file-label">No file chosen · .csv only</span>
+          </label>
+        </div>
+        <div class="modal-footer mw-tt-import-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="mw-tt-import-submit" disabled>
+            <i class="bi bi-upload me-1"></i>Import
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var input = document.getElementById('mw-tt-import-file');
+  var drop = document.getElementById('mw-tt-import-drop');
+  var label = document.getElementById('mw-tt-import-file-label');
+  var submit = document.getElementById('mw-tt-import-submit');
+  if (!input || !drop || !label || !submit) {
+    return;
+  }
+
+  function setFile(file) {
+    if (!file) {
+      label.textContent = 'No file chosen · .csv only';
+      submit.disabled = true;
+      drop.classList.remove('is-filled');
+      return;
+    }
+    label.textContent = file.name;
+    submit.disabled = false;
+    drop.classList.add('is-filled');
+  }
+
+  input.addEventListener('change', function () {
+    setFile(input.files && input.files[0] ? input.files[0] : null);
+  });
+
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    drop.addEventListener(evt, function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add('is-dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    drop.addEventListener(evt, function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove('is-dragover');
+    });
+  });
+  drop.addEventListener('drop', function (e) {
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) {
+      return;
+    }
+    var file = files[0];
+    var name = String(file.name || '').toLowerCase();
+    if (name.indexOf('.csv') === -1) {
+      setFile(null);
+      input.value = '';
+      label.textContent = 'Please choose a .csv file';
+      return;
+    }
+    try {
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+    } catch (err) {
+      /* older browsers: click browse instead */
+    }
+    setFile(file);
+  });
+})();
+</script>
+<?php endif; ?>
 
 </div>
 <?php $this->load->view('partials/footer'); ?>

@@ -47,6 +47,23 @@ Personal to-dos, daily activity logs, and performance appraisals.
 
 ---
 
+## Template Tasks
+
+**Purpose:** Create a My Works item from a team template catalog, or import catalog rows from CSV.
+
+**Menu:** Second Brain → Template Task
+
+### Add (create new)
+
+**Steps:**
+
+1. Open Second Brain → Template Task.
+2. Select Team, Type, and Task (required), then Assigned To and optional Client / Due Date / Description.
+3. Create Task saves one new My Works item.
+4. Import Task opens a popup: download sample CSV, upload file, import into the template catalog (`team`, `template_type`, `title`).
+
+---
+
 ## Daily Activity
 
 **Purpose:** Log what you worked on each day for managers.

@@ -310,6 +310,23 @@
           "delete": {"steps": ["Open item → Delete.", "Export filtered list from list page."]}
         },
         {
+          "name": "Template Tasks",
+          "menu": "Second Brain → Template Task",
+          "purpose": "Create a My Works item from a team template catalog, or import catalog rows from CSV.",
+          "list": {"route": "my-works/template-tasks"},
+          "add": {
+            "route": "my-works/template-tasks",
+            "steps": [
+              "Open Second Brain → Template Task.",
+              "Select Team, Type, and Task (required), then Assigned To and optional Client / Due Date / Description.",
+              "Create Task saves one new My Works item.",
+              "Import Task opens a popup: download sample CSV, upload file, import into the template catalog (team, template_type, title)."
+            ]
+          },
+          "edit": null,
+          "delete": null
+        },
+        {
           "name": "Daily Activity",
           "menu": "Daily Activity",
           "purpose": "Log what you worked on each day for managers.",

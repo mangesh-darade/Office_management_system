@@ -634,7 +634,176 @@ class My_works extends CI_Controller
             'current_user_id' => (int) $c['user_id'],
             'teams' => $this->template_tasks->distinct_teams(),
             'template_json' => $template_payload,
+            'can_import_templates' => function_exists('has_module_access') && (
+                has_module_access('my_works_import')
+                || has_module_access('my_works_add')
+                || has_module_access('my_works')
+            ),
         ));
+    }
+
+    /**
+     * Download CSV sample for importing rows into template_tasks catalog.
+     */
+    public function template_tasks_sample_csv()
+    {
+        require_module_access(array('my_works_import', 'my_works_add', 'my_works'), true);
+        $path = FCPATH . 'assets/samples/template_tasks_import_sample.csv';
+        if (!is_file($path)) {
+            show_error('Sample CSV file is missing.', 404);
+            return;
+        }
+        $this->load->helper('download');
+        force_download('template_tasks_import_sample.csv', file_get_contents($path));
+    }
+
+    /**
+     * POST CSV import into template_tasks catalog (team / type / title).
+     */
+    public function template_tasks_import()
+    {
+        require_module_access(array('my_works_import', 'my_works_add', 'my_works'), true);
+        if ($this->input->method() !== 'post') {
+            redirect('my-works/template-tasks');
+            return;
+        }
+
+        $this->load->helper('csv_import');
+        $opened = csv_import_open('file');
+        if (!$opened['ok']) {
+            $this->session->set_flashdata('error', $opened['error']);
+            redirect('my-works/template-tasks');
+            return;
+        }
+
+        $columns = csv_import_require_columns($opened['map'], array('team', 'template_type', 'title'));
+        if (!$columns['ok']) {
+            fclose($opened['handle']);
+            $this->session->set_flashdata('error', $columns['error']);
+            redirect('my-works/template-tasks');
+            return;
+        }
+
+        $inserted = 0;
+        $skipped = 0;
+        $row_errors = array();
+        $line = 1;
+        $max_rows = 500;
+        $seen_in_file = array();
+        $prev_debug = $this->db->db_debug;
+        $this->db->db_debug = false;
+
+        while (($row = fgetcsv($opened['handle'])) !== false) {
+            $line++;
+            if (($line - 1) > $max_rows) {
+                csv_import_add_row_error($row_errors, $line, 'Stopped at ' . $max_rows . ' data rows (max).');
+                break;
+            }
+            if (!is_array($row) || (count($row) === 1 && trim((string) $row[0]) === '')) {
+                continue;
+            }
+
+            $team = csv_import_get($opened['map'], $row, 'team', '');
+            $template_type = csv_import_get_any($opened['map'], $row, array('template_type', 'type'), '');
+            $title = csv_import_get($opened['map'], $row, 'title', '');
+
+            if ($team === '' && $template_type === '' && $title === '') {
+                continue;
+            }
+            if ($team === '') {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Missing team.');
+                continue;
+            }
+            if ($template_type === '') {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Missing template_type.');
+                continue;
+            }
+            if ($title === '') {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Missing title.');
+                continue;
+            }
+            if (strlen($team) > 100) {
+                $team = substr($team, 0, 100);
+            }
+            if (strlen($template_type) > 150) {
+                $template_type = substr($template_type, 0, 150);
+            }
+            if (strlen($title) > 255) {
+                $title = substr($title, 0, 255);
+            }
+
+            $dup_key = strtolower($team) . '|' . strtolower($template_type) . '|' . strtolower($title);
+            if (isset($seen_in_file[$dup_key])) {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Duplicate row in file.');
+                continue;
+            }
+            $seen_in_file[$dup_key] = true;
+
+            if ($this->template_tasks->exists_combo($team, $template_type, $title)) {
+                $skipped++;
+                csv_import_add_row_error($row_errors, $line, 'Already exists (same team, type, title).');
+                continue;
+            }
+
+            $sort_raw = csv_import_get($opened['map'], $row, 'sort_order', '');
+            if ($sort_raw !== '' && is_numeric($sort_raw)) {
+                $sort_order = max(0, (int) $sort_raw);
+            } else {
+                $sort_order = $this->template_tasks->next_sort_order($team, $template_type);
+            }
+
+            $active_raw = strtolower(csv_import_get_any($opened['map'], $row, array('is_active', 'active'), '1'));
+            $is_active = in_array($active_raw, array('0', 'false', 'no', 'n', 'inactive'), true) ? 0 : 1;
+
+            $id = $this->template_tasks->insert(array(
+                'team' => $team,
+                'template_type' => $template_type,
+                'title' => $title,
+                'sort_order' => $sort_order,
+                'is_active' => $is_active,
+            ));
+            if ($id > 0) {
+                $inserted++;
+            } else {
+                $skipped++;
+                $db_error = $this->db->error();
+                $reason = !empty($db_error['message']) ? $db_error['message'] : 'Database insert failed.';
+                csv_import_add_row_error($row_errors, $line, $reason);
+                log_message('error', 'Template tasks import error: ' . $reason);
+            }
+        }
+
+        $this->db->db_debug = $prev_debug;
+        fclose($opened['handle']);
+
+        if ($inserted === 0) {
+            $msg = 'No template tasks were imported.';
+            if (!empty($row_errors)) {
+                $msg .= ' ' . implode(' ', array_slice($row_errors, 0, 3));
+            } else {
+                $msg .= ' Check column headers and row data.';
+            }
+            $this->session->set_flashdata('error', $msg);
+            if (!empty($row_errors)) {
+                $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
+            }
+            redirect('my-works/template-tasks');
+            return;
+        }
+
+        $msg = 'Imported ' . (int) $inserted . ' template task(s)';
+        if ($skipped > 0) {
+            $msg .= '. ' . (int) $skipped . ' row(s) skipped.';
+        }
+        $this->session->set_flashdata('success', $msg);
+        if (!empty($row_errors)) {
+            $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
+        }
+        redirect('my-works/template-tasks');
     }
 
     public function create()
