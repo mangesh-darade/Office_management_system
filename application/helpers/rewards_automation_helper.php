@@ -470,12 +470,30 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
         if (!function_exists('reward_engine_dispatch')) {
             return;
         }
+
         $label = 'Daily activity';
+        $log = $db->where('id', $log_id)->limit(1)->get('daily_work_logs')->row();
+        if ($log) {
+            if (!empty($log->activity_title)) {
+                $label = trim((string) $log->activity_title);
+            } elseif (!empty($log->task_id) && $db->table_exists('tasks')) {
+                $task = $db->select('title')->where('id', (int) $log->task_id)->limit(1)->get('tasks')->row();
+                if ($task && !empty($task->title)) {
+                    $label = 'Daily activity: ' . trim((string) $task->title);
+                }
+            }
+        }
+
         $occurred_at = date('Y-m-d H:i:s');
         if ($work_date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $work_date)) {
-            $label .= ' ' . $work_date;
-            $occurred_at = $work_date . ' 12:00:00';
+            if ($label === 'Daily activity') {
+                $label .= ' ' . $work_date;
+            }
+            $occurred_at = $work_date . ' ' . date('H:i:s');
         }
+
+        // Queued as pending for SPL Approvals (manual review). source_module stays
+        // daily_activity for audit; Approvals UI accepts this module.
         reward_engine_dispatch('daily_activity_logged', array(
             'user_id' => $user_id,
             'actor_id' => $user_id,

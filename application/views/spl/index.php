@@ -339,6 +339,7 @@ $reward_period_options = array(
           </div>
         </div>
       </div>
+
     </div>
     <?php endif; ?>
 
@@ -419,106 +420,143 @@ $reward_period_options = array(
     <?php endif; ?>
 
     <?php if (!empty($can_rules) && (!$embed || $active_tab === 'rules')): ?>
+    <?php
+      $rules_view = isset($rules_view) ? (string) $rules_view : 'rules';
+      if (!in_array($rules_view, array('rules', 'categories'), true)) {
+        $rules_view = 'rules';
+      }
+      if ($rules_view === 'categories' && empty($can_categories)) {
+        $rules_view = 'rules';
+      }
+    ?>
     <div class="tab-pane fade <?php echo $active_tab === 'rules' ? 'show active' : ''; ?>" id="spl-tab-rules">
-      <div class="spl-panel-card">
-        <div class="spl-panel-head spl-rules-panel-head">
-          <div>
-            <h2 class="spl-panel-title">Reward rules</h2>
-            <p class="spl-panel-sub mb-0">Click <strong>Edit</strong> on a row to change it. Use search or column headers to filter and sort.</p>
-          </div>
-          <div class="spl-rules-toolbar">
-            <div class="spl-rule-save-msg alert alert-success py-1 px-2 mb-0 d-none" id="splRuleSaveMsg" role="status"></div>
-            <div class="btn-group btn-group-sm" role="group" aria-label="CSV actions">
-              <a class="btn btn-outline-secondary" href="<?php echo site_url('spl/rules-sample-csv'); ?>" title="Download sample CSV"><i class="bi bi-download me-1"></i>Sample</a>
-              <a class="btn btn-outline-secondary" href="<?php echo site_url('spl/rules-export'); ?>" title="Export all rules"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export</a>
-              <button type="button" class="btn btn-outline-primary" id="splRulesImportBtn" title="Import rules from CSV"><i class="bi bi-upload me-1"></i>Import</button>
+      <?php if (!empty($can_categories)): ?>
+      <ul class="nav nav-pills gap-1 mb-2" id="splRulesInnerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link <?php echo $rules_view === 'rules' ? 'active' : ''; ?>" type="button" data-bs-toggle="pill" data-bs-target="#spl-rules-sub-rules" role="tab">
+            <i class="bi bi-list-check me-1"></i>Rules
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link <?php echo $rules_view === 'categories' ? 'active' : ''; ?>" type="button" data-bs-toggle="pill" data-bs-target="#spl-rules-sub-categories" role="tab">
+            <i class="bi bi-tags me-1"></i>Categories
+          </button>
+        </li>
+      </ul>
+      <?php endif; ?>
+
+      <div class="tab-content">
+        <div class="tab-pane fade <?php echo $rules_view === 'rules' ? 'show active' : ''; ?>" id="spl-rules-sub-rules" role="tabpanel">
+          <div class="spl-panel-card">
+            <div class="spl-panel-head spl-rules-panel-head">
+              <div>
+                <h2 class="spl-panel-title">Reward rules</h2>
+                <p class="spl-panel-sub mb-0">Click <strong>Edit</strong> on a row to change it. Use search or column headers to filter and sort.</p>
+              </div>
+              <div class="spl-rules-toolbar">
+                <div class="spl-rule-save-msg alert alert-success py-1 px-2 mb-0 d-none" id="splRuleSaveMsg" role="status"></div>
+                <div class="btn-group btn-group-sm" role="group" aria-label="CSV actions">
+                  <a class="btn btn-outline-secondary" href="<?php echo site_url('spl/rules-sample-csv'); ?>" title="Download sample CSV"><i class="bi bi-download me-1"></i>Sample</a>
+                  <a class="btn btn-outline-secondary" href="<?php echo site_url('spl/rules-export'); ?>" title="Export all rules"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export</a>
+                  <button type="button" class="btn btn-outline-primary" id="splRulesImportBtn" title="Import rules from CSV"><i class="bi bi-upload me-1"></i>Import</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" id="splAddRuleRow"><i class="bi bi-plus-lg me-1"></i>Add rule</button>
+              </div>
             </div>
-            <button type="button" class="btn btn-sm btn-primary" id="splAddRuleRow"><i class="bi bi-plus-lg me-1"></i>Add rule</button>
+            <?php if ($active_tab === 'rules' && $rules_view === 'rules'): ?>
+              <?php $this->load->view('partials/import_errors'); ?>
+            <?php endif; ?>
+            <form id="splRulesImportForm" method="post" action="<?php echo site_url('spl/rules-import'); ?>" enctype="multipart/form-data" class="d-none">
+              <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+              <input type="file" name="file" id="splRulesImportFile" accept=".csv,text/csv">
+            </form>
+            <div class="spl-rules-filter-bar">
+              <div class="spl-rules-search-wrap">
+                <i class="bi bi-search spl-rules-search-icon" aria-hidden="true"></i>
+                <input type="search" class="form-control form-control-sm spl-rules-search-input" id="splRulesSearch" placeholder="Search rules by category, name, trigger, code, points…" autocomplete="off">
+                <button type="button" class="btn btn-link btn-sm spl-rules-search-clear d-none" id="splRulesSearchClear" title="Clear search" aria-label="Clear search">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive spl-rules-wrap">
+              <table class="table table-sm table-hover align-middle mb-0 spl-rules-table" id="splRulesTable" data-dt-manual data-order-col="0" data-order-dir="asc" data-order-disable-cols="5">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Name</th>
+                    <th>Trigger</th>
+                    <th class="text-end">Points</th>
+                    <th class="text-center">Active</th>
+                    <th class="text-end no-sort">Actions</th>
+                    <th class="d-none" aria-hidden="true">Code</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($rules as $r): ?>
+                  <?php
+                    $cat_label = isset($r->category_name) ? (string) $r->category_name : '';
+                    $is_active_order = (int) $r->is_active === 1 ? 1 : 0;
+                    $points_val = (float) $r->points;
+                  ?>
+                  <tr class="spl-rule-row" data-rule-id="<?php echo (int) $r->id; ?>" data-rule-code="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
+                    <td data-order="<?php echo esc_view($cat_label, ENT_QUOTES, 'UTF-8'); ?>">
+                      <span class="spl-rule-display spl-rule-display-category"><?php echo $cat_label !== '' ? esc_view($cat_label, ENT_QUOTES, 'UTF-8') : '—'; ?></span>
+                      <select class="form-select form-select-sm spl-rule-field spl-rule-category d-none">
+                        <option value="">—</option>
+                        <?php foreach ($categories as $c): ?>
+                        <option value="<?php echo (int) $c->id; ?>" <?php echo (int) $r->category_id === (int) $c->id ? 'selected' : ''; ?>><?php echo esc_view($c->name, ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php endforeach; ?>
+                      </select>
+                    </td>
+                    <td data-order="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
+                      <span class="spl-rule-display spl-rule-display-name" title="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?></span>
+                      <input class="form-control form-control-sm spl-rule-field spl-rule-name d-none" value="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
+                    </td>
+                    <td data-order="<?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?>">
+                      <span class="spl-rule-display spl-rule-display-trigger"><code><?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?></code></span>
+                      <input class="form-control form-control-sm spl-rule-field spl-rule-trigger d-none" value="<?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?>">
+                    </td>
+                    <td class="text-end" data-order="<?php echo $points_val; ?>">
+                      <span class="spl-rule-display spl-rule-display-points"><?php echo $points_val; ?></span>
+                      <input type="number" step="1" class="form-control form-control-sm spl-rule-field spl-rule-points d-none text-end" value="<?php echo $points_val; ?>">
+                    </td>
+                    <td class="text-center" data-order="<?php echo $is_active_order; ?>">
+                      <span class="spl-rule-display spl-rule-display-active">
+                        <?php if ($is_active_order === 1): ?>
+                        <span class="spl-rule-status spl-rule-status--on">Active</span>
+                        <?php else: ?>
+                        <span class="spl-rule-status spl-rule-status--off">Inactive</span>
+                        <?php endif; ?>
+                      </span>
+                      <div class="spl-rule-field form-check form-switch d-none justify-content-center mb-0">
+                        <input type="checkbox" class="form-check-input spl-rule-active" role="switch" <?php echo $is_active_order === 1 ? 'checked' : ''; ?>>
+                      </div>
+                    </td>
+                    <td class="text-end text-nowrap spl-rules-actions-cell no-sort">
+                      <button type="button" class="btn btn-sm btn-outline-primary spl-toggle-rule">Edit</button>
+                      <button type="button" class="btn btn-sm btn-outline-danger spl-delete-rule">Delete</button>
+                    </td>
+                    <td class="d-none spl-rule-code-col" aria-hidden="true" data-order="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
+                      <span class="spl-rule-display spl-rule-display-code" title="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?></span>
+                      <input class="form-control form-control-sm spl-rule-field spl-rule-code d-none" value="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
+                    </td>
+                  </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <?php if ($active_tab === 'rules'): ?>
-          <?php $this->load->view('partials/import_errors'); ?>
+
+        <?php if (!empty($can_categories)): ?>
+        <div class="tab-pane fade <?php echo $rules_view === 'categories' ? 'show active' : ''; ?>" id="spl-rules-sub-categories" role="tabpanel">
+          <?php $this->load->view('spl/_categories_panel', array(
+            'manage_categories' => isset($manage_categories) ? $manage_categories : array(),
+            'nested' => true,
+          )); ?>
+        </div>
         <?php endif; ?>
-        <form id="splRulesImportForm" method="post" action="<?php echo site_url('spl/rules-import'); ?>" enctype="multipart/form-data" class="d-none">
-          <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
-          <input type="file" name="file" id="splRulesImportFile" accept=".csv,text/csv">
-        </form>
-        <div class="spl-rules-filter-bar">
-          <div class="spl-rules-search-wrap">
-            <i class="bi bi-search spl-rules-search-icon" aria-hidden="true"></i>
-            <input type="search" class="form-control form-control-sm spl-rules-search-input" id="splRulesSearch" placeholder="Search rules by category, name, trigger, code, points…" autocomplete="off">
-            <button type="button" class="btn btn-link btn-sm spl-rules-search-clear d-none" id="splRulesSearchClear" title="Clear search" aria-label="Clear search">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </div>
-        <div class="table-responsive spl-rules-wrap">
-          <table class="table table-sm table-hover align-middle mb-0 spl-rules-table" id="splRulesTable" data-dt-manual data-order-col="0" data-order-dir="asc" data-order-disable-cols="5">
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Name</th>
-                <th>Trigger</th>
-                <th class="text-end">Points</th>
-                <th class="text-center">Active</th>
-                <th class="text-end no-sort">Actions</th>
-                <th class="d-none" aria-hidden="true">Code</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($rules as $r): ?>
-              <?php
-                $cat_label = isset($r->category_name) ? (string) $r->category_name : '';
-                $is_active_order = (int) $r->is_active === 1 ? 1 : 0;
-                $points_val = (float) $r->points;
-              ?>
-              <tr class="spl-rule-row" data-rule-id="<?php echo (int) $r->id; ?>" data-rule-code="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
-                <td data-order="<?php echo esc_view($cat_label, ENT_QUOTES, 'UTF-8'); ?>">
-                  <span class="spl-rule-display spl-rule-display-category"><?php echo $cat_label !== '' ? esc_view($cat_label, ENT_QUOTES, 'UTF-8') : '—'; ?></span>
-                  <select class="form-select form-select-sm spl-rule-field spl-rule-category d-none">
-                    <option value="">—</option>
-                    <?php foreach ($categories as $c): ?>
-                    <option value="<?php echo (int) $c->id; ?>" <?php echo (int) $r->category_id === (int) $c->id ? 'selected' : ''; ?>><?php echo esc_view($c->name, ENT_QUOTES, 'UTF-8'); ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </td>
-                <td data-order="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
-                  <span class="spl-rule-display spl-rule-display-name" title="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?></span>
-                  <input class="form-control form-control-sm spl-rule-field spl-rule-name d-none" value="<?php echo esc_view($r->name, ENT_QUOTES, 'UTF-8'); ?>">
-                </td>
-                <td data-order="<?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?>">
-                  <span class="spl-rule-display spl-rule-display-trigger"><code><?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?></code></span>
-                  <input class="form-control form-control-sm spl-rule-field spl-rule-trigger d-none" value="<?php echo esc_view($r->trigger_event, ENT_QUOTES, 'UTF-8'); ?>">
-                </td>
-                <td class="text-end" data-order="<?php echo $points_val; ?>">
-                  <span class="spl-rule-display spl-rule-display-points"><?php echo $points_val; ?></span>
-                  <input type="number" step="1" class="form-control form-control-sm spl-rule-field spl-rule-points d-none text-end" value="<?php echo $points_val; ?>">
-                </td>
-                <td class="text-center" data-order="<?php echo $is_active_order; ?>">
-                  <span class="spl-rule-display spl-rule-display-active">
-                    <?php if ($is_active_order === 1): ?>
-                    <span class="spl-rule-status spl-rule-status--on">Active</span>
-                    <?php else: ?>
-                    <span class="spl-rule-status spl-rule-status--off">Inactive</span>
-                    <?php endif; ?>
-                  </span>
-                  <div class="spl-rule-field form-check form-switch d-none justify-content-center mb-0">
-                    <input type="checkbox" class="form-check-input spl-rule-active" role="switch" <?php echo $is_active_order === 1 ? 'checked' : ''; ?>>
-                  </div>
-                </td>
-                <td class="text-end text-nowrap spl-rules-actions-cell no-sort">
-                  <button type="button" class="btn btn-sm btn-outline-primary spl-toggle-rule">Edit</button>
-                  <button type="button" class="btn btn-sm btn-outline-danger spl-delete-rule">Delete</button>
-                </td>
-                <td class="d-none spl-rule-code-col" aria-hidden="true" data-order="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
-                  <span class="spl-rule-display spl-rule-display-code" title="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?></span>
-                  <input class="form-control form-control-sm spl-rule-field spl-rule-code d-none" value="<?php echo esc_view($r->code, ENT_QUOTES, 'UTF-8'); ?>">
-                </td>
-              </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
     <?php endif; ?>
@@ -537,6 +575,9 @@ window.SPL_CONFIG = Object.assign(window.SPL_CONFIG || {}, {
   csrfHash: <?php echo json_encode($csrf_hash); ?>,
   approveActivityUrlBase: <?php echo json_encode(site_url('spl/approve-activity/')); ?>,
   rejectActivityUrlBase: <?php echo json_encode(site_url('spl/reject-activity/')); ?>,
+  updatePendingActivityUrlBase: <?php echo json_encode(site_url('spl/update-pending-activity/')); ?>,
+  deletePendingActivityUrlBase: <?php echo json_encode(site_url('spl/delete-pending-activity/')); ?>,
+  approvalEditRules: <?php echo json_encode(isset($approval_edit_rules) ? $approval_edit_rules : array(), JSON_UNESCAPED_UNICODE); ?>,
   categories: <?php echo json_encode(array_map(function ($c) {
       return array('id' => (int) $c->id, 'name' => (string) $c->name);
   }, $categories)); ?>

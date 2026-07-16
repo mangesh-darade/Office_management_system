@@ -56,7 +56,8 @@ class Reward_engine
                 $source_module,
                 $source_record_id,
                 $trigger_event,
-                isset($context['occurred_at']) ? (string) $context['occurred_at'] : ''
+                isset($context['occurred_at']) ? (string) $context['occurred_at'] : '',
+                isset($context['idempotency_salt']) ? (string) $context['idempotency_salt'] : ''
             );
             if ($this->CI->rewards->rule_exists_by_key($idem)) {
                 continue;
@@ -231,7 +232,7 @@ class Reward_engine
         }
     }
 
-    protected function build_idempotency_key($rule, $user_id, $module, $record_id, $event, $occurred_at = '')
+    protected function build_idempotency_key($rule, $user_id, $module, $record_id, $event, $occurred_at = '', $salt = '')
     {
         $parts = array($rule->code, (int) $user_id, $module, (int) $record_id, $event);
         if ((int) $rule->max_per_day === 1) {
@@ -241,6 +242,10 @@ class Reward_engine
             } else {
                 $parts[] = date('Y-m-d');
             }
+        } elseif ($event === 'reward_claim' && (int) $record_id <= 0) {
+            // Manual SPL claims have no source row — each submit must be unique,
+            // otherwise the same activity can never be submitted again.
+            $parts[] = $salt !== '' ? $salt : uniqid('claim_', true);
         }
         return sha1(implode('|', $parts));
     }

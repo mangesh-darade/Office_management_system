@@ -626,6 +626,242 @@
     modal.show();
   }
 
+  function getApprovalEditRules() {
+    var cfg = getSplCfg();
+    return Array.isArray(cfg.approvalEditRules) ? cfg.approvalEditRules : [];
+  }
+
+  function fillApprovalRuleSelect(selectEl, selectedRuleId) {
+    if (!selectEl) {
+      return;
+    }
+    var rules = getApprovalEditRules();
+    var selected = String(selectedRuleId || '');
+    selectEl.innerHTML = '';
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— Select activity —';
+    selectEl.appendChild(placeholder);
+    rules.forEach(function (rule) {
+      var opt = document.createElement('option');
+      opt.value = String(rule.id);
+      opt.textContent = rule.name + ' (' + (rule.points >= 0 ? '+' : '') + Math.round(rule.points) + ')';
+      opt.dataset.points = String(rule.points);
+      opt.dataset.name = rule.name || '';
+      opt.dataset.code = rule.code || '';
+      opt.dataset.category = rule.category_name || '';
+      if (String(rule.id) === selected) {
+        opt.selected = true;
+      }
+      selectEl.appendChild(opt);
+    });
+    if (selected && !selectEl.value) {
+      selectEl.value = selected;
+    }
+  }
+
+  function setApprovalRowEditing(row, editing) {
+    if (!row) {
+      return;
+    }
+    row.classList.toggle('is-editing', editing);
+    row.classList.toggle('is-clickable', !editing);
+    var display = row.querySelector('.spl-approval-activity-display');
+    var selectEl = row.querySelector('.spl-approval-rule-select');
+    var noteDisplay = row.querySelector('.spl-approval-note-display');
+    var notesInput = row.querySelector('.spl-approval-notes-input');
+    var editBtn = row.querySelector('.spl-approval-edit-btn');
+    var approvalId = row.getAttribute('data-approval-id');
+    var map = getApprovalPayloadMap();
+    var payload = map[approvalId] || map[parseInt(approvalId, 10)] || {};
+
+    if (display) {
+      display.classList.toggle('d-none', editing);
+    }
+    if (selectEl) {
+      selectEl.classList.toggle('d-none', !editing);
+      if (editing) {
+        fillApprovalRuleSelect(selectEl, row.getAttribute('data-rule-id') || payload.rule_id || '');
+      }
+    }
+    if (noteDisplay) {
+      noteDisplay.classList.toggle('d-none', editing);
+    }
+    if (notesInput) {
+      notesInput.classList.toggle('d-none', !editing);
+      if (editing) {
+        notesInput.value = payload.reference_label_raw || payload.reference_label || '';
+      }
+    }
+    if (editBtn) {
+      editBtn.title = editing ? 'Done editing' : 'Edit activity';
+      editBtn.setAttribute('aria-label', editBtn.title);
+      editBtn.classList.toggle('btn-outline-secondary', !editing);
+      editBtn.classList.toggle('btn-primary', editing);
+      var icon = editBtn.querySelector('i');
+      if (icon) {
+        icon.className = editing ? 'bi bi-check-lg' : 'bi bi-pencil';
+      }
+    }
+  }
+
+  function showApprovalSaveStatus(row, ok) {
+    if (!row) {
+      return;
+    }
+    var el = row.querySelector('.spl-approval-save-status');
+    if (!el) {
+      return;
+    }
+    el.textContent = ok ? 'Saved' : 'Error';
+    el.classList.toggle('text-success', ok);
+    el.classList.toggle('text-danger', !ok);
+    el.classList.remove('d-none');
+    clearTimeout(row._splSaveStatusTimer);
+    row._splSaveStatusTimer = setTimeout(function () {
+      el.classList.add('d-none');
+    }, 1600);
+  }
+
+  function applyApprovalSaveResult(row, data) {
+    if (!row || !data) {
+      return;
+    }
+    var approvalId = String(data.id || row.getAttribute('data-approval-id') || '');
+    var map = getApprovalPayloadMap();
+    var payload = map[approvalId] || map[parseInt(approvalId, 10)] || {};
+    if (data.rule_id) {
+      row.setAttribute('data-rule-id', String(data.rule_id));
+      payload.rule_id = data.rule_id;
+    }
+    if (typeof data.rule_name === 'string') {
+      payload.rule_name = data.rule_name;
+      var title = row.querySelector('.spl-approval-activity-title');
+      if (title) {
+        title.textContent = data.rule_name || '—';
+        title.setAttribute('title', data.rule_name || '—');
+      }
+    }
+    if (typeof data.rule_code === 'string') {
+      payload.rule_code = data.rule_code;
+    }
+    if (typeof data.category_name === 'string') {
+      payload.category_name = data.category_name;
+      var meta = row.querySelector('.spl-approval-activity-meta');
+      if (meta) {
+        meta.textContent = data.category_name;
+      } else if (data.category_name) {
+        var display = row.querySelector('.spl-approval-activity-display');
+        if (display) {
+          meta = document.createElement('span');
+          meta.className = 'spl-approval-activity-meta';
+          meta.textContent = data.category_name;
+          display.appendChild(meta);
+        }
+      }
+    }
+    if (typeof data.requested_points !== 'undefined') {
+      payload.requested_points = data.requested_points;
+      var ptsInput = row.querySelector('.spl-approval-pts-input');
+      if (ptsInput) {
+        ptsInput.value = Math.round(parseFloat(data.requested_points) || 0);
+        ptsInput.classList.toggle('is-positive', parseFloat(data.requested_points) >= 0);
+        ptsInput.classList.toggle('is-negative', parseFloat(data.requested_points) < 0);
+      }
+      syncApprovalPtsHidden(row);
+    }
+    if (typeof data.reference_label === 'string' && data.reference_label !== null) {
+      payload.reference_label = data.reference_label;
+      payload.reference_label_raw = data.reference_label;
+      var noteDisplay = row.querySelector('.spl-approval-note-display');
+      if (noteDisplay) {
+        var preview = (data.reference_label || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (preview) {
+          noteDisplay.innerHTML = '<span class="spl-approval-note-icon" title="' + escapeHtml(preview.substring(0, 120)) + '"><i class="bi bi-chat-left-text"></i></span>';
+        } else {
+          noteDisplay.innerHTML = '<span class="text-muted">—</span>';
+        }
+      }
+    }
+    map[approvalId] = payload;
+    map[parseInt(approvalId, 10)] = payload;
+    window.SPL_APPROVAL_PAYLOADS = map;
+  }
+
+  function savePendingApprovalRow(row, opts) {
+    opts = opts || {};
+    if (!row || row.getAttribute('data-spl-saving') === '1') {
+      return Promise.resolve(null);
+    }
+    var approvalId = row.getAttribute('data-approval-id');
+    var cfg = getSplCfg();
+    var base = String(cfg.updatePendingActivityUrlBase || '').replace(/\/?$/, '/');
+    if (!approvalId || !base) {
+      return Promise.reject(new Error('Missing update URL'));
+    }
+    var ptsInput = row.querySelector('.spl-approval-pts-input');
+    var selectEl = row.querySelector('.spl-approval-rule-select');
+    var notesInput = row.querySelector('.spl-approval-notes-input');
+    var points = ptsInput ? ptsInput.value : '0';
+    if (points === '' || isNaN(parseFloat(points))) {
+      showApprovalSaveStatus(row, false);
+      return Promise.reject(new Error('Invalid points'));
+    }
+    var payload = {
+      requested_points: points
+    };
+    if (selectEl && selectEl.value) {
+      payload.rule_id = selectEl.value;
+    } else if (row.getAttribute('data-rule-id')) {
+      payload.rule_id = row.getAttribute('data-rule-id');
+    }
+    if (notesInput && (opts.includeNotes || row.classList.contains('is-editing'))) {
+      payload.reference_label = notesInput.value;
+    }
+    row.setAttribute('data-spl-saving', '1');
+    return postForm(base + approvalId, payload).then(function (res) {
+      row.removeAttribute('data-spl-saving');
+      if (!res || res.status !== 'success') {
+        showApprovalSaveStatus(row, false);
+        return Promise.reject(new Error((res && res.message) || 'Save failed'));
+      }
+      applyApprovalSaveResult(row, res.data || {});
+      showApprovalSaveStatus(row, true);
+      return res;
+    }).catch(function (err) {
+      row.removeAttribute('data-spl-saving');
+      showApprovalSaveStatus(row, false);
+      return Promise.reject(err);
+    });
+  }
+
+  function toggleSplApprovalInlineEdit(approvalId) {
+    if (!approvalId) {
+      return;
+    }
+    var row = document.querySelector('.spl-approval-row[data-approval-id="' + approvalId + '"]');
+    if (!row) {
+      return;
+    }
+    var editing = !row.classList.contains('is-editing');
+    if (!editing) {
+      savePendingApprovalRow(row, { includeNotes: true }).finally(function () {
+        setApprovalRowEditing(row, false);
+      });
+      return;
+    }
+    document.querySelectorAll('.spl-approval-row.is-editing').forEach(function (other) {
+      if (other !== row) {
+        setApprovalRowEditing(other, false);
+      }
+    });
+    setApprovalRowEditing(row, true);
+  }
+
+  function openSplApprovalEditFromId(approvalId) {
+    toggleSplApprovalInlineEdit(approvalId);
+  }
+
   function openSplApprovalFromId(approvalId, root) {
     if (!approvalId) {
       return;
@@ -720,15 +956,55 @@
           openSplApprovalFromId(viewBtn.getAttribute('data-approval-id'), root);
           return;
         }
+        var editBtn = e.target.closest('.spl-approval-edit-btn');
+        if (editBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          openSplApprovalEditFromId(editBtn.getAttribute('data-approval-id'));
+          return;
+        }
         if (e.target.closest('a, button, input, textarea, select, label, form')) {
           return;
         }
         var row = e.target.closest('.spl-approval-row');
-        if (!row) {
+        if (!row || row.classList.contains('is-editing')) {
           return;
         }
         openSplApprovalFromId(row.getAttribute('data-approval-id'), root);
       });
+      scope.addEventListener('change', function (e) {
+        var ruleSelect = e.target.closest('.spl-approval-rule-select');
+        if (ruleSelect) {
+          var ruleRow = ruleSelect.closest('.spl-approval-row');
+          if (!ruleRow) {
+            return;
+          }
+          var opt = ruleSelect.options[ruleSelect.selectedIndex];
+          var ptsInput = ruleRow.querySelector('.spl-approval-pts-input');
+          if (opt && opt.dataset.points && ptsInput) {
+            ptsInput.value = Math.round(parseFloat(opt.dataset.points) || 0);
+            syncApprovalPtsHidden(ruleRow);
+          }
+          savePendingApprovalRow(ruleRow, { includeNotes: true });
+          return;
+        }
+        var ptsChange = e.target.closest('.spl-approval-pts-input');
+        if (ptsChange) {
+          var ptsRow = ptsChange.closest('.spl-approval-row');
+          syncApprovalPtsHidden(ptsRow);
+          savePendingApprovalRow(ptsRow, { includeNotes: ptsRow && ptsRow.classList.contains('is-editing') });
+        }
+      });
+      scope.addEventListener('blur', function (e) {
+        var notesInput = e.target.closest('.spl-approval-notes-input');
+        if (!notesInput) {
+          return;
+        }
+        var notesRow = notesInput.closest('.spl-approval-row');
+        if (notesRow && notesRow.classList.contains('is-editing')) {
+          savePendingApprovalRow(notesRow, { includeNotes: true });
+        }
+      }, true);
       scope.addEventListener('input', function (e) {
         var ptsInput = e.target.closest('.spl-approval-pts-input');
         if (!ptsInput) {
@@ -745,14 +1021,17 @@
         }
       });
       scope.addEventListener('keydown', function (e) {
-        if (!e.target.closest('.spl-approval-pts-input')) {
+        if (!e.target.closest('.spl-approval-pts-input, .spl-approval-notes-input, .spl-approval-rule-select')) {
           return;
         }
         e.stopPropagation();
       });
       scope.querySelectorAll('.spl-approval-row').forEach(function (row) {
         row.addEventListener('keydown', function (e) {
-          if (e.target.closest('.spl-approval-pts-input')) {
+          if (e.target.closest('.spl-approval-pts-input, .spl-approval-notes-input, .spl-approval-rule-select')) {
+            return;
+          }
+          if (row.classList.contains('is-editing')) {
             return;
           }
           if (e.key === 'Enter' || e.key === ' ') {

@@ -76,7 +76,7 @@ if ($compact) {
             ? spl_format_activity_datetime_compact($row->submitted_at)
             : spl_format_activity_datetime($row->submitted_at);
       ?>
-      <tr class="spl-approval-row spl-activity-row is-clickable<?php echo $rowClass !== '' ? ' ' . esc_view($rowClass, ENT_QUOTES, 'UTF-8') : ''; ?>" data-approval-id="<?php echo (int) $row->id; ?>" tabindex="0">
+      <tr class="spl-approval-row spl-activity-row is-clickable<?php echo $rowClass !== '' ? ' ' . esc_view($rowClass, ENT_QUOTES, 'UTF-8') : ''; ?>" data-approval-id="<?php echo (int) $row->id; ?>" data-rule-id="<?php echo !empty($row->rule_id) ? (int) $row->rule_id : 0; ?>" tabindex="0">
         <td class="spl-approval-col-employee" data-order="<?php echo esc_view(strtolower((string) ($row->recipient_name ?: '')), ENT_QUOTES, 'UTF-8'); ?>">
           <span class="spl-approval-employee-name" title="<?php echo esc_view($row->recipient_name ?: '', ENT_QUOTES, 'UTF-8'); ?>">
             <?php echo esc_view($row->recipient_name ?: '—', ENT_QUOTES, 'UTF-8'); ?>
@@ -86,11 +86,16 @@ if ($compact) {
           <span class="spl-activity-table-date"><?php echo esc_view($submittedLabel, ENT_QUOTES, 'UTF-8'); ?></span>
         </td>
         <td class="spl-approval-col-activity">
-          <span class="spl-activity-table-title spl-approval-activity-title" title="<?php echo esc_view($activityLabel !== '' ? $activityLabel : '—', ENT_QUOTES, 'UTF-8'); ?>">
-            <?php echo esc_view($activityLabel !== '' ? $activityLabel : '—', ENT_QUOTES, 'UTF-8'); ?>
+          <span class="spl-approval-activity-display">
+            <span class="spl-activity-table-title spl-approval-activity-title" title="<?php echo esc_view($activityLabel !== '' ? $activityLabel : '—', ENT_QUOTES, 'UTF-8'); ?>">
+              <?php echo esc_view($activityLabel !== '' ? $activityLabel : '—', ENT_QUOTES, 'UTF-8'); ?>
+            </span>
+            <?php if ($compact && !empty($row->category_name)): ?>
+            <span class="spl-approval-activity-meta"><?php echo esc_view($row->category_name, ENT_QUOTES, 'UTF-8'); ?></span>
+            <?php endif; ?>
           </span>
-          <?php if ($compact && !empty($row->category_name)): ?>
-          <span class="spl-approval-activity-meta"><?php echo esc_view($row->category_name, ENT_QUOTES, 'UTF-8'); ?></span>
+          <?php if ($approval_view === 'pending' && $csrf_name !== ''): ?>
+          <select class="form-select form-select-sm spl-approval-rule-select d-none" data-approval-id="<?php echo (int) $row->id; ?>" aria-label="Change activity"></select>
           <?php endif; ?>
         </td>
         <?php if (!$compact): ?>
@@ -136,10 +141,15 @@ if ($compact) {
         </td>
         <?php else: ?>
         <td class="text-center spl-approval-col-icon" data-order="<?php echo $notePreview !== '' ? '1' : '0'; ?>">
-          <?php if ($notePreview !== ''): ?>
-          <span class="spl-approval-note-icon" title="<?php echo esc_view($notePreview, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-chat-left-text"></i></span>
-          <?php else: ?>
-          <span class="text-muted">—</span>
+          <span class="spl-approval-note-display">
+            <?php if ($notePreview !== ''): ?>
+            <span class="spl-approval-note-icon" title="<?php echo esc_view($notePreview, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-chat-left-text"></i></span>
+            <?php else: ?>
+            <span class="text-muted">—</span>
+            <?php endif; ?>
+          </span>
+          <?php if ($approval_view === 'pending' && $csrf_name !== ''): ?>
+          <textarea class="form-control form-control-sm spl-approval-notes-input d-none" rows="2" data-approval-id="<?php echo (int) $row->id; ?>" placeholder="Notes" aria-label="Edit notes"></textarea>
           <?php endif; ?>
         </td>
         <?php endif; ?>
@@ -156,6 +166,10 @@ if ($compact) {
               <i class="bi bi-eye"></i>
             </button>
             <?php if ($approval_view === 'pending' && $csrf_name !== ''): ?>
+            <button type="button" class="btn btn-sm btn-outline-secondary spl-approval-edit-btn" data-approval-id="<?php echo (int) $row->id; ?>" title="Edit activity" aria-label="Edit activity">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <span class="spl-approval-save-status small text-success d-none" aria-live="polite">Saved</span>
             <form method="post" action="<?php echo esc_view(site_url('spl/approve-activity/' . (int) $row->id), ENT_QUOTES, 'UTF-8'); ?>" class="spl-approval-inline-form spl-approval-approve-form">
               <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
               <input type="hidden" name="requested_points" class="spl-approval-pts-hidden" value="<?php echo esc_view(number_format($points, 0, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
@@ -167,6 +181,12 @@ if ($compact) {
               <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
               <button type="submit" class="btn btn-sm btn-outline-danger spl-approval-reject-btn" title="Reject" aria-label="Reject">
                 <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+            <form method="post" action="<?php echo esc_view(site_url('spl/delete-pending-activity/' . (int) $row->id), ENT_QUOTES, 'UTF-8'); ?>" class="spl-approval-inline-form spl-approval-delete-form" onsubmit="return confirm('Delete this pending activity permanently?');">
+              <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+              <button type="submit" class="btn btn-sm btn-outline-danger spl-approval-delete-btn" title="Delete row" aria-label="Delete row">
+                <i class="bi bi-trash"></i>
               </button>
             </form>
             <?php endif; ?>

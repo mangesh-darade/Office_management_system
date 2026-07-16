@@ -755,6 +755,24 @@
           "delete": null
         },
         {
+          "name": "Reward Rules",
+          "menu": "SPL → Rules",
+          "purpose": "Configure reward point rules for activities.",
+          "list": {"route": "spl/dashboard?tab=rules"},
+          "add": {"route": "spl/dashboard?tab=rules", "steps": ["Open Rules tab.", "Click Add rule.", "Set category, name, points, and save."]},
+          "edit": {"list_route": "spl/dashboard?tab=rules", "steps": ["Click Edit on a rule row.", "Update fields and Save."]},
+          "delete": {"list_route": "spl/dashboard?tab=rules", "steps": ["Click Delete on a rule row."]}
+        },
+        {
+          "name": "Reward Categories",
+          "menu": "SPL → Rules → Categories",
+          "purpose": "Manage categories used by SPL rules and activity forms.",
+          "list": {"route": "spl/dashboard?tab=rules&rules_view=categories"},
+          "add": {"route": "spl/dashboard?tab=rules&rules_view=categories", "steps": ["Open Rules tab.", "Open Categories sub-tab.", "Click Add category.", "Enter name/code and save."]},
+          "edit": {"list_route": "spl/dashboard?tab=rules&rules_view=categories", "steps": ["Open Rules → Categories.", "Click Edit.", "Update fields and Save."]},
+          "delete": null
+        },
+        {
           "name": "Send Cheer",
           "menu": "Rewards → Send Cheer",
           "purpose": "Recognize a colleague with peer points.",
@@ -774,12 +792,12 @@
         },
         {
           "name": "Reward Approvals",
-          "menu": "Rewards → Approvals",
-          "purpose": "Approve or reject pending point claims.",
-          "list": {"route": "rewards/approvals"},
-          "edit": {"steps": ["Approve or Reject each pending row."]},
+          "menu": "SPL → Approvals",
+          "purpose": "Approve, reject, edit, or delete pending point claims.",
+          "list": {"route": "spl/dashboard?tab=approvals&approval_view=pending"},
+          "edit": {"list_route": "spl/dashboard?tab=approvals&approval_view=pending", "steps": ["Open Pending.", "Click Edit (pencil) to change notes/points and Save.", "Or Approve / Reject from the row actions."]},
           "add": null,
-          "delete": null
+          "delete": {"list_route": "spl/dashboard?tab=approvals&approval_view=pending", "steps": ["On a pending row, click Delete (trash) and confirm."]}
         },
         {
           "name": "Office Closing Checklist",

@@ -23,6 +23,51 @@ class Spl_model extends CI_Model
         return $this->db->get('reward_categories')->result();
     }
 
+    public function get_category($id)
+    {
+        if (!$this->db->table_exists('reward_categories')) {
+            return null;
+        }
+        return $this->db->where('id', (int) $id)->get('reward_categories')->row();
+    }
+
+    public function get_category_by_code($code)
+    {
+        if (!$this->db->table_exists('reward_categories')) {
+            return null;
+        }
+        return $this->db->where('code', (string) $code)->get('reward_categories')->row();
+    }
+
+    public function save_category(array $data, $id = null)
+    {
+        if (!$this->db->table_exists('reward_categories')) {
+            return false;
+        }
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        if ($id) {
+            $this->db->where('id', (int) $id)->update('reward_categories', $data);
+            return (int) $id;
+        }
+        $data['created_at'] = date('Y-m-d H:i:s');
+        $this->db->insert('reward_categories', $data);
+        return (int) $this->db->insert_id();
+    }
+
+    public function toggle_category($id)
+    {
+        $row = $this->get_category($id);
+        if (!$row) {
+            return false;
+        }
+        $next = ((int) $row->is_active === 1) ? 0 : 1;
+        $this->db->where('id', (int) $id)->update('reward_categories', array(
+            'is_active' => $next,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ));
+        return true;
+    }
+
     public function list_claim_rules_by_category($category_id = 0)
     {
         $this->db->from('reward_rules');

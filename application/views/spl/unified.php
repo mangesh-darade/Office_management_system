@@ -22,6 +22,19 @@ $reward_bounds = isset($reward_bounds) ? $reward_bounds : spl_reward_period_boun
       </div>
     </header>
 
+    <?php if ($this->session->flashdata('success')): ?>
+    <div class="alert alert-success alert-dismissible fade show py-2 mb-2" role="alert">
+      <?php echo esc_view($this->session->flashdata('success')); ?>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php endif; ?>
+    <?php if ($this->session->flashdata('error')): ?>
+    <div class="alert alert-danger alert-dismissible fade show py-2 mb-2" role="alert">
+      <?php echo esc_view($this->session->flashdata('error')); ?>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php endif; ?>
+
     <div class="spl-unified-toolbar card border-0 shadow-sm">
       <ul class="nav nav-pills flex-nowrap spl-unified-tabs" id="splUnifiedTabs" role="tablist">
         <?php if (spl_tab_allowed('overview')): ?>
@@ -109,13 +122,6 @@ $reward_bounds = isset($reward_bounds) ? $reward_bounds : spl_reward_period_boun
     </div>
     <?php endif; ?>
 
-    <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success py-2 mt-2 mb-0"><?php echo esc_view((string) $this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></div>
-    <?php endif; ?>
-    <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger py-2 mt-2 mb-0"><?php echo esc_view((string) $this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></div>
-    <?php endif; ?>
-
     <div class="tab-content spl-unified-tab-content" id="splUnifiedContent">
       <?php if (spl_tab_allowed('overview')): ?>
       <div class="tab-pane fade <?php echo $active_tab === 'overview' ? 'show active' : ''; ?>" id="pane-overview" role="tabpanel">
@@ -194,6 +200,8 @@ window.SPL_CONFIG = Object.assign(window.SPL_CONFIG || {}, {
   csrfHash: <?php echo json_encode($spl_csrf_hash); ?>,
   approveActivityUrlBase: <?php echo json_encode(site_url('spl/approve-activity/')); ?>,
   rejectActivityUrlBase: <?php echo json_encode(site_url('spl/reject-activity/')); ?>,
+  updatePendingActivityUrlBase: <?php echo json_encode(site_url('spl/update-pending-activity/')); ?>,
+  deletePendingActivityUrlBase: <?php echo json_encode(site_url('spl/delete-pending-activity/')); ?>,
   categories: []
 });
 </script>
@@ -208,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
     levels: <?php echo json_encode(site_url('spl?tab=levels')); ?>,
     activity: <?php echo json_encode(site_url('spl?tab=activity')); ?>,
     approvals: <?php echo json_encode(site_url('spl?tab=approvals')); ?>,
-    rules: <?php echo json_encode(site_url('spl?tab=rules')); ?>,
+    rules: <?php echo json_encode(site_url('spl?tab=rules' . ((!empty($rules_view) && $rules_view === 'categories') ? '&rules_view=categories' : ''))); ?>,
     groups: <?php echo json_encode(site_url('spl/groups')); ?>
   };
 
@@ -236,6 +244,12 @@ document.addEventListener('DOMContentLoaded', function() {
         var approvalView = pageParams.get('approval_view');
         if (approvalView) {
           url.searchParams.set('approval_view', approvalView);
+        }
+      }
+      if (tabName === 'rules') {
+        var rulesView = pageParams.get('rules_view');
+        if (rulesView === 'categories') {
+          url.searchParams.set('rules_view', 'categories');
         }
       }
       if (tabName === 'overview' || tabName === 'groups' || tabName === 'my-reward') {

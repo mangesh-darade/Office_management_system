@@ -30,6 +30,9 @@ class Spl extends CI_Controller
 
         $uid = (int) $this->session->userdata('user_id');
         $tab = trim((string) $this->input->get('tab'));
+        if ($tab === 'categories') {
+            $tab = 'rules';
+        }
         if ($tab === '') {
             $tab = spl_resolve_default_tab();
         }
@@ -47,6 +50,17 @@ class Spl extends CI_Controller
         }
         if ($tab === 'approvals' && !spl_can_approve()) {
             $tab = spl_resolve_default_tab();
+        }
+
+        $rules_view = trim((string) $this->input->get('rules_view'));
+        if ($this->input->get('tab') === 'categories') {
+            $rules_view = 'categories';
+        }
+        if (!in_array($rules_view, array('rules', 'categories'), true)) {
+            $rules_view = 'rules';
+        }
+        if ($rules_view === 'categories' && !spl_can_manage_categories()) {
+            $rules_view = 'rules';
         }
 
         if (!spl_has_any_index_tab() && !spl_can_view_groups()) {
@@ -95,10 +109,15 @@ class Spl extends CI_Controller
         $rules = spl_can_manage_rules() ? $this->rewards->list_rules(false) : array();
         $levels = spl_can_view_levels() ? $this->rewards->list_levels(false) : array();
         $categories = $this->spl->list_categories(true);
+        $manage_categories = array();
+        if (spl_can_manage_categories()) {
+            $manage_categories = $this->spl->list_categories(false);
+        }
         $pending_approvals = array();
         $approved_approvals = array();
         $rejected_approvals = array();
         $approval_counts = array('pending' => 0, 'approved' => 0, 'rejected' => 0);
+        $approval_edit_rules = array();
         if (spl_can_approve()) {
             $approval_counts['pending'] = $this->rewards->count_spl_approvals_by_status('pending');
             $approval_counts['approved'] = $this->rewards->count_spl_approvals_by_status('approved');
@@ -109,6 +128,18 @@ class Spl extends CI_Controller
                 $approved_approvals = spl_enrich_approval_rows($this->rewards, $this->rewards->list_spl_approval_history('approved', 200));
             } else {
                 $rejected_approvals = spl_enrich_approval_rows($this->rewards, $this->rewards->list_spl_approval_history('rejected', 200));
+            }
+            foreach ($this->rewards->list_rules(true) as $edit_rule) {
+                if ((int) $edit_rule->requires_approval !== 1) {
+                    continue;
+                }
+                $approval_edit_rules[] = array(
+                    'id' => (int) $edit_rule->id,
+                    'code' => (string) $edit_rule->code,
+                    'name' => (string) $edit_rule->name,
+                    'points' => (float) $edit_rule->points,
+                    'category_name' => isset($edit_rule->category_name) ? (string) $edit_rule->category_name : '',
+                );
             }
         }
 
@@ -127,12 +158,16 @@ class Spl extends CI_Controller
             'rules' => $rules,
             'levels' => $levels,
             'categories' => $categories,
+            'manage_categories' => $manage_categories,
+            'rules_view' => $rules_view,
             'pending_approvals' => $pending_approvals,
             'approved_approvals' => $approved_approvals,
             'rejected_approvals' => $rejected_approvals,
+            'approval_edit_rules' => $approval_edit_rules,
             'can_submit' => spl_can_submit(),
             'can_my_reward' => spl_can_my_reward(),
             'can_rules' => spl_can_manage_rules(),
+            'can_categories' => spl_can_manage_categories(),
             'can_levels' => spl_can_view_levels(),
             'can_approve' => spl_can_approve(),
             'can_groups' => spl_can_view_groups(),
@@ -149,7 +184,11 @@ class Spl extends CI_Controller
 
         $embed = (bool) $this->input->get('embed');
         $uid = (int) $this->session->userdata('user_id');
-        $tab = spl_resolve_unified_tab($this->input->get('tab'));
+        $raw_tab = trim((string) $this->input->get('tab'));
+        if ($raw_tab === 'categories') {
+            $raw_tab = 'rules';
+        }
+        $tab = spl_resolve_unified_tab($raw_tab);
         $reward_period = spl_normalize_reward_period($this->input->get('reward_period') ?: 'week');
 
         $data = spl_build_dashboard_data($uid, $reward_period);
@@ -157,10 +196,22 @@ class Spl extends CI_Controller
         $data['can_submit'] = spl_can_submit();
         $data['can_my_reward'] = spl_can_my_reward();
         $data['can_rules'] = spl_can_manage_rules();
+        $data['can_categories'] = spl_can_manage_categories();
         $data['can_levels'] = spl_can_view_levels();
         $data['can_approve'] = spl_can_approve();
         $data['can_groups'] = spl_can_view_groups();
         $data['can_manage'] = spl_can_manage_groups();
+        $rules_view = trim((string) $this->input->get('rules_view'));
+        if ($this->input->get('tab') === 'categories') {
+            $rules_view = 'categories';
+        }
+        if (!in_array($rules_view, array('rules', 'categories'), true)) {
+            $rules_view = 'rules';
+        }
+        if ($rules_view === 'categories' && !spl_can_manage_categories()) {
+            $rules_view = 'rules';
+        }
+        $data['rules_view'] = $rules_view;
         $data['approval_counts'] = array('pending' => 0, 'approved' => 0, 'rejected' => 0);
         if (spl_can_approve()) {
             $data['approval_counts']['pending'] = $this->rewards->count_spl_approvals_by_status('pending');
@@ -206,12 +257,28 @@ class Spl extends CI_Controller
             $label = $rule->name;
         }
 
+        $max_per_day = ($rule->max_per_day !== null) ? (int) $rule->max_per_day : 0;
+        if ($max_per_day > 0) {
+            $today_count = $this->rewards->count_rule_awards_today((int) $rule->id, $actor);
+            if ($today_count >= $max_per_day) {
+                $this->session->set_flashdata(
+                    'error',
+                    'You already submitted "' . $rule->name . '" today'
+                    . ($max_per_day > 1 ? ' (limit ' . $max_per_day . ' per day)' : '')
+                    . '. Choose a different activity or try again tomorrow.'
+                );
+                redirect('spl/dashboard?tab=activity');
+                return;
+            }
+        }
+
         $txIds = reward_engine_claim($ruleCode, array(
             'user_id' => $actor,
             'actor_id' => $actor,
             'source_module' => 'spl',
             'source_record_id' => null,
             'reference_label' => $label,
+            'idempotency_salt' => uniqid('spl_claim_', true),
         ));
 
         $lastQueueId = 0;
@@ -227,7 +294,10 @@ class Spl extends CI_Controller
         }
 
         if (empty($txIds)) {
-            $this->session->set_flashdata('error', 'Could not submit activity. It may already be pending or capped for today.');
+            $this->session->set_flashdata(
+                'error',
+                'Could not submit activity. It may already be pending for today, or this activity is capped.'
+            );
             redirect('spl/dashboard?tab=activity');
             return;
         }
@@ -245,7 +315,7 @@ class Spl extends CI_Controller
         }
         $id = (int) $id;
         $q = $this->rewards->get_approval_queue($id);
-        if (!$q || $q->source_module !== 'spl') {
+        if (!$q || !$this->rewards->is_approval_managed_source($q->source_module)) {
             $this->session->set_flashdata('error', 'Invalid approval request.');
             redirect('spl/dashboard?tab=approvals&approval_view=pending');
             return;
@@ -274,7 +344,7 @@ class Spl extends CI_Controller
         }
         $id = (int) $id;
         $q = $this->rewards->get_approval_queue($id);
-        if (!$q || $q->source_module !== 'spl') {
+        if (!$q || !$this->rewards->is_approval_managed_source($q->source_module)) {
             $this->session->set_flashdata('error', 'Invalid approval request.');
             redirect('spl/dashboard?tab=approvals&approval_view=pending');
             return;
@@ -283,6 +353,107 @@ class Spl extends CI_Controller
         $ok = $this->rewards->reject_pending($id, (int) $this->session->userdata('user_id'), $comment);
         $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Activity rejected.' : 'Could not reject activity.');
         redirect('spl/dashboard?tab=approvals&approval_view=' . ($ok ? 'rejected' : 'pending'));
+    }
+
+    public function update_pending_activity($id = 0)
+    {
+        require_module_access(array('spl', 'spl_approve', 'rewards_approve', 'rewards_admin'), true);
+        if ($this->input->method() !== 'post') {
+            if ($this->input->is_ajax_request()) {
+                $this->_json_error('Invalid request', 405);
+                return;
+            }
+            show_error('Invalid request', 405);
+        }
+        $id = (int) $id;
+        $is_ajax = $this->input->is_ajax_request();
+        $q = $this->rewards->get_approval_queue($id);
+        if (!$q || !$this->rewards->is_approval_managed_source($q->source_module) || $q->status !== 'pending') {
+            if ($is_ajax) {
+                $this->_json_error('Invalid pending activity.', 422);
+                return;
+            }
+            $this->session->set_flashdata('error', 'Invalid pending activity.');
+            redirect('spl/dashboard?tab=approvals&approval_view=pending');
+            return;
+        }
+
+        $points_raw = $this->input->post('requested_points');
+        if ($points_raw === null || $points_raw === '' || !is_numeric($points_raw)) {
+            if ($is_ajax) {
+                $this->_json_error('Points must be a valid number.', 422);
+                return;
+            }
+            $this->session->set_flashdata('error', 'Points must be a valid number.');
+            redirect('spl/dashboard?tab=approvals&approval_view=pending');
+            return;
+        }
+
+        $update = array(
+            'requested_points' => (float) $points_raw,
+        );
+
+        $rule_id_post = $this->input->post('rule_id');
+        if ($rule_id_post !== null && $rule_id_post !== '') {
+            $rule_id = (int) $rule_id_post;
+            if ($rule_id <= 0 || !$this->rewards->get_rule($rule_id)) {
+                if ($is_ajax) {
+                    $this->_json_error('Invalid activity selected.', 422);
+                    return;
+                }
+                $this->session->set_flashdata('error', 'Invalid activity selected.');
+                redirect('spl/dashboard?tab=approvals&approval_view=pending');
+                return;
+            }
+            $update['rule_id'] = $rule_id;
+        }
+
+        if ($this->input->post('reference_label') !== null) {
+            $label = spl_sanitize_note_html($this->input->post('reference_label'));
+            if ($label === '') {
+                $rule_for_label = !empty($update['rule_id'])
+                    ? $this->rewards->get_rule((int) $update['rule_id'])
+                    : (!empty($q->rule_id) ? $this->rewards->get_rule((int) $q->rule_id) : null);
+                $label = ($rule_for_label && !empty($rule_for_label->name)) ? (string) $rule_for_label->name : 'Activity';
+            }
+            $update['reference_label'] = $label;
+        }
+
+        $ok = $this->rewards->update_pending_activity($id, $update);
+        if ($ok) {
+            $this->rewards->audit('approval_queue', $id, 'updated', (int) $this->session->userdata('user_id'));
+        }
+        if ($is_ajax) {
+            if (!$ok) {
+                $this->_json_error('Could not update activity.', 500);
+                return;
+            }
+            $this->_json_success(is_array($ok) ? $ok : array('id' => $id));
+            return;
+        }
+        $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Pending activity updated.' : 'Could not update activity.');
+        redirect('spl/dashboard?tab=approvals&approval_view=pending');
+    }
+
+    public function delete_pending_activity($id = 0)
+    {
+        require_module_access(array('spl', 'spl_approve', 'rewards_approve', 'rewards_admin'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+        }
+        $id = (int) $id;
+        $q = $this->rewards->get_approval_queue($id);
+        if (!$q || !$this->rewards->is_approval_managed_source($q->source_module) || $q->status !== 'pending') {
+            $this->session->set_flashdata('error', 'Invalid pending activity.');
+            redirect('spl/dashboard?tab=approvals&approval_view=pending');
+            return;
+        }
+        $ok = $this->rewards->delete_pending_activity($id);
+        if ($ok) {
+            $this->rewards->audit('approval_queue', $id, 'deleted', (int) $this->session->userdata('user_id'));
+        }
+        $this->session->set_flashdata($ok ? 'success' : 'error', $ok ? 'Pending activity deleted.' : 'Could not delete activity.');
+        redirect('spl/dashboard?tab=approvals&approval_view=pending');
     }
 
     public function approvals()
@@ -335,6 +506,77 @@ class Spl extends CI_Controller
             $this->spl->sync_all_rules_to_all_groups();
         }
         $this->_json_success(array('id' => $savedId));
+    }
+
+    public function save_category()
+    {
+        require_module_access(array('spl_categories', 'spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            $this->session->set_flashdata('error', 'Invalid request.');
+            redirect('spl/dashboard?tab=rules&rules_view=categories');
+            return;
+        }
+
+        $id = (int) $this->input->post('id');
+        $name = trim((string) $this->input->post('name'));
+        $code = trim((string) $this->input->post('code'));
+        if ($name === '') {
+            $this->session->set_flashdata('error', 'Category name is required.');
+            redirect('spl/dashboard?tab=rules&rules_view=categories');
+            return;
+        }
+        if ($code === '') {
+            $code = strtolower(preg_replace('/[^a-z0-9]+/i', '_', $name));
+            $code = trim($code, '_');
+        }
+        if ($code === '') {
+            $code = 'category_' . time();
+        }
+
+        $existing_code = $this->spl->get_category_by_code($code);
+        if ($existing_code && (int) $existing_code->id !== $id) {
+            $this->session->set_flashdata('error', 'Category code already exists.');
+            redirect('spl/dashboard?tab=rules&rules_view=categories');
+            return;
+        }
+
+        $payload = array(
+            'code' => $code,
+            'name' => $name,
+            'description' => trim((string) $this->input->post('description')),
+            'icon_class' => trim((string) $this->input->post('icon_class')) ?: 'bi bi-star',
+            'sort_order' => (int) $this->input->post('sort_order'),
+            'is_active' => $this->input->post('is_active') ? 1 : 0,
+        );
+
+        $saved = $this->spl->save_category($payload, $id > 0 ? $id : null);
+        if (!$saved) {
+            $this->session->set_flashdata('error', 'Could not save category.');
+            redirect('spl/dashboard?tab=rules&rules_view=categories');
+            return;
+        }
+        $this->rewards->audit('category', (int) $saved, $id > 0 ? 'updated' : 'created', (int) $this->session->userdata('user_id'));
+        $this->session->set_flashdata('success', 'Category saved.');
+        redirect('spl/dashboard?tab=rules&rules_view=categories');
+    }
+
+    public function toggle_category($id = 0)
+    {
+        require_module_access(array('spl_categories', 'spl_rules', 'spl', 'rewards_rules', 'rewards_admin', 'rewards'), true);
+        if ($this->input->method() !== 'post') {
+            $this->session->set_flashdata('error', 'Invalid request.');
+            redirect('spl/dashboard?tab=rules&rules_view=categories');
+            return;
+        }
+        $id = (int) $id;
+        if ($id <= 0 || !$this->spl->toggle_category($id)) {
+            $this->session->set_flashdata('error', 'Could not update category.');
+            redirect('spl/dashboard?tab=rules&rules_view=categories');
+            return;
+        }
+        $this->rewards->audit('category', $id, 'toggled', (int) $this->session->userdata('user_id'));
+        $this->session->set_flashdata('success', 'Category status updated.');
+        redirect('spl/dashboard?tab=rules&rules_view=categories');
     }
 
     public function save_level()

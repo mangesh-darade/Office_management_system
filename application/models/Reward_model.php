@@ -487,6 +487,21 @@ class Reward_model extends CI_Model
         return $this->db->get()->result();
     }
 
+    /**
+     * Modules whose pending rewards appear in SPL Approvals.
+     *
+     * @return array<int, string>
+     */
+    public function approval_source_modules()
+    {
+        return array('spl', 'daily_activity');
+    }
+
+    public function is_approval_managed_source($source_module)
+    {
+        return in_array((string) $source_module, $this->approval_source_modules(), true);
+    }
+
     public function get_approval_queue($id)
     {
         return $this->db->where('id', (int) $id)->get('reward_approval_queue')->row();
@@ -494,7 +509,7 @@ class Reward_model extends CI_Model
 
     public function list_spl_pending_approvals($limit = 100)
     {
-        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label', false);
+        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label, t.notes AS transaction_notes', false);
         $this->db->from('reward_approval_queue q');
         $this->db->join('users u', 'u.id = q.user_id', 'left');
         $this->db->join('users s', 's.id = q.submitted_by', 'left');
@@ -502,7 +517,7 @@ class Reward_model extends CI_Model
         $this->db->join('reward_categories c', 'c.id = r.category_id', 'left');
         $this->db->join('reward_transactions t', 't.id = q.transaction_id', 'left');
         $this->db->where('q.status', 'pending');
-        $this->db->where('q.source_module', 'spl');
+        $this->db->where_in('q.source_module', $this->approval_source_modules());
         $this->db->order_by('q.submitted_at', 'DESC');
         $this->db->limit($limit);
         return $this->db->get()->result();
@@ -516,7 +531,7 @@ class Reward_model extends CI_Model
         }
         $this->db->from('reward_approval_queue q');
         $this->db->where('q.status', 'pending');
-        $this->db->where('q.source_module', 'spl');
+        $this->db->where_in('q.source_module', $this->approval_source_modules());
         $this->db->group_start()
             ->where('q.user_id', $user_id)
             ->or_where('q.submitted_by', $user_id)
@@ -530,7 +545,7 @@ class Reward_model extends CI_Model
         if ($user_id <= 0) {
             return array();
         }
-        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label', false);
+        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label, t.notes AS transaction_notes', false);
         $this->db->from('reward_approval_queue q');
         $this->db->join('users u', 'u.id = q.user_id', 'left');
         $this->db->join('users s', 's.id = q.submitted_by', 'left');
@@ -538,7 +553,7 @@ class Reward_model extends CI_Model
         $this->db->join('reward_categories c', 'c.id = r.category_id', 'left');
         $this->db->join('reward_transactions t', 't.id = q.transaction_id', 'left');
         $this->db->where('q.status', 'pending');
-        $this->db->where('q.source_module', 'spl');
+        $this->db->where_in('q.source_module', $this->approval_source_modules());
         $this->db->group_start()
             ->where('q.user_id', $user_id)
             ->or_where('q.submitted_by', $user_id)
@@ -560,7 +575,7 @@ class Reward_model extends CI_Model
         $this->db->join('reward_categories c', 'c.id = r.category_id', 'left');
         $this->db->join('reward_transactions t', 't.id = q.transaction_id', 'left');
         $this->db->where('q.status', $status);
-        $this->db->where('q.source_module', 'spl');
+        $this->db->where_in('q.source_module', $this->approval_source_modules());
         $this->db->order_by('q.decided_at', 'DESC');
         $this->db->order_by('q.id', 'DESC');
         $this->db->limit((int) $limit);
@@ -575,7 +590,7 @@ class Reward_model extends CI_Model
         }
         return (int) $this->db
             ->where('status', $status)
-            ->where('source_module', 'spl')
+            ->where_in('source_module', $this->approval_source_modules())
             ->count_all_results('reward_approval_queue');
     }
 
@@ -657,6 +672,129 @@ class Reward_model extends CI_Model
             'decided_at' => $now,
             'decision_comment' => $comment !== '' ? $comment : null,
         ));
+        return true;
+    }
+
+    /**
+     * Update a pending SPL activity (notes + points + rule) before approval.
+     *
+     * @param int   $queue_id
+     * @param array $data keys: reference_label, requested_points, rule_id
+     * @return bool|array false on failure; summary array on success
+     */
+    public function update_pending_activity($queue_id, array $data)
+    {
+        $q = $this->get_approval_queue($queue_id);
+        if (!$q || $q->status !== 'pending' || !$this->is_approval_managed_source($q->source_module)) {
+            return false;
+        }
+
+        $rule_id = array_key_exists('rule_id', $data) ? (int) $data['rule_id'] : (int) $q->rule_id;
+        $rule = $rule_id > 0 ? $this->get_rule($rule_id) : null;
+        if ($rule_id > 0 && !$rule) {
+            return false;
+        }
+
+        $pts = array_key_exists('requested_points', $data)
+            ? (float) $data['requested_points']
+            : (float) $q->requested_points;
+
+        $queue_update = array(
+            'requested_points' => $pts,
+        );
+        if ($rule) {
+            $queue_update['rule_id'] = (int) $rule->id;
+        }
+        $this->db->where('id', (int) $queue_id)->update('reward_approval_queue', $queue_update);
+
+        $label_out = null;
+        if (!empty($q->transaction_id)) {
+            $tx = array(
+                'points' => $pts,
+            );
+            if ($rule) {
+                $tx['rule_id'] = (int) $rule->id;
+                $tx['category_id'] = !empty($rule->category_id) ? (int) $rule->category_id : null;
+                if (!empty($rule->trigger_event)) {
+                    $tx['source_event'] = (string) $rule->trigger_event;
+                }
+            }
+            if (array_key_exists('reference_label', $data)) {
+                $label = (string) $data['reference_label'];
+                $label_out = $label;
+                if (strlen($label) > 255) {
+                    $plain = trim(preg_replace('/\s+/', ' ', strip_tags($label)));
+                    $tx['reference_label'] = substr($plain !== '' ? $plain : $label, 0, 255);
+                    if ($this->db->field_exists('notes', 'reward_transactions')) {
+                        $tx['notes'] = $label;
+                    }
+                } else {
+                    $tx['reference_label'] = $label;
+                    if ($this->db->field_exists('notes', 'reward_transactions')) {
+                        $tx['notes'] = $label;
+                    }
+                }
+            }
+            $this->db->where('id', (int) $q->transaction_id)->update('reward_transactions', $tx);
+        }
+
+        $category_name = '';
+        if ($rule && !empty($rule->category_id) && $this->db->table_exists('reward_categories')) {
+            $cat = $this->db->select('name')->where('id', (int) $rule->category_id)->limit(1)->get('reward_categories')->row();
+            if ($cat) {
+                $category_name = (string) $cat->name;
+            }
+        }
+
+        return array(
+            'id' => (int) $queue_id,
+            'rule_id' => $rule ? (int) $rule->id : (int) $q->rule_id,
+            'rule_name' => $rule ? (string) $rule->name : '',
+            'rule_code' => $rule ? (string) $rule->code : '',
+            'category_name' => $category_name,
+            'requested_points' => $pts,
+            'reference_label' => $label_out,
+        );
+    }
+
+    /**
+     * Permanently remove a pending SPL approval row and related pending transaction/evidence.
+     *
+     * @param int $queue_id
+     * @return bool
+     */
+    public function delete_pending_activity($queue_id)
+    {
+        $q = $this->get_approval_queue($queue_id);
+        if (!$q || $q->status !== 'pending' || !$this->is_approval_managed_source($q->source_module)) {
+            return false;
+        }
+
+        $queue_id = (int) $queue_id;
+        $tx_id = !empty($q->transaction_id) ? (int) $q->transaction_id : 0;
+
+        if ($this->db->table_exists('reward_evidence')) {
+            $evidence_rows = $this->db->where('approval_queue_id', $queue_id)->get('reward_evidence')->result();
+            foreach ($evidence_rows as $ev) {
+                if (!empty($ev->file_path)) {
+                    $full = FCPATH . ltrim(str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, (string) $ev->file_path), DIRECTORY_SEPARATOR);
+                    if (is_file($full)) {
+                        @unlink($full);
+                    }
+                }
+            }
+            $this->db->where('approval_queue_id', $queue_id)->delete('reward_evidence');
+        }
+
+        $this->db->where('id', $queue_id)->delete('reward_approval_queue');
+
+        if ($tx_id > 0) {
+            $tx = $this->db->where('id', $tx_id)->get('reward_transactions')->row();
+            if ($tx && (string) $tx->status === 'pending') {
+                $this->db->where('id', $tx_id)->delete('reward_transactions');
+            }
+        }
+
         return true;
     }
 }

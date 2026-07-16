@@ -180,6 +180,25 @@ if (!function_exists('rewards_schema_ensure')) {
         }
 
         rewards_schema_seed_defaults($db);
+        rewards_schema_force_daily_activity_manual_approval($db);
+    }
+}
+
+if (!function_exists('rewards_schema_force_daily_activity_manual_approval')) {
+    /**
+     * Daily Activity rewards must go to Pending Approvals (not auto-approved).
+     */
+    function rewards_schema_force_daily_activity_manual_approval($db)
+    {
+        if (!$db->table_exists('reward_rules')) {
+            return;
+        }
+        $db->where('code', 'self_work_update_submitted')
+            ->where('requires_approval', 0)
+            ->update('reward_rules', array(
+                'requires_approval' => 1,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ));
     }
 }
 
@@ -188,13 +207,7 @@ if (!function_exists('rewards_schema_upsert_category')) {
     {
         $row = $db->where('code', $c['code'])->get('reward_categories')->row();
         if ($row) {
-            $db->where('id', (int) $row->id)->update('reward_categories', array(
-                'name' => $c['name'],
-                'description' => isset($c['description']) ? $c['description'] : null,
-                'icon_class' => isset($c['icon_class']) ? $c['icon_class'] : 'bi bi-star',
-                'sort_order' => (int) $c['sort_order'],
-                'is_active' => 1,
-            ));
+            // Insert-only seed: never overwrite admin edits on ensure.
             return (int) $row->id;
         }
         $db->insert('reward_categories', $c);
@@ -280,7 +293,7 @@ if (!function_exists('rewards_schema_upsert_rule')) {
         );
         $row = $db->where('code', $code)->get('reward_rules')->row();
         if ($row) {
-            $db->where('id', (int) $row->id)->update('reward_rules', $data);
+            // Insert-only seed: never overwrite admin edits on ensure.
             return (int) $row->id;
         }
         $db->insert('reward_rules', $data);
@@ -335,7 +348,7 @@ if (!function_exists('rewards_schema_seed_defaults')) {
         $rules = array(
             // --- Daily ---
             array('code' => 'office_closing_checklist', 'name' => 'Office Closing Checklist', 'description' => 'Form for submission.', 'trigger_event' => 'office_closing_checklist', 'condition_json' => '{}', 'points' => 30, 'max_per_day' => 1, 'requires_approval' => 1, 'category' => 'daily'),
-            array('code' => 'self_work_update_submitted', 'name' => 'Self Work Update Submitted', 'description' => 'Daily Activity submitted.', 'trigger_event' => 'daily_activity_logged', 'condition_json' => '{}', 'points' => 20, 'max_per_day' => 1, 'requires_approval' => 0, 'category' => 'daily'),
+            array('code' => 'self_work_update_submitted', 'name' => 'Self Work Update Submitted', 'description' => 'Daily Activity submitted.', 'trigger_event' => 'daily_activity_logged', 'condition_json' => '{}', 'points' => 20, 'max_per_day' => 1, 'requires_approval' => 1, 'category' => 'daily'),
             array('code' => 'project_status_update_submitted', 'name' => 'Project Status Update Submitted', 'description' => 'Project status shared.', 'trigger_event' => 'project_status_update', 'condition_json' => '{}', 'points' => 20, 'max_per_day' => 1, 'requires_approval' => 1, 'category' => 'daily'),
 
             // --- Daily Attendance (auto on punch) ---

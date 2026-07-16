@@ -100,6 +100,19 @@ if (!function_exists('spl_format_level_points_range')) {
     }
 }
 
+if (!function_exists('spl_can_manage_categories')) {
+    function spl_can_manage_categories()
+    {
+        if (function_exists('spl_can_manage_rules') && spl_can_manage_rules()) {
+            return true;
+        }
+        return function_exists('has_module_access') && (
+            has_module_access('spl_categories')
+            || has_module_access('spl')
+        );
+    }
+}
+
 if (!function_exists('spl_can_manage_rules')) {
     function spl_can_manage_rules()
     {
@@ -693,6 +706,12 @@ if (!function_exists('spl_approval_detail_payload')) {
         $evidenceId = !empty($row->evidence_id) ? (int) $row->evidence_id : 0;
         $evidenceFile = !empty($row->evidence_file) ? (string) $row->evidence_file : '';
         $evidenceName = !empty($row->evidence_name) ? (string) $row->evidence_name : '';
+        $note_raw = '';
+        if (!empty($row->transaction_notes)) {
+            $note_raw = (string) $row->transaction_notes;
+        } elseif (!empty($row->reference_label)) {
+            $note_raw = (string) $row->reference_label;
+        }
         $points = (float) $row->requested_points;
         return array(
             'id' => (int) $row->id,
@@ -701,10 +720,12 @@ if (!function_exists('spl_approval_detail_payload')) {
             'submitter_name' => (string) ($row->submitter_name ?: ''),
             'submitted_at' => spl_format_activity_datetime($row->submitted_at),
             'category_name' => (string) ($row->category_name ?: ''),
+            'rule_id' => !empty($row->rule_id) ? (int) $row->rule_id : 0,
             'rule_name' => (string) ($row->rule_name ?: ''),
             'rule_code' => (string) ($row->rule_code ?: ''),
             'requested_points' => $points,
-            'reference_label' => spl_sanitize_note_html(isset($row->reference_label) ? $row->reference_label : ''),
+            'reference_label' => spl_sanitize_note_html($note_raw),
+            'reference_label_raw' => $note_raw,
             'evidence_id' => $evidenceId,
             'evidence_file' => $evidenceFile !== '' ? base_url($evidenceFile) : '',
             'evidence_name' => $evidenceName,

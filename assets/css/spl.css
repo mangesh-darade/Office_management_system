@@ -2149,6 +2149,32 @@ button.spl-reward-period-tab {
   color: #b91c1c;
 }
 
+.spl-approval-row.is-editing {
+  background: rgba(13, 110, 253, 0.06);
+}
+
+.spl-approval-row.is-editing .spl-approval-col-activity {
+  min-width: 14rem;
+}
+
+.spl-approval-rule-select {
+  min-width: 12rem;
+  max-width: 100%;
+  font-size: 0.8rem;
+}
+
+.spl-approval-notes-input {
+  min-width: 8rem;
+  font-size: 0.75rem;
+  resize: vertical;
+}
+
+.spl-approval-save-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .spl-approval-table--compact .spl-approval-col-points {
   width: 72px;
 }
