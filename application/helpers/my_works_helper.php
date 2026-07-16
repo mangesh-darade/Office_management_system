@@ -372,7 +372,7 @@ if (!function_exists('my_works_build_matrix_columns')) {
             $columns[$key] = array();
         }
         foreach ($rows as $row) {
-            if ($exclude_closed && isset($row->status) && my_works_status_is_closed($row->status)) {
+            if ($exclude_closed && isset($row->status) && my_works_row_is_finished($row)) {
                 continue;
             }
             $q = my_works_matrix_quadrant_for_row($row);
@@ -637,6 +637,13 @@ if (!function_exists('my_works_lane_updates_for_drop')) {
         $CI =& get_instance();
         $CI->load->helper('my_works_status');
 
+        // Do not reschedule finished work into planning lanes.
+        if (my_works_row_is_finished($item)
+            && in_array((string) $lane, array('future_pipeline', 'back_log', 'yesterday', 'todays_plan'), true)
+        ) {
+            return false;
+        }
+
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         $tomorrow = date('Y-m-d', strtotime('+1 day'));
@@ -812,33 +819,35 @@ if (!function_exists('my_works_dashboard_lane_for_row')) {
         $CI->load->helper('my_works_status');
 
         $st = isset($row->status) ? strtolower(trim((string) $row->status)) : '';
-        $is_finished = my_works_status_is_closed($st);
+        $is_finished = my_works_row_is_finished($row);
+        // Finished work never belongs in planning lanes (caller also skips it).
+        if ($is_finished) {
+            return null;
+        }
 
         if ($st === 'need_discussion' || $st === 'needs_discussion') {
             return 'need_discussion';
         }
 
-        if (!$is_finished) {
-            if ($st === 'postponed') {
-                return 'future_pipeline';
-            }
+        if ($st === 'postponed') {
+            return 'future_pipeline';
+        }
 
-            $tags = my_works_parse_tags(isset($row->tag) ? $row->tag : '');
-            foreach ($tags as $tag) {
-                $tl = strtolower((string) $tag);
-                if (strpos($tl, 'discussion') !== false) {
-                    return 'need_discussion';
-                }
-                if (strpos($tl, 'postponed') !== false) {
-                    return 'future_pipeline';
-                }
+        $tags = my_works_parse_tags(isset($row->tag) ? $row->tag : '');
+        foreach ($tags as $tag) {
+            $tl = strtolower((string) $tag);
+            if (strpos($tl, 'discussion') !== false) {
+                return 'need_discussion';
+            }
+            if (strpos($tl, 'postponed') !== false) {
+                return 'future_pipeline';
             }
         }
 
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         $due = !empty($row->due_date) ? (string) $row->due_date : '';
-        if (!$is_finished && $due !== '' && $due > $today) {
+        if ($due !== '' && $due > $today) {
             return 'future_pipeline';
         }
         if ($due === $today) {
@@ -875,14 +884,17 @@ if (!function_exists('my_works_build_dashboard_sections')) {
             }
         }
         $last_activity_dates = my_works_fetch_last_activity_dates($work_ids);
-        // Future Pipeline + Back Log are planning lanes — never show finished (closed/complete) work.
-        $lanes_hide_complete = array('future_pipeline', 'back_log');
+        // Planning lanes never show finished (Closed / Complete / Completed) work.
+        $lanes_hide_complete = array('future_pipeline', 'back_log', 'yesterday', 'todays_plan');
         foreach ($rows as $row) {
-            $is_complete = isset($row->status) && my_works_status_is_closed($row->status);
+            $is_complete = my_works_row_is_finished($row);
             if ($exclude_closed && $is_complete) {
                 continue;
             }
             $lane = my_works_dashboard_lane_for_row($row, $last_activity_dates);
+            if ($lane === null || $lane === '') {
+                continue;
+            }
             if (!isset($sections['ad_hoc'][$lane])) {
                 $lane = 'back_log';
             }
@@ -1203,7 +1215,11 @@ if (!function_exists('dashboard_complete_status_codes')) {
     function dashboard_complete_status_codes($item_kind = 'task')
     {
         if ($item_kind === 'my_work') {
-            return array('closed');
+            if (!function_exists('my_works_finished_status_codes')) {
+                $CI =& get_instance();
+                $CI->load->helper('my_works_status');
+            }
+            return my_works_finished_status_codes();
         }
         if ($item_kind === 'requirement') {
             return array('completed');

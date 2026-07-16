@@ -107,7 +107,9 @@
                     $label = !empty($u->full_name) ? $u->full_name : (!empty($u->name) ? $u->name : $u->email);
                   }
                   $label = trim((string) $label);
-                  $label = $label !== '' ? $label . ' (' . $u->email . ')' : $u->email;
+                  if ($label === '') {
+                    $label = !empty($u->email) ? (string) $u->email : ('User #' . (int) $u->id);
+                  }
                   $uid = (int) $u->id;
               ?>
                 <option value="<?php echo $uid; ?>" <?php echo $uid === $current_user_id ? 'selected' : ''; ?>><?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?></option>

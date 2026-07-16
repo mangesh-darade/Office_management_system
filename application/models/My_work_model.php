@@ -21,8 +21,12 @@ class My_work_model extends CI_Model
         $now = date('Y-m-d H:i:s');
         $data['created_at'] = $now;
         $data['updated_at'] = $now;
-        if (!empty($data['status']) && $data['status'] === 'closed') {
-            $data['closed_at'] = $now;
+        if (!empty($data['status'])) {
+            $CI =& get_instance();
+            $CI->load->helper('my_works_status');
+            if (my_works_status_is_closed($data['status'])) {
+                $data['closed_at'] = $now;
+            }
         }
         $this->db->insert($this->table, $data);
         return (int) $this->db->insert_id();
@@ -32,7 +36,9 @@ class My_work_model extends CI_Model
     {
         $data['updated_at'] = date('Y-m-d H:i:s');
         if (isset($data['status'])) {
-            if ($data['status'] === 'closed') {
+            $CI =& get_instance();
+            $CI->load->helper('my_works_status');
+            if (my_works_status_is_closed($data['status'])) {
                 $data['closed_at'] = date('Y-m-d H:i:s');
             } else {
                 $data['closed_at'] = null;

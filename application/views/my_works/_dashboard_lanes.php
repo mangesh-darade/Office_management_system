@@ -60,7 +60,7 @@
 
       $laneItems = isset($section_lanes[$lane]) ? $section_lanes[$lane] : array();
 
-      if (in_array((string) $lane, array('future_pipeline', 'back_log'), true) && !empty($laneItems)) {
+      if (in_array((string) $lane, array('future_pipeline', 'back_log', 'yesterday', 'todays_plan'), true) && !empty($laneItems)) {
 
         $this->load->helper('my_works_status');
 
@@ -68,9 +68,7 @@
 
         foreach ($laneItems as $lane_row) {
 
-          $lane_st = isset($lane_row->status) ? (string) $lane_row->status : '';
-
-          if (!my_works_status_is_closed($lane_st)) {
+          if (!my_works_row_is_finished($lane_row)) {
 
             $open_lane_items[] = $lane_row;
 

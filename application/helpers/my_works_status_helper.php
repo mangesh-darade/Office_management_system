@@ -160,6 +160,49 @@ if (!function_exists('my_works_status_bootstrap_class')) {
     }
 }
 
+if (!function_exists('my_works_finished_status_codes')) {
+    /**
+     * Status codes treated as finished for Second Brain planning lanes.
+     * Safe to call mid-query: loads once into a static cache.
+     *
+     * @return array<int, string>
+     */
+    function my_works_finished_status_codes()
+    {
+        static $codes = null;
+        if (is_array($codes)) {
+            return $codes;
+        }
+        $codes = array('closed', 'complete', 'completed', 'done', 'finished');
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db || !$CI->db->table_exists('statuses')) {
+            return $codes;
+        }
+        // Use a fresh query so we do not reset an in-progress Query Builder.
+        $sql = "SELECT code, name FROM statuses WHERE type = 'my_works'";
+        $query = $CI->db->query($sql);
+        if (!$query) {
+            return $codes;
+        }
+        foreach ($query->result() as $row) {
+            $code = strtolower(trim((string) $row->code));
+            $name = strtolower(trim((string) $row->name));
+            if ($code === '') {
+                continue;
+            }
+            if (in_array($code, $codes, true)) {
+                continue;
+            }
+            if (preg_match('/\b(closed|complete|completed|done|finished)\b/', $name)
+                || preg_match('/(closed|complet|done|finish)/', $code)
+            ) {
+                $codes[] = $code;
+            }
+        }
+        return $codes;
+    }
+}
+
 if (!function_exists('my_works_status_is_closed')) {
     /**
      * True for finished work (Closed / Complete / Completed / Done).
@@ -167,7 +210,47 @@ if (!function_exists('my_works_status_is_closed')) {
     function my_works_status_is_closed($code)
     {
         $code = strtolower(trim((string) $code));
-        return in_array($code, array('closed', 'complete', 'completed', 'done'), true);
+        if ($code === '') {
+            return false;
+        }
+        if (in_array($code, my_works_finished_status_codes(), true)) {
+            return true;
+        }
+        // Legacy / free-text variants (e.g. "task_completed") — never treat "incomplete".
+        if (strpos($code, 'incomplet') !== false) {
+            return false;
+        }
+        if (preg_match('/^(closed|complete[ds]?|done|finished)$/', $code)) {
+            return true;
+        }
+        if (preg_match('/(closed|complet|finished|\bdone\b)/', $code)) {
+            return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('my_works_row_is_finished')) {
+    /**
+     * Finished when status is closed/complete OR closed_at is set.
+     *
+     * @param object|array $row
+     */
+    function my_works_row_is_finished($row)
+    {
+        if (is_array($row)) {
+            $row = (object) $row;
+        }
+        if (!$row) {
+            return false;
+        }
+        if (isset($row->status) && my_works_status_is_closed($row->status)) {
+            return true;
+        }
+        if (!empty($row->closed_at) && (string) $row->closed_at !== '0000-00-00 00:00:00') {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -223,6 +306,22 @@ if (!function_exists('my_works_apply_open_status_filter')) {
      */
     function my_works_apply_open_status_filter($db, $column = 'w.status')
     {
-        $db->where_not_in($column, array('closed', 'complete', 'completed', 'done'));
+        $codes = my_works_finished_status_codes();
+        if (!empty($codes)) {
+            $db->where_not_in($column, $codes);
+        }
+
+        $CI =& get_instance();
+        if (!isset($CI->db) || !function_exists('schema_table_has_column')
+            || !schema_table_has_column($CI->db, 'my_works', 'closed_at')
+        ) {
+            return;
+        }
+
+        $closed_col = (strpos($column, 'w.') === 0) ? 'w.closed_at' : 'closed_at';
+        $db->group_start()
+            ->where($closed_col . ' IS NULL', null, false)
+            ->or_where($closed_col, '0000-00-00 00:00:00')
+            ->group_end();
     }
 }

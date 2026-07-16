@@ -1171,6 +1171,21 @@ class My_works extends CI_Controller
             show_error('Access denied.', 403);
         }
 
+        $this->load->helper('my_works_status');
+        if (my_works_row_is_finished($item) && in_array($lane, array('future_pipeline', 'back_log', 'yesterday', 'todays_plan'), true)) {
+            if ($this->input->is_ajax_request()) {
+                $this->output->set_status_header(422);
+                $this->output->set_content_type('application/json')->set_output(json_encode(array(
+                    'ok'      => false,
+                    'message' => 'Completed / Closed tasks cannot be moved into Back Log or Future Pipeline.',
+                )));
+                return;
+            }
+            $this->session->set_flashdata('error', 'Completed / Closed tasks cannot be moved into Back Log or Future Pipeline.');
+            redirect('my-works?view=overview');
+            return;
+        }
+
         $from_lane = my_works_dashboard_lane_for_row($item);
         if ($from_lane === $lane) {
             if ($this->input->is_ajax_request()) {

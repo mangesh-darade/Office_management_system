@@ -165,7 +165,7 @@ if (!$embed) {
 
   <footer class="mw-dash-footer-note">
     <i class="bi bi-info-circle"></i>
-    <strong>Yesterday</strong> shows work due yesterday, or with no due date when the task or its activity history was last updated yesterday. <strong>Need Discussion</strong> uses status <strong>Needs Discussion</strong>. <strong>Future Pipeline</strong> shows <strong>Postponed</strong> items and any work with a <strong>due date after today</strong>. <strong>Future Pipeline</strong> and <strong>Back Log</strong> never include <strong>Closed / Complete</strong> items. Other columns use due date, or last updated date when no due date is set. Drag a task row between columns to reschedule or update status.
+    <strong>Yesterday</strong> shows work due yesterday, or with no due date when the task or its activity history was last updated yesterday. <strong>Need Discussion</strong> uses status <strong>Needs Discussion</strong>. <strong>Future Pipeline</strong> shows <strong>Postponed</strong> items and any work with a <strong>due date after today</strong>. <strong>Back Log</strong> and <strong>Future Pipeline</strong> never include <strong>Closed / Complete / Completed</strong> tasks. Other columns use due date, or last updated date when no due date is set. Drag a task row between columns to reschedule or update status.
   </footer>
 
 </div>

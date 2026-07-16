@@ -63,6 +63,7 @@ if (!function_exists('my_works_warm_schema_cache')) {
         schema_table_has_column($db, 'my_works', 'project_id');
         schema_table_has_column($db, 'my_works', 'work_type');
         schema_table_has_column($db, 'my_works', 'due_date');
+        schema_table_has_column($db, 'my_works', 'closed_at');
     }
 }
 
@@ -81,6 +82,7 @@ if (!function_exists('my_works_warm_status_cache')) {
         $CI =& get_instance();
         $CI->load->helper('my_works_status');
         my_works_status_codes();
+        my_works_finished_status_codes();
     }
 }
 
@@ -170,7 +172,10 @@ if (!function_exists('my_works_count_rows')) {
 }
 
 if (!function_exists('my_works_fetch_rows')) {
-    function my_works_fetch_rows($db, array $filters, $can_view_all, $user_id, $limit = null, $offset = 0)
+    /**
+     * @param bool $open_only When true and no status filter is set, exclude finished statuses.
+     */
+    function my_works_fetch_rows($db, array $filters, $can_view_all, $user_id, $limit = null, $offset = 0, $open_only = false)
     {
         my_works_warm_query_caches($db);
         $db->reset_query();
@@ -192,6 +197,11 @@ if (!function_exists('my_works_fetch_rows')) {
         }
         my_works_apply_list_scope($db, $can_view_all, $user_id);
         my_works_apply_filters_to_query($db, $filters, true);
+        if ($open_only && empty($filters['status'])) {
+            $CI =& get_instance();
+            $CI->load->helper('my_works_status');
+            my_works_apply_open_status_filter($db, 'w.status');
+        }
         $db->order_by('w.is_urgent', 'DESC');
         $db->order_by('w.is_important', 'DESC');
         if (schema_table_has_column($db, 'my_works', 'due_date')) {
@@ -270,8 +280,9 @@ if (!function_exists('my_works_list_view_data')) {
     function my_works_list_view_data($db, $model, array $filters, $view_mode, $list_cap, $can_view_all, $user_id, $role_id, $scope_callback)
     {
         my_works_warm_query_caches($db);
+        $open_only = in_array((string) $view_mode, array('overview'), true);
         $total = my_works_count_rows($db, $filters, $can_view_all, $user_id);
-        $rows = my_works_fetch_rows($db, $filters, $can_view_all, $user_id, $list_cap, 0);
+        $rows = my_works_fetch_rows($db, $filters, $can_view_all, $user_id, $list_cap, 0, $open_only);
         $stats = my_works_fetch_stats($db, $filters, $can_view_all, $user_id);
         $CI =& get_instance();
         $CI->load->helper('my_works_status');
