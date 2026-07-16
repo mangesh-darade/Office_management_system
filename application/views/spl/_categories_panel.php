@@ -69,7 +69,7 @@ $csrf_hash = $this->security->get_csrf_hash();
                     data-active="<?php echo $is_active ? '1' : '0'; ?>">
               Edit
             </button>
-            <form method="post" action="<?php echo site_url('spl/categories/toggle/' . (int) $cat->id); ?>" class="d-inline">
+            <form method="post" action="<?php echo site_url('spl/categories/toggle/' . (int) $cat->id); ?>" class="d-inline spl-category-toggle-form">
               <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
               <button type="submit" class="btn btn-sm btn-outline-secondary"><?php echo $is_active ? 'Deactivate' : 'Activate'; ?></button>
             </form>
@@ -83,7 +83,7 @@ $csrf_hash = $this->security->get_csrf_hash();
 
 <div class="modal fade" id="splCategoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form method="post" action="<?php echo site_url('spl/save-category'); ?>" class="modal-content">
+    <form method="post" action="<?php echo site_url('spl/save-category'); ?>" class="modal-content spl-category-save-form">
       <div class="modal-header">
         <h5 class="modal-title" id="splCategoryModalTitle">Add category</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

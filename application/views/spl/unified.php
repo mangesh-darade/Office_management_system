@@ -477,9 +477,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (form.classList.contains('spl-approval-inline-form') || form.id === 'splApprovalModalActionForm') {
       return;
     }
+    if (form.classList.contains('spl-category-save-form') || form.classList.contains('spl-category-toggle-form')) {
+      return;
+    }
+    var formAction = (form.getAttribute('action') || '').toLowerCase();
+    if (formAction.indexOf('save-category') !== -1 || formAction.indexOf('categories/toggle') !== -1) {
+      return;
+    }
     e.preventDefault();
     var $form = $(form);
-    var $pane = $form.closest('.tab-pane');
+    var $pane = $form.closest('[id^="pane-"]');
+    if (!$pane.length) {
+      $pane = $form.closest('.tab-pane');
+    }
     var url = $form.attr('action') || window.location.href;
     var method = ($form.attr('method') || 'GET').toUpperCase();
     loadTabContent($pane, url, method, $form.serialize());
