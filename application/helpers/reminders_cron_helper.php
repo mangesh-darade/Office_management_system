@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Reminder cron queue + schedule generation.
+ * Reminder cron queue + schedule generation (Google Calendar delivery via enqueue).
  */
 
 if (!function_exists('reminders_queue_daily_type')) {
@@ -43,61 +43,65 @@ if (!function_exists('reminders_queue_daily_type')) {
 
 if (!function_exists('reminders_generate_from_schedules')) {
     /**
+     * Fan out due schedules → enqueue → Google Calendar (inside enqueue).
+     *
      * @param Reminder_model $model
      * @param CI_DB_query_builder $db
-     * @return int
+     * @return array{queued:int,synced:int,failed:int}
      */
     function reminders_generate_from_schedules($model, $db)
     {
+        $CI =& get_instance();
+        $CI->load->helper('reminders_google');
+
         $weekday = (int) date('w');
         $nowTime = date('H:i');
         $due = $model->fetch_due_schedules($weekday, $nowTime);
         $queued = 0;
+        $synced = 0;
+        $failed = 0;
+
         foreach ($due as $s) {
-            if (isset($s->schedule_type) && $s->schedule_type === 'once' && isset($s->one_time_at) && $s->one_time_at) {
-                $sendAt = $s->one_time_at;
+            if (isset($s->schedule_type) && $s->schedule_type === 'once' && !empty($s->one_time_at)) {
+                $send_at = $s->one_time_at;
             } else {
-                $sendAt = date('Y-m-d') . ' ' . $s->send_time . ':00';
+                $send_at = date('Y-m-d') . ' ' . $s->send_time . ':00';
             }
-            if ($s->audience === 'all') {
-                foreach ($model->all_users() as $u) {
-                    $to = isset($u->email) ? $u->email : '';
-                    if ($to === '') {
-                        continue;
+
+            $recipients = reminders_schedule_recipients($model, $db, $s);
+            $subject = isset($s->subject) ? $s->subject : '';
+            $body = (isset($s->body) && $s->body !== '') ? $s->body : $subject;
+
+            foreach ($recipients as $r) {
+                $rid = $model->enqueue(array(
+                    'user_id' => $r['user_id'],
+                    'email'   => $r['email'],
+                    'type'    => 'schedule',
+                    'subject' => $subject,
+                    'body'    => $body,
+                    'send_at' => $send_at,
+                ));
+                $queued++;
+                if ($rid > 0) {
+                    $row = $model->get($rid);
+                    if ($row && isset($row->status) && $row->status === 'sent') {
+                        $synced++;
+                    } else {
+                        $failed++;
                     }
-                    $model->enqueue(array(
-                        'user_id' => isset($u->id) ? (int) $u->id : null,
-                        'email'   => $to,
-                        'type'    => 'schedule',
-                        'subject' => $s->subject,
-                        'body'    => $s->body !== '' ? $s->body : $s->subject,
-                        'send_at' => $sendAt,
-                    ));
-                    $queued++;
-                }
-            } else {
-                $email = '';
-                if ($db->table_exists('users')) {
-                    $row = $db->select('email')->from('users')->where('id', (int) $s->user_id)->get()->row();
-                    if ($row && isset($row->email)) {
-                        $email = $row->email;
-                    }
-                }
-                if ($email !== '') {
-                    $model->enqueue(array(
-                        'user_id' => (int) $s->user_id,
-                        'email'   => $email,
-                        'type'    => 'schedule',
-                        'subject' => $s->subject,
-                        'body'    => $s->body !== '' ? $s->body : $s->subject,
-                        'send_at' => $sendAt,
-                    ));
-                    $queued++;
+                } else {
+                    $failed++;
                 }
             }
+
             $model->mark_schedule_ran_today($s->id);
         }
-        return $queued;
+
+        return array(
+            'queued' => $queued,
+            'synced' => $synced,
+            'failed' => $failed,
+        );
     }
 }
 

@@ -1,13 +1,5 @@
-# Reminder Cron: Send Queued Emails (PowerShell)
-# Use this if curl is not available on your system
+# Reminder Cron: SMTP send-queue DISABLED
+# Reminders sync to Google Calendar on create. This script is a no-op for Task Scheduler.
 
-$url = "http://localhost/Office_management_system/reminders/cron/send-queue"
-
-try {
-    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
-    Write-Host "SUCCESS: Send Queue - HTTP $($response.StatusCode)" -ForegroundColor Green
-    exit 0
-} catch {
-    Write-Host "ERROR: Send Queue - $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
-}
+Write-Host "Reminder send-queue cron is disabled. Use Google Calendar delivery." -ForegroundColor Yellow
+exit 0

@@ -91,7 +91,12 @@ class Reminder_model extends CI_Model {
             'created_at' => date('Y-m-d H:i:s'),
         );
         $this->db->insert('reminders', $row);
-        return (int)$this->db->insert_id();
+        $id = (int) $this->db->insert_id();
+        if ($id > 0) {
+            $this->load->helper('reminders_google');
+            reminders_google_after_enqueue($this, $id);
+        }
+        return $id;
     }
 
     public function get($id){

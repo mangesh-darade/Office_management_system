@@ -42,43 +42,13 @@ class Cron extends CI_Controller {
         }
     }
 
-    // Send queued emails
+    // Send queued emails — DISABLED: OMS reminders now sync to Google Calendar on create.
     // Can be called via: http://localhost/Office_management_system/cron/send_emails
     public function send_emails() {
-        try {
-            $queue = $this->reminders->fetch_queue(50);
-            $sent = 0;
-            $failed = 0;
-
-            // Load email helper and configure from settings
-            $this->load->helper('email');
-            configure_email_from_settings();
-            
-            foreach ($queue as $reminder) {
-                // Set email parameters - use reminder's from_email if set, otherwise use system email from settings
-                $from_email = $reminder->from_email ?: get_system_from_email();
-                $from_name = $reminder->from_name ?: get_company_name();
-                
-                $this->email->from($from_email, $from_name);
-                $this->email->to($reminder->email);
-                $this->email->subject($reminder->subject);
-                $this->email->message($reminder->body);
-
-                // Send email
-                if ($this->email->send()) {
-                    $this->reminders->mark_sent($reminder->id);
-                    $sent++;
-                } else {
-                    $this->reminders->mark_error($reminder->id);
-                    $failed++;
-                }
-            }
-
-            echo "📧 Email queue processed: {$sent} sent, {$failed} failed at " . date('Y-m-d H:i:s') . "\n";
-            
-        } catch (Exception $e) {
-            echo "❌ Error sending emails: " . $e->getMessage() . "\n";
-        }
+        echo "📧 Reminder SMTP send-queue is disabled.\n";
+        echo "   Reminders are delivered via Google Calendar when created/saved.\n";
+        echo "   Connect Google: Settings → Google Calendar Reminders\n";
+        echo "   Skipped at " . date('Y-m-d H:i:s') . "\n";
     }
 
     // Process all scheduled tasks
@@ -140,6 +110,9 @@ class Cron extends CI_Controller {
         echo "# SPL attendance penalties daily at 1:00 AM\n";
         echo "0 1 * * * curl -s " . site_url('cron/reward_attendance_penalties') . " >/dev/null 2>&1\n\n";
 
+        echo "# Daily reminders + attendance Google alerts at 6:00 AM (token required)\n";
+        echo "0 6 * * * curl -s \"" . site_url('reminders/cron_attendance_alerts') . "?token=YOUR_CRON_TOKEN\" >/dev/null 2>&1\n\n";
+
         echo "# SPL monthly consistency review on 1st of month at 2:00 AM\n";
         echo "0 2 1 * * curl -s " . site_url('cron/reward_consistency_monthly') . " >/dev/null 2>&1\n\n";
         
@@ -160,6 +133,7 @@ class Cron extends CI_Controller {
         echo "Coaching Automation: " . site_url('cron/coaching_automation') . "\n";
         echo "SPL Attendance Penalties: " . site_url('cron/reward_attendance_penalties') . "\n";
         echo "SPL Consistency Monthly: " . site_url('cron/reward_consistency_monthly') . "\n";
+        echo "Attendance Google Alerts: " . site_url('reminders/cron_attendance_alerts') . " (add ?token=)\n";
     }
 
     /**

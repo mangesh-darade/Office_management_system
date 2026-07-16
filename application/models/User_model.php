@@ -22,6 +22,12 @@ class User_model extends CI_Model {
             if (!$this->has_column('notify_attendance')){
                 $this->db->query("ALTER TABLE `".$this->table."` ADD `notify_attendance` TINYINT(1) NOT NULL DEFAULT 1");
             }
+            if (!$this->has_column('google_alert_checkin')){
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `google_alert_checkin` TINYINT(1) NOT NULL DEFAULT 1");
+            }
+            if (!$this->has_column('google_alert_checkout')){
+                $this->db->query("ALTER TABLE `".$this->table."` ADD `google_alert_checkout` TINYINT(1) NOT NULL DEFAULT 1");
+            }
         }
     }
 

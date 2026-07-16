@@ -33,31 +33,19 @@ if (!function_exists('reminders_from_for_row')) {
 
 if (!function_exists('reminders_send_one')) {
     /**
-     * Send a single reminder row; updates status via model.
+     * Deliver a reminder via Google Calendar (email reminder). SMTP cron path is disabled.
      *
-     * @param CI_Email $email
+     * @param CI_Email $email Unused (kept for call-site compatibility)
      * @param Reminder_model $model
      * @param object $row
      * @return bool
      */
     function reminders_send_one($email, $model, $row)
     {
-        if (!isset($row->email) || $row->email === '') {
-            $model->mark_error($row->id);
-            return false;
-        }
-        list($fromAddr, $fromName) = reminders_from_for_row($row);
-        $email->clear(true);
-        $email->from($fromAddr, $fromName);
-        $email->to($row->email);
-        $email->subject($row->subject);
-        $email->message($row->body);
-        if ($email->send()) {
-            $model->mark_sent($row->id);
-            return true;
-        }
-        $model->mark_error($row->id);
-        return false;
+        $CI =& get_instance();
+        $CI->load->helper('reminders_google');
+        $result = reminders_google_sync_row($model, $row, 0);
+        return !empty($result['ok']);
     }
 }
 

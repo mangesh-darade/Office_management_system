@@ -140,6 +140,26 @@
             </div>
 
             <div class="col-md-4">
+              <label class="form-label">Check-in Google Alert</label>
+              <?php $gCheckin = (int)(isset($row->google_alert_checkin) ? $row->google_alert_checkin : 1); ?>
+              <select name="google_alert_checkin" class="form-select">
+                <option value="1" <?php echo $gCheckin===1?'selected':''; ?>>Enabled</option>
+                <option value="0" <?php echo $gCheckin===0?'selected':''; ?>>Disabled</option>
+              </select>
+              <div class="form-text">When org check-in alerts are on, this user gets a Google Calendar reminder.</div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Check-out Google Alert</label>
+              <?php $gCheckout = (int)(isset($row->google_alert_checkout) ? $row->google_alert_checkout : 1); ?>
+              <select name="google_alert_checkout" class="form-select">
+                <option value="1" <?php echo $gCheckout===1?'selected':''; ?>>Enabled</option>
+                <option value="0" <?php echo $gCheckout===0?'selected':''; ?>>Disabled</option>
+              </select>
+              <div class="form-text">When org check-out alerts are on, this user gets a Google Calendar reminder.</div>
+            </div>
+
+            <div class="col-md-4">
               <label class="form-label">Avatar</label>
               <input type="file" name="avatar" accept="image/*" class="form-control">
               <?php if (!empty($row->avatar)): ?>

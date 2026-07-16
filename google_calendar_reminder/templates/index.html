@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendar Email Reminder</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="brand">Google Calendar Reminder</p>
+      <h1>Set email &amp; time</h1>
+      <p class="sub">Fill Gmail and datetime — Google will send the reminder.</p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-list">
+          {% for category, message in messages %}
+            <li class="flash flash-{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" class="form" novalidate>
+      <label>
+        <span>Gmail / Email</span>
+        <input type="email" name="email" value="{{ form.email }}" placeholder="you@gmail.com" required autocomplete="email">
+      </label>
+
+      <label>
+        <span>Title</span>
+        <input type="text" name="title" value="{{ form.title }}" placeholder="Client call / Payment due" required>
+      </label>
+
+      <div class="row">
+        <label>
+          <span>Date &amp; time</span>
+          <input type="datetime-local" name="when" value="{{ form.when }}" required>
+        </label>
+        <label>
+          <span>Remind before (minutes)</span>
+          <input type="number" name="minutes" value="{{ form.minutes }}" min="0" step="1" required>
+        </label>
+      </div>
+
+      <label>
+        <span>Note (optional)</span>
+        <textarea name="description" rows="3" placeholder="Optional details">{{ form.description }}</textarea>
+      </label>
+
+      <button type="submit">Create reminder</button>
+    </form>
+
+    <p class="hint">
+      First time: browser may open for Google login. Need
+      <code>credentials.json</code> in this project folder.
+    </p>
+  </main>
+</body>
+</html>

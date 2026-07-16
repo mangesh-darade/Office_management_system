@@ -14,15 +14,32 @@ if (!function_exists('reminders_parse_schedule_post')) {
     {
         $audience = $input->post('audience');
         $user_id = $input->post('user_id') !== '' ? (int) $input->post('user_id') : null;
-        $weekdays_array = $input->post('weekdays');
-        $weekdays = is_array($weekdays_array) ? implode(',', $weekdays_array) : '';
-        $send_time = trim($input->post('send_time'));
+        $weekdays_raw = $input->post('weekdays');
+        if (is_array($weekdays_raw)) {
+            $weekdays = implode(',', $weekdays_raw);
+        } else {
+            $weekdays = trim((string) $weekdays_raw);
+        }
+        // Also support checkbox field w[] if packWeekdays JS did not run
+        if ($weekdays === '') {
+            $w_boxes = $input->post('w');
+            if (is_array($w_boxes) && !empty($w_boxes)) {
+                $clean = array();
+                foreach ($w_boxes as $d) {
+                    if (ctype_digit((string) $d) && (int) $d >= 0 && (int) $d <= 6) {
+                        $clean[] = (string) (int) $d;
+                    }
+                }
+                $weekdays = implode(',', $clean);
+            }
+        }
+        $send_time = trim((string) $input->post('send_time'));
         $schedule_type = $input->post('schedule_type');
         $schedule_type = ($schedule_type === 'once') ? 'once' : 'weekly';
-        $one_time_raw = trim($input->post('one_time_at'));
-        $subject = trim($input->post('subject'));
+        $one_time_raw = trim((string) $input->post('one_time_at'));
+        $subject = trim((string) $input->post('subject'));
         $body = (string) $input->post('body');
-        $name = trim($input->post('name'));
+        $name = trim((string) $input->post('name'));
 
         if ($audience !== 'all' && $audience !== 'user') {
             $audience = 'user';

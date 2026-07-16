@@ -258,8 +258,7 @@ $stats['scheduled'] = $scheduled_count;
                     ?>
                   </div>
                   <div>
-                    <div class="fw-semibold"><?php echo esc_view($label); ?></div>
-                    <small class="text-muted"><?php echo esc_view(isset($r->email)?$r->email:(isset($r->user_email)?$r->user_email:'')); ?></small>
+                    <div class="fw-semibold"><?php echo esc_view($label !== '' ? $label : 'User'); ?></div>
                   </div>
                 </div>
               </td>

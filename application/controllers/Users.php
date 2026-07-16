@@ -87,6 +87,8 @@ class Users extends CI_Controller {
                 'is_verified' => 0,
                 'avatar' => '',
                 'notify_attendance' => 1,
+                'google_alert_checkin' => 1,
+                'google_alert_checkout' => 1,
             ],
             'is_edit' => false,
             'roles' => $this->roles(),
@@ -412,6 +414,8 @@ class Users extends CI_Controller {
         $in['phone'] = trim($this->input->post('phone', true) ?: '');
         $in['is_verified'] = (int)($this->input->post('is_verified', true) !== null ? $this->input->post('is_verified', true) : 0);
         $in['notify_attendance'] = (int)($this->input->post('notify_attendance', true) !== null ? $this->input->post('notify_attendance', true) : 1);
+        $in['google_alert_checkin'] = (int)($this->input->post('google_alert_checkin', true) !== null ? $this->input->post('google_alert_checkin', true) : 1);
+        $in['google_alert_checkout'] = (int)($this->input->post('google_alert_checkout', true) !== null ? $this->input->post('google_alert_checkout', true) : 1);
         $in['password'] = trim($this->input->post('password') ?: '');
         return $in;
     }
@@ -483,6 +487,9 @@ class Users extends CI_Controller {
         if (schema_table_has_column($this->db, 'users', 'status')) { $data['status'] = $status; }
         if (schema_table_has_column($this->db, 'users', 'phone')) { $data['phone'] = $in['phone']; }
         if (schema_table_has_column($this->db, 'users', 'is_verified')) { $data['is_verified'] = (int)$in['is_verified']; }
+        if (schema_table_has_column($this->db, 'users', 'notify_attendance')) { $data['notify_attendance'] = (int)$in['notify_attendance']; }
+        if (schema_table_has_column($this->db, 'users', 'google_alert_checkin')) { $data['google_alert_checkin'] = (int)$in['google_alert_checkin']; }
+        if (schema_table_has_column($this->db, 'users', 'google_alert_checkout')) { $data['google_alert_checkout'] = (int)$in['google_alert_checkout']; }
         if (!empty($in['password'])) { $data['password_hash'] = password_hash($in['password'], PASSWORD_DEFAULT); }
         if ($is_create && schema_table_has_column($this->db, 'users', 'created_at')) { $data['created_at'] = date('Y-m-d H:i:s'); }
         return $data;

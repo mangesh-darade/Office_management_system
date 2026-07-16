@@ -111,6 +111,8 @@ class Settings extends CI_Controller {
                     'attendance_auto_capture',
                     'attendance_auto_submit',
                     'attendance_late_mark_notification',
+                    'attendance_checkin_alert_enabled',
+                    'attendance_checkout_alert_enabled',
                     'attendance_show_notifications',
                     'attendance_face_verification_required',
                 ];

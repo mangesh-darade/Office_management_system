@@ -1,10 +1,7 @@
 @echo off
-REM Reminder Cron: Send Queued Emails
-REM This script calls the send-queue endpoint to send pending reminder emails
+REM Reminder Cron: SMTP send-queue DISABLED
+REM Reminders are synced to Google Calendar when created (enqueue).
+REM This script is kept so Task Scheduler jobs do not break; it does nothing.
 
-curl -s "http://localhost/Office_management_system/reminders/cron/send-queue" > nul 2>&1
-
-REM Alternative: If curl is not available, use PowerShell
-REM powershell -Command "Invoke-WebRequest -Uri 'http://localhost/Office_management_system/reminders/cron/send-queue' -UseBasicParsing | Out-Null"
-
+echo Reminder send-queue cron is disabled. Use Google Calendar delivery.
 exit /b 0

@@ -204,6 +204,36 @@
               <div class="form-text">Enable to send emails with late time when check-in is after start time + grace period</div>
             </div>
             <div class="col-md-4">
+              <label class="form-label fw-semibold">Check-in Google Alert</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="attendance_checkin_alert_enabled" value="yes" <?php echo (isset($settings['attendance_checkin_alert_enabled']) && $settings['attendance_checkin_alert_enabled'] === 'yes') ? 'checked' : ''; ?> id="attendance_checkin_alert_enabled">
+                <label class="form-check-label" for="attendance_checkin_alert_enabled">
+                  Remind users to check in (Google Calendar)
+                </label>
+              </div>
+              <div class="form-text">Per-user toggle on User form. Requires Google Calendar connected under Settings → Google Calendar Reminders.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Check-out Google Alert</label>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="attendance_checkout_alert_enabled" value="yes" <?php echo (isset($settings['attendance_checkout_alert_enabled']) && $settings['attendance_checkout_alert_enabled'] === 'yes') ? 'checked' : ''; ?> id="attendance_checkout_alert_enabled">
+                <label class="form-check-label" for="attendance_checkout_alert_enabled">
+                  Remind users to check out (Google Calendar)
+                </label>
+              </div>
+              <div class="form-text">Per-user toggle on User form. Skipped if user already checked out today.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Check-in Alert (minutes before)</label>
+              <input type="number" class="form-control" name="attendance_checkin_alert_minutes_before" value="<?php echo esc_view(isset($settings['attendance_checkin_alert_minutes_before']) ? $settings['attendance_checkin_alert_minutes_before'] : '5'); ?>" min="0" max="120" />
+              <div class="form-text">Minutes before office start time</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Check-out Alert (minutes before)</label>
+              <input type="number" class="form-control" name="attendance_checkout_alert_minutes_before" value="<?php echo esc_view(isset($settings['attendance_checkout_alert_minutes_before']) ? $settings['attendance_checkout_alert_minutes_before'] : '5'); ?>" min="0" max="120" />
+              <div class="form-text">Minutes before office end time</div>
+            </div>
+            <div class="col-md-4">
               <label class="form-label fw-semibold">Face Capture Mode</label>
               <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" name="attendance_auto_capture" value="yes" <?php echo (isset($settings['attendance_auto_capture']) && $settings['attendance_auto_capture'] === 'yes') ? 'checked' : ''; ?> id="attendance_auto_capture">
