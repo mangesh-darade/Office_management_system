@@ -5,6 +5,9 @@ $active_sub = strtolower($this->uri->segment(2) ?: '');
 if ($active === 'my-works') {
   $active = 'my_works';
 }
+if ($active === 'todays-plan') {
+  $active = 'todays_plan';
+}
 $coaching_nav_active = ($active === 'coaching' || strpos((string) $active, 'coaching-') === 0);
 $role_id = (int) $this->session->userdata('role_id');
 $is_superadmin = ($role_id === 1);
@@ -121,6 +124,9 @@ document.addEventListener('DOMContentLoaded', function() {
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('todays_plan') || has_module_access('todays_plan_manage') || has_module_access('my_works') || has_module_access('my_works_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='todays_plan'?'active':''; ?>" href="<?php echo site_url('todays-plan'); ?>"><i class="bi bi-calendar-day me-2"></i>Today's Plan</a>
       <?php endif; ?>
       <?php
       $this->load->helper('spl');
@@ -701,6 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
         has_module_access('email_settings') ||
         has_module_access('db') ||
         has_module_access('reminders') ||
+        has_module_access('calendar_reminders') ||
         has_module_access('activity') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
@@ -710,6 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         has_module_access('subscription_builder') ||
         has_module_access('approvals') ||
         has_module_access('lead_mapping') ||
+        has_module_access('api_integrations') ||
         ((isset($is_superadmin) && $is_superadmin) || (function_exists('has_module_access') && (has_module_access('shifts') || has_module_access('shifts_manage'))))
       );
       ?>
@@ -717,7 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item" id="settings-group">
-        <a id="settings-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
+        <a id="settings-parent" class="nav-link sidebar-link sidebar-group-parent <?php echo in_array($active, ['settings','permissions','email-settings','db','reminders','calendar-reminders','activity','departments','designations','statuses','shifts','lead-mapping','system-settings','api-integrations','approvals'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false) ? 'active' : ''; ?>" href="#">
           <span class="sidebar-group-row-inner">
             <span><i class="bi bi-gear me-2"></i>Settings</span>
             <span class="sidebar-group-chevron" id="settings-toggle" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
@@ -760,6 +768,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
             <a class="submenu-link <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
             <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('calendar_reminders')): ?>
+            <a class="submenu-link <?php echo $active==='calendar-reminders'?'active':''; ?>" href="<?php echo site_url('calendar-reminders'); ?>"><i class="bi bi-calendar-event me-2"></i>Google Calendar Reminders</a>
+            <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
             <a class="submenu-link <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>
             <?php endif; ?>
@@ -767,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
       </div>
-      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false))?'true':'false'; ?>);</script>
+      <script>initSidebarGroup('settings-group','settings-toggle','settings-parent','settings-submenu','sb_settings_open',<?php echo (in_array($active, ['settings','permissions','email-settings','db','reminders','calendar-reminders','activity','departments','designations','statuses','shifts','approvals','lead-mapping','system-settings','api-integrations'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false))?'true':'false'; ?>);</script>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('superadmin')): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>

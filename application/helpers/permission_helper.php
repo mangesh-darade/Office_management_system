@@ -165,6 +165,9 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'my_works', 'my_works_list', 'my_works_add', 'my_works_edit', 'my_works_delete',
                 'my_works_view_all', 'my_works_export', 'my_works_import',
             ],
+            'todays_plan' => [
+                'todays_plan', 'todays_plan_manage', 'my_works', 'my_works_list',
+            ],
             'coaching' => [
                 'coaching', 'coaching_coaches', 'coaching_clients', 'coaching_sessions',
                 'coaching_goals', 'coaching_leads', 'coaching_billing', 'coaching_reports',
@@ -183,13 +186,14 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'releases_view', 'releases_send_notes', 'releases_export',
             ],
             'spl' => [
-                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_categories', 'spl_groups', 'spl_groups_manage',
                 'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
             ],
             'chats' => ['chats', 'chats_list', 'chats_add', 'chatsgrouping', 'calls'],
             'settings' => [
                 'settings', 'holidays', 'holidays_add', 'holidays_edit', 'holidays_delete',
                 'email_settings', 'system_settings', 'mail', 'sendgrid', 'api_integrations',
+                'calendar_reminders',
             ],
             'announcements' => [
                 'announcements', 'announcements_list', 'announcements_add', 'announcements_edit',
@@ -759,12 +763,15 @@ if (!function_exists('get_controller_module_access_map')) {
                 'my_works', 'my_works_list', 'my_works_add', 'my_works_edit', 'my_works_delete',
                 'my_works_view_all', 'my_works_export', 'my_works_import',
             ],
+            'todays_plan' => [
+                'todays_plan', 'todays_plan_manage', 'my_works', 'my_works_list',
+            ],
             'spl' => array(
-                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_categories', 'spl_groups', 'spl_groups_manage',
                 'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
             ),
             'rewards' => array(
-                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_groups', 'spl_groups_manage',
+                'spl', 'spl_my_reward', 'spl_submit', 'spl_approve', 'spl_leaderboard', 'spl_rules', 'spl_categories', 'spl_groups', 'spl_groups_manage',
                 'rewards', 'rewards_submit', 'rewards_rules', 'rewards_admin', 'rewards_approve', 'rewards_leaderboard',
             ),
             'requirements' => [
@@ -896,6 +903,7 @@ if (!function_exists('get_controller_module_access_map')) {
             'types' => ['types'],
             'db' => ['db', 'db_admin'],
             'api_integrations' => ['api_integrations', 'settings', 'admin'],
+            'calendar_reminders' => ['calendar_reminders', 'settings', 'admin'],
             'superadmin' => ['superadmin'],
             'guide' => ['guide'],
             'lead_mapping' => ['lead_mapping'],

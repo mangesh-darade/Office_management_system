@@ -153,9 +153,11 @@ class Permissions extends CI_Controller {
                     'my_works_add'         => 'Add My Work Item',
                     'my_works_edit'        => 'Edit My Work Item',
                     'my_works_delete'      => 'Delete My Work Item',
-                    'my_works_view_all'    => 'View All My Works (Admin roles only — data scope)',
+                    'my_works_view_all'    => 'View All My Works (Admin roles only - data scope)',
                     'my_works_export'      => 'Export My Works (CSV)',
                     'my_works_import'      => 'Import Template Tasks (CSV)',
+                    'todays_plan'          => 'Today\'s Plan (Full Access)',
+                    'todays_plan_manage'   => 'Manage Today\'s Plan',
                 ]
             ],
             'SPL & Rewards' => [
@@ -183,6 +185,10 @@ class Permissions extends CI_Controller {
                     ),
                     'spl_rules' => array(
                         'label' => 'Rules',
+                        'tag'   => 'Screen',
+                    ),
+                    'spl_categories' => array(
+                        'label' => 'Rules Categories',
                         'tag'   => 'Screen',
                     ),
                     'spl_groups' => array(
@@ -457,6 +463,7 @@ class Permissions extends CI_Controller {
                     'statuses'         => 'Status Management',
                     'types'            => 'Type Management',
                     'api_integrations' => 'API Integrations',
+                    'calendar_reminders' => 'Google Calendar Reminders',
                     'lead_mapping'     => 'Lead Mapping',
                     'superadmin'       => 'Super Admin Panel',
                 ]

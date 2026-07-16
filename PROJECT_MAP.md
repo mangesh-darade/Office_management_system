@@ -74,10 +74,10 @@ Module CSS/JS: `assets/css/`, `assets/js/`.
 
 | Script | Purpose | Schedule |
 |--------|---------|----------|
-| `reminders_cron.php` | Reminder processing entry | Task Scheduler via `.ps1`/`.bat` |
-| `reminders_cron_generate.ps1` | Generate reminders | Windows Task Scheduler |
-| `reminders_cron_send.ps1` | Send pending reminders | Windows Task Scheduler |
-| `application/controllers/Cron.php` | Web cron (`?token=`); AuthHook allows token without session | Task Scheduler or CLI |
+| `reminders_cron.php` | Generate today's schedule → queue (Google sync on enqueue) | Task Scheduler via `.ps1`/`.bat` |
+| `reminders_cron_generate.ps1` | Generate reminders from schedules | Windows Task Scheduler |
+| `reminders_cron_send.ps1` | **DISABLED** (no-op) — delivery via Google Calendar | Stop / ignore in Task Scheduler |
+| `application/controllers/Cron.php` | Web cron (`?token=`); `send_emails` skips reminder SMTP | Task Scheduler or CLI |
 
 PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 
@@ -95,3 +95,11 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | Inactive holidays still appear in some attendance reports (no `status` filter) | — | Open |
 | Same holiday date cannot be re-added after soft delete (must edit existing row) | — | Open |
 | `holidays.date` / `holidays.type` legacy DB columns unused by code | — | Low / cleanup |
+
+## DB Changes
+
+| Table | Change | Reason | Date |
+|-------|--------|--------|------|
+| `todays_plan_items` | ADD `repeat_type` varchar(20) DEFAULT 'once' | One time vs recurring plan points | 2026-07-15 |
+| `users` | ADD `google_alert_checkin`, `google_alert_checkout` TINYINT(1) DEFAULT 1 | Per-user check-in/out Google alerts | 2026-07-15 |
+| `settings` | Keys `attendance_checkin_alert_enabled`, `attendance_checkout_alert_enabled`, `attendance_checkin_alert_minutes_before`, `attendance_checkout_alert_minutes_before` | Org-level attendance Google alert toggles | 2026-07-15 |

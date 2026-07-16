@@ -234,6 +234,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       if ($active === 'my-works') {
         $active = 'my_works';
       }
+      if ($active === 'todays-plan') {
+        $active = 'todays_plan';
+      }
       $coaching_nav_active = ($active === 'coaching' || strpos((string) $active, 'coaching-') === 0);
       $role_id = (int) $this->session->userdata('role_id');
       $is_superadmin = ($role_id === 1);
@@ -241,6 +244,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link <?php echo $active==='dashboard'?'active':''; ?>" href="<?php echo site_url('dashboard'); ?>"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
+      <?php endif; ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('todays_plan') || has_module_access('todays_plan_manage') || has_module_access('my_works') || has_module_access('my_works_list'))): ?>
+      <a class="nav-link sidebar-link <?php echo $active==='todays_plan'?'active':''; ?>" href="<?php echo site_url('todays-plan'); ?>"><i class="bi bi-calendar-day me-2"></i>Today's Plan</a>
       <?php endif; ?>
       <?php
       $this->load->helper('spl');
@@ -754,6 +760,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
         has_module_access('approvals') ||
         has_module_access('db') ||
         has_module_access('reminders') ||
+        has_module_access('calendar_reminders') ||
         has_module_access('activity') ||
         has_module_access('departments') ||
         has_module_access('designations') ||
@@ -767,7 +774,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <hr class="my-2">
       <div class="text-uppercase text-muted small px-2">Admin</div>
       <div class="nav-item">
-        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false); ?>
+        <?php $mobile_settings_open = in_array($active, ['settings','permissions','email-settings','approvals','db','reminders','calendar-reminders','activity','departments','designations','statuses','api-integrations','system-settings','lead-mapping','shifts'], true) || ($active==='settings' && in_array($active_sub, ['types','leave-types','holidays','attendance-manage','subscription-builder'], true)) || ($active==='settings' && strpos(uri_string(), 'subscription-builder') !== false); ?>
         <a class="nav-link sidebar-link <?php echo $mobile_settings_open ? 'active' : ''; ?>" data-bs-toggle="collapse" href="#mobile-settings-submenu" role="button" aria-expanded="<?php echo $mobile_settings_open ? 'true' : 'false'; ?>">
           <i class="bi bi-gear me-2"></i>Settings <i class="bi bi-chevron-down float-end"></i>
         </a>
@@ -791,6 +798,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php $this->load->view('partials/sidebar_settings_database_group', array('variant' => 'mobile', 'active' => $active, 'active_sub' => $active_sub)); ?>
             <?php if(function_exists('has_module_access') && has_module_access('reminders')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='reminders'?'active':''; ?>" href="<?php echo site_url('reminders'); ?>"><i class="bi bi-bell me-2"></i>Reminders</a>
+            <?php endif; ?>
+            <?php if(function_exists('has_module_access') && has_module_access('calendar_reminders')): ?>
+            <a class="nav-link sidebar-link small <?php echo $active==='calendar-reminders'?'active':''; ?>" href="<?php echo site_url('calendar-reminders'); ?>"><i class="bi bi-calendar-event me-2"></i>Google Calendar Reminders</a>
             <?php endif; ?>
             <?php if(function_exists('has_module_access') && has_module_access('activity')): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='activity'?'active':''; ?>" href="<?php echo site_url('activity'); ?>"><i class="bi bi-activity me-2"></i>Activity Log</a>

@@ -194,7 +194,11 @@ $route['spl/dashboard'] = 'spl/dashboard';
 $route['spl/submit-activity'] = 'spl/submit_activity';
 $route['spl/approve-activity/(:num)'] = 'spl/approve_activity/$1';
 $route['spl/reject-activity/(:num)'] = 'spl/reject_activity/$1';
+$route['spl/update-pending-activity/(:num)'] = 'spl/update_pending_activity/$1';
+$route['spl/delete-pending-activity/(:num)'] = 'spl/delete_pending_activity/$1';
 $route['spl/save-rule'] = 'spl/save_rule';
+$route['spl/save-category'] = 'spl/save_category';
+$route['spl/categories/toggle/(:num)'] = 'spl/toggle_category/$1';
 $route['spl/save-level'] = 'spl/save_level';
 $route['spl/rules-import'] = 'spl/rules_import';
 $route['spl/rules-export'] = 'spl/rules_export_csv';
@@ -364,6 +368,20 @@ $route['api-integrations/store'] = 'api_integrations/store';
 $route['api-integrations/edit/(:num)'] = 'api_integrations/edit/$1';
 $route['api-integrations/update/(:num)'] = 'api_integrations/update/$1';
 $route['api-integrations/delete/(:num)'] = 'api_integrations/delete/$1';
+
+// Google Calendar email reminders
+$route['calendar-reminders'] = 'calendar_reminders/index';
+$route['calendar-reminders/create'] = 'calendar_reminders/create';
+$route['calendar-reminders/settings'] = 'calendar_reminders/settings';
+$route['calendar-reminders/connect'] = 'calendar_reminders/connect';
+$route['calendar-reminders/oauth-callback'] = 'calendar_reminders/oauth_callback';
+$route['calendar-reminders/disconnect'] = 'calendar_reminders/disconnect';
+$route['todays-plan'] = 'todays_plan/index';
+$route['todays-plan/history'] = 'todays_plan/history';
+$route['todays-plan/save'] = 'todays_plan/save';
+$route['todays-plan/update/(:num)'] = 'todays_plan/update/$1';
+$route['todays-plan/toggle'] = 'todays_plan/toggle';
+$route['todays-plan/delete/(:num)'] = 'todays_plan/delete/$1';
 
 // DB Manager (MVC + AJAX)
 $route['db'] = 'db/index';

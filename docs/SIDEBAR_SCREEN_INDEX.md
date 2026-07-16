@@ -130,7 +130,8 @@ Visibility is role/permission based in `application/views/partials/sidebar.php`.
 - Events -> `/events`
 - Certifications -> `/certifications`
 - Customer Feedback -> `/customer-feedback`
-- Reward Rules -> `/rewards/rules`
+- Reward Rules -> `/spl/dashboard?tab=rules`
+- Reward Categories -> `/spl/dashboard?tab=rules&rules_view=categories` (under Rules)
 
 ## Office Meals (Dynamic)
 
@@ -159,6 +160,7 @@ Defined by `meal_nav_screens()` and permission checks:
 - Client DB Panel -> `/db/clients`
 - Client DB Migrations -> `/db/client-migrations`
 - Reminders -> `/reminders`
+- Google Calendar Reminders -> `/calendar-reminders`
 - Activity Log -> `/activity`
 - Status Management -> `/statuses`
 - API Integrations -> `/api-integrations`
