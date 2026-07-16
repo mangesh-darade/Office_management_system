@@ -81,7 +81,9 @@ class Clients extends CI_Controller {
             $filters = [
                 'status' => $this->input->get('status'),
                 'client_type' => $this->input->get('client_type'),
-                'search' => $this->input->get('q')
+                'search' => $this->input->get('q'),
+                'sort' => $this->input->get('sort'),
+                'dir' => $this->input->get('dir'),
             ];
             
             $result = safe_db_operation(function() use ($filters) {

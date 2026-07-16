@@ -1,211 +1,309 @@
 <?php $this->load->view('partials/header', ['title' => 'Clients']); ?>
-<div class="container-fluid py-3">
+<div class="container-fluid py-2 clients-list">
+
+<?php
+ob_start();
+if (function_exists('has_module_access') && (has_module_access('clients_export') || has_module_access('clients') || is_admin_group())):
+?>
+<?php $export_q = function_exists('safe_query_string') ? safe_query_string() : ''; ?>
+<a class="btn btn-outline-success btn-sm" href="<?php echo site_url('clients/export' . ($export_q !== '' ? '?' . $export_q : '')); ?>"><i class="bi bi-download me-1"></i>Export</a>
+<?php endif; ?>
+<?php if (function_exists('has_module_access') && (has_module_access('clients_add') || has_module_access('clients'))): ?>
+<a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/create'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Client</a>
+<?php endif;
+$this->load->view('partials/oms_page_head', [
+  'title' => 'Clients',
+  'subtitle' => 'Client companies and credentials',
+  'icon' => 'bi-briefcase',
+  'actions_html' => ob_get_clean(),
+  'mb' => 'mb-2',
+]);
+?>
 
 <?php if ($this->session->flashdata('success')): ?>
-<div class="alert alert-success alert-dismissible fade show d-flex align-items-center py-2 mb-3">
-  <i class="bi bi-check-circle-fill me-2"></i>
-  <span><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?></span>
-  <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+<div class="alert alert-success alert-dismissible fade show py-2 mb-2">
+  <i class="bi bi-check-circle-fill me-1"></i><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('error')): ?>
-<div class="alert alert-danger alert-dismissible fade show d-flex align-items-center py-2 mb-3">
-  <i class="bi bi-exclamation-triangle-fill me-2"></i>
-  <span><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?></span>
-  <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+<div class="alert alert-danger alert-dismissible fade show py-2 mb-2">
+  <i class="bi bi-exclamation-triangle-fill me-1"></i><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?>
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 <?php endif; ?>
 
-<div class="oms-page-head d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-3">
-  <div>
-    <h1 class="h4 mb-1 fw-bold"><i class="bi bi-briefcase text-primary me-2"></i>Clients</h1>
-    <p class="text-muted small mb-0">Manage your client relationships</p>
-  </div>
-  <div class="d-flex gap-2 mt-2 mt-sm-0">
-    <?php if(function_exists('has_module_access') && (has_module_access('clients_add') || has_module_access('clients'))): ?>
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/create'); ?>"><i class="bi bi-plus-lg me-1"></i>Add Client</a>
-    <?php endif; ?>
-    <?php if(function_exists('has_module_access') && (has_module_access('clients_export') || has_module_access('clients') || is_admin_group())): ?>
-    <a class="btn btn-outline-success btn-sm" href="<?php echo site_url('clients/export'); ?>"><i class="bi bi-download me-1"></i>Export</a>
-    <?php endif; ?>
-  </div>
-</div>
+<?php
+$st = isset($filters['status']) ? (string) $filters['status'] : '';
+$ct = isset($filters['client_type']) ? (string) $filters['client_type'] : '';
+$q = isset($filters['search']) ? (string) $filters['search'] : '';
+$sort = isset($filters['sort']) ? (string) $filters['sort'] : '';
+$dir = isset($filters['dir']) ? strtolower((string) $filters['dir']) : 'asc';
+if ($dir !== 'desc') {
+  $dir = 'asc';
+}
+$row_count = is_array($rows) ? count($rows) : 0;
 
-<div class="card shadow-soft mb-3">
-  <div class="card-body">
-    <form method="get" action="<?php echo site_url('clients'); ?>" class="row g-2 align-items-end">
-      <div class="col-lg-3 col-md-6">
-        <label class="form-label">Status</label>
-        <?php $st = isset($filters['status']) ? (string)$filters['status'] : ''; ?>
-        <select name="status" class="form-select">
-          <option value="">All</option>
-          <option value="active" <?php echo $st==='active'?'selected':''; ?>>Active</option>
-          <option value="inactive" <?php echo $st==='inactive'?'selected':''; ?>>Inactive</option>
-          <option value="blocked" <?php echo $st==='blocked'?'selected':''; ?>>Blocked</option>
+$clients_sort_url = function ($col) use ($st, $ct, $q, $sort, $dir) {
+  $next_dir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+  $params = array();
+  if ($st !== '') {
+    $params['status'] = $st;
+  }
+  if ($ct !== '') {
+    $params['client_type'] = $ct;
+  }
+  if ($q !== '') {
+    $params['q'] = $q;
+  }
+  $params['sort'] = $col;
+  $params['dir'] = $next_dir;
+  return site_url('clients?' . http_build_query($params));
+};
+$type_sort_icon = 'bi-arrow-down-up';
+if ($sort === 'client_type') {
+  $type_sort_icon = $dir === 'desc' ? 'bi-sort-down' : 'bi-sort-up';
+}
+?>
+
+<div class="card shadow-soft mb-2">
+  <div class="card-body py-2 px-3">
+    <form method="get" action="<?php echo site_url('clients'); ?>" class="row g-2 align-items-center oms-filter-row">
+      <?php if ($sort !== ''): ?>
+      <input type="hidden" name="sort" value="<?php echo esc_view($sort); ?>">
+      <input type="hidden" name="dir" value="<?php echo esc_view($dir); ?>">
+      <?php endif; ?>
+      <div class="col-6 col-md-2">
+        <select name="status" class="form-select form-select-sm" aria-label="Status">
+          <option value="">All statuses</option>
+          <option value="active" <?php echo $st === 'active' ? 'selected' : ''; ?>>Active</option>
+          <option value="inactive" <?php echo $st === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+          <option value="blocked" <?php echo $st === 'blocked' ? 'selected' : ''; ?>>Blocked</option>
         </select>
       </div>
-      <div class="col-lg-3 col-md-6">
-        <label class="form-label">Type</label>
-        <?php $ct = isset($filters['client_type']) ? (string)$filters['client_type'] : ''; ?>
-        <select name="client_type" class="form-select">
-          <option value="">All</option>
+      <div class="col-6 col-md-2">
+        <select name="client_type" class="form-select form-select-sm" aria-label="Type">
+          <option value="">All types</option>
           <?php if (isset($client_types) && is_array($client_types)): foreach ($client_types as $code => $label): ?>
             <option value="<?php echo esc_view($code); ?>" <?php echo $ct === (string) $code ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
           <?php endforeach; endif; ?>
         </select>
       </div>
-      <div class="col-lg-3 col-md-6">
-        <label class="form-label">Search</label>
-        <input type="text" name="q" value="<?php echo esc_view(isset($filters['search'])?$filters['search']:''); ?>" class="form-control" placeholder="Company, code, contact, email, URL...">
+      <div class="col-12 col-md-5">
+        <input type="text" name="q" value="<?php echo esc_view($q); ?>" class="form-control form-control-sm" placeholder="Search company, code, contact, email, URL…" aria-label="Search">
       </div>
-      <div class="col-lg-3 col-md-6">
-        <button class="btn btn-outline-primary w-100" type="submit">Filter</button>
+      <div class="col-6 col-md-2">
+        <button class="btn btn-outline-primary btn-sm w-100" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
+      </div>
+      <div class="col-6 col-md-1 text-md-end">
+        <span class="text-muted small text-nowrap"><?php echo (int) $row_count; ?> total</span>
       </div>
     </form>
   </div>
 </div>
 
 <div class="card shadow-soft">
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th style="width:56px;">Logo</th>
-            <th>Company</th>
-            <th>Contact</th>
-            <th>Phone</th>
-            <th>URL</th>
-            <th>Status</th>
-            <th class="text-end" style="min-width:120px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($rows)): ?>
-          <tr><td colspan="7" class="text-center text-muted py-4">No clients found.</td></tr>
-          <?php else: foreach ($rows as $c): ?>
-          <tr>
-            <td>
-              <?php if (!empty($c->logo)): ?>
-                <button type="button"
-                        class="btn p-0 border-0 bg-transparent js-client-logo-trigger"
-                        data-bs-toggle="modal"
-                        data-bs-target="#clientLogoModal"
-                        data-logo-url="<?php echo esc_view(base_url($c->logo)); ?>"
-                        data-client-name="<?php echo esc_view($c->company_name); ?>">
-                  <img src="<?php echo esc_view(base_url($c->logo)); ?>" alt="Logo"
-                       style="width:40px;height:40px;object-fit:contain;border:1px solid #dee2e6;border-radius:4px;">
-                </button>
-              <?php else: ?>
-                <div style="width:40px;height:40px;background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;display:flex;align-items:center;justify-content:center;">
-                  <i class="bi bi-building text-muted"></i>
-                </div>
-              <?php endif; ?>
-            </td>
-            <td>
-              <div class="fw-semibold"><?php echo esc_view($c->company_name); ?></div>
-              <?php if (!empty($c->client_code)): ?>
-              <div class="small text-muted"><?php echo esc_view($c->client_code); ?></div>
-              <?php endif; ?>
-            </td>
-            <td><?php echo esc_view(isset($c->contact_person)?$c->contact_person:''); ?></td>
-            <td><?php echo esc_view(isset($c->phone)?$c->phone:''); ?></td>
-            <td class="small">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0 clients-list-table">
+      <thead class="table-light">
+        <tr>
+          <th style="width:40px;"></th>
+          <th>Client Name</th>
+          <th style="width:110px;">
+            <a href="<?php echo esc_view($clients_sort_url('client_type'), ENT_QUOTES, 'UTF-8'); ?>" class="text-decoration-none text-body d-inline-flex align-items-center gap-1" title="Sort by Type">
+              Type <i class="bi <?php echo esc_view($type_sort_icon); ?>"></i>
+            </a>
+          </th>
+          <th>Contact</th>
+          <th style="width:120px;">Phone</th>
+          <th style="width:88px;">Links</th>
+          <th style="width:84px;">Status</th>
+          <th class="text-end" style="width:108px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (empty($rows)): ?>
+        <tr><td colspan="8" class="text-center text-muted py-4">No clients found.</td></tr>
+        <?php else: foreach ($rows as $c): ?>
+        <?php
+          $type_code = isset($c->client_type) ? (string) $c->client_type : 'company';
+          $type_label = (isset($client_types) && is_array($client_types) && isset($client_types[$type_code]))
+            ? $client_types[$type_code]
+            : ucfirst(str_replace('_', ' ', $type_code));
+          $status_val = isset($c->status) ? (string) $c->status : 'active';
+          $status_badge = $status_val === 'active' ? 'success' : ($status_val === 'inactive' ? 'secondary' : 'danger');
+        ?>
+        <tr>
+          <td>
+            <?php if (!empty($c->logo)): ?>
+              <button type="button"
+                      class="btn p-0 border-0 bg-transparent js-client-logo-trigger clients-logo-btn"
+                      data-bs-toggle="modal"
+                      data-bs-target="#clientLogoModal"
+                      data-logo-url="<?php echo esc_view(base_url($c->logo)); ?>"
+                      data-client-name="<?php echo esc_view($c->company_name); ?>"
+                      title="View logo">
+                <img src="<?php echo esc_view(base_url($c->logo)); ?>" alt="" class="clients-logo-thumb">
+              </button>
+            <?php else: ?>
+              <div class="clients-logo-placeholder"><i class="bi bi-building"></i></div>
+            <?php endif; ?>
+          </td>
+          <td>
+            <a href="<?php echo site_url('clients/view/' . (int) $c->id); ?>" class="fw-semibold text-decoration-none text-body">
+              <?php echo esc_view($c->company_name); ?>
+            </a>
+            <?php if (!empty($c->client_code)): ?>
+            <div class="text-muted clients-code"><?php echo esc_view($c->client_code); ?></div>
+            <?php endif; ?>
+          </td>
+          <td><span class="badge bg-light text-dark border fw-normal"><?php echo esc_view($type_label); ?></span></td>
+          <td class="small">
+            <?php echo esc_view(isset($c->contact_person) ? $c->contact_person : ''); ?>
+            <?php if (!empty($c->email)): ?>
+            <div class="text-muted text-truncate clients-email" title="<?php echo esc_view($c->email, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($c->email); ?></div>
+            <?php endif; ?>
+          </td>
+          <td class="small text-nowrap"><?php echo esc_view(isset($c->phone) ? $c->phone : ''); ?></td>
+          <td>
+            <div class="d-flex gap-1">
               <?php if (!empty($c->website)): ?>
-                <a href="<?php echo esc_view($c->website); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:180px;" title="<?php echo esc_view($c->website, ENT_QUOTES, 'UTF-8'); ?>">
-                  <i class="bi bi-link-45deg me-1"></i><?php echo esc_view($c->website); ?>
-                </a>
+              <a href="<?php echo esc_view($c->website); ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm py-0 px-1" title="<?php echo esc_view($c->website, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-link-45deg"></i></a>
               <?php endif; ?>
               <?php if (!empty($c->demo_url)): ?>
-                <a href="<?php echo esc_view($c->demo_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:180px;" title="<?php echo esc_view($c->demo_url); ?>">
-                  <i class="bi bi-box-arrow-up-right me-1"></i>Demo
-                </a>
+              <a href="<?php echo esc_view($c->demo_url); ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Demo: <?php echo esc_view($c->demo_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-play-circle"></i></a>
               <?php endif; ?>
               <?php if (!empty($c->pos_url)): ?>
-                <a href="<?php echo esc_view($c->pos_url); ?>" target="_blank" rel="noopener" class="d-block text-truncate" style="max-width:180px;" title="<?php echo esc_view($c->pos_url); ?>">
-                  <i class="bi bi-box-arrow-up-right me-1"></i>POS
-                </a>
+              <a href="<?php echo esc_view($c->pos_url); ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm py-0 px-1" title="POS: <?php echo esc_view($c->pos_url, ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-shop"></i></a>
               <?php endif; ?>
               <?php if (empty($c->website) && empty($c->demo_url) && empty($c->pos_url)): ?>
-                <span class="text-muted">—</span>
+              <span class="text-muted">—</span>
               <?php endif; ?>
-            </td>
-            <td>
-              <?php
-                $st = isset($c->status) ? $c->status : 'active';
-                $badge = $st === 'active' ? 'success' : ($st === 'inactive' ? 'secondary' : 'danger');
-              ?>
-              <span class="badge bg-<?php echo $badge; ?>-subtle text-<?php echo $badge; ?>-emphasis border border-<?php echo $badge; ?>-subtle">
-                <?php echo esc_view(ucfirst($st)); ?>
-              </span>
-            </td>
-            <td class="text-end">
-              <div class="d-flex gap-1 justify-content-end">
-                <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('clients/view/'.(int)$c->id); ?>" title="View">
-                  <i class="bi bi-eye"></i>
-                </a>
-                <?php if(function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
-                <a class="btn btn-outline-primary btn-sm" href="<?php echo site_url('clients/edit/'.(int)$c->id); ?>" title="Edit">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                <?php endif; ?>
-                <?php if(function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'))): ?>
-                <button type="button" class="btn btn-outline-danger btn-sm" title="Delete"
-                        onclick="confirmDeleteClient(<?php echo (int)$c->id; ?>, '<?php echo esc_view(addslashes($c->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
-                  <i class="bi bi-trash"></i>
-                </button>
-                <?php endif; ?>
-              </div>
-            </td>
-          </tr>
-          <?php endforeach; endif; ?>
-        </tbody>
-      </table>
-    </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge bg-<?php echo $status_badge; ?>-subtle text-<?php echo $status_badge; ?>-emphasis border border-<?php echo $status_badge; ?>-subtle">
+              <?php echo esc_view(ucfirst($status_val)); ?>
+            </span>
+          </td>
+          <td class="text-end text-nowrap">
+            <div class="btn-group btn-group-sm" role="group">
+              <a class="btn btn-outline-secondary" href="<?php echo site_url('clients/view/' . (int) $c->id); ?>" title="View"><i class="bi bi-eye"></i></a>
+              <?php if (function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'))): ?>
+              <a class="btn btn-outline-primary" href="<?php echo site_url('clients/edit/' . (int) $c->id); ?>" title="Edit"><i class="bi bi-pencil"></i></a>
+              <?php endif; ?>
+              <?php if (function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'))): ?>
+              <button type="button" class="btn btn-outline-danger" title="Delete"
+                      onclick="confirmDeleteClient(<?php echo (int) $c->id; ?>, '<?php echo esc_view(addslashes($c->company_name), ENT_QUOTES, 'UTF-8'); ?>')">
+                <i class="bi bi-trash"></i>
+              </button>
+              <?php endif; ?>
+            </div>
+          </td>
+        </tr>
+        <?php endforeach; endif; ?>
+      </tbody>
+    </table>
   </div>
 </div>
 
 <div class="modal fade" id="clientLogoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header py-2">
         <h5 class="modal-title" id="clientLogoModalTitle">Client Logo</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body text-center">
-        <img id="clientLogoModalImg" src="" alt="Client Logo" class="img-fluid mb-3" style="max-height:400px;object-fit:contain;">
+      <div class="modal-body text-center py-3">
+        <img id="clientLogoModalImg" src="" alt="Client Logo" class="img-fluid" style="max-height:400px;object-fit:contain;">
       </div>
-      <div class="modal-footer">
-        <a id="clientLogoDownload" href="#" class="btn btn-outline-primary" download>Download Logo</a>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      <div class="modal-footer py-2">
+        <a id="clientLogoDownload" href="#" class="btn btn-outline-primary btn-sm" download>Download</a>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteClientModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header border-0 pb-0">
+      <div class="modal-header border-0 pb-0 py-2">
         <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Client</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body py-2">
         <p class="mb-1">Are you sure you want to permanently delete:</p>
-        <p class="fw-bold fs-6" id="deleteClientName"></p>
-        <p class="text-muted small mb-0">This action cannot be undone. All associated data will be removed.</p>
+        <p class="fw-bold mb-1" id="deleteClientName"></p>
+        <p class="text-muted small mb-0">This action cannot be undone.</p>
       </div>
-      <div class="modal-footer border-0 pt-0">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <div class="modal-footer border-0 pt-0 py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
         <form id="deleteClientForm" method="post" action="" class="d-inline">
           <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Yes, Delete</button>
+          <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash me-1"></i>Delete</button>
         </form>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+.clients-list .clients-list-table > :not(caption) > * > * {
+  padding: 0.4rem 0.65rem;
+  vertical-align: middle;
+}
+.clients-list .clients-list-table thead th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  white-space: nowrap;
+  border-bottom-width: 1px;
+}
+.clients-list .clients-list-table tbody td {
+  font-size: 0.875rem;
+}
+.clients-list .clients-logo-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #fff;
+}
+.clients-list .clients-logo-placeholder {
+  width: 32px;
+  height: 32px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+.clients-list .clients-code {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+.clients-list .clients-email {
+  max-width: 180px;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+.clients-list .oms-page-head h1.h4 {
+  font-size: 1.15rem;
+  margin-bottom: 0.15rem !important;
+}
+.clients-list .oms-page-head .text-muted.small {
+  font-size: 0.78rem;
+}
+</style>
 
 <script>
   function confirmDeleteClient(id, name) {

@@ -20,7 +20,27 @@ class Client_model extends CI_Model {
     public function get_clients($filters = [], $limit = null, $offset = 0){
         $this->db->from('clients');
         $this->apply_filters($filters);
-        $this->db->order_by('created_at','DESC');
+
+        $allowed_sort = array(
+            'client_type' => 'client_type',
+            'company_name' => 'company_name',
+            'created_at' => 'created_at',
+        );
+        $sort = isset($filters['sort']) ? (string) $filters['sort'] : '';
+        $dir = isset($filters['dir']) ? strtolower((string) $filters['dir']) : 'asc';
+        if ($dir !== 'desc') {
+            $dir = 'asc';
+        }
+        if ($sort !== '' && isset($allowed_sort[$sort])) {
+            $this->db->order_by($allowed_sort[$sort], strtoupper($dir));
+            if ($sort !== 'company_name') {
+                $this->db->order_by('company_name', 'ASC');
+            }
+        } else {
+            $this->db->order_by('company_name', 'ASC');
+            $this->db->order_by('client_type', 'ASC');
+        }
+
         if ($limit !== null){ $this->db->limit((int)$limit, (int)$offset); }
         $res = $this->db->get()->result();
         // Do not decrypt passwords in list view for performance and security
