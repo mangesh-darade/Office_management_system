@@ -212,7 +212,10 @@ class Daily_activity extends CI_Controller {
         $this->db->join('tasks t', 't.id = dl.task_id', 'left');
         $this->db->join('users u', 'u.id = dl.user_id', 'left');
         $apply_filters();
+        // Newest activity first (work day, then when logged, then id).
+        $this->db->order_by('dl.work_date', 'DESC');
         $this->db->order_by('dl.created_at', 'DESC');
+        $this->db->order_by('dl.id', 'DESC');
         $this->db->limit($config['per_page'], $offset);
         $logs = $this->db->get()->result();
 
@@ -263,7 +266,7 @@ class Daily_activity extends CI_Controller {
             if (function_exists('rewards_automation_after_daily_activity_saved')) {
                 rewards_automation_after_daily_activity_saved($this->db, $user_id, $log_id, $work_date);
             }
-            $this->session->set_flashdata('success', 'Activity logged successfully');
+            $this->session->set_flashdata('success', 'Activity logged successfully. Reward points (if any) are pending admin approval.');
         } else {
              $this->session->set_flashdata('error', 'Database Error: Could not save activity.');
         }
@@ -339,6 +342,8 @@ class Daily_activity extends CI_Controller {
         $this->db->where('dl.work_date >=', $date_from);
         $this->db->where('dl.work_date <=', $date_to);
         $this->db->order_by('dl.work_date', 'DESC');
+        $this->db->order_by('dl.created_at', 'DESC');
+        $this->db->order_by('dl.id', 'DESC');
         $logs = $this->db->get()->result();
 
         header('Content-Type: text/csv; charset=utf-8');

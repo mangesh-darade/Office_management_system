@@ -68,13 +68,13 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle" data-no-datatable data-order-col="0" data-order-dir="desc">
                     <thead class="table-light">
                         <tr>
                             <th style="width: 120px;">Date</th>
                             <th class="d-none d-md-table-cell">User</th>
                             <th>Task / Activity</th>
-                            <th class="text-end" style="width: 60px;">Actions</th>
+                            <th class="text-end no-sort" style="width: 60px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,8 +84,19 @@
                             </tr>
                         <?php else: ?>
                             <?php foreach ($logs as $log): ?>
+                                <?php
+                                  $work_date_raw = !empty($log->work_date) ? (string) $log->work_date : '';
+                                  $created_raw = !empty($log->created_at) ? (string) $log->created_at : '';
+                                  $sort_key = $work_date_raw !== '' ? $work_date_raw : substr($created_raw, 0, 10);
+                                  if ($created_raw !== '') {
+                                    $sort_key .= ' ' . $created_raw;
+                                  }
+                                  $sort_key .= ' #' . (int) $log->id;
+                                ?>
                                 <tr class="cursor-pointer" onclick="viewActivity(this)">
-                                    <td style="white-space:nowrap;"><?php echo date('M d, Y', strtotime($log->work_date)); ?></td>
+                                    <td style="white-space:nowrap;" data-order="<?php echo esc_view($sort_key, ENT_QUOTES, 'UTF-8'); ?>">
+                                      <?php echo $work_date_raw !== '' ? date('M d, Y', strtotime($work_date_raw)) : '—'; ?>
+                                    </td>
                                     <td class="d-none d-md-table-cell">
                                         <div class="d-flex align-items-center">
                                             <div class="avatar avatar-sm me-2 bg-secondary text-white rounded-circle d-flex justify-content-center align-items-center" style="width:32px;height:32px;">
