@@ -67,6 +67,11 @@ $config['table_module_mapping'] = array(
     // Clients
     'clients' => 'clients',
 
+    // SPL / Rewards
+    'reward_approval_queue' => 'spl',
+    'reward_transactions' => 'spl',
+    'daily_work_logs' => 'daily_activity',
+
     // Coaching
     'coaching_coaches' => 'coaching_coaches',
     'coaching_clients' => 'coaching_clients',

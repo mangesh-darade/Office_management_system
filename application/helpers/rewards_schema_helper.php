@@ -427,9 +427,5 @@ if (!function_exists('rewards_schema_seed_defaults')) {
             rewards_schema_upsert_rule($db, $catIds, $r);
             $activeCodes[] = $r['code'];
         }
-
-        if (!empty($activeCodes)) {
-            $db->where_not_in('code', $activeCodes)->update('reward_rules', array('is_active' => 0));
-        }
     }
 }

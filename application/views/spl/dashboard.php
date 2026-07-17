@@ -295,8 +295,8 @@ $cat_icon_map = array(
             <table class="spl-standings-table">
               <thead>
                 <tr>
-                  <th class="col-rank">#</th>
                   <th class="col-team">Team</th>
+                  <th class="col-avg">AVG</th>
                   <th class="col-points">Points</th>
                   <th class="col-trend">Trend</th>
                 </tr>
@@ -308,9 +308,13 @@ $cat_icon_map = array(
                   $is_mine = ($team_overview && (int) $team->id === (int) $team_overview->id);
                   $team_poster_url = !empty($team->poster_path) ? spl_poster_url($team->poster_path) : '';
                   $trend_up = (float) $team->trend >= 0;
+                  $member_count = isset($team->member_count) ? (int) $team->member_count : 0;
+                  $avg_points = isset($team->avg_points) ? (float) $team->avg_points : 0;
+                  $avg_title = $member_count > 0
+                    ? 'Avg points per member (' . $member_count . ' user' . ($member_count === 1 ? '' : 's') . ')'
+                    : 'No members';
                 ?>
                 <tr class="<?php echo $is_mine ? 'is-mine' : ''; ?>">
-                  <td class="col-rank"><?php echo (int) $team->rank; ?></td>
                   <td class="col-team">
                     <?php if ($team_poster_url !== ''): ?>
                     <img src="<?php echo esc_view($team_poster_url, ENT_QUOTES, 'UTF-8'); ?>" alt="" class="spl-standings-shield-img">
@@ -319,6 +323,7 @@ $cat_icon_map = array(
                     <?php endif; ?>
                     <span class="spl-standings-team-name"><?php echo esc_view(strtoupper($team->name), ENT_QUOTES, 'UTF-8'); ?></span>
                   </td>
+                  <td class="col-avg" title="<?php echo esc_view($avg_title, ENT_QUOTES, 'UTF-8'); ?>"><?php echo number_format($avg_points, 0); ?></td>
                   <td class="col-points"><?php echo number_format((float) $team->points, 0); ?></td>
                   <td class="col-trend">
                     <span class="spl-standings-trend <?php echo $trend_up ? 'is-up' : 'is-down'; ?>" title="<?php echo ($trend_up ? '+' : '') . number_format((float) $team->trend, 0); ?>">

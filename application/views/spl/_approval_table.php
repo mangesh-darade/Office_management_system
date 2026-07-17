@@ -57,7 +57,10 @@ if ($compact) {
     <tbody>
       <?php foreach ($rows as $row):
         $points = (float) $row->requested_points;
-        $notePreview = spl_activity_note_preview(isset($row->reference_label) ? $row->reference_label : '', 120);
+        $noteSource = !empty($row->daily_activity_description)
+            ? (string) $row->daily_activity_description
+            : (isset($row->reference_label) ? (string) $row->reference_label : '');
+        $notePreview = spl_activity_note_preview($noteSource, 120);
         $hasEvidence = !empty($row->evidence_file);
         $submittedSort = !empty($row->submitted_at) ? strtotime((string) $row->submitted_at) : 0;
         $decidedSort = !empty($row->decided_at) ? strtotime((string) $row->decided_at) : 0;

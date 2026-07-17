@@ -574,11 +574,39 @@ if (!function_exists('spl_save_evidence_file')) {
 if (!function_exists('spl_enrich_approval_rows')) {
     function spl_enrich_approval_rows($rewards, array $rows)
     {
+        $CI =& get_instance();
+        $daily_log_ids = array();
+        foreach ($rows as $row) {
+            if ((string) $row->source_module === 'daily_activity' && !empty($row->source_record_id)) {
+                $daily_log_ids[(int) $row->source_record_id] = true;
+            }
+        }
+        $daily_logs = array();
+        if (!empty($daily_log_ids) && isset($CI->db) && $CI->db->table_exists('daily_work_logs')) {
+            $CI->db->select('id, activity_title, description, work_date');
+            $CI->db->from('daily_work_logs');
+            $CI->db->where_in('id', array_keys($daily_log_ids));
+            foreach ($CI->db->get()->result() as $log) {
+                $daily_logs[(int) $log->id] = $log;
+            }
+        }
         foreach ($rows as $idx => $row) {
             $evidence = $rewards->get_evidence_for_queue((int) $row->id);
             $rows[$idx]->evidence_file = ($evidence && !empty($evidence->file_path)) ? $evidence->file_path : '';
             $rows[$idx]->evidence_name = ($evidence && !empty($evidence->file_name)) ? $evidence->file_name : '';
             $rows[$idx]->evidence_id = ($evidence && !empty($evidence->id)) ? (int) $evidence->id : 0;
+            $rows[$idx]->daily_activity_title = '';
+            $rows[$idx]->daily_activity_description = '';
+            $rows[$idx]->daily_activity_work_date = '';
+            if ((string) $row->source_module === 'daily_activity') {
+                $log_id = (int) $row->source_record_id;
+                if ($log_id > 0 && isset($daily_logs[$log_id])) {
+                    $log = $daily_logs[$log_id];
+                    $rows[$idx]->daily_activity_title = trim((string) $log->activity_title);
+                    $rows[$idx]->daily_activity_description = (string) $log->description;
+                    $rows[$idx]->daily_activity_work_date = (string) $log->work_date;
+                }
+            }
         }
         return $rows;
     }
@@ -713,6 +741,21 @@ if (!function_exists('spl_approval_detail_payload')) {
             $note_raw = (string) $row->reference_label;
         }
         $points = (float) $row->requested_points;
+        $activity_description = '';
+        $activity_title = '';
+        $activity_work_date = '';
+        if (!empty($row->daily_activity_description)) {
+            $activity_description = spl_sanitize_note_html((string) $row->daily_activity_description);
+        }
+        if (!empty($row->daily_activity_title)) {
+            $activity_title = trim((string) $row->daily_activity_title);
+        }
+        if (!empty($row->daily_activity_work_date)) {
+            $activity_work_date = (string) $row->daily_activity_work_date;
+        }
+        if ($activity_description !== '' && $activity_title === '' && $note_raw !== '') {
+            $activity_title = trim(strip_tags($note_raw));
+        }
         return array(
             'id' => (int) $row->id,
             'view' => (string) $view,
@@ -724,6 +767,10 @@ if (!function_exists('spl_approval_detail_payload')) {
             'rule_name' => (string) ($row->rule_name ?: ''),
             'rule_code' => (string) ($row->rule_code ?: ''),
             'requested_points' => $points,
+            'source_module' => (string) (isset($row->source_module) ? $row->source_module : ''),
+            'activity_title' => $activity_title,
+            'activity_description' => $activity_description,
+            'activity_work_date' => $activity_work_date,
             'reference_label' => spl_sanitize_note_html($note_raw),
             'reference_label_raw' => $note_raw,
             'evidence_id' => $evidenceId,
@@ -1647,9 +1694,9 @@ if (!function_exists('spl_build_dashboard_data')) {
         $rank = 0;
         usort($board_groups, function ($a, $b) use ($use_period_points) {
             if ($use_period_points) {
-                return (float) $b->total_period_net <=> (float) $a->total_period_net;
+                return (float) $b->avg_period_points <=> (float) $a->avg_period_points;
             }
-            return (float) $b->total_lifetime_points <=> (float) $a->total_lifetime_points;
+            return (float) $b->avg_lifetime_points <=> (float) $a->avg_lifetime_points;
         });
         $user_groups = $CI->spl->list_groups_for_user($uid, true);
         $my_group_ids = array();
@@ -1666,13 +1713,24 @@ if (!function_exists('spl_build_dashboard_data')) {
                 $prev_bounds['from'],
                 $prev_bounds['to']
             );
-            $trend = $use_period_points ? $group_points - (float) $prev_stats->net : 0;
+            $member_count = (int) $group->member_count;
+            $avg_points = $use_period_points
+                ? (float) $group->avg_period_points
+                : (float) $group->avg_lifetime_points;
+            if ($use_period_points && $member_count > 0) {
+                $prev_avg = (float) $prev_stats->net / $member_count;
+                $trend = $avg_points - $prev_avg;
+            } else {
+                $trend = 0;
+            }
             $team_standings[] = (object) array(
                 'rank' => $rank,
                 'id' => (int) $group->id,
                 'name' => (string) $group->name,
                 'code' => (string) $group->code,
                 'points' => $group_points,
+                'avg_points' => $avg_points,
+                'member_count' => (int) $group->member_count,
                 'trend' => $trend,
                 'poster_path' => isset($group->poster_path) ? (string) $group->poster_path : '',
             );
@@ -1861,6 +1919,52 @@ if (!function_exists('spl_compute_user_badges')) {
             $badges[] = array('icon' => 'bi-graph-up-arrow', 'label' => 'Monthly Star');
         }
         return array_slice($badges, 0, 6);
+    }
+}
+
+if (!function_exists('spl_queue_activity_snapshot')) {
+    function spl_queue_activity_snapshot($queue_row)
+    {
+        if (!$queue_row) {
+            return array();
+        }
+        return array(
+            'queue_id' => (int) $queue_row->id,
+            'status' => (string) $queue_row->status,
+            'user_id' => (int) $queue_row->user_id,
+            'source_module' => (string) $queue_row->source_module,
+            'source_record_id' => !empty($queue_row->source_record_id) ? (int) $queue_row->source_record_id : null,
+            'requested_points' => (float) $queue_row->requested_points,
+            'rule_id' => !empty($queue_row->rule_id) ? (int) $queue_row->rule_id : null,
+            'transaction_id' => !empty($queue_row->transaction_id) ? (int) $queue_row->transaction_id : null,
+        );
+    }
+}
+
+if (!function_exists('spl_log_system_activity')) {
+    /**
+     * Write SPL actions to central activity_log (Settings → Activity Log).
+     *
+     * @param string     $action      submitted|approved|rejected|updated|deleted
+     * @param int        $record_id   reward_approval_queue id (or related record id)
+     * @param string     $description Human-readable summary (shown in Activity Log)
+     * @param array|null $old_data    Optional before state
+     * @param array|null $new_data    Optional after state
+     */
+    function spl_log_system_activity($action, $record_id, $description, $old_data = null, $new_data = null)
+    {
+        $CI =& get_instance();
+        if (!function_exists('log_activity')) {
+            $CI->load->helper('activity');
+        }
+        if (!function_exists('log_activity')) {
+            return;
+        }
+        if ($old_data !== null || $new_data !== null) {
+            log_activity_with_changes('spl', (string) $action, (int) $record_id, $old_data, $new_data, (string) $description);
+            return;
+        }
+        log_activity('spl', (string) $action, (int) $record_id, (string) $description);
     }
 }
 

@@ -170,15 +170,23 @@ $this->load->view('partials/header', ['title' => 'Activity Logs']); ?>
                   $action_class = 'activity-badge-action';
                   $action_icon = '';
                   
-                  if ($action === 'created' || $action === 'added' || $action === 'inserted') {
+                  if ($action === 'created' || $action === 'added' || $action === 'inserted' || $action === 'submitted' || $action === 'approved') {
                     $action_class = 'bg-success text-white';
                     $action_icon = '<i class="bi bi-plus-circle me-1"></i>';
+                    if ($action === 'approved') {
+                      $action_icon = '<i class="bi bi-check-circle me-1"></i>';
+                    } elseif ($action === 'submitted') {
+                      $action_icon = '<i class="bi bi-send me-1"></i>';
+                    }
                   } elseif ($action === 'updated' || $action === 'edited' || $action === 'modified' || $action === 'changed') {
                     $action_class = 'bg-primary text-white';
                     $action_icon = '<i class="bi bi-pencil-square me-1"></i>';
-                  } elseif ($action === 'deleted' || $action === 'removed') {
+                  } elseif ($action === 'deleted' || $action === 'removed' || $action === 'rejected') {
                     $action_class = 'bg-danger text-white';
                     $action_icon = '<i class="bi bi-trash me-1"></i>';
+                    if ($action === 'rejected') {
+                      $action_icon = '<i class="bi bi-x-circle me-1"></i>';
+                    }
                   } elseif ($action === 'viewed' || $action === 'read') {
                     $action_class = 'bg-info text-white';
                     $action_icon = '<i class="bi bi-eye me-1"></i>';
@@ -350,12 +358,12 @@ function showActivityDetails(logId, entityId, entityType, action, changesData) {
   
   // Update record ID badge in modal header
   if (recordIdBadge) {
+    var badgeParts = ['Log ID: ' + logId];
     if (entityId && entityId > 0) {
-      recordIdBadge.textContent = 'Record ID: ' + entityId;
-      recordIdBadge.style.display = 'inline-block';
-    } else {
-      recordIdBadge.style.display = 'none';
+      badgeParts.push('Record ID: ' + entityId);
     }
+    recordIdBadge.textContent = badgeParts.join(' · ');
+    recordIdBadge.style.display = 'inline-block';
   }
   
   // Show loading

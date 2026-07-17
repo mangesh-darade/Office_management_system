@@ -130,6 +130,36 @@
     }
   }
 
+  function invalidateRulesRow(row) {
+    if (!row) {
+      return;
+    }
+    var table = row.closest('table') || getRulesTable();
+    var dt = getRulesDataTable(table);
+    if (!dt) {
+      return;
+    }
+    try {
+      dt.row(row).invalidate('dom');
+    } catch (e) {
+      // keep DOM edits if invalidate is unavailable
+    }
+  }
+
+  function applyRuleActiveState(row, isActive) {
+    if (!row) {
+      return;
+    }
+    var activeInput = row.querySelector('.spl-rule-active');
+    var activeOn = parseInt(isActive, 10) === 1;
+    if (activeInput) {
+      activeInput.checked = activeOn;
+    }
+    syncRuleRowOrder(row);
+    syncRuleRowDisplay(row);
+    invalidateRulesRow(row);
+  }
+
   function drawRulesTable() {
     var dt = getRulesDataTable();
     if (dt) {
@@ -202,10 +232,27 @@
     }
     document.documentElement.setAttribute('data-spl-rules-click', '1');
     document.addEventListener('click', function (e) {
+      if (e.target.closest('.spl-rule-active')) {
+        e.stopPropagation();
+        return;
+      }
       if (!e.target.closest('#splRulesTable')) {
         return;
       }
       handleSplRulesTableClick(e);
+    });
+    document.addEventListener('change', function (e) {
+      var activeInput = e.target.closest ? e.target.closest('.spl-rule-active') : null;
+      if (!activeInput || !activeInput.closest('#splRulesTable')) {
+        return;
+      }
+      e.stopPropagation();
+      var row = activeInput.closest('tr');
+      if (!row || !row.classList.contains('is-editing')) {
+        return;
+      }
+      syncRuleRowOrder(row);
+      invalidateRulesRow(row);
     });
   }
 
@@ -241,9 +288,14 @@
             row.setAttribute('data-rule-code', payload.code);
           }
           row.classList.add('spl-rule-row');
+          var savedActive = res && res.data && res.data.is_active !== undefined
+            ? res.data.is_active
+            : payload.is_active;
+          applyRuleActiveState(row, savedActive);
           syncRuleRowOrder(row);
           syncRuleRowDisplay(row);
           setRuleRowEditing(row, false);
+          invalidateRulesRow(row);
           drawRulesTable();
           var ruleName = row.querySelector('.spl-rule-name');
           var label = ruleName && ruleName.value.trim() ? ruleName.value.trim() : 'Rule';
@@ -489,7 +541,7 @@
 
   function buildApprovalDetailBody(payload) {
     var html = '<dl class="spl-approval-modal-details">';
-    html += '<div class="spl-approval-modal-row"><dt>Employee</dt><dd>' + escapeHtml(payload.recipient_name || '—') + '</dd></div>';
+    html += '<div class="spl-approval-modal-row spl-approval-modal-row--full"><dt>Employee</dt><dd>' + escapeHtml(payload.recipient_name || '—') + '</dd></div>';
     if (payload.submitter_name && payload.submitter_name !== payload.recipient_name) {
       html += '<div class="spl-approval-modal-row"><dt>Submitted by</dt><dd>' + escapeHtml(payload.submitter_name) + '</dd></div>';
     }
@@ -497,14 +549,29 @@
     html += '<div class="spl-approval-modal-row"><dt>Category</dt><dd>' + escapeHtml(payload.category_name || '—') + '</dd></div>';
     html += '<div class="spl-approval-modal-row"><dt>Activity</dt><dd>' + escapeHtml(payload.rule_name || payload.rule_code || '—') + '</dd></div>';
     if (payload.rule_code) {
-      html += '<div class="spl-approval-modal-row"><dt>Rule code</dt><dd><code>' + escapeHtml(payload.rule_code) + '</code></dd></div>';
+      html += '<div class="spl-approval-modal-row spl-approval-modal-row--full"><dt>Rule code</dt><dd><code>' + escapeHtml(payload.rule_code) + '</code></dd></div>';
     }
     if (payload.view !== 'pending') {
       html += '<div class="spl-approval-modal-row"><dt>Points</dt><dd class="spl-approval-modal-points">' + escapeHtml(formatApprovalPoints(payload.requested_points)) + '</dd></div>';
     }
     html += '</dl>';
     html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Description / notes</div>';
-    html += '<div class="spl-approval-modal-note">' + (payload.reference_label ? payload.reference_label : '—') + '</div></div>';
+    if (payload.activity_description) {
+      var metaBits = [];
+      if (payload.activity_title) {
+        metaBits.push('<span class="spl-approval-modal-activity-title">' + escapeHtml(payload.activity_title) + '</span>');
+      }
+      if (payload.activity_work_date) {
+        metaBits.push('<span class="spl-approval-modal-activity-date">Work date: ' + escapeHtml(payload.activity_work_date) + '</span>');
+      }
+      if (metaBits.length) {
+        html += '<div class="spl-approval-modal-activity-meta">' + metaBits.join('') + '</div>';
+      }
+      html += '<div class="spl-approval-modal-note">' + payload.activity_description + '</div>';
+    } else {
+      html += '<div class="spl-approval-modal-note">' + (payload.reference_label ? payload.reference_label : '—') + '</div>';
+    }
+    html += '</div>';
     if (payload.evidence_preview_url || payload.evidence_download_url || payload.evidence_file) {
       html += '<div class="spl-approval-modal-section"><div class="spl-approval-modal-section-label">Attachment</div>';
       if (payload.evidence_is_image && payload.evidence_preview_url) {
@@ -1549,7 +1616,11 @@
       el.classList.toggle('d-none', !editing);
     });
     row.querySelectorAll('.spl-rule-code, .spl-rule-name, .spl-rule-category, .spl-rule-trigger, .spl-rule-points, .spl-rule-active').forEach(function (el) {
-      el.disabled = !editing;
+      if (editing) {
+        el.removeAttribute('disabled');
+      } else {
+        el.disabled = true;
+      }
     });
     var toggleBtn = row.querySelector('.spl-toggle-rule');
     if (toggleBtn) {
@@ -1611,9 +1682,204 @@
       points: pointsEl ? pointsEl.value : '0',
       requires_approval: 1,
       is_active: activeEl && activeEl.checked ? 1 : 0,
+      is_active_sent: 1,
       condition_json: ''
     };
   }
+
+  function reloadSplCategoriesPanel() {
+    if (typeof window.splReloadEmbedTab === 'function') {
+      window.splReloadEmbedTab('rules', { rules_view: 'categories' });
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    params.set('tab', 'rules');
+    params.set('rules_view', 'categories');
+    window.location.search = params.toString();
+  }
+
+  function closeSplCategoryModal(root) {
+    var scope = root && root.querySelector ? root : document;
+    var modalEl = scope.querySelector('#splCategoryModal');
+    if (!modalEl || !window.bootstrap || !bootstrap.Modal) {
+      return;
+    }
+    var instance = bootstrap.Modal.getInstance(modalEl);
+    if (instance) {
+      instance.hide();
+    }
+  }
+
+  function categoryFormPayload(form) {
+    if (!form) {
+      return null;
+    }
+    var nameEl = form.querySelector('#splCatName');
+    var name = nameEl ? nameEl.value.trim() : '';
+    if (name === '') {
+      return null;
+    }
+    var activeEl = form.querySelector('#splCatActive');
+    return {
+      id: form.querySelector('#splCatId') ? form.querySelector('#splCatId').value : '0',
+      name: name,
+      code: form.querySelector('#splCatCode') ? form.querySelector('#splCatCode').value.trim() : '',
+      description: form.querySelector('#splCatDescription') ? form.querySelector('#splCatDescription').value.trim() : '',
+      icon_class: form.querySelector('#splCatIcon') ? form.querySelector('#splCatIcon').value.trim() : 'bi bi-star',
+      sort_order: form.querySelector('#splCatSort') ? form.querySelector('#splCatSort').value : '0',
+      is_active: activeEl && activeEl.checked ? 1 : 0,
+      is_active_sent: 1
+    };
+  }
+
+  function initSplCategoriesPanel(root) {
+    var scope = root && root.querySelector ? root : document;
+    var modal = scope.querySelector('#splCategoryModal');
+    var form = scope.querySelector('#splCategoryForm');
+    if (!modal && !form) {
+      return;
+    }
+
+    if (modal && modal.getAttribute('data-spl-cat-bound') !== '1') {
+      modal.setAttribute('data-spl-cat-bound', '1');
+      modal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        var mode = btn ? (btn.getAttribute('data-mode') || 'create') : 'create';
+        var title = scope.querySelector('#splCategoryModalTitle');
+        var idEl = scope.querySelector('#splCatId');
+        var nameEl = scope.querySelector('#splCatName');
+        var codeEl = scope.querySelector('#splCatCode');
+        var descEl = scope.querySelector('#splCatDescription');
+        var iconEl = scope.querySelector('#splCatIcon');
+        var sortEl = scope.querySelector('#splCatSort');
+        var activeEl = scope.querySelector('#splCatActive');
+        if (mode === 'edit' && btn) {
+          if (title) {
+            title.textContent = 'Edit category';
+          }
+          if (idEl) {
+            idEl.value = btn.getAttribute('data-id') || '0';
+          }
+          if (nameEl) {
+            nameEl.value = btn.getAttribute('data-name') || '';
+          }
+          if (codeEl) {
+            codeEl.value = btn.getAttribute('data-code') || '';
+          }
+          if (descEl) {
+            descEl.value = btn.getAttribute('data-description') || '';
+          }
+          if (iconEl) {
+            iconEl.value = btn.getAttribute('data-icon') || 'bi bi-star';
+          }
+          if (sortEl) {
+            sortEl.value = btn.getAttribute('data-sort') || '0';
+          }
+          if (activeEl) {
+            activeEl.checked = btn.getAttribute('data-active') === '1';
+          }
+        } else {
+          if (title) {
+            title.textContent = 'Add category';
+          }
+          if (idEl) {
+            idEl.value = '0';
+          }
+          if (nameEl) {
+            nameEl.value = '';
+          }
+          if (codeEl) {
+            codeEl.value = '';
+          }
+          if (descEl) {
+            descEl.value = '';
+          }
+          if (iconEl) {
+            iconEl.value = 'bi bi-star';
+          }
+          if (sortEl) {
+            sortEl.value = '0';
+          }
+          if (activeEl) {
+            activeEl.checked = true;
+          }
+        }
+      });
+    }
+
+    if (form && form.getAttribute('data-spl-cat-form-bound') !== '1') {
+      form.setAttribute('data-spl-cat-form-bound', '1');
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var activeCfg = getSplCfg();
+        if (!activeCfg.saveCategoryUrl) {
+          showSplToast('Cannot save category. Reload the Rules tab and try again.', 'danger');
+          return;
+        }
+        var payload = categoryFormPayload(form);
+        if (!payload) {
+          showSplToast('Category name is required.', 'danger');
+          return;
+        }
+        var saveBtn = form.querySelector('button[type="submit"]');
+        if (saveBtn) {
+          saveBtn.disabled = true;
+        }
+        postForm(activeCfg.saveCategoryUrl, payload).then(function (res) {
+          if (res && res.status === 'success') {
+            closeSplCategoryModal(scope);
+            reloadSplCategoriesPanel();
+            showSplToast('Category saved successfully.');
+          } else {
+            showSplToast((res && res.message) ? res.message : 'Could not save category.', 'danger');
+          }
+        }).catch(function (err) {
+          showSplToast((err && err.message) ? err.message : 'Could not save category. Please try again.', 'danger');
+        }).finally(function () {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+          }
+        });
+      }, true);
+    }
+
+    scope.querySelectorAll('form.spl-category-toggle-form').forEach(function (toggleForm) {
+      if (toggleForm.getAttribute('data-spl-cat-toggle-bound') === '1') {
+        return;
+      }
+      toggleForm.setAttribute('data-spl-cat-toggle-bound', '1');
+      toggleForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var actionUrl = toggleForm.getAttribute('action') || '';
+        if (!actionUrl) {
+          showSplToast('Cannot update category status.', 'danger');
+          return;
+        }
+        var submitBtn = toggleForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+        }
+        postForm(actionUrl, {}).then(function (res) {
+          if (res && res.status === 'success') {
+            reloadSplCategoriesPanel();
+            showSplToast('Category status updated.');
+          } else {
+            showSplToast((res && res.message) ? res.message : 'Could not update category.', 'danger');
+          }
+        }).catch(function (err) {
+          showSplToast((err && err.message) ? err.message : 'Could not update category. Please try again.', 'danger');
+        }).finally(function () {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+          }
+        });
+      }, true);
+    });
+  }
+
+  window.initSplCategoriesPanel = initSplCategoriesPanel;
 
   function postForm(url, data) {
     var activeCfg = getSplCfg();
@@ -1697,6 +1963,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     initSplRulesPanel(document);
+    initSplCategoriesPanel(document);
     initSplApprovalsPanel(document);
     initSplActivityPanel(document);
     bindSplTabAdjust();

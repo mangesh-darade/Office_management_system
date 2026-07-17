@@ -310,30 +310,34 @@ $reward_period_options = array(
         <?php endif; ?>
       </div>
       <div class="modal fade" id="splApprovalDetailModal" tabindex="-1" aria-labelledby="splApprovalDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-dialog-centered spl-approval-modal-dialog">
           <div class="modal-content spl-approval-modal">
-            <div class="modal-header">
+            <div class="modal-header py-2 px-3">
               <h5 class="modal-title" id="splApprovalDetailModalLabel">Activity details</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="splApprovalDetailBody"></div>
-            <div class="modal-footer flex-column align-items-stretch" id="splApprovalDetailFooter">
-              <form id="splApprovalModalActionForm" method="post" class="spl-approval-modal-form d-none">
+            <div class="modal-body py-2 px-3" id="splApprovalDetailBody"></div>
+            <div class="modal-footer py-2 px-3" id="splApprovalDetailFooter">
+              <form id="splApprovalModalActionForm" method="post" class="spl-approval-modal-form d-none w-100">
                 <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" id="splApprovalModalCsrf" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
-                <div class="mb-3">
-                  <label class="form-label" for="splApprovalModalPoints">Points</label>
-                  <input type="number" step="1" class="form-control" name="requested_points" id="splApprovalModalPoints" aria-label="Points to approve">
+                <div class="row g-2 align-items-start spl-approval-modal-form-fields">
+                  <div class="col-4 col-sm-3">
+                    <label class="form-label" for="splApprovalModalPoints">Points</label>
+                    <input type="number" step="1" class="form-control form-control-sm" name="requested_points" id="splApprovalModalPoints" aria-label="Points to approve">
+                  </div>
+                  <div class="col">
+                    <label class="form-label" for="splApprovalModalComment">Comment</label>
+                    <textarea class="form-control form-control-sm" name="comment" id="splApprovalModalComment" rows="2" placeholder="Why are you approving or rejecting this activity?"></textarea>
+                  </div>
                 </div>
-                <label class="form-label" for="splApprovalModalComment">Comment</label>
-                <textarea class="form-control" name="comment" id="splApprovalModalComment" rows="3" placeholder="Why are you approving or rejecting this activity?"></textarea>
-                <div class="d-flex justify-content-end gap-2 mt-3">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-outline-danger" id="splApprovalModalRejectBtn">Reject</button>
-                  <button type="button" class="btn btn-success" id="splApprovalModalApproveBtn">Approve</button>
+                <div class="d-flex justify-content-end gap-2 mt-2">
+                  <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" id="splApprovalModalRejectBtn">Reject</button>
+                  <button type="button" class="btn btn-sm btn-success" id="splApprovalModalApproveBtn">Approve</button>
                 </div>
               </form>
-              <div class="d-flex justify-content-end" id="splApprovalDetailFooterReadonly">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <div class="d-flex justify-content-end w-100" id="splApprovalDetailFooterReadonly">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
               </div>
             </div>
           </div>
@@ -567,6 +571,7 @@ $reward_period_options = array(
 window.SPL_CONFIG = Object.assign(window.SPL_CONFIG || {}, {
   rulesUrl: <?php echo json_encode(site_url('spl/rules-by-category')); ?>,
   saveRuleUrl: <?php echo json_encode(site_url('spl/save-rule')); ?>,
+  saveCategoryUrl: <?php echo json_encode(site_url('spl/save-category')); ?>,
   deleteRuleUrlBase: <?php echo json_encode(site_url('spl/delete-rule/')); ?>,
   importRulesUrl: <?php echo json_encode(site_url('spl/rules-import')); ?>,
   saveLevelUrl: <?php echo json_encode(site_url('spl/save-level')); ?>,

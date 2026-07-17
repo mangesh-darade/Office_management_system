@@ -266,6 +266,11 @@ class Daily_activity extends CI_Controller {
             if (function_exists('rewards_automation_after_daily_activity_saved')) {
                 rewards_automation_after_daily_activity_saved($this->db, $user_id, $log_id, $work_date);
             }
+            $this->load->helper('activity');
+            if (function_exists('log_activity')) {
+                $log_label = $activity_title !== '' ? $activity_title : ('Work date ' . $work_date);
+                log_activity('daily_activity', 'created', $log_id, 'Daily activity created (log #' . $log_id . '): ' . $log_label);
+            }
             $this->session->set_flashdata('success', 'Activity logged successfully. Reward points (if any) are pending admin approval.');
         } else {
              $this->session->set_flashdata('error', 'Database Error: Could not save activity.');
@@ -310,6 +315,25 @@ class Daily_activity extends CI_Controller {
                 'work_date'      => $work_date,
                 'description'    => $description,
             ]);
+            $this->load->helper('activity');
+            if (function_exists('log_activity_with_changes')) {
+                log_activity_with_changes(
+                    'daily_activity',
+                    'updated',
+                    (int) $id,
+                    array(
+                        'activity_title' => $log->activity_title,
+                        'task_id' => $log->task_id,
+                        'work_date' => $log->work_date,
+                    ),
+                    array(
+                        'activity_title' => !empty($activity_title) ? $activity_title : null,
+                        'task_id' => $task_id > 0 ? $task_id : null,
+                        'work_date' => $work_date,
+                    ),
+                    'Daily activity updated (log #' . (int) $id . ')'
+                );
+            }
             $this->session->set_flashdata('success', 'Activity updated successfully.');
             redirect('daily-activity?date=' . $work_date);
             return;
@@ -382,6 +406,21 @@ class Daily_activity extends CI_Controller {
         
         if ($log) {
             if ($log->user_id == $user_id || $is_admin) {
+                $this->load->helper('activity');
+                if (function_exists('log_activity_with_changes')) {
+                    log_activity_with_changes(
+                        'daily_activity',
+                        'deleted',
+                        (int) $id,
+                        array(
+                            'user_id' => (int) $log->user_id,
+                            'activity_title' => $log->activity_title,
+                            'work_date' => $log->work_date,
+                        ),
+                        null,
+                        'Daily activity deleted (log #' . (int) $id . ')'
+                    );
+                }
                 $this->db->where('id', $id)->delete('daily_work_logs');
                 $this->session->set_flashdata('success', 'Activity deleted successfully');
             } else {

@@ -118,7 +118,7 @@ class Activity extends CI_Controller {
         if (empty($modules)) {
             $modules = ['employees','projects','tasks','attendance','leaves','leave_requests','leave_types',
                       'notifications','reports','permissions','chats','calls','settings','requirements',
-                      'designations','departments','users','clients','timesheets','assets'];
+                      'designations','departments','users','clients','timesheets','assets','spl','daily_activity'];
         }
         
         // Get unique actions from actual activity logs (dynamic)
@@ -135,7 +135,8 @@ class Activity extends CI_Controller {
         // Fallback to default list if no logs exist yet
         if (empty($actions)) {
             $actions = ['created','updated','deleted','assigned','status_changed','commented',
-                       'attachment_added','document_uploaded','bulk_status_changed','restored'];
+                       'attachment_added','document_uploaded','bulk_status_changed','restored',
+                       'submitted','approved','rejected'];
         }
 
             $this->load->view('activity/index', [
@@ -266,14 +267,22 @@ class Activity extends CI_Controller {
             
             // Map entity_type to table name (use table_module_mapping if available)
             $table_name = $entity_type;
-            $this->config->load('table_module_mapping', true);
-            $mapping = $this->config->item('table_module_mapping', 'table_module_mapping');
-            if ($mapping && is_array($mapping)) {
-                // Reverse lookup: find table name from module name
-                foreach ($mapping as $table => $module) {
-                    if ($module === $entity_type) {
-                        $table_name = $table;
-                        break;
+            $preferred_tables = array(
+                'spl' => 'reward_approval_queue',
+                'daily_activity' => 'daily_work_logs',
+            );
+            if (isset($preferred_tables[$entity_type])) {
+                $table_name = $preferred_tables[$entity_type];
+            } else {
+                $this->config->load('table_module_mapping', true);
+                $mapping = $this->config->item('table_module_mapping', 'table_module_mapping');
+                if ($mapping && is_array($mapping)) {
+                    // Reverse lookup: find table name from module name
+                    foreach ($mapping as $table => $module) {
+                        if ($module === $entity_type) {
+                            $table_name = $table;
+                            break;
+                        }
                     }
                 }
             }
