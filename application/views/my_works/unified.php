@@ -70,6 +70,13 @@
       </button>
     </li>
     <li class="nav-item" role="presentation">
+      <button class="nav-link <?php echo $active_tab === 'daily-pulse' ? 'active' : ''; ?>"
+              id="tab-daily-pulse" data-tab="daily-pulse" type="button" role="tab"
+              title="Daily Pulse">
+        <i class="bi bi-activity me-1"></i>Daily Pulse
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
       <button class="nav-link <?php echo $active_tab === 'project-dashboard' ? 'active' : ''; ?>" 
               id="tab-project-dashboard" data-tab="project-dashboard" type="button" role="tab"
               title="Project Dashboard">
@@ -131,6 +138,14 @@
 <div class="tab-content mw-unified-tab-content" id="unifiedDashboardContent">
   <!-- Overview Tab -->
   <div class="tab-pane fade <?php echo $active_tab === 'overview' ? 'show active' : ''; ?>" id="pane-overview" role="tabpanel">
+    <div class="tab-loading-spinner text-center py-5" style="display: none;">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    <div class="tab-pane-content"></div>
+  </div>
+
+  <!-- Daily Pulse Tab -->
+  <div class="tab-pane fade <?php echo $active_tab === 'daily-pulse' ? 'show active' : ''; ?>" id="pane-daily-pulse" role="tabpanel">
     <div class="tab-loading-spinner text-center py-5" style="display: none;">
       <div class="spinner-border text-primary" role="status"></div>
     </div>
@@ -416,7 +431,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var isDashboardLink = href.indexOf('my-works') >= 0 || 
                             href.indexOf('projects/dashboard') >= 0 ||
                             href.indexOf('tasks/my-dashboard') >= 0 ||
-                            href.indexOf('requirements') >= 0;
+                            href.indexOf('requirements') >= 0 ||
+                            href.indexOf('daily-pulse') >= 0;
                             
       if (isDashboardLink) {
         e.preventDefault();
@@ -443,6 +459,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (tabName === 'overview') {
         if ($content.children().length === 0) {
           initialUrl = '<?php echo site_url("my-works?view=overview"); ?>';
+        }
+      } else if (tabName === 'daily-pulse') {
+        if ($content.children().length === 0) {
+          initialUrl = '<?php echo site_url("my-works/daily-pulse"); ?>';
         }
       } else if (tabName === 'project-dashboard') {
         initialUrl = '<?php echo site_url("projects/dashboard"); ?>';

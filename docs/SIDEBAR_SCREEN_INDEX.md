@@ -7,6 +7,7 @@ Visibility is role/permission based in `application/views/partials/sidebar.php`.
 
 - Dashboard -> `/dashboard`
 - My Works -> `/my-works`
+- Daily Pulse -> `/my-works?tab=daily-pulse`
 - Today's Focus -> `/my-works/todays-focus`
 - Subscription Builder -> `/subscription-builder`
 - ElintOm Proposals -> `/elintom-proposals`

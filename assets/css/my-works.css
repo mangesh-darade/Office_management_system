@@ -3695,3 +3695,156 @@ a.mw-dash-lane-title-link:focus {
     padding-right: 1rem;
   }
 }
+
+/* Daily Pulse — compact */
+.mw-pulse-page {
+  padding: 0.35rem 0.5rem 0.75rem;
+}
+.mw-pulse-page--embed {
+  padding: 0.25rem 0.35rem 0.5rem;
+}
+.mw-pulse-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.mw-pulse-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+  display: inline;
+}
+.mw-pulse-sub {
+  color: #6b7280;
+  font-size: 0.72rem;
+  margin: 0;
+  display: inline;
+}
+.mw-pulse-sub::before {
+  content: " · ";
+}
+.mw-pulse-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.mw-pulse-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  min-width: 0;
+}
+.mw-pulse-card--wide {
+  grid-column: 1 / -1;
+}
+.mw-pulse-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.mw-pulse-card-title {
+  font-size: 0.78rem;
+  font-weight: 650;
+  margin: 0;
+  line-height: 1.2;
+}
+.mw-pulse-card-title .bi {
+  font-size: 0.8rem;
+}
+.mw-pulse-card-head .badge {
+  font-size: 0.65rem;
+  padding: 0.15em 0.4em;
+  font-weight: 600;
+}
+.mw-pulse-card-head .btn {
+  --bs-btn-padding-y: 0.1rem;
+  --bs-btn-padding-x: 0.4rem;
+  --bs-btn-font-size: 0.68rem;
+  line-height: 1.2;
+}
+.mw-pulse-mini-title {
+  font-size: 0.65rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+  margin-bottom: 0.15rem;
+}
+.mw-pulse-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 9.5rem;
+  overflow: auto;
+}
+.mw-pulse-list li {
+  padding: 0.1rem 0;
+  border-bottom: 0;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mw-pulse-list li .small,
+.mw-pulse-list li .text-muted {
+  font-size: 0.68rem !important;
+}
+.mw-pulse-list--compact li {
+  padding: 0.05rem 0;
+}
+.mw-pulse-list--missing li {
+  color: #b45309;
+  font-weight: 550;
+}
+.mw-pulse-empty {
+  color: #9ca3af;
+  font-size: 0.72rem;
+  margin: 0;
+  line-height: 1.3;
+}
+.mw-pulse-more {
+  margin-top: 0.15rem;
+  font-size: 0.68rem !important;
+}
+.mw-pulse-table {
+  font-size: 0.75rem;
+  margin: 0;
+}
+.mw-pulse-table > :not(caption) > * > * {
+  padding: 0.2rem 0.35rem;
+}
+.mw-pulse-table th {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 650;
+}
+.mw-pulse-card--wide .row {
+  --bs-gutter-x: 0.5rem;
+  --bs-gutter-y: 0.35rem;
+}
+.mw-pulse-card--wide .small.text-muted.mb-2 {
+  margin-bottom: 0.25rem !important;
+  font-size: 0.68rem !important;
+}
+@media (max-width: 1199.98px) {
+  .mw-pulse-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767.98px) {
+  .mw-pulse-grid {
+    grid-template-columns: 1fr;
+  }
+  .mw-pulse-list {
+    max-height: none;
+  }
+}

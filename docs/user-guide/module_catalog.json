@@ -310,6 +310,15 @@
           "delete": {"steps": ["Open item → Delete.", "Export filtered list from list page."]}
         },
         {
+          "name": "Daily Pulse",
+          "menu": "Second Brain → Daily Pulse",
+          "purpose": "Today-only snapshot of clients added, team leave/WFH/check-in, daily activity gaps, Second Brain history, requirements, defects, Overview today’s plan, and SPL group scores.",
+          "list": {"route": "my-works?tab=daily-pulse"},
+          "add": null,
+          "edit": null,
+          "delete": null
+        },
+        {
           "name": "Template Tasks",
           "menu": "Second Brain → Template Task",
           "purpose": "Create a My Works item from a team template catalog, or import catalog rows from CSV.",

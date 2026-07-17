@@ -15,7 +15,7 @@ class My_works extends CI_Controller
         $this->load->helper(array(
             'url', 'form', 'permission', 'hierarchy_filter', 'data_scope',
             'my_works', 'my_works_status', 'my_works_access', 'my_works_query', 'my_works_form',
-            'my_works_attachment', 'download',
+            'my_works_attachment', 'my_works_daily_pulse', 'download',
         ));
         $this->load->library(array('session', 'upload'));
         $this->load->model('My_work_model', 'my_works');
@@ -298,6 +298,18 @@ class My_works extends CI_Controller
     {
         $c = $this->_ctx();
         return my_works_can_delete($item, $c['can_view_all'], $c['user_id']);
+    }
+
+    public function daily_pulse()
+    {
+        require_module_access(array('my_works_list', 'my_works'), true);
+        $c = $this->_ctx();
+        $pulse = my_works_build_daily_pulse($this->db, $c['user_id'], $c['can_view_all'], $c['role_id']);
+        $this->load->view('my_works/daily_pulse', array(
+            'embed' => (bool) $this->input->get('embed'),
+            'pulse' => $pulse,
+            'pulse_date' => date('Y-m-d'),
+        ));
     }
 
     public function index()
