@@ -297,7 +297,8 @@ class Ai_handler {
         
         $system_prompt = "You are an expert SQL Assistant for an Office Management System based on CodeIgniter and MySQL.
         Your goal is to answer user questions by querying the database.
-        You can understand and respond in multiple languages (for example: English, Arabic, Hindi, Bengali, Marathi, etc.). By default, respond in the same language that the user uses in their latest question, unless they clearly ask you to use another language or to translate.
+        The user may ask in ANY language or mix (English, Marathi, Hindi, Hinglish, Arabic, Bengali, typos, Roman transliteration). Understand the intent regardless of language.
+        By default, respond in the same language/style that the user uses in their latest question, unless they clearly ask you to use another language or to translate.
         
         Here is the Database Schema Context:
         $context
@@ -310,15 +311,16 @@ class Ai_handler {
         2. Do NOT use JOINs unless necessary.
         3. ALWAYS use table aliases (e.g., `attendance.status` or `a.status`) for common columns like 'status', 'id', 'name', 'created_at' to avoid ambiguity.
         4. Only SELECT columns relevant to the question.
-        5. When user asks about 'my' data, 'my attendance', 'my tasks', 'my leaves', etc., automatically filter by the logged-in user's ID.
-        6. When the user asks about 'my leave balance', 'available leave', or similar, prefer reading from the leave_balances table filtered by the logged-in user's ID (and, if present, join leave_types to show type names), instead of listing all leave_requests.
-        7. For date ranges: Use DATE() function for date comparisons. If user says 'last month', 'this week', etc., calculate the exact date range based on current date context.
+        5. When user asks about 'my' data (in any language: my/mazya/mera/amar), filter by the logged-in user's ID.
+        6. Leave balance questions (any language) → leave_balances for user_id = {$user_id}.
+        7. For date ranges: Use DATE() function for date comparisons. If user says 'last month', 'this week', 'gela mahina', 'aaj', etc., calculate the exact date range based on current date context.
         8. If user asks a follow-up question without specifying dates/criteria, use information from previous conversation context.
         9. If user asks for export/file/download/excel/pdf/csv, include that in your response but still generate the SQL query.
-        10. You can mention the logged-in user's name when appropriate (e.g., 'Here is your attendance, {$user_name}').
-        11. If the question is not about data/database, answer normally. JSON response: {\"type\": \"text\", \"text\": \"...\"}
+        10. You can mention the logged-in user's name when appropriate.
+        11. If the question is not about data/database, answer normally in the user's language. JSON: {\"type\": \"text\", \"text\": \"...\"}
         12. Return ONLY valid JSON. Do not wrap in markdown code blocks.
-        13. Always respond in the same language as the user's latest question, unless they explicitly request a different language or a translation.";
+        13. SQL must be a SINGLE SELECT statement with NO semicolon characters inside.
+        14. Always respond (text answers) in the same language as the user's latest question.";
 
         // Call LLM with Fallback Logic
         $response = $this->call_llm_with_fallback($system_prompt, $user_query);
@@ -413,22 +415,116 @@ class Ai_handler {
         }
 
         $user_context = $user_name ? "The logged-in user's name is: {$user_name}. " : "";
-        $system_prompt = "You are a helpful analyst. The user asked: '$user_query'.
+        $system_prompt = "You are a helpful multilingual office assistant. The user asked: '$user_query'.
         {$user_context}The database returned this JSON data:
         $data_str
         
-        Summarize this data in natural language (HTML format allowed). Keep it concise.";
+        Summarize this data in natural language (simple HTML allowed: <strong>, <ul>, <li>, <br>). Keep it concise.
+        CRITICAL: Reply in the SAME language/script style as the user's question (English, Marathi, Hindi, Hinglish, Arabic, Bengali, etc.). Do not switch to English unless the user wrote in English.";
         if ($user_name) {
             $system_prompt .= " You can address the user by name ({$user_name}) when appropriate.";
         }
 
-        return $this->call_llm_with_fallback($system_prompt, "Summarize this data.");
+        return $this->call_llm_with_fallback($system_prompt, "Summarize this data in the user's language.");
+    }
+
+    /**
+     * Classify user intent into a known tool key (multilingual).
+     *
+     * @param string $user_query
+     * @return string|null
+     */
+    public function classify_intent($user_query)
+    {
+        $tools = 'my_leave_balance, who_on_leave_today, my_attendance_today, my_open_tasks, my_daily_activity_today, spl_pending_approvals, who_late_today, my_pending_leaves, my_spl_points, none';
+        $system = "You are an intent classifier for an office HR chatbot.
+The user may write in ANY language or mix (English, Marathi, Hindi, Hinglish, Arabic, Bengali, typos, transliteration).
+Map the message to ONE tool key from: {$tools}.
+Examples:
+- 'mazya leave kiti aahet' / 'मेरी छुट्टी कितनी है' / 'leave balance' → my_leave_balance
+- 'aaj kon leave var aahe' / 'who is on leave today' → who_on_leave_today
+- 'mazi hajri' / 'my attendance today' → my_attendance_today
+- 'mazya tasks' / 'pending tasks for me' → my_open_tasks
+- 'aajchi daily activity' → my_daily_activity_today
+- 'pending SPL' → spl_pending_approvals
+- 'who is late today' → who_late_today
+- 'my pending leave' → my_pending_leaves
+- 'my spl points' → my_spl_points
+If unrelated, use none.
+Return ONLY JSON: {\"tool\":\"...\"}";
+
+        $raw = $this->call_llm_with_fallback($system, $user_query);
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+        $raw = trim($raw);
+        if (substr($raw, 0, 3) === '```') {
+            $raw = preg_replace('/^```json\s*|^```\s*/i', '', $raw);
+            $raw = preg_replace('/\s*```$/', '', $raw);
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) && preg_match('/\{.*\}/s', $raw, $m)) {
+            $decoded = json_decode(str_replace(array("\r", "\n"), ' ', $m[0]), true);
+        }
+        if (!is_array($decoded) || empty($decoded['tool'])) {
+            return null;
+        }
+        $tool = trim((string) $decoded['tool']);
+        $allowed = array(
+            'my_leave_balance', 'who_on_leave_today', 'my_attendance_today',
+            'my_open_tasks', 'my_daily_activity_today', 'spl_pending_approvals',
+            'who_late_today', 'my_pending_leaves', 'my_spl_points',
+        );
+        if ($tool === 'none' || !in_array($tool, $allowed, true)) {
+            return null;
+        }
+        return $tool;
+    }
+
+    /**
+     * Rewrite tool HTML answer into the user's language (keeps HTML tags).
+     *
+     * @param string $user_query
+     * @param string $html
+     * @return string
+     */
+    public function localize_answer($user_query, $html)
+    {
+        $html = (string) $html;
+        if ($html === '') {
+            return $html;
+        }
+        $system = "You are a multilingual translator for an office chatbot.
+Rewrite the ASSISTANT_HTML answer so it matches the language/script of USER_QUESTION
+(English, Marathi, Hindi, Hinglish, Arabic, Bengali, etc.).
+Keep the same facts/numbers. Keep simple HTML tags (<strong>, <ul>, <li>, <br>).
+Do NOT invent data. Return ONLY the rewritten HTML, no markdown fences.";
+        $user = "USER_QUESTION:\n" . $user_query . "\n\nASSISTANT_HTML:\n" . $html;
+        $out = $this->call_llm_with_fallback($system, $user);
+        if (!is_string($out) || trim($out) === '' || stripos($out, 'Error: All AI services') === 0) {
+            return $html;
+        }
+        $out = trim($out);
+        if (substr($out, 0, 3) === '```') {
+            $out = preg_replace('/^```html?\s*|^```\s*/i', '', $out);
+            $out = preg_replace('/\s*```$/', '', $out);
+        }
+        return trim($out) !== '' ? trim($out) : $html;
     }
 
     // --- Core Fallback Logic ---
 
     private function call_llm_with_fallback($system, $user) {
         $errors = [];
+
+        // Priority -1: OpenAI-compatible custom providers (Settings → AI custom providers)
+        $custom = $this->call_custom_providers($system, $user);
+        if ($this->is_valid_response($custom)) {
+            return $custom;
+        }
+        if (is_array($custom) && isset($custom['error'])) {
+            $errors[] = 'Custom: ' . (is_string($custom['error']) ? $custom['error'] : json_encode($custom['error']));
+        }
 
         // Priority 0: OpenAI (Premium)
         if (!empty($this->api_keys['openai'])) {
@@ -656,15 +752,61 @@ class Ai_handler {
         return array_unique($model_names);
     }
 
+    /**
+     * Call enabled custom providers (OpenAI-compatible chat completions API).
+     * Expected JSON fields per provider: name, enabled, key, base_url, model.
+     */
+    private function call_custom_providers($system, $user)
+    {
+        $custom_providers_json = $this->CI->settings->get_setting('ai_custom_providers');
+        if (empty($custom_providers_json)) {
+            return null;
+        }
+        $custom_providers = json_decode($custom_providers_json, true);
+        if (!is_array($custom_providers)) {
+            return null;
+        }
+        foreach ($custom_providers as $provider) {
+            if (!isset($provider['enabled']) || (string) $provider['enabled'] !== '1') {
+                continue;
+            }
+            $key = isset($provider['key']) ? trim((string) $provider['key']) : '';
+            $base = isset($provider['base_url']) ? rtrim(trim((string) $provider['base_url']), '/') : '';
+            $model = isset($provider['model']) ? trim((string) $provider['model']) : '';
+            if ($key === '' || $base === '' || $model === '') {
+                continue;
+            }
+            $url = (stripos($base, '/chat/completions') !== false) ? $base : ($base . '/chat/completions');
+            $data = array(
+                'model' => $model,
+                'messages' => array(
+                    array('role' => 'system', 'content' => $system),
+                    array('role' => 'user', 'content' => $user),
+                ),
+                'temperature' => 0.1,
+                'max_tokens' => 2048,
+            );
+            $headers = array(
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $key,
+            );
+            $response = $this->http_post($url, $data, $headers);
+            if (isset($response['choices'][0]['message']['content'])) {
+                return $response['choices'][0]['message']['content'];
+            }
+        }
+        return array('error' => 'No custom provider succeeded');
+    }
+
     private function call_openrouter($system, $user) {
         $url = 'https://openrouter.ai/api/v1/chat/completions';
         $data = [
-            'model' => 'anthropic/claude-3.5-sonnet', // User preferred model
+            'model' => 'anthropic/claude-3.5-sonnet',
             'messages' => [
                 ['role' => 'system', 'content' => $system],
                 ['role' => 'user', 'content' => $user]
             ],
-            'max_tokens' => 100, // Drastically reduced for low credit balance
+            'max_tokens' => 2048,
             'temperature' => 0.1
         ];
         
@@ -713,13 +855,18 @@ class Ai_handler {
 
     private function call_openai($system, $user) {
         $url = 'https://api.openai.com/v1/chat/completions';
+        $model = $this->CI->settings->get_setting('ai_openai_model', 'gpt-4o-mini');
+        if ($model === '') {
+            $model = 'gpt-4o-mini';
+        }
         $data = [
-            'model' => 'gpt-3.5-turbo', // Widest compatibility (Tier 0 supported)
+            'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $system],
                 ['role' => 'user', 'content' => $user]
             ],
-            'temperature' => 0.1
+            'temperature' => 0.1,
+            'max_tokens' => 2048
         ];
         
         $headers = [
@@ -738,8 +885,17 @@ class Ai_handler {
 
     // --- Vector DB Logic ---
 
-    public function index_knowledge_base() {
-        if (empty($this->api_keys['gemini'])) return false;
+    public function index_knowledge_base($force = false) {
+        if (empty($this->api_keys['gemini'])) {
+            return false;
+        }
+        if (!$force && file_exists($this->vector_store_path)) {
+            $mtime = @filemtime($this->vector_store_path);
+            // Refresh automatically if older than 7 days
+            if ($mtime && (time() - $mtime) < (7 * 86400)) {
+                return true;
+            }
+        }
 
         $schema = $this->get_full_schema_array();
         $vectors = [];
@@ -755,9 +911,37 @@ class Ai_handler {
                 ];
             }
         }
-        
+
+        if (empty($vectors)) {
+            return false;
+        }
+
         file_put_contents($this->vector_store_path, json_encode($vectors));
         return true;
+    }
+
+    /**
+     * Force re-build of RAG vector store (admin action).
+     *
+     * @return array{ok:bool,message:string,count?:int}
+     */
+    public function reindex_knowledge_base()
+    {
+        if (empty($this->api_keys['gemini'])) {
+            return array('ok' => false, 'message' => 'Gemini API key required for embeddings.');
+        }
+        if (file_exists($this->vector_store_path)) {
+            @unlink($this->vector_store_path);
+        }
+        $ok = $this->index_knowledge_base(true);
+        $count = 0;
+        if ($ok && file_exists($this->vector_store_path)) {
+            $decoded = json_decode((string) file_get_contents($this->vector_store_path), true);
+            $count = is_array($decoded) ? count($decoded) : 0;
+        }
+        return $ok
+            ? array('ok' => true, 'message' => 'Knowledge base reindexed.', 'count' => $count)
+            : array('ok' => false, 'message' => 'Reindex failed (no vectors written).');
     }
 
     private function get_embedding_with_fallback($text) {
@@ -810,7 +994,9 @@ class Ai_handler {
 
     private function load_vector_store() {
         if (!file_exists($this->vector_store_path)) {
-            $this->index_knowledge_base();
+            $this->index_knowledge_base(true);
+        } else {
+            $this->index_knowledge_base(false); // refresh if stale (>7 days)
         }
         if (file_exists($this->vector_store_path)) {
             return json_decode(file_get_contents($this->vector_store_path), true);
@@ -866,34 +1052,8 @@ class Ai_handler {
     }
     
     private function get_table_descriptions() {
-        return [
-            'users' => 'System users and login credentials. Columns: id, email, role_id, created_at, active status.',
-            'employees' => 'Employee profiles, personal details, joining date, and department links.',
-            'attendance' => 'Daily attendance logs (punch_in, punch_out, status). Use to find who is present, absent, late, or on time.',
-            'leave_requests' => 'Leave applications and status. Use for leave history, who is on leave, and approval status.',
-            'leave_types' => 'Types of leaves (Sick, Casual, Earned) and their rules.',
-            'leave_approvals' => 'Records of who approved/rejected leaves and when.',
-            'leave_balances' => 'Remaining leave quota for employees. Use to check "how many leaves do I have left".',
-            'projects' => 'Project details, client links, start/end dates, and status (open, completed, hold).',
-            'tasks' => 'Tasks assigned to users, deadlines, priority, and completion status.',
-            'requirements' => 'Project requirements or documentation linked to projects.',
-            'timesheets' => 'Hours logged by employees on specific tasks/projects.',
-            'departments' => 'Company departments and their IDs.',
-            'designations' => 'Job titles/designations and their IDs.',
-            'clients' => 'Client contact information and company details.',
-            'roles' => 'User roles and permissions definitions.',
-            'settings' => 'System-wide configuration settings.',
-            'activity_log' => 'Audit log of system actions (who did what).',
-            'notifications' => 'System notifications sent to users.',
-            'holidays' => 'Public holidays and non-working days list.',
-            'api_integrations' => 'Configuration for external APIs (Zoom, Slack, etc.).',
-            'expenses' => 'Expense claims submitted by employees.',
-            'payroll' => 'Salary processing records, basic pay, deductions, and net pay.',
-            'chats' => 'Internal chat messages between users.',
-            'announcements' => 'Company-wide announcements/news.',
-            'reminders' => 'Scheduled reminders for tasks or events.',
-            'assets' => 'Company assets (laptops, devices) assigned to employees.'
-        ];
+        $this->CI->load->helper('ai_chat_features');
+        return ai_chat_table_descriptions();
     }
 
     private function get_full_schema_array() {
@@ -904,7 +1064,7 @@ class Ai_handler {
         $descriptions = $this->get_table_descriptions();
         
         // Load permission helper
-        $this->CI->load->helper('permission');
+        $this->CI->load->helper(array('permission', 'ai_chat_features'));
         
         // Get user's accessible modules
         $accessible_modules = [];
@@ -912,44 +1072,8 @@ class Ai_handler {
             $accessible_modules = get_accessible_modules();
         }
         
-        // Map database tables to modules (for permission checking)
-        $table_to_module_map = [
-            'users' => 'users',
-            'employees' => 'employees',
-            'attendance' => 'attendance',
-            'leave_requests' => 'leave_requests',
-            'leave_types' => 'leave_requests',
-            'leave_approvals' => 'leave_requests',
-            'leave_balances' => 'leave_balances',
-            'projects' => 'projects',
-            'tasks' => 'tasks',
-            'requirements' => 'requirements',
-            'timesheets' => 'timesheets',
-            'departments' => 'departments',
-            'designations' => 'designations',
-            'clients' => 'clients',
-            'roles' => 'permissions',
-            'settings' => 'settings',
-            'activity_log' => 'activity',
-            'notifications' => 'notifications',
-            'holidays' => 'leave_requests',
-            'api_integrations' => 'settings',
-            'expenses' => 'expenses',
-            'payroll' => 'payroll',
-            'chats' => 'chats',
-            'announcements' => 'announcements',
-            'reminders' => 'reminders',
-            'assets' => 'assets'
-        ];
-        
-        // Whitelist important tables to keep context focused
-        $whitelist = [
-            'users', 'employees', 'attendance', 'leave_requests', 'leave_types', 'leave_approvals', 'leave_balances',
-            'projects', 'tasks', 'departments', 'designations', 
-            'clients', 'roles', 'settings',
-            'activity_log', 'notifications', 'holidays', 'api_integrations',
-            'expenses', 'payroll', 'chats', 'announcements', 'reminders', 'assets', 'requirements', 'timesheets'
-        ];
+        $table_to_module_map = ai_chat_table_module_map();
+        $whitelist = ai_chat_schema_whitelist();
         
         // Never describe secret-bearing tables to the LLM (matches runtime deny-list).
         $this->CI->load->helper('ai_sql_guard');

@@ -1,35 +1,60 @@
 <?php $this->load->view('partials/header', ['title' => 'AI Assistant']); ?>
 
-<div class="container-fluid p-4">
-    <div class="row justify-content-center">
-        <div class="col-md-10 col-lg-8">
+<div class="container-fluid p-3">
+    <div class="row g-3" style="min-height: 80vh;">
+        <div class="col-lg-3 col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white py-2">
+                    <strong class="small">Conversations</strong>
+                </div>
+                <div class="list-group list-group-flush overflow-auto" id="ai-conv-list" style="max-height: 70vh;">
+                    <?php if (!empty($conversations)): foreach ($conversations as $c): ?>
+                        <button type="button" class="list-group-item list-group-item-action ai-load-conv py-2"
+                                data-id="<?php echo (int) $c['id']; ?>">
+                            <div class="small fw-semibold text-truncate"><?php echo htmlspecialchars(isset($c['title']) ? $c['title'] : ('Chat #' . $c['id']), ENT_QUOTES, 'UTF-8'); ?></div>
+                            <div class="text-muted" style="font-size:0.7rem;"><?php echo htmlspecialchars(isset($c['updated_at']) ? $c['updated_at'] : '', ENT_QUOTES, 'UTF-8'); ?></div>
+                        </button>
+                    <?php endforeach; else: ?>
+                        <div class="p-3 text-muted small">No saved chats yet.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9 col-md-8">
             <div class="card shadow-sm" style="height: 80vh; display: flex; flex-direction: column;">
-                <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between">
+                <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div>
                         <h5 class="mb-0 text-primary"><i class="bi bi-robot me-2"></i>AI Assistant</h5>
-                        <small class="text-muted">Ask questions about your data (Employees, Attendance, Projects...)</small>
+                        <small class="text-muted">Ask in any language — attendance, leave, tasks, SPL, and more</small>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Chat tools">
+                        <button type="button" class="btn btn-outline-primary" id="ai-new-chat" title="New chat"><i class="bi bi-plus-lg"></i></button>
+                        <button type="button" class="btn btn-outline-secondary" id="ai-clear-chat" title="Clear history"><i class="bi bi-trash"></i></button>
+                        <?php if (!empty($is_admin)): ?>
+                        <button type="button" class="btn btn-outline-secondary" id="ai-reindex" title="Reindex knowledge base"><i class="bi bi-arrow-repeat"></i></button>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Chat Area -->
                 <div class="card-body p-3" id="chat-box" style="flex: 1; overflow-y: auto; background-color: #f8f9fa;">
-                    <!-- Welcome Message -->
-                    <div class="d-flex flex-row justify-content-start mb-3">
-                        <div class="p-3 bg-white rounded shadow-sm" style="max-width: 75%;">
-                            <p class="mb-0">Hello! I am your Office AI. I can help you find information about employees, attendance, projects, and more. Try asking:</p>
-                            <ul class="mb-0 mt-2 small text-muted">
-                                <li>"Show me all employees in the IT department"</li>
-                                <li>"Who is absent today?"</li>
-                                <li>"List pending high priority tasks"</li>
-                            </ul>
+                    <div class="d-flex flex-row justify-content-start mb-3" id="ai-welcome">
+                        <div class="p-3 bg-white rounded shadow-sm" style="max-width: 90%;">
+                            <p class="mb-2">Hello! I am your Office AI. Try a quick question:</p>
+                            <div class="d-flex flex-wrap gap-1" id="ai-suggestion-chips">
+                                <?php foreach ((!empty($suggestion_chips) ? $suggestion_chips : array()) as $chip): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-primary ai-chip"
+                                            data-msg="<?php echo htmlspecialchars($chip['message'], ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php echo htmlspecialchars($chip['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Input Area -->
                 <div class="card-footer bg-white border-top">
                     <form id="chat-form" class="d-flex align-items-center" onsubmit="return sendMessage(event)">
-                        <input type="text" id="user-input" class="form-control me-2" placeholder="Type your question..." autocomplete="off">
+                        <input type="text" id="user-input" class="form-control me-2" placeholder="Type in English / Marathi / Hindi..." autocomplete="off">
                         <button type="button" class="btn btn-outline-secondary me-2" id="speak-last-btn" title="Speak last AI reply">
                             <i class="bi bi-volume-up"></i>
                         </button>
@@ -48,28 +73,27 @@
     const chatBox = document.getElementById('chat-box');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
-    const csrfToken = '<?php echo $this->security->get_csrf_hash(); ?>';
+    let csrfToken = '<?php echo $this->security->get_csrf_hash(); ?>';
     const csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
-
-    // Conversation history from session so chat survives page refresh
     const initialHistory = <?php echo json_encode(isset($conversation_history) ? $conversation_history : []); ?>;
-
     let lastAiResponseText = '';
+
+    function syncCsrf(token) {
+        if (!token) return;
+        csrfToken = token;
+        window.currentCsrfToken = token;
+    }
 
     function appendMessage(text, isUser) {
         const div = document.createElement('div');
         div.className = isUser ? 'd-flex flex-row justify-content-end mb-3' : 'd-flex flex-row justify-content-start mb-3';
-        
         const bubble = document.createElement('div');
         bubble.className = isUser ? 'p-3 bg-primary text-white rounded shadow-sm' : 'p-3 bg-white rounded shadow-sm';
-        bubble.style.maxWidth = '75%';
+        bubble.style.maxWidth = '85%';
         bubble.innerHTML = text.replace(/\n/g, '<br>');
-        
         div.appendChild(bubble);
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
-
-        // Store plain text of last AI response for TTS
         if (!isUser) {
             const temp = document.createElement('div');
             temp.innerHTML = text;
@@ -80,97 +104,60 @@
     function appendLoading() {
         const div = document.createElement('div');
         div.className = 'd-flex flex-row justify-content-start mb-3 loading-msg';
-        div.innerHTML = '<div class="p-3 bg-white rounded shadow-sm"><span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span id="loading-text">Thinking...</span></div>';
+        div.innerHTML = '<div class="p-3 bg-white rounded shadow-sm"><span class="spinner-border spinner-border-sm text-primary"></span> <span id="loading-text">Thinking...</span></div>';
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
-        
-        let messages = [
-            'Analyzing context...',
-            'Querying database...',
-            'Processing results...',
-            'Formatting answer...'
-        ];
+        let messages = ['Understanding…', 'Checking tools…', 'Working…'];
         let i = 0;
         const interval = setInterval(() => {
             const span = div.querySelector('#loading-text');
-            if (span) {
-                span.innerText = messages[i % messages.length];
-                i++;
-            }
-        }, 2500);
-        
-        return { div: div, interval: interval };
+            if (span) { span.innerText = messages[i % messages.length]; i++; }
+        }, 1600);
+        return { div: div, interval: interval, setStage: function(s) {
+            const span = div.querySelector('#loading-text');
+            if (span && s) span.innerText = s;
+        }};
     }
 
-    // Rebuild conversation from session history on page load
     (function restoreHistory() {
-        if (!Array.isArray(initialHistory) || initialHistory.length === 0) {
-            return;
-        }
-
+        if (!Array.isArray(initialHistory) || initialHistory.length === 0) return;
         initialHistory.forEach(function(entry) {
-            if (entry.user) {
-                appendMessage(entry.user, true);
-            }
-            if (entry.assistant) {
-                appendMessage(entry.assistant, false);
-            }
+            if (entry.user) appendMessage(entry.user, true);
+            if (entry.assistant) appendMessage(entry.assistant, false);
         });
     })();
+
+    document.querySelectorAll('.ai-chip').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            userInput.value = btn.getAttribute('data-msg') || '';
+            sendMessage({ preventDefault: function(){} });
+        });
+    });
 
     async function sendMessage(e) {
         e.preventDefault();
         const text = userInput.value.trim();
-        if(!text) return;
-
+        if (!text) return;
         appendMessage(text, true);
         userInput.value = '';
-        
-        // Disable UI
         userInput.disabled = true;
         sendBtn.disabled = true;
-        
         const loaderObj = appendLoading();
-
         try {
             const formData = new FormData();
             formData.append('message', text);
             formData.append(csrfName, csrfToken);
-
-            const response = await fetch('<?php echo site_url("ai_chat/send_message"); ?>', {
-                method: 'POST',
-                body: formData
-            });
-
-            // Stop loading animation
+            const response = await fetch('<?php echo site_url("ai_chat/send_message"); ?>', { method: 'POST', body: formData });
             clearInterval(loaderObj.interval);
             loaderObj.div.remove();
-
             const data = await response.json();
-
-            // Update CSRF token for next request
-            if (data.csrf_token) {
-                // Update global variable if you used let/var, or better yet update the DOM element if exists
-                if(document.querySelector('input[name="'+csrfName+'"]')) {
-                    document.querySelector('input[name="'+csrfName+'"]').value = data.csrf_token;
-                }
-                // Update global const reference hack (since const can't change, we rely on reading form or using a let var next time)
-                window.currentCsrfToken = data.csrf_token; 
-            }
-
-            if (data.status === 'success') {
-                appendMessage(data.response, false);
-            } else {
-                appendMessage('<small class="text-danger">Error: ' + data.message + '</small>', false);
-            }
-
+            if (data.csrf_token) syncCsrf(data.csrf_token);
+            if (data.status === 'success') appendMessage(data.response, false);
+            else appendMessage('<small class="text-danger">Error: ' + (data.message || 'Failed') + '</small>', false);
         } catch (error) {
-            if (loaderObj) {
-                clearInterval(loaderObj.interval);
-                loaderObj.div.remove();
-            }
-            console.error(error);
-            appendMessage('<small class="text-danger">Network Error. Please try again.</small>', false);
+            clearInterval(loaderObj.interval);
+            loaderObj.div.remove();
+            appendMessage('<small class="text-danger">Network Error.</small>', false);
         } finally {
             userInput.disabled = false;
             sendBtn.disabled = false;
@@ -178,171 +165,127 @@
         }
     }
 
-    // Initialize trusted token variable
     window.currentCsrfToken = csrfToken;
 
-    // Speak last AI response using TTS endpoint
-    document.getElementById('speak-last-btn').addEventListener('click', async function() {
-        if (!lastAiResponseText) {
-            alert('No AI response to speak yet.');
+    chatBox.addEventListener('click', async function(e) {
+        const conf = e.target.closest('.ai-confirm-sql');
+        const cancel = e.target.closest('.ai-cancel-sql');
+        if (conf || cancel) {
+            e.preventDefault();
+            const token = (conf || cancel).getAttribute('data-token');
+            const fd = new FormData();
+            fd.append(csrfName, csrfToken);
+            fd.append('token', token || '');
+            if (cancel) fd.append('cancel', '1');
+            const res = await fetch('<?php echo site_url("ai-chat/confirm-sql"); ?>', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.csrf_token) syncCsrf(data.csrf_token);
+            appendMessage(data.response || data.message || 'Done', false);
             return;
         }
+        const btn = e.target.closest('.export-btn');
+        if (!btn) return;
+        e.preventDefault();
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '<?php echo site_url("ai-chat/export"); ?>';
+        form.target = '_blank';
+        [['data', btn.getAttribute('data-export-data')],
+         ['format', btn.getAttribute('data-export-format')],
+         ['query', btn.getAttribute('data-export-query')],
+         [csrfName, csrfToken]
+        ].forEach(function(pair) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = pair[0];
+            input.value = pair[1] || '';
+            form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    });
 
+    async function postAiAction(url, extra) {
+        const formData = new FormData();
+        formData.append(csrfName, csrfToken);
+        if (extra) Object.keys(extra).forEach(function(k){ formData.append(k, extra[k]); });
+        const res = await fetch(url, { method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        if (data.csrf_token) syncCsrf(data.csrf_token);
+        return data;
+    }
+
+    function wipeChatKeepWelcome() {
+        Array.prototype.slice.call(chatBox.children).forEach(function(el) {
+            if (el.id !== 'ai-welcome') el.remove();
+        });
+        lastAiResponseText = '';
+    }
+
+    document.getElementById('ai-new-chat').addEventListener('click', async function() {
+        const data = await postAiAction('<?php echo site_url("ai-chat/new"); ?>');
+        if (data.status === 'success') wipeChatKeepWelcome();
+    });
+
+    document.getElementById('ai-clear-chat').addEventListener('click', async function() {
+        if (!confirm('Clear all AI chat history?')) return;
+        const data = await postAiAction('<?php echo site_url("ai-chat/clear-history"); ?>');
+        if (data.status === 'success') wipeChatKeepWelcome();
+    });
+
+    document.querySelectorAll('.ai-load-conv').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+            const id = btn.getAttribute('data-id');
+            const data = await postAiAction('<?php echo site_url("ai-chat/load"); ?>', { conversation_id: id });
+            if (data.status !== 'success') return;
+            wipeChatKeepWelcome();
+            (data.history || []).forEach(function(entry) {
+                if (entry.user) appendMessage(entry.user, true);
+                if (entry.assistant) appendMessage(entry.assistant, false);
+            });
+        });
+    });
+
+    const reindexBtn = document.getElementById('ai-reindex');
+    if (reindexBtn) {
+        reindexBtn.addEventListener('click', async function() {
+            reindexBtn.disabled = true;
+            const data = await postAiAction('<?php echo site_url("ai-chat/reindex"); ?>');
+            alert(data.message || (data.status === 'success' ? 'Done' : 'Failed'));
+            reindexBtn.disabled = false;
+        });
+    }
+
+    document.getElementById('speak-last-btn').addEventListener('click', async function() {
+        if (!lastAiResponseText) { alert('No AI response to speak yet.'); return; }
         const btn = this;
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
         try {
             const formData = new FormData();
             formData.append('text', lastAiResponseText);
-            formData.append('language', 'en-US'); // Change or detect language if needed
+            formData.append('language', 'en-US');
             formData.append(csrfName, window.currentCsrfToken || csrfToken);
-
-            const response = await fetch('<?php echo site_url("ai_chat/tts"); ?>', {
-                method: 'POST',
-                body: formData
-            });
-
+            const response = await fetch('<?php echo site_url("ai_chat/tts"); ?>', { method: 'POST', body: formData });
             const data = await response.json();
             if (data.status === 'success' && data.audio_url) {
                 const audio = document.getElementById('tts-audio');
                 audio.src = data.audio_url;
                 audio.play();
+            } else if (data.message && data.message.indexOf('Azure Speech is not configured') !== -1 && 'speechSynthesis' in window) {
+                window.speechSynthesis.speak(new SpeechSynthesisUtterance(lastAiResponseText));
             } else {
-                // If Azure Speech is not configured, fallback to browser TTS if available
-                if (data.message && data.message.indexOf('Azure Speech is not configured') !== -1 && 'speechSynthesis' in window) {
-                    const utter = new SpeechSynthesisUtterance(lastAiResponseText);
-                    window.speechSynthesis.speak(utter);
-                } else {
-                    alert(data.message || 'Unable to generate speech.');
-                }
+                alert(data.message || 'Unable to generate speech.');
             }
         } catch (err) {
-            console.error(err);
             alert('Network error while generating speech.');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
     });
-
-    // Export data function - uses POST method for security
-    async function exportData(dataEncoded, query, format) {
-        try {
-            const formData = new FormData();
-            formData.append('data', dataEncoded);
-            formData.append('format', format);
-            formData.append('query', query);
-            // Use updated token
-            formData.append(csrfName, window.currentCsrfToken || csrfToken);
-
-            const response = await fetch('<?php echo site_url("ai_chat/export"); ?>', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error('Export failed: ' + response.status + ' ' + response.statusText + ' - ' + errText); // detailed error
-            }
-
-            // Get filename from Content-Disposition header or use default
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'export.' + format;
-            if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                if (filenameMatch) {
-                    filename = filenameMatch[1];
-                }
-            }
-
-            // Create blob and trigger download
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (error) {
-            console.error('Export error:', error);
-            alert('Failed to export file. Check console for details.');
-        }
-    }
-
-    // Event delegation for export buttons
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.export-btn')) {
-            e.preventDefault();
-            const btn = e.target.closest('.export-btn');
-            
-            // Visual feedback
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-            btn.disabled = true;
-            
-            const dataEncoded = btn.getAttribute('data-export-data');
-            const query = btn.getAttribute('data-export-query');
-            const format = btn.getAttribute('data-export-format');
-            
-            if (dataEncoded && format) {
-                exportData(dataEncoded, query || 'Report', format);
-            }
-            
-            // Reset button after a short delay (since we can't track form submit completion easily)
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-            }, 2000);
-        }
-    });
-
-    // Export data function - uses hidden FORM submit for reliable file download
-    function exportData(dataEncoded, query, format) {
-        try {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '<?php echo site_url("ai_chat/export"); ?>';
-            form.target = '_self'; // Download in same frame (triggers download dialog)
-            form.style.display = 'none';
-
-            const fields = {
-                'data': dataEncoded,
-                'query': query,
-                'format': format,
-            };
-            
-            // Add CSRF token dynamically
-            // Use the most recent token available
-            const currentToken = window.currentCsrfToken || document.querySelector('input[name="'+csrfName+'"]')?.value || csrfToken;
-            fields[csrfName] = currentToken;
-
-            for (const key in fields) {
-                if (fields.hasOwnProperty(key)) {
-                    const hiddenField = document.createElement('input');
-                    hiddenField.type = 'hidden';
-                    hiddenField.name = key;
-                    hiddenField.value = fields[key];
-                    form.appendChild(hiddenField);
-                }
-            }
-
-            document.body.appendChild(form);
-            form.submit();
-            
-            // Cleanup
-            setTimeout(() => {
-                document.body.removeChild(form);
-            }, 1000);
-
-        } catch (error) {
-            console.error('Export error:', error);
-            alert('Failed to trigger export. Please try again.');
-        }
-    }
 </script>
 
 <?php $this->load->view('partials/footer'); ?>

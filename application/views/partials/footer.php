@@ -124,6 +124,12 @@ $__can_ai_widget = function_exists('has_module_access') && (
         </div>
      </div>
      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-link text-white p-0" onclick="aiWidgetNewChat()" title="New chat">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-white p-0" onclick="aiWidgetClearChat()" title="Clear history">
+            <i class="bi bi-trash"></i>
+        </button>
         <button type="button" class="btn btn-sm btn-link text-white p-0" onclick="toggleFullScreen()" title="Toggle Fullscreen">
             <i class="bi bi-arrows-fullscreen" id="fsIcon"></i>
         </button>
@@ -335,6 +341,39 @@ function handleBtnClick() {
 }
 
 let widgetLastAiResponseText = '';
+let widgetCsrfToken = '<?php echo $this->security->get_csrf_hash(); ?>';
+const widgetCsrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
+
+function aiWidgetResetBodyKeepWelcome() {
+   const box = document.getElementById('widgetChatBody');
+   if (!box) return;
+   const kids = Array.prototype.slice.call(box.children);
+   kids.forEach(function(el, idx) { if (idx > 0) el.remove(); });
+   widgetLastAiResponseText = '';
+}
+
+async function aiWidgetNewChat() {
+   const fd = new FormData();
+   fd.append(widgetCsrfName, widgetCsrfToken);
+   try {
+      const res = await fetch('<?php echo site_url("ai-chat/new"); ?>', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (data.csrf_token) widgetCsrfToken = data.csrf_token;
+      if (data.status === 'success') aiWidgetResetBodyKeepWelcome();
+   } catch (e) { console.error(e); }
+}
+
+async function aiWidgetClearChat() {
+   if (!confirm('Clear all AI chat history?')) return;
+   const fd = new FormData();
+   fd.append(widgetCsrfName, widgetCsrfToken);
+   try {
+      const res = await fetch('<?php echo site_url("ai-chat/clear-history"); ?>', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      const data = await res.json();
+      if (data.csrf_token) widgetCsrfToken = data.csrf_token;
+      if (data.status === 'success') aiWidgetResetBodyKeepWelcome();
+   } catch (e) { console.error(e); }
+}
 
 async function handleWidgetSubmit(e) {
    e.preventDefault();
@@ -344,7 +383,6 @@ async function handleWidgetSubmit(e) {
    
    if(!text) return;
    
-   // Append user message (escape user input to prevent XSS)
    const userDiv = document.createElement('div');
    userDiv.className = 'd-flex flex-row justify-content-end mb-3';
    userDiv.innerHTML = `<div class="p-3 user-msg-bubble shadow-sm" style="max-width: 85%;"><small>${escapeHtml(text).replace(/\n/g, '<br>')}</small></div>`;
@@ -353,7 +391,6 @@ async function handleWidgetSubmit(e) {
    
    input.value = '';
    
-   // Loading
    const loadDiv = document.createElement('div');
    loadDiv.id = 'ai-loading-indicator';
    loadDiv.className = 'd-flex flex-row justify-content-start mb-3';
@@ -364,11 +401,7 @@ async function handleWidgetSubmit(e) {
    try {
         const formData = new FormData();
         formData.append('message', text);
-        
-        // CSRF Token handling
-        const csrfName = '<?php echo $this->security->get_csrf_token_name(); ?>';
-        const csrfHash = '<?php echo $this->security->get_csrf_hash(); ?>';
-        formData.append(csrfName, csrfHash);
+        formData.append(widgetCsrfName, widgetCsrfToken);
 
         const response = await fetch('<?php echo site_url("ai_chat/send_message"); ?>', {
             method: 'POST',
@@ -379,13 +412,13 @@ async function handleWidgetSubmit(e) {
         });
 
         const data = await response.json();
+        if (data.csrf_token) widgetCsrfToken = data.csrf_token;
         const loader = document.getElementById('ai-loading-indicator');
         if(loader) loader.remove();
 
         if (data.status === 'success') {
             const aiDiv = document.createElement('div');
             aiDiv.className = 'd-flex flex-row justify-content-start mb-3';
-            // Convert simple markdown-like bolding if present or just plain text
             let cleanResponse = data.response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             cleanResponse = cleanResponse.replace(/\n/g, '<br>');
             cleanResponse = sanitizeAiResponse(cleanResponse);
@@ -393,7 +426,6 @@ async function handleWidgetSubmit(e) {
             aiDiv.innerHTML = `<div class="p-3 ai-msg-bubble shadow-sm" style="max-width: 85%;"><small>${cleanResponse}</small></div>`;
             box.appendChild(aiDiv);
 
-            // Store plain text of last AI response for widget TTS
             const temp = document.createElement('div');
             temp.innerHTML = cleanResponse;
             widgetLastAiResponseText = temp.textContent || temp.innerText || '';
@@ -415,6 +447,31 @@ async function handleWidgetSubmit(e) {
         console.error(err);
    }
 }
+
+document.getElementById('widgetChatBody').addEventListener('click', function(e) {
+   const btn = e.target.closest('.export-btn');
+   if (!btn) return;
+   e.preventDefault();
+   const form = document.createElement('form');
+   form.method = 'POST';
+   form.action = '<?php echo site_url("ai-chat/export"); ?>';
+   form.target = '_blank';
+   form.style.display = 'none';
+   [['data', btn.getAttribute('data-export-data')],
+    ['format', btn.getAttribute('data-export-format')],
+    ['query', btn.getAttribute('data-export-query')],
+    [widgetCsrfName, widgetCsrfToken]
+   ].forEach(function(pair) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = pair[0];
+      input.value = pair[1] || '';
+      form.appendChild(input);
+   });
+   document.body.appendChild(form);
+   form.submit();
+   form.remove();
+});
 
 // Widget Speak button (TTS)
 document.getElementById('widgetSpeakBtn').addEventListener('click', async function() {

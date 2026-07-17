@@ -103,3 +103,6 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `todays_plan_items` | ADD `repeat_type` varchar(20) DEFAULT 'once' | One time vs recurring plan points | 2026-07-15 |
 | `users` | ADD `google_alert_checkin`, `google_alert_checkout` TINYINT(1) DEFAULT 1 | Per-user check-in/out Google alerts | 2026-07-15 |
 | `settings` | Keys `attendance_checkin_alert_enabled`, `attendance_checkout_alert_enabled`, `attendance_checkin_alert_minutes_before`, `attendance_checkout_alert_minutes_before` | Org-level attendance Google alert toggles | 2026-07-15 |
+| `ai_conversations` | CREATE TABLE (id, user_id, title, created_at, updated_at) | Persistent AI chat conversations | 2026-07-17 |
+| `ai_conversation_messages` | CREATE TABLE (id, conversation_id, role, content, meta_json, created_at) | Persistent AI chat messages | 2026-07-17 |
+| `ai_chat_intent_log` | CREATE TABLE (id, user_id, message, tool, source, ok, created_at) | AI intent audit / eval | 2026-07-17 |

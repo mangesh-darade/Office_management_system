@@ -755,6 +755,11 @@ $route['ai-chat'] = 'ai_chat/index';
 $route['ai-chat/send'] = 'ai_chat/send_message';
 $route['ai_chat'] = 'ai_chat/index';
 $route['ai_chat/send_message'] = 'ai_chat/send_message';
+$route['ai-chat/send-stream'] = 'ai_chat/send_message_stream';
+$route['ai-chat/new'] = 'ai_chat/new_chat';
+$route['ai-chat/load'] = 'ai_chat/load_conversation';
+$route['ai-chat/reindex'] = 'ai_chat/reindex';
+$route['ai-chat/confirm-sql'] = 'ai_chat/confirm_sql';
 
 // Analytics
 $route['analytics'] = 'analytics/index';
