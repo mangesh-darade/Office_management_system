@@ -206,6 +206,29 @@ class Projects extends CI_Controller {
 
                 if (!empty($data['manager_id'])) {
                     $this->Project_model->add_member($id, (int) $data['manager_id'], 'manager');
+                    if (!function_exists('send_user_notification_email')) {
+                        $this->load->helper('email_settings');
+                    }
+                    $this->load->helper('notification');
+                    $email_data = (object) array(
+                        'id' => (int) $id,
+                        'project_id' => (int) $id,
+                        'title' => (string) $data['name'],
+                        'name' => (string) $data['name'],
+                        'role' => 'manager',
+                    );
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            (int) $data['manager_id'],
+                            'Added to Project',
+                            'You were added to "' . $data['name'] . '" as Manager.',
+                            'info',
+                            'projects',
+                            (int) $id,
+                            site_url('projects/' . $id)
+                        );
+                    }
+                    send_user_notification_email((int) $data['manager_id'], 'projects', 'member_added', $email_data);
                 }
                 
                 // Log project creation with change tracking
@@ -632,6 +655,29 @@ class Projects extends CI_Controller {
 
                 if (!empty($data['manager_id']) && !$this->Project_model->check_user_is_member((int) $id, (int) $data['manager_id'])) {
                     $this->Project_model->add_member((int) $id, (int) $data['manager_id'], 'manager');
+                    if (!function_exists('send_user_notification_email')) {
+                        $this->load->helper('email_settings');
+                    }
+                    $this->load->helper('notification');
+                    $email_data = (object) array(
+                        'id' => (int) $id,
+                        'project_id' => (int) $id,
+                        'title' => (string) $data['name'],
+                        'name' => (string) $data['name'],
+                        'role' => 'manager',
+                    );
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            (int) $data['manager_id'],
+                            'Added to Project',
+                            'You were added to "' . $data['name'] . '" as Manager.',
+                            'info',
+                            'projects',
+                            (int) $id,
+                            site_url('projects/' . $id)
+                        );
+                    }
+                    send_user_notification_email((int) $data['manager_id'], 'projects', 'member_added', $email_data);
                 }
                 
                 // Log update with change tracking
@@ -907,11 +953,13 @@ class Projects extends CI_Controller {
                     $this->load->helper('email_settings');
                 }
                 $email_data = (object) array(
+                    'id' => $project_id,
                     'project_id' => $project_id,
                     'title' => $project->name,
+                    'name' => $project->name,
                     'role' => $role,
                 );
-                send_notification_with_settings('projects', 'member_added', $email_data, $user_id);
+                send_user_notification_email($user_id, 'projects', 'member_added', $email_data);
                 $success_msg = get_notification_message('projects', 'member_add', 'success');
                 $this->session->set_flashdata('success', $success_msg);
             } else {

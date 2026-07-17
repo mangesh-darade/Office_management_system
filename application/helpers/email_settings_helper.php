@@ -179,6 +179,7 @@ if (!function_exists('send_notification_with_settings')) {
                 $CI->load->helper('email');
             }
             configure_email_from_settings();
+            $CI->email->clear(TRUE);
 
             $from = function_exists('get_system_from_email') ? get_system_from_email() : $CI->config->item('smtp_user');
             $from_name = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
@@ -197,6 +198,67 @@ if (!function_exists('send_notification_with_settings')) {
         }
         
         return $success_count > 0;
+    }
+}
+
+if (!function_exists('send_user_notification_email')) {
+    /**
+     * Send one settings-aware SMTP email (with module template + link) to a specific user.
+     * Use for assign/notify flows — do NOT use Google Calendar reminders for assignments.
+     *
+     * @param int    $user_id
+     * @param string $module
+     * @param string $event_type
+     * @param object|array $data
+     * @return bool
+     */
+    function send_user_notification_email($user_id, $module, $event_type, $data)
+    {
+        $CI =& get_instance();
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return false;
+        }
+        ensure_email_settings_schema();
+
+        $setting = $CI->db->where('module', $module)
+            ->where('event_type', $event_type)
+            ->where('is_enabled', 1)
+            ->get('email_settings')
+            ->row();
+        if (!$setting) {
+            return false;
+        }
+        if (!check_user_email_preference($user_id, $module, $event_type)) {
+            return false;
+        }
+        $email = get_user_email_by_id($user_id);
+        if ($email === '' || $email === null) {
+            return false;
+        }
+        if (is_array($data)) {
+            $data = (object) $data;
+        }
+
+        if (!function_exists('configure_email_from_settings')) {
+            $CI->load->helper('email');
+        }
+        configure_email_from_settings();
+        $CI->email->clear(TRUE);
+
+        $from = function_exists('get_system_from_email') ? get_system_from_email() : $CI->config->item('smtp_user');
+        $from_name = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
+        $CI->email->to($email);
+        $CI->email->from($from ?: 'no-reply@example.com', $from_name);
+        $CI->email->subject(generate_email_subject($module, $event_type, $data));
+        $CI->email->message(generate_module_email_template($module, $event_type, $data));
+        $ok = (bool) $CI->email->send();
+        if ($ok) {
+            log_message('info', "User email sent to {$email} for {$module}:{$event_type}");
+        } else {
+            log_message('error', "Failed user email to {$email} for {$module}:{$event_type}");
+        }
+        return $ok;
     }
 }
 
@@ -351,6 +413,11 @@ if (!function_exists('generate_email_subject')) {
                 'member_added' => 'Added to Project: {title}',
                 'status_changed' => 'Project Status Changed: {title}'
             ],
+            'requirements' => [
+                'created' => 'New Requirement Assigned: {req_number}',
+                'updated' => 'Requirement Updated: {req_number}',
+                'status_changed' => 'Requirement Status Changed: {req_number}',
+            ],
             'leave_requests' => [
                 'submitted' => 'Leave Request Submitted: {type}',
                 'approved' => 'Leave Request Approved: {type}',
@@ -386,11 +453,21 @@ if (!function_exists('generate_email_subject')) {
         ];
         
         $template = isset($subjects[$module][$event_type]) ? $subjects[$module][$event_type] : '{module} - {event_type}';
+
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+        if (!is_array($data)) {
+            $data = array();
+        }
+        if (empty($data['title']) && !empty($data['name'])) {
+            $data['title'] = $data['name'];
+        }
         
         // Replace placeholders
         foreach ($data as $key => $value) {
-            if (is_string($value)) {
-                $template = str_replace('{' . $key . '}', $value, $template);
+            if (is_string($value) || is_numeric($value)) {
+                $template = str_replace('{' . $key . '}', (string) $value, $template);
             }
         }
         
@@ -408,66 +485,95 @@ if (!function_exists('generate_module_email_template')) {
      * @return string HTML email template
      */
     function generate_module_email_template($module, $event_type, $data) {
-        $base_url = base_url();
-        
-        // Use existing task template for tasks
+        if (is_array($data)) {
+            $data = (object) $data;
+        }
+
+        // Use existing task template for tasks (includes View Task link)
         if ($module === 'tasks') {
             return generate_task_email_template($data, $event_type);
         }
-        
-        // Generic template for other modules
-        $html = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>' . ucfirst($module) . ' Notification</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #007bff; color: white; padding: 20px; text-align: center; }
-        .content { padding: 30px 20px; background: #f8f9fa; }
-        .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .label { font-weight: bold; color: #666; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>📋 ' . ucfirst($module) . ' Notification</h1>
-        </div>
-        
-        <div class="content">
-            <h2>' . ucfirst(str_replace('_', ' ', $event_type)) . '</h2>
-            
-            <div class="details">
-                <div class="label">Details:</div>';
-        
-        // Add data fields
-        foreach ($data as $key => $value) {
-            if ($key !== 'id' && !empty($value) && is_string($value)) {
-                $label = ucfirst(str_replace('_', ' ', $key));
-                $display_value = strlen($value) > 200 ? substr($value, 0, 200) . '...' : $value;
-                $html .= '<div class="mb-2">
-                    <span class="label">' . esc_view($label) . ':</span> 
-                    ' . esc_view($display_value) . '
-                </div>';
+
+        $view_url = '';
+        $heading = ucfirst(str_replace('_', ' ', $event_type));
+        $title = '';
+        $rows = array();
+
+        if ($module === 'requirements') {
+            $req_id = !empty($data->id) ? (int) $data->id : 0;
+            $view_url = $req_id > 0 ? site_url('requirements/view/' . $req_id) : site_url('requirements');
+            $title = !empty($data->title) ? (string) $data->title : 'Requirement';
+            $heading = ($event_type === 'created') ? 'New Requirement Assigned' : (($event_type === 'status_changed') ? 'Requirement Status Changed' : 'Requirement Updated');
+            if (!empty($data->req_number)) {
+                $rows[] = array('Requirement No.', (string) $data->req_number);
+            }
+            $rows[] = array('Title', $title);
+            if (!empty($data->priority)) {
+                $rows[] = array('Priority', ucfirst((string) $data->priority));
+            }
+            if (!empty($data->status)) {
+                $rows[] = array('Status', ucwords(str_replace('_', ' ', (string) $data->status)));
+            }
+            if (!empty($data->status_from) && !empty($data->status_to)) {
+                $rows[] = array('Change', (string) $data->status_from . ' → ' . (string) $data->status_to);
+            }
+            if (!empty($data->expected_delivery_date)) {
+                $rows[] = array('Expected Delivery', (string) $data->expected_delivery_date);
+            }
+        } elseif ($module === 'projects') {
+            $project_id = !empty($data->id) ? (int) $data->id : (!empty($data->project_id) ? (int) $data->project_id : 0);
+            $view_url = $project_id > 0 ? site_url('projects/' . $project_id) : site_url('projects');
+            $title = !empty($data->title) ? (string) $data->title : (!empty($data->name) ? (string) $data->name : 'Project');
+            $heading = ($event_type === 'member_added') ? 'Added to Project' : (($event_type === 'created') ? 'New Project' : 'Project Update');
+            $rows[] = array('Project', $title);
+            if (!empty($data->role)) {
+                $rows[] = array('Your role', ucfirst((string) $data->role));
+            }
+            if (!empty($data->status)) {
+                $rows[] = array('Status', (string) $data->status);
+            }
+        } else {
+            foreach ($data as $key => $value) {
+                if ($key === 'id' || $value === null || $value === '') {
+                    continue;
+                }
+                if (is_string($value) || is_numeric($value)) {
+                    $rows[] = array(ucfirst(str_replace('_', ' ', $key)), (string) $value);
+                }
             }
         }
-        
-        $html .= '</div>
-            
-            <div class="footer">
-                <p>This is an automated message from the Office Management System.</p>
-                <p>If you have any questions, please contact your administrator.</p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>';
-        
-        return $html;
+
+        $details_html = '';
+        foreach ($rows as $row) {
+            $details_html .= '<tr><td style="padding:6px 0;color:#64748b;width:140px;vertical-align:top;">'
+                . htmlspecialchars($row[0], ENT_QUOTES, 'UTF-8')
+                . '</td><td style="padding:6px 0;color:#0f172a;">'
+                . htmlspecialchars($row[1], ENT_QUOTES, 'UTF-8')
+                . '</td></tr>';
+        }
+
+        $button_html = '';
+        if ($view_url !== '') {
+            $button_html = '<p style="margin:24px 0 8px;"><a href="'
+                . htmlspecialchars($view_url, ENT_QUOTES, 'UTF-8')
+                . '" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;">Open in portal</a></p>'
+                . '<p style="font-size:12px;color:#64748b;word-break:break-all;">'
+                . htmlspecialchars($view_url, ENT_QUOTES, 'UTF-8') . '</p>';
+        }
+
+        return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'
+            . htmlspecialchars(ucfirst($module) . ' Notification', ENT_QUOTES, 'UTF-8')
+            . '</title></head><body style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a;background:#f8fafc;margin:0;padding:16px;">'
+            . '<div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">'
+            . '<div style="background:#1e40af;color:#fff;padding:16px 20px;"><h1 style="margin:0;font-size:18px;">'
+            . htmlspecialchars($heading, ENT_QUOTES, 'UTF-8')
+            . '</h1></div>'
+            . '<div style="padding:20px;"><table style="width:100%;border-collapse:collapse;">'
+            . $details_html
+            . '</table>'
+            . $button_html
+            . '<p style="margin-top:24px;font-size:12px;color:#64748b;">Automated message from Office Management System.</p>'
+            . '</div></div></body></html>';
     }
 }
 

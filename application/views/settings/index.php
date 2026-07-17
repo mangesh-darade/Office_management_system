@@ -778,7 +778,9 @@
                     'reminders' => 'Reminders',
                     'activity' => 'Activity Log',
                     'permissions' => 'Permissions',
-                    'payroll' => 'Payroll'
+                    'payroll' => 'Payroll',
+                    'spl' => 'SPL',
+                    'daily_activity' => 'Daily Activity',
                   ];
                   foreach ($modules_list as $module_key => $module_label):
                     $module_maintenance_enabled_key = 'system_maintenance_module_' . $module_key;

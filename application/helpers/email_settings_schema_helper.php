@@ -21,6 +21,11 @@ if (!function_exists('email_settings_schema_seed_defaults')) {
             ['module' => 'projects', 'event_type' => 'updated', 'recipient_type' => 'members'],
             ['module' => 'projects', 'event_type' => 'member_added', 'recipient_type' => 'new_member'],
             ['module' => 'projects', 'event_type' => 'status_changed', 'recipient_type' => 'members'],
+
+            // Requirements module (SMTP email + link — not Google Calendar)
+            ['module' => 'requirements', 'event_type' => 'created', 'recipient_type' => 'assignee'],
+            ['module' => 'requirements', 'event_type' => 'updated', 'recipient_type' => 'assignee'],
+            ['module' => 'requirements', 'event_type' => 'status_changed', 'recipient_type' => 'assignee'],
             
             // Leave Requests module
             ['module' => 'leave_requests', 'event_type' => 'submitted', 'recipient_type' => 'manager'],

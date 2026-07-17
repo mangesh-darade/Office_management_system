@@ -132,74 +132,47 @@ class Requirements extends CI_Controller {
             // create initial version 1
             $this->requirements->create_version($id, 1, $data);
             
-            // Send notification to owner and assigned_to when requirement is created (both in-app and email)
+            // Notify owner + assignee: in-app + SMTP email with portal link (NOT Google Calendar)
             $notify_users = [];
             if (isset($data['owner_id']) && (int)$data['owner_id'] > 0) {
                 $notify_users[] = (int)$data['owner_id'];
             }
-            if (isset($data['assigned_to']) && (int)$data['assigned_to'] > 0 && !in_array((int)$data['assigned_to'], $notify_users)) {
+            if (isset($data['assigned_to']) && (int)$data['assigned_to'] > 0 && !in_array((int)$data['assigned_to'], $notify_users, true)) {
                 $notify_users[] = (int)$data['assigned_to'];
             }
             
             if (!empty($notify_users)) {
                 $req_number = isset($data['req_number']) ? $data['req_number'] : 'REQ-'.date('Y').'-'.str_pad($id, 5, '0', STR_PAD_LEFT);
-                $req_title = isset($data['title']) ? mb_substr($data['title'], 0, 50) : 'New Requirement';
+                $req_title = isset($data['title']) ? mb_substr($data['title'], 0, 80) : 'New Requirement';
                 $view_url = site_url('requirements/view/'.$id);
-                
-                // Load Reminder model for email notifications
-                $this->load->model('Reminder_model', 'reminders');
-                $this->reminders->ensure_schema();
+                $email_data = (object) array(
+                    'id' => (int) $id,
+                    'req_number' => $req_number,
+                    'title' => $req_title,
+                    'priority' => isset($data['priority']) ? $data['priority'] : '',
+                    'status' => isset($data['status']) ? $data['status'] : '',
+                    'expected_delivery_date' => isset($data['expected_delivery_date']) ? $data['expected_delivery_date'] : '',
+                    'assigned_to' => isset($data['assigned_to']) ? (int) $data['assigned_to'] : 0,
+                );
+
+                if (!function_exists('send_user_notification_email')) {
+                    $this->load->helper('email_settings');
+                }
+                $this->load->helper('notification');
                 
                 foreach ($notify_users as $uid) {
-                    // Get user email
-                    $user_email = '';
-                    $user_name = '';
-                    if ($this->db->table_exists('users')) {
-                        $sel = ['email'];
-                        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
-                        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
-                        if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { 
-                            $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; 
-                        }
-                        $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id', (int)$uid)->get()->row();
-                        if ($u) {
-                            $user_email = isset($u->email) ? $u->email : '';
-                            if (isset($u->full_label) && $u->full_label !== '') { $user_name = $u->full_label; }
-                            else if (isset($u->full_name) && $u->full_name !== '') { $user_name = $u->full_name; }
-                            else if (isset($u->name) && $u->name !== '') { $user_name = $u->name; }
-                            else { $user_name = $user_email; }
-                        }
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            $uid,
+                            'New requirement assigned: '.$req_number,
+                            'You have been assigned to requirement: '.$req_title,
+                            'info',
+                            'requirements',
+                            (int) $id,
+                            $view_url
+                        );
                     }
-                    
-                    // In-app notification
-                    $this->load->model('Notification_model');
-                    $this->Notification_model->create($uid, 'New requirement assigned: '.$req_number, 'You have been assigned to requirement: '.$req_title, 'info', 'requirements');
-                    
-                    // Email notification (queue via Reminder system)
-                    if ($user_email !== '') {
-                        $email_subject = 'New Requirement Assigned: '.$req_number;
-                        $email_body = "Hello ".$user_name.",\n\n";
-                        $email_body .= "You have been assigned to a new requirement:\n\n";
-                        $email_body .= "Requirement Number: ".$req_number."\n";
-                        $email_body .= "Title: ".$req_title."\n";
-                        if (isset($data['priority'])) {
-                            $email_body .= "Priority: ".ucfirst($data['priority'])."\n";
-                        }
-                        if (isset($data['expected_delivery_date'])) {
-                            $email_body .= "Expected Delivery: ".$data['expected_delivery_date']."\n";
-                        }
-                        $email_body .= "\nView requirement: ".$view_url."\n\n";
-                        $email_body .= "Thank you.";
-                        
-                        $this->reminders->enqueue([
-                            'user_id' => $uid,
-                            'email' => $user_email,
-                            'type' => 'requirement_assigned',
-                            'subject' => $email_subject,
-                            'body' => $email_body,
-                            'send_at' => date('Y-m-d H:i:00') // Send immediately (or queue for cron)
-                        ]);
-                    }
+                    send_user_notification_email($uid, 'requirements', 'created', $email_data);
                 }
             }
             // attachments (optional)
@@ -315,10 +288,13 @@ class Requirements extends CI_Controller {
                 'updated_at' => date('Y-m-d H:i:s'),
                 'reference_url' => $reference_url,
             ];
-            // Check if status changed
+            // Check if status / assignee changed
             $old_status = $row->status;
             $new_status = $data['status'] ?: $row->status;
             $status_changed = ($old_status !== $new_status);
+            $old_assignee = isset($row->assigned_to) ? (int) $row->assigned_to : 0;
+            $new_assignee = isset($data['assigned_to']) ? (int) $data['assigned_to'] : 0;
+            $assignee_changed = ($new_assignee > 0 && $new_assignee !== $old_assignee);
             
             $this->requirements->update_requirement((int)$id, $data);
             // compute next version number
@@ -328,77 +304,82 @@ class Requirements extends CI_Controller {
             $verData['created_at'] = date('Y-m-d H:i:s');
             $this->requirements->create_version((int)$id, $nextVer, $verData);
             
-            // Send notifications if status changed (both in-app and email)
+            $req_number = isset($row->req_number) ? $row->req_number : '#'.$id;
+            $req_title = isset($data['title']) ? mb_substr($data['title'], 0, 80) : (isset($row->title) ? mb_substr($row->title, 0, 80) : 'Requirement');
+            $view_url = site_url('requirements/view/'.$id);
+            if (!function_exists('send_user_notification_email')) {
+                $this->load->helper('email_settings');
+            }
+            $this->load->helper('notification');
+
+            // New assignee: SMTP email + link (not Google Calendar)
+            if ($assignee_changed) {
+                $email_data = (object) array(
+                    'id' => (int) $id,
+                    'req_number' => $req_number,
+                    'title' => $req_title,
+                    'priority' => isset($data['priority']) ? $data['priority'] : '',
+                    'status' => $new_status,
+                    'assigned_to' => $new_assignee,
+                );
+                if (function_exists('create_notification')) {
+                    create_notification(
+                        $new_assignee,
+                        'Requirement assigned: '.$req_number,
+                        'You have been assigned to requirement: '.$req_title,
+                        'info',
+                        'requirements',
+                        (int) $id,
+                        $view_url
+                    );
+                }
+                send_user_notification_email($new_assignee, 'requirements', 'created', $email_data);
+            }
+
+            // Status change: notify NEW owner/assignee/creator via SMTP + link
             if ($status_changed) {
                 $notify_users = [];
-                // Notify owner
-                if (isset($row->owner_id) && (int)$row->owner_id > 0) {
-                    $notify_users[] = (int)$row->owner_id;
+                $new_owner = isset($data['owner_id']) ? (int) $data['owner_id'] : (isset($row->owner_id) ? (int) $row->owner_id : 0);
+                if ($new_owner > 0) {
+                    $notify_users[] = $new_owner;
                 }
-                // Notify assigned_to
-                if (isset($row->assigned_to) && (int)$row->assigned_to > 0 && !in_array((int)$row->assigned_to, $notify_users)) {
-                    $notify_users[] = (int)$row->assigned_to;
+                if ($new_assignee > 0 && !in_array($new_assignee, $notify_users, true)) {
+                    $notify_users[] = $new_assignee;
                 }
-                // Notify creator
-                if (isset($row->created_by) && (int)$row->created_by > 0 && !in_array((int)$row->created_by, $notify_users)) {
+                if (isset($row->created_by) && (int)$row->created_by > 0 && !in_array((int)$row->created_by, $notify_users, true)) {
                     $notify_users[] = (int)$row->created_by;
                 }
-                
-                $req_number = isset($row->req_number) ? $row->req_number : '#'.$id;
-                $req_title = isset($row->title) ? mb_substr($row->title, 0, 50) : 'Requirement';
+                // If we already emailed new assignee for reassignment in same save, skip duplicate status email to them
+                if ($assignee_changed) {
+                    $notify_users = array_values(array_filter($notify_users, function ($uid) use ($new_assignee) {
+                        return (int) $uid !== (int) $new_assignee;
+                    }));
+                }
+
                 $status_from = ucwords(str_replace('_', ' ', $old_status));
                 $status_to = ucwords(str_replace('_', ' ', $new_status));
-                $view_url = site_url('requirements/view/'.$id);
-                
-                // Load Reminder model for email notifications
-                $this->load->model('Reminder_model', 'reminders');
-                $this->reminders->ensure_schema();
-                
+                $email_data = (object) array(
+                    'id' => (int) $id,
+                    'req_number' => $req_number,
+                    'title' => $req_title,
+                    'status' => $new_status,
+                    'status_from' => $status_from,
+                    'status_to' => $status_to,
+                    'assigned_to' => $new_assignee,
+                );
                 foreach ($notify_users as $uid) {
-                    // Get user email
-                    $user_email = '';
-                    $user_name = '';
-                    if ($this->db->table_exists('users')) {
-                        $sel = ['email'];
-                        if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
-                        if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
-                        if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { 
-                            $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; 
-                        }
-                        $u = $this->db->select(implode(',', $sel), false)->from('users')->where('id', (int)$uid)->get()->row();
-                        if ($u) {
-                            $user_email = isset($u->email) ? $u->email : '';
-                            if (isset($u->full_label) && $u->full_label !== '') { $user_name = $u->full_label; }
-                            else if (isset($u->full_name) && $u->full_name !== '') { $user_name = $u->full_name; }
-                            else if (isset($u->name) && $u->name !== '') { $user_name = $u->name; }
-                            else { $user_name = $user_email; }
-                        }
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            $uid,
+                            'Requirement status changed: '.$req_number,
+                            'Status changed from "'.$status_from.'" to "'.$status_to.'" for: '.$req_title,
+                            'info',
+                            'requirements',
+                            (int) $id,
+                            $view_url
+                        );
                     }
-                    
-                    // In-app notification
-                    $this->load->model('Notification_model');
-                    $this->Notification_model->create($uid, 'Requirement status changed: '.$req_number, 'Status changed from "'.$status_from.'" to "'.$status_to.'" for: '.$req_title, 'info', 'requirements');
-                    
-                    // Email notification (queue via Reminder system)
-                    if ($user_email !== '') {
-                        $email_subject = 'Requirement Status Changed: '.$req_number;
-                        $email_body = "Hello ".$user_name.",\n\n";
-                        $email_body .= "The status of requirement ".$req_number." has been changed:\n\n";
-                        $email_body .= "Requirement: ".$req_title."\n";
-                        $email_body .= "Previous Status: ".$status_from."\n";
-                        $email_body .= "New Status: ".$status_to."\n\n";
-                        $email_body .= "View requirement: ".$view_url."\n\n";
-                        $email_body .= "Thank you.";
-                        
-                        $this->reminders->enqueue([
-                            'user_id' => $uid,
-                            'email' => $user_email,
-                            'type' => 'requirement_status_change',
-                            'subject' => $email_subject,
-                            'body' => $email_body,
-                            'send_at' => date('Y-m-d H:i:00') // Send immediately (or queue for cron)
-                        ]);
-                    }
+                    send_user_notification_email($uid, 'requirements', 'status_changed', $email_data);
                 }
             }
             

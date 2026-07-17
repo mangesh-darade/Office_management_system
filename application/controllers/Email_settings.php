@@ -168,6 +168,15 @@ class Email_settings extends CI_Controller {
                     'status_changed' => 'Project status changed'
                 ]
             ],
+            'requirements' => [
+                'name' => 'Requirements',
+                'description' => 'Requirement assignment and status updates',
+                'events' => [
+                    'created' => 'New requirement assigned',
+                    'updated' => 'Requirement details updated',
+                    'status_changed' => 'Requirement status changed',
+                ]
+            ],
             'leave_requests' => [
                 'name' => 'Leave Requests',
                 'description' => 'Employee leave management',

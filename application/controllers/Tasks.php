@@ -215,9 +215,8 @@ class Tasks extends CI_Controller {
             $description = 'Task: ' . (string)$data['title'];
             auto_log_insert('tasks', 'tasks', (int)$id, $data, $description);
             
-            // Send email notification using settings system
+            // Send SMTP email with portal link (not Google Calendar — that caused duplicate invites)
             if (isset($data['assigned_to']) && !empty($data['assigned_to'])){
-                // Get task details for email
                 $task_details = $this->db->select('t.*, p.name as project_name')
                     ->from('tasks t')
                     ->join('projects p', 'p.id = t.project_id', 'left')
@@ -225,28 +224,28 @@ class Tasks extends CI_Controller {
                     ->get()->row();
                 
                 if ($task_details) {
+                    if (!function_exists('send_notification_with_settings')) {
+                        $this->load->helper('email_settings');
+                    }
                     $sent = send_notification_with_settings('tasks', 'created', $task_details, $task_details->assigned_to);
-                    
                     if ($sent) {
                         log_message('info', 'Task notification sent using settings system for task #' . $id);
                     } else {
                         log_message('info', 'Task notification disabled or failed for task #' . $id);
                     }
+                    $this->load->helper('notification');
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            (int) $data['assigned_to'],
+                            'New task assigned',
+                            (string) $data['title'],
+                            'info',
+                            'tasks',
+                            (int) $id,
+                            site_url('tasks/' . $id)
+                        );
+                    }
                 }
-                
-                // Also create reminder for backward compatibility
-                $this->load->model('Reminder_model','reminders');
-                $this->reminders->ensure_schema();
-                $subject = 'Task assigned: '.(string)$data['title'];
-                $body = 'You have been assigned a task: '.(string)$data['title'].'\n\nOpen: '.site_url('tasks/'.$id);
-                $this->reminders->enqueue([
-                    'user_id' => (int)$data['assigned_to'],
-                    'email' => get_user_email_by_id((int)$data['assigned_to']),
-                    'type' => 'task_assigned',
-                    'subject' => $subject,
-                    'body' => $body,
-                    'send_at' => date('Y-m-d H:i:00')
-                ]);
             }
             $success_msg = get_notification_message('tasks', 'create', 'success');
             $this->session->set_flashdata('success', $success_msg);
@@ -679,57 +678,38 @@ class Tasks extends CI_Controller {
             $description = 'Task: ' . (string)$data['title'];
             track_changes_after('tasks', 'tasks', (int)$id, $old_data, $data, $description);
             
-            // Send email notification if assignee changed
+            // Send one SMTP email to assignee (settings-aware). Avoid double-send if assignee + status both change.
             $old_assignee_id = isset($task->assigned_to) ? (int)$task->assigned_to : null;
             $new_assignee_id = isset($data['assigned_to']) ? (int)$data['assigned_to'] : null;
-            
-            if ($new_assignee_id && $new_assignee_id !== $old_assignee_id) {
-                $email = get_user_email_by_id($new_assignee_id);
-                
-                if ($email) {
-                    // Get updated task details with project info for email
-                    $task_details = $this->db->select('t.*, p.name as project_name')
-                        ->from('tasks t')
-                        ->join('projects p', 'p.id = t.project_id', 'left')
-                        ->where('t.id', $id)
-                        ->get()->row();
-                    
-                    if ($task_details) {
-                        $subject = 'Task Updated: ' . $task_details->title;
-                        $sent = send_task_notification($email, $subject, $task_details, 'updated');
-                        
-                        if ($sent) {
-                            log_message('info', 'Task update notification email sent to ' . $email . ' for task #' . $id);
-                        } else {
-                            log_message('error', 'Failed to send task update notification email to ' . $email . ' for task #' . $id);
-                        }
-                    }
-                }
-            }
-            
-            // Also send notification if status changed (to current assignee)
             $old_status = isset($task->status) ? $task->status : 'pending';
             $new_status = $data['status'];
-            
-            if ($old_status !== $new_status && $new_assignee_id) {
-                $email = get_user_email_by_id($new_assignee_id);
-                
-                if ($email) {
-                    // Get updated task details with project info for email
-                    $task_details = $this->db->select('t.*, p.name as project_name')
-                        ->from('tasks t')
-                        ->join('projects p', 'p.id = t.project_id', 'left')
-                        ->where('t.id', $id)
-                        ->get()->row();
-                    
-                    if ($task_details) {
-                        $subject = 'Task Status Changed: ' . $task_details->title;
-                        $sent = send_task_notification($email, $subject, $task_details, 'status_changed');
-                        
-                        if ($sent) {
-                            log_message('info', 'Task status change notification email sent to ' . $email . ' for task #' . $id);
-                        } else {
-                            log_message('error', 'Failed to send task status change notification email to ' . $email . ' for task #' . $id);
+            $assignee_changed = ($new_assignee_id && $new_assignee_id !== $old_assignee_id);
+            $status_changed = ($old_status !== $new_status && $new_assignee_id);
+
+            if ($assignee_changed || $status_changed) {
+                if (!function_exists('send_notification_with_settings')) {
+                    $this->load->helper('email_settings');
+                }
+                $task_details = $this->db->select('t.*, p.name as project_name')
+                    ->from('tasks t')
+                    ->join('projects p', 'p.id = t.project_id', 'left')
+                    ->where('t.id', $id)
+                    ->get()->row();
+                if ($task_details) {
+                    $event = $assignee_changed ? 'updated' : 'status_changed';
+                    send_notification_with_settings('tasks', $event, $task_details, $new_assignee_id);
+                    if ($assignee_changed) {
+                        $this->load->helper('notification');
+                        if (function_exists('create_notification')) {
+                            create_notification(
+                                $new_assignee_id,
+                                'Task assigned to you',
+                                (string) $task_details->title,
+                                'info',
+                                'tasks',
+                                (int) $id,
+                                site_url('tasks/' . $id)
+                            );
                         }
                     }
                 }
@@ -1947,28 +1927,18 @@ class Tasks extends CI_Controller {
         $this->load->helper('activity');
         log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$status);
         
-        // Send email notification if status changed and task has assignee
+        // Send SMTP email if status changed and task has assignee (settings-aware)
         if ($old_status !== $status && !empty($task->assigned_to)) {
-            $email = get_user_email_by_id($task->assigned_to);
-            
-            if ($email) {
-                // Get updated task details with project info for email
-                $task_details = $this->db->select('t.*, p.name as project_name')
-                    ->from('tasks t')
-                    ->join('projects p', 'p.id = t.project_id', 'left')
-                    ->where('t.id', $id)
-                    ->get()->row();
-                
-                if ($task_details) {
-                    $subject = 'Task Status Changed: ' . $task_details->title;
-                    $sent = send_task_notification($email, $subject, $task_details, 'status_changed');
-                    
-                    if ($sent) {
-                        log_message('info', 'Task status change notification email sent to ' . $email . ' for task #' . $id);
-                    } else {
-                        log_message('error', 'Failed to send task status change notification email to ' . $email . ' for task #' . $id);
-                    }
-                }
+            if (!function_exists('send_notification_with_settings')) {
+                $this->load->helper('email_settings');
+            }
+            $task_details = $this->db->select('t.*, p.name as project_name')
+                ->from('tasks t')
+                ->join('projects p', 'p.id = t.project_id', 'left')
+                ->where('t.id', $id)
+                ->get()->row();
+            if ($task_details) {
+                send_notification_with_settings('tasks', 'status_changed', $task_details, (int) $task->assigned_to);
             }
         }
         
