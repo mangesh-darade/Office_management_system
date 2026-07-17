@@ -59,3 +59,9 @@ Load app JS in footer after CDN libraries (especially DataTables).
 ## Accessibility
 
 4.5:1 contrast minimum. Keyboard-navigable interactive elements. No div-as-button without `role="button"` + `tabindex="0"`.
+
+## Table Actions column
+
+**One format everywhere:** icon-only `btn-group btn-group-sm` outline buttons (`bi-eye` / `bi-pencil` / `bi-trash`, with `title`). No text labels in Actions cells; no mixing icon-only and labeled buttons across screens.
+
+See `.cursor/rules/table-actions-format.mdc` for the full canonical HTML and color map.

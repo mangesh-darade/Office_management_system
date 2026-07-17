@@ -1,0 +1,64 @@
+---
+description: Table Actions column — one icon-button format everywhere
+globs: application/views/**/*.php,assets/css/**/*.css,assets/js/**/*.js
+alwaysApply: false
+---
+
+# Table Actions Column — Single Format
+
+**Rule:** Every list/table **Actions** column uses the **same** control style. Do not mix text buttons on one screen and icon-only on another.
+
+## Canonical format (required)
+
+Icon-only Bootstrap outline buttons inside `btn-group btn-group-sm`:
+
+```php
+<td class="text-end text-nowrap">
+  <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
+    <a href="..." class="btn btn-outline-secondary" title="View"><i class="bi bi-eye"></i></a>
+    <a href="..." class="btn btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+    <button type="button" class="btn btn-outline-danger" title="Delete" ...>
+      <i class="bi bi-trash"></i>
+    </button>
+  </div>
+</td>
+```
+
+## Required details
+
+| Item | Standard |
+|------|----------|
+| Wrapper | `btn-group btn-group-sm` + `role="group"` |
+| Cell | `text-end text-nowrap` |
+| Control | Icon **only** — no label text like "Edit" / "Delete" next to the icon |
+| Accessibility | `title="..."` and/or `aria-label="..."` on every control |
+| Icons | Bootstrap Icons only (`bi bi-*`) |
+
+## Color map (keep consistent)
+
+| Action | Class | Icon |
+|--------|-------|------|
+| View / open | `btn-outline-secondary` | `bi-eye` |
+| Edit | `btn-outline-primary` | `bi-pencil` |
+| Approve / success | `btn-outline-success` | `bi-check-lg` |
+| Reject / warning soft | `btn-outline-warning` | `bi-x-lg` (or module-specific) |
+| Delete / danger | `btn-outline-danger` | `bi-trash` |
+| Download / export | `btn-outline-secondary` | `bi-download` |
+| Extra tools | `btn-outline-secondary` | matching `bi-*` |
+
+## Forbidden (do not introduce)
+
+- Text buttons in Actions: `<button>Edit</button>`, `btn-primary` with "Save" label in the table Actions cell
+- Mixing styles on the same page (one row icon-only, another full text button)
+- Raw icons without `btn` classes
+- `d-flex gap-1` loose buttons when `btn-group` fits (prefer `btn-group`)
+- Different icon sets (Font Awesome, emoji) in Actions columns
+- Large `btn` (non-sm) in dense tables
+
+## Forms / page headers (exception)
+
+Toolbar and page-header primary actions **may** use text + icon (e.g. `btn btn-primary btn-sm` + "Add"). That exception is **only** outside the table Actions column.
+
+## When editing existing screens
+
+If you touch a table Actions column that uses text buttons or mixed styles, **normalize it** to this icon `btn-group` format in the same change (same module file only — do not drive-by other modules unless asked).
