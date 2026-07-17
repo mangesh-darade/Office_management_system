@@ -177,7 +177,7 @@ class Ai_chat extends CI_Controller {
             $this->ai_conv->add_message($conv_id, 'user', $message);
         }
 
-        // Follow-ups against last tool result (export / repeat)
+        // Follow-ups against last tool result (export / repeat / date refine / re-ask)
         $follow = ai_chat_is_followup($message);
         $mem = ai_chat_memory_get();
         if ($follow && !empty($mem['last_rows']) && is_array($mem['last_rows'])) {
@@ -200,16 +200,42 @@ class Ai_chat extends CI_Controller {
             }
         }
 
+        // "what I asked / check first" → re-run last question
+        $tool_message = $message;
+        if (function_exists('ai_chat_is_meta_reask') && ai_chat_is_meta_reask($message)
+            && !empty($mem['last_query'])
+        ) {
+            $tool_message = (string) $mem['last_query'];
+            $notify('reask', 'Re-checking your last question');
+        }
+
+        // "this month / not only today" after an attendance/leave tool → same tool, new dates
+        if (function_exists('ai_chat_is_date_refinement') && ai_chat_is_date_refinement($message)
+            && !empty($mem['last_tool'])
+            && empty(ai_chat_match_tool($message))
+        ) {
+            $tool_message = trim((isset($mem['last_query']) ? $mem['last_query'] : '') . ' ' . $message);
+            $notify('refine', 'Updating date range from your question');
+        }
+
         // Multilingual intent → deterministic tools (lexicon score, then LLM classify)
         $notify('tool_check', 'Understanding your question');
-        $tool = ai_chat_match_tool($message);
+        $tool = ai_chat_match_tool($tool_message);
+        if (!$tool && function_exists('ai_chat_is_date_refinement') && ai_chat_is_date_refinement($message)
+            && !empty($mem['last_tool'])
+            && function_exists('ai_chat_user_can_use_tool')
+            && ai_chat_user_can_use_tool($mem['last_tool'])
+        ) {
+            $tool = $mem['last_tool'];
+            $tool_message = trim((isset($mem['last_query']) ? $mem['last_query'] : '') . ' ' . $message);
+        }
         if (!$tool && $user_id > 0) {
             $notify('intent_llm', 'Detecting intent');
-            $tool = $this->ai_handler->classify_intent($message);
+            $tool = $this->ai_handler->classify_intent($tool_message);
         }
         if ($tool && $user_id > 0) {
             $notify('tool_run', $tool);
-            $tool_result = ai_chat_run_tool($tool, $user_id, $this->db);
+            $tool_result = ai_chat_run_tool($tool, $user_id, $this->db, $tool_message);
             if (!empty($tool_result['ok'])) {
                 $final_answer = $tool_result['html'];
                 if (function_exists('ai_chat_needs_localization') && ai_chat_needs_localization($message)) {
@@ -217,13 +243,14 @@ class Ai_chat extends CI_Controller {
                     $final_answer = $this->ai_handler->localize_answer($message, $final_answer);
                 }
                 if (!empty($tool_result['rows'])) {
-                    $final_answer = ai_chat_append_export_buttons($final_answer, $tool_result['rows'], $message);
+                    $final_answer = ai_chat_append_export_buttons($final_answer, $tool_result['rows'], $tool_message);
                 }
                 ai_chat_memory_set(array(
                     'last_tool' => $tool,
-                    'last_query' => $message,
+                    'last_query' => $tool_message,
                     'last_html' => $final_answer,
                     'last_rows' => !empty($tool_result['rows']) ? $tool_result['rows'] : array(),
+                    'last_range' => function_exists('ai_chat_parse_date_range') ? ai_chat_parse_date_range($tool_message) : null,
                 ));
                 ai_chat_audit_log($user_id, $message, $tool, 'tool', true);
                 return $this->_finalize_assistant_turn($conversation_history, $final_answer, $conv_id, array(
@@ -240,23 +267,68 @@ class Ai_chat extends CI_Controller {
         $response = $this->ai_handler->process_query($message, $context, $user_info, $conversation_history);
 
         if (isset($response['type']) && $response['type'] === 'sql_query') {
-            $notify('sql', 'Preparing safe query');
-            $pending_sql = trim((string) $response['query']);
-            // Confirm gate: do not auto-run LLM SQL; store tokenized pending query
-            $token = bin2hex(random_bytes(16));
-            $this->session->set_userdata('ai_pending_sql', array(
-                'token' => $token,
-                'sql' => $pending_sql,
-                'message' => $message,
-                'format' => $format,
-                'created_at' => time(),
+            $notify('sql', 'Fetching your data');
+            $sql = trim((string) $response['query']);
+            $query_result = $this->execute_safe_query($sql, $user_id);
+
+            $wants_file = (stripos($message, 'file') !== false
+                || stripos($message, 'report') !== false
+                || stripos($message, 'download') !== false
+                || stripos($message, 'export') !== false
+                || stripos($message, 'excel') !== false
+                || stripos($message, 'pdf') !== false
+                || stripos($message, 'csv') !== false
+                || $format !== '');
+
+            $detected_format = 'csv';
+            if ($format !== '' && in_array($format, array('excel', 'pdf', 'csv'), true)) {
+                $detected_format = $format;
+            } elseif (stripos($message, 'excel') !== false || stripos($message, 'xlsx') !== false) {
+                $detected_format = 'excel';
+            } elseif (stripos($message, 'pdf') !== false) {
+                $detected_format = 'pdf';
+            } elseif (stripos($message, 'csv') !== false) {
+                $detected_format = 'csv';
+            }
+
+            if (isset($query_result['error'])) {
+                $friendly = $this->_friendly_data_error($query_result['error']);
+                ai_chat_audit_log($user_id, $message, null, 'sql_error', false);
+                return $this->_finalize_assistant_turn($conversation_history, $friendly, $conv_id, array('source' => 'sql_error'));
+            }
+
+            if ($wants_file && is_array($query_result) && !empty($query_result)) {
+                $file_info = $this->generate_export_file($query_result, $detected_format, $message);
+                if ($file_info && !isset($file_info['error'])) {
+                    $download_url = base_url($file_info['path']);
+                    $format_name = strtoupper($detected_format);
+                    $final_answer = 'Here is your ' . $format_name . ' report. '
+                        . '<a href="' . htmlspecialchars($download_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" class="btn btn-primary btn-sm me-2"><i class="bi bi-download"></i> Download ' . $format_name . '</a>';
+                    $final_answer = ai_chat_append_export_buttons($final_answer, $query_result, $message);
+                } else {
+                    $final_answer = 'I could not generate the download file. Please try again.';
+                }
+            } else {
+                $notify('summarize', 'Preparing answer');
+                $user_name = isset($user_info['name']) ? $user_info['name'] : null;
+                $final_answer = $this->ai_handler->summarize_data($message, $query_result, $user_name);
+                if (is_array($query_result) && !empty($query_result)) {
+                    $final_answer = ai_chat_append_export_buttons($final_answer, $query_result, $message);
+                }
+            }
+
+            ai_chat_memory_set(array(
+                'last_tool' => null,
+                'last_query' => $message,
+                'last_html' => $final_answer,
+                'last_rows' => $query_result,
             ));
-            $final_answer = ai_chat_sql_confirm_html($token, $pending_sql);
-            ai_chat_audit_log($user_id, $message, null, 'sql_confirm', true);
-            return $this->_finalize_assistant_turn($conversation_history, $final_answer, $conv_id, array(
-                'source' => 'sql_confirm',
-                'needs_confirm' => true,
-            ));
+            ai_chat_audit_log($user_id, $message, null, 'sql', true);
+            $extra = array('source' => 'sql');
+            if (ENVIRONMENT === 'development' && $user_role_id === 1) {
+                $extra['debug_sql'] = $sql;
+            }
+            return $this->_finalize_assistant_turn($conversation_history, $final_answer, $conv_id, $extra);
         }
 
         $text_content = isset($response['text']) ? $response['text'] : json_encode($response);
@@ -265,10 +337,35 @@ class Ai_chat extends CI_Controller {
     }
 
     /**
-     * Confirm and run a pending LLM SQL query.
+     * User-facing error (no technical SQL wording).
+     *
+     * @param string $error
+     * @return string
+     */
+    private function _friendly_data_error($error)
+    {
+        $error = (string) $error;
+        if (stripos($error, 'permission') !== false || stripos($error, 'access') !== false) {
+            return 'You do not have access to that information.';
+        }
+        if (stripos($error, 'destructive') !== false || stripos($error, 'blocked') !== false || stripos($error, 'safety') !== false) {
+            return 'I could not complete that request safely. Please rephrase (for example: "today\'s attendance" or "my leave balance").';
+        }
+        if (stripos($error, 'Query failed') !== false || stripos($error, 'Unknown column') !== false) {
+            return 'I could not find that data in the expected format. Try: "Who is on leave today?" or "My attendance today".';
+        }
+        if (ENVIRONMENT === 'development' && (int) $this->session->userdata('role_id') === 1) {
+            return 'Unable to fetch data. (' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . ')';
+        }
+        return 'I could not fetch that right now. Please try a simpler question.';
+    }
+
+    /**
+     * Confirm and run a pending LLM SQL query (legacy; UI no longer shows SQL).
      */
     public function confirm_sql()
     {
+        // Kept for backward compatibility — prefer auto-run path in send_message.
         $token = (string) $this->input->post('token');
         $cancel = (int) $this->input->post('cancel');
         $pending = $this->session->userdata('ai_pending_sql');
@@ -276,24 +373,31 @@ class Ai_chat extends CI_Controller {
             $this->session->unset_userdata('ai_pending_sql');
             echo json_encode(array(
                 'status' => 'success',
-                'response' => 'Query cancelled.',
+                'response' => 'Cancelled.',
                 'csrf_token' => $this->security->get_csrf_hash(),
             ));
             return;
         }
         if (!is_array($pending) || empty($pending['token']) || !hash_equals((string) $pending['token'], $token)) {
-            echo json_encode(array('status' => 'error', 'message' => 'No pending query (or expired).', 'csrf_token' => $this->security->get_csrf_hash()));
+            echo json_encode(array(
+                'status' => 'error',
+                'message' => 'Nothing to run. Please ask your question again.',
+                'csrf_token' => $this->security->get_csrf_hash(),
+            ));
             return;
         }
         if (!empty($pending['created_at']) && (time() - (int) $pending['created_at']) > 300) {
             $this->session->unset_userdata('ai_pending_sql');
-            echo json_encode(array('status' => 'error', 'message' => 'Pending query expired. Ask again.', 'csrf_token' => $this->security->get_csrf_hash()));
+            echo json_encode(array(
+                'status' => 'error',
+                'message' => 'That request expired. Please ask again.',
+                'csrf_token' => $this->security->get_csrf_hash(),
+            ));
             return;
         }
 
         $user_id = (int) $this->session->userdata('user_id');
         $message = isset($pending['message']) ? $pending['message'] : 'query';
-        $format = isset($pending['format']) ? $pending['format'] : '';
         $this->load->library('Ai_handler');
         $query_result = $this->execute_safe_query($pending['sql'], $user_id);
         $this->session->unset_userdata('ai_pending_sql');
@@ -301,7 +405,7 @@ class Ai_chat extends CI_Controller {
         if (isset($query_result['error'])) {
             echo json_encode(array(
                 'status' => 'success',
-                'response' => $query_result['error'],
+                'response' => $this->_friendly_data_error($query_result['error']),
                 'csrf_token' => $this->security->get_csrf_hash(),
             ));
             return;

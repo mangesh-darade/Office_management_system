@@ -185,41 +185,60 @@ class Ai_handler {
      * The Main RAG Entry point
      */
     public function get_relevant_context($user_query) {
+        // Always resolve schema the current user is allowed to see (RBAC-scoped).
+        $allowed_schema = $this->get_full_schema_array();
+        $allowed_schema_lc = array();
+        foreach ($allowed_schema as $t => $desc) {
+            $allowed_schema_lc[strtolower((string) $t)] = $desc;
+        }
+        $allowed_tables = array_keys($allowed_schema_lc);
+
         // 1. Get embedding for user query
         $query_vector = $this->get_embedding_with_fallback($user_query);
         
         if (!$query_vector) {
-            // Fallback: Return full schema if embeddings fail
             return $this->get_full_schema_text();
         }
 
         // 2. Load Vector Store
         $store = $this->load_vector_store();
+        if (!is_array($store)) {
+            $store = array();
+        }
         
-        // 3. Find closest matches (Cosine Similarity)
+        // 3. Find closest matches — only tables the current user may access
         $matches = [];
         foreach ($store as $item) {
-            // Ensure vector dimensions match
-            if (count($query_vector) !== count($item['vector'])) continue;
+            if (empty($item['vector']) || !is_array($item['vector'])) {
+                continue;
+            }
+            if (count($query_vector) !== count($item['vector'])) {
+                continue;
+            }
+
+            $table_id = isset($item['id']) ? strtolower((string) $item['id']) : '';
+            if ($table_id !== '' && !empty($allowed_tables) && !in_array($table_id, $allowed_tables, true)) {
+                continue;
+            }
+            // Prefer live, permission-filtered description over cached admin-built content
+            $content = ($table_id !== '' && isset($allowed_schema_lc[$table_id]))
+                ? ('Table ' . $table_id . ': ' . $allowed_schema_lc[$table_id])
+                : (isset($item['content']) ? $item['content'] : '');
+            if ($content === '') {
+                continue;
+            }
 
             $similarity = $this->cosine_similarity($query_vector, $item['vector']);
             
-            // Lower threshold to capture more potentially relevant tables
             if ($similarity > 0.4) { 
-                // Store match with similarity as key (string key to preserve duplicate float values)
                 $key = (string)$similarity;
-                while(isset($matches[$key])) { $key .= '1'; } // handle collision
-                $matches[$key] = $item['content'];
+                while(isset($matches[$key])) { $key .= '1'; }
+                $matches[$key] = $content;
             }
         }
-        krsort($matches); // Sort by similarity descending
+        krsort($matches);
 
-        // If matches found, return combined text.
-        // CRITICAL FIX: If NO matches found (or very few), fallback to FULL schema.
-        // It's better to send too much context than to miss the relevant table.
         if (!empty($matches)) {
-            // If the best match is very weak (< 0.5), we might be missing something. 
-            // Append full schema if we are not confident.
             reset($matches);
             $best_score = (float)key($matches);
             if ($best_score < 0.5) {
@@ -233,94 +252,8 @@ class Ai_handler {
     }
 
     public function process_query($user_query, $context, $user_info = null, $conversation_history = []) {
-        // Build user context information
-        $user_context = '';
-        $user_name = 'User'; // Default value
-        $user_id = null;
-        
-        if ($user_info && isset($user_info['id'])) {
-            $user_name = isset($user_info['name']) && !empty($user_info['name']) ? $user_info['name'] : 'User';
-            $user_email = isset($user_info['email']) && !empty($user_info['email']) ? $user_info['email'] : '';
-            $user_id = $user_info['id'];
-            
-            $user_context = "\n\nCurrent Logged-in User Information:\n";
-            $user_context .= "- User ID: {$user_id}\n";
-            if (!empty($user_name)) {
-                $user_context .= "- Name: {$user_name}\n";
-            }
-            if (!empty($user_email)) {
-                $user_context .= "- Email: {$user_email}\n";
-            }
-            $user_context .= "\nIMPORTANT: When the user asks about 'my' data, 'my attendance', 'my tasks', etc., filter by user_id = {$user_id} or the appropriate user identifier column.\n";
-            $user_context .= "You can reference the logged-in user's name as: {$user_name}\n";
-        }
-        
-        // Build conversation history context
-        $history_context = '';
-        if (!empty($conversation_history) && is_array($conversation_history)) {
-            $history_context = "\n\nPrevious Conversation Context (for reference):\n";
-            $count = 0;
-            foreach (array_slice($conversation_history, -6) as $exchange) { // Last 3 exchanges (6 messages)
-                if (isset($exchange['user'])) {
-                    $history_context .= "User: " . $exchange['user'] . "\n";
-                }
-                if (isset($exchange['assistant'])) {
-                    // Truncate long responses
-                    $assistant_msg = strlen($exchange['assistant']) > 200 ? substr($exchange['assistant'], 0, 200) . '...' : $exchange['assistant'];
-                    $history_context .= "Assistant: " . strip_tags($assistant_msg) . "\n";
-                }
-                $history_context .= "---\n";
-                $count++;
-                if ($count >= 3) break; // Limit to last 3 exchanges
-            }
-            $history_context .= "\nUse this context to understand follow-up questions, date ranges, or criteria mentioned in previous messages.\n";
-        }
-        
-        // Current date/time context for date range calculations
-        $current_date = date('Y-m-d');
-        $current_time = date('H:i:s');
-        $current_datetime = date('Y-m-d H:i:s');
-        $date_context = "\n\nCurrent Date/Time Context:\n";
-        $date_context .= "- Today's Date: {$current_date}\n";
-        $date_context .= "- Current Time: {$current_time}\n";
-        $date_context .= "- Current DateTime: {$current_datetime}\n";
-        $date_context .= "\nDate Range Guidelines:\n";
-        $date_context .= "- 'today' = {$current_date}\n";
-        $date_context .= "- 'yesterday' = " . date('Y-m-d', strtotime('-1 day')) . "\n";
-        $date_context .= "- 'this week' = Start of current week to {$current_date}\n";
-        $date_context .= "- 'last week' = Previous week (Monday to Sunday)\n";
-        $date_context .= "- 'this month' = " . date('Y-m-01') . " to {$current_date}\n";
-        $date_context .= "- 'last month' = First day to last day of previous month\n";
-        $date_context .= "- 'this year' = " . date('Y-01-01') . " to {$current_date}\n";
-        $date_context .= "- When user says 'last 7 days', 'last 30 days', etc., calculate from {$current_date} backwards\n";
-        $date_context .= "- Always use DATE() function for date comparisons: WHERE DATE(column) >= 'YYYY-MM-DD'\n";
-        
-        $system_prompt = "You are an expert SQL Assistant for an Office Management System based on CodeIgniter and MySQL.
-        Your goal is to answer user questions by querying the database.
-        The user may ask in ANY language or mix (English, Marathi, Hindi, Hinglish, Arabic, Bengali, typos, Roman transliteration). Understand the intent regardless of language.
-        By default, respond in the same language/style that the user uses in their latest question, unless they clearly ask you to use another language or to translate.
-        
-        Here is the Database Schema Context:
-        $context
-        {$user_context}
-        {$date_context}
-        {$history_context}
-        
-        Rules:
-        1. If the user asks for data, generate a valid MYSQL SELECT query. JSON response format: {\"type\": \"sql_query\", \"query\": \"...\"}
-        2. Do NOT use JOINs unless necessary.
-        3. ALWAYS use table aliases (e.g., `attendance.status` or `a.status`) for common columns like 'status', 'id', 'name', 'created_at' to avoid ambiguity.
-        4. Only SELECT columns relevant to the question.
-        5. When user asks about 'my' data (in any language: my/mazya/mera/amar), filter by the logged-in user's ID.
-        6. Leave balance questions (any language) → leave_balances for user_id = {$user_id}.
-        7. For date ranges: Use DATE() function for date comparisons. If user says 'last month', 'this week', 'gela mahina', 'aaj', etc., calculate the exact date range based on current date context.
-        8. If user asks a follow-up question without specifying dates/criteria, use information from previous conversation context.
-        9. If user asks for export/file/download/excel/pdf/csv, include that in your response but still generate the SQL query.
-        10. You can mention the logged-in user's name when appropriate.
-        11. If the question is not about data/database, answer normally in the user's language. JSON: {\"type\": \"text\", \"text\": \"...\"}
-        12. Return ONLY valid JSON. Do not wrap in markdown code blocks.
-        13. SQL must be a SINGLE SELECT statement with NO semicolon characters inside.
-        14. Always respond (text answers) in the same language as the user's latest question.";
+        $this->CI->load->helper('ai_chat_features');
+        $system_prompt = ai_chat_build_process_system_prompt($context, $user_info, $conversation_history);
 
         // Call LLM with Fallback Logic
         $response = $this->call_llm_with_fallback($system_prompt, $user_query);
@@ -414,14 +347,9 @@ class Ai_handler {
             $data_str = substr($data_str, 0, 5000) . "...(truncated)";
         }
 
-        $user_context = $user_name ? "The logged-in user's name is: {$user_name}. " : "";
-        $system_prompt = "You are a helpful multilingual office assistant. The user asked: '$user_query'.
-        {$user_context}The database returned this JSON data:
-        $data_str
-        
-        Summarize this data in natural language (simple HTML allowed: <strong>, <ul>, <li>, <br>). Keep it concise.
-        CRITICAL: Reply in the SAME language/script style as the user's question (English, Marathi, Hindi, Hinglish, Arabic, Bengali, etc.). Do not switch to English unless the user wrote in English.";
-        if ($user_name) {
+        $this->CI->load->helper('ai_chat_features');
+        $system_prompt = ai_chat_build_summarize_system_prompt($user_query, $data_str, $user_name);
+        if ($user_name && strpos($system_prompt, $user_name) === false) {
             $system_prompt .= " You can address the user by name ({$user_name}) when appropriate.";
         }
 
@@ -436,22 +364,9 @@ class Ai_handler {
      */
     public function classify_intent($user_query)
     {
-        $tools = 'my_leave_balance, who_on_leave_today, my_attendance_today, my_open_tasks, my_daily_activity_today, spl_pending_approvals, who_late_today, my_pending_leaves, my_spl_points, none';
-        $system = "You are an intent classifier for an office HR chatbot.
-The user may write in ANY language or mix (English, Marathi, Hindi, Hinglish, Arabic, Bengali, typos, transliteration).
-Map the message to ONE tool key from: {$tools}.
-Examples:
-- 'mazya leave kiti aahet' / 'मेरी छुट्टी कितनी है' / 'leave balance' → my_leave_balance
-- 'aaj kon leave var aahe' / 'who is on leave today' → who_on_leave_today
-- 'mazi hajri' / 'my attendance today' → my_attendance_today
-- 'mazya tasks' / 'pending tasks for me' → my_open_tasks
-- 'aajchi daily activity' → my_daily_activity_today
-- 'pending SPL' → spl_pending_approvals
-- 'who is late today' → who_late_today
-- 'my pending leave' → my_pending_leaves
-- 'my spl points' → my_spl_points
-If unrelated, use none.
-Return ONLY JSON: {\"tool\":\"...\"}";
+        $this->CI->load->helper('ai_chat_features');
+        $system = ai_chat_build_classify_system_prompt();
+        $allowed = ai_chat_allowed_tool_keys();
 
         $raw = $this->call_llm_with_fallback($system, $user_query);
         if (!is_string($raw) || $raw === '') {
@@ -470,12 +385,10 @@ Return ONLY JSON: {\"tool\":\"...\"}";
             return null;
         }
         $tool = trim((string) $decoded['tool']);
-        $allowed = array(
-            'my_leave_balance', 'who_on_leave_today', 'my_attendance_today',
-            'my_open_tasks', 'my_daily_activity_today', 'spl_pending_approvals',
-            'who_late_today', 'my_pending_leaves', 'my_spl_points',
-        );
         if ($tool === 'none' || !in_array($tool, $allowed, true)) {
+            return null;
+        }
+        if (!ai_chat_user_can_use_tool($tool)) {
             return null;
         }
         return $tool;

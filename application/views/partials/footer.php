@@ -171,8 +171,17 @@ function sanitizeAiResponse(str) {
     if (!str || typeof str !== 'string') return '';
     var div = document.createElement('div');
     div.innerHTML = str;
-    var scripts = div.querySelectorAll('script');
-    scripts.forEach(function(s) { s.remove(); });
+    div.querySelectorAll('script,iframe,object,embed,link,meta,style,form').forEach(function(n) { n.remove(); });
+    div.querySelectorAll('*').forEach(function(el) {
+        Array.prototype.slice.call(el.attributes).forEach(function(attr) {
+            var name = attr.name.toLowerCase();
+            var val = (attr.value || '').toLowerCase();
+            if (name.indexOf('on') === 0 || name === 'srcdoc' || (name === 'href' && val.indexOf('javascript:') === 0)
+                || ((name === 'src' || name === 'xlink:href') && val.indexOf('javascript:') === 0)) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
     return div.innerHTML;
 }
 // UI State management

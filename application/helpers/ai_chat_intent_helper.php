@@ -99,6 +99,14 @@ if (!function_exists('ai_chat_intent_lexicon')) {
                 'need' => array('late', 'lateness', 'उशीर', 'late today', 'who is late'),
                 'boost' => array('who is late today', 'late check in', 'aaj late'),
             ),
+            'attendance_today_report' => array(
+                'any' => array('all', 'team', 'everyone', 'users', 'report', 'today', 'aaj', 'saglya', 'sagle', 'सर्व', 'रिपोर्ट', 'month', 'mahina', 'this month'),
+                'need' => array('attendance', 'attendence', 'hajri', 'hazri', 'उपस्थिती', 'हाजिरी', 'attendance report'),
+                'boost' => array(
+                    'attendance report', 'all user attendance', 'all users attendance', 'today attendance',
+                    'aajchi hajri', 'attendance all', 'this month attendance', 'attendance this month',
+                ),
+            ),
             'my_pending_leaves' => array(
                 'any' => array('my', 'mine', 'mazya', 'mere', 'pending', 'waiting'),
                 'need' => array('leave', 'leaves', 'raja', 'chutti', 'leave request', 'leave requests'),
@@ -146,11 +154,16 @@ if (!function_exists('ai_chat_score_intent')) {
         }
 
         $lex = ai_chat_intent_lexicon();
+        $allowed = function_exists('ai_chat_allowed_tool_keys') ? ai_chat_allowed_tool_keys() : array_keys($lex);
         $scores = array();
         $best = null;
         $best_score = 0;
 
         foreach ($lex as $tool => $bags) {
+            if (!empty($allowed) && !in_array($tool, $allowed, true)) {
+                $scores[$tool] = 0;
+                continue;
+            }
             $score = 0;
             $need_hit = false;
             foreach ($bags['need'] as $term) {

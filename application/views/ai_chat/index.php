@@ -84,19 +84,48 @@
         window.currentCsrfToken = token;
     }
 
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str == null ? '' : String(str)));
+        return div.innerHTML;
+    }
+
+    /** Allow safe formatting tags only; strip scripts/handlers/iframes. */
+    function sanitizeAiHtml(str) {
+        if (!str || typeof str !== 'string') return '';
+        var div = document.createElement('div');
+        div.innerHTML = str;
+        div.querySelectorAll('script,iframe,object,embed,link,meta,style,form').forEach(function(n) { n.remove(); });
+        div.querySelectorAll('*').forEach(function(el) {
+            Array.prototype.slice.call(el.attributes).forEach(function(attr) {
+                var name = attr.name.toLowerCase();
+                var val = (attr.value || '').toLowerCase();
+                if (name.indexOf('on') === 0 || name === 'srcdoc' || (name === 'href' && val.indexOf('javascript:') === 0)
+                    || ((name === 'src' || name === 'xlink:href') && val.indexOf('javascript:') === 0)) {
+                    el.removeAttribute(attr.name);
+                }
+            });
+        });
+        return div.innerHTML;
+    }
+
     function appendMessage(text, isUser) {
         const div = document.createElement('div');
         div.className = isUser ? 'd-flex flex-row justify-content-end mb-3' : 'd-flex flex-row justify-content-start mb-3';
         const bubble = document.createElement('div');
         bubble.className = isUser ? 'p-3 bg-primary text-white rounded shadow-sm' : 'p-3 bg-white rounded shadow-sm';
         bubble.style.maxWidth = '85%';
-        bubble.innerHTML = text.replace(/\n/g, '<br>');
+        if (isUser) {
+            bubble.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+        } else {
+            bubble.innerHTML = sanitizeAiHtml(String(text).replace(/\n/g, '<br>'));
+        }
         div.appendChild(bubble);
         chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
         if (!isUser) {
             const temp = document.createElement('div');
-            temp.innerHTML = text;
+            temp.innerHTML = bubble.innerHTML;
             lastAiResponseText = temp.textContent || temp.innerText || '';
         }
     }
@@ -153,7 +182,7 @@
             const data = await response.json();
             if (data.csrf_token) syncCsrf(data.csrf_token);
             if (data.status === 'success') appendMessage(data.response, false);
-            else appendMessage('<small class="text-danger">Error: ' + (data.message || 'Failed') + '</small>', false);
+            else appendMessage('<small class="text-danger">Error: ' + escapeHtml(data.message || 'Failed') + '</small>', false);
         } catch (error) {
             clearInterval(loaderObj.interval);
             loaderObj.div.remove();

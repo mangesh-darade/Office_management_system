@@ -196,6 +196,10 @@ class Ai_chat_test_cli extends CI_Controller
 
         $section('8. New tools + ops helpers');
         $ok(ai_chat_match_tool('Who is late today?') === 'who_late_today', 'match who_late_today');
+        $ok(ai_chat_match_tool('mala report de attendance all user cha') === 'attendance_today_report', 'match Marathi attendance report');
+        $ok(ai_chat_match_tool('I want all user attendance report for this month') === 'attendance_today_report', 'match month attendance report');
+        $rangeMonth = ai_chat_parse_date_range('all users attendance this month');
+        $ok(!empty($rangeMonth['from']) && $rangeMonth['from'] === date('Y-m-01') && empty($rangeMonth['is_today']), 'parse this month range');
         $ok(ai_chat_match_tool('Show my pending leave requests') === 'my_pending_leaves', 'match my_pending_leaves');
         $ok(ai_chat_match_tool('My SPL points') === 'my_spl_points', 'match my_spl_points');
         $ok(ai_chat_is_followup('export csv') === 'export_csv', 'followup export csv');
@@ -203,10 +207,12 @@ class Ai_chat_test_cli extends CI_Controller
         $chips = ai_chat_suggestion_chips();
         $ok(count($chips) >= 5, 'suggestion chips count');
         $confirm = ai_chat_sql_confirm_html('abc123', 'SELECT 1');
-        $ok(strpos($confirm, 'ai-confirm-sql') !== false, 'sql confirm html');
+        $ok(strpos($confirm, 'ai-confirm-sql') !== false, 'sql confirm helper still available');
         if ($uid > 0) {
             $t1 = ai_chat_run_tool('who_late_today', $uid, $this->db);
             $ok(!empty($t1['ok']) || !empty($t1['error']), 'who_late_today structured');
+            $tReport = ai_chat_run_tool('attendance_today_report', $uid, $this->db);
+            $ok(!empty($tReport['ok']) || !empty($tReport['error']), 'attendance_today_report structured');
             $t2 = ai_chat_run_tool('my_pending_leaves', $uid, $this->db);
             $ok(!empty($t2['ok']), 'my_pending_leaves runs');
             $t3 = ai_chat_run_tool('my_spl_points', $uid, $this->db);

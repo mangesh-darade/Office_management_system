@@ -75,20 +75,26 @@ if (!function_exists('ai_chat_is_followup')) {
 
 if (!function_exists('ai_chat_suggestion_chips')) {
     /**
+     * Chips from tool catalog, filtered by current user's module permissions.
+     *
      * @return array<int,array{label:string,message:string}>
      */
     function ai_chat_suggestion_chips()
     {
-        return array(
-            array('label' => 'Leave balance', 'message' => 'What is my leave balance?'),
-            array('label' => 'On leave today', 'message' => 'Who is on leave today?'),
-            array('label' => 'My attendance', 'message' => 'My attendance today'),
-            array('label' => 'Open tasks', 'message' => 'Show my open tasks'),
-            array('label' => 'Daily activity', 'message' => 'My daily activity today'),
-            array('label' => 'Pending SPL', 'message' => 'Pending SPL approvals'),
-            array('label' => 'Late today', 'message' => 'Who is late today?'),
-            array('label' => 'My pending leave', 'message' => 'Show my pending leave requests'),
-        );
+        $chips = array();
+        if (!function_exists('ai_chat_tool_catalog')) {
+            return $chips;
+        }
+        foreach (ai_chat_tool_catalog() as $tool => $meta) {
+            if (function_exists('ai_chat_user_can_use_tool') && !ai_chat_user_can_use_tool($tool)) {
+                continue;
+            }
+            $chips[] = array(
+                'label' => isset($meta['label']) ? $meta['label'] : $tool,
+                'message' => isset($meta['message']) ? $meta['message'] : $tool,
+            );
+        }
+        return $chips;
     }
 }
 
@@ -227,10 +233,10 @@ if (!function_exists('ai_chat_sql_confirm_html')) {
      */
     function ai_chat_sql_confirm_html($token, $preview_sql)
     {
-        $safe = htmlspecialchars(mb_substr((string) $preview_sql, 0, 300), ENT_QUOTES, 'UTF-8');
+        $safe = htmlspecialchars((string) $preview_sql, ENT_QUOTES, 'UTF-8');
         $tok = htmlspecialchars((string) $token, ENT_QUOTES, 'UTF-8');
-        return '<p>I prepared a database query. Confirm to run it:</p>'
-            . '<pre class="small bg-light p-2 rounded" style="white-space:pre-wrap;">' . $safe . '</pre>'
+        return '<p>I prepared a database query. Review the <strong>full</strong> SQL below, then confirm:</p>'
+            . '<pre class="small bg-light p-2 rounded border" style="white-space:pre-wrap;max-height:280px;overflow:auto;">' . $safe . '</pre>'
             . '<button type="button" class="btn btn-sm btn-primary me-2 ai-confirm-sql" data-token="' . $tok . '">Run query</button>'
             . '<button type="button" class="btn btn-sm btn-outline-secondary ai-cancel-sql" data-token="' . $tok . '">Cancel</button>';
     }
@@ -256,6 +262,10 @@ if (!function_exists('ai_chat_eval_cases')) {
             array('q' => 'My daily activity today', 'tool' => 'my_daily_activity_today'),
             array('q' => 'Pending SPL approvals', 'tool' => 'spl_pending_approvals'),
             array('q' => 'Who is late today?', 'tool' => 'who_late_today'),
+            array('q' => 'mala report de attendance all user cha', 'tool' => 'attendance_today_report'),
+            array('q' => 'Show today attendance report', 'tool' => 'attendance_today_report'),
+            array('q' => 'I want all user attendance report for this month', 'tool' => 'attendance_today_report'),
+            array('q' => 'all users attendance this month', 'tool' => 'attendance_today_report'),
             array('q' => 'Show my pending leave requests', 'tool' => 'my_pending_leaves'),
             array('q' => 'My SPL points', 'tool' => 'my_spl_points'),
             array('q' => 'hello how are you', 'tool' => null),
