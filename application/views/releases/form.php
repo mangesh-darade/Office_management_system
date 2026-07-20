@@ -1,4 +1,13 @@
 <?php $this->load->view('partials/header', ['title' => ($action==='edit'?'Edit':'New').' Release']); ?>
+<?php
+$item = isset($item) ? $item : null;
+$item_val = function ($key, $default = '') use ($item) {
+    if (!$item || !isset($item->{$key}) || $item->{$key} === null) {
+        return $default;
+    }
+    return $item->{$key};
+};
+?>
 <div class="oms-form-compact">
 <div class="container-fluid py-3">
 <h1 class="h4 fw-bold mb-3"><?php echo $action==='edit'?'Edit':'New'; ?> Release</h1>
@@ -7,18 +16,18 @@
 <div class="card shadow-soft mb-3"><div class="card-body">
 <form method="post" id="releaseForm"><?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
 <div class="row g-2 oms-form-grid">
-  <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ($item && (int)$item->project_id===(int)$p->id)?'selected':''; ?>><?php echo esc_view($p->name); ?></option><?php endforeach; ?></select></div>
-  <div class="col-md-2"><label class="form-label">Version</label><input name="version" class="form-control" required value="<?php echo $item?esc_view($item->version):''; ?>"></div>
-  <div class="col-md-3"><label class="form-label">Planned date</label><input type="date" name="planned_date" class="form-control" value="<?php echo $item?esc_view($item->planned_date):''; ?>"></div>
+  <div class="col-md-4"><label class="form-label">Project</label><select name="project_id" class="form-select" required><?php foreach ($projects as $p): ?><option value="<?php echo (int)$p->id; ?>" <?php echo ((int) $item_val('project_id', 0) === (int) $p->id) ? 'selected' : ''; ?>><?php echo esc_view($p->name); ?></option><?php endforeach; ?></select></div>
+  <div class="col-md-2"><label class="form-label">Version</label><input name="version" class="form-control" required value="<?php echo esc_view($item_val('version')); ?>"></div>
+  <div class="col-md-3"><label class="form-label">Planned date</label><input type="date" name="planned_date" class="form-control" value="<?php echo esc_view($item_val('planned_date')); ?>"></div>
   <div class="col-md-3"><label class="form-label">Status</label><?php $this->load->view('partials/status_select', array(
     'field_name' => 'status',
     'module_type' => 'releases',
     'select_id' => 'releaseStatus',
-    'current' => $item ? (string) $item->status : '',
+    'current' => (string) $item_val('status'),
     'default_code' => 'planned',
   )); ?></div>
-  <div class="col-12"><label class="form-label">Title</label><input name="title" class="form-control" required value="<?php echo $item?esc_view($item->title):''; ?>"></div>
-  <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Summary for stakeholders"><?php echo $item?esc_view($item->description):''; ?></textarea></div>
+  <div class="col-12"><label class="form-label">Title</label><input name="title" class="form-control" required value="<?php echo esc_view($item_val('title')); ?>"></div>
+  <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3" placeholder="Summary for stakeholders"><?php echo esc_view($item_val('description')); ?></textarea></div>
 </div>
 
 <div class="oms-form-actions">
