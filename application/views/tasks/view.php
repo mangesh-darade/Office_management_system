@@ -1,382 +1,295 @@
-<?php $this->load->view('partials/header', ['title' => 'Task Details']); ?>
-
 <?php
-// Helper function to get display name
-$getDisplayName = function($user) {
+$this->load->view('partials/header', array(
+  'title' => 'Task Details',
+  'extra_css' => array('assets/css/tasks.css'),
+));
+
+$getDisplayName = function ($user) {
   $name = '';
-  if (isset($user->emp_name) && trim((string)$user->emp_name) !== '') { $name = $user->emp_name; }
-  else if (isset($user->full_name) && trim((string)$user->full_name) !== '') { $name = $user->full_name; }
-  else if (isset($user->name) && trim((string)$user->name) !== '') { $name = $user->name; }
-  else if (isset($user->email)) { $name = $user->email; }
-  return trim((string)$name);
+  if (isset($user->emp_name) && trim((string) $user->emp_name) !== '') {
+    $name = $user->emp_name;
+  } elseif (isset($user->full_name) && trim((string) $user->full_name) !== '') {
+    $name = $user->full_name;
+  } elseif (isset($user->name) && trim((string) $user->name) !== '') {
+    $name = $user->name;
+  } elseif (isset($user->email)) {
+    $name = $user->email;
+  }
+  return trim((string) $name);
 };
 
-$getInitials = function($text) {
-  $text = trim((string)$text);
-  if ($text === '') return 'NA';
+$getInitials = function ($text) {
+  $text = trim((string) $text);
+  if ($text === '') {
+    return 'NA';
+  }
   $parts = preg_split('/\s+/', $text);
-  $first = strtoupper(substr($parts[0],0,1));
-  $last = isset($parts[count($parts)-1]) ? strtoupper(substr($parts[count($parts)-1],0,1)) : '';
-  return $first.($last && $last!==$first ? $last : '');
+  $first = strtoupper(substr($parts[0], 0, 1));
+  $last = isset($parts[count($parts) - 1]) ? strtoupper(substr($parts[count($parts) - 1], 0, 1)) : '';
+  return $first . ($last && $last !== $first ? $last : '');
 };
 
-$getStatusColor = function($status) {
-  $colors = [
-    'pending' => 'warning',
-    'in_progress' => 'info', 
-    'completed' => 'success',
-    'blocked' => 'danger'
-  ];
-  return isset($colors[$status]) ? $colors[$status] : 'secondary';
-};
+$status_colors = array(
+  'pending' => 'secondary',
+  'in_progress' => 'info',
+  'completed' => 'success',
+  'blocked' => 'danger',
+);
+$priority_colors = array(
+  'urgent' => 'dark',
+  'high' => 'danger',
+  'medium' => 'warning',
+  'low' => 'success',
+);
 
-$getPriorityColor = function($priority) {
-  $colors = [
-    'high' => 'danger',
-    'medium' => 'warning',
-    'low' => 'success'
-  ];
-  return isset($colors[$priority]) ? $colors[$priority] : 'secondary';
-};
+$task_status = isset($task->status) ? (string) $task->status : 'pending';
+$status_class = isset($status_colors[$task_status]) ? $status_colors[$task_status] : 'secondary';
+$task_priority = isset($task->priority) ? (string) $task->priority : '';
+$priority_class = isset($priority_colors[$task_priority]) ? $priority_colors[$task_priority] : 'secondary';
 
 $assigneeName = $getDisplayName($task);
-$creatorName = $getDisplayName((object)[
+$creatorName = $getDisplayName((object) array(
   'emp_name' => isset($task->creator_name) ? $task->creator_name : '',
-  'full_name' => isset($task->creator_full_name) ? $task->creator_full_name : '', 
+  'full_name' => isset($task->creator_full_name) ? $task->creator_full_name : '',
   'name' => isset($task->creator_name) ? $task->creator_name : '',
-  'email' => isset($task->creator_email) ? $task->creator_email : ''
-]);
+  'email' => isset($task->creator_email) ? $task->creator_email : '',
+));
+
+$can_edit = function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'));
+$can_delete = function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'));
+$can_whatsapp = function_exists('has_module_access') && has_module_access('whatsapp');
+
+$project_id = !empty($task->project_id) ? (int) $task->project_id : 0;
+$project_name = isset($task->project_name) ? trim((string) $task->project_name) : '';
+$back_url = $project_id > 0 ? site_url('projects/' . $project_id) : site_url('tasks');
+$back_title = $project_id > 0 ? 'Back to Project' : 'Back to Tasks';
+$task_title = isset($task->title) ? (string) $task->title : ('Task #' . (int) $task->id);
+
+$due_raw = isset($task->due_date) ? trim((string) $task->due_date) : '';
+$due_overdue = false;
+$due_soon = false;
+if ($due_raw !== '' && $due_raw !== '0000-00-00') {
+  $due_ts = strtotime($due_raw);
+  $due_overdue = $due_ts < strtotime('today');
+  $due_soon = !$due_overdue && $due_ts <= strtotime('+3 days');
+}
 ?>
 
-<!-- Header Section -->
-<div class="d-flex justify-content-between align-items-start mb-4">
-  <div>
-    <div class="d-flex align-items-center gap-3 mb-2">
-      <h1 class="h2 mb-0">Task #<?php echo (int)$task->id; ?></h1>
-      <span class="badge bg-<?php echo $getStatusColor($task->status); ?> fs-6"><?php echo esc_view(ucwords(str_replace('_', ' ', $task->status))); ?></span>
-      <?php if (isset($task->priority) && $task->priority): ?>
-        <span class="badge bg-<?php echo $getPriorityColor($task->priority); ?> fs-6">Priority: <?php echo ucfirst($task->priority); ?></span>
+<div class="container-fluid py-1 px-2 task-detail-page">
+  <?php if ($this->session->flashdata('success')): ?>
+  <div class="alert alert-success py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('success')); ?></div>
+  <?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?>
+  <div class="alert alert-danger py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('error')); ?></div>
+  <?php endif; ?>
+
+  <div class="task-detail-toolbar mb-1">
+    <a class="task-detail-back" href="<?php echo esc_view($back_url, ENT_QUOTES, 'UTF-8'); ?>" title="<?php echo esc_view($back_title, ENT_QUOTES, 'UTF-8'); ?>">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div class="task-detail-title-row">
+      <a class="task-detail-crumb" href="<?php echo site_url('tasks'); ?>">Tasks</a>
+      <?php if ($project_id > 0 && $project_name !== ''): ?>
+      <span class="task-detail-sep" aria-hidden="true">/</span>
+      <a class="task-detail-crumb" href="<?php echo site_url('projects/' . $project_id); ?>"><?php echo esc_view($project_name); ?></a>
+      <?php endif; ?>
+      <span class="task-detail-sep" aria-hidden="true">/</span>
+      <h1 class="task-detail-name" title="<?php echo esc_view($task_title, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($task_title); ?></h1>
+      <span class="badge bg-<?php echo esc_view($status_class); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $task_status))); ?></span>
+      <?php if ($task_priority !== ''): ?>
+      <span class="badge bg-<?php echo esc_view($priority_class); ?>"><?php echo esc_view(ucfirst($task_priority)); ?></span>
       <?php endif; ?>
     </div>
-    <p class="text-muted mb-0">
-      Created <?php echo isset($task->created_at) ? date('M j, Y', strtotime($task->created_at)) : ''; ?>
-      <?php if ($creatorName): ?>by <?php echo esc_view($creatorName); ?><?php endif; ?>
-    </p>
-  </div>
-  <div class="d-flex gap-2">
-    <div class="dropdown">
-      <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-        <i class="bi bi-gear me-1"></i> Actions
+    <div class="task-detail-actions">
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks/board'); ?>" title="Task board"><i class="bi bi-kanban"></i></a>
+      <?php if ($can_whatsapp): ?>
+      <button type="button" class="btn btn-outline-success btn-sm" title="Send via WhatsApp" onclick="sendTaskViaWhatsApp(<?php echo (int) $task->id; ?>)">
+        <i class="bi bi-whatsapp"></i>
       </button>
-      <ul class="dropdown-menu">
-        <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
-        <li><a class="dropdown-item" href="<?php echo site_url('tasks/'.$task->id.'/edit'); ?>">
-          <i class="bi bi-pencil me-2"></i>Edit Task
-        </a></li>
-        <?php endif; ?>
-        <li><a class="dropdown-item" href="<?php echo site_url('tasks/board'); ?>">
-          <i class="bi bi-kanban me-2"></i>View Board
-        </a></li>
-        <li><a class="dropdown-item" href="<?php echo site_url('tasks'); ?>">
-          <i class="bi bi-list me-2"></i>List View
-        </a></li>
-        <?php if(function_exists('has_module_access') && has_module_access('whatsapp')): ?>
-        <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item" href="#" onclick="sendTaskViaWhatsApp(<?php echo (int)$task->id; ?>); return false;">
-          <i class="bi bi-whatsapp me-2"></i>Send via WhatsApp
-        </a></li>
-        <?php endif; ?>
-        <?php if(function_exists('has_module_access') && (has_module_access('tasks_delete') || has_module_access('tasks'))): ?>
-        <li><hr class="dropdown-divider"></li>
-        <li>
-          <form method="post" action="<?php echo site_url('tasks/'.$task->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this task?');">
-            <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-            <button type="submit" class="dropdown-item text-danger border-0 bg-transparent w-100 text-start">
-              <i class="bi bi-trash me-2"></i>Delete Task
-            </button>
-          </form>
-        </li>
-        <?php endif; ?>
-      </ul>
+      <?php endif; ?>
+      <?php if ($can_edit): ?>
+      <a class="btn btn-primary btn-sm" href="<?php echo site_url('tasks/' . (int) $task->id . '/edit'); ?>" title="Edit task"><i class="bi bi-pencil"></i></a>
+      <?php endif; ?>
+      <?php if ($can_delete): ?>
+      <form method="post" action="<?php echo site_url('tasks/' . (int) $task->id . '/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this task?');">
+        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+        <button type="submit" class="btn btn-danger btn-sm" title="Delete task"><i class="bi bi-trash"></i></button>
+      </form>
+      <?php endif; ?>
     </div>
   </div>
-</div>
 
-<!-- Quick Actions Bar -->
-<div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <div class="row align-items-center">
-      <div class="col-md-8">
-        <h5 class="mb-1"><?php echo esc_view($task->title); ?></h5>
-        <div class="d-flex flex-wrap align-items-center gap-3 flex-column flex-md-row">
-          <?php if (!empty($task->project_name)): ?>
-            <div class="d-flex align-items-center gap-2 text-muted">
-              <i class="bi bi-folder text-primary"></i>
-              <span><strong>Project:</strong> <?php echo esc_view($task->project_name); ?></span>
-            </div>
-          <?php endif; ?>
-          <?php if (isset($task->requirement_id) && $task->requirement_id): ?>
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-link-45deg text-info"></i>
-              <span><strong>Requirement:</strong> 
-                <a href="<?php echo site_url('requirements/view/'.(int)$task->requirement_id); ?>" class="text-decoration-none">
-                  <?php echo esc_view(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
-                </a>
-                <?php if (isset($task->requirement_title)): ?>
-                  <span class="text-muted small">- <?php echo esc_view(mb_substr($task->requirement_title, 0, 50)); ?><?php echo mb_strlen($task->requirement_title) > 50 ? '...' : ''; ?></span>
-                <?php endif; ?>
-              </span>
-            </div>
-          <?php endif; ?>
-          <?php if (!empty($task->reference_url)): ?>
-            <div class="w-100">
-              <?php $this->load->view('partials/reference_url_display', ['reference_url' => $task->reference_url, 'wrapper_class' => 'mb-0']); ?>
-            </div>
-          <?php endif; ?>
-        </div>
-      </div>
-      <div class="col-md-4 text-end">
-        <?php if(function_exists('has_module_access') && (has_module_access('tasks_edit') || has_module_access('tasks'))): ?>
-        <div class="btn-group" role="group">
-          <button type="button" class="btn btn-outline-primary btn-sm" onclick="updateTaskStatus('pending')">
-            <i class="bi bi-clock me-1"></i>Pending
-          </button>
-          <button type="button" class="btn btn-outline-info btn-sm" onclick="updateTaskStatus('in_progress')">
-            <i class="bi bi-play me-1"></i>In Progress
-          </button>
-          <button type="button" class="btn btn-outline-success btn-sm" onclick="updateTaskStatus('completed')">
-            <i class="bi bi-check me-1"></i>Complete
-          </button>
-          <button type="button" class="btn btn-outline-danger btn-sm" onclick="updateTaskStatus('blocked')">
-            <i class="bi bi-exclamation-triangle me-1"></i>Block
-          </button>
-        </div>
+  <div class="task-detail-stats mb-1">
+    <div class="task-detail-stat-card">
+      <span class="task-detail-stat-label">Assignee</span>
+      <strong class="task-detail-stat-value"><?php echo esc_view($assigneeName !== '' ? $assigneeName : 'Unassigned'); ?></strong>
+    </div>
+    <div class="task-detail-stat-card">
+      <span class="task-detail-stat-label">Due</span>
+      <strong class="task-detail-stat-value<?php echo $due_overdue ? ' text-danger' : ''; ?>">
+        <?php
+        if ($due_raw !== '' && $due_raw !== '0000-00-00') {
+            echo esc_view(date('M j, Y', strtotime($due_raw)));
+            if ($due_overdue) {
+                echo ' <span class="badge bg-danger">Overdue</span>';
+            } elseif ($due_soon) {
+                echo ' <span class="badge bg-warning text-dark">Soon</span>';
+            }
+        } else {
+            echo '—';
+        }
+        ?>
+      </strong>
+    </div>
+    <div class="task-detail-stat-card">
+      <span class="task-detail-stat-label">Start</span>
+      <strong class="task-detail-stat-value">
+        <?php echo (!empty($task->start_date) && $task->start_date !== '0000-00-00') ? esc_view(date('M j, Y', strtotime($task->start_date))) : '—'; ?>
+      </strong>
+    </div>
+    <div class="task-detail-stat-card">
+      <span class="task-detail-stat-label">Created</span>
+      <strong class="task-detail-stat-value">
+        <?php echo !empty($task->created_at) ? esc_view(date('M j, Y', strtotime($task->created_at))) : '—'; ?>
+        <?php if ($creatorName !== ''): ?>
+        <span class="task-detail-stat-sub">by <?php echo esc_view($creatorName); ?></span>
         <?php endif; ?>
-      </div>
+      </strong>
     </div>
   </div>
-</div>
 
-<!-- Main Content -->
-<div class="row">
-  <!-- Task Details Column -->
-  <div class="col-lg-8">
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-          <i class="bi bi-info-circle me-2"></i>Task Details
-        </h5>
-      </div>
-      <div class="card-body">
-        <?php if (!empty($task->description)): ?>
-          <div class="mb-4">
-            <h6 class="text-muted mb-2">Description</h6>
+  <?php if ($can_edit): ?>
+  <div class="task-detail-status-bar mb-1">
+    <span class="task-detail-status-label">Status</span>
+    <div class="task-detail-status-actions" role="group" aria-label="Update status">
+      <button type="button" class="btn btn-sm<?php echo $task_status === 'pending' ? ' active' : ''; ?>" onclick="updateTaskStatus('pending')">Pending</button>
+      <button type="button" class="btn btn-sm<?php echo $task_status === 'in_progress' ? ' active' : ''; ?>" onclick="updateTaskStatus('in_progress')">In Progress</button>
+      <button type="button" class="btn btn-sm<?php echo $task_status === 'completed' ? ' active' : ''; ?>" onclick="updateTaskStatus('completed')">Complete</button>
+      <button type="button" class="btn btn-sm<?php echo $task_status === 'blocked' ? ' active' : ''; ?>" onclick="updateTaskStatus('blocked')">Blocked</button>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <div class="row g-2">
+    <div class="col-lg-8">
+      <div class="card task-detail-panel mb-1">
+        <div class="card-header">
+          <h2 class="task-detail-panel-title mb-0">Details</h2>
+        </div>
+        <div class="card-body">
+          <?php if (!empty($task->description)): ?>
+          <div class="mb-3">
+            <div class="task-detail-field-label">Description</div>
             <div class="task-description">
-              <?php 
-                $allowed = '<p><br><strong><em><b><i><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre>'; 
-                $desc = isset($task->description) ? strip_tags($task->description, $allowed) : '';
-                echo $desc; 
+              <?php
+                $allowed = '<p><br><strong><em><b><i><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre>';
+                echo strip_tags((string) $task->description, $allowed);
               ?>
             </div>
           </div>
-        <?php endif; ?>
-        
-        <?php if (property_exists($task, 'attachment_path') && !empty($task->attachment_path)): ?>
-          <div class="mb-4">
-            <h6 class="text-muted mb-2">Attachment</h6>
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-paperclip text-muted"></i>
-              <a href="<?php echo base_url($task->attachment_path); ?>" target="_blank" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-download me-1"></i>Download Attachment
-              </a>
-            </div>
-          </div>
-        <?php endif; ?>
-        
-        <div class="row">
-          <div class="col-md-6">
-            <div class="mb-3">
-              <label class="text-muted small">Assigned To</label>
-              <div class="d-flex align-items-center gap-2">
-                <?php if ($assigneeName): ?>
-                  <div class="avatar avatar-bg" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.75rem; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-                    <?php echo esc_view($getInitials($assigneeName)); ?>
-                  </div>
-                  <span><?php echo esc_view($assigneeName); ?></span>
-                <?php else: ?>
-                  <span class="text-muted">Unassigned</span>
-                <?php endif; ?>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="mb-3">
-              <label class="text-muted small">Status</label>
-              <div>
-                <span class="badge bg-<?php echo $getStatusColor($task->status); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $task->status))); ?></span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="row">
-          <div class="col-md-6">
-            <div class="mb-3">
-              <label class="text-muted small">Created</label>
-              <div><?php echo isset($task->created_at) ? date('M j, Y g:i A', strtotime($task->created_at)) : ''; ?></div>
-            </div>
-          </div>
-          <?php if (isset($task->updated_at) && $task->updated_at): ?>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="text-muted small">Last Updated</label>
-                <div><?php echo date('M j, Y g:i A', strtotime($task->updated_at)); ?></div>
-              </div>
-            </div>
+          <?php else: ?>
+          <p class="task-detail-empty mb-3">No description.</p>
           <?php endif; ?>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Sidebar Column -->
-  <div class="col-lg-4">
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-          <i class="bi bi-info-square me-2"></i>Quick Info
-        </h5>
-      </div>
-      <div class="card-body">
-        <div class="vstack gap-3">
-          <div>
-            <label class="text-muted small">Task ID</label>
-            <div class="fw-mono">#<?php echo (int)$task->id; ?></div>
+          <?php if (property_exists($task, 'attachment_path') && !empty($task->attachment_path)): ?>
+          <div class="mb-3">
+            <div class="task-detail-field-label">Attachment</div>
+            <a href="<?php echo base_url($task->attachment_path); ?>" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-paperclip me-1"></i>Download
+            </a>
           </div>
-          
-          <?php if (!empty($task->project_name)): ?>
-            <div>
-              <label class="text-muted small">Project</label>
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-folder text-primary"></i>
-                <span><?php echo esc_view($task->project_name); ?></span>
-              </div>
-            </div>
           <?php endif; ?>
-          
-          <?php if (isset($task->requirement_id) && $task->requirement_id): ?>
-            <div>
-              <label class="text-muted small">Linked Requirement</label>
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <i class="bi bi-link-45deg text-info"></i>
-                <a href="<?php echo site_url('requirements/view/'.(int)$task->requirement_id); ?>" class="text-decoration-none">
-                  <?php echo esc_view(isset($task->requirement_number) ? $task->requirement_number : 'REQ #'.(int)$task->requirement_id); ?>
-                </a>
-                <?php if (isset($task->requirement_status)): ?>
-                  <span class="badge bg-secondary small"><?php echo esc_view(ucwords(str_replace('_', ' ', $task->requirement_status))); ?></span>
-                <?php endif; ?>
-              </div>
-            </div>
-          <?php endif; ?>
-          
-          <?php if (isset($task->start_date) && $task->start_date): ?>
-            <div>
-              <label class="text-muted small">Start Date</label>
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-calendar-event text-primary"></i>
-                <span><?php echo date('M j, Y', strtotime($task->start_date)); ?></span>
-              </div>
-            </div>
-          <?php endif; ?>
-          
-          <?php if (isset($task->due_date) && $task->due_date): ?>
-            <div>
-              <label class="text-muted small">Due Date</label>
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-calendar-check <?php echo strtotime($task->due_date) < strtotime('today') ? 'text-danger' : 'text-warning'; ?>"></i>
-                <span><?php echo date('M j, Y', strtotime($task->due_date)); ?></span>
-                <?php if (strtotime($task->due_date) < strtotime('today')): ?>
-                  <span class="badge bg-danger small">Overdue</span>
-                <?php elseif (strtotime($task->due_date) <= strtotime('+3 days')): ?>
-                  <span class="badge bg-warning small">Due Soon</span>
-                <?php endif; ?>
-              </div>
-            </div>
-          <?php endif; ?>
-          
-          <?php if (isset($task->priority) && $task->priority): ?>
-            <div>
-              <label class="text-muted small">Priority</label>
-              <div>
-                <span class="badge bg-<?php echo $getPriorityColor($task->priority); ?>"><?php echo ucfirst($task->priority); ?></span>
-              </div>
-            </div>
-          <?php endif; ?>
-          
+
+          <?php if (!empty($task->reference_url)): ?>
           <div>
-            <label class="text-muted small">Created By</label>
-            <div class="d-flex align-items-center gap-2">
-              <?php if ($creatorName): ?>
-                <div class="avatar avatar-bg" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.7rem; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-                  <?php echo esc_view($getInitials($creatorName)); ?>
-                </div>
-                <span><?php echo esc_view($creatorName); ?></span>
-              <?php else: ?>
-                <span class="text-muted">Unknown</span>
-              <?php endif; ?>
-            </div>
+            <div class="task-detail-field-label">Reference</div>
+            <?php $this->load->view('partials/reference_url_display', array('reference_url' => $task->reference_url, 'wrapper_class' => 'mb-0')); ?>
           </div>
+          <?php endif; ?>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
-<!-- Comments Section -->
-<div class="row mt-4">
-  <div class="col-12">
-    <div class="card shadow-sm">
-      <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-          <i class="bi bi-chat-dots me-2"></i>Comments
-          <span class="badge bg-secondary ms-2" id="comment-count">0</span>
-        </h5>
-      </div>
-      <div class="card-body">
-        <!-- Flash Messages -->
-        <?php if ($this->session->flashdata('error')): ?>
-          <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php echo esc_view($this->session->flashdata('error')); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        <?php endif; ?>
-        <?php if ($this->session->flashdata('success')): ?>
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?php echo esc_view($this->session->flashdata('success')); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        <?php endif; ?>
-        
-        <!-- Comment Form -->
-        <div class="mb-4">
-          <form method="post" action="<?php echo site_url('tasks/'.(int)$task->id.'/comment'); ?>" id="commentForm">
-            <div class="mb-3">
-              <textarea class="form-control" name="comment" rows="3" placeholder="Add a comment..." required></textarea>
-            </div>
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted">Press Enter to submit, Shift+Enter for new line</small>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-send me-1"></i>Post Comment
-              </button>
+      <div class="card task-detail-panel mb-1">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <h2 class="task-detail-panel-title mb-0">
+            Comments
+            <span class="badge text-bg-light border ms-1" id="comment-count">0</span>
+          </h2>
+        </div>
+        <div class="card-body">
+          <form method="post" action="<?php echo site_url('tasks/' . (int) $task->id . '/comment'); ?>" id="commentForm" class="task-detail-comment-form mb-3">
+            <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+            <textarea class="form-control form-control-sm" name="comment" rows="2" placeholder="Add a comment…" required></textarea>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <small class="text-muted">Enter to post · Shift+Enter for new line</small>
+              <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Post</button>
             </div>
           </form>
+          <div id="comments" class="task-detail-comments"></div>
+          <div id="comments-empty" class="task-detail-empty text-center py-3" style="display:none">No comments yet.</div>
         </div>
-        
-        <!-- Comments List -->
-        <div id="comments" class="vstack gap-3"></div>
-        <div id="comments-empty" class="text-center text-muted py-4" style="display:none">
-          <i class="bi bi-chat-dots" style="font-size: 3rem;"></i>
-          <p class="mt-2">No comments yet. Be the first to comment!</p>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card task-detail-panel mb-1">
+        <div class="card-header">
+          <h2 class="task-detail-panel-title mb-0">Info</h2>
+        </div>
+        <div class="card-body">
+          <dl class="task-detail-dl">
+            <div>
+              <dt>Assignee</dt>
+              <dd>
+                <?php if ($assigneeName !== ''): ?>
+                <span class="task-detail-avatar" aria-hidden="true"><?php echo esc_view($getInitials($assigneeName)); ?></span>
+                <?php echo esc_view($assigneeName); ?>
+                <?php else: ?>
+                <span class="text-muted">Unassigned</span>
+                <?php endif; ?>
+              </dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd><span class="badge bg-<?php echo esc_view($status_class); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $task_status))); ?></span></dd>
+            </div>
+            <?php if ($task_priority !== ''): ?>
+            <div>
+              <dt>Priority</dt>
+              <dd><span class="badge bg-<?php echo esc_view($priority_class); ?>"><?php echo esc_view(ucfirst($task_priority)); ?></span></dd>
+            </div>
+            <?php endif; ?>
+            <?php if ($project_id > 0): ?>
+            <div>
+              <dt>Project</dt>
+              <dd>
+                <a href="<?php echo site_url('projects/' . $project_id); ?>" class="text-decoration-none">
+                  <?php echo esc_view($project_name !== '' ? $project_name : ('Project #' . $project_id)); ?>
+                </a>
+              </dd>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($task->requirement_id)): ?>
+            <div>
+              <dt>Requirement</dt>
+              <dd>
+                <a href="<?php echo site_url('requirements/view/' . (int) $task->requirement_id); ?>" class="text-decoration-none">
+                  <?php echo esc_view(!empty($task->requirement_number) ? $task->requirement_number : ('REQ #' . (int) $task->requirement_id)); ?>
+                </a>
+              </dd>
+            </div>
+            <?php endif; ?>
+            <div>
+              <dt>Created by</dt>
+              <dd><?php echo esc_view($creatorName !== '' ? $creatorName : '—'); ?></dd>
+            </div>
+            <?php if (!empty($task->updated_at)): ?>
+            <div>
+              <dt>Updated</dt>
+              <dd><?php echo esc_view(date('M j, Y g:i A', strtotime($task->updated_at))); ?></dd>
+            </div>
+            <?php endif; ?>
+          </dl>
         </div>
       </div>
     </div>
@@ -385,82 +298,72 @@ $creatorName = $getDisplayName((object)[
 
 <script>
 (function(){
-  const container = document.getElementById('comments');
-  const empty = document.getElementById('comments-empty');
-  const commentCount = document.getElementById('comment-count');
-  const taskId = <?php echo (int)$task->id; ?>;
+  var container = document.getElementById('comments');
+  var empty = document.getElementById('comments-empty');
+  var commentCount = document.getElementById('comment-count');
+  var taskId = <?php echo (int) $task->id; ?>;
 
   function timeago(iso){
-    const d = new Date(iso.replace(' ', 'T'));
-    const diff = (Date.now() - d.getTime())/1000;
-    if (diff < 60) return Math.floor(diff)+'s ago';
-    if (diff < 3600) return Math.floor(diff/60)+'m ago';
-    if (diff < 86400) return Math.floor(diff/3600)+'h ago';
-    return Math.floor(diff/86400)+'d ago';
+    var d = new Date(String(iso).replace(' ', 'T'));
+    var diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return Math.floor(diff) + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
   }
 
   function getInitials(text) {
-    text = text || '';
+    text = (text || '').trim();
     if (!text) return 'NA';
-    const parts = text.trim().split(/\s+/);
-    const first = parts[0] ? parts[0].charAt(0).toUpperCase() : '';
-    const last = parts.length > 1 ? parts[parts.length - 1].charAt(0).toUpperCase() : '';
+    var parts = text.split(/\s+/);
+    var first = parts[0] ? parts[0].charAt(0).toUpperCase() : '';
+    var last = parts.length > 1 ? parts[parts.length - 1].charAt(0).toUpperCase() : '';
     return first + (last && last !== first ? last : '');
+  }
+
+  function escapeHtml(s){
+    return (s || '').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
   }
 
   function render(list){
     container.innerHTML = '';
-    if (!list || list.length === 0){ 
-      empty.style.display = 'block'; 
+    if (!list || list.length === 0){
+      empty.style.display = 'block';
       commentCount.textContent = '0';
-      return; 
+      return;
     }
     empty.style.display = 'none';
     commentCount.textContent = list.length;
-    
     list.forEach(function(c){
-      const name = c.name || c.email || ('User #'+c.user_id);
-      const item = document.createElement('div');
-      item.className = 'comment-item border-bottom pb-3';
-      item.innerHTML = 
-        '<div class="d-flex gap-3 align-items-start">' +
-          '<div class="avatar avatar-bg" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.875rem; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; flex-shrink: 0;">' +
-            getInitials(name) +
+      var name = c.name || c.email || ('User #' + c.user_id);
+      var item = document.createElement('div');
+      item.className = 'task-detail-comment';
+      item.innerHTML =
+        '<div class="task-detail-avatar" aria-hidden="true">' + escapeHtml(getInitials(name)) + '</div>' +
+        '<div class="task-detail-comment-body">' +
+          '<div class="task-detail-comment-meta">' +
+            '<strong>' + escapeHtml(name) + '</strong>' +
+            '<span>' + (c.created_at ? escapeHtml(timeago(c.created_at)) : '') + '</span>' +
           '</div>' +
-          '<div class="flex-grow-1">' +
-            '<div class="d-flex justify-content-between align-items-center mb-2">' +
-              '<div class="fw-semibold">' + escapeHtml(name) + '</div>' +
-              '<div class="text-muted small">' + (c.created_at ? escapeHtml(timeago(c.created_at)) : '') + '</div>' +
-            '</div>' +
-            '<div class="comment-content mb-2">' + escapeHtml(c.comment || '').replace(/\n/g, '<br>') + '</div>' +
-            '<div class="comment-actions">' +
-              '<a href="<?php echo site_url('tasks/comment'); ?>/' + c.id + '/delete?ref=<?php echo rawurlencode(site_url('tasks/'.(int)$task->id)); ?>" class="link-danger small text-decoration-none" onclick="return confirm(\'Delete this comment?\')">' +
-                '<i class="bi bi-trash me-1"></i>Delete' +
-              '</a>' +
-            '</div>' +
-          '</div>' +
+          '<div class="task-detail-comment-text">' + escapeHtml(c.comment || '').replace(/\n/g, '<br>') + '</div>' +
+          '<a href="<?php echo site_url('tasks/comment'); ?>/' + c.id + '/delete?ref=<?php echo rawurlencode(site_url('tasks/' . (int) $task->id)); ?>" class="task-detail-comment-delete" onclick="return confirm(\'Delete this comment?\')"><i class="bi bi-trash"></i> Delete</a>' +
         '</div>';
       container.appendChild(item);
     });
   }
 
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"']/g, function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];
-    });
-  }
-
   function load(){
-    fetch('<?php echo site_url('tasks'); ?>/'+taskId+'/comments', { credentials: 'same-origin' })
-      .then(function(r) { return r.json(); }).then(function(res){ 
-        if (res && res.ok) render(res.comments||[]); 
+    fetch('<?php echo site_url('tasks'); ?>/' + taskId + '/comments', { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(res){
+        if (res && res.ok) render(res.comments || []);
       });
   }
 
-  // Handle form submission with Enter key
-  const commentForm = document.getElementById('commentForm');
-  const commentTextarea = commentForm.querySelector('textarea');
-  
+  var commentForm = document.getElementById('commentForm');
+  var commentTextarea = commentForm.querySelector('textarea');
   commentTextarea.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -471,79 +374,63 @@ $creatorName = $getDisplayName((object)[
   load();
 })();
 
-// Helper: read CSRF token from cookie
 function _csrfParam() {
   var m = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
   return m ? '&<?php echo $this->security->get_csrf_token_name(); ?>=' + encodeURIComponent(decodeURIComponent(m[1])) : '';
 }
 
-// Task status update function
 function updateTaskStatus(status) {
-  const taskId = <?php echo (int)$task->id; ?>;
-  
+  var taskId = <?php echo (int) $task->id; ?>;
   fetch('<?php echo site_url('tasks/update-status'); ?>', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'id=' + taskId + '&status=' + status + _csrfParam(),
     credentials: 'same-origin'
   })
-  .then(response => response.json())
-  .then(data => {
+  .then(function(response) { return response.json(); })
+  .then(function(data) {
     if (data.ok) {
-      // Show success notification
-      showNotification('Task status updated successfully', 'success');
-      // Reload page to reflect changes
-      setTimeout(function() { location.reload(); }, 1000);
+      showNotification('Task status updated', 'success');
+      setTimeout(function() { location.reload(); }, 700);
     } else {
-      showNotification(data.error || 'Failed to update status', 'error');
+      showNotification(data.error || 'Failed to update status', 'danger');
     }
   })
-  .catch(error => {
-    showNotification('Network error. Please try again.', 'error');
+  .catch(function() {
+    showNotification('Network error. Please try again.', 'danger');
   });
 }
 
 function showNotification(message, type) {
   type = type || 'info';
-  const alertDiv = document.createElement('div');
+  var alertDiv = document.createElement('div');
   alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed';
-  alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-  alertDiv.innerHTML = 
-    message +
-    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 260px;';
+  alertDiv.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
   document.body.appendChild(alertDiv);
-  
-  setTimeout(function() {
-    alertDiv.remove();
-  }, 5000);
+  setTimeout(function() { alertDiv.remove(); }, 4000);
 }
 
-// Send task via WhatsApp
 function sendTaskViaWhatsApp(taskId) {
   if (!confirm('Send this task notification via WhatsApp to the assigned employee?')) {
     return;
   }
-  
   fetch('<?php echo site_url('whatsapp/send-task'); ?>', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'task_id=' + taskId + _csrfParam(),
     credentials: 'same-origin'
   })
-  .then(response => response.json())
-  .then(data => {
+  .then(function(response) { return response.json(); })
+  .then(function(data) {
     if (data.success) {
-      showNotification('✅ ' + data.message, 'success');
+      showNotification(data.message, 'success');
     } else {
-      showNotification('❌ ' + data.message, 'error');
+      showNotification(data.message || 'Failed', 'danger');
     }
   })
-  .catch(error => {
-    showNotification('❌ Network error. Please try again.', 'error');
+  .catch(function() {
+    showNotification('Network error. Please try again.', 'danger');
   });
 }
 </script>
