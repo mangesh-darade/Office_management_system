@@ -11,6 +11,13 @@
     get_instance()->load->helper('module_status');
   }
   $status_records = isset($status_records) ? $status_records : module_status_records($module_type);
+  if (!empty($status_records) && is_array($status_records)) {
+    usort($status_records, function ($a, $b) {
+      $an = isset($a->name) ? (string) $a->name : '';
+      $bn = isset($b->name) ? (string) $b->name : '';
+      return strcasecmp($an, $bn);
+    });
+  }
 ?>
 <select name="<?php echo esc_view($field_name); ?>" id="<?php echo esc_view($select_id); ?>" class="<?php echo esc_view($select_class); ?>"<?php echo $required ? ' required' : ''; ?>>
   <?php foreach ($status_records as $st): ?>

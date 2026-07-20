@@ -133,6 +133,7 @@ class Type_model extends CI_Model
         foreach ($this->get_by_module($module, true) as $row) {
             $options[$row->code] = $row->name;
         }
+        asort($options, SORT_NATURAL | SORT_FLAG_CASE);
         return $options;
     }
 }

@@ -706,24 +706,67 @@ class Spl extends CI_Controller
         if ($id <= 0 || $name === '') {
             $this->_json_error('Level id and name are required.', 422);
         }
+        if (strlen($name) > 50) {
+            $this->_json_error('Level name must be 50 characters or fewer.', 422);
+        }
 
         $existing = $this->rewards->get_level_by_id($id);
         if (!$existing) {
             $this->_json_error('Level not found.', 404);
         }
 
+        $min_raw = trim((string) $this->input->post('min_lifetime_points'));
         $max_raw = trim((string) $this->input->post('max_lifetime_points'));
+        if ($min_raw === '' || !is_numeric($min_raw)) {
+            $this->_json_error('Min points must be a valid number.', 422);
+        }
+        $min_points = (float) $min_raw;
+        if ($min_points < 0) {
+            $this->_json_error('Min points cannot be negative.', 422);
+        }
+
+        $max_points = null;
+        if ($max_raw !== '') {
+            if (!is_numeric($max_raw)) {
+                $this->_json_error('Max points must be a valid number or empty.', 422);
+            }
+            $max_points = (float) $max_raw;
+            if ($max_points < $min_points) {
+                $this->_json_error('Max points must be greater than or equal to min points.', 422);
+            }
+        }
+
+        $is_active = (int) $this->input->post('is_active');
+        if ($is_active !== 0 && $is_active !== 1) {
+            $is_active = !empty($existing->is_active) ? 1 : 0;
+        }
+
+        $badge_color = trim((string) $this->input->post('badge_color'));
+        if ($badge_color === '') {
+            $badge_color = isset($existing->badge_color) ? (string) $existing->badge_color : '#6c757d';
+        }
+
         $data = array(
             'name' => $name,
-            'min_lifetime_points' => (float) $this->input->post('min_lifetime_points'),
-            'max_lifetime_points' => $max_raw !== '' ? (float) $max_raw : null,
-            'badge_color' => trim((string) $this->input->post('badge_color')) ?: $existing->badge_color,
-            'is_active' => (int) $this->input->post('is_active'),
+            'min_lifetime_points' => $min_points,
+            'max_lifetime_points' => $max_points,
+            'badge_color' => $badge_color,
+            'is_active' => $is_active,
         );
 
         $savedId = $this->rewards->save_level($data, $id);
+        if ($savedId <= 0) {
+            $this->_json_error('Failed to save level. Please try again.', 500);
+        }
+
         $this->rewards->audit('level', $savedId, 'updated', (int) $this->session->userdata('user_id'));
-        $this->_json_success(array('id' => $savedId));
+        $this->_json_success(array(
+            'id' => $savedId,
+            'name' => $name,
+            'min_lifetime_points' => $min_points,
+            'max_lifetime_points' => $max_points,
+            'is_active' => $is_active,
+        ));
     }
 
     public function rules_sample_csv()

@@ -220,11 +220,17 @@ class Reward_model extends CI_Model
 
     public function save_level($data, $id = null)
     {
-        if ($id) {
-            $this->db->where('id', (int) $id)->update('reward_levels', $data);
-            return (int) $id;
+        if (!$this->db->table_exists('reward_levels')) {
+            return false;
         }
-        $this->db->insert('reward_levels', $data);
+        if ($id) {
+            $ok = $this->db->where('id', (int) $id)->update('reward_levels', $data);
+            return $ok ? (int) $id : false;
+        }
+        $ok = $this->db->insert('reward_levels', $data);
+        if (!$ok) {
+            return false;
+        }
         return (int) $this->db->insert_id();
     }
 

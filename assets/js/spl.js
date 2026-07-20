@@ -1967,7 +1967,7 @@
     initSplApprovalsPanel(document);
     initSplActivityPanel(document);
     bindSplTabAdjust();
-    initLevelsTable();
+    initSplLevelsPanel(document);
   });
 
   function bindSplTabAdjust() {
@@ -1983,7 +1983,15 @@
     }
   }
 
-  var levelsTable = document.getElementById('splLevelsTable');
+  function getLevelsTable(root) {
+    if (root && root.querySelector) {
+      var scoped = root.querySelector('#splLevelsTable');
+      if (scoped) {
+        return scoped;
+      }
+    }
+    return document.getElementById('splLevelsTable');
+  }
 
   function formatLevelPointsRange(minVal, maxVal) {
     var min = parseFloat(minVal);
@@ -2050,13 +2058,20 @@
   }
 
   function levelRowPayload(row) {
+    var nameInput = row.querySelector('.spl-level-name');
+    var minInput = row.querySelector('.spl-level-min');
     var maxInput = row.querySelector('.spl-level-max');
+    var activeInput = row.querySelector('.spl-level-active');
+    var name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+      return null;
+    }
     return {
       id: row.getAttribute('data-level-id') || '',
-      name: row.querySelector('.spl-level-name').value.trim(),
-      min_lifetime_points: row.querySelector('.spl-level-min').value,
+      name: name,
+      min_lifetime_points: minInput ? minInput.value : '0',
       max_lifetime_points: maxInput ? maxInput.value : '',
-      is_active: row.querySelector('.spl-level-active').checked ? 1 : 0
+      is_active: activeInput && activeInput.checked ? 1 : 0
     };
   }
 
@@ -2079,40 +2094,96 @@
     }, 3000);
   }
 
-  function initLevelsTable() {
-    if (!levelsTable || !cfg.canManageLevels) {
+  function handleSplLevelsTableClick(e) {
+    var activeCfg = getSplCfg();
+    var toggleBtn = e.target.closest('.spl-toggle-level');
+    if (!toggleBtn) {
       return;
     }
-    levelsTable.querySelectorAll('tbody tr.spl-level-row').forEach(function (row) {
-      setLevelRowEditing(row, false);
-    });
-    levelsTable.addEventListener('click', function (e) {
-      var toggleBtn = e.target.closest('.spl-toggle-level');
-      if (!toggleBtn) {
-        return;
+    e.preventDefault();
+    var row = toggleBtn.closest('tr.spl-level-row');
+    if (!row) {
+      return;
+    }
+    if (!row.classList.contains('is-editing')) {
+      setLevelRowEditing(row, true);
+      var focusInput = row.querySelector('.spl-level-name');
+      if (focusInput) {
+        focusInput.focus();
+        focusInput.select();
       }
-      var row = toggleBtn.closest('tr');
-      if (!row.classList.contains('is-editing')) {
-        setLevelRowEditing(row, true);
-        return;
+      return;
+    }
+    if (!activeCfg.canManageLevels) {
+      showSplToast('You do not have permission to edit levels.', 'danger');
+      return;
+    }
+    if (!activeCfg.saveLevelUrl) {
+      showSplToast('Cannot save level. Reload the Leaderboard tab and try again.', 'danger');
+      return;
+    }
+    var payload = levelRowPayload(row);
+    if (!payload) {
+      showSplToast('Level name is required.', 'danger');
+      return;
+    }
+    var minVal = parseFloat(payload.min_lifetime_points);
+    var maxRaw = String(payload.max_lifetime_points || '').trim();
+    var maxVal = maxRaw !== '' ? parseFloat(maxRaw) : null;
+    if (isNaN(minVal) || minVal < 0) {
+      showSplToast('Min points must be a non-negative number.', 'danger');
+      return;
+    }
+    if (maxVal !== null && (isNaN(maxVal) || maxVal < minVal)) {
+      showSplToast('Max points must be empty or greater than or equal to min.', 'danger');
+      return;
+    }
+    toggleBtn.disabled = true;
+    postForm(activeCfg.saveLevelUrl, payload).then(function (res) {
+      if (res && res.status === 'success') {
+        syncLevelRowDisplay(row);
+        setLevelRowEditing(row, false);
+        var label = payload.name || 'Level';
+        showLevelSaveMessage(label + ' saved successfully.');
+      } else {
+        showSplToast((res && res.message) ? res.message : 'Could not save level.', 'danger');
       }
-      if (!cfg.saveLevelUrl) {
-        return;
-      }
-      postForm(cfg.saveLevelUrl, levelRowPayload(row)).then(function (res) {
-        if (res && res.status === 'success') {
-          syncLevelRowDisplay(row);
-          setLevelRowEditing(row, false);
-          var label = row.querySelector('.spl-level-name');
-          showLevelSaveMessage((label && label.value.trim() ? label.value.trim() : 'Level') + ' saved successfully.');
-        } else {
-          showSplToast((res && res.message) ? res.message : 'Could not save level.', 'danger');
-        }
-      }).catch(function (err) {
-        showSplToast((err && err.message) ? err.message : 'Could not save level. Please try again.', 'danger');
-      });
+    }).catch(function (err) {
+      showSplToast((err && err.message) ? err.message : 'Could not save level. Please try again.', 'danger');
+    }).finally(function () {
+      toggleBtn.disabled = false;
     });
   }
+
+  function ensureSplLevelsClickDelegation() {
+    if (document.documentElement.getAttribute('data-spl-levels-click') === '1') {
+      return;
+    }
+    document.documentElement.setAttribute('data-spl-levels-click', '1');
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest || !e.target.closest('#splLevelsTable')) {
+        return;
+      }
+      handleSplLevelsTableClick(e);
+    });
+  }
+
+  function initSplLevelsPanel(root) {
+    var activeCfg = getSplCfg();
+    var table = getLevelsTable(root);
+    if (!table) {
+      return;
+    }
+    ensureSplLevelsClickDelegation();
+    if (!activeCfg.canManageLevels) {
+      return;
+    }
+    table.querySelectorAll('tbody tr.spl-level-row').forEach(function (row) {
+      setLevelRowEditing(row, false);
+    });
+  }
+
+  window.initSplLevelsPanel = initSplLevelsPanel;
 
   var boardCfg = window.SPL_BOARD_CONFIG || {};
 

@@ -364,6 +364,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.initSplActivityTable) {
       window.initSplActivityTable($content[0]);
     }
+    if (window.initSplLevelsPanel && $content.find('#splLevelsTable').length) {
+      window.initSplLevelsPanel($content[0]);
+    }
   }
 
   function loadTabContent($pane, url, method, data) {

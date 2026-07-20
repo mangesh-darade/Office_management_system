@@ -135,6 +135,7 @@ if (!function_exists('module_status_options')) {
         foreach (module_status_records($type) as $row) {
             $options[(string) $row->code] = (string) $row->name;
         }
+        asort($options, SORT_NATURAL | SORT_FLAG_CASE);
         return $options;
     }
 }

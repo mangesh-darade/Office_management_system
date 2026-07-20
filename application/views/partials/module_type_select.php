@@ -6,6 +6,9 @@
   $required = !empty($required);
   $placeholder = isset($placeholder) ? $placeholder : '— Select type —';
   $select_class = isset($select_class) ? $select_class : 'form-select';
+  if (!empty($options) && is_array($options)) {
+    asort($options, SORT_NATURAL | SORT_FLAG_CASE);
+  }
 ?>
 <select name="<?php echo esc_view($field_name); ?>" id="<?php echo esc_view($field_name); ?>" class="<?php echo esc_view($select_class); ?>"<?php echo $required ? ' required' : ''; ?>>
   <?php if (!$required): ?>

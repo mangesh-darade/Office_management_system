@@ -114,7 +114,11 @@ if (!function_exists('module_type_options_resolved')) {
     function module_type_options_resolved($module)
     {
         $options = module_type_options($module);
-        return !empty($options) ? $options : module_type_fallback_options($module);
+        $options = !empty($options) ? $options : module_type_fallback_options($module);
+        if (!empty($options) && is_array($options)) {
+            asort($options, SORT_NATURAL | SORT_FLAG_CASE);
+        }
+        return $options;
     }
 }
 
@@ -177,6 +181,7 @@ if (!function_exists('module_type_fallback_options')) {
         foreach ($defs[$module] as $row) {
             $options[$row['code']] = $row['name'];
         }
+        asort($options, SORT_NATURAL | SORT_FLAG_CASE);
         return $options;
     }
 }
