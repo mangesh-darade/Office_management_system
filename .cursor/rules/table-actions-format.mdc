@@ -1,12 +1,14 @@
 ---
-description: Table Actions column — one icon-button format everywhere
+description: Table Actions column — one icon-button format everywhere (all list screens)
 globs: application/views/**/*.php,assets/css/**/*.css,assets/js/**/*.js
-alwaysApply: false
+alwaysApply: true
 ---
 
-# Table Actions Column — Single Format
+# Table Actions Column — Single Format (all modules)
 
-**Rule:** Every list/table **Actions** column uses the **same** control style. Do not mix text buttons on one screen and icon-only on another.
+**Rule:** Every list/table **Actions** column uses the **same** control style across the whole OMS. Do not invent per-screen Action UIs (text labels, More menus, mixed styles).
+
+Reference screens that already follow this: Tasks list, Projects list, Requirements list, Employees patterns.
 
 ## Canonical format (required)
 
@@ -30,9 +32,10 @@ Icon-only Bootstrap outline buttons inside `btn-group btn-group-sm`:
 |------|----------|
 | Wrapper | `btn-group btn-group-sm` + `role="group"` |
 | Cell | `text-end text-nowrap` |
-| Control | Icon **only** — no label text like "Edit" / "Delete" next to the icon |
+| Control | Icon **only** — no label text like "View" / "Edit" / "Delete" next to the icon |
 | Accessibility | `title="..."` and/or `aria-label="..."` on every control |
 | Icons | Bootstrap Icons only (`bi bi-*`) |
+| Header | Actions column header uses `class="text-end"` (or `text-end text-nowrap`) |
 
 ## Color map (keep consistent)
 
@@ -48,17 +51,23 @@ Icon-only Bootstrap outline buttons inside `btn-group btn-group-sm`:
 
 ## Forbidden (do not introduce)
 
-- Text buttons in Actions: `<button>Edit</button>`, `btn-primary` with "Save" label in the table Actions cell
+- Text buttons in Actions: `View`, `Edit`, `Delete` labels beside icons
+- **More / ⋮ dropdown menus** inside the Actions column (duplicates View/Edit and clips under `overflow: auto` / sticky table wrappers)
 - Mixing styles on the same page (one row icon-only, another full text button)
 - Raw icons without `btn` classes
 - `d-flex gap-1` loose buttons when `btn-group` fits (prefer `btn-group`)
 - Different icon sets (Font Awesome, emoji) in Actions columns
 - Large `btn` (non-sm) in dense tables
+- Centering Actions when the project standard is `text-end` (right-aligned)
+
+## Overflow / clipping note
+
+List tables often use `overflow: auto` or sticky headers. **Dropdowns inside Actions will clip or overlap rows.** Prefer direct icon buttons + confirm modal/dialog for Delete — never rely on a row dropdown for primary actions.
 
 ## Forms / page headers (exception)
 
-Toolbar and page-header primary actions **may** use text + icon (e.g. `btn btn-primary btn-sm` + "Add"). That exception is **only** outside the table Actions column.
+Toolbar and page-header primary actions **may** use text + icon (e.g. `btn btn-primary btn-sm` + "Add Client"). That exception is **only** outside the table Actions column.
 
 ## When editing existing screens
 
-If you touch a table Actions column that uses text buttons or mixed styles, **normalize it** to this icon `btn-group` format in the same change (same module file only — do not drive-by other modules unless asked).
+If you touch a table Actions column that uses text buttons, More menus, or mixed styles, **normalize it** to this icon `btn-group` format in the same change (same module file only — do not drive-by other modules unless asked).
