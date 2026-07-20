@@ -104,6 +104,7 @@ $route['designations/(:num)/restore'] = 'designations/restore/$1';
 // Clients
 $route['clients'] = 'clients/index';
 $route['clients/create'] = 'clients/create';
+$route['clients/dashboard'] = 'clients/dashboard';
 $route['clients/view/(:num)'] = 'clients/view/$1';
 $route['clients/edit/(:num)'] = 'clients/edit/$1';
 $route['clients/delete/(:num)'] = 'clients/delete/$1';

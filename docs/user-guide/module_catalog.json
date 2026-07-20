@@ -327,6 +327,20 @@
           "delete": null
         },
         {
+          "name": "Clients (Second Brain)",
+          "menu": "Second Brain → Clients",
+          "purpose": "Alphabetical client cards with nested projects; click a project row to expand related tasks.",
+          "list": {"route": "my-works?tab=clients"},
+          "add": null,
+          "edit": null,
+          "delete": {"steps": [
+            "Open Second Brain → Clients.",
+            "Client cards are listed A–Z.",
+            "Each card lists that client’s projects.",
+            "Click a project row to expand its tasks; use the open icon for full project/task pages."
+          ]}
+        },
+        {
           "name": "Template Tasks",
           "menu": "Second Brain → Template Task",
           "purpose": "Create a My Works item from a team template catalog, or import catalog rows from CSV.",

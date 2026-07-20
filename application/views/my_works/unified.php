@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', array(
   'title' => 'Second Brain',
-  'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css')
+  'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css', 'assets/css/clients.css')
 )); ?>
 
 <style>
@@ -56,6 +56,7 @@
   $can_add = function_exists('has_module_access') && (has_module_access('my_works_add') || has_module_access('my_works'));
   $can_req_list = function_exists('has_module_access') && (has_module_access('requirements_list') || has_module_access('requirements'));
   $can_req_add = function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'));
+  $can_clients_tab = function_exists('has_module_access') && (has_module_access('clients_list') || has_module_access('clients_view') || has_module_access('clients'));
   $redirectBack = 'my-works' . safe_query_suffix();
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
   $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works');
@@ -83,6 +84,15 @@
         <i class="bi bi-columns-gap me-1"></i>Projects
       </button>
     </li>
+    <?php if ($can_clients_tab): ?>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <?php echo $active_tab === 'clients' ? 'active' : ''; ?>"
+              id="tab-clients" data-tab="clients" type="button" role="tab"
+              title="Clients">
+        <i class="bi bi-building me-1"></i>Clients
+      </button>
+    </li>
+    <?php endif; ?>
     <li class="nav-item" role="presentation">
       <button class="nav-link <?php echo $active_tab === 'team-dashboard' ? 'active' : ''; ?>" 
               id="tab-team-dashboard" data-tab="team-dashboard" type="button" role="tab"
@@ -159,6 +169,16 @@
     </div>
     <div class="tab-pane-content"></div>
   </div>
+
+  <?php if ($can_clients_tab): ?>
+  <!-- Clients Tab -->
+  <div class="tab-pane fade <?php echo $active_tab === 'clients' ? 'show active' : ''; ?>" id="pane-clients" role="tabpanel">
+    <div class="tab-loading-spinner text-center py-5" style="display: none;">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    <div class="tab-pane-content"></div>
+  </div>
+  <?php endif; ?>
   
   <!-- Team Dashboard Tab -->
   <div class="tab-pane fade <?php echo $active_tab === 'team-dashboard' ? 'show active' : ''; ?>" id="pane-team-dashboard" role="tabpanel">
@@ -431,6 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var isDashboardLink = href.indexOf('my-works') >= 0 || 
                             href.indexOf('projects/dashboard') >= 0 ||
                             href.indexOf('tasks/my-dashboard') >= 0 ||
+                            href.indexOf('clients/dashboard') >= 0 ||
                             href.indexOf('requirements') >= 0 ||
                             href.indexOf('daily-pulse') >= 0;
                             
@@ -466,6 +487,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } else if (tabName === 'project-dashboard') {
         initialUrl = '<?php echo site_url("projects/dashboard"); ?>';
+      } else if (tabName === 'clients') {
+        initialUrl = '<?php echo site_url("clients/dashboard"); ?>';
       } else if (tabName === 'team-dashboard') {
         initialUrl = '<?php echo site_url("tasks/my-dashboard"); ?>';
       } else if (tabName === 'list') {

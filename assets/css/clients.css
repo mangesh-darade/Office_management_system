@@ -1179,3 +1179,168 @@
     flex-shrink: 0;
   }
 }
+
+/* Second Brain → Clients tab dashboard */
+.client-dash-page {
+  padding-top: 0.35rem;
+}
+.client-dash-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+.client-dash-summary .project-dash-stat {
+  min-width: 5.5rem;
+}
+.client-dash-grid {
+  --bs-gutter-x: 0.55rem;
+  --bs-gutter-y: 0.55rem;
+}
+.client-dash-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #eef2f7;
+}
+.client-dash-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.client-dash-card-title > .bi {
+  color: #64748b;
+  flex-shrink: 0;
+}
+.client-dash-client-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.client-dash-client-name:hover {
+  color: #1d4ed8;
+}
+.client-dash-card-counts {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+}
+.client-dash-card-counts span {
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 0.12rem 0.4rem;
+  line-height: 1.2;
+}
+.client-dash-project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.client-dash-project-item {
+  border: 1px solid #eef2f7;
+  border-radius: 0.4rem;
+  background: #f8fafc;
+  margin-bottom: 0.35rem;
+  overflow: hidden;
+}
+.client-dash-project-item:last-child {
+  margin-bottom: 0;
+}
+.client-dash-project-item.is-open {
+  background: #fff;
+  border-color: #dbeafe;
+}
+.client-dash-project-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.client-dash-project-row:hover {
+  background: #eff6ff;
+}
+.client-dash-project-row-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.client-dash-chevron {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.client-dash-project-item.is-open .client-dash-chevron {
+  transform: rotate(90deg);
+  color: #2563eb;
+}
+.client-dash-project-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.client-dash-project-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.client-dash-project-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 0.3rem;
+  color: #64748b;
+  text-decoration: none;
+}
+.client-dash-project-open:hover {
+  background: #e2e8f0;
+  color: #1d4ed8;
+}
+.client-dash-tasks {
+  border-top: 1px solid #eef2f7;
+  background: #fff;
+}
+.client-dash-tasks-empty {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+.client-dash-tasks .project-dash-task-table {
+  margin: 0;
+}
+.client-dash-tasks .project-dash-task-table th,
+.client-dash-tasks .project-dash-task-table td {
+  padding: 0.28rem 0.45rem;
+  font-size: 0.72rem;
+}
+@media (max-width: 767.98px) {
+  .client-dash-client-name {
+    white-space: normal;
+  }
+}
+
