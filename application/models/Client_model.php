@@ -17,6 +17,66 @@ class Client_model extends CI_Model {
         return $this->db->count_all_results('clients');
     }
 
+    /**
+     * Status counts for list stats cards (ignores status filter; keeps type/search).
+     *
+     * @param array $filters
+     * @return array code => int
+     */
+    public function counts_by_status($filters = [])
+    {
+        $f = is_array($filters) ? $filters : array();
+        unset($f['status'], $f['sort'], $f['dir']);
+        $this->db->select('IFNULL(NULLIF(TRIM(status), ""), "active") AS status, COUNT(*) AS cnt', false);
+        $this->db->from('clients');
+        $this->apply_filters($f);
+        $this->db->group_by('status');
+        $rows = $this->db->get()->result();
+        $out = array();
+        foreach ($rows as $r) {
+            $code = isset($r->status) ? (string) $r->status : 'active';
+            $out[$code] = (int) $r->cnt;
+        }
+        return $out;
+    }
+
+    /**
+     * Type counts for category tabs (ignores client_type filter; keeps status/search).
+     *
+     * @param array $filters
+     * @return array code => int
+     */
+    public function counts_by_client_type($filters = [])
+    {
+        $f = is_array($filters) ? $filters : array();
+        unset($f['client_type'], $f['sort'], $f['dir']);
+        $this->db->select('IFNULL(NULLIF(TRIM(client_type), ""), "company") AS client_type, COUNT(*) AS cnt', false);
+        $this->db->from('clients');
+        $this->apply_filters($f);
+        $this->db->group_by('client_type');
+        $rows = $this->db->get()->result();
+        $out = array();
+        foreach ($rows as $r) {
+            $code = isset($r->client_type) ? (string) $r->client_type : 'company';
+            $out[$code] = (int) $r->cnt;
+        }
+        return $out;
+    }
+
+    /**
+     * @param array $ids
+     * @return int deleted count
+     */
+    public function delete_clients_by_ids($ids)
+    {
+        $ids = array_values(array_filter(array_map('intval', (array) $ids)));
+        if (empty($ids)) {
+            return 0;
+        }
+        $this->db->where_in('id', $ids)->delete('clients');
+        return (int) $this->db->affected_rows();
+    }
+
     public function get_clients($filters = [], $limit = null, $offset = 0){
         $this->db->from('clients');
         $this->apply_filters($filters);
@@ -62,9 +122,25 @@ class Client_model extends CI_Model {
                 ->or_like('client_code', $q)
                 ->or_like('contact_person', $q)
                 ->or_like('email', $q)
+                ->or_like('phone', $q)
                 ->or_like('website', $q)
             ->group_end();
         }
+        if (!empty($filters['ids']) && is_array($filters['ids'])) {
+            $ids = array_values(array_filter(array_map('intval', $filters['ids'])));
+            if (!empty($ids)) {
+                $this->db->where_in('id', $ids);
+            }
+        }
+    }
+
+    public function get_client_by_code($code)
+    {
+        $code = trim((string) $code);
+        if ($code === '') {
+            return false;
+        }
+        return $this->db->where('client_code', $code)->get('clients')->row();
     }
 
     public function get_client($id){
@@ -180,7 +256,16 @@ class Client_model extends CI_Model {
         $select = ['id','email'];
         if (schema_table_has_column($this->db, 'users', 'full_name')) { $select[] = 'full_name'; }
         if (schema_table_has_column($this->db, 'users', 'name')) { $select[] = 'name'; }
-        return $this->db->select(implode(',', $select))->from('users')->order_by('email','ASC')->get()->result();
+        $this->db->select(implode(',', $select));
+        $this->db->from('users');
+        if (schema_table_has_column($this->db, 'users', 'full_name')) {
+            $this->db->order_by('full_name', 'ASC');
+        }
+        if (schema_table_has_column($this->db, 'users', 'name')) {
+            $this->db->order_by('name', 'ASC');
+        }
+        $this->db->order_by('email', 'ASC');
+        return $this->db->get()->result();
     }
 
     /**

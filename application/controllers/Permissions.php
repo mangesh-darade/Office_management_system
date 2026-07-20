@@ -388,6 +388,7 @@ class Permissions extends CI_Controller {
                     'clients_delete'       => 'Delete Client',
                     'clients_view'         => 'View Client Detail',
                     'clients_export'       => 'Export Clients CSV',
+                    'clients_import'       => 'Import Clients CSV',
                     'subscription_builder'       => 'Subscription Builder (Full Access)',
                     'subscription_builder_list'  => 'View Subscription Builder Catalog',
                     'elintom_proposals'          => 'ElintOm Proposals (Full Access)',

@@ -200,7 +200,7 @@ if (!function_exists('get_dashboard_module_groups')) {
                 'announcements_delete', 'announcements_manage',
             ],
             'users' => ['users', 'users_list', 'users_add', 'users_edit', 'users_delete', 'users_view', 'users_view_all'],
-            'clients' => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete'],
+            'clients' => ['clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete', 'clients_import', 'clients_export'],
             'recruitment' => [
                 'recruitment', 'recruitment_jobs', 'recruitment_candidates', 'recruitment_interviews',
                 'recruitment_export', 'recruitment_add', 'recruitment_delete',
@@ -842,7 +842,7 @@ if (!function_exists('get_controller_module_access_map')) {
             'coaching_whatsapp_crm' => ['coaching_whatsapp_crm', 'coaching'],
             'clients' => [
                 'clients', 'clients_list', 'clients_add', 'clients_edit', 'clients_delete',
-                'clients_view', 'clients_export',
+                'clients_view', 'clients_export', 'clients_import',
             ],
             'subscription_builder' => [
                 'subscription_builder', 'subscription_builder_list',

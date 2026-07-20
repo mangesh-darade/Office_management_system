@@ -120,11 +120,19 @@
         {
           "name": "Clients",
           "menu": "Clients",
-          "purpose": "Store customer companies linked to projects.",
+          "purpose": "Store customer companies linked to projects, requirements, tasks, and defects.",
           "list": {"image": "images/02-people/clients.png", "route": "clients"},
           "add": {"image": "images/02-people/clients-add.png", "route": "clients/create"},
           "edit": {"image": "images/02-people/clients-edit.png", "list_route": "clients"},
-          "delete": {"steps": ["Delete from client list or detail.", "Export list to CSV from list page."]}
+          "delete": {"steps": [
+            "Open Clients → open a client detail.",
+            "On Requirements / Tasks / Defects tabs, use the + button to add an inline row (same pattern as Project Details).",
+            "Requirements can be created without a project; Tasks and Defects require selecting one of the client’s projects.",
+            "Edit title, status, priority, assignee, or project inline; delete with the trash icon when permitted.",
+            "Delete the client from the list or detail page.",
+            "Export list to CSV from list page.",
+            "Import clients from CSV via Import on the list page (sample file provided)."
+          ]}
         },
         {
           "name": "Roles",

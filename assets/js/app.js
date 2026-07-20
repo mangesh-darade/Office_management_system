@@ -125,6 +125,9 @@
     if (tbl.classList.contains('project-dash-task-table')) {
       return true;
     }
+    if (tbl.closest('.client-detail-page')) {
+      return true;
+    }
     if (tbl.hasAttribute('data-inline-type')) {
       return true;
     }

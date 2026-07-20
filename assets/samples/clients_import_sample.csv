@@ -1,0 +1,3 @@
+client_code,company_name,contact_person,email,phone,alternate_phone,website,demo_url,pos_url,address,city,state,country,zip_code,gstin,pan_number,industry,onboarding_date,client_type,status,notes
+,Acme Foods Pvt Ltd,Rahul Sharma,rahul@acmefoods.example,9876543210,,https://acmefoods.example,,,12 Market Road,Pune,Maharashtra,India,411001,,,Food & Beverage,2025-01-15,company,active,Sample import row
+,Green Leaf Traders,Priya Nair,priya@greenleaf.example,9123456780,,,,,,,Mumbai,Maharashtra,India,,,,,individual,active,

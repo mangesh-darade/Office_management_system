@@ -107,8 +107,12 @@ $route['clients/create'] = 'clients/create';
 $route['clients/view/(:num)'] = 'clients/view/$1';
 $route['clients/edit/(:num)'] = 'clients/edit/$1';
 $route['clients/delete/(:num)'] = 'clients/delete/$1';
+$route['clients/bulk-delete'] = 'clients/bulk_delete';
 $route['clients/export'] = 'clients/export';
+$route['clients/import'] = 'clients/import';
 $route['clients/(:num)/contacts'] = 'clients/contacts/$1';
+$route['clients/(:num)/inline-save'] = 'clients/inline_save/$1';
+$route['clients/(:num)/inline-delete'] = 'clients/inline_delete/$1';
 
 // Projects
 $route['projects'] = 'projects/index';
