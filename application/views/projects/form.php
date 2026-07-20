@@ -32,13 +32,36 @@
     ?>
     <form method="post" action="<?php echo $form_action; ?>" data-validate="true">
       <div class="row g-2 oms-form-grid">
+        <?php if (function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'client_id')): ?>
         <div class="col-md-4">
-          <label class="form-label">Code</label>
-          <input type="text" name="code" class="form-control" value="<?php echo isset($project) ? esc_view($project->code ?? '') : ''; ?>" placeholder="PRJ-001">
+          <label class="form-label" for="client_id">Client</label>
+          <?php
+            $cur_client = 0;
+            if (isset($project) && !empty($project->client_id)) {
+              $cur_client = (int) $project->client_id;
+            } elseif ($action === 'create') {
+              $cur_client = (int) $this->input->get('client_id');
+            }
+          ?>
+          <select name="client_id" id="client_id" class="form-select">
+            <option value="">-- Select Client --</option>
+            <?php if (!empty($clients)) foreach ($clients as $cl): ?>
+              <?php
+                $cl_label = isset($cl->company_name) ? (string) $cl->company_name : '';
+                if (!empty($cl->client_code)) {
+                  $cl_label .= ' (' . $cl->client_code . ')';
+                }
+              ?>
+              <option value="<?php echo (int) $cl->id; ?>" <?php echo $cur_client === (int) $cl->id ? 'selected' : ''; ?>>
+                <?php echo esc_view($cl_label); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
         </div>
+        <?php endif; ?>
         <div class="col-md-4">
-          <label class="form-label">Name <span class="text-danger">*</span></label>
-          <input required type="text" name="name" class="form-control" value="<?php echo isset($project) ? esc_view($project->name ?? '') : ''; ?>" placeholder="Website Redesign">
+          <label class="form-label" for="project_name">Name <span class="text-danger">*</span></label>
+          <input required type="text" name="name" id="project_name" class="form-control" value="<?php echo isset($project) ? esc_view($project->name ?? '') : ''; ?>" placeholder="Website Redesign">
         </div>
         <?php if (function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'manager_id')): ?>
         <div class="col-md-4">

@@ -116,4 +116,29 @@ class Project_model extends CI_Model {
             ->update('project_members', array('role' => $role));
         return $this->db->affected_rows() > 0;
     }
+
+    /**
+     * Auto-generate unique project code: PRJ-YYYY-NNNNN
+     *
+     * @return string
+     */
+    public function generate_project_code()
+    {
+        $year = date('Y');
+        $prefix = 'PRJ-' . $year . '-';
+        $row = $this->db->like('code', $prefix, 'after')
+            ->order_by('id', 'DESC')
+            ->limit(1)
+            ->get($this->table)
+            ->row();
+        $num = 0;
+        if ($row && isset($row->code)) {
+            $tail = substr($row->code, -5);
+            if (ctype_digit($tail)) {
+                $num = (int) $tail;
+            }
+        }
+        $num++;
+        return $prefix . str_pad((string) $num, 5, '0', STR_PAD_LEFT);
+    }
 }

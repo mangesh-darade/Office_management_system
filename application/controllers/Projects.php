@@ -99,7 +99,6 @@ class Projects extends CI_Controller {
             try {
                 $this->load->helper('validation');
                 
-                $code = trim($this->input->post('code'));
                 $name = trim($this->input->post('name'));
                 $start_date = $this->input->post('start_date') ?: null;
                 $end_date = $this->input->post('end_date') ?: null;
@@ -107,7 +106,12 @@ class Projects extends CI_Controller {
                 // Validation
                 if (empty($name)) {
                     $this->session->set_flashdata('error', 'Project name is required.');
-                    redirect('projects/create');
+                    redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                    return;
+                }
+
+                $client_id = $this->_resolve_client_id_from_post('projects/create' . ($embed ? '?embed=1' : ''));
+                if ($client_id === false) {
                     return;
                 }
                 
@@ -118,31 +122,28 @@ class Projects extends CI_Controller {
                     
                     if (!$start_validation['valid']) {
                         $this->session->set_flashdata('error', 'Invalid start date format.');
-                        redirect('projects/create');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
                         return;
                     }
                     
                     if (!$end_validation['valid']) {
                         $this->session->set_flashdata('error', 'Invalid end date format.');
-                        redirect('projects/create');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
                         return;
                     }
                     
                     if ($end_date < $start_date) {
                         $this->session->set_flashdata('error', 'End date must be on or after start date.');
-                        redirect('projects/create');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
                         return;
                     }
                 }
-                
-                // Check for duplicate code if provided
-                if ($code !== '') {
-                    $existing = $this->db->where('code', $code)->get('projects')->row();
-                    if ($existing) {
-                        $this->session->set_flashdata('error', 'Project code already exists. Please use a different code.');
-                        redirect('projects/create');
-                        return;
-                    }
+
+                $code = $this->_resolve_project_code_for_create($this->input->post('code'));
+                if ($code === false) {
+                    $this->session->set_flashdata('error', 'Project code already exists. Please use a different code.');
+                    redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                    return;
                 }
                 
                 $department_id = $this->input->post('department_id') ? (int) $this->input->post('department_id') : null;
@@ -156,13 +157,16 @@ class Projects extends CI_Controller {
                 }
                 
                 $data = [
-                    'code' => $code !== '' ? $code : null,
+                    'code' => $code,
                     'name' => $name,
                     'status' => $this->input->post('status') ?: 'planned',
                     'start_date' => $start_date,
                     'end_date' => $end_date,
                     'department_id' => $department_id,
                 ];
+                if (schema_table_has_column($this->db, 'projects', 'client_id')) {
+                    $data['client_id'] = $client_id;
+                }
                 if (schema_table_has_column($this->db, 'projects', 'project_type')) {
                     $project_type = module_type_validate_code($this->input->post('project_type'), 'projects', true);
                     if ($project_type === false) {
@@ -280,6 +284,7 @@ class Projects extends CI_Controller {
             'project_types' => $project_types,
             'users' => $this->_load_assignable_users(),
             'departments' => $departments,
+            'clients' => $this->_load_project_clients(),
         ]);
     }
 
@@ -575,6 +580,11 @@ class Projects extends CI_Controller {
                     redirect('projects/'.$id.'/edit');
                     return;
                 }
+
+                $client_id = $this->_resolve_client_id_from_post('projects/'.$id.'/edit');
+                if ($client_id === false) {
+                    return;
+                }
                 
                 // Server-side date validation
                 if ($start_date && $end_date) {
@@ -594,8 +604,14 @@ class Projects extends CI_Controller {
                     }
                 }
                 
-                // Check for duplicate code if changed
-                if ($code !== '' && $code !== $project->code) {
+                // Keep existing code if blank; otherwise check uniqueness
+                if ($code === '') {
+                    $code = isset($project->code) ? (string) $project->code : '';
+                }
+                if ($code === '') {
+                    $code = $this->Project_model->generate_project_code();
+                }
+                if ($code !== (string) $project->code) {
                     $existing = $this->db->where('code', $code)->where('id !=', (int)$id)->get('projects')->row();
                     if ($existing) {
                         $this->session->set_flashdata('error', 'Project code already exists. Please use a different code.');
@@ -615,13 +631,16 @@ class Projects extends CI_Controller {
                 }
                 
                 $data = [
-                    'code' => $code !== '' ? $code : null,
+                    'code' => $code,
                     'name' => $name,
                     'status' => $this->input->post('status') ?: 'planned',
                     'start_date' => $start_date,
                     'end_date' => $end_date,
                     'department_id' => $department_id,
                 ];
+                if (schema_table_has_column($this->db, 'projects', 'client_id')) {
+                    $data['client_id'] = $client_id;
+                }
                 if (schema_table_has_column($this->db, 'projects', 'project_type')) {
                     $project_type = module_type_validate_code($this->input->post('project_type'), 'projects', true);
                     if ($project_type === false) {
@@ -711,6 +730,7 @@ class Projects extends CI_Controller {
             'project_types' => $project_types,
             'users' => $this->_load_assignable_users(),
             'departments' => $departments,
+            'clients' => $this->_load_project_clients(),
         ]);
     }
 
@@ -1049,6 +1069,83 @@ class Projects extends CI_Controller {
         if (!in_array('reference_url', $fields, true)) {
             $this->db->query("ALTER TABLE `projects` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL");
         }
+        if (!in_array('client_id', $fields, true)) {
+            $this->db->query("ALTER TABLE `projects` ADD `client_id` INT(11) NULL DEFAULT NULL AFTER `name`");
+            $this->db->query("ALTER TABLE `projects` ADD KEY `idx_projects_client_id` (`client_id`)");
+        }
+    }
+
+    /**
+     * Active clients for project form dropdown.
+     *
+     * @return array
+     */
+    private function _load_project_clients()
+    {
+        if (!$this->db->table_exists('clients')) {
+            return array();
+        }
+        $this->db->select('id, company_name, client_code');
+        $this->db->from('clients');
+        $this->db->order_by('company_name', 'ASC');
+        return $this->db->get()->result();
+    }
+
+    /**
+     * Resolve posted client_id; returns id, null, or false if invalid.
+     *
+     * @param string $redirect_path
+     * @return int|null|false
+     */
+    private function _resolve_client_id_from_post($redirect_path)
+    {
+        if (!schema_table_has_column($this->db, 'projects', 'client_id')) {
+            return null;
+        }
+        $raw = $this->input->post('client_id');
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $client_id = (int) $raw;
+        if ($client_id <= 0 || !$this->db->table_exists('clients')) {
+            $this->session->set_flashdata('error', 'Please select a valid client.');
+            redirect($redirect_path);
+            return false;
+        }
+        $exists = $this->db->select('id')->where('id', $client_id)->get('clients')->row();
+        if (!$exists) {
+            $this->session->set_flashdata('error', 'Please select a valid client.');
+            redirect($redirect_path);
+            return false;
+        }
+        return $client_id;
+    }
+
+    /**
+     * Unique project code for insert (always generated when blank).
+     *
+     * @param string $posted
+     * @return string|false
+     */
+    private function _resolve_project_code_for_create($posted)
+    {
+        $code = trim((string) $posted);
+        if ($code === '') {
+            $code = $this->Project_model->generate_project_code();
+        }
+        $tries = 0;
+        while ($tries < 20) {
+            $existing = $this->db->where('code', $code)->get('projects')->row();
+            if (!$existing) {
+                return $code;
+            }
+            if (trim((string) $posted) !== '') {
+                return false;
+            }
+            $code = $this->Project_model->generate_project_code();
+            $tries++;
+        }
+        return false;
     }
 
     private function _attach_project_assignee_labels(&$projects)

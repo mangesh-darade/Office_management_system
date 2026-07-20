@@ -61,11 +61,14 @@ $filter_project_id = isset($filter_project_id) ? (int) $filter_project_id : 0;
 $filter_projects = isset($filter_projects) ? $filter_projects : array();
 
 $head_actions = '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects') . '"><i class="bi bi-kanban me-1"></i>All Projects</a>';
+if (function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))) {
+    $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects/matrix') . '"><i class="bi bi-grid-3x3-gap me-1"></i>Matrix</a>';
+}
 if (!$embed) {
     $this->load->view('partials/oms_page_head', array(
         'title'        => 'Project Dashboard',
-        'icon'         => 'bi-columns-gap',
-        'subtitle'     => '',
+        'icon'         => 'bi bi-speedometer2',
+        'subtitle'     => 'Tasks and requirements across all projects',
         'actions_html' => $head_actions,
         'mb'           => 'mb-0',
     ));
@@ -105,15 +108,7 @@ $assignee_label = function ($task) {
 ?>
 
 <?php if (!empty($filter_projects)): ?>
-<div class="project-dash-filters">
-  <?php if (!$embed): ?>
-  <div class="project-dash-complete-toggle" id="projectDashCompleteToggleWrap">
-    <div class="form-check form-switch mb-0">
-      <input class="form-check-input" type="checkbox" role="switch" id="projectDashCompleteToggle"<?php echo !empty($complete_view_on) ? ' checked' : ''; ?>>
-      <label class="form-check-label" for="projectDashCompleteToggle">Completed</label>
-    </div>
-  </div>
-  <?php endif; ?>
+<div class="project-dash-toolbar">
   <form method="get" action="<?php echo site_url('projects/dashboard'); ?>" class="project-dash-filter-form" id="projectDashFilterForm">
     <?php if ($embed): ?>
     <input type="hidden" name="embed" value="1">
@@ -125,7 +120,7 @@ $assignee_label = function ($task) {
     <input type="hidden" name="complete_view" value="1">
     <?php endif; ?>
     <?php if (isset($filter_departments) && !empty($filter_departments)): ?>
-    <label class="project-dash-filter-label me-3">
+    <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Department</span>
       <select name="department_id" class="form-select form-select-sm project-dash-filter-select">
         <option value="all"<?php echo $filter_department_id < 0 ? ' selected' : ''; ?>>All Departments</option>
@@ -136,7 +131,7 @@ $assignee_label = function ($task) {
     </label>
     <?php endif; ?>
 
-    <label class="project-dash-filter-label me-3">
+    <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Project</span>
       <select name="project_id" class="form-select form-select-sm project-dash-filter-select">
         <option value="0"<?php echo $filter_project_id < 1 ? ' selected' : ''; ?>>All Projects</option>
@@ -151,7 +146,7 @@ $assignee_label = function ($task) {
       </select>
     </label>
 
-    <label class="project-dash-filter-label me-3">
+    <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Status</span>
       <select name="status" class="form-select form-select-sm project-dash-filter-select">
         <option value="all"<?php echo $filter_status === 'all' ? ' selected' : ''; ?>>All Statuses</option>
@@ -176,6 +171,15 @@ $assignee_label = function ($task) {
         <?php endforeach; ?>
       </select>
     </label>
+    <?php endif; ?>
+
+    <?php if (!$embed): ?>
+    <div class="project-dash-complete-toggle" id="projectDashCompleteToggleWrap">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="projectDashCompleteToggle"<?php echo !empty($complete_view_on) ? ' checked' : ''; ?>>
+        <label class="form-check-label" for="projectDashCompleteToggle">Show completed</label>
+      </div>
+    </div>
     <?php endif; ?>
   </form>
 </div>

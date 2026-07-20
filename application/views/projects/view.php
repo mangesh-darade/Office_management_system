@@ -1,43 +1,46 @@
 <?php $this->load->view('partials/header', ['title' => 'Project Details', 'extra_css' => ['assets/css/projects.css']]); ?>
 
-<div class="container-fluid py-2 px-3 project-detail-page project-detail-compact">
-  <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success py-2 mb-2"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
-  <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger py-2 mb-2"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
+<div class="container-fluid py-1 px-2 project-detail-page project-detail-compact">
+  <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
   <?php $this->load->view('partials/import_errors'); ?>
-  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2 project-detail-head">
-    <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
-      <a class="btn btn-outline-secondary btn-sm flex-shrink-0 mt-1" href="<?php echo site_url('projects'); ?>" title="Back to Projects">
-        <i class="bi bi-arrow-left me-1"></i>Back
-      </a>
-      <div class="min-w-0">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="<?php echo site_url('projects'); ?>">Projects</a></li>
-                <li class="breadcrumb-item active" aria-current="page"><?php echo esc_view($project->code); ?></li>
-            </ol>
-        </nav>
-        <h1 class="h5 mb-0 fw-bold"><?php echo esc_view($project->name); ?></h1>
-        <?php if (!empty($project->reference_url)): ?>
-        <?php $this->load->view('partials/reference_url_display', ['reference_url' => $project->reference_url, 'wrapper_class' => 'mt-2']); ?>
-        <?php endif; ?>
-      </div>
-    </div>
-    <div class="d-flex gap-2 flex-shrink-0">
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects/dashboard'); ?>">Dashboard</a>
-      <?php if(function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects'))): ?>
-      <a class="btn btn-primary btn-sm" href="<?php echo site_url('projects/'.$project->id.'/edit'); ?>">Edit Project</a>
+
+  <div class="project-detail-toolbar mb-1">
+    <a class="project-detail-back" href="<?php echo site_url('projects'); ?>" title="Back to Projects">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div class="project-detail-title-row">
+      <a class="project-detail-crumb" href="<?php echo site_url('projects'); ?>">Projects</a>
+      <span class="project-detail-sep" aria-hidden="true">/</span>
+      <?php if (!empty($project->code)): ?>
+      <span class="project-detail-code"><?php echo esc_view($project->code); ?></span>
+      <span class="project-detail-dot" aria-hidden="true">·</span>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('projects_delete') || has_module_access('projects'))): ?>
+      <h1 class="project-detail-name" title="<?php echo esc_view($project->name); ?>"><?php echo esc_view($project->name); ?></h1>
+      <span class="badge bg-<?php echo ($project->status === 'completed' ? 'success' : ($project->status === 'active' ? 'primary' : 'secondary')); ?>"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $project->status))); ?></span>
+    </div>
+    <div class="project-detail-actions">
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('projects/dashboard'); ?>" title="Project Dashboard"><i class="bi bi-speedometer2"></i><span class="d-none d-md-inline ms-1">Dashboard</span></a>
+      <?php if (function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects'))): ?>
+      <a class="btn btn-primary btn-sm" href="<?php echo site_url('projects/'.$project->id.'/edit'); ?>" title="Edit project"><i class="bi bi-pencil"></i></a>
+      <?php endif; ?>
+      <?php if (function_exists('has_module_access') && (has_module_access('projects_delete') || has_module_access('projects'))): ?>
       <form method="post" action="<?php echo site_url('projects/'.$project->id.'/delete'); ?>" class="d-inline" onsubmit="return confirm('Delete this project?');">
         <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+        <button type="submit" class="btn btn-danger btn-sm" title="Delete project"><i class="bi bi-trash"></i></button>
       </form>
       <?php endif; ?>
     </div>
   </div>
 
+  <?php if (!empty($project->reference_url)): ?>
+  <div class="project-detail-ref mb-1">
+    <?php $this->load->view('partials/reference_url_display', ['reference_url' => $project->reference_url, 'wrapper_class' => 'mb-0']); ?>
+  </div>
+  <?php endif; ?>
+
   <!-- Stats Row -->
-  <div class="project-detail-stats mb-2">
+  <div class="project-detail-stats mb-1">
     <div class="project-detail-stat-card project-detail-stat-progress">
       <span class="project-detail-stat-label">Progress</span>
       <strong class="project-detail-stat-value"><?php echo (int) $progress; ?>%</strong>
@@ -62,9 +65,8 @@
       <strong class="project-detail-stat-value text-success"><?php echo (int) $stats['completed']; ?></strong>
     </div>
     <div class="project-detail-stat-card project-detail-stat-meta">
-      <span class="project-detail-stat-label">Status</span>
-      <span class="badge bg-<?php echo ($project->status === 'completed' ? 'success' : ($project->status === 'active' ? 'primary' : 'secondary')); ?> project-detail-status-badge"><?php echo esc_view($project->status); ?></span>
-      <div class="project-detail-dates small text-muted">
+      <span class="project-detail-stat-label">Dates</span>
+      <div class="project-detail-dates text-muted">
         <span><i class="bi bi-calendar-event"></i> <?php echo $project->start_date ? date('M j, Y', strtotime($project->start_date)) : '—'; ?></span>
         <span><i class="bi bi-calendar-check"></i> <?php echo $project->end_date ? date('M j, Y', strtotime($project->end_date)) : '—'; ?></span>
       </div>
@@ -78,6 +80,9 @@
           <?php $count++; endforeach; ?>
           <?php if (count($members) > 4): ?>
           <span class="project-detail-avatar project-detail-avatar-more">+<?php echo count($members) - 4; ?></span>
+          <?php endif; ?>
+          <?php if (empty($members)): ?>
+          <span class="small text-muted">—</span>
           <?php endif; ?>
         </div>
         <?php if (function_exists('has_module_access') && (has_module_access('projects_edit') || has_module_access('projects') || (function_exists('is_admin_group') && is_admin_group()))): ?>
@@ -154,7 +159,25 @@
     $complete_view_on = !empty($complete_view_on);
     $show_complete_toggle = in_array($active_tab, array('tasks', 'requirements', 'defects'), true);
   ?>
-  <div class="d-flex justify-content-end align-items-center mb-2">
+  <div class="project-detail-tabs-row mb-1">
+    <ul class="nav nav-tabs nav-tabs-sm project-detail-tabs mb-0" id="projectTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+          <button class="nav-link<?php echo $active_tab === 'tasks' ? ' active' : ''; ?>" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="<?php echo $active_tab === 'tasks' ? 'true' : 'false'; ?>"><i class="bi bi-list-check me-1"></i>Tasks <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($tasks); ?></span></button>
+      </li>
+      <li class="nav-item" role="presentation">
+          <button class="nav-link<?php echo $active_tab === 'requirements' ? ' active' : ''; ?>" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab" aria-controls="requirements" aria-selected="<?php echo $active_tab === 'requirements' ? 'true' : 'false'; ?>"><i class="bi bi-clipboard-check me-1"></i>Requirements <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($requirements); ?></span></button>
+      </li>
+      <?php if ($show_defects_tab): ?>
+      <li class="nav-item" role="presentation">
+          <button class="nav-link<?php echo $active_tab === 'defects' ? ' active' : ''; ?>" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="<?php echo $active_tab === 'defects' ? 'true' : 'false'; ?>"><i class="bi bi-bug me-1"></i>Defects <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($defects); ?></span></button>
+      </li>
+      <?php endif; ?>
+      <?php if ($show_releases_tab): ?>
+      <li class="nav-item" role="presentation">
+          <button class="nav-link<?php echo $active_tab === 'releases' ? ' active' : ''; ?>" id="releases-tab" data-bs-toggle="tab" data-bs-target="#releases" type="button" role="tab" aria-controls="releases" aria-selected="<?php echo $active_tab === 'releases' ? 'true' : 'false'; ?>"><i class="bi bi-rocket-takeoff me-1"></i>Releases <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($releases); ?></span></button>
+      </li>
+      <?php endif; ?>
+    </ul>
     <div class="project-detail-complete-toggle<?php echo $show_complete_toggle ? '' : ' d-none'; ?>" id="projDetailCompleteToggleWrap">
       <div class="form-check form-switch mb-0">
         <input class="form-check-input" type="checkbox" role="switch" id="projDetailCompleteToggle"<?php echo $complete_view_on ? ' checked' : ''; ?>>
@@ -162,23 +185,6 @@
       </div>
     </div>
   </div>
-  <ul class="nav nav-tabs nav-tabs-sm mb-2 project-detail-tabs" id="projectTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link<?php echo $active_tab === 'tasks' ? ' active' : ''; ?>" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="<?php echo $active_tab === 'tasks' ? 'true' : 'false'; ?>"><i class="bi bi-list-check me-1"></i>Tasks <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($tasks); ?></span></button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link<?php echo $active_tab === 'requirements' ? ' active' : ''; ?>" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab" aria-controls="requirements" aria-selected="<?php echo $active_tab === 'requirements' ? 'true' : 'false'; ?>"><i class="bi bi-clipboard-check me-1"></i>Requirements <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($requirements); ?></span></button>
-    </li>
-    <?php if ($show_defects_tab): ?>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link<?php echo $active_tab === 'defects' ? ' active' : ''; ?>" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="<?php echo $active_tab === 'defects' ? 'true' : 'false'; ?>"><i class="bi bi-bug me-1"></i>Defects <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($defects); ?></span></button>    </li>
-    <?php endif; ?>
-    <?php if ($show_releases_tab): ?>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link<?php echo $active_tab === 'releases' ? ' active' : ''; ?>" id="releases-tab" data-bs-toggle="tab" data-bs-target="#releases" type="button" role="tab" aria-controls="releases" aria-selected="<?php echo $active_tab === 'releases' ? 'true' : 'false'; ?>"><i class="bi bi-rocket-takeoff me-1"></i>Releases <span class="badge rounded-pill bg-light text-dark border ms-1"><?php echo count($releases); ?></span></button>
-    </li>
-    <?php endif; ?>
-  </ul>
 
   <div class="tab-content" id="projectTabsContent">
     <!-- Tasks Tab -->
@@ -200,17 +206,16 @@
                 <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="task" data-save-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_tasks ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_tasks ? '1' : '0'; ?>">
                     <thead class="table-light">
                         <tr>
-                            <th width="8%">#</th>
-                            <th width="34%">Title</th>
+                            <th width="40%">Title</th>
                             <th width="16%">Status</th>
                             <th width="14%">Priority</th>
-                            <th width="18%">Assignee</th>
+                            <th width="20%">Assignee</th>
                             <th width="10%"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($tasks) && !$can_manage_tasks): ?>
-                        <tr class="project-inline-empty"><td colspan="6" class="text-center py-3 text-muted small">No tasks found for this project.</td></tr>
+                        <tr class="project-inline-empty"><td colspan="5" class="text-center py-3 text-muted small">No tasks found for this project.</td></tr>
                         <?php else: foreach ($tasks as $t): ?>
                         <?php
                           $t_priority = isset($t->priority) ? (string) $t->priority : 'medium';
@@ -218,7 +223,6 @@
                           $t_assigned = !empty($t->assigned_to) ? (int) $t->assigned_to : 0;
                         ?>
                         <tr class="project-inline-row" data-id="<?php echo (int) $t->id; ?>">
-                            <td><a href="<?php echo site_url('tasks/' . (int) $t->id); ?>" class="text-decoration-none project-inline-id">#<?php echo (int) $t->id; ?></a></td>
                             <td>
                                 <?php if ($can_manage_tasks): ?>
                                 <input type="text" class="form-control form-control-sm project-inline-title" value="<?php echo esc_view($t->title, ENT_QUOTES, 'UTF-8'); ?>" maxlength="500">
@@ -281,7 +285,7 @@
                     <?php if ($can_manage_tasks): ?>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="py-1 px-2">
+                            <td colspan="5" class="py-1 px-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add task">
                                     <i class="bi bi-plus-lg"></i>
                                 </button>
@@ -312,17 +316,16 @@
                 <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="requirement" data-save-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_requirements ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_requirements ? '1' : '0'; ?>">
                     <thead class="table-light">
                         <tr>
-                            <th width="12%">#</th>
-                            <th width="30%">Title</th>
+                            <th width="38%">Title</th>
                             <th width="16%">Status</th>
                             <th width="14%">Priority</th>
-                            <th width="18%">Assignee</th>
+                            <th width="22%">Assignee</th>
                             <th width="10%"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($requirements) && !$can_manage_requirements): ?>
-                        <tr class="project-inline-empty"><td colspan="6" class="text-center py-3 text-muted small">No requirements linked to this project.</td></tr>
+                        <tr class="project-inline-empty"><td colspan="5" class="text-center py-3 text-muted small">No requirements linked to this project.</td></tr>
                         <?php else: foreach ($requirements as $r): ?>
                         <?php
                           $r_status = isset($r->status) ? (string) $r->status : 'received';
@@ -330,7 +333,6 @@
                           $r_assigned = !empty($r->assigned_to) ? (int) $r->assigned_to : 0;
                         ?>
                         <tr class="project-inline-row" data-id="<?php echo (int) $r->id; ?>" data-ref="<?php echo esc_view($r->req_number, ENT_QUOTES, 'UTF-8'); ?>">
-                            <td><a href="<?php echo site_url('requirements/view/' . (int) $r->id); ?>" class="text-decoration-none project-inline-id"><?php echo esc_view($r->req_number); ?></a></td>
                             <td>
                                 <?php if ($can_manage_requirements): ?>
                                 <input type="text" class="form-control form-control-sm project-inline-title" value="<?php echo esc_view($r->title, ENT_QUOTES, 'UTF-8'); ?>" maxlength="500">
@@ -385,7 +387,7 @@
                     <?php if ($can_manage_requirements): ?>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="py-1 px-2">
+                            <td colspan="5" class="py-1 px-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add requirement">
                                     <i class="bi bi-plus-lg"></i>
                                 </button>
@@ -418,17 +420,16 @@
                 <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="defect" data-save-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_defects ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_defects ? '1' : '0'; ?>">
                     <thead class="table-light">
                         <tr>
-                            <th width="12%">#</th>
-                            <th width="30%">Title</th>
+                            <th width="38%">Title</th>
                             <th width="16%">Status</th>
                             <th width="14%">Priority</th>
-                            <th width="18%">Assignee</th>
+                            <th width="22%">Assignee</th>
                             <th width="10%"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($defects) && !$can_manage_defects): ?>
-                        <tr class="project-inline-empty"><td colspan="6" class="text-center py-3 text-muted small">No defects logged for this project.</td></tr>
+                        <tr class="project-inline-empty"><td colspan="5" class="text-center py-3 text-muted small">No defects logged for this project.</td></tr>
                         <?php else: foreach ($defects as $d): ?>
                         <?php
                           $d_status = isset($d->status) ? (string) $d->status : 'open';
@@ -436,7 +437,6 @@
                           $d_assigned = !empty($d->assigned_to) ? (int) $d->assigned_to : 0;
                         ?>
                         <tr class="project-inline-row" data-id="<?php echo (int) $d->id; ?>" data-ref="<?php echo esc_view($d->defect_number, ENT_QUOTES, 'UTF-8'); ?>">
-                            <td><a href="<?php echo site_url('defects/view/' . (int) $d->id); ?>" class="text-decoration-none project-inline-id"><?php echo esc_view($d->defect_number); ?></a></td>
                             <td>
                                 <?php if ($can_manage_defects): ?>
                                 <input type="text" class="form-control form-control-sm project-inline-title" value="<?php echo esc_view($d->title, ENT_QUOTES, 'UTF-8'); ?>" maxlength="500">
@@ -491,7 +491,7 @@
                     <?php if ($can_manage_defects): ?>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="py-1 px-2">
+                            <td colspan="5" class="py-1 px-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add defect">
                                     <i class="bi bi-plus-lg"></i>
                                 </button>
@@ -521,25 +521,28 @@
                     <?php endif; ?>
                 </div>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
+            <div class="table-responsive w-100">
+                <table class="table table-sm table-hover align-middle mb-0 w-100" data-no-datatable>
                     <thead class="table-light">
                         <tr>
-                            <th width="14%">Version</th>
-                            <th width="32%">Title</th>
-                            <th width="18%">Status</th>
-                            <th width="16%">Planned</th>
-                            <th width="16%">Released</th>
-                            <th width="4%"></th>
+                            <th style="width:40%">Title</th>
+                            <th style="width:16%">Status</th>
+                            <th style="width:16%">Planned</th>
+                            <th style="width:16%">Released</th>
+                            <th style="width:12%" class="text-end"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($releases)): ?>
-                        <tr><td colspan="6" class="text-center py-3 text-muted small">No releases for this project.</td></tr>
+                        <tr><td colspan="5" class="text-center py-3 text-muted small">No releases for this project.</td></tr>
                         <?php else: foreach ($releases as $rel): ?>
                         <tr>
-                            <td><a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="text-decoration-none fw-medium"><?php echo esc_view($rel->version); ?></a></td>
-                            <td><?php echo esc_view($rel->title); ?></td>
+                            <td>
+                                <a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="text-decoration-none fw-medium"><?php echo esc_view($rel->title); ?></a>
+                                <?php if (!empty($rel->version)): ?>
+                                <span class="text-muted small ms-1">(<?php echo esc_view($rel->version); ?>)</span>
+                                <?php endif; ?>
+                            </td>
                             <td><span class="badge bg-light text-dark border"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $rel->status))); ?></span></td>
                             <td><?php echo esc_view(!empty($rel->planned_date) ? $rel->planned_date : '—'); ?></td>
                             <td><?php echo esc_view(!empty($rel->released_at) ? $rel->released_at : '—'); ?></td>
@@ -566,7 +569,6 @@
 <?php if ($can_manage_tasks || $can_manage_requirements || $can_manage_defects || $can_delete_tasks || $can_delete_requirements || $can_delete_defects): ?>
 <template id="project-inline-row-template-task">
 <tr class="project-inline-row project-inline-row-new" data-id="0">
-  <td><span class="text-muted small project-inline-id">…</span></td>
   <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="500" placeholder="Title"></td>
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($task_statuses as $st): ?><option value="<?php echo esc_view($st); ?>"><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
@@ -576,7 +578,6 @@
 </template>
 <template id="project-inline-row-template-requirement">
 <tr class="project-inline-row project-inline-row-new" data-id="0">
-  <td><span class="text-muted small project-inline-id">…</span></td>
   <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="500" placeholder="Title"></td>
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($req_statuses as $st): ?><option value="<?php echo esc_view($st); ?>" <?php echo $st === 'received' ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
@@ -586,7 +587,6 @@
 </template>
 <template id="project-inline-row-template-defect">
 <tr class="project-inline-row project-inline-row-new" data-id="0">
-  <td><span class="text-muted small project-inline-id">…</span></td>
   <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="500" placeholder="Title"></td>
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($defect_statuses as $st): ?><option value="<?php echo esc_view($st); ?>" <?php echo $st === 'open' ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($defect_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
@@ -633,7 +633,7 @@
       };
       var tr = document.createElement('tr');
       tr.className = 'project-inline-empty';
-      tr.innerHTML = '<td colspan="6" class="text-center py-3 text-muted small">' + (messages[type] || 'No items found.') + '</td>';
+      tr.innerHTML = '<td colspan="5" class="text-center py-3 text-muted small">' + (messages[type] || 'No items found.') + '</td>';
       tbody.appendChild(tr);
     }
   }
@@ -706,18 +706,11 @@
         var data = result.json;
         row.setAttribute('data-id', String(data.id));
         row.classList.remove('project-inline-row-new');
-        var idCell = row.querySelector('.project-inline-id');
-        if (idCell) {
-          var type = payload.type;
-          var label = '#' + data.id;
-          var href = viewUrls[type] + data.id;
-          if (type === 'requirement' && data.req_number) {
-            label = data.req_number;
-          }
-          if (type === 'defect' && data.defect_number) {
-            label = data.defect_number;
-          }
-          idCell.innerHTML = '<a href="' + href + '" class="text-decoration-none">' + label + '</a>';
+        if (data.req_number) {
+          row.setAttribute('data-ref', data.req_number);
+        }
+        if (data.defect_number) {
+          row.setAttribute('data-ref', data.defect_number);
         }
         var actionsCell = row.querySelector('td:last-child');
         if (actionsCell) {

@@ -20,13 +20,16 @@
 }
 
 .project-dash-compact.container-fluid {
-  padding: 0.75rem 1rem 1rem !important;
+  padding: 0.5rem 0.75rem 0.75rem !important;
 }
 
 .project-dash-compact .oms-page-head {
-  margin-bottom: 0.75rem !important;
-  padding: 0;
-  border: none;
+  margin-bottom: 0.45rem !important;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--pd-border);
+  border-radius: 8px;
+  background: var(--pd-surface);
+  box-shadow: none;
 }
 
 .project-dash-compact .oms-page-head h1.h4 {
@@ -34,49 +37,82 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--pd-text);
+  margin-bottom: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.project-dash-compact .oms-page-head h1.h4 .bi {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .project-dash-compact .oms-page-head .text-muted.small {
-  font-size: 0.8125rem;
+  font-size: 0.72rem;
   color: var(--pd-muted) !important;
+  margin-top: 0.1rem;
 }
 
 .project-dash-compact .oms-page-actions .btn-sm {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+}
+
+/* Header filter toolbar */
+.project-dash-compact .project-dash-toolbar {
+  margin-bottom: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--pd-border);
   border-radius: 8px;
+  background: var(--pd-surface);
+  box-shadow: none;
+}
+
+.project-dash-compact .project-dash-toolbar .project-dash-filters {
+  margin-bottom: 0;
 }
 
 /* Dashboard filters */
 .project-dash-compact .project-dash-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .project-dash-compact .project-dash-filters--with-toggle {
-  justify-content: space-between;
+  justify-content: flex-start;
+  align-items: flex-end;
 }
 
 .project-dash-compact .project-dash-filter-fields {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: flex-end;
+  gap: 0.5rem;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .project-dash-compact .project-dash-complete-toggle {
   display: inline-flex;
   align-items: center;
-  padding: 0.15rem 0.65rem 0.15rem 0;
+  padding: 0.2rem 0.55rem;
   flex-shrink: 0;
+  background: #f8fafc;
+  border: 1px solid var(--pd-border);
+  border-radius: 6px;
+  align-self: flex-end;
+  min-height: 1.85rem;
+  margin-left: 0.15rem;
 }
 
 .project-dash-compact .project-dash-complete-toggle .form-check-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #475569;
   white-space: nowrap;
@@ -86,6 +122,9 @@
 
 .project-dash-compact .project-dash-complete-toggle .form-check-input {
   cursor: pointer;
+  width: 1.75em;
+  height: 1em;
+  margin-top: 0.15em;
 }
 
 .project-dash-compact .mw-focus-screen-head .project-dash-complete-toggle {
@@ -97,21 +136,22 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  width: 100%;
 }
 
 .project-dash-compact .project-dash-filter-label {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.1rem;
   margin: 0;
-  min-width: 220px;
-  max-width: 360px;
-  flex: 1 1 220px;
+  min-width: 7.5rem;
+  max-width: 11rem;
+  flex: 0 1 9.5rem;
 }
 
 .project-dash-compact .project-dash-filter-label-text {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -119,12 +159,15 @@
 }
 
 .project-dash-compact .project-dash-filter-select {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 6px;
   border-color: var(--pd-border);
   background: var(--pd-surface);
   color: var(--pd-text);
+  min-height: 1.85rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
 }
 
 /* Summary strip */
@@ -526,30 +569,43 @@
 }
 
 .project-dash-index .oms-page-head {
-  margin-bottom: 0.5rem !important;
+  margin-bottom: 0.4rem !important;
+  padding: 0.4rem 0.6rem;
 }
 
 .project-dash-index .oms-page-head h1.h4 {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   margin-bottom: 0 !important;
 }
 
 .project-dash-index .oms-page-actions .btn-sm {
-  font-size: 0.75rem;
-  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.project-dash-index .project-dash-toolbar {
+  margin-bottom: 0.4rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.project-dash-index .project-dash-filter-label {
+  min-width: 7rem;
+  max-width: 10.5rem;
+  flex: 0 1 9rem;
 }
 
 .project-dash-index .project-dash-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.45rem;
 }
 
 .project-dash-index .project-dash-stat {
   min-width: 0;
   padding: 0.3rem 0.5rem;
   border-radius: 6px;
+  border-top: 2px solid #94a3b8;
 }
 
 .project-dash-index .project-dash-stat-label {
@@ -661,15 +717,25 @@
 }
 
 @media (max-width: 767.98px) {
-  .project-dash-index .project-dash-filters {
-    margin-bottom: 0.5rem;
+  .project-dash-index .project-dash-toolbar {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .project-dash-index .project-dash-filter-form {
+    gap: 0.35rem;
+  }
+
+  .project-dash-index .project-dash-complete-toggle {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+    margin-top: 0.1rem;
   }
 
   .project-dash-index .project-dash-filter-label {
     min-width: 0;
     max-width: none;
-    flex: 1 1 100%;
-    width: 100%;
+    flex: 1 1 calc(50% - 0.35rem);
   }
 
   .project-dash-index .project-dash-filter-select {
@@ -693,11 +759,16 @@
 
 @media (max-width: 575.98px) {
   .project-dash-index.container-fluid {
-    padding: 0.5rem 0.625rem 0.75rem !important;
+    padding: 0.45rem 0.5rem 0.65rem !important;
   }
 
   .project-dash-index .oms-page-head {
-    gap: 0.5rem;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .project-dash-index .oms-page-head h1.h4 {
+    font-size: 0.9rem;
   }
 
   .project-dash-index .oms-page-actions {
@@ -705,13 +776,18 @@
   }
 
   .project-dash-index .oms-page-actions .btn {
-    width: 100%;
-    min-height: 2.25rem;
+    flex: 1 1 auto;
+    min-height: 2rem;
     justify-content: center;
   }
 
+  .project-dash-index .project-dash-filter-label {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
   .project-dash-index .project-dash-stat {
-    padding: 0.35rem 0.45rem;
+    padding: 0.3rem 0.4rem;
   }
 
   .project-dash-index .project-dash-stat-label {
