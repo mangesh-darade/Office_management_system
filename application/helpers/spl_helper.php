@@ -735,10 +735,15 @@ if (!function_exists('spl_approval_detail_payload')) {
         $evidenceFile = !empty($row->evidence_file) ? (string) $row->evidence_file : '';
         $evidenceName = !empty($row->evidence_name) ? (string) $row->evidence_name : '';
         $note_raw = '';
-        if (!empty($row->transaction_notes)) {
-            $note_raw = (string) $row->transaction_notes;
-        } elseif (!empty($row->reference_label)) {
-            $note_raw = (string) $row->reference_label;
+        $tx_notes = !empty($row->transaction_notes) ? (string) $row->transaction_notes : '';
+        $tx_label = !empty($row->reference_label) ? (string) $row->reference_label : '';
+        if ($tx_notes !== '' && $tx_label !== '') {
+            // Prefer the longer field so varchar(255) truncation never wins over notes/text.
+            $note_raw = (strlen($tx_notes) >= strlen($tx_label)) ? $tx_notes : $tx_label;
+        } elseif ($tx_notes !== '') {
+            $note_raw = $tx_notes;
+        } else {
+            $note_raw = $tx_label;
         }
         $points = (float) $row->requested_points;
         $activity_description = '';
@@ -746,6 +751,9 @@ if (!function_exists('spl_approval_detail_payload')) {
         $activity_work_date = '';
         if (!empty($row->daily_activity_description)) {
             $activity_description = spl_sanitize_note_html((string) $row->daily_activity_description);
+        } elseif ($tx_notes !== '' && (string) (isset($row->source_module) ? $row->source_module : '') === 'daily_activity') {
+            // Fallback when live daily_work_logs join misses but notes were stored at dispatch.
+            $activity_description = spl_sanitize_note_html($tx_notes);
         }
         if (!empty($row->daily_activity_title)) {
             $activity_title = trim((string) $row->daily_activity_title);
@@ -825,8 +833,37 @@ if (!function_exists('spl_sanitize_note_html')) {
         if ($html === '') {
             return '';
         }
-        $allowed = '<p><br><strong><em><b><i><u><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre><span><div><del><sub><sup>';
+        $allowed = '<p><br><strong><em><b><i><u><s><del><strike><ul><ol><li><a><h1><h2><h3><h4><h5><h6><blockquote><code><pre><span><div><sub><sup><hr><table><thead><tbody><tr><td><th><img>';
         $clean = strip_tags($html, $allowed);
+        // strip_tags keeps attributes; remove styles/handlers that can clip or hide content.
+        $clean = preg_replace_callback('/<([a-z0-9]+)(\s[^>]*)?\s*\/?>/i', function ($m) {
+            $tag = strtolower($m[1]);
+            $is_void = ($tag === 'br');
+            if ($tag === 'a' && !empty($m[2]) && preg_match('/href\s*=\s*(["\'])(.*?)\1/i', $m[2], $hm)) {
+                $href_raw = (string) $hm[2];
+                if (preg_match('~^(https?:|mailto:|/|#)~i', $href_raw)) {
+                    $href = htmlspecialchars($href_raw, ENT_QUOTES, 'UTF-8');
+                    return '<a href="' . $href . '" rel="noopener noreferrer" target="_blank">';
+                }
+                return '<a>';
+            }
+            if ($tag === 'img' && !empty($m[2]) && preg_match('/src\s*=\s*(["\'])(.*?)\1/i', $m[2], $sm)) {
+                $src_raw = trim((string) $sm[2]);
+                if ($src_raw !== '' && preg_match('~^(https?:|/)~i', $src_raw) && strpos($src_raw, '..') === false) {
+                    $src = htmlspecialchars($src_raw, ENT_QUOTES, 'UTF-8');
+                    return '<img src="' . $src . '" alt="">';
+                }
+                return '';
+            }
+            if ($is_void) {
+                return '<br>';
+            }
+            return '<' . $tag . '>';
+        }, $clean);
+        // Plain-text claims: keep line breaks readable in the approval modal.
+        if ($clean !== '' && !preg_match('/<(p|div|li|br|h[1-6]|ul|ol|pre|blockquote)\b/i', $clean)) {
+            $clean = nl2br($clean, false);
+        }
         return trim($clean);
     }
 }

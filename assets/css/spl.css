@@ -1462,18 +1462,18 @@ button.spl-reward-period-tab {
 
 .spl-approval-modal-dialog {
   width: auto;
-  max-width: min(680px, 94vw);
+  max-width: min(720px, 94vw);
   margin: 0.75rem auto;
 }
 
 .spl-approval-modal-dialog .modal-content {
-  max-height: none;
-  overflow: visible;
+  max-height: min(92vh, 900px);
 }
 
 .spl-approval-modal .modal-header,
 .spl-approval-modal .modal-footer {
   border-color: #e2e8f0;
+  flex-shrink: 0;
 }
 
 .spl-approval-modal .modal-title {
@@ -1482,7 +1482,7 @@ button.spl-reward-period-tab {
 }
 
 .spl-approval-modal .modal-body {
-  overflow: visible;
+  overflow-y: auto;
   max-height: none;
 }
 
@@ -1568,8 +1568,16 @@ button.spl-reward-period-tab {
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
-  max-height: none;
-  overflow: visible;
+  max-height: min(50vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  word-break: break-word;
+}
+
+.spl-approval-modal-note * {
+  max-width: 100%;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .spl-approval-modal-note p {

@@ -310,7 +310,7 @@ $reward_period_options = array(
         <?php endif; ?>
       </div>
       <div class="modal fade" id="splApprovalDetailModal" tabindex="-1" aria-labelledby="splApprovalDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered spl-approval-modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable spl-approval-modal-dialog">
           <div class="modal-content spl-approval-modal">
             <div class="modal-header py-2 px-3">
               <h5 class="modal-title" id="splApprovalDetailModalLabel">Activity details</h5>

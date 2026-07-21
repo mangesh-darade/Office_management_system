@@ -131,8 +131,44 @@ class Reward_model extends CI_Model
         if (empty($data['created_at'])) {
             $data['created_at'] = date('Y-m-d H:i:s');
         }
+        $data = $this->normalize_transaction_label_fields($data);
         $this->db->insert('reward_transactions', $data);
         return (int) $this->db->insert_id();
+    }
+
+    /**
+     * reference_label is varchar(255); keep a short summary there and store full text in notes.
+     *
+     * @param array $data
+     * @return array
+     */
+    private function normalize_transaction_label_fields(array $data)
+    {
+        if (!array_key_exists('reference_label', $data) || $data['reference_label'] === null) {
+            return $data;
+        }
+
+        $label = (string) $data['reference_label'];
+        $has_notes_col = $this->db->field_exists('notes', 'reward_transactions');
+        $notes_empty = !array_key_exists('notes', $data)
+            || $data['notes'] === null
+            || $data['notes'] === '';
+
+        if ($has_notes_col && $notes_empty && $label !== '') {
+            $data['notes'] = $label;
+        }
+
+        if (strlen($label) > 255) {
+            $plain = trim(preg_replace('/\s+/', ' ', strip_tags($label)));
+            $short = $plain !== '' ? $plain : $label;
+            if (function_exists('mb_substr')) {
+                $data['reference_label'] = mb_substr($short, 0, 255, 'UTF-8');
+            } else {
+                $data['reference_label'] = substr($short, 0, 255);
+            }
+        }
+
+        return $data;
     }
 
     public function update_user_summary($user_id)
@@ -623,7 +659,7 @@ class Reward_model extends CI_Model
     public function list_spl_approval_history($status = 'approved', $limit = 100)
     {
         $status = in_array($status, array('approved', 'rejected'), true) ? $status : 'approved';
-        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, a.name AS approver_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label', false);
+        $this->db->select('q.*, u.name AS recipient_name, s.name AS submitter_name, a.name AS approver_name, r.name AS rule_name, r.code AS rule_code, r.points AS rule_points, c.name AS category_name, t.reference_label, t.notes AS transaction_notes', false);
         $this->db->from('reward_approval_queue q');
         $this->db->join('users u', 'u.id = q.user_id', 'left');
         $this->db->join('users s', 's.id = q.submitted_by', 'left');
@@ -777,19 +813,13 @@ class Reward_model extends CI_Model
                 }
             }
             if (array_key_exists('reference_label', $data)) {
-                $label = (string) $data['reference_label'];
-                $label_out = $label;
-                if (strlen($label) > 255) {
-                    $plain = trim(preg_replace('/\s+/', ' ', strip_tags($label)));
-                    $tx['reference_label'] = substr($plain !== '' ? $plain : $label, 0, 255);
-                    if ($this->db->field_exists('notes', 'reward_transactions')) {
-                        $tx['notes'] = $label;
-                    }
-                } else {
-                    $tx['reference_label'] = $label;
-                    if ($this->db->field_exists('notes', 'reward_transactions')) {
-                        $tx['notes'] = $label;
-                    }
+                $normalized = $this->normalize_transaction_label_fields(array(
+                    'reference_label' => (string) $data['reference_label'],
+                ));
+                $label_out = (string) $data['reference_label'];
+                $tx['reference_label'] = $normalized['reference_label'];
+                if (array_key_exists('notes', $normalized)) {
+                    $tx['notes'] = $normalized['notes'];
                 }
             }
             $this->db->where('id', (int) $q->transaction_id)->update('reward_transactions', $tx);

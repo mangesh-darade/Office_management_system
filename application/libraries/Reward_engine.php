@@ -64,7 +64,7 @@ class Reward_engine
             }
 
             $status = ((int) $rule->requires_approval === 1) ? 'pending' : 'approved';
-            $txId = $this->CI->rewards->insert_transaction(array(
+            $tx_row = array(
                 'user_id' => $user_id,
                 'rule_id' => (int) $rule->id,
                 'category_id' => $rule->category_id ? (int) $rule->category_id : null,
@@ -78,7 +78,11 @@ class Reward_engine
                 'granted_by' => isset($context['actor_id']) ? (int) $context['actor_id'] : null,
                 'period_key' => $period_key,
                 'created_at' => isset($context['occurred_at']) ? $context['occurred_at'] : date('Y-m-d H:i:s'),
-            ));
+            );
+            if (isset($context['notes']) && (string) $context['notes'] !== '') {
+                $tx_row['notes'] = (string) $context['notes'];
+            }
+            $txId = $this->CI->rewards->insert_transaction($tx_row);
 
             $this->CI->rewards->audit('transaction', $txId, 'created', isset($context['actor_id']) ? (int) $context['actor_id'] : $user_id, null, array('rule' => $rule->code, 'points' => $rule->points));
 

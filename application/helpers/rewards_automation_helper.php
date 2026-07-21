@@ -472,6 +472,7 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
         }
 
         $label = 'Daily activity';
+        $notes = '';
         $log = $db->where('id', $log_id)->limit(1)->get('daily_work_logs')->row();
         if ($log) {
             if (!empty($log->activity_title)) {
@@ -481,6 +482,9 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
                 if ($task && !empty($task->title)) {
                     $label = 'Daily activity: ' . trim((string) $task->title);
                 }
+            }
+            if (!empty($log->description)) {
+                $notes = (string) $log->description;
             }
         }
 
@@ -494,7 +498,8 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
 
         // Queued as pending for SPL Approvals (manual review). source_module stays
         // daily_activity for audit; Approvals UI accepts this module.
-        reward_engine_dispatch('daily_activity_logged', array(
+        // Full description goes in notes (reference_label is varchar(255) only).
+        $dispatch = array(
             'user_id' => $user_id,
             'actor_id' => $user_id,
             'source_module' => 'daily_activity',
@@ -502,7 +507,11 @@ if (!function_exists('rewards_automation_after_daily_activity_saved')) {
             'reference_label' => $label,
             'occurred_at' => $occurred_at,
             'payload' => array(),
-        ));
+        );
+        if ($notes !== '') {
+            $dispatch['notes'] = $notes;
+        }
+        reward_engine_dispatch('daily_activity_logged', $dispatch);
     }
 }
 
