@@ -263,14 +263,7 @@ if (!function_exists('attendance_report_is_wfh_leave_row')) {
      */
     function attendance_report_is_wfh_leave_row($leaveRow)
     {
-        if (isset($leaveRow->reason) && strpos($leaveRow->reason, 'WFH:') === 0) {
-            return true;
-        }
-        if (isset($leaveRow->type_name) && strtolower(trim($leaveRow->type_name)) === 'work from home') {
-            return true;
-        }
-
-        return false;
+        return leave_request_row_is_wfh($leaveRow);
     }
 }
 

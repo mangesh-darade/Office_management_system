@@ -146,7 +146,7 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
                 $uid = (int) $row->user_id;
                 $leave_user_ids[$uid] = true;
                 $type_name = isset($row->leave_type) ? trim((string) $row->leave_type) : '';
-                $is_wfh = (bool) preg_match('/work\s*from\s*home|\bwfh\b/i', $type_name);
+                $is_wfh = leave_type_name_is_wfh($type_name);
                 $item = array(
                     'user_id'    => $uid,
                     'name'       => (string) ($row->user_name ?: ('User #' . $uid)),

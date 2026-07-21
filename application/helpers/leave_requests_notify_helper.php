@@ -31,12 +31,7 @@ if (!function_exists('leave_requests_notify_applied')) {
             $leave_type = $first_leave->type_name;
             
             // Check if this is a WFH request
-            $is_wfh = false;
-            if (isset($first_leave->reason) && strpos($first_leave->reason, 'WFH:') === 0) {
-                $is_wfh = true;
-            } elseif (isset($leave_type) && strtolower(trim($leave_type)) === 'work from home') {
-                $is_wfh = true;
-            }
+            $is_wfh = leave_request_row_is_wfh($first_leave);
             
             // Build consolidated leave details
             $leave_details = [];
@@ -223,12 +218,7 @@ if (!function_exists('leave_requests_notify_change')) {
         }
         
         // Check if this is a WFH request
-        $is_wfh = false;
-        if (isset($row->reason) && strpos($row->reason, 'WFH:') === 0) {
-            $is_wfh = true;
-        } elseif (isset($row->type_name) && strtolower(trim($row->type_name)) === 'work from home') {
-            $is_wfh = true;
-        }
+        $is_wfh = leave_request_row_is_wfh($row);
         
         // Best-effort email
         try {

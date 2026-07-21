@@ -252,7 +252,7 @@
     if (typeIdSelect && typeIdSelect.selectedIndex > 0) {
       var selectedOption = typeIdSelect.options[typeIdSelect.selectedIndex];
       var typeName = selectedOption.getAttribute('data-name') || '';
-      var isWFH = typeName.indexOf('work from home') !== -1;
+      var isWFH = /work\s*from\s*home|\bwfh\b/i.test(typeName);
       
       if (isWFH) {
         // WFH type selected - show N/A for balance

@@ -16,6 +16,52 @@ if (!function_exists('normalize_attendance_status_key')) {
     }
 }
 
+if (!function_exists('leave_type_name_is_wfh')) {
+    /**
+     * True when leave type name is WFH / Work From Home (any common naming).
+     */
+    function leave_type_name_is_wfh($name)
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return false;
+        }
+
+        return (bool) preg_match('/work\s*from\s*home|\bwfh\b/i', $name);
+    }
+}
+
+if (!function_exists('leave_request_row_is_wfh')) {
+    /**
+     * Detect WFH leave request by reason prefix and/or leave type name.
+     *
+     * @param object|array $leaveRow
+     * @return bool
+     */
+    function leave_request_row_is_wfh($leaveRow)
+    {
+        if (is_array($leaveRow)) {
+            $leaveRow = (object) $leaveRow;
+        }
+        if (!is_object($leaveRow)) {
+            return false;
+        }
+        if (isset($leaveRow->reason) && strpos((string) $leaveRow->reason, 'WFH:') === 0) {
+            return true;
+        }
+        $type_name = '';
+        if (isset($leaveRow->type_name)) {
+            $type_name = $leaveRow->type_name;
+        } elseif (isset($leaveRow->leave_type)) {
+            $type_name = $leaveRow->leave_type;
+        } elseif (isset($leaveRow->name)) {
+            $type_name = $leaveRow->name;
+        }
+
+        return leave_type_name_is_wfh($type_name);
+    }
+}
+
 if (!function_exists('attendance_status_report_bucket')) {
     /**
      * Map DB status to report summary bucket: present, half, wfh, absent.

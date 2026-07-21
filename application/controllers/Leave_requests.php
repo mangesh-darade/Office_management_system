@@ -46,10 +46,10 @@ class Leave_requests extends CI_Controller {
                 return;
             }
             
-            // Check if selected leave type is "Work From Home"
+            // Check if selected leave type is "Work From Home" / WFH
             $leave_type = $this->db->select('name')->from('leave_types')->where('id', $type_id)->get()->row();
             $is_wfh = false;
-            if ($leave_type && strtolower(trim($leave_type->name)) === 'work from home') {
+            if ($leave_type && leave_type_name_is_wfh($leave_type->name)) {
                 $is_wfh = true;
                 // Prefix reason with WFH marker
                 $reason = 'WFH: ' . ($reason ? $reason : 'Work From Home Request');
@@ -759,7 +759,7 @@ class Leave_requests extends CI_Controller {
             $is_wfh = true;
         } else {
             $leave_type = $this->db->select('name')->from('leave_types')->where('id', (int)$leave->type_id)->get()->row();
-            if ($leave_type && strtolower(trim($leave_type->name)) === 'work from home') {
+            if ($leave_type && leave_type_name_is_wfh($leave_type->name)) {
                 $is_wfh = true;
             }
         }

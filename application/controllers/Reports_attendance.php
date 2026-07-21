@@ -147,6 +147,7 @@ class Reports_attendance extends Reports_base {
         }
 
         $leaveMap = array();
+        $wfhMap = array();
         if ($this->db->table_exists('leave_requests')) {
             $lrows = $this->db->select('lr.start_date, lr.end_date, lr.status, lr.reason, lt.name AS type_name')
                 ->from('leave_requests lr')
@@ -157,18 +158,20 @@ class Reports_attendance extends Reports_base {
                 ->where('lr.end_date >=', $from)
                 ->get()->result();
             foreach ($lrows as $lr) {
-                if (attendance_report_is_wfh_leave_row($lr)) {
-                    continue;
-                }
                 $sd = isset($lr->start_date) ? (string) $lr->start_date : '';
                 $ed = isset($lr->end_date) ? (string) $lr->end_date : '';
                 if ($sd === '' || $ed === '') { continue; }
                 $cur = strtotime(max($from, substr($sd, 0, 10)));
                 $endTs = strtotime(min($to, substr($ed, 0, 10)));
+                $isWfhLeave = attendance_report_is_wfh_leave_row($lr);
                 $txt = 'Leave (' . (string) $lr->status . ')';
                 while ($cur !== false && $cur <= $endTs) {
                     $k = date('Y-m-d', $cur);
-                    if (!isset($leaveMap[$k])) { $leaveMap[$k] = $txt; }
+                    if ($isWfhLeave) {
+                        $wfhMap[$k] = true;
+                    } elseif (!isset($leaveMap[$k])) {
+                        $leaveMap[$k] = $txt;
+                    }
                     $cur = strtotime('+1 day', $cur);
                 }
             }
@@ -218,11 +221,12 @@ class Reports_attendance extends Reports_base {
             $raw = isset($attMap[$d]) ? $attMap[$d] : '';
             $st = strtolower(trim($raw));
             $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+            $isWfhDay = !empty($wfhMap[$d]) || (normalize_attendance_status_key($st) === 'work_from_home');
             $holidayName = isset($holidayMap[$d]) ? $holidayMap[$d] : null;
             $hasInTime = isset($cinMap[$d]) && attendance_report_is_valid_punch_time($cinMap[$d]);
             $hasOutTime = isset($coutMap[$d]) && attendance_report_is_valid_punch_time($coutMap[$d]);
 
-            if ($raw === '' && $leave === '—' && !$isWeekend) {
+            if ($raw === '' && $leave === '—' && !$isWeekend && !$isWfhDay) {
                 if ($holidayName) {
                     $st = 'holiday';
                     $raw = 'holiday';
@@ -234,6 +238,11 @@ class Reports_attendance extends Reports_base {
             if (($hasInTime || $hasOutTime) && $st === 'absent') {
                 $st = 'present';
                 $raw = 'present';
+            }
+            // Approved WFH leave days display as Work From Home (even if punch left status empty).
+            if ($isWfhDay && ($st === '' || $st === 'absent' || $st === 'present' || $st === 'late')) {
+                $st = 'work_from_home';
+                $raw = 'work_from_home';
             }
 
             if ($isWeekend && $st === '') {

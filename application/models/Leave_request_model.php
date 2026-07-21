@@ -108,7 +108,7 @@ class Leave_request_model extends CI_Model {
         } else {
             // Also check leave type name
             $leave_type = $this->db->select('name')->from('leave_types')->where('id', (int)$leave->type_id)->get()->row();
-            if ($leave_type && strtolower(trim($leave_type->name)) === 'work from home') {
+            if ($leave_type && leave_type_name_is_wfh($leave_type->name)) {
                 $is_wfh = true;
             }
         }

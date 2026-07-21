@@ -427,7 +427,7 @@ if (!function_exists('rewards_automation_leave_is_wfh')) {
             return false;
         }
         $leave_type = $db->select('name')->from('leave_types')->where('id', (int) $leave->type_id)->limit(1)->get()->row();
-        return ($leave_type && strtolower(trim((string) $leave_type->name)) === 'work from home');
+        return ($leave_type && leave_type_name_is_wfh($leave_type->name));
     }
 }
 

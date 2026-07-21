@@ -74,15 +74,17 @@ if (!function_exists('attendance_report_generate_daily_details')) {
             if (isset($r->notes) && !empty(trim($r->notes))) { $notesMap[$d] = trim((string)$r->notes); }
         }
         
-        // Get leave map
+        // Get leave map (skip WFH leave types — those are attendance WFH, not leave)
         $leaveMap = [];
+        $wfhMap = [];
         if ($db->table_exists('leave_requests')) {
-            $lrows = $db->select('start_date, end_date, status')
-                ->from('leave_requests')
-                ->where('user_id', $user_id)
-                ->where_in('status', ['lead_approved','hr_approved'])
-                ->where('start_date <=', $to)
-                ->where('end_date >=', $from)
+            $lrows = $db->select('lr.start_date, lr.end_date, lr.status, lr.reason, lt.name AS type_name')
+                ->from('leave_requests lr')
+                ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
+                ->where('lr.user_id', $user_id)
+                ->where_in('lr.status', ['lead_approved','hr_approved'])
+                ->where('lr.start_date <=', $to)
+                ->where('lr.end_date >=', $from)
                 ->get()->result();
             foreach ($lrows as $lr) {
                 $sd = isset($lr->start_date) ? (string)$lr->start_date : '';
@@ -90,10 +92,15 @@ if (!function_exists('attendance_report_generate_daily_details')) {
                 if ($sd === '' || $ed === '') { continue; }
                 $cur = strtotime(max($from, substr($sd, 0, 10)));
                 $endTs = strtotime(min($to, substr($ed, 0, 10)));
+                $isWfhLeave = attendance_report_is_wfh_leave_row($lr);
                 $txt = 'Leave ('.(string)$lr->status.')';
                 while ($cur !== false && $cur <= $endTs) {
                     $k = date('Y-m-d', $cur);
-                    if (!isset($leaveMap[$k])) { $leaveMap[$k] = $txt; }
+                    if ($isWfhLeave) {
+                        $wfhMap[$k] = true;
+                    } elseif (!isset($leaveMap[$k])) {
+                        $leaveMap[$k] = $txt;
+                    }
                     $cur = strtotime('+1 day', $cur);
                 }
             }
@@ -117,10 +124,11 @@ if (!function_exists('attendance_report_generate_daily_details')) {
             $raw = isset($attMap[$d]) ? $attMap[$d] : '';
             $st = strtolower(trim($raw));
             $leave = isset($leaveMap[$d]) ? $leaveMap[$d] : '—';
+            $isWfhDay = !empty($wfhMap[$d]) || (normalize_attendance_status_key($st) === 'work_from_home');
             $hasInTime = isset($cinMap[$d]) && trim((string)$cinMap[$d]) !== '' && trim((string)$cinMap[$d]) !== '00:00:00' && trim((string)$cinMap[$d]) !== '0000-00-00 00:00:00';
             $hasOutTime = isset($coutMap[$d]) && trim((string)$coutMap[$d]) !== '' && trim((string)$coutMap[$d]) !== '00:00:00' && trim((string)$coutMap[$d]) !== '0000-00-00 00:00:00';
             
-            if ($raw === '' && $leave === '—' && !$isWeekend) {
+            if ($raw === '' && $leave === '—' && !$isWeekend && !$isWfhDay) {
                 $st = 'absent';
                 $raw = 'absent';
             }
@@ -128,6 +136,10 @@ if (!function_exists('attendance_report_generate_daily_details')) {
             if (($hasInTime || $hasOutTime) && $st === 'absent') {
                 $st = 'present';
                 $raw = 'present';
+            }
+            if ($isWfhDay && ($st === '' || $st === 'absent' || $st === 'present' || $st === 'late')) {
+                $st = 'work_from_home';
+                $raw = 'work_from_home';
             }
             
             if ($isWeekend && $st === '') {
