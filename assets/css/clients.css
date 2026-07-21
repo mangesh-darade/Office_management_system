@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Clients directory â€” compact professional list UI
  * Scoped to .cl-page Â· Bootstrap Icons only
  */
@@ -160,7 +160,18 @@
 }
 
 /* Type tabs */
-.cl-page .cl-tabs {
+.cl-page .cl-view-tabs-shell {
+  border-radius: var(--cl-radius);
+  overflow: hidden;
+}
+
+.cl-page .cl-view-tabs-shell .cl-tabs {
+  border-bottom: none;
+}
+
+.cl-page .client-dash-page {
+  padding: 0;
+}
   display: flex;
   gap: 0;
   overflow-x: auto;
@@ -543,6 +554,7 @@
   flex-direction: column;
   min-width: 0;
   --cl-lane-row-h: 2.15rem;
+  --cl-lane-thead-h: 1.35rem;
   --cl-lane-visible: 10;
 }
 
@@ -587,8 +599,9 @@
 }
 
 .cl-page .cl-lane-scroll {
-  height: calc(var(--cl-lane-row-h) * var(--cl-lane-visible));
-  max-height: calc(var(--cl-lane-row-h) * var(--cl-lane-visible));
+  /* Header + 10 client rows before scroll */
+  height: calc(var(--cl-lane-thead-h) + (var(--cl-lane-row-h) * var(--cl-lane-visible)));
+  max-height: calc(var(--cl-lane-thead-h) + (var(--cl-lane-row-h) * var(--cl-lane-visible)));
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -610,6 +623,8 @@
   padding: 0.2rem 0.35rem;
   border-bottom: 1px solid #e8edf3;
   text-align: left;
+  height: var(--cl-lane-thead-h);
+  box-sizing: border-box;
 }
 
 .cl-page .cl-lane-table thead th:nth-child(1) { width: 58%; }
@@ -1197,13 +1212,19 @@
   --bs-gutter-x: 0.55rem;
   --bs-gutter-y: 0.55rem;
 }
+.client-dash-card {
+  height: 100%;
+}
+.client-dash-card .card-body {
+  padding: 0.55rem 0.6rem;
+}
 .client-dash-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.45rem;
-  margin-bottom: 0.45rem;
-  padding-bottom: 0.4rem;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid #eef2f7;
 }
 .client-dash-card-title {
@@ -1217,7 +1238,7 @@
   flex-shrink: 0;
 }
 .client-dash-client-name {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #0f172a;
   text-decoration: none;
@@ -1233,26 +1254,29 @@
   display: inline-flex;
   gap: 0.3rem;
   flex-shrink: 0;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
   color: #64748b;
 }
 .client-dash-card-counts span {
   background: #f1f5f9;
   border-radius: 999px;
-  padding: 0.12rem 0.4rem;
+  padding: 0.1rem 0.34rem;
   line-height: 1.2;
 }
 .client-dash-project-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  /* ~10 compact project rows before scroll */
+  max-height: calc(1.55rem * 10);
+  overflow-y: auto;
 }
 .client-dash-project-item {
   border: 1px solid #eef2f7;
   border-radius: 0.4rem;
   background: #f8fafc;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.28rem;
   overflow: hidden;
 }
 .client-dash-project-item:last-child {
@@ -1268,7 +1292,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-  padding: 0.4rem 0.5rem;
+  padding: 0.28rem 0.42rem;
   border: 0;
   background: transparent;
   text-align: left;
@@ -1294,7 +1318,7 @@
   color: #2563eb;
 }
 .client-dash-project-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 650;
   color: #1e293b;
   white-space: nowrap;
@@ -1311,8 +1335,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.2rem;
+  height: 1.2rem;
   border-radius: 0.3rem;
   color: #64748b;
   text-decoration: none;
@@ -1326,8 +1350,8 @@
   background: #fff;
 }
 .client-dash-tasks-empty {
-  padding: 0.45rem 0.55rem;
-  font-size: 0.72rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.68rem;
   color: #94a3b8;
 }
 .client-dash-tasks .project-dash-task-table {
@@ -1335,8 +1359,8 @@
 }
 .client-dash-tasks .project-dash-task-table th,
 .client-dash-tasks .project-dash-task-table td {
-  padding: 0.28rem 0.45rem;
-  font-size: 0.72rem;
+  padding: 0.22rem 0.35rem;
+  font-size: 0.68rem;
 }
 @media (max-width: 767.98px) {
   .client-dash-client-name {

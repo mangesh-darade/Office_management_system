@@ -78,6 +78,31 @@ class Clients extends CI_Controller {
     public function index(){
         require_module_access(['clients_list', 'clients'], true);
         $client_types = $this->_client_type_options();
+        $active_tab = $this->input->get('tab');
+        $active_tab = ($active_tab === 'cart') ? 'cart' : 'list';
+
+        if ($active_tab === 'cart') {
+            $cart = $this->_build_client_cart_data();
+            $this->load->view('clients/index', array_merge($cart, array(
+                'active_tab'   => 'cart',
+                'client_types' => $client_types,
+                'rows'         => array(),
+                'lanes'        => array(),
+                'show_lanes'   => false,
+                'filters'      => array(),
+                'type_counts'  => array(),
+                'status_counts'=> array(),
+                'stats_total'  => isset($cart['client_cards']) ? count($cart['client_cards']) : 0,
+                'pagination'   => array(
+                    'page' => 1,
+                    'per_page' => 25,
+                    'total' => 0,
+                    'total_pages' => 1,
+                ),
+            )));
+            return;
+        }
+
         try {
             $filters = [
                 'status' => $this->input->get('status'),
@@ -208,6 +233,7 @@ class Clients extends CI_Controller {
                 'status_counts' => $status_counts,
                 'stats_total' => $stats_total,
                 'pagination' => $pagination,
+                'active_tab' => 'list',
             ]);
 
         } catch (Exception $e) {
@@ -238,6 +264,116 @@ class Clients extends CI_Controller {
                 'total' => 0,
                 'total_pages' => 1,
             ),
+            'active_tab' => 'list',
+        );
+    }
+
+    /**
+     * Client cart data: clients with nested projects and tasks (alphabetical).
+     *
+     * @return array{client_cards:array,total_projects:int,total_tasks:int}
+     */
+    private function _build_client_cart_data()
+    {
+        $clients = safe_db_operation(function () {
+            return $this->clients->get_clients(array('sort' => 'company_name', 'dir' => 'asc'), 500, 0);
+        }, 'Unable to load clients.');
+        $client_rows = (!empty($clients['success']) && is_array($clients['data'])) ? $clients['data'] : array();
+
+        $projects_by_client = array();
+        $tasks_by_project = array();
+        $all_project_ids = array();
+
+        if ($this->db->table_exists('projects')
+            && schema_table_has_column($this->db, 'projects', 'client_id')
+            && !empty($client_rows)
+        ) {
+            $client_ids = array();
+            foreach ($client_rows as $c) {
+                $client_ids[] = (int) $c->id;
+            }
+            $client_ids = array_values(array_filter($client_ids));
+
+            if (!empty($client_ids)) {
+                $this->db->from('projects');
+                $this->db->where_in('client_id', $client_ids);
+                $this->db->order_by('name', 'ASC');
+                foreach ($this->db->get()->result() as $project) {
+                    $cid = (int) $project->client_id;
+                    $pid = (int) $project->id;
+                    if (!isset($projects_by_client[$cid])) {
+                        $projects_by_client[$cid] = array();
+                    }
+                    $projects_by_client[$cid][] = $project;
+                    $all_project_ids[] = $pid;
+                }
+            }
+        }
+
+        if ($this->db->table_exists('tasks') && !empty($all_project_ids)) {
+            $sel = array('t.id', 't.title', 't.status', 't.project_id');
+            if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
+                $sel[] = 't.due_date';
+            }
+            if (schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
+                $sel[] = 't.assigned_to';
+            }
+            $this->db->select(implode(',', $sel));
+            $this->db->from('tasks t');
+            $this->db->where_in('t.project_id', $all_project_ids);
+            if (schema_table_has_column($this->db, 'tasks', 'assigned_to')
+                && $this->db->table_exists('users')
+            ) {
+                $this->db->select('u.name AS assignee_name, u.email AS assignee_email', false);
+                $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+            }
+            $this->db->order_by('t.id', 'DESC');
+            foreach ($this->db->get()->result() as $task) {
+                $pid = (int) $task->project_id;
+                if (!isset($tasks_by_project[$pid])) {
+                    $tasks_by_project[$pid] = array();
+                }
+                $tasks_by_project[$pid][] = $task;
+            }
+        }
+
+        $client_cards = array();
+        $total_projects = 0;
+        $total_tasks = 0;
+        foreach ($client_rows as $c) {
+            $cid = (int) $c->id;
+            $projects = isset($projects_by_client[$cid]) ? $projects_by_client[$cid] : array();
+            $project_sections = array();
+            $client_task_count = 0;
+            foreach ($projects as $project) {
+                $pid = (int) $project->id;
+                $tasks = isset($tasks_by_project[$pid]) ? $tasks_by_project[$pid] : array();
+                $client_task_count += count($tasks);
+                $project_sections[] = array(
+                    'project' => $project,
+                    'tasks'   => $tasks,
+                );
+            }
+            $total_projects += count($project_sections);
+            $total_tasks += $client_task_count;
+            $client_cards[] = array(
+                'client'        => $c,
+                'projects'      => $project_sections,
+                'project_count' => count($project_sections),
+                'task_count'    => $client_task_count,
+            );
+        }
+
+        usort($client_cards, function ($a, $b) {
+            $an = isset($a['client']->company_name) ? strtolower(trim((string) $a['client']->company_name)) : '';
+            $bn = isset($b['client']->company_name) ? strtolower(trim((string) $b['client']->company_name)) : '';
+            return strcmp($an, $bn);
+        });
+
+        return array(
+            'client_cards'   => $client_cards,
+            'total_projects' => $total_projects,
+            'total_tasks'    => $total_tasks,
         );
     }
 
@@ -413,108 +549,11 @@ class Clients extends CI_Controller {
         require_module_access(array('clients_list', 'clients_view', 'clients'), true);
 
         $embed = (bool) $this->input->get('embed');
+        $cart = $this->_build_client_cart_data();
 
-        $clients = safe_db_operation(function () {
-            return $this->clients->get_clients(array('sort' => 'company_name', 'dir' => 'asc'), 500, 0);
-        }, 'Unable to load clients.');
-        $client_rows = (!empty($clients['success']) && is_array($clients['data'])) ? $clients['data'] : array();
-
-        $projects_by_client = array();
-        $tasks_by_project = array();
-        $all_project_ids = array();
-
-        if ($this->db->table_exists('projects')
-            && schema_table_has_column($this->db, 'projects', 'client_id')
-            && !empty($client_rows)
-        ) {
-            $client_ids = array();
-            foreach ($client_rows as $c) {
-                $client_ids[] = (int) $c->id;
-            }
-            $client_ids = array_values(array_filter($client_ids));
-
-            if (!empty($client_ids)) {
-                $this->db->from('projects');
-                $this->db->where_in('client_id', $client_ids);
-                $this->db->order_by('name', 'ASC');
-                foreach ($this->db->get()->result() as $project) {
-                    $cid = (int) $project->client_id;
-                    $pid = (int) $project->id;
-                    if (!isset($projects_by_client[$cid])) {
-                        $projects_by_client[$cid] = array();
-                    }
-                    $projects_by_client[$cid][] = $project;
-                    $all_project_ids[] = $pid;
-                }
-            }
-        }
-
-        if ($this->db->table_exists('tasks') && !empty($all_project_ids)) {
-            $sel = array('t.id', 't.title', 't.status', 't.project_id');
-            if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
-                $sel[] = 't.due_date';
-            }
-            if (schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
-                $sel[] = 't.assigned_to';
-            }
-            $this->db->select(implode(',', $sel));
-            $this->db->from('tasks t');
-            $this->db->where_in('t.project_id', $all_project_ids);
-            if (schema_table_has_column($this->db, 'tasks', 'assigned_to')
-                && $this->db->table_exists('users')
-            ) {
-                $this->db->select('u.name AS assignee_name, u.email AS assignee_email', false);
-                $this->db->join('users u', 'u.id = t.assigned_to', 'left');
-            }
-            $this->db->order_by('t.id', 'DESC');
-            foreach ($this->db->get()->result() as $task) {
-                $pid = (int) $task->project_id;
-                if (!isset($tasks_by_project[$pid])) {
-                    $tasks_by_project[$pid] = array();
-                }
-                $tasks_by_project[$pid][] = $task;
-            }
-        }
-
-        $client_cards = array();
-        $total_projects = 0;
-        $total_tasks = 0;
-        foreach ($client_rows as $c) {
-            $cid = (int) $c->id;
-            $projects = isset($projects_by_client[$cid]) ? $projects_by_client[$cid] : array();
-            $project_sections = array();
-            $client_task_count = 0;
-            foreach ($projects as $project) {
-                $pid = (int) $project->id;
-                $tasks = isset($tasks_by_project[$pid]) ? $tasks_by_project[$pid] : array();
-                $client_task_count += count($tasks);
-                $project_sections[] = array(
-                    'project' => $project,
-                    'tasks'   => $tasks,
-                );
-            }
-            $total_projects += count($project_sections);
-            $total_tasks += $client_task_count;
-            $client_cards[] = array(
-                'client'          => $c,
-                'projects'        => $project_sections,
-                'project_count'   => count($project_sections),
-                'task_count'      => $client_task_count,
-            );
-        }
-
-        usort($client_cards, function ($a, $b) {
-            $an = isset($a['client']->company_name) ? strtolower(trim((string) $a['client']->company_name)) : '';
-            $bn = isset($b['client']->company_name) ? strtolower(trim((string) $b['client']->company_name)) : '';
-            return strcmp($an, $bn);
-        });
-
-        $this->load->view('clients/dashboard', array(
-            'embed'          => $embed,
-            'client_cards'   => $client_cards,
-            'total_projects' => $total_projects,
-            'total_tasks'    => $total_tasks,
-        ));
+        $this->load->view('clients/dashboard', array_merge($cart, array(
+            'embed' => $embed,
+        )));
     }
 
     // GET /clients/view/{id}

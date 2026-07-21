@@ -1,5 +1,10 @@
 <?php
-$this->load->view('partials/header', ['title' => 'Clients']);
+$active_tab = (isset($active_tab) && $active_tab === 'cart') ? 'cart' : 'list';
+$header_css = array('assets/css/clients.css');
+if ($active_tab === 'cart') {
+  $header_css[] = 'assets/css/project-dashboard.css';
+}
+$this->load->view('partials/header', array('title' => 'Clients', 'extra_css' => $header_css));
 $css_v = is_file(FCPATH . 'assets/css/clients.css') ? filemtime(FCPATH . 'assets/css/clients.css') : '1';
 ?>
 <link href="<?php echo base_url('assets/css/clients.css?v=' . $css_v); ?>" rel="stylesheet">
@@ -147,6 +152,39 @@ $cl_link_count = function ($c) {
     </div>
   </div>
 
+  <div class="cl-shell cl-view-tabs-shell mb-2">
+    <nav class="cl-tabs" aria-label="Clients views">
+      <a class="cl-tab <?php echo $active_tab === 'list' ? 'active' : ''; ?>" href="<?php echo site_url('clients'); ?>">
+        <i class="bi bi-list-ul"></i> List
+        <?php if ($active_tab === 'list'): ?>
+        <span class="cl-tab-count"><?php echo (int) $stats_total; ?></span>
+        <?php endif; ?>
+      </a>
+      <a class="cl-tab <?php echo $active_tab === 'cart' ? 'active' : ''; ?>" href="<?php echo site_url('clients?tab=cart'); ?>">
+        <i class="bi bi-columns-gap"></i> Client cart
+        <?php if ($active_tab === 'cart'): ?>
+        <span class="cl-tab-count"><?php echo isset($client_cards) ? count($client_cards) : 0; ?></span>
+        <?php endif; ?>
+      </a>
+    </nav>
+  </div>
+
+  <?php if ($this->session->flashdata('success')): ?>
+  <div class="alert alert-success alert-dismissible fade show py-2 mb-3">
+    <i class="bi bi-check-circle-fill me-1"></i><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?>
+  <div class="alert alert-danger alert-dismissible fade show py-2 mb-3">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <?php endif; ?>
+  <?php $this->load->view('partials/import_errors'); ?>
+
+  <?php if ($active_tab === 'list'): ?>
+
   <div class="cl-stat-cards cl-stat-cards-status">
     <a class="cl-stat-card <?php echo $st === '' ? 'active' : ''; ?>" href="<?php echo esc_view($cl_url(array('status' => '', 'page' => 1)), ENT_QUOTES, 'UTF-8'); ?>">
       <div class="cl-stat-value"><?php echo (int) $stats_total; ?></div>
@@ -184,20 +222,6 @@ $cl_link_count = function ($c) {
     </a>
     <?php endforeach; ?>
   </div>
-
-  <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success alert-dismissible fade show py-2 mb-3">
-    <i class="bi bi-check-circle-fill me-1"></i><?php echo esc_view($this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-  <?php endif; ?>
-  <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger alert-dismissible fade show py-2 mb-3">
-    <i class="bi bi-exclamation-triangle-fill me-1"></i><?php echo esc_view($this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-  <?php endif; ?>
-  <?php $this->load->view('partials/import_errors'); ?>
 
   <div class="cl-shell">
     <form method="get" action="<?php echo site_url('clients'); ?>" class="cl-toolbar" id="clFilterForm">
@@ -503,6 +527,12 @@ $cl_link_count = function ($c) {
     <?php endif; ?>
     <?php endif; ?>
   </div>
+
+  <?php else: ?>
+  <div class="client-dash-page project-dash-compact">
+    <?php $this->load->view('clients/_cart_body'); ?>
+  </div>
+  <?php endif; ?>
 </div>
 
 <form id="clBulkDeleteForm" method="post" action="<?php echo site_url('clients/bulk-delete'); ?>" class="d-none">
