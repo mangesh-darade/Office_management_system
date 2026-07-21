@@ -197,6 +197,7 @@ class Spl_model extends CI_Model
         if (empty($user_ids) || !$this->db->table_exists('user_reward_summary')) {
             return $map;
         }
+        $this->load->model('Reward_model', 'rewards');
         $rows = $this->db->select('user_id, lifetime_points, month_points, current_level_code')
             ->where_in('user_id', $user_ids)
             ->get('user_reward_summary')
@@ -206,10 +207,17 @@ class Spl_model extends CI_Model
             if (!isset($map[$uid])) {
                 continue;
             }
+            $lifetime = (float) $row->lifetime_points;
+            $resolved = $this->rewards->resolve_level($lifetime);
+            if ((string) $row->current_level_code !== $resolved) {
+                $this->db->where('user_id', $uid)->update('user_reward_summary', array(
+                    'current_level_code' => $resolved,
+                ));
+            }
             $map[$uid] = (object) array(
-                'lifetime_points' => (float) $row->lifetime_points,
+                'lifetime_points' => $lifetime,
                 'month_points' => (float) $row->month_points,
-                'current_level_code' => !empty($row->current_level_code) ? (string) $row->current_level_code : 'starter',
+                'current_level_code' => $resolved,
             );
         }
         return $map;

@@ -759,6 +759,9 @@ class Spl extends CI_Controller
             $this->_json_error('Failed to save level. Please try again.', 500);
         }
 
+        // Threshold edits must refresh stored badges for all members.
+        $levels_recalculated = $this->rewards->recalculate_all_levels();
+
         $this->rewards->audit('level', $savedId, 'updated', (int) $this->session->userdata('user_id'));
         $this->_json_success(array(
             'id' => $savedId,
@@ -766,6 +769,7 @@ class Spl extends CI_Controller
             'min_lifetime_points' => $min_points,
             'max_lifetime_points' => $max_points,
             'is_active' => $is_active,
+            'levels_recalculated' => $levels_recalculated,
         ));
     }
 

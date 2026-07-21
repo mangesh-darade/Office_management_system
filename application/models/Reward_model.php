@@ -172,27 +172,78 @@ class Reward_model extends CI_Model
 
     public function get_user_summary($user_id)
     {
-        $row = $this->db->where('user_id', (int) $user_id)->get('user_reward_summary')->row();
+        $uid = (int) $user_id;
+        $row = $this->db->where('user_id', $uid)->get('user_reward_summary')->row();
         if (!$row) {
             return (object) array(
-                'user_id' => (int) $user_id,
+                'user_id' => $uid,
                 'lifetime_points' => 0,
                 'current_level_code' => 'starter',
                 'month_points' => 0,
             );
+        }
+        // Always derive level from lifetime points vs current thresholds
+        // (stored code goes stale when admins edit level min/max).
+        $resolved = $this->resolve_level((float) $row->lifetime_points);
+        if ((string) $row->current_level_code !== $resolved) {
+            $this->db->where('user_id', $uid)->update('user_reward_summary', array(
+                'current_level_code' => $resolved,
+            ));
+            $row->current_level_code = $resolved;
         }
         return $row;
     }
 
     public function resolve_level($lifetime_points)
     {
-        $levels = $this->db->where('is_active', 1)->order_by('min_lifetime_points', 'DESC')->get('reward_levels')->result();
+        if (!$this->db->table_exists('reward_levels')) {
+            return 'starter';
+        }
+        $pts = (float) $lifetime_points;
+        $levels = $this->db->where('is_active', 1)
+            ->order_by('min_lifetime_points', 'DESC')
+            ->get('reward_levels')
+            ->result();
         foreach ($levels as $l) {
-            if ((float) $lifetime_points >= (float) $l->min_lifetime_points) {
-                return $l->code;
+            $min = (float) $l->min_lifetime_points;
+            if ($pts < $min) {
+                continue;
             }
+            if (isset($l->max_lifetime_points) && $l->max_lifetime_points !== null && $l->max_lifetime_points !== '') {
+                if ($pts > (float) $l->max_lifetime_points) {
+                    continue;
+                }
+            }
+            return (string) $l->code;
         }
         return 'starter';
+    }
+
+    /**
+     * Recompute current_level_code for every user summary from lifetime points.
+     *
+     * @return int Number of rows updated
+     */
+    public function recalculate_all_levels()
+    {
+        if (!$this->db->table_exists('user_reward_summary')) {
+            return 0;
+        }
+        $updated = 0;
+        $rows = $this->db->select('user_id, lifetime_points, current_level_code')
+            ->get('user_reward_summary')
+            ->result();
+        foreach ($rows as $row) {
+            $resolved = $this->resolve_level((float) $row->lifetime_points);
+            if ((string) $row->current_level_code === $resolved) {
+                continue;
+            }
+            $this->db->where('user_id', (int) $row->user_id)->update('user_reward_summary', array(
+                'current_level_code' => $resolved,
+            ));
+            $updated++;
+        }
+        return $updated;
     }
 
     public function get_level($code)
