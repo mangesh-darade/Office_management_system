@@ -3,11 +3,13 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Daily_activity extends CI_Controller {
 
+    private $upload_dir = 'uploads/daily_activity/';
+
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter', 'schema_columns', 'view_output']);
-        $this->load->library(['session']);
+        $this->load->helper(['url', 'form', 'permission', 'hierarchy_filter', 'schema_columns', 'view_output', 'download', 'daily_activity_attachment']);
+        $this->load->library(['session', 'upload']);
         
         // RBAC Audit: Centralized module access check
         require_controller_access('daily_activity', true);
@@ -48,11 +50,121 @@ class Daily_activity extends CI_Controller {
             // Ensure task_id allows NULL (Fix for error 1048)
             $this->db->query("ALTER TABLE `daily_work_logs` MODIFY `task_id` INT(11) DEFAULT NULL");
         }
+        daily_activity_attachments_schema_ensure($this->db);
+        $dir = FCPATH . $this->upload_dir;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
     }
 
     private function sanitize_activity_description($raw)
     {
         return sanitize_html_output(trim((string) $raw));
+    }
+
+    private function can_access_log($log)
+    {
+        if (!$log) {
+            return false;
+        }
+        $user_id = (int) $this->session->userdata('user_id');
+        if ((int) $log->user_id === $user_id) {
+            return true;
+        }
+        if (is_admin_group()
+            || has_module_access('daily_activity_view_all')
+            || has_module_access('daily_activity_edit_all')
+            || has_module_access('daily_activity_delete_all')) {
+            return true;
+        }
+        // Same hierarchy scope as list/index (managers can open team logs).
+        $this->db->from('daily_work_logs');
+        $this->db->where('id', (int) $log->id);
+        apply_role_hierarchy_filter($this->db, 'user_id');
+        return (int) $this->db->count_all_results() > 0;
+    }
+
+    private function save_new_attachments($log_id, array $uploads)
+    {
+        $log_id = (int) $log_id;
+        if ($log_id < 1 || empty($uploads)) {
+            return;
+        }
+        $sort = daily_activity_attachment_max_sort($this->db, $log_id);
+        foreach ($uploads as $upload) {
+            $sort++;
+            daily_activity_attachment_insert(
+                $this->db,
+                $log_id,
+                $upload['original'],
+                $upload['stored'],
+                isset($upload['size']) ? (int) $upload['size'] : 0,
+                $sort,
+                isset($upload['mime']) ? $upload['mime'] : null
+            );
+        }
+    }
+
+    private function process_remove_attachments($log_id)
+    {
+        $log_id = (int) $log_id;
+        $remove_ids = $this->input->post('remove_attachments');
+        if (!is_array($remove_ids) || $log_id < 1) {
+            return;
+        }
+        foreach ($remove_ids as $raw_id) {
+            $att_id = (int) $raw_id;
+            if ($att_id < 1) {
+                continue;
+            }
+            $att = daily_activity_attachment_find($this->db, $log_id, $att_id);
+            if ($att) {
+                daily_activity_delete_attachment_file($att->stored_name);
+                daily_activity_attachment_delete_row($this->db, $log_id, $att_id);
+            }
+        }
+    }
+
+    private function serve_attachment($att, $inline = false)
+    {
+        if (!$att || empty($att->stored_name)) {
+            show_404();
+        }
+        $stored = (string) $att->stored_name;
+        if (strpos($stored, '..') !== false || strpos($stored, '/') !== false || strpos($stored, '\\') !== false) {
+            show_404();
+        }
+        $path = FCPATH . $this->upload_dir . $stored;
+        if (!is_file($path)) {
+            show_error('File not found.', 404);
+        }
+        $name = !empty($att->original_name) ? (string) $att->original_name : $stored;
+        if (!$inline) {
+            force_download($name, file_get_contents($path));
+            return;
+        }
+        $kind = daily_activity_attachment_kind($name, $stored);
+        if (!in_array($kind, array('video', 'image', 'audio'), true)) {
+            return false;
+        }
+        $mime = !empty($att->mime_type) ? (string) $att->mime_type : daily_activity_attachment_mime_type($name);
+        $size = filesize($path);
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . $size);
+        header('Content-Disposition: inline; filename="' . basename($name) . '"');
+        readfile($path);
+        exit;
+    }
+
+    private function attachments_map_for_logs($logs)
+    {
+        $ids = array();
+        foreach ((array) $logs as $log) {
+            if (!empty($log->id)) {
+                $ids[] = (int) $log->id;
+            }
+        }
+        return daily_activity_attachments_bulk_map($this->db, $ids);
     }
 
     private function fetch_activity_tasks($linked_task_id = 0)
@@ -123,7 +235,8 @@ class Daily_activity extends CI_Controller {
         $this->load->view('daily_activity/index', [
             'logs' => $logs,
             'date' => $date,
-            'tasks' => $tasks
+            'tasks' => $tasks,
+            'attachments_map' => $this->attachments_map_for_logs($logs),
         ]);
     }
     
@@ -231,7 +344,8 @@ class Daily_activity extends CI_Controller {
             'logs' => $logs,
             'is_admin' => $is_admin,
             'filters' => $filters,
-            'users' => $users
+            'users' => $users,
+            'attachments_map' => $this->attachments_map_for_logs($logs),
         ]);
     }
 
@@ -251,6 +365,12 @@ class Daily_activity extends CI_Controller {
             return;
         }
 
+        $uploads = daily_activity_handle_uploads();
+        if ($uploads === false) {
+            redirect('daily-activity?date=' . $work_date);
+            return;
+        }
+
         $data = [
             'user_id' => $user_id,
             'task_id' => $task_id > 0 ? $task_id : null,
@@ -262,6 +382,7 @@ class Daily_activity extends CI_Controller {
 
         if($this->db->insert('daily_work_logs', $data)) {
             $log_id = (int) $this->db->insert_id();
+            $this->save_new_attachments($log_id, $uploads);
             $this->load->helper('rewards_automation');
             if (function_exists('rewards_automation_after_daily_activity_saved')) {
                 rewards_automation_after_daily_activity_saved($this->db, $user_id, $log_id, $work_date);
@@ -274,6 +395,9 @@ class Daily_activity extends CI_Controller {
             $this->session->set_flashdata('success', 'Activity logged successfully. Reward points (if any) are pending admin approval.');
         } else {
              $this->session->set_flashdata('error', 'Database Error: Could not save activity.');
+             foreach ($uploads as $u) {
+                 daily_activity_delete_attachment_file($u['stored']);
+             }
         }
         
         redirect('daily-activity?date=' . $work_date);
@@ -309,12 +433,20 @@ class Daily_activity extends CI_Controller {
                 return;
             }
 
+            $uploads = daily_activity_handle_uploads();
+            if ($uploads === false) {
+                redirect('daily-activity/edit/' . $id);
+                return;
+            }
+
             $this->db->where('id', (int)$id)->update('daily_work_logs', [
                 'activity_title' => !empty($activity_title) ? $activity_title : null,
                 'task_id'        => $task_id > 0 ? $task_id : null,
                 'work_date'      => $work_date,
                 'description'    => $description,
             ]);
+            $this->process_remove_attachments((int) $id);
+            $this->save_new_attachments((int) $id, $uploads);
             $this->load->helper('activity');
             if (function_exists('log_activity_with_changes')) {
                 log_activity_with_changes(
@@ -346,6 +478,7 @@ class Daily_activity extends CI_Controller {
             'log' => $log,
             'tasks' => $tasks,
             'activity_title_value' => $activity_title_value,
+            'attachments' => daily_activity_attachments_for_log($this->db, (int) $log->id),
         ]);
     }
 
@@ -421,6 +554,7 @@ class Daily_activity extends CI_Controller {
                         'Daily activity deleted (log #' . (int) $id . ')'
                     );
                 }
+                daily_activity_delete_all_attachments($this->db, (int) $id);
                 $this->db->where('id', $id)->delete('daily_work_logs');
                 $this->session->set_flashdata('success', 'Activity deleted successfully');
             } else {
@@ -436,5 +570,60 @@ class Daily_activity extends CI_Controller {
         } else {
              redirect('daily-activity?date=' . ($log ? $log->work_date : date('Y-m-d')));
         }
+    }
+
+    public function attachment_download($id, $attachment_id)
+    {
+        require_module_access(array('daily_activity_list', 'daily_activity', 'daily_activity_add'), true);
+        $log = $this->db->get_where('daily_work_logs', array('id' => (int) $id))->row();
+        if (!$log || !$this->can_access_log($log)) {
+            show_error('Access denied.', 403);
+        }
+        $att = daily_activity_attachment_find($this->db, (int) $id, (int) $attachment_id);
+        if (!$att) {
+            show_404();
+        }
+        $this->serve_attachment($att, false);
+    }
+
+    public function attachment_preview($id, $attachment_id)
+    {
+        require_module_access(array('daily_activity_list', 'daily_activity', 'daily_activity_add'), true);
+        $log = $this->db->get_where('daily_work_logs', array('id' => (int) $id))->row();
+        if (!$log || !$this->can_access_log($log)) {
+            show_error('Access denied.', 403);
+        }
+        $att = daily_activity_attachment_find($this->db, (int) $id, (int) $attachment_id);
+        if (!$att) {
+            show_404();
+        }
+        if ($this->serve_attachment($att, true) === false) {
+            redirect('daily-activity/' . (int) $id . '/attachment/' . (int) $attachment_id . '/download');
+        }
+    }
+
+    /**
+     * Summernote picture upload — JSON { url }.
+     */
+    public function upload_image()
+    {
+        require_module_access(array('daily_activity_add', 'daily_activity_edit', 'daily_activity'), true);
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $result = daily_activity_handle_image_upload('file');
+        $this->output->set_content_type('application/json');
+        if ($result === false) {
+            $this->output->set_status_header(400);
+            $this->output->set_output(json_encode(array(
+                'status' => 'error',
+                'message' => 'Image upload failed. Use JPG, PNG, GIF, or WebP.',
+            )));
+            return;
+        }
+        $this->output->set_output(json_encode(array(
+            'status' => 'success',
+            'url' => $result['url'],
+        )));
     }
 }

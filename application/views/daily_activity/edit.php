@@ -1,5 +1,8 @@
 <?php
-$this->load->view('partials/header', ['title' => 'Edit Daily Activity']);
+$this->load->view('partials/header', array(
+  'title' => 'Edit Daily Activity',
+  'extra_css' => array('assets/css/daily-activity.css'),
+));
 $activity_title_value = isset($activity_title_value) ? (string) $activity_title_value : '';
 $description_html = sanitize_html_output($log->description);
 ?>
@@ -60,7 +63,7 @@ $description_html = sanitize_html_output($log->description);
     <div class="col-12 col-lg-8">
       <div class="card shadow-sm border-0">
         <div class="card-body p-4">
-          <?php echo form_open('daily-activity/edit/' . (int) $log->id); ?>
+          <?php echo form_open_multipart('daily-activity/edit/' . (int) $log->id); ?>
 
             <div class="mb-3">
               <label class="form-label small fw-bold text-uppercase text-muted">Work Date <span class="text-danger">*</span></label>
@@ -85,6 +88,13 @@ $description_html = sanitize_html_output($log->description);
             <div class="mb-4">
               <label class="form-label small fw-bold text-uppercase text-muted">Description <span class="text-danger">*</span></label>
               <textarea class="form-control" name="description" id="summernote" required></textarea>
+              <?php
+                $this->load->view('daily_activity/_attachments_list', array(
+                  'attachments' => isset($attachments) ? $attachments : array(),
+                  'show_remove' => true,
+                ));
+                $this->load->view('daily_activity/_attachment_field', array('input_id' => 'da-edit-attachments'));
+              ?>
             </div>
 
             <div class="d-flex gap-2">
@@ -104,21 +114,42 @@ $description_html = sanitize_html_output($log->description);
 
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script src="<?php echo base_url('assets/js/daily-activity-editor.js'); ?>"></script>
 <script>
 $(document).ready(function() {
-  $('#summernote').summernote({
+  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+  var uploadUrl = <?php echo json_encode(site_url('daily-activity/upload-image')); ?>;
+  var $note = window.daInitSummernote({
+    selector: '#summernote',
     placeholder: 'Type your updates here...',
-    tabsize: 2,
-    height: 220,
-    toolbar: [
-      ['font', ['bold', 'underline', 'clear']],
-      ['para', ['ul', 'ol']],
-      ['insert', ['link']],
-      ['view', ['fullscreen']]
-    ],
-    disableDragAndDrop: true
+    height: 260,
+    onImageUpload: function(files) {
+      if (!files || !files.length) { return; }
+      var data = new FormData();
+      data.append('file', files[0]);
+      data.append(csrfName, csrfHash);
+      $.ajax({
+        url: uploadUrl,
+        method: 'POST',
+        data: data,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(res) {
+          if (res && res.status === 'success' && res.url) {
+            $note.summernote('insertImage', res.url);
+          } else {
+            alert((res && res.message) ? res.message : 'Image upload failed.');
+          }
+        },
+        error: function() {
+          alert('Image upload failed.');
+        }
+      });
+    }
   });
-  $('#summernote').summernote('code', <?php echo json_encode($description_html, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+  $note.summernote('code', <?php echo json_encode($description_html, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
 
   $('#activityTitleInput').on('input', function() {
     var val = $(this).val();

@@ -1,197 +1,200 @@
-<?php $this->load->view('partials/header', ['title' => 'Daily Activity Log']); ?>
+<?php
+$this->load->view('partials/header', array(
+  'title' => 'Daily Activity Log',
+  'extra_css' => array('assets/css/daily-activity.css'),
+));
+$log_count = isset($logs) && is_array($logs) ? count($logs) : 0;
+$date_short = date('M j, Y', strtotime($date));
+?>
 
-<style>
-/* Custom tweaks for Summernote to look more professional and compact */
-.note-editor.note-frame {
-    border-radius: 0.375rem; /* Bootstrap rounded-2 */
-    border-color: #dee2e6;
-    box-shadow: none;
-}
-.note-editor.note-frame .note-toolbar {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-    border-top-left-radius: 0.375rem;
-    border-top-right-radius: 0.375rem;
-    padding: 5px;
-}
-.note-editor .note-toolbar .note-btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.85rem;
-    color: #495057;
-    background: transparent;
-    border: none;
-}
-.note-editor .note-toolbar .note-btn:hover {
-    background-color: #e9ecef;
-    border-radius: 0.2rem;
-}
-.note-editor .note-toolbar .note-dropdown-menu {
-    border: 1px solid #dee2e6;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-/* Ensure description images don't overflow */
-.activity-description img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-}
-.activity-description {
-    font-size: 0.95rem;
-    color: #212529;
-}
-/* Mobile tweaks */
-@media (max-width: 768px) {
-    .note-editor .note-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 2px;
-    }
-}
-</style>
+<div class="da-page">
 
-<div class="container-fluid py-4">
-    <div class="row g-4">
-        <!-- Log Activity Form -->
-        <div class="col-lg-4">
-             <div class="card shadow-sm h-100 border-0">
-                <div class="card-header bg-white border-bottom-0 pt-3 pb-0 d-flex justify-content-between align-items-start">
-                    <div>
-                        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-pencil-square me-2 text-primary"></i>Log Activity</h5>
-                        <div class="text-muted small mt-1">For <span class="fw-semibold text-primary"><?php echo date('M d, Y', strtotime($date)); ?></span></div>
-                    </div>
-                    <a href="<?php echo site_url('daily-activity/list'); ?>" class="btn btn-sm btn-outline-primary d-lg-none" title="View History"><i class="bi bi-list-ul"></i></a>
-                </div>
-                <div class="card-body">
-                    <?php echo form_open('daily-activity/save'); ?>
-                        <input type="hidden" name="work_date" value="<?php echo $date; ?>">
-                        
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">Activity / Task</label>
-                            <input class="form-control" list="taskOptions" name="activity_title" id="activityTitleInput" placeholder="search or type new activity..." autocomplete="off">
-                            <datalist id="taskOptions">
-                                <?php foreach($tasks as $t): ?>
-                                    <option data-id="<?php echo $t->id; ?>" value="<?php echo esc_view($t->title); ?>"></option>
-                                <?php endforeach; ?>
-                            </datalist>
-                            <input type="hidden" name="task_id" id="taskIdInput">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-uppercase text-muted">Description <span class="text-danger">*</span></label>
-                            <textarea class="form-control" name="description" id="summernote" required></textarea>
-                        </div>
-
-                        <!-- Summernote & Datalist Logic -->
-                        <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
-                        <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
-                        <script>
-                            $(document).ready(function() {
-                                $('#summernote').summernote({
-                                    placeholder: 'Type your updates here...',
-                                    tabsize: 2,
-                                    height: 180,
-                                    toolbar: [
-                                        ['font', ['bold', 'underline', 'clear']],
-                                        ['para', ['ul', 'ol']],
-                                        ['insert', ['link']],
-                                        ['view', ['fullscreen']]
-                                    ],
-                                    disableDragAndDrop: true
-                                });
-                                
-                                // Map datalist value to ID
-                                $('#activityTitleInput').on('input', function() {
-                                    var val = $(this).val();
-                                    var id = $('#taskOptions option[value="' + val + '"]').data('id');
-                                    $('#taskIdInput').val(id ? id : '');
-                                });
-                            });
-                        </script>
-
-                        <div class="d-grid pt-2">
-                            <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Save Log</button>
-                        </div>
-                    <?php echo form_close(); ?>
-                </div>
-             </div>
-        </div>
-
-        <!-- Activity Feed -->
-        <div class="col-lg-8">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                <div>
-                    <h4 class="mb-0 fw-bold">My Activities</h4>
-                    <p class="text-muted small mb-0">Track your daily progress</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="<?php echo site_url('daily-activity/list'); ?>" class="btn btn-sm btn-outline-secondary d-flex align-items-center"><i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">History</span></a>
-                    <form class="d-flex position-relative" method="get">
-                        <input type="date" class="form-control form-control-sm" name="date" value="<?php echo $date; ?>" onchange="this.form.submit()" style="min-width: 130px;">
-                    </form>
-                </div>
-            </div>
-
-            <?php if($this->session->flashdata('success')): ?>
-                <div class="alert alert-success shadow-sm border-0 d-flex align-items-center">
-                    <i class="bi bi-check-circle-fill me-2 fs-5"></i><?php echo esc_view($this->session->flashdata('success')); ?>
-                </div>
-            <?php endif; ?>
-            <?php if($this->session->flashdata('error')): ?>
-                <div class="alert alert-danger shadow-sm border-0 d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i><?php echo esc_view($this->session->flashdata('error')); ?>
-                </div>
-            <?php endif; ?>
-
-            <div class="card shadow-sm border-0">
-                <div class="list-group list-group-flush rounded-3">
-                    <?php if(empty($logs)): ?>
-                        <div class="list-group-item text-center text-muted py-5 border-0">
-                            <div class="mb-3">
-                                <div class="bg-light rounded-circle d-inline-flex p-3">
-                                    <i class="bi bi-journal-plus fs-1 text-secondary"></i>
-                                </div>
-                            </div>
-                            <h5>No activities yet</h5>
-                            <p class="small mb-0">Use the form to log your first activity for today.</p>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach($logs as $log): ?>
-                            <div class="list-group-item p-4 border-bottom action-hover-container">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="badge bg-light text-dark border me-2">
-                                            <i class="bi bi-clock me-1"></i><?php echo date('h:i A', strtotime($log->created_at)); ?>
-                                        </div>
-                                        <?php if($log->activity_title): ?>
-                                             <span class="fw-bold text-dark me-2"><?php echo esc_view($log->activity_title); ?></span>
-                                        <?php elseif($log->task_title): ?>
-                                            <span class="fw-bold text-dark me-2"><?php echo esc_view($log->task_title); ?></span>
-                                        <?php else: ?>
-                                            <span class="text-muted small fst-italic">General Update</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <div class="d-flex gap-2 align-items-center">
-                                    <?php if (function_exists('has_module_access') && (has_module_access('daily_activity_edit') || has_module_access('daily_activity'))): ?>
-                                        <a href="<?php echo site_url('daily-activity/edit/' . (int) $log->id); ?>" class="btn btn-sm btn-link text-primary p-0 opacity-50 hover-opacity-100" title="Edit"><i class="bi bi-pencil"></i></a>
-                                    <?php endif; ?>
-                                    <?php if(function_exists('has_module_access') && (has_module_access('daily_activity_delete') || has_module_access('daily_activity'))): ?>
-                                    <?php echo form_open('daily-activity/delete/' . $log->id, ['onsubmit' => "return confirm('Delete this log?');", 'class' => 'opacity-50 hover-opacity-100']); ?>
-                                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Delete"><i class="bi bi-x-lg"></i></button>
-                                    <?php echo form_close(); ?>
-                                    <?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="activity-description mt-2">
-                                    <?php echo sanitize_html_output($log->description); ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
+  <div class="da-page-head">
+    <h1 class="da-page-title">
+      <span class="da-page-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
+      Daily Activity
+    </h1>
+    <div class="da-page-actions">
+      <form method="get" class="da-date-pill mb-0" title="Change date">
+        <i class="bi bi-calendar3 text-primary"></i>
+        <input type="date" name="date" value="<?php echo esc_view($date); ?>" onchange="this.form.submit()" aria-label="Work date">
+      </form>
+      <a href="<?php echo site_url('daily-activity/list'); ?>" class="btn btn-outline-secondary btn-sm py-1 px-2">
+        <i class="bi bi-list-ul"></i><span class="d-none d-sm-inline ms-1">History</span>
+      </a>
     </div>
+  </div>
+
+  <?php if ($this->session->flashdata('success')): ?>
+    <div class="alert alert-success border-0 d-flex align-items-center py-2 px-3 mb-2">
+      <i class="bi bi-check-circle-fill me-2"></i><?php echo esc_view($this->session->flashdata('success')); ?>
+    </div>
+  <?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?>
+    <div class="alert alert-danger border-0 d-flex align-items-center py-2 px-3 mb-2">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo esc_view($this->session->flashdata('error')); ?>
+    </div>
+  <?php endif; ?>
+
+  <div class="da-workspace">
+
+    <section class="da-composer" aria-labelledby="da-composer-title">
+      <div class="da-composer-head">
+        <h2 id="da-composer-title"><i class="bi bi-plus-lg"></i> New log</h2>
+        <div class="da-composer-meta"><?php echo esc_view($date_short); ?></div>
+      </div>
+      <div class="da-composer-body">
+        <?php echo form_open_multipart('daily-activity/save', array('id' => 'da-log-form')); ?>
+          <input type="hidden" name="work_date" value="<?php echo esc_view($date); ?>">
+
+          <div class="da-composer-row">
+            <label class="da-field-label" for="activityTitleInput">Activity</label>
+            <input class="form-control form-control-sm" list="taskOptions" name="activity_title" id="activityTitleInput"
+                   placeholder="Task or title…" autocomplete="off">
+            <datalist id="taskOptions">
+              <?php foreach ($tasks as $t): ?>
+                <option data-id="<?php echo (int) $t->id; ?>" value="<?php echo esc_view($t->title); ?>"></option>
+              <?php endforeach; ?>
+            </datalist>
+            <input type="hidden" name="task_id" id="taskIdInput">
+          </div>
+
+          <div class="da-composer-row">
+            <label class="da-field-label" for="summernote">Description <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="description" id="summernote" required></textarea>
+          </div>
+
+          <div class="da-composer-row da-composer-files">
+            <?php $this->load->view('daily_activity/_attachment_field', array('input_id' => 'da-create-attachments')); ?>
+          </div>
+
+          <div class="da-composer-actions">
+            <button type="submit" class="btn btn-primary btn-sm da-btn-save">
+              <i class="bi bi-check-lg me-1"></i>Save log
+            </button>
+          </div>
+        <?php echo form_close(); ?>
+      </div>
+    </section>
+
+    <section class="da-feed" aria-labelledby="da-feed-title">
+      <div class="da-feed-head">
+        <h2 id="da-feed-title">
+          Today
+          <span class="da-feed-count"><?php echo (int) $log_count; ?></span>
+        </h2>
+      </div>
+
+      <div class="da-list">
+        <?php if ($log_count < 1): ?>
+          <div class="da-empty">
+            <i class="bi bi-journal-plus" aria-hidden="true"></i>
+            <span>No logs yet — add one on the left.</span>
+          </div>
+        <?php else: ?>
+          <?php foreach ($logs as $log): ?>
+            <?php
+              $title = !empty($log->activity_title)
+                ? (string) $log->activity_title
+                : (!empty($log->task_title) ? (string) $log->task_title : 'General update');
+              $atts = (!empty($attachments_map) && isset($attachments_map[(int) $log->id]))
+                ? $attachments_map[(int) $log->id]
+                : array();
+            ?>
+            <article class="da-row">
+              <div class="da-row-main">
+                <div class="da-row-top">
+                  <h3 class="da-row-title" title="<?php echo esc_view($title); ?>"><?php echo esc_view($title); ?></h3>
+                  <span class="da-row-time">
+                    <i class="bi bi-clock"></i>
+                    <?php echo date('g:i A', strtotime($log->created_at)); ?>
+                  </span>
+                </div>
+                <div class="da-row-body activity-description">
+                  <?php echo sanitize_html_output($log->description); ?>
+                </div>
+                <?php if (!empty($atts)): ?>
+                  <div class="da-row-atts">
+                    <?php $this->load->view('daily_activity/_attachments_list', array(
+                      'attachments' => $atts,
+                      'show_remove' => false,
+                    )); ?>
+                  </div>
+                <?php endif; ?>
+              </div>
+              <div class="da-row-actions btn-group btn-group-sm" role="group" aria-label="Actions">
+                <?php if (function_exists('has_module_access') && (has_module_access('daily_activity_edit') || has_module_access('daily_activity'))): ?>
+                  <a href="<?php echo site_url('daily-activity/edit/' . (int) $log->id); ?>"
+                     class="btn btn-outline-primary" title="Edit" aria-label="Edit">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                <?php endif; ?>
+                <?php if (function_exists('has_module_access') && (has_module_access('daily_activity_delete') || has_module_access('daily_activity'))): ?>
+                  <?php echo form_open('daily-activity/delete/' . (int) $log->id, array(
+                    'onsubmit' => "return confirm('Delete this log?');",
+                    'class' => 'd-inline m-0',
+                  )); ?>
+                    <button type="submit" class="btn btn-outline-danger" title="Delete" aria-label="Delete">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  <?php echo form_close(); ?>
+                <?php endif; ?>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
+    </section>
+
+  </div>
 </div>
+
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script src="<?php echo base_url('assets/js/daily-activity-editor.js'); ?>"></script>
+<script>
+$(document).ready(function() {
+  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+  var uploadUrl = <?php echo json_encode(site_url('daily-activity/upload-image')); ?>;
+  var $note = window.daInitSummernote({
+    selector: '#summernote',
+    placeholder: 'What did you work on?',
+    height: 120,
+    onImageUpload: function(files) {
+      if (!files || !files.length) { return; }
+      var data = new FormData();
+      data.append('file', files[0]);
+      data.append(csrfName, csrfHash);
+      $.ajax({
+        url: uploadUrl,
+        method: 'POST',
+        data: data,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(res) {
+          if (res && res.status === 'success' && res.url) {
+            $note.summernote('insertImage', res.url);
+          } else {
+            alert((res && res.message) ? res.message : 'Image upload failed.');
+          }
+        },
+        error: function() {
+          alert('Image upload failed.');
+        }
+      });
+    }
+  });
+
+  $('#activityTitleInput').on('input', function() {
+    var val = $(this).val();
+    var id = $('#taskOptions option').filter(function() {
+      return $(this).val() === val;
+    }).first().data('id');
+    $('#taskIdInput').val(id ? id : '');
+  });
+});
+</script>
 
 <?php $this->load->view('partials/footer'); ?>

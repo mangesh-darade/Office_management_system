@@ -117,6 +117,22 @@
                                             <span class="text-muted small">-</span>
                                         <?php endif; ?>
                                         <div class="d-none full-description"><?php echo sanitize_html_output($log->description); ?></div>
+                                        <div class="d-none full-attachments">
+                                          <?php
+                                            $atts = array();
+                                            if (!empty($attachments_map) && isset($attachments_map[(int) $log->id])) {
+                                                $atts = $attachments_map[(int) $log->id];
+                                            }
+                                            if (!empty($atts)) {
+                                                ob_start();
+                                                $this->load->view('daily_activity/_attachments_list', array(
+                                                    'attachments' => $atts,
+                                                    'show_remove' => false,
+                                                ));
+                                                echo ob_get_clean();
+                                            }
+                                          ?>
+                                        </div>
                                     </td>
                                     <td class="text-end" onclick="event.stopPropagation()">
                                         <div class="d-flex gap-1 justify-content-end">
@@ -164,6 +180,7 @@
             <div class="card-body" id="viewModalDesc" style="min-height: 100px;">
             </div>
         </div>
+        <div id="viewModalAttachments" class="mt-3"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -194,6 +211,7 @@
         var badgeClass = taskActivity ? 'badge bg-info text-dark' : 'fw-bold text-dark';
         
         var descHtml = $(row).find('.full-description').html();
+        var attHtml = $(row).find('.full-attachments').html() || '';
 
         $('#viewModalUser').text(user + ' (' + email + ')');
         $('#viewModalDate').text(date);
@@ -203,6 +221,7 @@
         $('#viewModalTaskBadge').html(badgeHtml);
         
         $('#viewModalDesc').html(descHtml);
+        $('#viewModalAttachments').html(attHtml);
         
         var modal = new bootstrap.Modal(document.getElementById('viewActivityModal'));
         modal.show();

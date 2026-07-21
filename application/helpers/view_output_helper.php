@@ -22,7 +22,7 @@ if (!function_exists('sanitize_html_output')) {
         if ($html === '') {
             return '';
         }
-        $allowed = '<p><br><b><strong><i><em><u><ul><ol><li><a><h1><h2><h3><h4><h5><h6>'
+        $allowed = '<p><br><b><strong><i><em><u><s><del><strike><ul><ol><li><a><h1><h2><h3><h4><h5><h6>'
             . '<table><thead><tbody><tr><td><th><span><div><blockquote><pre><code><sub><sup><hr><img>';
         $html = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $html);
         $html = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
