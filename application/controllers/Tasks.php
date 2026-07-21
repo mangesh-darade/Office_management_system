@@ -5,13 +5,14 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns','validation']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns','validation','estimate_hours']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
         
         // RBAC Audit: Centralized module access check
         // Allow users with either 'tasks' or 'tasks_list' access
         require_module_access(['tasks', 'tasks_list'], true);
+        estimate_hours_ensure_column($this->db, 'tasks', 'due_date');
     }
 
     public function index() {
@@ -168,6 +169,15 @@ class Tasks extends CI_Controller {
             }
             if (in_array('due_date', $task_fields, true)) {
                 $data['due_date'] = $this->input->post('due_date') ?: null;
+            }
+            if (in_array('estimate_hours', $task_fields, true)) {
+                $est = estimate_hours_parse($this->input->post('estimate_hours'));
+                if ($est === false) {
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                    redirect('tasks/create');
+                    return;
+                }
+                $data['estimate_hours'] = $est;
             }
             if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
                 $data['project_ids'] = $project_ids_json;
@@ -616,6 +626,15 @@ class Tasks extends CI_Controller {
             }
             if (in_array('due_date', $task_fields, true)) {
                 $data['due_date'] = $this->input->post('due_date') ?: null;
+            }
+            if (in_array('estimate_hours', $task_fields, true)) {
+                $est = estimate_hours_parse($this->input->post('estimate_hours'));
+                if ($est === false) {
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                    redirect('tasks/'.$id.'/edit');
+                    return;
+                }
+                $data['estimate_hours'] = $est;
             }
             if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
                 $data['project_ids'] = $project_ids_json;
@@ -2073,6 +2092,18 @@ class Tasks extends CI_Controller {
                     'status' => $status,
                     'created_by' => $user_id,
                 );
+                if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
+                    $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
+                    if ($est_raw !== '') {
+                        $est = estimate_hours_parse($est_raw);
+                        if ($est === false) {
+                            $skipped++;
+                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use number 0–9999.99).');
+                            continue;
+                        }
+                        $data['estimate_hours'] = $est;
+                    }
+                }
                 if ($this->db->insert('tasks', $data)) {
                     $inserted++;
                 } else {
@@ -2089,6 +2120,110 @@ class Tasks extends CI_Controller {
             return;
         }
         $this->load->view('tasks/import');
+    }
+
+    // GET /tasks/export
+    public function export()
+    {
+        require_module_access(array('tasks_import', 'tasks_list', 'tasks'), true);
+
+        $user_id = (int) $this->session->userdata('user_id');
+        $role_id = (int) $this->session->userdata('role_id');
+        $is_admin = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('tasks_manage');
+        $filters = get_user_group_filter($user_id, $role_id);
+
+        $project_filter = trim((string) $this->input->get('project_id'));
+        $assignee_filter = trim((string) $this->input->get('assigned_to'));
+        $status_filter = trim((string) $this->input->get('status'));
+        $priority_filter = trim((string) $this->input->get('priority'));
+
+        $this->db->from('tasks t');
+        $select = array('t.*');
+        if ($this->db->table_exists('projects')) {
+            if (schema_table_has_column($this->db, 'projects', 'name')) {
+                $select[] = 'p.name AS project_name';
+            }
+            $this->db->join('projects p', 'p.id = t.project_id', 'left');
+        }
+        if ($this->db->table_exists('users')) {
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select[] = 'u.full_name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select[] = 'u.name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'email')) {
+                $select[] = 'u.email AS assignee_email';
+            }
+            $this->db->join('users u', 'u.id = t.assigned_to', 'left');
+        }
+        $this->db->select(implode(', ', $select), false);
+
+        if (!$is_admin) {
+            $this->db->group_start();
+            $this->db->where('t.assigned_to', $user_id);
+            if (schema_table_has_column($this->db, 'tasks', 'created_by')) {
+                $this->db->or_where('t.created_by', $user_id);
+            }
+            $this->db->group_end();
+        }
+        if ($project_filter !== '' && is_numeric($project_filter)) {
+            $this->db->where('t.project_id', (int) $project_filter);
+        }
+        if ($assignee_filter !== '' && is_numeric($assignee_filter)) {
+            $this->db->where('t.assigned_to', (int) $assignee_filter);
+        }
+        if ($status_filter !== '') {
+            $this->db->where('t.status', $status_filter);
+        }
+        if ($priority_filter !== '' && schema_table_has_column($this->db, 'tasks', 'priority')) {
+            $this->db->where('t.priority', $priority_filter);
+        }
+        if (!empty($filters['department_id']) && $this->db->table_exists('projects')
+            && schema_table_has_column($this->db, 'projects', 'department_id')) {
+            $this->db->where('p.department_id', (int) $filters['department_id']);
+        }
+
+        $this->db->order_by('t.id', 'DESC');
+        $rows = $this->db->get()->result();
+
+        $filename = 'tasks_export_' . date('Y-m-d') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array(
+            'id', 'project_name', 'project_id', 'title', 'description', 'assigned_to',
+            'assignee_name', 'status', 'priority', 'start_date', 'due_date', 'estimate_hours',
+        ));
+        foreach ($rows as $t) {
+            $assignee_name = '';
+            if (!empty($t->full_name)) {
+                $assignee_name = $t->full_name;
+            } elseif (!empty($t->name)) {
+                $assignee_name = $t->name;
+            } elseif (!empty($t->assignee_email)) {
+                $assignee_name = $t->assignee_email;
+            }
+            fputcsv($out, array(
+                (int) $t->id,
+                isset($t->project_name) ? $t->project_name : '',
+                (int) $t->project_id,
+                $t->title,
+                isset($t->description) ? strip_tags((string) $t->description) : '',
+                isset($t->assigned_to) ? $t->assigned_to : '',
+                $assignee_name,
+                isset($t->status) ? $t->status : '',
+                isset($t->priority) ? $t->priority : '',
+                isset($t->start_date) ? $t->start_date : '',
+                isset($t->due_date) ? $t->due_date : '',
+                isset($t->estimate_hours) && $t->estimate_hours !== null && $t->estimate_hours !== ''
+                    ? estimate_hours_display($t->estimate_hours)
+                    : '',
+            ));
+        }
+        fclose($out);
+        exit;
     }
 
     // POST /tasks/send-daily-summary

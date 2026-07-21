@@ -5,7 +5,7 @@ class Projects extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url', 'form', 'group_filter', 'hierarchy_filter', 'permission', 'schema_columns', 'types']);
+        $this->load->helper(['url', 'form', 'group_filter', 'hierarchy_filter', 'permission', 'schema_columns', 'types', 'estimate_hours']);
         $this->load->model('Type_model', 'module_types');
         $this->load->library(['session']);
         $this->load->model('Project_model');
@@ -13,6 +13,7 @@ class Projects extends CI_Controller {
         // RBAC Audit: Centralized module access check
         // Allow users with either 'projects' or 'projects_list' access
         require_module_access(['projects', 'projects_list'], true);
+        estimate_hours_ensure_column($this->db, 'projects', 'end_date');
     }
 
     public function index() {
@@ -183,6 +184,16 @@ class Projects extends CI_Controller {
                     return;
                 }
                 $data['reference_url'] = $reference_url;
+
+                if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
+                    $est = estimate_hours_parse($this->input->post('estimate_hours'));
+                    if ($est === false) {
+                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                        return;
+                    }
+                    $data['estimate_hours'] = $est;
+                }
 
                 if (!$this->_apply_manager_id_from_post($data)) {
                     $this->session->set_flashdata('error', 'Please select a valid assignee.');
@@ -658,6 +669,16 @@ class Projects extends CI_Controller {
                 }
                 $data['reference_url'] = $reference_url;
 
+                if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
+                    $est = estimate_hours_parse($this->input->post('estimate_hours'));
+                    if ($est === false) {
+                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                        redirect('projects/'.$id.'/edit');
+                        return;
+                    }
+                    $data['estimate_hours'] = $est;
+                }
+
                 if (!$this->_apply_manager_id_from_post($data)) {
                     $this->session->set_flashdata('error', 'Please select a valid assignee.');
                     redirect('projects/'.$id.'/edit');
@@ -831,6 +852,18 @@ class Projects extends CI_Controller {
                     'start_date' => csv_import_get($opened['map'], $row, 'start_date', null) ?: null,
                     'end_date' => csv_import_get($opened['map'], $row, 'end_date', null) ?: null,
                 );
+                if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
+                    $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
+                    if ($est_raw !== '') {
+                        $est = estimate_hours_parse($est_raw);
+                        if ($est === false) {
+                            $skipped++;
+                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use number 0–9999.99).');
+                            continue;
+                        }
+                        $data['estimate_hours'] = $est;
+                    }
+                }
                 if ($this->db->insert('projects', $data)) {
                     $inserted++;
                 } else {
@@ -847,6 +880,78 @@ class Projects extends CI_Controller {
             return;
         }
         $this->load->view('projects/import');
+    }
+
+    // GET /projects/export
+    public function export()
+    {
+        require_module_access(array('projects_import', 'projects_list', 'projects'), true);
+
+        $user_id = (int) $this->session->userdata('user_id');
+        $role_id = (int) $this->session->userdata('role_id');
+        $filters = get_user_group_filter($user_id, $role_id);
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('projects_view_all');
+        if (!$can_view_all) {
+            $projects = $this->Project_model->all($filters);
+        } else {
+            $projects = $this->Project_model->all(array());
+        }
+
+        $has_manager = schema_table_has_column($this->db, 'projects', 'manager_id');
+        $has_client = schema_table_has_column($this->db, 'projects', 'client_id');
+        if ($has_manager) {
+            $this->_attach_project_assignee_labels($projects);
+        }
+
+        $client_names = array();
+        if ($has_client && $this->db->table_exists('clients') && !empty($projects)) {
+            $client_ids = array();
+            foreach ($projects as $p) {
+                if (!empty($p->client_id)) {
+                    $client_ids[(int) $p->client_id] = true;
+                }
+            }
+            if (!empty($client_ids)) {
+                $rows = $this->db->select('id, company_name')
+                    ->where_in('id', array_keys($client_ids))
+                    ->get('clients')
+                    ->result();
+                foreach ($rows as $c) {
+                    $client_names[(int) $c->id] = (string) $c->company_name;
+                }
+            }
+        }
+
+        $filename = 'projects_export_' . date('Y-m-d') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array(
+            'id', 'code', 'name', 'status', 'start_date', 'end_date',
+            'estimate_hours', 'manager', 'client',
+        ));
+        foreach ($projects as $p) {
+            $client_label = '';
+            if ($has_client && !empty($p->client_id) && isset($client_names[(int) $p->client_id])) {
+                $client_label = $client_names[(int) $p->client_id];
+            }
+            fputcsv($out, array(
+                (int) $p->id,
+                isset($p->code) ? $p->code : '',
+                isset($p->name) ? $p->name : '',
+                isset($p->status) ? $p->status : '',
+                isset($p->start_date) ? $p->start_date : '',
+                isset($p->end_date) ? $p->end_date : '',
+                isset($p->estimate_hours) && $p->estimate_hours !== null && $p->estimate_hours !== ''
+                    ? estimate_hours_display($p->estimate_hours)
+                    : '',
+                $has_manager && isset($p->assignee_label) ? $p->assignee_label : '',
+                $client_label,
+            ));
+        }
+        fclose($out);
+        exit;
     }
 
     private function _user_can_access_project($project_id)

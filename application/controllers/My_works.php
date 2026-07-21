@@ -15,7 +15,7 @@ class My_works extends CI_Controller
         $this->load->helper(array(
             'url', 'form', 'permission', 'hierarchy_filter', 'data_scope',
             'my_works', 'my_works_status', 'my_works_access', 'my_works_query', 'my_works_form',
-            'my_works_attachment', 'my_works_daily_pulse', 'download',
+            'my_works_attachment', 'my_works_daily_pulse', 'download', 'estimate_hours',
         ));
         $this->load->library(array('session', 'upload'));
         $this->load->model('My_work_model', 'my_works');
@@ -423,7 +423,7 @@ class My_works extends CI_Controller
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         $out = fopen('php://output', 'w');
-        fputcsv($out, array('ID', 'Title', 'Type', 'Status', 'Client', 'Project', 'Closing comment', 'URL', 'Tag', 'Due date', 'Urgent', 'Important', 'Created by', 'Created for', 'Updated'), ',', '"', "\\");
+        fputcsv($out, array('ID', 'Title', 'Type', 'Status', 'Client', 'Project', 'Closing comment', 'URL', 'Tag', 'Due date', 'Estimate hours', 'Urgent', 'Important', 'Created by', 'Created for', 'Updated'), ',', '"', "\\");
         $labels = my_works_status_labels();
         foreach ($rows as $r) {
             fputcsv($out, array(
@@ -437,6 +437,9 @@ class My_works extends CI_Controller
                 isset($r->url) ? $r->url : '',
                 $r->tag,
                 isset($r->due_date) ? $r->due_date : '',
+                isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== ''
+                    ? estimate_hours_display($r->estimate_hours)
+                    : '',
                 (int) $r->is_urgent ? 'Yes' : 'No',
                 (int) $r->is_important ? 'Yes' : 'No',
                 my_works_user_label($r->created_by_name, $r->created_by_email, $r->created_by),
@@ -610,6 +613,24 @@ class My_works extends CI_Controller
                 'work_type' => null,
                 'closing_comment' => null,
             );
+            if (schema_table_has_column($this->db, 'my_works', 'estimate_hours')) {
+                $est = null;
+                $posted_est = estimate_hours_parse($this->input->post('estimate_hours'));
+                if ($posted_est === false) {
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                    redirect('my-works/template-tasks');
+                    return;
+                }
+                if ($posted_est !== null) {
+                    $est = $posted_est;
+                } elseif (isset($template->estimate_hours) && $template->estimate_hours !== null && $template->estimate_hours !== '') {
+                    $parsed = estimate_hours_parse($template->estimate_hours);
+                    if ($parsed !== false) {
+                        $est = $parsed;
+                    }
+                }
+                $payload['estimate_hours'] = $est;
+            }
 
             $id = $this->my_works->insert($payload);
             if ($id < 1) {
@@ -630,11 +651,16 @@ class My_works extends CI_Controller
         $template_rows = $this->template_tasks->all_active();
         $template_payload = array();
         foreach ($template_rows as $row) {
+            $est_disp = '';
+            if (isset($row->estimate_hours) && $row->estimate_hours !== null && $row->estimate_hours !== '') {
+                $est_disp = estimate_hours_display($row->estimate_hours);
+            }
             $template_payload[] = array(
                 'id' => (int) $row->id,
                 'team' => (string) $row->team,
                 'template_type' => (string) $row->template_type,
                 'title' => (string) $row->title,
+                'estimate_hours' => $est_disp,
             );
         }
 
@@ -648,6 +674,12 @@ class My_works extends CI_Controller
             'template_json' => $template_payload,
             'can_import_templates' => function_exists('has_module_access') && (
                 has_module_access('my_works_import')
+                || has_module_access('my_works_add')
+                || has_module_access('my_works')
+            ),
+            'can_export_templates' => function_exists('has_module_access') && (
+                has_module_access('my_works_export')
+                || has_module_access('my_works_import')
                 || has_module_access('my_works_add')
                 || has_module_access('my_works')
             ),
@@ -771,13 +803,29 @@ class My_works extends CI_Controller
             $active_raw = strtolower(csv_import_get_any($opened['map'], $row, array('is_active', 'active'), '1'));
             $is_active = in_array($active_raw, array('0', 'false', 'no', 'n', 'inactive'), true) ? 0 : 1;
 
-            $id = $this->template_tasks->insert(array(
+            $insert = array(
                 'team' => $team,
                 'template_type' => $template_type,
                 'title' => $title,
                 'sort_order' => $sort_order,
                 'is_active' => $is_active,
-            ));
+            );
+            if (schema_table_has_column($this->db, 'template_tasks', 'estimate_hours')) {
+                $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
+                if ($est_raw !== '') {
+                    $est = estimate_hours_parse($est_raw);
+                    if ($est === false) {
+                        $skipped++;
+                        csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use number 0–9999.99).');
+                        continue;
+                    }
+                    $insert['estimate_hours'] = $est;
+                } else {
+                    $insert['estimate_hours'] = null;
+                }
+            }
+
+            $id = $this->template_tasks->insert($insert);
             if ($id > 0) {
                 $inserted++;
             } else {
@@ -816,6 +864,34 @@ class My_works extends CI_Controller
             $this->session->set_flashdata('import_errors', array_slice($row_errors, 0, 15));
         }
         redirect('my-works/template-tasks');
+    }
+
+    /**
+     * Export template_tasks catalog CSV.
+     */
+    public function template_tasks_export()
+    {
+        require_module_access(array('my_works_export', 'my_works_import', 'my_works_add', 'my_works'), true);
+        $rows = $this->template_tasks->all();
+        $filename = 'template_tasks_' . date('Y-m-d_His') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('team', 'template_type', 'title', 'estimate_hours', 'sort_order', 'is_active'));
+        foreach ($rows as $r) {
+            fputcsv($out, array(
+                isset($r->team) ? $r->team : '',
+                isset($r->template_type) ? $r->template_type : '',
+                isset($r->title) ? $r->title : '',
+                isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== ''
+                    ? estimate_hours_display($r->estimate_hours)
+                    : '',
+                isset($r->sort_order) ? (int) $r->sort_order : 0,
+                isset($r->is_active) ? (int) $r->is_active : 1,
+            ));
+        }
+        fclose($out);
+        exit;
     }
 
     public function create()

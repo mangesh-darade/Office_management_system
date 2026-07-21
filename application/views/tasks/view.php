@@ -148,6 +148,12 @@ if ($due_raw !== '' && $due_raw !== '0000-00-00') {
       </strong>
     </div>
     <div class="task-detail-stat-card">
+      <span class="task-detail-stat-label">Estimate (hrs)</span>
+      <strong class="task-detail-stat-value">
+        <?php echo function_exists('estimate_hours_display') ? esc_view(estimate_hours_display(isset($task->estimate_hours) ? $task->estimate_hours : null)) : '—'; ?>
+      </strong>
+    </div>
+    <div class="task-detail-stat-card">
       <span class="task-detail-stat-label">Created</span>
       <strong class="task-detail-stat-value">
         <?php echo !empty($task->created_at) ? esc_view(date('M j, Y', strtotime($task->created_at))) : '—'; ?>

@@ -33,6 +33,7 @@ if (!function_exists('my_works_schema_ensure')) {
                 `is_urgent` tinyint(1) NOT NULL DEFAULT 0,
                 `is_important` tinyint(1) NOT NULL DEFAULT 0,
                 `due_date` date DEFAULT NULL,
+                `estimate_hours` decimal(6,2) DEFAULT NULL,
                 `task_id` int(11) unsigned DEFAULT NULL,
                 `client_id` int(11) unsigned DEFAULT NULL,
                 `project_id` int(11) unsigned DEFAULT NULL,
@@ -65,6 +66,9 @@ if (!function_exists('my_works_schema_ensure')) {
             }
             if (!schema_table_has_column($db, 'my_works', 'closing_comment')) {
                 $db->query('ALTER TABLE `my_works` ADD `closing_comment` text DEFAULT NULL AFTER `work_type`');
+            }
+            if (!schema_table_has_column($db, 'my_works', 'estimate_hours')) {
+                $db->query('ALTER TABLE `my_works` ADD `estimate_hours` DECIMAL(6,2) NULL AFTER `due_date`');
             }
             if (schema_table_has_column($db, 'my_works', 'tag')) {
                 $db->query('ALTER TABLE `my_works` MODIFY `tag` varchar(255) DEFAULT NULL');

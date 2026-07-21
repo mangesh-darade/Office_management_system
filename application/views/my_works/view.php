@@ -433,6 +433,25 @@
 
           <?php endif; ?>
 
+          <div class="info-row">
+
+            <span class="info-icon"><i class="bi bi-hourglass-split"></i></span>
+
+            <div>
+
+              <div class="info-label">Estimate (hrs)</div>
+
+              <div class="info-value"><?php
+                if (!function_exists('estimate_hours_display')) {
+                    $this->load->helper('estimate_hours');
+                }
+                echo esc_view(estimate_hours_display(isset($item->estimate_hours) ? $item->estimate_hours : null));
+              ?></div>
+
+            </div>
+
+          </div>
+
           <?php if (!empty($item->work_type)): ?>
 
           <div class="info-row">

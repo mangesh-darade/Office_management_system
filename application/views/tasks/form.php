@@ -177,6 +177,14 @@
           </label>
           <input type="date" name="due_date" class="form-control" value="<?php echo isset($task) && isset($task->due_date) && $task->due_date ? date('Y-m-d', strtotime($task->due_date)) : ''; ?>">
         </div>
+        <div class="col-md-3">
+          <label class="form-label">
+            <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
+          </label>
+          <input type="number" name="estimate_hours" class="form-control" min="0" max="9999.99" step="0.25"
+                 value="<?php echo isset($task) && isset($task->estimate_hours) && $task->estimate_hours !== null && $task->estimate_hours !== '' ? esc_view(estimate_hours_display($task->estimate_hours)) : ''; ?>"
+                 placeholder="e.g. 2.5">
+        </div>
         <div class="col-md-6">
           <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
           <input type="url" name="reference_url" class="form-control" value="<?php echo isset($task) && !empty($task->reference_url) ? esc_view($task->reference_url) : ''; ?>" placeholder="https://example.com/task-details">

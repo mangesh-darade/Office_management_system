@@ -20,6 +20,7 @@ if (!function_exists('my_works_template_tasks_schema_ensure')) {
                 `team` varchar(100) NOT NULL DEFAULT '',
                 `template_type` varchar(150) NOT NULL DEFAULT '',
                 `title` varchar(255) NOT NULL,
+                `estimate_hours` decimal(6,2) DEFAULT NULL,
                 `sort_order` int(11) NOT NULL DEFAULT 0,
                 `is_active` tinyint(1) NOT NULL DEFAULT 1,
                 `created_at` datetime DEFAULT NULL,
@@ -29,6 +30,10 @@ if (!function_exists('my_works_template_tasks_schema_ensure')) {
                 KEY `idx_template_tasks_type` (`template_type`),
                 KEY `idx_template_tasks_active` (`is_active`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } else {
+            if (!schema_table_has_column($db, 'template_tasks', 'estimate_hours')) {
+                $db->query('ALTER TABLE `template_tasks` ADD `estimate_hours` DECIMAL(6,2) NULL AFTER `title`');
+            }
         }
 
         my_works_template_tasks_seed_defaults($db);

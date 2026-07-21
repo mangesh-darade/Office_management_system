@@ -71,6 +71,17 @@
         <span><i class="bi bi-calendar-check"></i> <?php echo $project->end_date ? date('M j, Y', strtotime($project->end_date)) : '—'; ?></span>
       </div>
     </div>
+    <div class="project-detail-stat-card">
+      <span class="project-detail-stat-label">Estimate (hrs)</span>
+      <strong class="project-detail-stat-value">
+        <?php
+          if (!function_exists('estimate_hours_display')) {
+              $this->load->helper('estimate_hours');
+          }
+          echo esc_view(estimate_hours_display(isset($project->estimate_hours) ? $project->estimate_hours : null));
+        ?>
+      </strong>
+    </div>
     <div class="project-detail-stat-card project-detail-stat-team">
       <span class="project-detail-stat-label">Team</span>
       <div class="project-detail-team-row">

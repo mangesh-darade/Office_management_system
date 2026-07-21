@@ -205,7 +205,7 @@
 
           <div class="row g-2 oms-form-grid align-items-end">
 
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
 
               <label class="form-label fw-semibold">Due date <span class="text-danger">*</span></label>
 
@@ -213,7 +213,24 @@
 
             </div>
 
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
+
+              <label class="form-label fw-semibold" for="mw-estimate-hours">Estimate (hrs)</label>
+
+              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25"
+                     value="<?php
+                       $est_val = $field('estimate_hours', '');
+                       if ($est_val !== '' && $est_val !== null && function_exists('estimate_hours_display')) {
+                           echo esc_view(estimate_hours_display($est_val));
+                       } elseif ($est_val !== '' && $est_val !== null) {
+                           echo esc_view((string) $est_val);
+                       }
+                     ?>"
+                     placeholder="e.g. 2.5">
+
+            </div>
+
+            <div class="col-12 col-md-3">
 
               <label class="form-label fw-semibold d-block">Priority</label>
 
@@ -231,7 +248,7 @@
 
             </div>
 
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
 
               <label class="form-label fw-semibold">Status</label>
 

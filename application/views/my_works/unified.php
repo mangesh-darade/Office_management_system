@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
           ordering: true,
           order: [[0, 'asc']],
           columnDefs: [
-            { orderable: false, targets: [2, 5] }
+            { orderable: false, targets: [2, 6] }
           ]
         });
         mwTbl.dataset.dtInited = '1';

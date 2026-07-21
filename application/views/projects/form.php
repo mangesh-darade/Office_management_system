@@ -149,6 +149,16 @@
             <small>End date must be on or after start date</small>
           </div>
         </div>
+        <div class="col-md-4">
+          <label class="form-label" for="project_estimate_hours">Estimate (hrs)</label>
+          <input type="number" name="estimate_hours" id="project_estimate_hours" class="form-control" min="0" max="9999.99" step="0.25"
+                 value="<?php
+                   if (isset($project) && isset($project->estimate_hours) && $project->estimate_hours !== null && $project->estimate_hours !== '') {
+                       echo esc_view(function_exists('estimate_hours_display') ? estimate_hours_display($project->estimate_hours) : (string) $project->estimate_hours);
+                   }
+                 ?>"
+                 placeholder="e.g. 40">
+        </div>
         <div class="col-md-12">
           <label class="form-label"><i class="bi bi-link-45deg me-1"></i>URL / Link</label>
           <input type="url" name="reference_url" class="form-control" value="<?php echo isset($project) && !empty($project->reference_url) ? esc_view($project->reference_url) : ''; ?>" placeholder="https://example.com/docs">

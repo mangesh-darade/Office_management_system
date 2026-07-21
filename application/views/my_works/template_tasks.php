@@ -8,6 +8,7 @@
   $statuses = isset($statuses) ? $statuses : array();
   $template_json = isset($template_json) ? $template_json : array();
   $can_import_templates = !empty($can_import_templates);
+  $can_export_templates = !empty($can_export_templates);
   $import_errors = $this->session->flashdata('import_errors');
 ?>
 
@@ -26,6 +27,11 @@
         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mwTemplateImportModal">
           <i class="bi bi-upload me-1"></i>Import Task
         </button>
+      <?php endif; ?>
+      <?php if ($can_export_templates): ?>
+        <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works/template-tasks/export'); ?>">
+          <i class="bi bi-download me-1"></i>Export Catalog
+        </a>
       <?php endif; ?>
       <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">
         <i class="bi bi-list-task me-1"></i>My Works
@@ -149,12 +155,20 @@
             </select>
           </div>
 
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label"><i class="bi bi-calendar-check me-1"></i>Due Date</label>
             <input type="date" name="due_date" class="form-control">
           </div>
 
-          <div class="col-md-6">
+          <div class="col-md-4">
+            <label class="form-label" for="mw-tt-estimate-hours">
+              <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
+            </label>
+            <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" placeholder="Auto from template">
+            <div class="form-text">Filled from catalog when you pick a task; you can override.</div>
+          </div>
+
+          <div class="col-md-4">
             <label class="form-label" for="mw-tt-attachment">
               <i class="bi bi-paperclip me-1"></i>Attachment
             </label>
@@ -194,6 +208,7 @@
   var teamSel = document.getElementById('mw-tt-team');
   var typeSel = document.getElementById('mw-tt-type');
   var taskSel = document.getElementById('mw-tt-task');
+  var estInput = document.getElementById('mw-tt-estimate-hours');
 
   function clearSelect(sel, placeholder, disabled) {
     if (!sel) {
@@ -260,18 +275,40 @@
     var team = teamSel.value;
     var type = typeSel.value;
     clearSelect(taskSel, '-- Select task --', team === '' || type === '');
+    if (estInput) {
+      estInput.value = '';
+    }
     if (team === '' || type === '') {
       return;
     }
     tasksForTeamType(team, type).forEach(function (t) {
       var opt = document.createElement('option');
       opt.value = String(t.id);
-      opt.textContent = t.title;
+      opt.textContent = t.estimate_hours
+        ? (t.title + ' (' + t.estimate_hours + ' hrs)')
+        : t.title;
+      if (t.estimate_hours) {
+        opt.setAttribute('data-estimate', String(t.estimate_hours));
+      }
       taskSel.appendChild(opt);
     });
     if (taskSel.options.length === 2) {
       taskSel.selectedIndex = 1;
+      syncEstimateFromTask();
     }
+  }
+
+  function syncEstimateFromTask() {
+    if (!taskSel || !estInput) {
+      return;
+    }
+    var opt = taskSel.options[taskSel.selectedIndex];
+    if (!opt || !opt.value) {
+      estInput.value = '';
+      return;
+    }
+    var est = opt.getAttribute('data-estimate') || '';
+    estInput.value = est;
   }
 
   if (teamSel) {
@@ -279,6 +316,9 @@
   }
   if (typeSel) {
     typeSel.addEventListener('change', fillTasks);
+  }
+  if (taskSel) {
+    taskSel.addEventListener('change', syncEstimateFromTask);
   }
 
   if (teamSel && teamSel.options.length === 2) {
@@ -358,6 +398,7 @@
             <span class="mw-tt-import-col-chip">team</span>
             <span class="mw-tt-import-col-chip">template_type</span>
             <span class="mw-tt-import-col-chip">title</span>
+            <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">estimate_hours</span>
             <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">sort_order</span>
             <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">is_active</span>
           </div>

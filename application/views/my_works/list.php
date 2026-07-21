@@ -127,6 +127,8 @@ if (!$embed) {
 
                 <th>Priority</th>
 
+                <th class="text-end">Estimate</th>
+
                 <th class="text-end">Actions</th>
 
               </tr>
@@ -264,6 +266,15 @@ if (!$embed) {
                     <?php if ((int) $r->is_urgent !== 1 && (int) $r->is_important !== 1): ?>
                       <span class="text-muted small">&mdash;</span>
                     <?php endif; ?>
+                  </td>
+
+                  <td class="text-end text-nowrap" data-order="<?php echo isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== '' ? (float) $r->estimate_hours : -1; ?>">
+                    <?php
+                      if (!function_exists('estimate_hours_display')) {
+                          $this->load->helper('estimate_hours');
+                      }
+                      echo esc_view(estimate_hours_display(isset($r->estimate_hours) ? $r->estimate_hours : null));
+                    ?>
                   </td>
 
                   <td class="text-end text-nowrap">

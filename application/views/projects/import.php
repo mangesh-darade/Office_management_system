@@ -6,7 +6,7 @@
 
   <div class="card shadow-soft">
     <div class="card-body">
-      <p class="text-muted mb-2">Upload a CSV with headers: <code>code, name, status, start_date, end_date</code></p>
+      <p class="text-muted mb-2">Upload a CSV with headers: <code>code, name, status, start_date, end_date, estimate_hours</code></p>
       <div class="mb-3">
         <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url('assets/samples/projects_import_sample.csv'); ?>" download>
           <i class="bi bi-download me-1"></i>Download sample file
@@ -15,6 +15,7 @@
       <ul class="small text-muted mb-3">
         <li><strong>name</strong> — required.</li>
         <li><strong>status</strong> — planned, active, on_hold, completed, cancelled (default planned).</li>
+        <li><strong>estimate_hours</strong> — optional decimal hours (e.g. 40 or 2.5).</li>
         <li>Duplicate <strong>code</strong> values are skipped with a row error.</li>
       </ul>
       <?php $this->load->view('partials/import_errors'); ?>

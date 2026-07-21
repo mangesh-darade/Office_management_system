@@ -106,3 +106,8 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `ai_conversations` | CREATE TABLE (id, user_id, title, created_at, updated_at) | Persistent AI chat conversations | 2026-07-17 |
 | `ai_conversation_messages` | CREATE TABLE (id, conversation_id, role, content, meta_json, created_at) | Persistent AI chat messages | 2026-07-17 |
 | `ai_chat_intent_log` | CREATE TABLE (id, user_id, message, tool, source, ok, created_at) | AI intent audit / eval | 2026-07-17 |
+| `tasks` | ENSURE `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on tasks | 2026-07-21 |
+| `my_works` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on work items | 2026-07-21 |
+| `template_tasks` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on templates | 2026-07-21 |
+| `projects` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on projects | 2026-07-21 |
+| `daily_work_log_attachments` | CREATE TABLE (log_id, original_name, stored_name, mime_type, file_size, sort_order) | File attachments on daily activity logs | 2026-07-21 |

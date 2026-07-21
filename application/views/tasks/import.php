@@ -6,7 +6,7 @@
 
   <div class="card shadow-soft">
     <div class="card-body">
-      <p class="text-muted mb-2">Upload a CSV with headers: <code>project_name, title, description, assigned_to, status</code></p>
+      <p class="text-muted mb-2">Upload a CSV with headers: <code>project_name, title, description, assigned_to, status, estimate_hours</code></p>
       <div class="mb-3">
         <a class="btn btn-outline-secondary btn-sm" href="<?php echo base_url('assets/samples/tasks_import_sample.csv'); ?>" download>
           <i class="bi bi-download me-1"></i>Download sample file
@@ -18,6 +18,7 @@
         <li><strong>description</strong> — optional text.</li>
         <li><strong>assigned_to</strong> — user ID from Users; leave blank for unassigned.</li>
         <li><strong>status</strong> — <code>pending</code>, <code>in_progress</code>, <code>completed</code>, or <code>blocked</code> (defaults to <code>pending</code>).</li>
+        <li><strong>estimate_hours</strong> — optional decimal hours (e.g. <code>2.5</code>).</li>
       </ul>
       <?php $this->load->view('partials/import_errors'); ?>
       <?php if($this->session->flashdata('error')): ?>

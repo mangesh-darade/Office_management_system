@@ -19,6 +19,9 @@
     <?php if(function_exists('has_module_access') && (has_module_access('projects_import') || has_module_access('projects'))): ?>
     <a class="btn btn-outline-secondary btn-sm" title="Import CSV" href="<?php echo site_url('projects/import'); ?>"><i class="bi bi-upload me-1"></i><span class="d-none d-sm-inline">Import</span></a>
     <?php endif; ?>
+    <?php if(function_exists('has_module_access') && (has_module_access('projects_import') || has_module_access('projects_list') || has_module_access('projects'))): ?>
+    <a class="btn btn-outline-secondary btn-sm" title="Export CSV" href="<?php echo site_url('projects/export'); ?>"><i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">Export</span></a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -35,6 +38,7 @@
             <th>Assigned To</th>
             <?php endif; ?>
             <th>Status</th>
+            <th class="text-end">Estimate</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -48,6 +52,9 @@
               <td><?php echo esc_view(isset($p->assignee_label) ? $p->assignee_label : '—'); ?></td>
               <?php endif; ?>
               <td><span class="badge bg-secondary"><?php echo esc_view($p->status); ?></span></td>
+              <td class="text-end text-nowrap" data-order="<?php echo isset($p->estimate_hours) && $p->estimate_hours !== null && $p->estimate_hours !== '' ? (float) $p->estimate_hours : -1; ?>">
+                <?php echo function_exists('estimate_hours_display') ? esc_view(estimate_hours_display(isset($p->estimate_hours) ? $p->estimate_hours : null)) : '—'; ?>
+              </td>
               <td class="text-end">
                 <a class="btn btn-light btn-sm" title="Dashboard" href="<?php echo site_url('projects/'.$p->id.'/dashboard'); ?>"><i class="bi bi-speedometer2"></i></a>
                 <a class="btn btn-light btn-sm" title="View" href="<?php echo site_url('projects/'.$p->id); ?>"><i class="bi bi-eye"></i></a>

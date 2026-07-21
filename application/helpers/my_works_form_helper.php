@@ -482,6 +482,12 @@ if (!function_exists('my_works_validate_payload')) {
             return false;
         }
         $closing_comment = trim((string) $CI->input->post('closing_comment'));
+        $CI->load->helper('estimate_hours');
+        $est = estimate_hours_parse($CI->input->post('estimate_hours'));
+        if ($est === false) {
+            $CI->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+            return false;
+        }
         return array(
             'title'           => $title,
             'details'         => my_works_sanitize_details_html($CI->input->post('details')),
@@ -492,6 +498,7 @@ if (!function_exists('my_works_validate_payload')) {
             'is_urgent'       => $CI->input->post('is_urgent') ? 1 : 0,
             'is_important'    => $CI->input->post('is_important') ? 1 : 0,
             'due_date'        => $due_date,
+            'estimate_hours'  => $est,
             'client_id'       => $client_project['client_id'],
             'project_id'      => $client_project['project_id'],
             'work_type'       => $work_type !== '' ? $work_type : null,
@@ -512,6 +519,7 @@ if (!function_exists('my_works_flash_form_old')) {
             'created_for'  => $CI->input->post('created_for'),
             'status'       => $CI->input->post('status'),
             'due_date'     => $CI->input->post('due_date'),
+            'estimate_hours'  => $CI->input->post('estimate_hours'),
             'client_id'       => $CI->input->post('client_id'),
             'project_id'      => $CI->input->post('project_id'),
             'work_type'       => $CI->input->post('work_type'),
@@ -546,6 +554,13 @@ if (!function_exists('my_works_validate_quick_payload')) {
         }
         $details = my_works_sanitize_details_html($CI->input->post('details'));
 
+        $CI->load->helper('estimate_hours');
+        $est = estimate_hours_parse($CI->input->post('estimate_hours'));
+        if ($est === false) {
+            $CI->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+            return false;
+        }
+
         return array(
             'title'       => $title,
             'details'     => $details,
@@ -556,6 +571,7 @@ if (!function_exists('my_works_validate_quick_payload')) {
             'tag'         => null,
             'url'         => null,
             'due_date'    => null,
+            'estimate_hours' => $est,
             'client_id'   => null,
             'project_id'  => null,
             'work_type'   => null,
@@ -572,6 +588,7 @@ if (!function_exists('my_works_flash_quick_add_old')) {
             'title'       => $CI->input->post('title'),
             'details'     => $CI->input->post('details'),
             'created_for' => $CI->input->post('created_for'),
+            'estimate_hours' => $CI->input->post('estimate_hours'),
         ));
     }
 }

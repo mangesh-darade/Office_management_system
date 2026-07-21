@@ -127,6 +127,7 @@ $route['projects/(:num)'] = 'projects/show/$1';
 $route['projects/(:num)/edit'] = 'projects/edit/$1';
 $route['projects/(:num)/delete'] = 'projects/delete/$1';
 $route['projects/import'] = 'projects/import';
+$route['projects/export'] = 'projects/export';
 // Project members
 $route['projects/(:num)/members'] = 'projects/manage_members/$1';
 $route['projects/(:num)/add-member'] = 'projects/add_member/$1';
@@ -158,6 +159,7 @@ $route['tasks/(:num)/edit'] = 'tasks/edit/$1';
 $route['tasks/(:num)/delete'] = 'tasks/delete/$1';
 $route['tasks/(:num)/preview'] = 'tasks/preview/$1';
 $route['tasks/import'] = 'tasks/import';
+$route['tasks/export'] = 'tasks/export';
 $route['tasks/my-dashboard'] = 'tasks/user_dashboard';
 $route['tasks/board'] = 'tasks/board';
 $route['tasks/update-status'] = 'tasks/update_status';
@@ -179,6 +181,7 @@ $route['my-works/need-discussion'] = 'my_works/need_discussion';
 $route['my-works/create'] = 'my_works/create';
 $route['my-works/template-tasks'] = 'my_works/template_tasks';
 $route['my-works/template-tasks/import'] = 'my_works/template_tasks_import';
+$route['my-works/template-tasks/export'] = 'my_works/template_tasks_export';
 $route['my-works/template-tasks/sample-csv'] = 'my_works/template_tasks_sample_csv';
 $route['my-works/quick-add'] = 'my_works/quick_add';
 $route['my-works/export'] = 'my_works/export';
@@ -727,6 +730,9 @@ $route['daily-activity/edit/(:num)'] = 'daily_activity/edit/$1';
 $route['daily-activity/delete/(:num)'] = 'daily_activity/delete/$1';
 $route['daily-activity/list'] = 'daily_activity/list_all';
 $route['daily-activity/export'] = 'daily_activity/export';
+$route['daily-activity/upload-image'] = 'daily_activity/upload_image';
+$route['daily-activity/(:num)/attachment/(:num)/download'] = 'daily_activity/attachment_download/$1/$2';
+$route['daily-activity/(:num)/attachment/(:num)/preview'] = 'daily_activity/attachment_preview/$1/$2';
 
 // Expenses
 $route['expenses'] = 'expenses/index';

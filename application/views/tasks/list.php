@@ -23,6 +23,10 @@ if (function_exists('has_module_access') && (has_module_access('tasks_add') || h
 if (function_exists('has_module_access') && (has_module_access('tasks_import') || has_module_access('tasks'))) {
     $actions_html .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('tasks/import') . '"><i class="bi bi-upload me-1"></i><span class="d-none d-sm-inline">Import</span></a>';
 }
+if (function_exists('has_module_access') && (has_module_access('tasks_import') || has_module_access('tasks_list') || has_module_access('tasks'))) {
+    $export_qs = function_exists('safe_query_string') ? safe_query_string() : '';
+    $actions_html .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('tasks/export' . ($export_qs !== '' ? '?' . $export_qs : '')) . '"><i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">Export</span></a>';
+}
 $actions_html .= '<a class="btn btn-outline-dark btn-sm" href="' . site_url('tasks/board') . '"><i class="bi bi-kanban me-1"></i><span class="d-none d-sm-inline">Board</span></a>';
 $this->load->view('partials/oms_page_head', array(
     'title'        => 'Tasks',
@@ -93,7 +97,7 @@ $this->load->view('partials/oms_page_head', array(
 <?php
   $task_total = isset($tasks) && is_array($tasks) ? count($tasks) : 0;
   $tasks_priority_col = (isset($is_admin) && $is_admin) ? 6 : 5;
-  $tasks_actions_col = (isset($is_admin) && $is_admin) ? 7 : 6;
+  $tasks_actions_col = (isset($is_admin) && $is_admin) ? 8 : 7;
   $tasks_priority_rank = array('urgent' => 1, 'high' => 2, 'medium' => 3, 'low' => 4);
   $tasks_priority_badge = array(
     'urgent' => 'danger',
@@ -150,6 +154,7 @@ $this->load->view('partials/oms_page_head', array(
             <?php endif; ?>
             <th>Status</th>
             <th>Priority</th>
+            <th class="text-end">Estimate</th>
             <th class="text-end" style="min-width: 130px;">Actions</th>
           </tr>
         </thead>
@@ -192,6 +197,9 @@ $this->load->view('partials/oms_page_head', array(
               </td>
               <td data-order="<?php echo $task_priority_sort; ?>">
                 <span class="badge bg-<?php echo esc_view($task_priority_badge_class); ?>"><?php echo esc_view(ucfirst($task_priority !== '' ? $task_priority : 'medium')); ?></span>
+              </td>
+              <td class="text-end text-nowrap" data-order="<?php echo isset($t->estimate_hours) && $t->estimate_hours !== null && $t->estimate_hours !== '' ? (float) $t->estimate_hours : -1; ?>">
+                <?php echo function_exists('estimate_hours_display') ? esc_view(estimate_hours_display(isset($t->estimate_hours) ? $t->estimate_hours : null)) : '—'; ?>
               </td>
               <td class="text-end text-nowrap table-actions">
                 <div class="d-inline-flex align-items-center justify-content-end gap-1 flex-nowrap">
