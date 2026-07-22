@@ -442,25 +442,33 @@ if ($st_lower === 'active') {
           <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="task" data-save-url="<?php echo site_url('clients/' . $client_id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('clients/' . $client_id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_tasks ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_tasks ? '1' : '0'; ?>" data-requires-project="1" data-create-project-url="<?php echo esc_view($create_project_url); ?>">
             <thead class="table-light">
               <tr>
-                <th width="30%">Title</th>
-                <th width="18%">Project</th>
-                <th width="15%">Status</th>
-                <th width="13%">Priority</th>
-                <th width="16%">Assignee</th>
-                <th width="8%"></th>
+                <th width="26%">Title</th>
+                <th width="16%">Project</th>
+                <th width="13%">Status</th>
+                <th width="12%">Priority</th>
+                <th width="14%">Assignee</th>
+                <th class="text-end" width="9%">Est.hr</th>
+                <th width="10%"></th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($tasks) && !$can_manage_tasks): ?>
-              <tr class="project-inline-empty"><td colspan="6" class="text-center py-3 text-muted small">No tasks linked via this client’s projects or requirements.</td></tr>
+              <tr class="project-inline-empty"><td colspan="7" class="text-center py-3 text-muted small">No tasks linked via this client’s projects or requirements.</td></tr>
               <?php elseif (empty($tasks) && !$has_client_projects): ?>
-              <tr class="project-inline-empty"><td colspan="6" class="text-center py-3 text-muted small">No project linked yet. Click <strong>Add</strong> after creating a project, or use <strong>New Project</strong>.</td></tr>
+              <tr class="project-inline-empty"><td colspan="7" class="text-center py-3 text-muted small">No project linked yet. Click <strong>Add</strong> after creating a project, or use <strong>New Project</strong>.</td></tr>
               <?php else: foreach ($tasks as $t): ?>
               <?php
                 $t_priority = isset($t->priority) ? (string) $t->priority : 'medium';
                 $t_status = $t->status ?: 'pending';
                 $t_assigned = !empty($t->assigned_to) ? (int) $t->assigned_to : 0;
                 $t_project = !empty($t->project_id) ? (int) $t->project_id : 0;
+                if (!function_exists('estimate_hours_display')) {
+                    $this->load->helper('estimate_hours');
+                }
+                $t_est_input = (isset($t->estimate_hours) && $t->estimate_hours !== null && $t->estimate_hours !== '')
+                  ? estimate_hours_display($t->estimate_hours)
+                  : '';
+                $t_est_row = estimate_hours_row(isset($t->estimate_hours) ? $t->estimate_hours : null);
               ?>
               <tr class="project-inline-row" data-id="<?php echo (int) $t->id; ?>">
                 <td>
@@ -517,6 +525,13 @@ if ($st_lower === 'active') {
                   <?php endif; ?>
                 </td>
                 <td class="text-end text-nowrap">
+                  <?php if ($can_manage_tasks): ?>
+                  <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.25" placeholder="—" title="Estimate (hrs)" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php else: ?>
+                  <span class="small text-muted"><?php echo esc_view($t_est_row); ?></span>
+                  <?php endif; ?>
+                </td>
+                <td class="text-end text-nowrap">
                   <span class="project-inline-state text-muted small me-1"></span>
                   <a href="<?php echo site_url('tasks/' . (int) $t->id); ?>" class="btn btn-sm btn-light" title="View"><i class="bi bi-box-arrow-up-right"></i></a>
                   <?php if ($can_delete_tasks): ?>
@@ -529,7 +544,7 @@ if ($st_lower === 'active') {
             <?php if ($can_manage_tasks): ?>
             <tfoot>
               <tr>
-                <td colspan="6" class="py-1 px-2">
+                <td colspan="7" class="py-1 px-2">
                   <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add task"><i class="bi bi-plus-lg"></i></button>
                 </td>
               </tr>
@@ -710,6 +725,7 @@ if ($st_lower === 'active') {
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($task_statuses as $st): ?><option value="<?php echo esc_view($st); ?>"><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-assignee"><option value="">Unassigned</option><?php echo $inline_user_options; ?></select></td>
+  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.25" placeholder="—" title="Estimate (hrs)" value=""></td>
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_tasks): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
 </template>
@@ -828,13 +844,15 @@ if ($st_lower === 'active') {
       };
       var tr = document.createElement('tr');
       tr.className = 'project-inline-empty';
-      tr.innerHTML = '<td colspan="6" class="text-center py-3 text-muted small">' + (messages[type] || 'No items found.') + '</td>';
+      var colCount = table.querySelectorAll('thead th').length || 6;
+      tr.innerHTML = '<td colspan="' + colCount + '" class="text-center py-3 text-muted small">' + (messages[type] || 'No items found.') + '</td>';
       tbody.appendChild(tr);
     }
   }
 
   function rowPayload(row) {
     var projectEl = row.querySelector('.project-inline-project');
+    var estimateEl = row.querySelector('.project-inline-estimate');
     return {
       type: row.closest('.project-inline-table').getAttribute('data-inline-type'),
       id: row.getAttribute('data-id') || '0',
@@ -842,7 +860,8 @@ if ($st_lower === 'active') {
       status: (row.querySelector('.project-inline-status') || {}).value || '',
       priority: (row.querySelector('.project-inline-priority') || {}).value || '',
       assigned_to: (row.querySelector('.project-inline-assignee') || {}).value || '',
-      project_id: projectEl ? (projectEl.value || '') : ''
+      project_id: projectEl ? (projectEl.value || '') : '',
+      estimate_hours: estimateEl ? (estimateEl.value || '') : ''
     };
   }
 
@@ -1019,7 +1038,7 @@ if ($st_lower === 'active') {
     });
 
     table.addEventListener('blur', function (e) {
-      if (!e.target.classList.contains('project-inline-title')) {
+      if (!e.target.classList.contains('project-inline-title') && !e.target.classList.contains('project-inline-estimate')) {
         return;
       }
       var row = e.target.closest('.project-inline-row');
@@ -1030,7 +1049,7 @@ if ($st_lower === 'active') {
     }, true);
 
     table.addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter' || !e.target.classList.contains('project-inline-title')) {
+      if (e.key !== 'Enter' || (!e.target.classList.contains('project-inline-title') && !e.target.classList.contains('project-inline-estimate'))) {
         return;
       }
       e.preventDefault();

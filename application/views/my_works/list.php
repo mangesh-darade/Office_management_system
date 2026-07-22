@@ -19,7 +19,7 @@ if (!$embed) {
 
 ?>
 
-<div class="container-fluid <?php echo $embed ? 'p-1' : 'py-3'; ?> mw-page">
+<div class="container-fluid <?php echo $embed ? 'p-0' : 'py-2'; ?> mw-page mw-list-compact">
 
   <?php if (!$embed): ?>
   <?php $this->load->view('my_works/_toolbar', array(
@@ -105,13 +105,13 @@ if (!$embed) {
 
 
 
-    <div class="card shadow-sm border-0 d-none d-md-block mw-list-table-card">
+    <div class="card border-0 shadow-sm d-none d-md-block mw-list-table-card">
 
       <div class="card-body p-0">
 
         <div class="table-responsive">
 
-          <table id="myWorksTable" class="table table-hover align-middle mb-0 w-100">
+          <table id="myWorksTable" class="table table-hover table-sm align-middle mb-0 w-100">
 
             <thead>
 
@@ -123,11 +123,11 @@ if (!$embed) {
 
                 <th>Status</th>
 
-                <th>Last update</th>
+                <th>Updated</th>
 
                 <th>Priority</th>
 
-                <th class="text-end">Estimate</th>
+                <th class="text-end">Est.hr</th>
 
                 <th class="text-end">Actions</th>
 
@@ -184,7 +184,7 @@ if (!$embed) {
 
                     </a>
 
-                    <div class="mw-work-meta d-flex flex-wrap align-items-center gap-1 mt-1">
+                    <div class="mw-work-meta d-flex flex-wrap align-items-center gap-1">
 
                       <?php if ($overdue): ?><span class="badge bg-danger-subtle text-danger border border-danger-subtle">Overdue</span><?php endif; ?>
 
@@ -278,8 +278,8 @@ if (!$embed) {
                   </td>
 
                   <td class="text-end text-nowrap">
-                    <div class="btn-group btn-group-sm mw-list-actions" role="group">
-                      <a class="btn btn-outline-primary" href="<?php echo site_url('my-works/' . (int) $r->id); ?>" title="View"><i class="bi bi-eye"></i></a>
+                    <div class="btn-group btn-group-sm mw-list-actions" role="group" aria-label="Actions">
+                      <a class="btn btn-outline-secondary" href="<?php echo site_url('my-works/' . (int) $r->id); ?>" title="View"><i class="bi bi-eye"></i></a>
                       <?php if (!empty($rowAttachments)): ?>
                         <?php $this->load->view('my_works/_attachment_actions', array('r' => $r, 'attachments_map' => isset($attachments_map) ? $attachments_map : null)); ?>
                       <?php else: ?>

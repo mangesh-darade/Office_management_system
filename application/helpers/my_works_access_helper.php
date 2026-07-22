@@ -153,6 +153,10 @@ if (!function_exists('my_works_can_edit_full')) {
 if (!function_exists('my_works_can_update_status')) {
     function my_works_can_update_status($item, $can_view_all, $user_id)
     {
+        // Tasks on Overview are display-only (status lives in tasks module).
+        if (is_object($item) && !empty($item->item_source) && $item->item_source === 'tasks') {
+            return false;
+        }
         if (my_works_can_edit_full($item, $can_view_all, $user_id)) {
             return true;
         }

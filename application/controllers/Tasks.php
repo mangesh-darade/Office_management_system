@@ -949,6 +949,7 @@ class Tasks extends CI_Controller {
             'filter_users'      => $filter_users,
             'complete_view'     => $complete_view,
             'complete_view_on'  => ($complete_view === 'only'),
+            'embed'             => (bool) $this->input->get('embed'),
         ));
     }
 
@@ -1192,6 +1193,11 @@ class Tasks extends CI_Controller {
             $detail = trim((string) $t->project_name);
         }
 
+        $estimate_hours = null;
+        if (isset($t->estimate_hours) && $t->estimate_hours !== null && $t->estimate_hours !== '') {
+            $estimate_hours = $t->estimate_hours;
+        }
+
         return array(
             'item_type'     => $item_type,
             'item_source'   => $item_source,
@@ -1202,6 +1208,7 @@ class Tasks extends CI_Controller {
             'status_label'  => $status_label,
             'status_color'  => $status_color,
             'date'          => isset($t->due_date) ? $t->due_date : '',
+            'estimate_hours'=> $estimate_hours,
             'url'           => $url,
             'detail'        => $detail,
         );
@@ -1280,6 +1287,9 @@ class Tasks extends CI_Controller {
             }
             if (schema_table_has_column($this->db, 'tasks', 'priority')) {
                 $select[] = 't.priority';
+            }
+            if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
+                $select[] = 't.estimate_hours';
             }
 
             $this->db->from('tasks t');
@@ -1460,6 +1470,9 @@ class Tasks extends CI_Controller {
             }
             if (schema_table_has_column($this->db, 'my_works', 'project_id')) {
                 $select[] = 'm.project_id';
+            }
+            if (schema_table_has_column($this->db, 'my_works', 'estimate_hours')) {
+                $select[] = 'm.estimate_hours';
             }
 
             $this->db->from('my_works m');

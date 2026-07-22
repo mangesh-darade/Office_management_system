@@ -66,7 +66,14 @@ $status_badge = function ($status) {
       $pc = (int) $card['project_count'];
       $tc = (int) $card['task_count'];
     ?>
-    <div class="col-12 col-md-6 col-lg-4 project-dash-grid-col">
+    <div class="col-12 col-md-6 col-lg-4 project-dash-grid-col"
+         data-client-search="<?php echo esc_view(strtolower(trim(
+           $name . ' ' .
+           (isset($c->contact_person) ? (string) $c->contact_person : '') . ' ' .
+           (isset($c->phone) ? (string) $c->phone : '') . ' ' .
+           (isset($c->email) ? (string) $c->email : '') . ' ' .
+           (isset($c->client_code) ? (string) $c->client_code : '')
+         )), ENT_QUOTES, 'UTF-8'); ?>">
       <div class="card project-dash-card client-dash-card">
         <div class="card-body">
           <div class="client-dash-card-head">
@@ -123,6 +130,7 @@ $status_badge = function ($status) {
                         <th>Task</th>
                         <th>Assignee</th>
                         <th style="width:58px;">Due</th>
+                        <th class="text-end" style="width:52px;">Est.hr</th>
                         <th style="width:90px;">Status</th>
                       </tr>
                     </thead>
@@ -133,6 +141,10 @@ $status_badge = function ($status) {
                           $due_label = ($due !== '' && $due !== '0000-00-00') ? date('M j', strtotime($due)) : '—';
                           $assignee = $assignee_label($task);
                           $title = isset($task->title) ? (string) $task->title : '';
+                          if (!function_exists('estimate_hours_row')) {
+                              $this->load->helper('estimate_hours');
+                          }
+                          $est_label = estimate_hours_row(isset($task->estimate_hours) ? $task->estimate_hours : null);
                         ?>
                         <tr class="project-dash-task-row">
                           <td>
@@ -142,6 +154,7 @@ $status_badge = function ($status) {
                           </td>
                           <td class="project-dash-assignee" title="<?php echo esc_view($assignee, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($assignee); ?></td>
                           <td class="project-dash-date"><?php echo esc_view($due_label); ?></td>
+                          <td class="text-end text-nowrap project-dash-est" title="Estimate (hrs)"><?php echo esc_view($est_label); ?></td>
                           <td><?php echo $status_badge(isset($task->status) ? $task->status : ''); ?></td>
                         </tr>
                       <?php endforeach; ?>

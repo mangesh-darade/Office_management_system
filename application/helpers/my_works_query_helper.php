@@ -466,3 +466,244 @@ if (!function_exists('my_works_overview_item_payload')) {
         );
     }
 }
+
+if (!function_exists('my_works_overview_task_status_codes')) {
+    /**
+     * Task module statuses that can appear on Overview project lanes.
+     *
+     * @return string[]
+     */
+    function my_works_overview_task_status_codes()
+    {
+        return array('pending', 'in_progress', 'blocked', 'completed');
+    }
+}
+
+if (!function_exists('my_works_normalize_task_for_overview')) {
+    /**
+     * Shape a tasks-table row like a my_works dashboard row (project section only).
+     *
+     * @param object $row
+     * @return object
+     */
+    function my_works_normalize_task_for_overview($row)
+    {
+        if (!is_object($row)) {
+            return $row;
+        }
+        $row->item_source = 'tasks';
+        $assigned = isset($row->assigned_to) ? (int) $row->assigned_to : 0;
+        $row->created_for = $assigned;
+        if (!isset($row->created_for_name) || $row->created_for_name === null || $row->created_for_name === '') {
+            if (!empty($row->assignee_name)) {
+                $row->created_for_name = (string) $row->assignee_name;
+            } elseif (!empty($row->assignee_user_name)) {
+                $row->created_for_name = (string) $row->assignee_user_name;
+            } elseif (!empty($row->assignee_full_name)) {
+                $row->created_for_name = (string) $row->assignee_full_name;
+            } else {
+                $row->created_for_name = '';
+            }
+        }
+        if (!isset($row->created_for_email) || $row->created_for_email === null) {
+            $row->created_for_email = !empty($row->assignee_email) ? (string) $row->assignee_email : '';
+        }
+        if (!isset($row->tag)) {
+            $row->tag = '';
+        }
+        if (!isset($row->is_urgent)) {
+            $row->is_urgent = 0;
+        }
+        if (!isset($row->is_important)) {
+            $row->is_important = 0;
+        }
+        if (!isset($row->closed_at)) {
+            $row->closed_at = null;
+        }
+        return $row;
+    }
+}
+
+if (!function_exists('my_works_fetch_overview_project_tasks')) {
+    /**
+     * Open project tasks for Overview Project section (same filters/scope as Team cart where possible).
+     *
+     * @param CI_DB_query_builder $db
+     * @param array $filters
+     * @param bool $can_view_all
+     * @param int $user_id
+     * @param int|null $limit
+     * @return object[]
+     */
+    function my_works_fetch_overview_project_tasks($db, array $filters, $can_view_all, $user_id, $limit = null)
+    {
+        if (!$db->table_exists('tasks') || !schema_table_has_column($db, 'tasks', 'project_id')) {
+            return array();
+        }
+        // Warm column map before building QB (list_fields resets active query).
+        schema_table_has_column($db, 'tasks', 'assigned_to');
+        schema_table_has_column($db, 'tasks', 'created_by');
+        schema_table_has_column($db, 'tasks', 'estimate_hours');
+        schema_table_has_column($db, 'tasks', 'start_date');
+        schema_table_has_column($db, 'tasks', 'updated_at');
+        schema_table_has_column($db, 'tasks', 'due_date');
+        schema_table_has_column($db, 'tasks', 'description');
+        schema_table_has_column($db, 'projects', 'name');
+        schema_table_has_column($db, 'projects', 'client_id');
+        schema_table_has_column($db, 'users', 'name');
+        schema_table_has_column($db, 'users', 'email');
+        schema_table_has_column($db, 'employees', 'name');
+
+        // Filters that only exist on my_works — skip tasks so Overview stays coherent.
+        if (!empty($filters['tag'])
+            || !empty($filters['work_type'])
+            || !empty($filters['urgent_only'])
+            || !empty($filters['important_only'])
+        ) {
+            return array();
+        }
+
+        $status = isset($filters['status']) ? strtolower(trim((string) $filters['status'])) : '';
+        $task_statuses = my_works_overview_task_status_codes();
+        if ($status !== '' && !in_array($status, $task_statuses, true)) {
+            return array();
+        }
+
+        $user_id = (int) $user_id;
+        $select = array(
+            't.id',
+            't.project_id',
+            't.title',
+            't.status',
+            't.due_date',
+            't.created_at',
+            't.assigned_to',
+        );
+        if (schema_table_has_column($db, 'tasks', 'updated_at')) {
+            $select[] = 't.updated_at';
+        }
+        if (schema_table_has_column($db, 'tasks', 'created_by')) {
+            $select[] = 't.created_by';
+        }
+        if (schema_table_has_column($db, 'tasks', 'estimate_hours')) {
+            $select[] = 't.estimate_hours';
+        }
+        if (schema_table_has_column($db, 'tasks', 'start_date')) {
+            $select[] = 't.start_date';
+        }
+
+        $db->reset_query();
+        $db->from('tasks t');
+
+        if ($db->table_exists('projects') && schema_table_has_column($db, 'projects', 'name')) {
+            $select[] = 'p.name AS project_name';
+            $db->join('projects p', 'p.id = t.project_id', 'left');
+            if (!empty($filters['client_id']) && schema_table_has_column($db, 'projects', 'client_id')) {
+                $db->where('p.client_id', (int) $filters['client_id']);
+            }
+        } elseif (!empty($filters['client_id'])) {
+            return array();
+        }
+
+        if ($db->table_exists('users') && schema_table_has_column($db, 'tasks', 'assigned_to')) {
+            if (schema_table_has_column($db, 'users', 'name')) {
+                $select[] = 'u.name AS assignee_user_name';
+            }
+            if (schema_table_has_column($db, 'users', 'email')) {
+                $select[] = 'u.email AS assignee_email';
+            }
+            $db->join('users u', 'u.id = t.assigned_to', 'left');
+        }
+        if ($db->table_exists('employees') && schema_table_has_column($db, 'tasks', 'assigned_to')) {
+            if (schema_table_has_column($db, 'employees', 'name')) {
+                $select[] = 'e.name AS assignee_name';
+            }
+            $db->join('employees e', 'e.user_id = t.assigned_to', 'left');
+        }
+
+        $db->select(implode(', ', $select), false);
+        $db->where('t.project_id IS NOT NULL', null, false);
+        $db->where('t.project_id >', 0);
+
+        if (!empty($filters['project_id'])) {
+            $db->where('t.project_id', (int) $filters['project_id']);
+        }
+        if (!empty($filters['created_for']) && schema_table_has_column($db, 'tasks', 'assigned_to')) {
+            $db->where('t.assigned_to', (int) $filters['created_for']);
+        }
+        if (!empty($filters['created_by']) && schema_table_has_column($db, 'tasks', 'created_by')) {
+            $db->where('t.created_by', (int) $filters['created_by']);
+        }
+        if ($status !== '') {
+            $db->where('t.status', $status);
+        } else {
+            // Match Overview: open planning work only.
+            $CI =& get_instance();
+            $CI->load->helper('my_works_status');
+            $db->group_start();
+            $db->where('t.status IS NULL', null, false);
+            $db->or_where('t.status', '');
+            foreach ($task_statuses as $st) {
+                if ($st === 'completed') {
+                    continue;
+                }
+                $db->or_where('t.status', $st);
+            }
+            $db->group_end();
+        }
+        if (!empty($filters['overdue_only']) && schema_table_has_column($db, 'tasks', 'due_date')) {
+            $db->where('t.due_date IS NOT NULL', null, false);
+            $db->where('t.due_date <', date('Y-m-d'));
+        }
+        if (!empty($filters['q'])) {
+            $q = (string) $filters['q'];
+            $db->group_start();
+            $db->like('t.title', $q);
+            if (schema_table_has_column($db, 'tasks', 'description')) {
+                $db->or_like('t.description', $q);
+            }
+            $db->group_end();
+        }
+
+        $involvement = isset($filters['involvement']) ? (string) $filters['involvement'] : 'all';
+        if ($involvement === 'assigned' && schema_table_has_column($db, 'tasks', 'assigned_to') && $user_id > 0) {
+            $db->where('t.assigned_to', $user_id);
+        } elseif ($involvement === 'created' && schema_table_has_column($db, 'tasks', 'created_by') && $user_id > 0) {
+            $db->where('t.created_by', $user_id);
+        }
+
+        if (!$can_view_all) {
+            if ($user_id < 1) {
+                return array();
+            }
+            $db->group_start();
+            if (schema_table_has_column($db, 'tasks', 'assigned_to')) {
+                $db->where('t.assigned_to', $user_id);
+            }
+            if (schema_table_has_column($db, 'tasks', 'created_by')) {
+                $db->or_where('t.created_by', $user_id);
+            }
+            $db->group_end();
+        }
+
+        if (schema_table_has_column($db, 'tasks', 'due_date')) {
+            $db->order_by('t.due_date', 'ASC');
+        }
+        if (schema_table_has_column($db, 'tasks', 'updated_at')) {
+            $db->order_by('t.updated_at', 'DESC');
+        } else {
+            $db->order_by('t.created_at', 'DESC');
+        }
+        $db->order_by('t.id', 'DESC');
+        if ($limit !== null) {
+            $db->limit((int) $limit, 0);
+        }
+
+        $rows = $db->get()->result();
+        $out = array();
+        foreach ($rows as $row) {
+            $out[] = my_works_normalize_task_for_overview($row);
+        }
+        return $out;
+    }
+}

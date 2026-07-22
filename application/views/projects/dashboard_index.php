@@ -107,7 +107,10 @@ $assignee_label = function ($task) {
 };
 ?>
 
-<?php if (!empty($filter_projects)): ?>
+<?php
+$show_project_toolbar = true;
+?>
+<?php if ($show_project_toolbar): ?>
 <div class="project-dash-toolbar">
   <form method="get" action="<?php echo site_url('projects/dashboard'); ?>" class="project-dash-filter-form" id="projectDashFilterForm">
     <?php if ($embed): ?>
@@ -119,6 +122,7 @@ $assignee_label = function ($task) {
     <?php if (!empty($complete_view_on)): ?>
     <input type="hidden" name="complete_view" value="1">
     <?php endif; ?>
+
     <?php if (isset($filter_departments) && !empty($filter_departments)): ?>
     <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Department</span>
@@ -131,6 +135,7 @@ $assignee_label = function ($task) {
     </label>
     <?php endif; ?>
 
+    <?php if (!empty($filter_projects)): ?>
     <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Project</span>
       <select name="project_id" class="form-select form-select-sm project-dash-filter-select">
@@ -145,6 +150,7 @@ $assignee_label = function ($task) {
         <?php endforeach; ?>
       </select>
     </label>
+    <?php endif; ?>
 
     <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Status</span>
@@ -172,6 +178,14 @@ $assignee_label = function ($task) {
       </select>
     </label>
     <?php endif; ?>
+
+    <label class="project-dash-filter-label project-dash-filter-search">
+      <span class="project-dash-filter-label-text">Search</span>
+      <input type="search" id="projectDashSearch" value=""
+             class="form-control form-control-sm project-dash-filter-select"
+             placeholder="Project or task…"
+             autocomplete="off">
+    </label>
 
     <?php if (!$embed): ?>
     <div class="project-dash-complete-toggle" id="projectDashCompleteToggleWrap">
@@ -233,7 +247,12 @@ $assignee_label = function ($task) {
         }
         $item_count = count($row_items);
       ?>
-      <div class="col-12 col-md-6 col-lg-4 project-dash-grid-col">
+      <div class="col-12 col-md-6 col-lg-4 project-dash-grid-col"
+           data-project-search="<?php echo esc_view(strtolower(trim(
+             (isset($p->name) ? (string) $p->name : '') . ' ' .
+             (isset($p->code) ? (string) $p->code : '') . ' ' .
+             (isset($p->department_name) ? (string) $p->department_name : '')
+           )), ENT_QUOTES, 'UTF-8'); ?>">
         <div class="card project-dash-card">
           <div class="card-body">
             <div class="project-dash-head">
@@ -266,6 +285,7 @@ $assignee_label = function ($task) {
                       <th>Item</th>
                       <th>Assignee</th>
                       <th style="width: 55px;">Date</th>
+                      <th class="text-end" style="width: 52px;">Est.hr</th>
                       <th style="width: 110px;">Status</th>
                     </tr>
                   </thead>
@@ -286,6 +306,12 @@ $assignee_label = function ($task) {
                         $badge_color = isset($status_colors[$task_status]) ? $status_colors[$task_status] : '#6b7280';
                         $assignee = $assignee_label($row);
                         $item_title = isset($row->title) ? (string) $row->title : '';
+                        if (!function_exists('estimate_hours_row')) {
+                            $this->load->helper('estimate_hours');
+                        }
+                        $est_label = ($kind === 'task')
+                          ? estimate_hours_row(isset($row->estimate_hours) ? $row->estimate_hours : null)
+                          : '—';
                         if ($kind === 'requirement') {
                             $item_url = site_url('requirements/view/' . (int) $row->id);
                             $type_prefix = 'Req: ';
@@ -295,6 +321,7 @@ $assignee_label = function ($task) {
                         }
                       ?>
                       <tr class="project-dash-task-row project-dash-task-row-<?php echo esc_view($task_status); ?>"
+                          data-item-search="<?php echo esc_view(strtolower($item_title), ENT_QUOTES, 'UTF-8'); ?>"
                           style="<?php echo esc_view(status_row_css_var_style($badge_color), ENT_QUOTES, 'UTF-8'); ?>">
                         <td>
                           <a href="<?php echo $item_url; ?>" class="project-dash-task-title" title="<?php echo esc_view($type_prefix . $item_title, ENT_QUOTES, 'UTF-8'); ?>">
@@ -304,6 +331,7 @@ $assignee_label = function ($task) {
                         </td>
                         <td class="project-dash-assignee" title="<?php echo esc_view($assignee, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($assignee); ?></td>
                         <td class="project-dash-date"><?php echo esc_view($task_date); ?></td>
+                        <td class="text-end text-nowrap project-dash-est" title="Estimate (hrs)"><?php echo esc_view($est_label); ?></td>
                         <td>
                           <select class="form-select form-select-sm project-dash-status-select" 
                                   data-id="<?php echo (int) $row->id; ?>" 
@@ -336,7 +364,7 @@ $assignee_label = function ($task) {
   </div>
 <?php endif; ?>
 </div>
-<?php if (!empty($filter_projects)): ?>
+<?php if ($show_project_toolbar): ?>
 <script>
 (function () {
   var form = document.getElementById('projectDashFilterForm');
@@ -344,14 +372,52 @@ $assignee_label = function ($task) {
     return;
   }
   var selects = form.querySelectorAll('select.project-dash-filter-select');
-  if (selects.length === 0) {
-    return;
-  }
   selects.forEach(function (select) {
     select.addEventListener('change', function () {
       form.submit();
     });
   });
+
+  var searchInput = document.getElementById('projectDashSearch');
+  var grid = document.querySelector('.project-dash-grid');
+  function applyProjectSearch() {
+    if (!searchInput || !grid) {
+      return;
+    }
+    var q = String(searchInput.value || '').trim().toLowerCase();
+    grid.querySelectorAll('.project-dash-grid-col').forEach(function (col) {
+      var projectHay = String(col.getAttribute('data-project-search') || '');
+      var projectMatch = (q === '' || projectHay.indexOf(q) >= 0);
+      var rows = col.querySelectorAll('tr[data-item-search]');
+      var anyItemMatch = false;
+
+      rows.forEach(function (row) {
+        var itemHay = String(row.getAttribute('data-item-search') || '');
+        var itemMatch;
+        if (q === '' || projectMatch) {
+          itemMatch = true;
+        } else {
+          itemMatch = itemHay.indexOf(q) >= 0;
+        }
+        row.style.display = itemMatch ? '' : 'none';
+        if (itemMatch && q !== '' && !projectMatch) {
+          anyItemMatch = true;
+        }
+      });
+
+      var show = (q === '' || projectMatch || anyItemMatch);
+      col.style.display = show ? '' : 'none';
+    });
+  }
+  if (searchInput) {
+    searchInput.addEventListener('input', applyProjectSearch);
+    searchInput.addEventListener('search', applyProjectSearch);
+    searchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    });
+  }
 
   var completeToggle = document.getElementById('projectDashCompleteToggle');
   if (completeToggle) {
@@ -366,49 +432,50 @@ $assignee_label = function ($task) {
     });
   }
 
-  $(document).on('change', '.project-dash-status-select', function() {
-    var $select = $(this);
-    var newStatus = $select.val();
-    var itemId = $select.data('id');
-    var itemType = $select.data('type');
-    
-    var $selectedOption = $select.find('option:selected');
-    var newColor = $selectedOption.data('color');
+  if (window.jQuery) {
+    window.jQuery(document).on('change', '.project-dash-status-select', function() {
+      var $select = window.jQuery(this);
+      var newStatus = $select.val();
+      var itemId = $select.data('id');
+      var itemType = $select.data('type');
+      var $selectedOption = $select.find('option:selected');
+      var newColor = $selectedOption.data('color');
 
-    $select.css({
-      'color': newColor,
-      'background-color': newColor + '1a',
-      'border-color': newColor + '40'
-    });
-    var $row = $select.closest('tr');
-    if ($row.length) {
-      $row.removeClass(function (index, className) {
-          return (className.match(/(^|\s)project-dash-task-row-\S+/g) || []).join(' ');
+      $select.css({
+        'color': newColor,
+        'background-color': newColor + '1a',
+        'border-color': newColor + '40'
       });
-      $row.addClass('project-dash-task-row-' + newStatus);
-      $row[0].style.setProperty('--pd-row-status-color', newColor);
-    }
-
-    $.ajax({
-      url: '<?php echo site_url("tasks/ajax_update_item_status"); ?>',
-      type: 'POST',
-      data: {
-        id: itemId,
-        type: itemType,
-        status: newStatus,
-        <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
-      },
-      dataType: 'json',
-      success: function(res) {
-        if (!res || !res.success) {
-          alert('Failed to update status.');
-        }
-      },
-      error: function() {
-        alert('An error occurred. Please try again.');
+      var $row = $select.closest('tr');
+      if ($row.length) {
+        $row.removeClass(function (index, className) {
+            return (className.match(/(^|\s)project-dash-task-row-\S+/g) || []).join(' ');
+        });
+        $row.addClass('project-dash-task-row-' + newStatus);
+        $row[0].style.setProperty('--pd-row-status-color', newColor);
       }
+
+      window.jQuery.ajax({
+        url: '<?php echo site_url("tasks/ajax_update_item_status"); ?>',
+        type: 'POST',
+        data: {
+          id: itemId,
+          type: itemType,
+          status: newStatus,
+          <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+        },
+        dataType: 'json',
+        success: function(res) {
+          if (!res || !res.success) {
+            alert('Failed to update status.');
+          }
+        },
+        error: function() {
+          alert('An error occurred. Please try again.');
+        }
+      });
     });
-  });
+  }
 })();
 </script>
 <?php endif; ?>

@@ -9,9 +9,16 @@
       $baseQuery[$k] = $v;
     }
   }
-  $buildUrl = function ($extra) use ($baseQuery) {
+  $buildUrl = function ($extra) use ($baseQuery, $embed) {
     $q = array_merge($baseQuery, $extra);
     unset($q['page']);
+    if ($embed) {
+      $q['embed'] = '1';
+      $parent_tab = get_instance()->input->get('parent_tab');
+      if ($parent_tab) {
+        $q['parent_tab'] = $parent_tab;
+      }
+    }
     $qs = http_build_query($q);
     return site_url('my-works') . ($qs !== '' ? '?' . $qs : '');
   };
@@ -24,56 +31,56 @@
   $filterProjectId = isset($filters['project_id']) ? (int) $filters['project_id'] : 0;
   $clients = isset($clients) ? $clients : array();
   $projects = isset($projects) ? $projects : array();
+  $listViewMode = isset($view_mode) ? $view_mode : 'list';
 ?>
-<div class="mw-kpi-grid mb-3">
-  <a class="mw-kpi <?php echo $filters['status'] === '' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => '', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
-    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Total</div><div class="val" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['total']; ?></div>
+<div class="mw-kpi-grid mw-kpi-grid--compact">
+  <a class="mw-kpi <?php echo $filters['status'] === '' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => '', 'view' => $listViewMode)); ?>">
+    <div class="lbl">Total</div><div class="val"><?php echo (int) $stats['total']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo $filters['status'] === 'new' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'new', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
-    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>New</div><div class="val text-secondary" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['new']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === 'new' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'new', 'view' => $listViewMode)); ?>">
+    <div class="lbl">New</div><div class="val text-secondary"><?php echo (int) $stats['new']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo $filters['status'] === 'in_progress' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'in_progress', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
-    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>In progress</div><div class="val text-primary" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['in_progress']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === 'in_progress' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'in_progress', 'view' => $listViewMode)); ?>">
+    <div class="lbl">In progress</div><div class="val text-primary"><?php echo (int) $stats['in_progress']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo $filters['status'] === 'closed' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'closed', 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
-    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Closed</div><div class="val text-success" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['closed']; ?></div>
+  <a class="mw-kpi <?php echo $filters['status'] === 'closed' ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => 'closed', 'view' => $listViewMode)); ?>">
+    <div class="lbl">Closed</div><div class="val text-success"><?php echo (int) $stats['closed']; ?></div>
   </a>
-  <a class="mw-kpi <?php echo !empty($filters['urgent_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'urgent_only' => empty($filters['urgent_only']) ? 1 : 0, 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
-    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Open urgent</div><div class="val text-danger" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['urgent']; ?></div>
+  <a class="mw-kpi <?php echo !empty($filters['urgent_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'urgent_only' => empty($filters['urgent_only']) ? 1 : 0, 'view' => $listViewMode)); ?>">
+    <div class="lbl">Open urgent</div><div class="val text-danger"><?php echo (int) $stats['urgent']; ?></div>
   </a>
   <?php if (isset($stats['overdue'])): ?>
-  <a class="mw-kpi <?php echo !empty($filters['overdue_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'overdue_only' => empty($filters['overdue_only']) ? 1 : 0, 'view' => isset($view_mode) ? $view_mode : 'list')); ?>" <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px;"<?php endif; ?>>
-    <div class="lbl" <?php if ($embed): ?>style="font-size: 0.65rem;"<?php endif; ?>>Overdue</div><div class="val text-danger" <?php if ($embed): ?>style="font-size: 1.1rem; margin-top: 0;"<?php endif; ?>><?php echo (int) $stats['overdue']; ?></div>
+  <a class="mw-kpi <?php echo !empty($filters['overdue_only']) ? 'active' : ''; ?>" href="<?php echo $buildUrl(array('status' => $filters['status'], 'overdue_only' => empty($filters['overdue_only']) ? 1 : 0, 'view' => $listViewMode)); ?>">
+    <div class="lbl">Overdue</div><div class="val text-danger"><?php echo (int) $stats['overdue']; ?></div>
   </a>
   <?php endif; ?>
 </div>
 
-<?php if (!empty($can_export)): ?>
-<div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2">
-  <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($exportUrl); ?>"><i class="bi bi-download me-1"></i>Export CSV</a>
-</div>
-<?php endif; ?>
-
-<div class="card shadow-sm border-0 mb-3 mw-filter-card">
+<div class="card border-0 shadow-sm mb-2 mw-filter-card">
   <button class="card-header mw-filter-header d-flex align-items-center justify-content-between w-100 border-0"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#mwFilterBody"
           aria-expanded="false"
-          aria-controls="mwFilterBody"
-          <?php if ($embed): ?>style="padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.8rem;"<?php endif; ?>>
+          aria-controls="mwFilterBody">
     <span class="fw-semibold small text-uppercase"><i class="bi bi-funnel me-1"></i>Search &amp; filters</span>
     <span class="d-flex align-items-center gap-2">
-      <span class="text-muted small d-none d-md-inline">Narrow results by client, type, status, and more</span>
+      <span class="text-muted small d-none d-md-inline">Client, type, status, and more</span>
       <i class="bi bi-chevron-up mw-filter-chevron" aria-hidden="true"></i>
     </span>
   </button>
   <div class="collapse" id="mwFilterBody">
-    <div class="card-body">
-      <form method="get" action="<?php echo site_url('my-works'); ?>" class="row g-3 align-items-end">
-        <input type="hidden" name="view" value="<?php echo esc_view(isset($view_mode) ? $view_mode : 'list'); ?>">
+    <div class="card-body py-2 px-3">
+      <form method="get" action="<?php echo site_url('my-works'); ?>" class="row g-2 align-items-end">
+        <input type="hidden" name="view" value="<?php echo esc_view($listViewMode); ?>">
+        <?php if ($embed): ?>
+        <input type="hidden" name="embed" value="1">
+        <?php if ($this->input->get('parent_tab')): ?>
+        <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+        <?php endif; ?>
+        <?php endif; ?>
         <div class="col-12">
-          <div class="mw-filter-section-title"><i class="bi bi-building me-1"></i>Client &amp; project</div>
+          <div class="mw-filter-section-title mb-0"><i class="bi bi-building me-1"></i>Client &amp; project</div>
         </div>
         <div class="col-6 col-md-3">
           <label class="form-label">Client</label>
@@ -110,7 +117,7 @@
           )); ?>
         </div>
         <div class="col-12">
-          <div class="mw-filter-section-title mt-1"><i class="bi bi-sliders me-1"></i>More filters</div>
+          <div class="mw-filter-section-title mb-0 mt-1"><i class="bi bi-sliders me-1"></i>More filters</div>
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label">Search</label>
@@ -181,14 +188,35 @@
           </div>
         </div>
         <div class="col-6 col-md-2">
-          <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Apply</button>
+          <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Apply</button>
         </div>
         <div class="col-6 col-md-2">
-          <a class="btn btn-outline-secondary w-100" href="<?php echo site_url('my-works?view=' . (isset($view_mode) ? urlencode($view_mode) : 'list')); ?>">Reset</a>
+          <a class="btn btn-outline-secondary btn-sm w-100" href="<?php echo site_url('my-works?view=' . urlencode($listViewMode)); ?>">Reset</a>
         </div>
       </form>
     </div>
   </div>
+</div>
+
+<div class="mw-list-toolbar">
+  <div class="mw-list-toolbar-meta">
+    <?php if (!empty($total_rows)): ?>
+      <span class="mw-list-count">
+        <strong><?php echo (int) $total_rows; ?></strong>
+        item<?php echo (int) $total_rows === 1 ? '' : 's'; ?> found
+        <?php if (!empty($list_capped)): ?>
+          <span class="text-warning">(showing first <?php echo isset($list_shown_count) ? (int) $list_shown_count : 0; ?> — narrow filters or export for full set)</span>
+        <?php endif; ?>
+      </span>
+    <?php else: ?>
+      <span class="mw-list-count text-muted">No matching items</span>
+    <?php endif; ?>
+  </div>
+  <?php if (!empty($can_export)): ?>
+  <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($exportUrl); ?>" title="Export CSV">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
+  <?php endif; ?>
 </div>
 
 <?php if (!empty($clients) && !empty($projects)): ?>
@@ -247,11 +275,44 @@
 </script>
 <?php endif; ?>
 
-<?php if (!empty($total_rows)): ?>
-  <p class="small text-muted mb-2">
-    <?php echo (int) $total_rows; ?> item<?php echo (int) $total_rows === 1 ? '' : 's'; ?> found
-    <?php if (!empty($list_capped)): ?>
-      <span class="text-warning">(showing first <?php echo isset($list_shown_count) ? (int) $list_shown_count : 0; ?> — narrow filters or export for full set)</span>
-    <?php endif; ?>
-  </p>
-<?php endif; ?>
+<script>
+(function () {
+  var form = document.getElementById('mwListSearchForm');
+  if (!form) {
+    return;
+  }
+  var input = form.querySelector('input[type="search"][name="q"]');
+  if (!input) {
+    return;
+  }
+  var timer = null;
+  function submitSearch() {
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+    } else {
+      form.submit();
+    }
+  }
+  input.addEventListener('input', function () {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(submitSearch, 350);
+  });
+  input.addEventListener('search', function () {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    submitSearch();
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (timer) {
+        clearTimeout(timer);
+      }
+      submitSearch();
+    }
+  });
+})();
+</script>

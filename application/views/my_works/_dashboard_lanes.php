@@ -134,7 +134,7 @@
 
       $show_date = !empty($force_show_date) || my_works_dashboard_lane_shows_date($lane);
 
-      $col_count = ($hide_drag_column ? 0 : 1) + 2 + ($show_date ? 1 : 0) + ($hide_project_column ? 0 : 1) + ($show_status_column ? 1 : 0);
+      $col_count = ($hide_drag_column ? 0 : 1) + 3 + ($show_date ? 1 : 0) + ($hide_project_column ? 0 : 1) + ($show_status_column ? 1 : 0);
 
     ?>
 
@@ -172,6 +172,8 @@
 
             <col class="mw-dash-col-assignee">
 
+            <col class="mw-dash-col-est">
+
             <?php if ($show_date): ?><col class="mw-dash-col-date"><?php endif; ?>
 
             <?php if ($show_status_column): ?><col class="mw-dash-col-status"><?php endif; ?>
@@ -189,6 +191,8 @@
               <th>Title</th>
 
               <th class="mw-dash-col-assignee-head">Assign<br>to</th>
+
+              <th class="mw-dash-col-est-head text-end">Est.hr</th>
 
               <?php if ($show_date): ?><th>Date</th><?php endif; ?>
 
@@ -216,6 +220,8 @@
 
               <col class="mw-dash-col-assignee">
 
+              <col class="mw-dash-col-est">
+
               <?php if ($show_date): ?><col class="mw-dash-col-date"><?php endif; ?>
 
               <?php if ($show_status_column): ?><col class="mw-dash-col-status"><?php endif; ?>
@@ -235,6 +241,8 @@
                 <th>Title</th>
 
                 <th class="mw-dash-col-assignee-head">Assign<br>to</th>
+
+                <th class="mw-dash-col-est-head text-end">Est.hr</th>
 
                 <?php if ($show_date): ?><th>Date</th><?php endif; ?>
 
@@ -312,15 +320,31 @@
 
                     $this->load->helper('my_works_status');
 
-                    $stCode = isset($r->status) ? (string) $r->status : my_works_status_default_code();
+                    $is_task_row = !empty($r->item_source) && $r->item_source === 'tasks';
 
-                    $dotColor = my_works_status_hex_color($stCode);
+                    $stCode = isset($r->status) ? (string) $r->status : ($is_task_row ? 'pending' : my_works_status_default_code());
 
-                    $rowBg = my_works_status_row_bg_color($stCode);
+                    if ($is_task_row) {
+                      $dotColor = my_works_dashboard_task_status_hex($stCode);
+                      $CI =& get_instance();
+                      $CI->load->helper('status_row');
+                      $rowBg = status_row_bg_from_hex($dotColor, 0.12);
+                      $dotClass = ($stCode === 'in_progress') ? 'in_progress' : 'new';
+                      $stLabel = my_works_dashboard_task_status_label($stCode);
+                      $stColor = my_works_dashboard_task_status_bootstrap($stCode);
+                    } else {
+                      $dotColor = my_works_status_hex_color($stCode);
+                      $rowBg = my_works_status_row_bg_color($stCode);
+                      $dotClass = my_works_status_dashboard_dot_class($stCode);
+                      $stLabel = isset($statusLabels[$stCode]) ? $statusLabels[$stCode] : $stCode;
+                      $stColor = isset($statusColors[$stCode]) ? $statusColors[$stCode] : 'secondary';
+                    }
 
-                    $dotClass = my_works_status_dashboard_dot_class($stCode);
-
-                    $forLabel = my_works_short_user_name($r->created_for_name, $r->created_for_email, $r->created_for);
+                    $forLabel = my_works_short_user_name(
+                      isset($r->created_for_name) ? $r->created_for_name : '',
+                      isset($r->created_for_email) ? $r->created_for_email : '',
+                      isset($r->created_for) ? $r->created_for : 0
+                    );
 
                     $projLabel = my_works_dashboard_project_label($r);
 
@@ -332,9 +356,7 @@
 
                     $can_status = $show_status_column && my_works_can_update_status($r, $can_view_all, $uid);
 
-                    $stLabel = isset($statusLabels[$stCode]) ? $statusLabels[$stCode] : $stCode;
-
-                    $stColor = isset($statusColors[$stCode]) ? $statusColors[$stCode] : 'secondary';
+                    $item_url = my_works_dashboard_item_url($r);
 
                   ?>
 
@@ -374,15 +396,28 @@
 
                     <td>
 
-                      <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-dash-task-link" title="<?php echo esc_view((string) $r->title, ENT_QUOTES, 'UTF-8'); ?>">
+                      <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="mw-dash-task-link" title="<?php echo esc_view((string) $r->title, ENT_QUOTES, 'UTF-8'); ?>">
 
                         <?php echo esc_view((string) $r->title, ENT_QUOTES, 'UTF-8'); ?>
+
+                        <?php if ($is_task_row): ?>
+                          <span class="text-muted small ms-1" title="Task">· Task</span>
+                        <?php endif; ?>
 
                       </a>
 
                     </td>
 
                     <td title="<?php echo esc_view($forLabel, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($forLabel); ?></td>
+
+                    <td class="mw-dash-col-est-cell text-end text-nowrap" title="Estimate (hrs)">
+                      <?php
+                        if (!function_exists('estimate_hours_row')) {
+                          $this->load->helper('estimate_hours');
+                        }
+                        echo esc_view(estimate_hours_row(isset($r->estimate_hours) ? $r->estimate_hours : null));
+                      ?>
+                    </td>
 
                     <?php if ($show_date): ?>
 

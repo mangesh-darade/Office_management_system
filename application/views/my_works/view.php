@@ -21,28 +21,10 @@
 
 ?>
 
-<?php if ($embed): ?>
-<style>
-  .mw-detail-hero {
-      padding: 0.75rem 1rem !important;
-      margin-bottom: 0.75rem !important;
-      background: #ffffff !important;
-      box-shadow: none !important;
-      border-radius: 6px !important;
-  }
-  .mw-detail-title {
-      font-size: 1.25rem !important;
-  }
-  .container-fluid {
-      padding: 0 !important;
-  }
-</style>
-<?php endif; ?>
-
-<div class="container-fluid <?php echo $embed ? 'p-0' : 'py-3'; ?>">
+<div class="container-fluid mw-detail-page mw-detail-compact <?php echo $embed ? 'mw-detail-page--embed p-0' : 'py-2'; ?>">
 
   <?php if (!$embed): ?>
-  <nav aria-label="breadcrumb" class="small mb-2">
+  <nav aria-label="breadcrumb" class="small mb-1">
 
     <ol class="breadcrumb mb-0">
 
@@ -59,7 +41,7 @@
 
   <div class="mw-detail-hero <?php echo my_works_row_border_class($item); ?>">
 
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-2">
 
       <div class="d-flex align-items-start gap-2 flex-grow-1 min-w-0">
         <?php
@@ -81,11 +63,11 @@
         ?>
         <div class="min-w-0 flex-grow-1">
 
-        <h1 class="mw-detail-title mb-2"><?php echo esc_view($item->title); ?></h1>
+        <h1 class="mw-detail-title mb-1"><?php echo esc_view($item->title); ?></h1>
 
-        <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="d-flex flex-wrap gap-1 align-items-center mw-detail-badges">
 
-          <span class="badge bg-<?php echo $itemStatusColor; ?> px-3 py-2"><?php echo esc_view($itemStatusLabel); ?></span>
+          <span class="badge bg-<?php echo $itemStatusColor; ?>"><?php echo esc_view($itemStatusLabel); ?></span>
 
           <?php if (!empty($item->work_type)): ?><span class="badge bg-info text-dark"><?php echo esc_view(my_works_type_label($item->work_type)); ?></span><?php endif; ?>
 
@@ -106,11 +88,11 @@
         </div>
       </div>
 
-      <div class="d-flex flex-wrap gap-2">
+      <div class="btn-group btn-group-sm mw-detail-actions" role="group" aria-label="Actions">
 
         <?php if (!empty($can_edit)): ?>
 
-          <a class="btn btn-primary btn-sm" href="<?php echo site_url('my-works/' . (int) $item->id . '/edit'); ?>"><i class="bi bi-pencil me-1"></i>Edit</a>
+          <a class="btn btn-outline-primary" href="<?php echo site_url('my-works/' . (int) $item->id . '/edit'); ?>" title="Edit"><i class="bi bi-pencil"></i></a>
 
         <?php endif; ?>
 
@@ -120,7 +102,7 @@
 
             <?php $this->load->view('my_works/_csrf'); ?>
 
-            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>Delete</button>
+            <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
 
           </form>
 
@@ -136,7 +118,7 @@
 
   <?php if ($this->session->flashdata('success')): ?>
 
-    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+    <div class="alert alert-success alert-dismissible fade show py-1 px-2 mb-2 small" role="alert">
 
       <?php echo esc_view($this->session->flashdata('success')); ?>
 
@@ -148,7 +130,7 @@
 
   <?php if ($this->session->flashdata('error')): ?>
 
-    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show py-1 px-2 mb-2 small" role="alert">
 
       <?php echo esc_view($this->session->flashdata('error')); ?>
 
@@ -162,11 +144,11 @@
 
   <?php if (!empty($can_update_status)): ?>
 
-  <div class="card shadow-sm border-0 mb-3">
+  <div class="card border-0 shadow-sm mw-detail-card mb-2">
 
-    <div class="card-body py-3">
+    <div class="card-body">
 
-      <div class="small text-muted text-uppercase mb-2 fw-bold"><i class="bi bi-arrow-repeat me-1"></i>Update status</div>
+      <div class="mw-detail-section-label"><i class="bi bi-arrow-repeat me-1"></i>Update status</div>
 
       <div class="mw-status-pipeline">
 
@@ -198,7 +180,7 @@
 
       <?php if (!empty($is_assignee) && empty($can_edit)): ?>
 
-        <div class="form-text mt-2">You are the assignee — you can change status without full edit access.</div>
+        <div class="form-text mt-1 mb-0">You are the assignee — you can change status without full edit access.</div>
 
       <?php endif; ?>
 
@@ -210,15 +192,15 @@
 
 
 
-  <div class="row g-3">
+  <div class="row g-2">
 
     <div class="col-lg-8 order-2 order-lg-1">
 
-      <div class="card shadow-sm border-0 mb-3">
+      <div class="card border-0 shadow-sm mw-detail-card mb-2">
 
         <div class="card-body">
 
-          <h2 class="h6 text-muted text-uppercase mb-3 fw-bold"><i class="bi bi-card-text me-1"></i>Details</h2>
+          <h2 class="mw-detail-section-label"><i class="bi bi-card-text me-1"></i>Details</h2>
 
           <?php if (!empty($item->details)): ?>
 
@@ -226,7 +208,7 @@
 
           <?php else: ?>
 
-            <p class="text-muted mb-0">No details provided.</p>
+            <p class="text-muted mb-0 small">No details provided.</p>
 
           <?php endif; ?>
 
@@ -234,7 +216,7 @@
 
           <?php if (!empty($item->url)): ?>
 
-            <hr class="my-3">
+            <hr class="my-2">
 
             <a href="<?php echo esc_view($item->url); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open link</a>
 
@@ -244,11 +226,11 @@
 
           <?php if (!empty($item->closing_comment)): ?>
 
-            <hr class="my-3">
+            <hr class="my-2">
 
-            <div class="small text-muted text-uppercase fw-bold mb-1">Closing comment</div>
+            <div class="mw-detail-section-label mb-1">Closing comment</div>
 
-            <div class="p-3 bg-light rounded border"><?php echo nl2br(esc_view($item->closing_comment)); ?></div>
+            <div class="p-2 bg-light rounded border small"><?php echo nl2br(esc_view($item->closing_comment)); ?></div>
 
           <?php endif; ?>
 
@@ -260,7 +242,7 @@
 
       <?php if (!empty($attachments)): ?>
 
-      <div class="card shadow-sm border-0 mb-3">
+      <div class="card border-0 shadow-sm mw-detail-card mb-2">
 
         <div class="card-body">
 
@@ -279,19 +261,19 @@
 
       <?php if (!empty($can_comment)): ?>
 
-      <div class="card shadow-sm border-0 mb-3">
+      <div class="card border-0 shadow-sm mw-detail-card mb-2">
 
         <div class="card-body">
 
-          <h2 class="h6 text-muted text-uppercase mb-3 fw-bold"><i class="bi bi-chat-dots me-1"></i>Comments</h2>
+          <h2 class="mw-detail-section-label"><i class="bi bi-chat-dots me-1"></i>Comments</h2>
 
           <?php if (empty($comments)): ?>
 
-            <p class="text-muted small mb-3">No comments yet. Start the conversation below.</p>
+            <p class="text-muted small mb-2">No comments yet. Start the conversation below.</p>
 
           <?php else: ?>
 
-            <div class="mw-comments mb-3">
+            <div class="mw-comments mb-2">
 
               <?php foreach ($comments as $c): ?>
 
@@ -318,10 +300,17 @@
           <form method="post" action="<?php echo site_url('my-works/' . (int) $item->id . '/comment'); ?>">
 
             <?php $this->load->view('my_works/_csrf'); ?>
+            <?php if ($embed): ?>
+              <input type="hidden" name="embed" value="1">
+              <?php if ($this->input->get('parent_tab')): ?>
+                <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+              <?php endif; ?>
+              <input type="hidden" name="redirect" value="<?php echo esc_view(site_url('my-works/' . (int) $item->id) . '?embed=1' . ($this->input->get('parent_tab') ? '&parent_tab=' . rawurlencode((string) $this->input->get('parent_tab')) : ''), ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endif; ?>
 
-            <label class="form-label small fw-semibold">Add a comment</label>
+            <label class="form-label small fw-semibold mb-1">Add a comment</label>
 
-            <textarea name="comment" class="form-control mb-2" rows="3" required placeholder="Share an update or note…"></textarea>
+            <textarea name="comment" class="form-control form-control-sm mb-2" rows="2" required placeholder="Share an update or note…"></textarea>
 
             <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-send me-1"></i>Post comment</button>
 
@@ -337,17 +326,17 @@
 
       <?php if (!empty($activity)): ?>
 
-      <div class="card shadow-sm border-0">
+      <div class="card border-0 shadow-sm mw-detail-card mb-0">
 
         <div class="card-body">
 
-          <h2 class="h6 text-muted text-uppercase mb-3 fw-bold"><i class="bi bi-clock-history me-1"></i>Activity</h2>
+          <h2 class="mw-detail-section-label"><i class="bi bi-clock-history me-1"></i>Activity</h2>
 
           <ul class="list-unstyled small mb-0 mw-activity-list">
 
             <?php foreach ($activity as $a): ?>
 
-              <li class="d-flex gap-2 py-2 border-bottom">
+              <li class="d-flex gap-2 py-1 border-bottom">
 
                 <span class="text-muted flex-shrink-0" title="<?php echo esc_view($a->created_at); ?>"><?php echo my_works_format_when($a->created_at); ?></span>
 
@@ -379,11 +368,11 @@
 
     <div class="col-lg-4 order-1 order-lg-2">
 
-      <div class="card shadow-sm border-0 mw-info-card">
+      <div class="card border-0 shadow-sm mw-info-card mw-detail-card">
 
         <div class="card-body">
 
-          <h2 class="h6 text-muted text-uppercase mb-3 fw-bold">Information</h2>
+          <h2 class="mw-detail-section-label">Information</h2>
 
 
 
@@ -582,5 +571,5 @@
 
 <?php $this->load->view('my_works/_media_preview_modal'); ?>
 <?php $this->load->view('my_works/_media_preview_scripts'); ?>
-<?php $this->load->view('partials/footer'); ?>
+<?php $this->load->view('partials/footer', array('embed' => $embed)); ?>
 

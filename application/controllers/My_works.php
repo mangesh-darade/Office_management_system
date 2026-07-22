@@ -35,6 +35,43 @@ class My_works extends CI_Controller
         }
     }
 
+    /**
+     * True when the request is inside Second Brain embed panes.
+     *
+     * @return bool
+     */
+    private function _wants_embed()
+    {
+        $v = $this->input->get_post('embed');
+        return ($v === '1' || $v === 1 || $v === true || $v === 'true');
+    }
+
+    /**
+     * Redirect while keeping embed=1 (+ parent_tab) for unified tab AJAX.
+     *
+     * @param string $uri
+     * @return void
+     */
+    private function _redirect_with_embed($uri)
+    {
+        $uri = (string) $uri;
+        if ($this->_wants_embed()) {
+            $parts = parse_url($uri);
+            $path = isset($parts['path']) ? $parts['path'] : $uri;
+            $query = array();
+            if (!empty($parts['query'])) {
+                parse_str($parts['query'], $query);
+            }
+            $query['embed'] = '1';
+            $parent = trim((string) $this->input->get_post('parent_tab'));
+            if ($parent !== '') {
+                $query['parent_tab'] = $parent;
+            }
+            $uri = $path . '?' . http_build_query($query);
+        }
+        redirect($uri);
+    }
+
     /** @return array{user_id:int,role_id:int,can_view_all:bool} */
     private function _ctx()
     {
@@ -117,6 +154,29 @@ class My_works extends CI_Controller
             $c['role_id'],
             array($this, '_apply_list_scope')
         );
+    }
+
+    /**
+     * Overview / lane focus: my_works rows + project-linked Tasks module rows.
+     *
+     * @param array $rows
+     * @param array $filters
+     * @return array
+     */
+    private function _overview_rows_with_project_tasks(array $rows, array $filters)
+    {
+        $c = $this->_ctx();
+        $task_rows = my_works_fetch_overview_project_tasks(
+            $this->db,
+            $filters,
+            $c['can_view_all'],
+            $c['user_id'],
+            $this->list_cap
+        );
+        if (empty($task_rows)) {
+            return $rows;
+        }
+        return array_merge($rows, $task_rows);
     }
 
     private function _clear_dashboard_cache()
@@ -336,7 +396,9 @@ class My_works extends CI_Controller
         $data = $this->_list_view_data($filters, $view_mode);
         if ($view_mode === 'overview') {
             // Overview lanes are for open planning work only — never list Closed/Complete.
-            $dash = my_works_build_dashboard_sections($data['rows'], true);
+            // Project section also includes Tasks-module rows linked to a project.
+            $rows = $this->_overview_rows_with_project_tasks($data['rows'], $filters);
+            $dash = my_works_build_dashboard_sections($rows, true);
             $data['dashboard_sections'] = $dash['sections'];
             $data['dashboard_counts'] = $dash['counts'];
             $this->load->view('my_works/overview', $data);
@@ -378,7 +440,8 @@ class My_works extends CI_Controller
         if (!in_array($section, array('ad_hoc', 'project'), true)) {
             $section = '';
         }
-        $focus = my_works_build_lane_focus_sections($data['rows'], $lane_key, true, $section);
+        $rows = $this->_overview_rows_with_project_tasks($data['rows'], $filters);
+        $focus = my_works_build_lane_focus_sections($rows, $lane_key, true, $section);
         $data['dashboard_sections'] = $focus['sections'];
         $data['focus_count'] = $focus['count'];
         $data['lane_key'] = $lane_key;
@@ -1181,6 +1244,7 @@ class My_works extends CI_Controller
             'client_label' => $client_label,
             'project_label' => $project_label,
             'attachments' => my_works_attachments_for_work($this->db, (int) $id),
+            'embed' => $this->_wants_embed(),
         ));
     }
 
@@ -1253,19 +1317,19 @@ class My_works extends CI_Controller
             $this->session->set_flashdata('error', 'Comment cannot be empty.');
             $redirect = trim((string) $this->input->post('redirect'));
             if ($redirect !== '' && strpos($redirect, 'my-works') !== false) {
-                redirect($redirect);
+                $this->_redirect_with_embed($redirect);
                 return;
             }
-            redirect('my-works/' . (int) $id);
+            $this->_redirect_with_embed('my-works/' . (int) $id);
             return;
         }
         $uploads = $this->_handle_uploads();
         if ($uploads === false) {
             $redirect = trim((string) $this->input->post('redirect'));
             if ($redirect !== '') {
-                redirect($redirect);
+                $this->_redirect_with_embed($redirect);
             } else {
-                redirect('my-works/' . (int) $id);
+                $this->_redirect_with_embed('my-works/' . (int) $id);
             }
             return;
         }
@@ -1280,10 +1344,10 @@ class My_works extends CI_Controller
         $this->session->set_flashdata('success', 'Comment added.');
         $redirect = trim((string) $this->input->post('redirect'));
         if ($redirect !== '' && strpos($redirect, 'my-works') !== false) {
-            redirect($redirect);
+            $this->_redirect_with_embed($redirect);
             return;
         }
-        redirect('my-works/' . (int) $id);
+        $this->_redirect_with_embed('my-works/' . (int) $id);
     }
 
     public function delete($id)

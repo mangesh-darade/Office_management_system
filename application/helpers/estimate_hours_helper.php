@@ -54,6 +54,23 @@ if (!function_exists('estimate_hours_display')) {
     }
 }
 
+if (!function_exists('estimate_hours_row')) {
+    /**
+     * Compact row/card label: "2hr", "1.5hr", or "—".
+     *
+     * @param mixed $value
+     * @return string
+     */
+    function estimate_hours_row($value)
+    {
+        $label = estimate_hours_display($value);
+        if ($label === '—') {
+            return '—';
+        }
+        return $label . 'hr';
+    }
+}
+
 if (!function_exists('estimate_hours_ensure_column')) {
     /**
      * @param CI_DB_query_builder $db

@@ -5,7 +5,7 @@ class Clients extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','error_handler','schema_columns','types','validation']);
+        $this->load->helper(['url','form','permission','error_handler','schema_columns','types','validation','estimate_hours']);
         $this->load->library(['session']);
         
         // RBAC Audit: Centralized module access check
@@ -271,12 +271,40 @@ class Clients extends CI_Controller {
     /**
      * Client cart data: clients with nested projects and tasks (alphabetical).
      *
-     * @return array{client_cards:array,total_projects:int,total_tasks:int}
+     * @param array $filters Optional: status, client_type, search
+     * @return array{client_cards:array,total_projects:int,total_tasks:int,filters:array,client_types:array}
      */
-    private function _build_client_cart_data()
+    private function _build_client_cart_data(array $filters = array())
     {
-        $clients = safe_db_operation(function () {
-            return $this->clients->get_clients(array('sort' => 'company_name', 'dir' => 'asc'), 500, 0);
+        $this->load->helper(array('types', 'module_status'));
+        $client_types = $this->_client_type_options();
+
+        $status = isset($filters['status']) ? trim((string) $filters['status']) : '';
+        $client_type = isset($filters['client_type']) ? trim((string) $filters['client_type']) : '';
+        $search = isset($filters['search']) ? trim((string) $filters['search']) : '';
+        if ($client_type !== '' && !isset($client_types[$client_type])) {
+            $client_type = '';
+        }
+        if ($status !== '' && function_exists('module_status_is_valid') && !module_status_is_valid($status, 'clients')) {
+            $status = '';
+        }
+
+        $query_filters = array(
+            'sort' => 'company_name',
+            'dir'  => 'asc',
+        );
+        if ($status !== '') {
+            $query_filters['status'] = $status;
+        }
+        if ($client_type !== '') {
+            $query_filters['client_type'] = $client_type;
+        }
+        if ($search !== '') {
+            $query_filters['search'] = $search;
+        }
+
+        $clients = safe_db_operation(function () use ($query_filters) {
+            return $this->clients->get_clients($query_filters, 500, 0);
         }, 'Unable to load clients.');
         $client_rows = (!empty($clients['success']) && is_array($clients['data'])) ? $clients['data'] : array();
 
@@ -314,6 +342,9 @@ class Clients extends CI_Controller {
             $sel = array('t.id', 't.title', 't.status', 't.project_id');
             if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
                 $sel[] = 't.due_date';
+            }
+            if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
+                $sel[] = 't.estimate_hours';
             }
             if (schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
                 $sel[] = 't.assigned_to';
@@ -374,6 +405,12 @@ class Clients extends CI_Controller {
             'client_cards'   => $client_cards,
             'total_projects' => $total_projects,
             'total_tasks'    => $total_tasks,
+            'filters'        => array(
+                'status'      => $status,
+                'client_type' => $client_type,
+                'search'      => $search,
+            ),
+            'client_types'   => $client_types,
         );
     }
 
@@ -549,7 +586,11 @@ class Clients extends CI_Controller {
         require_module_access(array('clients_list', 'clients_view', 'clients'), true);
 
         $embed = (bool) $this->input->get('embed');
-        $cart = $this->_build_client_cart_data();
+        $cart = $this->_build_client_cart_data(array(
+            'status'      => $this->input->get('status'),
+            'client_type' => $this->input->get('client_type'),
+            'search'      => $this->input->get('q'),
+        ));
 
         $this->load->view('clients/dashboard', array_merge($cart, array(
             'embed' => $embed,
@@ -714,6 +755,9 @@ class Clients extends CI_Controller {
             }
             if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
                 $sel[] = 't.due_date';
+            }
+            if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
+                $sel[] = 't.estimate_hours';
             }
             if (schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
                 $sel[] = 't.assigned_to';
@@ -1386,9 +1430,10 @@ class Clients extends CI_Controller {
         $assigned_to = ($assigned_raw !== '' && $assigned_raw !== null) ? (int) $assigned_raw : null;
         $project_raw = $this->input->post('project_id');
         $project_id = ($project_raw !== '' && $project_raw !== null) ? (int) $project_raw : 0;
+        $estimate_hours = array_key_exists('estimate_hours', $_POST) ? $this->input->post('estimate_hours') : null;
 
         if ($type === 'task') {
-            return $this->_inline_save_task($client_id, $item_id, $title, $status, $priority, $assigned_to, $project_id);
+            return $this->_inline_save_task($client_id, $item_id, $title, $status, $priority, $assigned_to, $project_id, $estimate_hours);
         }
         if ($type === 'requirement') {
             return $this->_inline_save_requirement($client_id, $item_id, $title, $status, $priority, $assigned_to, $project_id);
@@ -1645,7 +1690,7 @@ class Clients extends CI_Controller {
         return $this->_inline_json(true, array('id' => $item_id));
     }
 
-    private function _inline_save_task($client_id, $item_id, $title, $status, $priority, $assigned_to, $project_id)
+    private function _inline_save_task($client_id, $item_id, $title, $status, $priority, $assigned_to, $project_id, $estimate_hours = null)
     {
         $allowed_status = array('pending', 'in_progress', 'completed', 'blocked');
         $allowed_priority = array('low', 'medium', 'high', 'urgent');
@@ -1654,6 +1699,15 @@ class Clients extends CI_Controller {
         }
         if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
             $priority = 'medium';
+        }
+
+        $est = null;
+        $est_provided = ($estimate_hours !== null);
+        if ($est_provided) {
+            $est = estimate_hours_parse($estimate_hours);
+            if ($est === false) {
+                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a number between 0 and 9999.99.', 400);
+            }
         }
 
         if ($item_id > 0) {
@@ -1675,6 +1729,9 @@ class Clients extends CI_Controller {
             $task_fields = $this->db->list_fields('tasks');
             if (in_array('priority', $task_fields, true)) {
                 $update['priority'] = $priority;
+            }
+            if ($est_provided && in_array('estimate_hours', $task_fields, true)) {
+                $update['estimate_hours'] = $est;
             }
             if ($project_id > 0) {
                 if (!$this->_project_belongs_to_client($project_id, $client_id)) {
@@ -1707,6 +1764,9 @@ class Clients extends CI_Controller {
         );
         if (in_array('priority', $task_fields, true)) {
             $insert['priority'] = $priority;
+        }
+        if ($est_provided && in_array('estimate_hours', $task_fields, true)) {
+            $insert['estimate_hours'] = $est;
         }
         $this->db->insert('tasks', $insert);
         $new_id = (int) $this->db->insert_id();

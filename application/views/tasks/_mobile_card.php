@@ -35,6 +35,16 @@ $project_label = isset($t->project_name) && $t->project_name !== '' ? $t->projec
       <span class="mx-1">·</span>
       <span><i class="bi bi-person me-1"></i><?php echo esc_view($assignee); ?></span>
     <?php endif; ?>
+    <?php
+      if (!function_exists('estimate_hours_row')) {
+          $this->load->helper('estimate_hours');
+      }
+      $est_label = estimate_hours_row(isset($t->estimate_hours) ? $t->estimate_hours : null);
+      if ($est_label !== '—'):
+    ?>
+      <span class="mx-1">·</span>
+      <span title="Estimate (hrs)"><i class="bi bi-hourglass-split me-1"></i><?php echo esc_view($est_label); ?></span>
+    <?php endif; ?>
   </div>
   <?php if ($desc_plain !== ''): ?>
     <p class="oms-mobile-card-desc mb-0 mt-2"><?php echo esc_view(strlen($desc_plain) > 140 ? substr($desc_plain, 0, 140) . '…' : $desc_plain); ?></p>

@@ -35,8 +35,8 @@ if (!$embed):
 <style>
 .project-dash-section {
     border-bottom: 1px dashed #cbd5e1;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
 }
 .project-dash-section:last-child {
     border-bottom: none;
@@ -44,13 +44,13 @@ if (!$embed):
     padding-bottom: 0;
 }
 .project-dash-section-title {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
     color: #64748b;
-    margin-bottom: 0.5rem;
-    padding-left: 0.5rem;
+    margin-bottom: 0.35rem;
+    padding-left: 0.35rem;
 }
 #unifiedEmployeeTasksTable {
     border-collapse: separate;
@@ -60,16 +60,18 @@ if (!$embed):
 #unifiedEmployeeTasksTable thead th {
     background-color: #f8fafc;
     color: #475569;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 2px solid #e2e8f0;
-    padding: 10px 14px;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 6px 10px;
 }
 #unifiedEmployeeTasksTable tbody td {
-    padding: 12px 14px;
+    padding: 6px 10px;
     border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    font-size: 0.8125rem;
 }
 #unifiedEmployeeTasksTable tbody tr:last-child td {
     border-bottom: none;
@@ -81,10 +83,15 @@ if (!$embed):
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     border-radius: 6px;
     font-weight: 600;
-    font-size: 0.72rem !important;
+    font-size: 0.68rem !important;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    padding: 4px 8px;
+    padding: 2px 6px;
+}
+.team-dash-focus-table-wrap {
+    padding: 0.5rem !important;
+    margin-top: 0.35rem !important;
+    border-radius: 8px !important;
 }
 </style>
 
@@ -166,7 +173,7 @@ if (!$embed) {
       <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
       <?php endif; ?>
       <?php if (!empty($filter_projects)): ?>
-      <label class="project-dash-filter-label me-3">
+      <label class="project-dash-filter-label">
         <span class="project-dash-filter-label-text">Project</span>
         <select name="project_id" class="form-select form-select-sm project-dash-filter-select">
           <option value="all"<?php echo $filter_project_id < 0 ? ' selected' : ''; ?>>All Projects</option>
@@ -177,7 +184,7 @@ if (!$embed) {
       </label>
       <?php endif; ?>
 
-      <label class="project-dash-filter-label me-3">
+      <label class="project-dash-filter-label">
         <span class="project-dash-filter-label-text">Status</span>
         <select name="status" class="form-select form-select-sm project-dash-filter-select">
           <option value="all"<?php echo $filter_status === 'all' ? ' selected' : ''; ?>>All Statuses</option>
@@ -200,6 +207,15 @@ if (!$embed) {
             <option value="<?php echo $fu_id; ?>"<?php echo $filter_user_id === $fu_id ? ' selected' : ''; ?>><?php echo esc_view($fu_label, ENT_QUOTES, 'UTF-8'); ?></option>
           <?php endforeach; ?>
         </select>
+      </label>
+
+      <label class="project-dash-filter-label project-dash-filter-search">
+        <span class="project-dash-filter-label-text">Search</span>
+        <input type="search" id="teamDashSearch" value=""
+               class="form-control form-control-sm project-dash-filter-select"
+               placeholder="Employee or task…"
+               autocomplete="off"
+               aria-label="Search employees or tasks">
       </label>
     </form>
   </div>
@@ -301,9 +317,14 @@ if (!$embed) {
       echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . '">';
       echo '<thead><tr>';
       echo '<th>Task</th>';
-      echo '<th style="width:' . ($is_full ? '100px' : '55px') . ';">Date</th>';
-      echo '<th style="width:' . ($is_full ? '140px' : '110px') . ';">Status</th>';
+      echo '<th>Date</th>';
+      echo '<th class="text-end">Est</th>';
+      echo '<th>Status</th>';
       echo '</tr></thead><tbody>';
+
+      if (!function_exists('estimate_hours_row')) {
+          $this->load->helper('estimate_hours');
+      }
 
       foreach ($section_items as $item) {
           $item_status = isset($item['status']) ? (string) $item['status'] : 'pending';
@@ -319,6 +340,7 @@ if (!$embed) {
           $item_title = isset($item['title']) ? (string) $item['title'] : '';
           $item_url = isset($item['url']) ? (string) $item['url'] : '#';
           $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
+          $item_est = estimate_hours_row(isset($item['estimate_hours']) ? $item['estimate_hours'] : null);
           $status_scope = isset($item['status_scope']) ? (string) $item['status_scope'] : 'task';
           $item_status_options = isset($team_dash_status_options[$status_scope]) ? $team_dash_status_options[$status_scope] : (isset($team_dash_status_options['task']) ? $team_dash_status_options['task'] : array());
           $has_status_match = false;
@@ -329,33 +351,25 @@ if (!$embed) {
               }
           }
           $row_bg = $badge_color . ($is_full ? '08' : '14');
-          $detail_max = $is_full ? '30rem' : '9rem';
           ?>
           <tr class="project-dash-task-row project-dash-task-row-<?php echo esc_view($item_status); ?>" style="--pd-row-status-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background:<?php echo esc_view($row_bg, ENT_QUOTES, 'UTF-8'); ?>;">
             <td>
-              <?php if ($is_full): ?>
-              <div class="fw-semibold">
-              <?php endif; ?>
-              <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title<?php echo $is_full ? ' text-decoration-none text-dark' : ''; ?>" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
+              <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <?php echo esc_view($item_title); ?>
               </a>
-              <?php if ($is_full): ?>
-              </div>
-              <?php endif; ?>
-              <?php if ($item_detail !== ''): ?>
-                <div class="small text-muted text-truncate" style="max-width:<?php echo esc_view($detail_max, ENT_QUOTES, 'UTF-8'); ?>;" title="<?php echo esc_view($item_detail, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_detail); ?></div>
-              <?php endif; ?>
             </td>
             <td>
-              <span class="project-dash-date<?php echo $is_full ? ' text-muted font-monospace small' : ''; ?>" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
+              <span class="project-dash-date" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
             </td>
+            <td class="text-end text-nowrap project-dash-est" title="Estimate (hrs)"><?php echo esc_view($item_est); ?></td>
             <td>
-              <select class="form-select form-select-sm project-dash-status-select<?php echo $is_full ? ' font-semibold small' : ''; ?>"
+              <select class="form-select form-select-sm project-dash-status-select"
                       data-item-id="<?php echo (int) $item['id']; ?>"
                       data-item-type="<?php echo esc_view($item['item_type'], ENT_QUOTES, 'UTF-8'); ?>"
                       data-item-source="<?php echo esc_view(isset($item['item_source']) ? (string) $item['item_source'] : '', ENT_QUOTES, 'UTF-8'); ?>"
-                      style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
-                      title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>">
+                      style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;"
+                      title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>"
+                      aria-label="Status for <?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?>">
                 <?php if (!$has_status_match && $item_label !== ''): ?>
                   <option value="<?php echo esc_view($item_status, ENT_QUOTES, 'UTF-8'); ?>" selected data-color="<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>">
                     <?php echo esc_view($item_label); ?>
@@ -364,7 +378,6 @@ if (!$embed) {
                 <?php foreach ($item_status_options as $sr): ?>
                   <option value="<?php echo esc_view($sr->code, ENT_QUOTES, 'UTF-8'); ?>"
                           data-color="<?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>"
-                          style="color: <?php echo esc_view($sr->color, ENT_QUOTES, 'UTF-8'); ?>; font-weight: 600;"
                           <?php echo $sr->code === $item_status ? 'selected' : ''; ?>>
                     <?php echo esc_view($sr->name); ?>
                   </option>
@@ -383,10 +396,10 @@ if (!$embed) {
       $items = isset($card['items']) ? $card['items'] : array();
       $focus_item_count = count($items);
     ?>
-    <div class="table-responsive bg-white rounded-3 border p-3 mt-2 shadow-sm">
+    <div class="table-responsive bg-white border shadow-sm team-dash-focus-table-wrap">
       <?php if (empty($items)): ?>
-        <div class="text-center py-4 text-muted">
-          <i class="bi bi-inbox d-block mb-2" style="font-size:2rem;"></i>
+        <div class="text-center py-3 text-muted small">
+          <i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;"></i>
           No items found for this employee.
         </div>
       <?php else: ?>
@@ -406,8 +419,15 @@ if (!$embed) {
           $item_count = count($items);
           $entity_name = ($entity && isset($entity->name)) ? (string) $entity->name : '';
           $grid_col_class = $is_user_focused ? 'col-12 team-dash-grid-col-full' : 'col-sm-6 col-lg-4 col-xl-3 team-dash-grid-col';
+          $team_search_bits = array(strtolower($entity_name));
+          foreach ($items as $it) {
+              if (!empty($it['title'])) {
+                  $team_search_bits[] = strtolower((string) $it['title']);
+              }
+          }
+          $team_search_hay = implode(' ', $team_search_bits);
         ?>
-        <div class="<?php echo esc_view($grid_col_class); ?>">
+        <div class="<?php echo esc_view($grid_col_class); ?>" data-team-search="<?php echo esc_view($team_search_hay, ENT_QUOTES, 'UTF-8'); ?>">
           <div class="card project-dash-card">
             <div class="card-body">
               <div class="project-dash-head">
@@ -490,6 +510,28 @@ if (!$embed) {
       select.addEventListener('change', function () {
         form.submit();
       });
+    });
+  }
+
+  var teamSearch = document.getElementById('teamDashSearch');
+  var teamGrid = document.querySelector('.team-dash-index .project-dash-grid');
+  function applyTeamSearch() {
+    if (!teamSearch || !teamGrid) {
+      return;
+    }
+    var q = String(teamSearch.value || '').trim().toLowerCase();
+    teamGrid.querySelectorAll('[data-team-search]').forEach(function (col) {
+      var hay = String(col.getAttribute('data-team-search') || '');
+      col.style.display = (q === '' || hay.indexOf(q) >= 0) ? '' : 'none';
+    });
+  }
+  if (teamSearch) {
+    teamSearch.addEventListener('input', applyTeamSearch);
+    teamSearch.addEventListener('search', applyTeamSearch);
+    teamSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
     });
   }
 

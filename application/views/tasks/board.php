@@ -254,6 +254,18 @@ $this->load->view('partials/oms_page_head', array(
                             <?php echo esc_view($due['label']); ?>
                           </span>
                         <?php endif; ?>
+                        <?php
+                          if (!function_exists('estimate_hours_row')) {
+                              $this->load->helper('estimate_hours');
+                          }
+                          $est_label = estimate_hours_row(isset($t->estimate_hours) ? $t->estimate_hours : null);
+                          if ($est_label !== '—'):
+                        ?>
+                          <span class="tb-chip" title="Estimate (hrs)">
+                            <i class="bi bi-hourglass-split"></i>
+                            <?php echo esc_view($est_label); ?>
+                          </span>
+                        <?php endif; ?>
                       </div>
                       <div class="avatar avatar-bg tb-task-avatar" title="<?php echo esc_view($assignee !== '' ? $assignee : 'Unassigned'); ?>">
                         <?php echo esc_view($init); ?>

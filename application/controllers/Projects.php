@@ -1490,6 +1490,9 @@ class Projects extends CI_Controller {
             't.created_at',
             't.assigned_to',
         );
+        if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
+            $select[] = 't.estimate_hours';
+        }
         if ($this->db->table_exists('users')) {
             $select[] = 'u.email AS assignee_email';
             if (schema_table_has_column($this->db, 'users', 'full_name')) {
@@ -1603,9 +1606,10 @@ class Projects extends CI_Controller {
         $priority = trim((string) $this->input->post('priority'));
         $assigned_raw = $this->input->post('assigned_to');
         $assigned_to = ($assigned_raw !== '' && $assigned_raw !== null) ? (int) $assigned_raw : null;
+        $estimate_hours = array_key_exists('estimate_hours', $_POST) ? $this->input->post('estimate_hours') : null;
 
         if ($type === 'task') {
-            return $this->_inline_save_task($project_id, $item_id, $title, $status, $priority, $assigned_to);
+            return $this->_inline_save_task($project_id, $item_id, $title, $status, $priority, $assigned_to, $estimate_hours);
         }
         if ($type === 'requirement') {
             return $this->_inline_save_requirement($project, $item_id, $title, $status, $priority, $assigned_to);
@@ -1755,7 +1759,7 @@ class Projects extends CI_Controller {
             ->set_output(json_encode($payload));
     }
 
-    private function _inline_save_task($project_id, $item_id, $title, $status, $priority, $assigned_to)
+    private function _inline_save_task($project_id, $item_id, $title, $status, $priority, $assigned_to, $estimate_hours = null)
     {
         $allowed_status = array('pending', 'in_progress', 'completed', 'blocked');
         $allowed_priority = array('low', 'medium', 'high', 'urgent');
@@ -1764,6 +1768,15 @@ class Projects extends CI_Controller {
         }
         if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
             $priority = 'medium';
+        }
+
+        $est = null;
+        $est_provided = ($estimate_hours !== null);
+        if ($est_provided) {
+            $est = estimate_hours_parse($estimate_hours);
+            if ($est === false) {
+                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a number between 0 and 9999.99.', 400);
+            }
         }
 
         if ($item_id > 0) {
@@ -1785,6 +1798,9 @@ class Projects extends CI_Controller {
             $task_fields = $this->db->list_fields('tasks');
             if (in_array('priority', $task_fields, true)) {
                 $update['priority'] = $priority;
+            }
+            if ($est_provided && in_array('estimate_hours', $task_fields, true)) {
+                $update['estimate_hours'] = $est;
             }
             $this->db->where('id', $item_id)->update('tasks', $update);
             return $this->_inline_json(true, array('id' => $item_id));
@@ -1808,6 +1824,9 @@ class Projects extends CI_Controller {
         );
         if (in_array('priority', $task_fields, true)) {
             $insert['priority'] = $priority;
+        }
+        if ($est_provided && in_array('estimate_hours', $task_fields, true)) {
+            $insert['estimate_hours'] = $est;
         }
         $this->db->insert('tasks', $insert);
         $new_id = (int) $this->db->insert_id();

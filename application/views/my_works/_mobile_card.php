@@ -57,6 +57,15 @@
     <?php if (!empty($r->due_date)): ?>
       <div class="small mt-1 <?php echo $overdue ? 'text-danger fw-semibold' : 'text-muted'; ?>">Due <?php echo esc_view($r->due_date); ?></div>
     <?php endif; ?>
+    <?php
+      if (!function_exists('estimate_hours_row')) {
+          $this->load->helper('estimate_hours');
+      }
+      $est_label = estimate_hours_row(isset($r->estimate_hours) ? $r->estimate_hours : null);
+      if ($est_label !== '—'):
+    ?>
+      <div class="small text-muted mt-1"><i class="bi bi-hourglass-split me-1"></i><?php echo esc_view($est_label); ?></div>
+    <?php endif; ?>
   </a>
   <?php if (!empty(my_works_row_attachments($r, isset($attachments_map) ? $attachments_map : null))): ?>
     <div class="d-flex flex-wrap gap-1 mt-2 mw-mobile-att-actions">

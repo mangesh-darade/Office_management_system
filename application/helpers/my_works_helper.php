@@ -775,6 +775,10 @@ if (!function_exists('my_works_dashboard_row_last_touch_date')) {
         if (!empty($row->updated_at)) {
             $max = substr((string) $row->updated_at, 0, 10);
         }
+        // Task rows share numeric IDs with my_works — skip activity map for them.
+        if (!empty($row->item_source) && $row->item_source === 'tasks') {
+            return $max;
+        }
         $wid = isset($row->id) ? (int) $row->id : 0;
         if ($wid > 0 && isset($last_activity_dates[$wid])) {
             $activity_day = (string) $last_activity_dates[$wid];
@@ -783,6 +787,88 @@ if (!function_exists('my_works_dashboard_row_last_touch_date')) {
             }
         }
         return $max;
+    }
+}
+
+if (!function_exists('my_works_dashboard_item_url')) {
+    /**
+     * Detail URL for an Overview lane row (my_works or tasks).
+     *
+     * @param object $row
+     * @return string
+     */
+    function my_works_dashboard_item_url($row)
+    {
+        $id = isset($row->id) ? (int) $row->id : 0;
+        if ($id < 1) {
+            return site_url('my-works');
+        }
+        if (!empty($row->item_source) && $row->item_source === 'tasks') {
+            return site_url('tasks/' . $id);
+        }
+        return site_url('my-works/' . $id);
+    }
+}
+
+if (!function_exists('my_works_dashboard_task_status_label')) {
+    /**
+     * Human label for tasks.status codes on Overview (not my_works statuses).
+     *
+     * @param string $code
+     * @return string
+     */
+    function my_works_dashboard_task_status_label($code)
+    {
+        $code = strtolower(trim((string) $code));
+        $map = array(
+            'pending'     => 'Pending',
+            'in_progress' => 'In Progress',
+            'blocked'     => 'Blocked',
+            'completed'   => 'Completed',
+        );
+        if (isset($map[$code])) {
+            return $map[$code];
+        }
+        if ($code === '') {
+            return 'Pending';
+        }
+        return ucwords(str_replace('_', ' ', $code));
+    }
+}
+
+if (!function_exists('my_works_dashboard_task_status_bootstrap')) {
+    /**
+     * @param string $code
+     * @return string
+     */
+    function my_works_dashboard_task_status_bootstrap($code)
+    {
+        $code = strtolower(trim((string) $code));
+        $map = array(
+            'pending'     => 'secondary',
+            'in_progress' => 'primary',
+            'blocked'     => 'danger',
+            'completed'   => 'success',
+        );
+        return isset($map[$code]) ? $map[$code] : 'secondary';
+    }
+}
+
+if (!function_exists('my_works_dashboard_task_status_hex')) {
+    /**
+     * @param string $code
+     * @return string
+     */
+    function my_works_dashboard_task_status_hex($code)
+    {
+        $code = strtolower(trim((string) $code));
+        $map = array(
+            'pending'     => '#6c757d',
+            'in_progress' => '#0d6efd',
+            'blocked'     => '#dc3545',
+            'completed'   => '#198754',
+        );
+        return isset($map[$code]) ? $map[$code] : '#6c757d';
     }
 }
 
@@ -879,6 +965,10 @@ if (!function_exists('my_works_build_dashboard_sections')) {
         $CI->load->helper('my_works_status');
         $work_ids = array();
         foreach ($rows as $row) {
+            // Activity dates are my_works-only — never mix task IDs into that lookup.
+            if (!empty($row->item_source) && $row->item_source === 'tasks') {
+                continue;
+            }
             if (isset($row->id)) {
                 $work_ids[] = (int) $row->id;
             }

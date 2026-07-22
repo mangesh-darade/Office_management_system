@@ -68,6 +68,15 @@
                   <div class="small text-muted">
                     <i class="bi bi-person me-1"></i><?php echo esc_view($forLabel); ?>
                     &middot; <?php echo my_works_format_when($r->updated_at); ?>
+                    <?php
+                      if (!function_exists('estimate_hours_row')) {
+                          $this->load->helper('estimate_hours');
+                      }
+                      $est_label = estimate_hours_row(isset($r->estimate_hours) ? $r->estimate_hours : null);
+                      if ($est_label !== '—'):
+                    ?>
+                      &middot; <i class="bi bi-hourglass-split me-1"></i><?php echo esc_view($est_label); ?>
+                    <?php endif; ?>
                   </div>
                 </a>
               </div>

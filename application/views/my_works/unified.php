@@ -269,8 +269,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var MW_FILTER_KEYS = [
     'created_for', 'project_id', 'q', 'view', 'section', 'status', 'tag',
     'client_id', 'work_type', 'involvement', 'urgent_only', 'important_only',
-    'overdue_only', 'complete_view', 'created_by'
+    'overdue_only', 'complete_view', 'created_by', 'department_id', 'user_id',
+    'client_type'
   ];
+  // Tab-owned params — never copy these from the shell URL onto another tab.
+  var MW_TAB_OWNED_KEYS = ['view', 'section'];
 
   function readPersistedState() {
     try {
@@ -346,6 +349,9 @@ document.addEventListener('DOMContentLoaded', function() {
       var url = new URL(urlString, window.location.origin);
       var parent = new URLSearchParams(window.location.search);
       MW_FILTER_KEYS.forEach(function(key) {
+        if (MW_TAB_OWNED_KEYS.indexOf(key) >= 0) {
+          return;
+        }
         if (!parent.has(key)) {
           return;
         }
@@ -354,17 +360,30 @@ document.addEventListener('DOMContentLoaded', function() {
           return;
         }
         // Keep zeros only for flags that mean "all" when absent; skip empty selects.
-        if ((key === 'created_for' || key === 'project_id' || key === 'client_id') && value === '0') {
+        if ((key === 'created_for' || key === 'project_id' || key === 'client_id' || key === 'user_id' || key === 'department_id') && value === '0') {
           url.searchParams.delete(key);
           return;
         }
         url.searchParams.set(key, value);
       });
-      if (url.pathname.indexOf('/my-works') >= 0 && !url.searchParams.get('view')) {
-        var tab = getActiveUnifiedTab();
-        if (tab === 'list') {
+      return forceTabViewParams(url.pathname + url.search + url.hash, getActiveUnifiedTab());
+    } catch (e) {
+      return urlString;
+    }
+  }
+
+  /**
+   * Overview vs List share /my-works — always pin the correct view for the tab.
+   * (Parent ?view=overview used to overwrite List and show Overview UI.)
+   */
+  function forceTabViewParams(urlString, tabName) {
+    try {
+      var url = new URL(urlString, window.location.origin);
+      if (url.pathname.indexOf('/my-works') >= 0) {
+        if (tabName === 'list') {
           url.searchParams.set('view', 'list');
-        } else if (tab === 'overview') {
+          url.searchParams.delete('section');
+        } else if (tabName === 'overview') {
           url.searchParams.set('view', 'overview');
         }
       }
@@ -376,10 +395,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function resolveTabLoadUrl(tabName) {
     var saved = getSavedTabPaneUrl(tabName);
-    if (saved) {
-      return saved;
-    }
-    return applyParentFiltersToUrl(defaultUrlForTab(tabName));
+    var base = saved || applyParentFiltersToUrl(defaultUrlForTab(tabName));
+    return forceTabViewParams(base, tabName);
   }
 
   function syncParentUrlFromPane(tabName, paneUrl) {
@@ -539,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var resolvedUrl = url;
 
     if (upperMethod === 'GET') {
-      resolvedUrl = mergeQueryIntoUrl(url, data || {});
+      resolvedUrl = forceTabViewParams(mergeQueryIntoUrl(url, data || {}), tabName);
       $pane.data('last-loaded-url', resolvedUrl);
       saveTabPaneUrl(tabName, resolvedUrl);
       syncParentUrlFromPane(tabName, resolvedUrl);
@@ -554,6 +571,17 @@ document.addEventListener('DOMContentLoaded', function() {
       data: upperMethod === 'GET' ? {} : (data || {}),
       cache: false,
       success: function(html) {
+        // After POST redirects, full layout HTML can land here if embed was dropped.
+        // Reload last good embed URL instead of nesting chrome inside the tab.
+        if (typeof html === 'string'
+            && (html.indexOf('id="appSidebar"') >= 0 || html.indexOf('id="sidebarShell"') >= 0)
+            && upperMethod !== 'GET') {
+          var fallback = $pane.data('last-loaded-url');
+          if (fallback) {
+            loadTabContent($pane, fallback, 'GET');
+            return;
+          }
+        }
         $content.html(html);
         $spinner.hide();
         $content.show();
