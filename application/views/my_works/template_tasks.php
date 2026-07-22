@@ -3,9 +3,10 @@
 
 <?php
   $clients = isset($clients) ? $clients : array();
+  $projects = isset($projects) ? $projects : array();
+  $projects_have_client = !empty($projects_have_client);
   $users = isset($users) ? $users : array();
   $teams = isset($teams) ? $teams : array();
-  $statuses = isset($statuses) ? $statuses : array();
   $template_json = isset($template_json) ? $template_json : array();
   $can_import_templates = !empty($can_import_templates);
   $can_export_templates = !empty($can_export_templates);
@@ -20,7 +21,7 @@
     )); ?>
     <div class="min-w-0 flex-grow-1">
       <h1 class="h5 mb-0 fw-semibold">Create Template Task</h1>
-      <p class="text-muted small mb-0">Select client, team, type, and one task — saved to My Works.</p>
+      <p class="text-muted small mb-0">Select project, team, type, and one template — saved to Tasks.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap ms-sm-auto">
       <?php if ($can_import_templates): ?>
@@ -33,8 +34,8 @@
           <i class="bi bi-download me-1"></i>Export Catalog
         </a>
       <?php endif; ?>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">
-        <i class="bi bi-list-task me-1"></i>My Works
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('tasks'); ?>">
+        <i class="bi bi-list-task me-1"></i>Tasks
       </a>
     </div>
   </div>
@@ -92,6 +93,31 @@
           </div>
 
           <div class="col-md-4">
+            <label class="form-label" for="mw-tt-project">
+              <i class="bi bi-folder me-1"></i>Project <span class="text-danger">*</span>
+            </label>
+            <?php if (!empty($projects)): ?>
+              <select name="project_id" id="mw-tt-project" class="form-select" required>
+                <option value="">-- Select project --</option>
+                <?php foreach ($projects as $p): ?>
+                  <option value="<?php echo (int) $p->id; ?>"
+                    data-client-id="<?php echo ($projects_have_client && isset($p->client_id)) ? (int) $p->client_id : 0; ?>">
+                    <?php echo esc_view($p->name ? (string) $p->name : ('Project #' . (int) $p->id), ENT_QUOTES, 'UTF-8'); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+              <?php if ($projects_have_client && !empty($clients)): ?>
+                <div class="form-text">Filters by client when selected</div>
+              <?php endif; ?>
+            <?php else: ?>
+              <select id="mw-tt-project" class="form-select" disabled required>
+                <option>No projects in system</option>
+              </select>
+              <input type="hidden" name="project_id" value="0">
+            <?php endif; ?>
+          </div>
+
+          <div class="col-md-4">
             <label class="form-label"><i class="bi bi-flag me-1"></i>Priority</label>
             <select name="priority" class="form-select">
               <option value="low">Low</option>
@@ -103,7 +129,7 @@
 
           <div class="col-md-4">
             <label class="form-label" for="mw-tt-assign">Assigned To <span class="text-danger">*</span></label>
-            <select name="created_for" id="mw-tt-assign" class="form-select" required>
+            <select name="assigned_to" id="mw-tt-assign" class="form-select" required>
               <?php
                 $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
                 foreach ($users as $u):
@@ -178,14 +204,13 @@
             )); ?>
           </div>
 
-          <?php $default_status = isset($default_status) ? (string) $default_status : 'new'; ?>
-          <input type="hidden" name="status" value="<?php echo esc_view($default_status, ENT_QUOTES, 'UTF-8'); ?>">
+          <input type="hidden" name="status" value="pending">
 
           <div class="col-12">
             <label class="form-label" for="mw-tt-description">
               <i class="bi bi-file-text me-1"></i>Description
             </label>
-            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new work item"></textarea>
+            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new task"></textarea>
             <div class="form-text">Rich text — bold, italic, colors, lists, and links supported.</div>
           </div>
         </div>
@@ -194,7 +219,7 @@
           <button class="btn btn-primary" type="submit">
             <i class="bi bi-check-lg me-1"></i>Create Task
           </button>
-          <a class="btn btn-light" href="<?php echo site_url('my-works'); ?>">Cancel</a>
+          <a class="btn btn-light" href="<?php echo site_url('tasks'); ?>">Cancel</a>
         </div>
       </form>
     </div>
@@ -324,6 +349,49 @@
   if (teamSel && teamSel.options.length === 2) {
     teamSel.selectedIndex = 1;
     fillTypes();
+  }
+
+  var clientSel = document.getElementById('mw-tt-client');
+  var projectSel = document.getElementById('mw-tt-project');
+  if (clientSel && projectSel) {
+    var allProjectOptions = [];
+    for (var i = 0; i < projectSel.options.length; i++) {
+      var opt = projectSel.options[i];
+      allProjectOptions.push({
+        value: opt.value,
+        text: opt.textContent,
+        clientId: opt.getAttribute('data-client-id') || '0'
+      });
+    }
+    function filterProjects() {
+      var clientId = clientSel.value || '';
+      var current = projectSel.value;
+      projectSel.innerHTML = '';
+      allProjectOptions.forEach(function (item) {
+        if (item.value === '') {
+          var blank = document.createElement('option');
+          blank.value = '';
+          blank.textContent = item.text;
+          projectSel.appendChild(blank);
+          return;
+        }
+        if (clientId !== '' && item.clientId !== '0' && item.clientId !== clientId) {
+          return;
+        }
+        var o = document.createElement('option');
+        o.value = item.value;
+        o.textContent = item.text;
+        o.setAttribute('data-client-id', item.clientId);
+        projectSel.appendChild(o);
+      });
+      if (current) {
+        projectSel.value = current;
+        if (projectSel.value !== current) {
+          projectSel.value = '';
+        }
+      }
+    }
+    clientSel.addEventListener('change', filterProjects);
   }
 })();
 </script>

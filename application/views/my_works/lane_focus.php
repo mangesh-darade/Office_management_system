@@ -9,9 +9,11 @@
   $dashboard_sections = isset($dashboard_sections) ? $dashboard_sections : array();
   $back_url = site_url('my-works?view=overview');
   $embed = (bool)$this->input->get('embed');
+  $focus_section = isset($focus_section) ? (string) $focus_section : '';
 ?>
 <?php if (!$embed): ?>
   <?php $this->load->view('partials/header', array('title' => $page_title, 'extra_css' => array('assets/css/my-works.css'), 'body_class' => $body_class . ' mw-body-lane-focus-immersive')); ?>
+  <script src="<?php echo base_url('assets/js/my-works-lane-status.js'); ?>"></script>
 <?php endif; ?>
 
 <div class="mw-dash-page mw-dash-page-focus mw-dash-page-focus-immersive">
@@ -28,6 +30,9 @@
       <i class="bi bi-arrow-left me-1"></i>Back
     </a>
     <h1 class="mw-focus-screen-title"><?php echo esc_view($page_title, ENT_QUOTES, 'UTF-8'); ?></h1>
+    <?php if (isset($focus_count)): ?>
+      <span class="mw-focus-screen-count" title="Items in this view"><?php echo (int) $focus_count; ?></span>
+    <?php endif; ?>
   </header>
 
   <section class="mw-dash-section mw-dash-section-focus">
@@ -40,6 +45,7 @@
       'disable_lane_drag' => true,
       'hide_drag_column' => true,
       'force_show_date' => true,
+      'show_status_column' => true,
       'can_view_all' => !empty($can_view_all),
     )); ?>
   </section>

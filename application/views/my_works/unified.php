@@ -2,6 +2,7 @@
   'title' => 'Second Brain',
   'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css', 'assets/css/clients.css')
 )); ?>
+<script src="<?php echo base_url('assets/js/my-works-lane-status.js'); ?>"></script>
 
 <style>
 #unifiedDashboardTabs {
@@ -45,6 +46,13 @@
           <?php endforeach; ?>
         </div>
         <?php endif; ?>
+        <button type="button"
+                class="btn btn-outline-secondary btn-sm mw-unified-reset-btn"
+                id="mwUnifiedResetBtn"
+                title="Reset Second Brain — clear filters and reload Overview"
+                aria-label="Reset Second Brain">
+          <i class="bi bi-arrow-clockwise me-1"></i>Reset
+        </button>
       </div>
     </div>
   </div>
@@ -257,6 +265,153 @@ document.addEventListener('DOMContentLoaded', function() {
     return activeBtn ? activeBtn.getAttribute('data-tab') : '';
   }
 
+  var MW_STATE_KEY = 'mw_unified_tab_state_v1';
+  var MW_FILTER_KEYS = [
+    'created_for', 'project_id', 'q', 'view', 'section', 'status', 'tag',
+    'client_id', 'work_type', 'involvement', 'urgent_only', 'important_only',
+    'overdue_only', 'complete_view', 'created_by'
+  ];
+
+  function readPersistedState() {
+    try {
+      var raw = sessionStorage.getItem(MW_STATE_KEY);
+      return raw ? JSON.parse(raw) : { tabs: {} };
+    } catch (e) {
+      return { tabs: {} };
+    }
+  }
+
+  function writePersistedState(state) {
+    try {
+      sessionStorage.setItem(MW_STATE_KEY, JSON.stringify(state));
+    } catch (e) {}
+  }
+
+  function saveTabPaneUrl(tabName, paneUrl) {
+    if (!tabName || !paneUrl) {
+      return;
+    }
+    var state = readPersistedState();
+    state.activeTab = tabName;
+    state.tabs = state.tabs || {};
+    state.tabs[tabName] = paneUrl;
+    writePersistedState(state);
+  }
+
+  function getSavedTabPaneUrl(tabName) {
+    var state = readPersistedState();
+    if (state.tabs && state.tabs[tabName]) {
+      return state.tabs[tabName];
+    }
+    return '';
+  }
+
+  function mergeQueryIntoUrl(urlString, queryData) {
+    try {
+      var url = new URL(urlString, window.location.origin);
+      if (queryData) {
+        var params = (typeof queryData === 'string')
+          ? new URLSearchParams(queryData)
+          : new URLSearchParams(queryData);
+        params.forEach(function(value, key) {
+          if (key === 'embed' || key === 'parent_tab') {
+            return;
+          }
+          url.searchParams.set(key, value);
+        });
+      }
+      url.searchParams.delete('embed');
+      url.searchParams.delete('parent_tab');
+      return url.pathname + url.search + url.hash;
+    } catch (e) {
+      return urlString;
+    }
+  }
+
+  function defaultUrlForTab(tabName) {
+    var map = {
+      'overview': '<?php echo site_url("my-works?view=overview"); ?>',
+      'daily-pulse': '<?php echo site_url("my-works/daily-pulse"); ?>',
+      'project-dashboard': '<?php echo site_url("projects/dashboard"); ?>',
+      'clients': '<?php echo site_url("clients/dashboard"); ?>',
+      'team-dashboard': '<?php echo site_url("tasks/my-dashboard"); ?>',
+      'list': '<?php echo site_url("my-works?view=list"); ?>',
+      'requirements': '<?php echo site_url("requirements"); ?>'
+    };
+    return map[tabName] || map.overview;
+  }
+
+  function applyParentFiltersToUrl(urlString) {
+    try {
+      var url = new URL(urlString, window.location.origin);
+      var parent = new URLSearchParams(window.location.search);
+      MW_FILTER_KEYS.forEach(function(key) {
+        if (!parent.has(key)) {
+          return;
+        }
+        var value = parent.get(key);
+        if (value === null || value === '') {
+          return;
+        }
+        // Keep zeros only for flags that mean "all" when absent; skip empty selects.
+        if ((key === 'created_for' || key === 'project_id' || key === 'client_id') && value === '0') {
+          url.searchParams.delete(key);
+          return;
+        }
+        url.searchParams.set(key, value);
+      });
+      if (url.pathname.indexOf('/my-works') >= 0 && !url.searchParams.get('view')) {
+        var tab = getActiveUnifiedTab();
+        if (tab === 'list') {
+          url.searchParams.set('view', 'list');
+        } else if (tab === 'overview') {
+          url.searchParams.set('view', 'overview');
+        }
+      }
+      return url.pathname + url.search + url.hash;
+    } catch (e) {
+      return urlString;
+    }
+  }
+
+  function resolveTabLoadUrl(tabName) {
+    var saved = getSavedTabPaneUrl(tabName);
+    if (saved) {
+      return saved;
+    }
+    return applyParentFiltersToUrl(defaultUrlForTab(tabName));
+  }
+
+  function syncParentUrlFromPane(tabName, paneUrl) {
+    var params = new URLSearchParams(window.location.search);
+    if (tabName) {
+      params.set('tab', tabName);
+    }
+    MW_FILTER_KEYS.forEach(function(key) {
+      params.delete(key);
+    });
+    try {
+      var loaded = new URL(paneUrl, window.location.origin);
+      MW_FILTER_KEYS.forEach(function(key) {
+        if (!loaded.searchParams.has(key)) {
+          return;
+        }
+        var value = loaded.searchParams.get(key);
+        if (value === null || value === '') {
+          return;
+        }
+        if ((key === 'created_for' || key === 'project_id' || key === 'client_id') && value === '0') {
+          return;
+        }
+        params.set(key, value);
+      });
+    } catch (e) {}
+    applyCompleteViewParam(params);
+    var query = params.toString();
+    var nextUrl = window.location.pathname + (query ? '?' + query : '');
+    window.history.replaceState({ path: nextUrl, tab: tabName }, '', nextUrl);
+  }
+
   function getEmbedUrl(urlString) {
     try {
       var url = new URL(urlString, window.location.origin);
@@ -282,12 +437,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  function applyCompleteViewParam(url) {
+  function applyCompleteViewParam(urlOrParams) {
     var toggle = document.getElementById('mwDashCompleteToggle');
+    var params = urlOrParams && urlOrParams.searchParams ? urlOrParams.searchParams : urlOrParams;
+    if (!params || typeof params.set !== 'function') {
+      return;
+    }
     if (toggle && toggle.checked) {
-      url.searchParams.set('complete_view', '1');
+      params.set('complete_view', '1');
     } else {
-      url.searchParams.delete('complete_view');
+      params.delete('complete_view');
     }
   }
 
@@ -375,26 +534,33 @@ document.addEventListener('DOMContentLoaded', function() {
   function loadTabContent($pane, url, method, data) {
     var $content = $pane.find('.tab-pane-content');
     var $spinner = $pane.find('.tab-loading-spinner');
-    
-    // Store the last loaded GET URL so we can reload the page after form actions
     var upperMethod = (method || 'GET').toUpperCase();
+    var tabName = ($pane.attr('id') || '').replace(/^pane-/, '') || getActiveUnifiedTab();
+    var resolvedUrl = url;
+
     if (upperMethod === 'GET') {
-      $pane.data('last-loaded-url', url);
+      resolvedUrl = mergeQueryIntoUrl(url, data || {});
+      $pane.data('last-loaded-url', resolvedUrl);
+      saveTabPaneUrl(tabName, resolvedUrl);
+      syncParentUrlFromPane(tabName, resolvedUrl);
     }
-    
+
     $content.hide();
     $spinner.show();
-    
+
     $.ajax({
-      url: getEmbedUrl(url),
+      url: getEmbedUrl(resolvedUrl),
       type: upperMethod,
-      data: data || {},
+      data: upperMethod === 'GET' ? {} : (data || {}),
       cache: false,
       success: function(html) {
         $content.html(html);
         $spinner.hide();
         $content.show();
         initDataTablesInPane($pane);
+        if (typeof window.initPulseNoteTooltips === 'function') {
+          window.initPulseNoteTooltips($pane[0]);
+        }
       },
       error: function() {
         $content.html('<div class="alert alert-danger m-3">Failed to load content. Please try again.</div>');
@@ -408,6 +574,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('unifiedDashboardContent').addEventListener('submit', function(e) {
     var form = e.target;
     if (form.tagName === 'FORM') {
+      if (form.classList && form.classList.contains('mw-dash-status-form')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (form.getAttribute('enctype') === 'multipart/form-data') {
         return;
       }
@@ -468,46 +639,30 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', function() {
       buttons.forEach(function(b) { b.classList.remove('active'); });
       panes.forEach(function(p) { p.classList.remove('active', 'show'); });
-      
+
       btn.classList.add('active');
       var tabName = btn.getAttribute('data-tab');
       var $pane = $('#pane-' + tabName);
       $pane.addClass('active show');
       updateCompleteToggleVisibility();
-      
+
       var $content = $pane.find('.tab-pane-content');
-      var initialUrl = '';
-      if (tabName === 'overview') {
-        if ($content.children().length === 0) {
-          initialUrl = '<?php echo site_url("my-works?view=overview"); ?>';
+      var forceReload = btn.getAttribute('data-force-reload') === '1';
+      btn.removeAttribute('data-force-reload');
+
+      var shouldLoad = forceReload || $content.children().length === 0;
+      if (shouldLoad) {
+        var initialUrl = resolveTabLoadUrl(tabName);
+        // Always refresh projects/team/clients/reqs so complete_view and remote state stay current.
+        if (tabName === 'project-dashboard' || tabName === 'team-dashboard' || tabName === 'clients' || tabName === 'requirements') {
+          initialUrl = applyParentFiltersToUrl(getSavedTabPaneUrl(tabName) || defaultUrlForTab(tabName));
         }
-      } else if (tabName === 'daily-pulse') {
-        if ($content.children().length === 0) {
-          initialUrl = '<?php echo site_url("my-works/daily-pulse"); ?>';
-        }
-      } else if (tabName === 'project-dashboard') {
-        initialUrl = '<?php echo site_url("projects/dashboard"); ?>';
-      } else if (tabName === 'clients') {
-        initialUrl = '<?php echo site_url("clients/dashboard"); ?>';
-      } else if (tabName === 'team-dashboard') {
-        initialUrl = '<?php echo site_url("tasks/my-dashboard"); ?>';
-      } else if (tabName === 'list') {
-        if ($content.children().length === 0) {
-          initialUrl = '<?php echo site_url("my-works?view=list"); ?>';
-        }
-      } else if (tabName === 'requirements') {
-        initialUrl = '<?php echo site_url("requirements"); ?>';
-      }
-      if (initialUrl) {
         loadTabContent($pane, initialUrl, 'GET');
+      } else {
+        var existingUrl = $pane.data('last-loaded-url') || getSavedTabPaneUrl(tabName) || defaultUrlForTab(tabName);
+        saveTabPaneUrl(tabName, existingUrl);
+        syncParentUrlFromPane(tabName, existingUrl);
       }
-      
-      var params = new URLSearchParams(window.location.search);
-      params.set('tab', tabName);
-      applyCompleteViewParam(params);
-      var query = params.toString();
-      var newUrl = window.location.pathname + (query ? '?' + query : '');
-      window.history.pushState({ path: newUrl }, '', newUrl);
     });
   });
 
@@ -522,11 +677,33 @@ document.addEventListener('DOMContentLoaded', function() {
   syncToggleFromUrl();
   updateCompleteToggleVisibility();
 
-  // Load the active tab initially
+  var resetBtn = document.getElementById('mwUnifiedResetBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function() {
+      try {
+        sessionStorage.removeItem(MW_STATE_KEY);
+      } catch (e) {}
+      // Hard reset: Overview, no filters, no complete_view.
+      window.location.href = '<?php echo site_url("my-works?tab=overview"); ?>';
+    });
+  }
+
+  // Restore active tab + filters after refresh (tab already marked active by PHP from ?tab=).
   var initialTabBtn = document.querySelector('#unifiedDashboardTabs button.active');
   if (initialTabBtn) {
+    initialTabBtn.setAttribute('data-force-reload', '1');
     initialTabBtn.click();
   }
+
+  window.addEventListener('popstate', function() {
+    var params = new URLSearchParams(window.location.search);
+    var tabName = params.get('tab') || 'overview';
+    var btn = document.querySelector('#unifiedDashboardTabs button[data-tab="' + tabName + '"]');
+    if (btn) {
+      btn.setAttribute('data-force-reload', '1');
+      btn.click();
+    }
+  });
 });
 </script>
 

@@ -373,19 +373,35 @@ class My_works extends CI_Controller
         require_module_access(array('my_works_list', 'my_works'), true);
         $filters = $this->_sanitize_filters($this->_parse_filters());
         $data = $this->_list_view_data($filters, 'overview');
-        // Lane focus mirrors overview: always hide Closed/Complete from planning lanes.
-        $focus = my_works_build_lane_focus_sections($data['rows'], $lane_key, true);
+        // Match overview cart: section=ad_hoc|project keeps the same badge count.
+        $section = strtolower(trim((string) $this->input->get('section')));
+        if (!in_array($section, array('ad_hoc', 'project'), true)) {
+            $section = '';
+        }
+        $focus = my_works_build_lane_focus_sections($data['rows'], $lane_key, true, $section);
         $data['dashboard_sections'] = $focus['sections'];
         $data['focus_count'] = $focus['count'];
         $data['lane_key'] = $lane_key;
+        $data['focus_section'] = $section;
         $pages = my_works_dashboard_lane_focus_pages();
         $meta = isset($pages[$lane_key]) ? $pages[$lane_key] : $pages['todays_plan'];
         $labels = my_works_dashboard_lane_labels();
-        $data['page_title'] = $meta['page_title'];
+        $lane_label = isset($labels[$lane_key]) ? $labels[$lane_key] : $lane_key;
+        $page_title = $meta['page_title'];
+        if ($section === 'ad_hoc') {
+            $page_title .= ' — Ad hoc';
+        } elseif ($section === 'project') {
+            $page_title .= ' — Project';
+        }
+        $data['page_title'] = $page_title;
         $data['body_class'] = $meta['body_class'];
         $data['active_tab'] = $meta['active_tab'];
-        $data['lane_label'] = isset($labels[$lane_key]) ? $labels[$lane_key] : $lane_key;
-        $data['focus_url'] = site_url($meta['route']);
+        $data['lane_label'] = $lane_label;
+        $focus_url = site_url($meta['route']);
+        if ($section !== '') {
+            $focus_url .= '?section=' . rawurlencode($section);
+        }
+        $data['focus_url'] = $focus_url;
         $this->load->view('my_works/lane_focus', $data);
     }
 
@@ -498,11 +514,11 @@ class My_works extends CI_Controller
 
     public function template_tasks()
     {
-        require_module_access(array('my_works_list', 'my_works', 'my_works_add'), true);
+        require_module_access(array('my_works_list', 'my_works', 'my_works_add', 'tasks_add', 'tasks'), true);
         $c = $this->_ctx();
 
         if ($this->input->method() === 'post') {
-            my_works_require_add_access();
+            require_module_access(array('tasks_add', 'tasks', 'my_works_add', 'my_works'), true);
             $user_id = (int) $c['user_id'];
             if ($user_id < 1) {
                 redirect('login');
@@ -510,19 +526,28 @@ class My_works extends CI_Controller
             }
 
             $client_id = (int) $this->input->post('client_id');
+            $project_id = (int) $this->input->post('project_id');
             $team = trim((string) $this->input->post('team'));
             $template_type = trim((string) $this->input->post('template_type'));
             $template_id = (int) $this->input->post('template_id');
 
-            if ($client_id > 0) {
-                $validated = my_works_validate_client_project($this->db, $client_id, 0);
-                if ($validated === false) {
-                    redirect('my-works/template-tasks');
-                    return;
-                }
-            } else {
-                $validated = array('client_id' => null, 'project_id' => null);
+            if ($project_id < 1) {
+                $this->session->set_flashdata('error', 'Please select a project.');
+                redirect('my-works/template-tasks');
+                return;
             }
+
+            $validated = my_works_validate_client_project($this->db, $client_id, $project_id);
+            if ($validated === false) {
+                redirect('my-works/template-tasks');
+                return;
+            }
+            if (empty($validated['project_id'])) {
+                $this->session->set_flashdata('error', 'Please select a valid project.');
+                redirect('my-works/template-tasks');
+                return;
+            }
+
             if ($team === '') {
                 $this->session->set_flashdata('error', 'Please select a team.');
                 redirect('my-works/template-tasks');
@@ -539,20 +564,30 @@ class My_works extends CI_Controller
                 return;
             }
 
-            $created_for_raw = (int) $this->input->post('created_for');
-            if ($created_for_raw < 1) {
-                $created_for_raw = $user_id;
+            $assigned_raw = (int) $this->input->post('assigned_to');
+            if ($assigned_raw < 1) {
+                $assigned_raw = (int) $this->input->post('created_for');
             }
-            $created_for = my_works_validate_created_for($created_for_raw, $c['can_view_all'], $user_id, $c['role_id']);
-            if ($created_for === false) {
+            if ($assigned_raw < 1) {
+                $assigned_raw = $user_id;
+            }
+            $assigned_to = my_works_validate_created_for($assigned_raw, $c['can_view_all'], $user_id, $c['role_id']);
+            if ($assigned_to === false) {
                 redirect('my-works/template-tasks');
                 return;
             }
 
-            $status = my_works_status_sanitize($this->input->post('status'), 'new');
+            $allowed_status = array('pending', 'in_progress', 'completed', 'blocked');
+            $status = trim((string) $this->input->post('status'));
+            if ($status === '' || !in_array($status, $allowed_status, true)) {
+                $status = 'pending';
+            }
+
+            $allowed_priority = array('low', 'medium', 'high', 'urgent');
             $priority = trim((string) $this->input->post('priority'));
-            $is_urgent = ($priority === 'urgent') ? 1 : 0;
-            $is_important = ($priority === 'urgent' || $priority === 'high') ? 1 : 0;
+            if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
+                $priority = 'medium';
+            }
 
             $due_date = null;
             $due = trim((string) $this->input->post('due_date'));
@@ -567,7 +602,7 @@ class My_works extends CI_Controller
                 }
             }
 
-            $details = my_works_sanitize_details_html($this->input->post('description'));
+            $description = my_works_sanitize_details_html($this->input->post('description'));
 
             $template = $this->template_tasks->find($template_id);
             if (!$template || (int) $template->is_active !== 1) {
@@ -586,34 +621,28 @@ class My_works extends CI_Controller
                 return;
             }
 
-            $uploads = $this->_handle_uploads();
+            $uploads = $this->_handle_template_task_uploads();
             if ($uploads === false) {
                 redirect('my-works/template-tasks');
                 return;
             }
 
-            $tag = trim($team . ' / ' . $template_type);
-            if (strlen($tag) > 255) {
-                $tag = substr($tag, 0, 255);
-            }
-
-            $payload = array(
+            $task_fields = $this->db->list_fields('tasks');
+            $data = array(
+                'project_id' => (int) $validated['project_id'],
                 'title' => (string) $template->title,
-                'details' => $details,
-                'tag' => $tag !== '' ? $tag : null,
-                'url' => null,
+                'description' => $description !== '' ? $description : null,
+                'assigned_to' => $assigned_to,
                 'created_by' => $user_id,
-                'created_for' => $created_for,
                 'status' => $status,
-                'is_urgent' => $is_urgent,
-                'is_important' => $is_important,
-                'due_date' => $due_date,
-                'client_id' => $validated['client_id'],
-                'project_id' => null,
-                'work_type' => null,
-                'closing_comment' => null,
             );
-            if (schema_table_has_column($this->db, 'my_works', 'estimate_hours')) {
+            if (in_array('priority', $task_fields, true)) {
+                $data['priority'] = $priority;
+            }
+            if (in_array('due_date', $task_fields, true)) {
+                $data['due_date'] = $due_date;
+            }
+            if (in_array('estimate_hours', $task_fields, true)) {
                 $est = null;
                 $posted_est = estimate_hours_parse($this->input->post('estimate_hours'));
                 if ($posted_est === false) {
@@ -629,22 +658,58 @@ class My_works extends CI_Controller
                         $est = $parsed;
                     }
                 }
-                $payload['estimate_hours'] = $est;
+                $data['estimate_hours'] = $est;
+            }
+            if (in_array('project_ids', $task_fields, true)) {
+                $data['project_ids'] = json_encode(array((int) $validated['project_id']));
             }
 
-            $id = $this->my_works->insert($payload);
+            $this->db->insert('tasks', $data);
+            $id = (int) $this->db->insert_id();
             if ($id < 1) {
-                $this->session->set_flashdata('error', 'Work item could not be created. Please try again.');
+                $this->session->set_flashdata('error', 'Task could not be created. Please try again.');
                 redirect('my-works/template-tasks');
                 return;
             }
 
-            $this->_save_new_attachments($id, $uploads);
-            $this->my_works->log_activity($id, $user_id, 'created', 'Work item created from template: ' . $template_type);
-            my_works_notify_assignee($id, $created_for, $payload['title'], $user_id);
+            $this->_save_template_task_attachments($id, $user_id, $uploads);
+
+            $this->load->helper('change_tracker');
+            if (function_exists('auto_log_insert')) {
+                auto_log_insert('tasks', 'tasks', $id, $data, 'Task: ' . (string) $data['title'] . ' (from template)');
+            }
+
+            if (!empty($data['assigned_to'])) {
+                $task_details = $this->db->select('t.*, p.name as project_name')
+                    ->from('tasks t')
+                    ->join('projects p', 'p.id = t.project_id', 'left')
+                    ->where('t.id', $id)
+                    ->get()->row();
+                if ($task_details) {
+                    if (!function_exists('send_notification_with_settings')) {
+                        $this->load->helper('email_settings');
+                    }
+                    if (function_exists('send_notification_with_settings')) {
+                        send_notification_with_settings('tasks', 'created', $task_details, $task_details->assigned_to);
+                    }
+                    $this->load->helper('notification');
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            (int) $data['assigned_to'],
+                            'New task assigned',
+                            (string) $data['title'],
+                            'info',
+                            'tasks',
+                            $id,
+                            site_url('tasks/' . $id)
+                        );
+                    }
+                }
+            }
+
             $this->_clear_dashboard_cache();
-            $this->session->set_flashdata('success', 'Work item created from template.');
-            redirect('my-works');
+            $this->session->set_flashdata('success', 'Task created from template.');
+            redirect('tasks/' . $id);
             return;
         }
 
@@ -666,9 +731,9 @@ class My_works extends CI_Controller
 
         $this->load->view('my_works/template_tasks', array(
             'clients' => my_works_clients_for_dropdown($this->db),
+            'projects' => my_works_projects_for_dropdown($this->db),
+            'projects_have_client' => schema_table_has_column($this->db, 'projects', 'client_id'),
             'users' => $this->_assignable_users(),
-            'statuses' => my_works_status_records(),
-            'default_status' => my_works_status_default_code(),
             'current_user_id' => (int) $c['user_id'],
             'teams' => $this->template_tasks->distinct_teams(),
             'template_json' => $template_payload,
@@ -684,6 +749,147 @@ class My_works extends CI_Controller
                 || has_module_access('my_works')
             ),
         ));
+    }
+
+    /**
+     * Persist uploads from Create Template Task into task_attachments.
+     *
+     * @param int   $task_id
+     * @param int   $user_id
+     * @param array $uploads
+     * @return void
+     */
+    private function _save_template_task_attachments($task_id, $user_id, array $uploads)
+    {
+        $task_id = (int) $task_id;
+        $user_id = (int) $user_id;
+        if ($task_id < 1 || empty($uploads) || !$this->db->table_exists('task_attachments')) {
+            return;
+        }
+
+        $first_path = null;
+        foreach ($uploads as $upload) {
+            if (empty($upload['stored'])) {
+                continue;
+            }
+            $file_path = 'uploads/tasks/' . $upload['stored'];
+            if ($first_path === null) {
+                $first_path = $file_path;
+            }
+            $this->db->insert('task_attachments', array(
+                'task_id' => $task_id,
+                'file_name' => isset($upload['original']) ? (string) $upload['original'] : (string) $upload['stored'],
+                'file_path' => $file_path,
+                'mime_type' => null,
+                'size_bytes' => isset($upload['size']) ? (int) $upload['size'] : null,
+                'uploaded_by' => $user_id,
+                'created_at' => date('Y-m-d H:i:s'),
+            ));
+        }
+
+        if ($first_path !== null && schema_table_has_column($this->db, 'tasks', 'attachment_path')) {
+            $this->db->where('id', $task_id)->update('tasks', array('attachment_path' => $first_path));
+        }
+    }
+
+    /**
+     * Upload attachments for template→task create into uploads/tasks/.
+     *
+     * @return array|false
+     */
+    private function _handle_template_task_uploads()
+    {
+        $upload_dir = 'uploads/tasks/';
+        $dir = FCPATH . $upload_dir;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $has_multi = function_exists('my_works_upload_field_has_files') && my_works_upload_field_has_files('attachments');
+        $has_legacy = function_exists('my_works_upload_field_has_files') && my_works_upload_field_has_files('attachment');
+        if (!$has_multi && !$has_legacy) {
+            return array();
+        }
+
+        $max_per = function_exists('my_works_max_attachments_per_submit') ? my_works_max_attachments_per_submit() : 5;
+        $allowed = function_exists('my_works_upload_allowed_types') ? my_works_upload_allowed_types() : 'gif|jpg|jpeg|png|webp|pdf|doc|docx|xls|xlsx|zip';
+        $max_kb = function_exists('my_works_upload_max_kb') ? my_works_upload_max_kb() : 102400;
+        $results = array();
+
+        $file_list = array();
+        if ($has_legacy && !$has_multi) {
+            $file_list[] = array(
+                'name' => $_FILES['attachment']['name'],
+                'type' => $_FILES['attachment']['type'],
+                'tmp_name' => $_FILES['attachment']['tmp_name'],
+                'error' => $_FILES['attachment']['error'],
+                'size' => $_FILES['attachment']['size'],
+            );
+        } else {
+            $files = $_FILES['attachments'];
+            $names = is_array($files['name']) ? $files['name'] : array($files['name']);
+            foreach ($names as $i => $name) {
+                if (trim((string) $name) === '') {
+                    continue;
+                }
+                $file_list[] = array(
+                    'name' => is_array($files['name']) ? $files['name'][$i] : $files['name'],
+                    'type' => is_array($files['type']) ? $files['type'][$i] : $files['type'],
+                    'tmp_name' => is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'],
+                    'error' => is_array($files['error']) ? $files['error'][$i] : $files['error'],
+                    'size' => is_array($files['size']) ? $files['size'][$i] : $files['size'],
+                );
+            }
+        }
+
+        if (count($file_list) > $max_per) {
+            $this->session->set_flashdata('error', 'You can upload up to ' . $max_per . ' files at once.');
+            return false;
+        }
+
+        $config = array(
+            'upload_path' => $dir,
+            'allowed_types' => $allowed,
+            'max_size' => $max_kb,
+            'encrypt_name' => true,
+        );
+
+        foreach ($file_list as $file) {
+            if ((int) $file['error'] !== UPLOAD_ERR_OK) {
+                $msg = function_exists('my_works_upload_error_message')
+                    ? my_works_upload_error_message($file['error'])
+                    : 'Upload failed';
+                $this->session->set_flashdata('error', $msg . ' (' . $file['name'] . ')');
+                foreach ($results as $r) {
+                    $path = $dir . $r['stored'];
+                    if (is_file($path)) {
+                        @unlink($path);
+                    }
+                }
+                return false;
+            }
+            $_FILES['mw_tt_task_upload'] = $file;
+            $this->upload->initialize($config);
+            if (!$this->upload->do_upload('mw_tt_task_upload')) {
+                $err = strip_tags($this->upload->display_errors('', ''));
+                $this->session->set_flashdata('error', ($err !== '' ? $err : 'Upload failed') . ' (' . $file['name'] . ')');
+                foreach ($results as $r) {
+                    $path = $dir . $r['stored'];
+                    if (is_file($path)) {
+                        @unlink($path);
+                    }
+                }
+                return false;
+            }
+            $up = $this->upload->data();
+            $results[] = array(
+                'original' => (string) $file['name'],
+                'stored' => (string) $up['file_name'],
+                'size' => isset($up['file_size']) ? ((int) $up['file_size'] * 1024) : (int) $file['size'],
+            );
+        }
+
+        return $results;
     }
 
     /**

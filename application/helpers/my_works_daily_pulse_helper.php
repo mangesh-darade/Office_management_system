@@ -105,6 +105,27 @@ if (!function_exists('my_works_daily_pulse_clients_added')) {
     }
 }
 
+if (!function_exists('my_works_daily_pulse_format_time')) {
+    /**
+     * Normalize TIME / DATETIME / string punch values to H:i (or '').
+     */
+    function my_works_daily_pulse_format_time($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '' || $value === '00:00:00' || $value === '0000-00-00 00:00:00') {
+            return '';
+        }
+        if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $m)) {
+            return sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+        }
+        $ts = strtotime($value);
+        if ($ts === false) {
+            return '';
+        }
+        return date('H:i', $ts);
+    }
+}
+
 if (!function_exists('my_works_daily_pulse_attendance')) {
     function my_works_daily_pulse_attendance($db, $today, array $user_map)
     {
@@ -125,9 +146,9 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
             $db->reset_query();
             $has_types = $db->table_exists('leave_types');
             if ($has_types) {
-                $db->select('lr.user_id, lr.status, lr.start_date, lr.end_date, u.name AS user_name, lt.name AS leave_type', false);
+                $db->select('lr.user_id, lr.status, lr.start_date, lr.end_date, lr.reason, u.name AS user_name, lt.name AS leave_type', false);
             } else {
-                $db->select('lr.user_id, lr.status, lr.start_date, lr.end_date, u.name AS user_name, NULL AS leave_type', false);
+                $db->select('lr.user_id, lr.status, lr.start_date, lr.end_date, lr.reason, u.name AS user_name, NULL AS leave_type', false);
             }
             $db->from('leave_requests lr');
             $db->join('users u', 'u.id = lr.user_id', 'left');
@@ -147,14 +168,21 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
                 $leave_user_ids[$uid] = true;
                 $type_name = isset($row->leave_type) ? trim((string) $row->leave_type) : '';
                 $is_wfh = leave_type_name_is_wfh($type_name);
+                $notes = isset($row->reason) ? trim((string) $row->reason) : '';
+                if ($is_wfh && stripos($notes, 'WFH:') === 0) {
+                    $notes = trim(substr($notes, 4));
+                }
                 $item = array(
                     'user_id'    => $uid,
                     'name'       => (string) ($row->user_name ?: ('User #' . $uid)),
                     'leave_type' => $type_name !== '' ? $type_name : 'Leave',
                     'status'     => (string) $row->status,
+                    'notes'      => $notes,
+                    'check_in'   => '',
+                    'check_out'  => '',
                 );
                 if ($is_wfh) {
-                    $wfh[] = $item;
+                    $wfh[$uid] = $item;
                 } else {
                     $on_leave[] = $item;
                 }
@@ -165,6 +193,7 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
         $checked_out = array();
         $not_checked_in = array();
         $punched_ids = array();
+        $punch_by_user = array();
 
         if ($db->table_exists('attendance')) {
             $CI =& get_instance();
@@ -187,19 +216,28 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
             foreach ($db->get()->result() as $row) {
                 $uid = (int) $row->user_id;
                 $status = strtolower(trim((string) (isset($row->status) ? $row->status : '')));
+                $punch_in = my_works_daily_pulse_format_time(isset($row->punch_in) ? $row->punch_in : '');
+                $punch_out = my_works_daily_pulse_format_time(isset($row->punch_out) ? $row->punch_out : '');
+                $punch_by_user[$uid] = array(
+                    'check_in'  => $punch_in,
+                    'check_out' => $punch_out,
+                );
+
                 if ($status === 'work_from_home' || $status === 'wfh') {
                     if (!isset($leave_user_ids[$uid])) {
-                        $wfh[] = array(
+                        $wfh[$uid] = array(
                             'user_id'    => $uid,
                             'name'       => (string) ($row->user_name ?: ('User #' . $uid)),
                             'leave_type' => 'Work From Home',
                             'status'     => $status,
+                            'notes'      => '',
+                            'check_in'   => $punch_in,
+                            'check_out'  => $punch_out,
                         );
                         $leave_user_ids[$uid] = true;
                     }
                 }
-                $punch_in = !empty($row->punch_in) ? (string) $row->punch_in : '';
-                $punch_out = !empty($row->punch_out) ? (string) $row->punch_out : '';
+
                 if ($punch_in !== '') {
                     $punched_ids[$uid] = true;
                     $entry = array(
@@ -216,6 +254,15 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
                 }
             }
         }
+
+        // Attach today's punch times onto WFH rows when attendance has them.
+        foreach ($wfh as $uid => $item) {
+            if (isset($punch_by_user[$uid])) {
+                $wfh[$uid]['check_in'] = $punch_by_user[$uid]['check_in'];
+                $wfh[$uid]['check_out'] = $punch_by_user[$uid]['check_out'];
+            }
+        }
+        $wfh = array_values($wfh);
 
         foreach ($user_map as $uid => $u) {
             $uid = (int) $uid;
@@ -512,13 +559,20 @@ if (!function_exists('my_works_daily_pulse_spl_groups')) {
         $out = array();
         $rank = 1;
         foreach ($board as $g) {
+            $points = isset($g->total_period_net) ? (float) $g->total_period_net : 0;
+            $member_count = isset($g->member_count) ? (int) $g->member_count : 0;
+            $avg = isset($g->avg_period_points) ? (float) $g->avg_period_points : 0;
+            if ($avg == 0.0 && $member_count > 0) {
+                $avg = $points / $member_count;
+            }
             $out[] = array(
                 'rank'         => $rank++,
                 'id'           => (int) $g->id,
                 'name'         => (string) $g->name,
                 'code'         => (string) $g->code,
-                'points'       => isset($g->total_period_net) ? (float) $g->total_period_net : 0,
-                'member_count' => isset($g->member_count) ? (int) $g->member_count : 0,
+                'points'       => $points,
+                'avg'          => $avg,
+                'member_count' => $member_count,
                 'url'          => site_url('spl/groups/' . (int) $g->id),
             );
         }

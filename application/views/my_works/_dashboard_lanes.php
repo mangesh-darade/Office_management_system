@@ -32,7 +32,29 @@
 
   $hide_empty_lanes = !empty($hide_empty_lanes);
 
+  $show_status_column = !empty($show_status_column);
+
   $uid = (int) $this->session->userdata('user_id');
+
+  $statusLabels = array();
+
+  $statusColors = array();
+
+  if ($show_status_column) {
+
+    $this->load->helper('my_works_status');
+
+    $statusLabels = my_works_status_labels();
+
+    $statusColors = my_works_status_colors();
+
+  }
+
+  $status_redirect = $show_status_column
+
+    ? (current_url() . (function_exists('safe_query_suffix') ? safe_query_suffix() : ''))
+
+    : '';
 
   $lanes_class = 'mw-dash-lanes';
 
@@ -100,15 +122,23 @@
 
         $laneFocusUrl = site_url($lane_focus_pages[$lane]['route']);
 
+        // Keep full-view count aligned with this overview cart (Ad hoc vs Project).
+
+        if (in_array((string) $section_key, array('ad_hoc', 'project'), true)) {
+
+          $laneFocusUrl .= (strpos($laneFocusUrl, '?') === false ? '?' : '&') . 'section=' . rawurlencode((string) $section_key);
+
+        }
+
       }
 
       $show_date = !empty($force_show_date) || my_works_dashboard_lane_shows_date($lane);
 
-      $col_count = ($hide_drag_column ? 0 : 1) + 2 + ($show_date ? 1 : 0) + ($hide_project_column ? 0 : 1);
+      $col_count = ($hide_drag_column ? 0 : 1) + 2 + ($show_date ? 1 : 0) + ($hide_project_column ? 0 : 1) + ($show_status_column ? 1 : 0);
 
     ?>
 
-    <div class="mw-dash-lane mw-dash-lane-<?php echo esc_view($lane); ?><?php echo $show_date ? ' mw-dash-lane-has-date' : ' mw-dash-lane-no-date'; ?><?php echo $hide_drag_column ? ' mw-dash-lane-no-drag' : ''; ?><?php echo !empty($fullscreen_lane) ? ' mw-dash-lane-fullscreen' : ''; ?><?php echo $hide_project_column ? ' mw-dash-lane-no-project-col' : ''; ?>" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>">
+    <div class="mw-dash-lane mw-dash-lane-<?php echo esc_view($lane); ?><?php echo $show_date ? ' mw-dash-lane-has-date' : ' mw-dash-lane-no-date'; ?><?php echo $hide_drag_column ? ' mw-dash-lane-no-drag' : ''; ?><?php echo !empty($fullscreen_lane) ? ' mw-dash-lane-fullscreen' : ''; ?><?php echo $hide_project_column ? ' mw-dash-lane-no-project-col' : ''; ?><?php echo $show_status_column ? ' mw-dash-lane-has-status' : ''; ?>" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>">
 
       <div class="mw-dash-lane-head">
 
@@ -144,6 +174,8 @@
 
             <?php if ($show_date): ?><col class="mw-dash-col-date"><?php endif; ?>
 
+            <?php if ($show_status_column): ?><col class="mw-dash-col-status"><?php endif; ?>
+
           </colgroup>
 
           <thead>
@@ -159,6 +191,8 @@
               <th class="mw-dash-col-assignee-head">Assign<br>to</th>
 
               <?php if ($show_date): ?><th>Date</th><?php endif; ?>
+
+              <?php if ($show_status_column): ?><th>Status</th><?php endif; ?>
 
             </tr>
 
@@ -184,6 +218,8 @@
 
               <?php if ($show_date): ?><col class="mw-dash-col-date"><?php endif; ?>
 
+              <?php if ($show_status_column): ?><col class="mw-dash-col-status"><?php endif; ?>
+
             </colgroup>
 
             <?php if ($unified_table): ?>
@@ -201,6 +237,8 @@
                 <th class="mw-dash-col-assignee-head">Assign<br>to</th>
 
                 <?php if ($show_date): ?><th>Date</th><?php endif; ?>
+
+                <?php if ($show_status_column): ?><th>Status</th><?php endif; ?>
 
               </tr>
 
@@ -292,6 +330,12 @@
 
                     $can_drag = !$disable_lane_drag && my_works_can_update_status($r, $can_view_all, $uid);
 
+                    $can_status = $show_status_column && my_works_can_update_status($r, $can_view_all, $uid);
+
+                    $stLabel = isset($statusLabels[$stCode]) ? $statusLabels[$stCode] : $stCode;
+
+                    $stColor = isset($statusColors[$stCode]) ? $statusColors[$stCode] : 'secondary';
+
                   ?>
 
                   <tr class="mw-dash-task-row mw-dash-status-<?php echo esc_view($dotClass); ?><?php echo $can_drag ? ' mw-dash-task-row-draggable' : ''; ?>"
@@ -343,6 +387,114 @@
                     <?php if ($show_date): ?>
 
                       <td class="mw-dash-col-date-cell" title="<?php echo esc_view($dateRaw !== '' ? $dateRaw : 'No due date', ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($dateLabel); ?></td>
+
+                    <?php endif; ?>
+
+                    <?php if ($show_status_column): ?>
+
+                      <td class="mw-dash-col-status-cell">
+
+                        <?php if ($can_status): ?>
+
+                          <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="d-inline mw-quick-status mw-dash-status-form">
+
+                            <?php $this->load->view('my_works/_csrf'); ?>
+
+                            <input type="hidden" name="id" value="<?php echo (int) $r->id; ?>">
+
+                            <input type="hidden" name="redirect" value="<?php echo esc_view($status_redirect, ENT_QUOTES, 'UTF-8'); ?>">
+
+                            <input type="hidden" name="status" value="<?php echo esc_view($stCode, ENT_QUOTES, 'UTF-8'); ?>" class="mw-dash-status-value">
+
+                            <div class="dropdown mw-dash-status-dd">
+
+                              <button type="button"
+
+                                      class="btn btn-sm mw-dash-status-toggle dropdown-toggle"
+
+                                      data-bs-toggle="dropdown"
+
+                                      data-bs-popper-config='{"strategy":"fixed"}'
+
+                                      aria-expanded="false"
+
+                                      aria-label="Status"
+
+                                      data-row-id="<?php echo (int) $r->id; ?>"
+
+                                      data-prev-status="<?php echo esc_view($stCode, ENT_QUOTES, 'UTF-8'); ?>"
+
+                                      style="color:<?php echo esc_view($dotColor, ENT_QUOTES, 'UTF-8'); ?>;border-color:<?php echo esc_view($dotColor, ENT_QUOTES, 'UTF-8'); ?>66;">
+
+                                <span class="mw-dash-status-label"><?php echo esc_view($stLabel); ?></span>
+
+                              </button>
+
+                              <ul class="dropdown-menu mw-dash-status-menu shadow-sm">
+
+                                <?php foreach ($statusLabels as $k => $lbl): ?>
+
+                                  <?php
+
+                                    $optColor = my_works_status_hex_color($k);
+
+                                    $probe = clone $r;
+
+                                    $probe->status = $k;
+
+                                    if (my_works_status_is_closed($k)) {
+
+                                      $probe->closed_at = date('Y-m-d H:i:s');
+
+                                    } else {
+
+                                      $probe->closed_at = null;
+
+                                    }
+
+                                    $next_lane = my_works_dashboard_lane_for_row($probe);
+
+                                    $optLeaves = ($next_lane === null || (string) $next_lane !== (string) $lane);
+
+                                  ?>
+
+                                  <li>
+
+                                    <button type="button"
+
+                                            class="dropdown-item mw-dash-status-option<?php echo $stCode === $k ? ' active' : ''; ?>"
+
+                                            data-status="<?php echo esc_view($k, ENT_QUOTES, 'UTF-8'); ?>"
+
+                                            data-color="<?php echo esc_view($optColor, ENT_QUOTES, 'UTF-8'); ?>"
+
+                                            data-leaves-lane="<?php echo $optLeaves ? '1' : '0'; ?>"
+
+                                            style="color:<?php echo esc_view($optColor, ENT_QUOTES, 'UTF-8'); ?>;">
+
+                                      <span class="mw-dash-status-dot-inline" style="background:<?php echo esc_view($optColor, ENT_QUOTES, 'UTF-8'); ?>;"></span>
+
+                                      <?php echo esc_view($lbl); ?>
+
+                                    </button>
+
+                                  </li>
+
+                                <?php endforeach; ?>
+
+                              </ul>
+
+                            </div>
+
+                          </form>
+
+                        <?php else: ?>
+
+                          <span class="badge bg-<?php echo esc_view($stColor, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($stLabel); ?></span>
+
+                        <?php endif; ?>
+
+                      </td>
 
                     <?php endif; ?>
 

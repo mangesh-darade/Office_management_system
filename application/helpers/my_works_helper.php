@@ -981,23 +981,34 @@ if (!function_exists('my_works_dashboard_lane_focus_route')) {
 
 if (!function_exists('my_works_build_lane_focus_sections')) {
     /**
-     * Single lane full view merging ad hoc + project items.
+     * Single lane full view.
+     * $section: 'ad_hoc' | 'project' | '' (both — legacy / direct URL).
      *
-     * @return array{sections: array, count: int}
+     * @return array{sections: array, count: int, section: string}
      */
-    function my_works_build_lane_focus_sections(array $rows, $lane_key, $exclude_closed = true)
+    function my_works_build_lane_focus_sections(array $rows, $lane_key, $exclude_closed = true, $section = '')
     {
         if (!my_works_dashboard_lane_is_valid($lane_key)) {
             return array(
                 'sections' => array('focus' => array()),
                 'count'    => 0,
+                'section'  => '',
             );
         }
+        $section = strtolower(trim((string) $section));
+        if (!in_array($section, array('ad_hoc', 'project'), true)) {
+            $section = '';
+        }
         $dash = my_works_build_dashboard_sections($rows, $exclude_closed);
-        $merged = array_merge(
-            isset($dash['sections']['ad_hoc'][$lane_key]) ? $dash['sections']['ad_hoc'][$lane_key] : array(),
-            isset($dash['sections']['project'][$lane_key]) ? $dash['sections']['project'][$lane_key] : array()
-        );
+        $ad_hoc = isset($dash['sections']['ad_hoc'][$lane_key]) ? $dash['sections']['ad_hoc'][$lane_key] : array();
+        $project = isset($dash['sections']['project'][$lane_key]) ? $dash['sections']['project'][$lane_key] : array();
+        if ($section === 'ad_hoc') {
+            $merged = $ad_hoc;
+        } elseif ($section === 'project') {
+            $merged = $project;
+        } else {
+            $merged = array_merge($ad_hoc, $project);
+        }
         $merged = my_works_dashboard_lane_sort_by_date_asc($merged);
         return array(
             'sections' => array(
@@ -1005,7 +1016,8 @@ if (!function_exists('my_works_build_lane_focus_sections')) {
                     $lane_key => $merged,
                 ),
             ),
-            'count' => count($merged),
+            'count'   => count($merged),
+            'section' => $section,
         );
     }
 }

@@ -61,6 +61,25 @@ $pulse_count_badge = function ($total) {
     <?php endif; ?>
 
     <?php $att = $section('attendance'); if (is_array($att)): ?>
+    <?php
+      $pulse_att_times = function ($row) {
+          $in = isset($row['check_in']) ? trim((string) $row['check_in']) : '';
+          $out = isset($row['check_out']) ? trim((string) $row['check_out']) : '';
+          if ($in === '' && $out === '') {
+              return;
+          }
+          echo '<span class="mw-pulse-item-meta mw-pulse-att-times">';
+          if ($in !== '') {
+              echo '<span class="mw-pulse-att-time" title="Check-in"><i class="bi bi-box-arrow-in-right"></i>In ' . esc_view($in, ENT_QUOTES, 'UTF-8') . '</span>';
+          }
+          if ($out !== '') {
+              echo '<span class="mw-pulse-att-time" title="Check-out"><i class="bi bi-box-arrow-right"></i>Out ' . esc_view($out, ENT_QUOTES, 'UTF-8') . '</span>';
+          } elseif ($in !== '') {
+              echo '<span class="mw-pulse-att-time mw-pulse-att-time--pending" title="Not checked out yet">Out —</span>';
+          }
+          echo '</span>';
+      };
+    ?>
     <section class="mw-pulse-card mw-pulse-card--wide">
       <div class="mw-pulse-card-head">
         <h3 class="mw-pulse-card-title"><i class="bi bi-person-check"></i>Attendance today</h3>
@@ -76,10 +95,23 @@ $pulse_count_badge = function ($total) {
           <?php else: ?>
           <ul class="mw-pulse-list mw-pulse-list--compact">
             <?php foreach ($att['on_leave']['items'] as $row): ?>
-            <li>
+            <?php
+              $leave_note = isset($row['notes']) ? trim((string) $row['notes']) : '';
+            ?>
+            <li class="mw-pulse-note-row<?php echo $leave_note !== '' ? ' mw-pulse-note-row--has' : ''; ?>">
               <span class="mw-pulse-item-primary"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></span>
               <?php if (!empty($row['leave_type'])): ?>
               <span class="mw-pulse-item-meta"><?php echo esc_view($row['leave_type'], ENT_QUOTES, 'UTF-8'); ?></span>
+              <?php endif; ?>
+              <?php if ($leave_note !== ''): ?>
+              <button type="button"
+                      class="btn btn-link p-0 border-0 mw-pulse-note-btn"
+                      data-note-name="<?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?>"
+                      data-note-text="<?php echo esc_view($leave_note, ENT_QUOTES, 'UTF-8'); ?>"
+                      title="View notes"
+                      aria-label="View notes for <?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?>">
+                <i class="bi bi-chat-left-text mw-pulse-note-icon" aria-hidden="true"></i>
+              </button>
               <?php endif; ?>
             </li>
             <?php endforeach; ?>
@@ -97,7 +129,22 @@ $pulse_count_badge = function ($total) {
           <?php else: ?>
           <ul class="mw-pulse-list mw-pulse-list--compact">
             <?php foreach ($att['wfh']['items'] as $row): ?>
-            <li><span class="mw-pulse-item-primary"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></span></li>
+            <?php
+              $wfh_note = isset($row['notes']) ? trim((string) $row['notes']) : '';
+            ?>
+            <li class="mw-pulse-note-row<?php echo $wfh_note !== '' ? ' mw-pulse-note-row--has' : ''; ?>">
+              <span class="mw-pulse-item-primary"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></span>
+              <?php if ($wfh_note !== ''): ?>
+              <button type="button"
+                      class="btn btn-link p-0 border-0 mw-pulse-note-btn"
+                      data-note-name="<?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?>"
+                      data-note-text="<?php echo esc_view($wfh_note, ENT_QUOTES, 'UTF-8'); ?>"
+                      title="View notes"
+                      aria-label="View notes for <?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?>">
+                <i class="bi bi-chat-left-text mw-pulse-note-icon" aria-hidden="true"></i>
+              </button>
+              <?php endif; ?>
+            </li>
             <?php endforeach; ?>
           </ul>
           <?php $render_more($att['wfh']); ?>
@@ -105,7 +152,7 @@ $pulse_count_badge = function ($total) {
         </div>
         <div class="mw-pulse-col">
           <div class="mw-pulse-col-head">
-            <span class="mw-pulse-mini-title">In</span>
+            <span class="mw-pulse-mini-title">Check-in / Out</span>
             <?php $pulse_count_badge($att['checked_in']['total']); ?>
           </div>
           <?php if (empty($att['checked_in']['items'])): ?>
@@ -115,7 +162,7 @@ $pulse_count_badge = function ($total) {
             <?php foreach ($att['checked_in']['items'] as $row): ?>
             <li>
               <span class="mw-pulse-item-primary"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></span>
-              <span class="mw-pulse-item-meta"><?php echo esc_view(substr($row['check_in'], 0, 5), ENT_QUOTES, 'UTF-8'); ?><?php echo $row['check_out'] !== '' ? '–' . esc_view(substr($row['check_out'], 0, 5), ENT_QUOTES, 'UTF-8') : ''; ?></span>
+              <?php $pulse_att_times($row); ?>
             </li>
             <?php endforeach; ?>
           </ul>
@@ -335,6 +382,7 @@ $pulse_count_badge = function ($total) {
             <tr>
               <th>Group</th>
               <th class="text-end">Points</th>
+              <th class="text-end">Avg</th>
               <th class="text-end">Members</th>
             </tr>
           </thead>
@@ -346,6 +394,10 @@ $pulse_count_badge = function ($total) {
                 <a href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></a>
               </td>
               <td class="text-end fw-semibold"><?php echo ($row['points'] >= 0 ? '+' : '') . number_format((float) $row['points'], 0); ?></td>
+              <td class="text-end"><?php
+                $avg = isset($row['avg']) ? (float) $row['avg'] : 0;
+                echo ($avg >= 0 ? '+' : '') . number_format($avg, 0);
+              ?></td>
               <td class="text-end text-muted"><?php echo (int) $row['member_count']; ?></td>
             </tr>
             <?php endforeach; ?>
@@ -362,4 +414,5 @@ $pulse_count_badge = function ($total) {
 
 <?php if (!$embed): ?>
 <?php $this->load->view('partials/footer'); ?>
+<script src="<?php echo base_url('assets/js/my-works-lane-status.js'); ?>"></script>
 <?php endif; ?>
