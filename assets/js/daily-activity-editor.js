@@ -122,4 +122,31 @@
 
     return $note;
   };
+
+  window.daBindSummaryInsert = function(options) {
+    var opts = options || {};
+    var $btn = $('#daInsertSummaryBtn');
+    var $note = $(opts.selector || '#summernote');
+    var html = typeof opts.html === 'string' ? opts.html : '';
+    if (!$btn.length || !$note.length || !html) {
+      return;
+    }
+
+    $btn.off('click.daSummaryInsert').on('click.daSummaryInsert', function() {
+      var current = '';
+      try {
+        current = $note.summernote('code') || '';
+      } catch (e) {
+        current = $note.val() || '';
+      }
+      var stripped = String(current).replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim();
+      var next = stripped === '' ? html : String(current) + html;
+      try {
+        $note.summernote('code', next);
+        $note.summernote('focus');
+      } catch (err) {
+        $note.val(next);
+      }
+    });
+  };
 })(window, window.jQuery);

@@ -52,11 +52,18 @@ $date_short = date('M j, Y', strtotime($date));
             <input class="form-control form-control-sm" list="taskOptions" name="activity_title" id="activityTitleInput"
                    placeholder="Task or title…" autocomplete="off">
             <datalist id="taskOptions">
-              <?php foreach ($tasks as $t): ?>
+              <?php foreach ((isset($tasks) && is_array($tasks) ? $tasks : array()) as $t): ?>
                 <option data-id="<?php echo (int) $t->id; ?>" value="<?php echo esc_view($t->title); ?>"></option>
               <?php endforeach; ?>
             </datalist>
             <input type="hidden" name="task_id" id="taskIdInput">
+          </div>
+
+          <div class="da-composer-row">
+            <?php $this->load->view('daily_activity/_summary_panel', array(
+              'today_summary' => isset($today_summary) ? $today_summary : array(),
+              'show_insert_btn' => true,
+            )); ?>
           </div>
 
           <div class="da-composer-row">
@@ -186,6 +193,16 @@ $(document).ready(function() {
       });
     }
   });
+
+  if (typeof window.daBindSummaryInsert === 'function') {
+    window.daBindSummaryInsert({
+      selector: '#summernote',
+      html: <?php echo json_encode(
+        (isset($today_summary['html']) ? (string) $today_summary['html'] : ''),
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+      ); ?>
+    });
+  }
 
   $('#activityTitleInput').on('input', function() {
     var val = $(this).val();
