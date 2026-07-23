@@ -13,6 +13,7 @@ class Clients extends CI_Controller {
         
         $this->ensure_schema();
         $this->load->model('Client_model','clients');
+        $this->load->model('Client_url_model', 'client_urls');
     }
 
     private function ensure_schema() {
@@ -79,7 +80,77 @@ class Clients extends CI_Controller {
         require_module_access(['clients_list', 'clients'], true);
         $client_types = $this->_client_type_options();
         $active_tab = $this->input->get('tab');
-        $active_tab = ($active_tab === 'cart') ? 'cart' : 'list';
+        if ($active_tab === 'cart') {
+            $active_tab = 'cart';
+        } elseif ($active_tab === 'urls') {
+            $active_tab = 'urls';
+        } else {
+            $active_tab = 'list';
+        }
+
+        if ($active_tab === 'urls') {
+            $filter_client_id = (int) $this->input->get('client_id');
+            $filter_url_type = strtolower(trim((string) $this->input->get('url_type')));
+            $filter_version = trim((string) $this->input->get('version'));
+            $filter_q = trim((string) $this->input->get('q'));
+
+            $url_type_opts = $this->_client_url_type_options();
+            if ($filter_url_type !== '' && !isset($url_type_opts[$filter_url_type])) {
+                $filter_url_type = '';
+            }
+            if (strlen($filter_version) > 50) {
+                $filter_version = substr($filter_version, 0, 50);
+            }
+            if (strlen($filter_q) > 100) {
+                $filter_q = substr($filter_q, 0, 100);
+            }
+
+            $url_filters = array();
+            if ($filter_client_id > 0) {
+                $url_filters['client_id'] = $filter_client_id;
+            }
+            if ($filter_url_type !== '') {
+                $url_filters['url_type'] = $filter_url_type;
+            }
+            if ($filter_version !== '') {
+                $url_filters['version'] = $filter_version;
+            }
+            if ($filter_q !== '') {
+                $url_filters['q'] = $filter_q;
+            }
+
+            $url_rows = $this->client_urls->list_all($url_filters);
+            $clients_list = $this->clients->get_clients(array(), null, 0);
+            $url_versions = $this->client_urls->list_versions();
+            $this->load->view('clients/index', array(
+                'active_tab'    => 'urls',
+                'client_types'  => $client_types,
+                'rows'          => array(),
+                'lanes'         => array(),
+                'show_lanes'    => false,
+                'filters'       => array(),
+                'type_counts'   => array(),
+                'status_counts' => array(),
+                'stats_total'   => is_array($url_rows) ? count($url_rows) : 0,
+                'pagination'    => array(
+                    'page' => 1,
+                    'per_page' => 25,
+                    'total' => 0,
+                    'total_pages' => 1,
+                ),
+                'url_rows'      => $url_rows,
+                'clients_list'  => $clients_list,
+                'url_versions'  => $url_versions,
+                'url_filters'   => array(
+                    'client_id' => $filter_client_id > 0 ? $filter_client_id : '',
+                    'url_type'  => $filter_url_type,
+                    'version'   => $filter_version,
+                    'q'         => $filter_q,
+                ),
+                'url_types'     => $url_type_opts,
+            ));
+            return;
+        }
 
         if ($active_tab === 'cart') {
             $cart = $this->_build_client_cart_data();
@@ -486,9 +557,12 @@ class Clients extends CI_Controller {
                 // Upload logo
                 $logo_path = $this->upload_logo();
 
-                $website = $this->_normalize_client_url('website', 'URL', 'clients/create');
-                $demo_url = $this->_normalize_client_url('demo_url', 'Demo URL', 'clients/create');
-                $pos_url = $this->_normalize_client_url('pos_url', 'POS URL', 'clients/create');
+                $url_catalog_rows = $this->_parse_posted_client_envs();
+                if ($url_catalog_rows === false) {
+                    redirect('clients/create');
+                    return;
+                }
+                $from_envs = $this->_client_fields_from_envs($url_catalog_rows);
                 
                 // Prepare data
                 $data = [
@@ -498,9 +572,9 @@ class Clients extends CI_Controller {
                     'email' => $email,
                     'phone' => $phone,
                     'alternate_phone' => trim($this->input->post('alternate_phone')),
-                    'website' => $website,
-                    'demo_url' => $demo_url,
-                    'pos_url' => $pos_url,
+                    'website' => $from_envs['website'],
+                    'demo_url' => $from_envs['demo_url'],
+                    'pos_url' => $from_envs['pos_url'],
                     'address' => trim($this->input->post('address')),
                     'city' => trim($this->input->post('city')),
                     'state' => trim($this->input->post('state')),
@@ -513,11 +587,11 @@ class Clients extends CI_Controller {
                     'client_type' => $this->_resolve_client_type($this->input->post('client_type')),
                     'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
                     'notes' => trim($this->input->post('notes')),
-                    'db_name' => trim($this->input->post('db_name')),
-                    'db_username' => trim($this->input->post('db_username')),
-                    'db_password' => trim($this->input->post('db_password')),
-                    'db_host' => trim($this->input->post('db_host')),
-                    'db_port' => trim($this->input->post('db_port')),
+                    'db_name' => $from_envs['db_name'],
+                    'db_username' => $from_envs['db_username'],
+                    'db_password' => $from_envs['db_password'],
+                    'db_host' => $from_envs['db_host'],
+                    'db_port' => $from_envs['db_port'],
                     'logo' => $logo_path,
                     'status' => 'active',
                     'created_by' => (int)$this->session->userdata('user_id'),
@@ -543,6 +617,8 @@ class Clients extends CI_Controller {
                     redirect('clients/create');
                     return;
                 }
+
+                $this->_save_posted_client_envs((int) $id, $url_catalog_rows);
                 
                 $success_msg = get_notification_message('clients', 'create', 'success');
                 $this->session->set_flashdata('success', $success_msg);
@@ -567,6 +643,7 @@ class Clients extends CI_Controller {
             $this->load->view('clients/create', [
                 'managers'=>$managers,
                 'client_types'=>$this->_client_type_options(),
+                'url_types'=>$this->_client_url_type_options(),
             ]);
         } catch (Exception $e) {
             $error_message = handle_database_error($e, 'Unable to load client creation form. Please try again.');
@@ -908,18 +985,22 @@ class Clients extends CI_Controller {
                     }
                     
                     $logo_path = $this->upload_logo(isset($c->logo) ? $c->logo : null);
-                    $website = $this->_normalize_client_url('website', 'URL', 'clients/edit/'.$id);
-                    $demo_url = $this->_normalize_client_url('demo_url', 'Demo URL', 'clients/edit/'.$id);
-                    $pos_url = $this->_normalize_client_url('pos_url', 'POS URL', 'clients/edit/'.$id);
+
+                    $url_catalog_rows = $this->_parse_posted_client_envs();
+                    if ($url_catalog_rows === false) {
+                        redirect('clients/edit/'.$id);
+                        return;
+                    }
+                    $from_envs = $this->_client_fields_from_envs($url_catalog_rows);
                     $data = [
                         'company_name' => $company_name,
                         'contact_person' => $contact_person,
                         'email' => $email,
                         'phone' => $phone,
                         'alternate_phone' => trim($this->input->post('alternate_phone')),
-                        'website' => $website,
-                        'demo_url' => $demo_url,
-                        'pos_url' => $pos_url,
+                        'website' => $from_envs['website'],
+                        'demo_url' => $from_envs['demo_url'],
+                        'pos_url' => $from_envs['pos_url'],
                         'address' => trim($this->input->post('address')),
                         'city' => trim($this->input->post('city')),
                         'state' => trim($this->input->post('state')),
@@ -932,11 +1013,13 @@ class Clients extends CI_Controller {
                         'client_type' => $this->_resolve_client_type($this->input->post('client_type')),
                         'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
                         'notes' => trim($this->input->post('notes')),
-                        'db_name' => trim($this->input->post('db_name')),
-                        'db_username' => trim($this->input->post('db_username')),
-                        'db_password' => trim($this->input->post('db_password')),
-                        'db_host' => trim($this->input->post('db_host')),
-                        'db_port' => trim($this->input->post('db_port')),
+                        'db_name' => $from_envs['db_name'],
+                        'db_username' => $from_envs['db_username'],
+                        'db_password' => $from_envs['db_password'] !== null && $from_envs['db_password'] !== ''
+                            ? $from_envs['db_password']
+                            : (isset($c->db_password) ? $c->db_password : null),
+                        'db_host' => $from_envs['db_host'],
+                        'db_port' => $from_envs['db_port'],
                         'logo' => $logo_path,
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];
@@ -962,6 +1045,8 @@ class Clients extends CI_Controller {
                         redirect('clients/edit/'.$id);
                         return;
                     }
+
+                    $this->_save_posted_client_envs((int) $id, $url_catalog_rows);
                     
                     $success_msg = get_notification_message('clients', 'update', 'success');
                     $this->session->set_flashdata('success', $success_msg);
@@ -982,10 +1067,16 @@ class Clients extends CI_Controller {
             }
             
             $managers = $this->clients->get_account_managers();
+            $existing_urls = $this->client_urls->get_by_client((int) $id);
+            if (empty($existing_urls)) {
+                $existing_urls = $this->_seed_envs_from_client($c);
+            }
             $this->load->view('clients/edit', [
                 'client'=>$c,
                 'managers'=>$managers,
                 'client_types'=>$this->_client_type_options(),
+                'url_types'=>$this->_client_url_type_options(),
+                'existing_urls'=>$existing_urls,
             ]);
             
         } catch (Exception $e) {
@@ -1983,5 +2074,429 @@ class Clients extends CI_Controller {
         }
         $num++;
         return $prefix . str_pad((string) $num, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function _client_url_type_options()
+    {
+        return array(
+            'website' => 'Website',
+            'demo' => 'Demo',
+            'pos' => 'POS',
+            'other' => 'Other',
+        );
+    }
+
+    private function _resolve_url_type($posted)
+    {
+        $posted = strtolower(trim((string) $posted));
+        $opts = $this->_client_url_type_options();
+        if ($posted !== '' && isset($opts[$posted])) {
+            return $posted;
+        }
+        return 'other';
+    }
+
+    /**
+     * Seed multi-set UI from legacy clients columns when client_urls is empty.
+     *
+     * @param object $c
+     * @return array
+     */
+    private function _seed_envs_from_client($c)
+    {
+        $out = array();
+        if (!$c) {
+            return $out;
+        }
+        if (!empty($c->website) || !empty($c->db_name) || !empty($c->db_host)) {
+            $out[] = (object) array(
+                'id' => 0,
+                'url_type' => 'website',
+                'version' => '1.0',
+                'url' => isset($c->website) ? $c->website : '',
+                'db_name' => isset($c->db_name) ? $c->db_name : '',
+                'db_username' => isset($c->db_username) ? $c->db_username : '',
+                'db_password' => isset($c->db_password) ? $c->db_password : '',
+                'db_host' => isset($c->db_host) ? $c->db_host : '',
+                'db_port' => isset($c->db_port) ? $c->db_port : '',
+            );
+        }
+        if (!empty($c->demo_url)) {
+            $out[] = (object) array(
+                'id' => 0,
+                'url_type' => 'demo',
+                'version' => '1.0',
+                'url' => $c->demo_url,
+                'db_name' => '',
+                'db_username' => '',
+                'db_password' => '',
+                'db_host' => '',
+                'db_port' => '',
+            );
+        }
+        if (!empty($c->pos_url)) {
+            $out[] = (object) array(
+                'id' => 0,
+                'url_type' => 'pos',
+                'version' => '1.0',
+                'url' => $c->pos_url,
+                'db_name' => '',
+                'db_username' => '',
+                'db_password' => '',
+                'db_host' => '',
+                'db_port' => '',
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Parse client_sets[] — each set has website/demo/pos URLs + one DB block.
+     *
+     * @return array|false
+     */
+    private function _parse_posted_client_envs()
+    {
+        $raw = $this->input->post('client_sets');
+        if (!is_array($raw) || empty($raw)) {
+            // Backward compat with older client_envs[] posts.
+            $legacy = $this->input->post('client_envs');
+            if (is_array($legacy) && !empty($legacy)) {
+                return $this->_parse_legacy_client_envs($legacy);
+            }
+            return array();
+        }
+
+        $out = array();
+        $set_num = 0;
+        foreach ($raw as $set) {
+            if (!is_array($set)) {
+                continue;
+            }
+            $set_num++;
+            $version = ($set_num === 1) ? '1.0' : (string) $set_num . '.0';
+
+            $db_name = isset($set['db_name']) ? trim((string) $set['db_name']) : '';
+            $db_username = isset($set['db_username']) ? trim((string) $set['db_username']) : '';
+            $db_password = isset($set['db_password']) ? trim((string) $set['db_password']) : '';
+            $db_host = isset($set['db_host']) ? trim((string) $set['db_host']) : '';
+            $db_port = isset($set['db_port']) ? trim((string) $set['db_port']) : '';
+            $has_db = ($db_name !== '' || $db_username !== '' || $db_password !== '' || $db_host !== '' || $db_port !== '');
+
+            $urls = array(
+                'website' => isset($set['website_url']) ? trim((string) $set['website_url']) : '',
+                'demo' => isset($set['demo_url']) ? trim((string) $set['demo_url']) : '',
+                'pos' => isset($set['pos_url']) ? trim((string) $set['pos_url']) : '',
+            );
+
+            $any_url = false;
+            foreach ($urls as $url_raw) {
+                if ($url_raw !== '') {
+                    $any_url = true;
+                    break;
+                }
+            }
+            if (!$any_url && !$has_db) {
+                continue;
+            }
+
+            $db_attached = false;
+            foreach ($urls as $type => $url_raw) {
+                if ($url_raw === '') {
+                    continue;
+                }
+                $normalized = normalize_optional_url($url_raw);
+                if ($normalized === false || $normalized === null || $normalized === '') {
+                    $this->session->set_flashdata('error', 'URLs & Database: please enter a valid ' . strtoupper($type) . ' URL.');
+                    return false;
+                }
+                $row = array(
+                    'version' => $version,
+                    'url' => $normalized,
+                    'url_type' => $type,
+                    'db_name' => '',
+                    'db_username' => '',
+                    'db_password' => '',
+                    'db_host' => '',
+                    'db_port' => '',
+                );
+                if ($has_db && !$db_attached) {
+                    $row['db_name'] = $db_name;
+                    $row['db_username'] = $db_username;
+                    $row['db_password'] = $db_password;
+                    $row['db_host'] = $db_host;
+                    $row['db_port'] = $db_port;
+                    $db_attached = true;
+                }
+                $out[] = $row;
+            }
+
+            // DB-only set (no URLs yet) — keep as website type with empty URL.
+            if ($has_db && !$db_attached) {
+                $out[] = array(
+                    'version' => $version,
+                    'url' => '',
+                    'url_type' => 'website',
+                    'db_name' => $db_name,
+                    'db_username' => $db_username,
+                    'db_password' => $db_password,
+                    'db_host' => $db_host,
+                    'db_port' => $db_port,
+                );
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array $raw
+     * @return array|false
+     */
+    private function _parse_legacy_client_envs($raw)
+    {
+        $out = array();
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $version = isset($row['version']) ? trim((string) $row['version']) : '';
+            $url_raw = isset($row['url']) ? trim((string) $row['url']) : '';
+            $url_type = $this->_resolve_url_type(isset($row['url_type']) ? $row['url_type'] : 'other');
+            $db_name = isset($row['db_name']) ? trim((string) $row['db_name']) : '';
+            $db_username = isset($row['db_username']) ? trim((string) $row['db_username']) : '';
+            $db_password = isset($row['db_password']) ? trim((string) $row['db_password']) : '';
+            $db_host = isset($row['db_host']) ? trim((string) $row['db_host']) : '';
+            $db_port = isset($row['db_port']) ? trim((string) $row['db_port']) : '';
+
+            $has_db = ($db_name !== '' || $db_username !== '' || $db_password !== '' || $db_host !== '' || $db_port !== '');
+            if ($url_raw === '' && !$has_db) {
+                continue;
+            }
+            if (strlen($version) > 50) {
+                $this->session->set_flashdata('error', 'URLs & Database: Version max 50 characters.');
+                return false;
+            }
+            $normalized = '';
+            if ($url_raw !== '') {
+                $normalized = normalize_optional_url($url_raw);
+                if ($normalized === false || $normalized === null || $normalized === '') {
+                    $this->session->set_flashdata('error', 'URLs & Database: please enter a valid URL.');
+                    return false;
+                }
+            }
+            if ($version === '') {
+                $version = '1.0';
+            }
+            $out[] = array(
+                'version' => $version,
+                'url' => $normalized,
+                'url_type' => $url_type,
+                'db_name' => $db_name,
+                'db_username' => $db_username,
+                'db_password' => $db_password,
+                'db_host' => $db_host,
+                'db_port' => $db_port,
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Derive clients.website / demo_url / pos_url / db_* from first matching sets.
+     *
+     * @param array $rows
+     * @return array
+     */
+    private function _client_fields_from_envs(array $rows)
+    {
+        $out = array(
+            'website' => null,
+            'demo_url' => null,
+            'pos_url' => null,
+            'db_name' => null,
+            'db_username' => null,
+            'db_password' => null,
+            'db_host' => null,
+            'db_port' => null,
+        );
+        foreach ($rows as $row) {
+            $type = isset($row['url_type']) ? (string) $row['url_type'] : 'other';
+            $url = isset($row['url']) ? (string) $row['url'] : '';
+            if ($url !== '') {
+                if ($type === 'website' && $out['website'] === null) {
+                    $out['website'] = $url;
+                } elseif ($type === 'demo' && $out['demo_url'] === null) {
+                    $out['demo_url'] = $url;
+                } elseif ($type === 'pos' && $out['pos_url'] === null) {
+                    $out['pos_url'] = $url;
+                } elseif ($out['website'] === null && $type === 'other') {
+                    $out['website'] = $url;
+                }
+            }
+            if ($out['db_name'] === null) {
+                $has_db = !empty($row['db_name']) || !empty($row['db_username']) || !empty($row['db_host']);
+                if ($has_db) {
+                    $out['db_name'] = !empty($row['db_name']) ? $row['db_name'] : null;
+                    $out['db_username'] = !empty($row['db_username']) ? $row['db_username'] : null;
+                    $out['db_password'] = !empty($row['db_password']) ? $row['db_password'] : null;
+                    $out['db_host'] = !empty($row['db_host']) ? $row['db_host'] : null;
+                    $out['db_port'] = !empty($row['db_port']) ? $row['db_port'] : null;
+                }
+            }
+        }
+        if ($out['website'] === null) {
+            foreach ($rows as $row) {
+                if (!empty($row['url'])) {
+                    $out['website'] = $row['url'];
+                    break;
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param int $client_id
+     * @param array $rows
+     * @return void
+     */
+    private function _save_posted_client_envs($client_id, array $rows)
+    {
+        $client_id = (int) $client_id;
+        if ($client_id < 1) {
+            return;
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        $this->client_urls->replace_for_client($client_id, $rows, $uid > 0 ? $uid : null);
+    }
+
+    /**
+     * GET /clients/urls — redirect into Clients tab.
+     */
+    public function urls()
+    {
+        require_module_access(array('clients_urls', 'clients', 'clients_list'), true);
+
+        $client_id = (int) $this->input->get('client_id');
+        $qs = 'tab=urls';
+        if ($client_id > 0) {
+            $qs .= '&client_id=' . $client_id;
+        }
+        redirect('clients?' . $qs);
+    }
+
+    /**
+     * GET|POST /clients/urls/create — folded into clients create/edit.
+     */
+    public function url_create()
+    {
+        require_module_access(array('clients_urls', 'clients', 'clients_add'), true);
+
+        $preselect_client_id = (int) $this->input->get('client_id');
+        if ($preselect_client_id <= 0) {
+            $preselect_client_id = (int) $this->input->post('client_id');
+        }
+
+        if ($preselect_client_id > 0 && $this->clients->get_client($preselect_client_id)) {
+            $this->session->set_flashdata('info', 'Add more URL / DB sets in the URLs & Database section below.');
+            redirect('clients/edit/' . $preselect_client_id . '#client-urls');
+            return;
+        }
+
+        $this->session->set_flashdata('info', 'Add URL + DB sets in the URLs & Database section (use Add set for more).');
+        redirect('clients/create#client-urls');
+    }
+
+    /**
+     * Open client edit for a catalog row.
+     */
+    public function url_edit($id = null)
+    {
+        require_module_access(array('clients_urls', 'clients', 'clients_edit'), true);
+        $id = (int) $id;
+        $row = $id > 0 ? $this->client_urls->get($id) : null;
+        if ($row && !empty($row->client_id)) {
+            redirect('clients/edit/' . (int) $row->client_id . '#client-urls');
+            return;
+        }
+        redirect('clients?tab=urls');
+    }
+
+    /**
+     * POST /clients/urls/delete/{id}
+     */
+    public function url_delete($id = null)
+    {
+        require_module_access(array('clients_urls', 'clients', 'clients_delete'), true);
+
+        $id = (int) $id;
+        if ($id <= 0) {
+            show_404();
+            return;
+        }
+        if (strtolower((string) $this->input->method()) !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
+        $row = $this->client_urls->get($id);
+        if (!$row) {
+            show_404();
+            return;
+        }
+
+        $client_id = (int) $row->client_id;
+        $this->client_urls->delete($id);
+        $this->session->set_flashdata('success', 'URL / DB set deleted.');
+        redirect('clients?tab=urls' . ($client_id > 0 ? ('&client_id=' . $client_id) : ''));
+    }
+
+    /**
+     * POST /clients/urls/delete-set — delete all rows in one env set.
+     */
+    public function url_delete_set()
+    {
+        require_module_access(array('clients_urls', 'clients', 'clients_delete'), true);
+
+        if (strtolower((string) $this->input->method()) !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+
+        $client_id = (int) $this->input->post('client_id');
+        $ids_raw = $this->input->post('ids');
+        $ids = array();
+        if (is_array($ids_raw)) {
+            foreach ($ids_raw as $id) {
+                $id = (int) $id;
+                if ($id > 0) {
+                    $ids[] = $id;
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if (empty($ids)) {
+            $this->session->set_flashdata('error', 'Nothing to delete.');
+            redirect('clients?tab=urls' . ($client_id > 0 ? ('&client_id=' . $client_id) : ''));
+            return;
+        }
+
+        foreach ($ids as $id) {
+            $row = $this->client_urls->get($id);
+            if (!$row) {
+                continue;
+            }
+            if ($client_id > 0 && (int) $row->client_id !== $client_id) {
+                continue;
+            }
+            if ($client_id <= 0) {
+                $client_id = (int) $row->client_id;
+            }
+            $this->client_urls->delete($id);
+        }
+
+        $this->session->set_flashdata('success', 'URL / DB set deleted.');
+        redirect('clients?tab=urls' . ($client_id > 0 ? ('&client_id=' . $client_id) : ''));
     }
 }

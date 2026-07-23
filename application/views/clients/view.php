@@ -266,6 +266,21 @@ if ($st_lower === 'active') {
                     <?php else: ?>—<?php endif; ?>
                   </span>
                 </div>
+                <?php
+                $can_add_url = function_exists('has_module_access') && (
+                    has_module_access('clients_urls') || has_module_access('clients_add') || has_module_access('clients')
+                );
+                if ($can_add_url):
+                ?>
+                <div class="client-detail-dl-item">
+                  <span class="client-detail-dl-label">Version URLs</span>
+                  <span class="client-detail-dl-value">
+                    <a href="<?php echo site_url('clients?tab=urls&client_id=' . $client_id); ?>">View URLs</a>
+                    <span class="text-muted mx-1">·</span>
+                    <a href="<?php echo site_url('clients/edit/' . $client_id . '#client-urls'); ?>">Add URL</a>
+                  </span>
+                </div>
+                <?php endif; ?>
                 <div class="client-detail-dl-item">
                   <span class="client-detail-dl-label">Onboarded</span>
                   <span class="client-detail-dl-value"><?php echo esc_view(isset($client->onboarding_date) ? $client->onboarding_date : ''); ?></span>

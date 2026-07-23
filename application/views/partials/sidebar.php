@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <script>initSidebarGroup('daily-activity-group','daily-activity-toggle','daily-activity-parent','daily-activity-submenu','sb_daily_activity_open',<?php echo ($active==='daily-activity'||$active==='daily_activity')?'true':'false'; ?>);</script>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('clients') || has_module_access('clients_list') || has_module_access('clients_urls'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
       <?php endif; ?>
       <?php if(function_exists('has_module_access') && has_module_access('employees')): ?>

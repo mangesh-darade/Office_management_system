@@ -1,13 +1,15 @@
 <?php
-$active_tab = (isset($active_tab) && $active_tab === 'cart') ? 'cart' : 'list';
+$active_tab = (isset($active_tab) && in_array($active_tab, array('cart', 'urls'), true)) ? $active_tab : 'list';
+$embed = !empty($embed) || (bool) $this->input->get('embed');
+$parent_tab = trim((string) $this->input->get('parent_tab'));
 $header_css = array('assets/css/clients.css');
 if ($active_tab === 'cart') {
   $header_css[] = 'assets/css/project-dashboard.css';
 }
-$this->load->view('partials/header', array('title' => 'Clients', 'extra_css' => $header_css));
-$css_v = is_file(FCPATH . 'assets/css/clients.css') ? filemtime(FCPATH . 'assets/css/clients.css') : '1';
+if (!$embed) {
+  $this->load->view('partials/header', array('title' => 'Clients', 'extra_css' => $header_css));
+}
 ?>
-<link href="<?php echo base_url('assets/css/clients.css?v=' . $css_v); ?>" rel="stylesheet">
 
 <?php
 $st = isset($filters['status']) ? (string) $filters['status'] : '';
@@ -43,7 +45,7 @@ foreach ($status_records as $sr) {
   $status_colors[(string) $sr->code] = !empty($sr->color) ? (string) $sr->color : '#6c757d';
 }
 
-$cl_url = function ($overrides = array()) use ($st, $ct, $q, $sort, $dir) {
+$cl_url = function ($overrides = array()) use ($st, $ct, $q, $sort, $dir, $active_tab, $embed, $parent_tab) {
   $params = array();
   $status = array_key_exists('status', $overrides) ? $overrides['status'] : $st;
   $type = array_key_exists('client_type', $overrides) ? $overrides['client_type'] : $ct;
@@ -51,6 +53,7 @@ $cl_url = function ($overrides = array()) use ($st, $ct, $q, $sort, $dir) {
   $sort_col = array_key_exists('sort', $overrides) ? $overrides['sort'] : $sort;
   $sort_dir = array_key_exists('dir', $overrides) ? $overrides['dir'] : $dir;
   $page_n = array_key_exists('page', $overrides) ? $overrides['page'] : null;
+  $tab = array_key_exists('tab', $overrides) ? $overrides['tab'] : ($active_tab !== 'list' ? $active_tab : '');
   if ($status !== '' && $status !== null) {
     $params['status'] = $status;
   }
@@ -66,6 +69,15 @@ $cl_url = function ($overrides = array()) use ($st, $ct, $q, $sort, $dir) {
   }
   if ($page_n !== null && (int) $page_n > 1) {
     $params['page'] = (int) $page_n;
+  }
+  if ($tab !== '' && $tab !== null && $tab !== 'list') {
+    $params['tab'] = $tab;
+  }
+  if ($embed) {
+    $params['embed'] = 1;
+    if ($parent_tab !== '') {
+      $params['parent_tab'] = $parent_tab;
+    }
   }
   return site_url('clients' . (!empty($params) ? ('?' . http_build_query($params)) : ''));
 };
@@ -127,8 +139,9 @@ $cl_link_count = function ($c) {
 };
 ?>
 
-<div class="container-fluid py-2 cl-page">
+<div class="container-fluid <?php echo $embed ? 'py-1 px-0' : 'py-2'; ?> cl-page">
 
+  <?php if (!$embed): ?>
   <div class="cl-top">
     <div>
       <h1><i class="bi bi-briefcase text-primary me-2"></i>Clients</h1>
@@ -145,25 +158,32 @@ $cl_link_count = function ($c) {
       </a>
       <?php endif; ?>
       <?php if ($can_add): ?>
-      <a class="btn btn-primary btn-sm" href="<?php echo site_url('clients/create'); ?>">
+      <a class="btn btn-primary btn-sm" href="<?php echo site_url($active_tab === 'urls' ? 'clients/create#client-urls' : 'clients/create'); ?>">
         <i class="bi bi-plus-lg me-1"></i>Add Client
       </a>
       <?php endif; ?>
     </div>
   </div>
+  <?php endif; ?>
 
   <div class="cl-shell cl-view-tabs-shell mb-2">
     <nav class="cl-tabs" aria-label="Clients views">
-      <a class="cl-tab <?php echo $active_tab === 'list' ? 'active' : ''; ?>" href="<?php echo site_url('clients'); ?>">
+      <a class="cl-tab <?php echo $active_tab === 'list' ? 'active' : ''; ?>" href="<?php echo esc_view($cl_url(array('tab' => 'list')), ENT_QUOTES, 'UTF-8'); ?>">
         <i class="bi bi-list-ul"></i> List
         <?php if ($active_tab === 'list'): ?>
         <span class="cl-tab-count"><?php echo (int) $stats_total; ?></span>
         <?php endif; ?>
       </a>
-      <a class="cl-tab <?php echo $active_tab === 'cart' ? 'active' : ''; ?>" href="<?php echo site_url('clients?tab=cart'); ?>">
+      <a class="cl-tab <?php echo $active_tab === 'cart' ? 'active' : ''; ?>" href="<?php echo esc_view($cl_url(array('tab' => 'cart')), ENT_QUOTES, 'UTF-8'); ?>">
         <i class="bi bi-columns-gap"></i> Client cart
         <?php if ($active_tab === 'cart'): ?>
         <span class="cl-tab-count"><?php echo isset($client_cards) ? count($client_cards) : 0; ?></span>
+        <?php endif; ?>
+      </a>
+      <a class="cl-tab <?php echo $active_tab === 'urls' ? 'active' : ''; ?>" href="<?php echo esc_view($cl_url(array('tab' => 'urls')), ENT_QUOTES, 'UTF-8'); ?>">
+        <i class="bi bi-link-45deg"></i> Client URLs
+        <?php if ($active_tab === 'urls'): ?>
+        <span class="cl-tab-count"><?php echo isset($url_rows) ? count($url_rows) : 0; ?></span>
         <?php endif; ?>
       </a>
     </nav>
@@ -225,6 +245,12 @@ $cl_link_count = function ($c) {
 
   <div class="cl-shell">
     <form method="get" action="<?php echo site_url('clients'); ?>" class="cl-toolbar" id="clFilterForm">
+      <?php if ($embed): ?>
+      <input type="hidden" name="embed" value="1">
+      <?php if ($parent_tab !== ''): ?>
+      <input type="hidden" name="parent_tab" value="<?php echo esc_view($parent_tab, ENT_QUOTES, 'UTF-8'); ?>">
+      <?php endif; ?>
+      <?php endif; ?>
       <?php if ($sort !== ''): ?>
       <input type="hidden" name="sort" value="<?php echo esc_view($sort); ?>">
       <input type="hidden" name="dir" value="<?php echo esc_view($dir); ?>">
@@ -249,7 +275,7 @@ $cl_link_count = function ($c) {
       <input type="hidden" name="client_type" value="<?php echo esc_view($ct); ?>">
       <?php endif; ?>
       <?php if ($st !== '' || $ct !== '' || $q !== ''): ?>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('clients'); ?>">Reset Filters</a>
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($cl_url(array('status' => '', 'client_type' => '', 'q' => '', 'sort' => '', 'dir' => 'asc', 'page' => 1, 'tab' => 'list')), ENT_QUOTES, 'UTF-8'); ?>">Reset Filters</a>
       <?php endif; ?>
     </form>
 
@@ -528,6 +554,16 @@ $cl_link_count = function ($c) {
     <?php endif; ?>
   </div>
 
+  <?php elseif ($active_tab === 'urls'): ?>
+  <?php $this->load->view('clients/_urls_panel', array(
+    'url_rows' => isset($url_rows) ? $url_rows : array(),
+    'clients_list' => isset($clients_list) ? $clients_list : array(),
+    'url_types' => isset($url_types) ? $url_types : array(),
+    'url_versions' => isset($url_versions) ? $url_versions : array(),
+    'url_filters' => isset($url_filters) ? $url_filters : array(),
+    'embed' => $embed,
+    'parent_tab' => $parent_tab,
+  )); ?>
   <?php else: ?>
   <div class="client-dash-page project-dash-compact">
     <?php $this->load->view('clients/_cart_body'); ?>
@@ -598,7 +634,7 @@ function confirmDeleteClient(id, name) {
   new bootstrap.Modal(document.getElementById('deleteClientModal')).show();
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
   var form = document.getElementById('clFilterForm');
   var search = document.getElementById('clSearchInput');
   var status = document.getElementById('clStatusFilter');
@@ -703,7 +739,9 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('clBulkDeleteForm').submit();
     });
   }
-});
+})();
 </script>
 
-<?php $this->load->view('partials/footer'); ?>
+<?php if (!$embed) {
+  $this->load->view('partials/footer');
+} ?>

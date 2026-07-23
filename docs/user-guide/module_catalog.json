@@ -135,6 +135,19 @@
           ]}
         },
         {
+          "name": "Client URLs",
+          "menu": "Client URLs",
+          "purpose": "Version catalog of client website, demo, POS, and other URLs (separate from primary website/demo/pos fields on the client record).",
+          "list": {"route": "clients/urls"},
+          "add": {"route": "clients/urls/create", "steps": [
+            "Open Client URLs (or client detail → Add URL).",
+            "Select client, enter version, URL, and type.",
+            "Save."
+          ]},
+          "edit": {"list_route": "clients/urls", "steps": ["Open Client URLs → Edit on a row.", "Update fields → Save."]},
+          "delete": {"steps": ["Open Client URLs → Delete on a row → confirm."]}
+        },
+        {
           "name": "Roles",
           "menu": "User Management → Roles",
           "purpose": "Group permissions (Staff, Admin, etc.). Pair with Permission Manager.",

@@ -270,10 +270,10 @@ document.addEventListener('DOMContentLoaded', function() {
     'created_for', 'project_id', 'q', 'view', 'section', 'status', 'tag',
     'client_id', 'work_type', 'involvement', 'urgent_only', 'important_only',
     'overdue_only', 'complete_view', 'created_by', 'department_id', 'user_id',
-    'client_type'
+    'client_type', 'reward_period', 'score_from', 'score_to'
   ];
   // Tab-owned params — never copy these from the shell URL onto another tab.
-  var MW_TAB_OWNED_KEYS = ['view', 'section'];
+  var MW_TAB_OWNED_KEYS = ['view', 'section', 'reward_period', 'score_from', 'score_to'];
 
   function readPersistedState() {
     try {
@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
       'overview': '<?php echo site_url("my-works?view=overview"); ?>',
       'daily-pulse': '<?php echo site_url("my-works/daily-pulse"); ?>',
       'project-dashboard': '<?php echo site_url("projects/dashboard"); ?>',
-      'clients': '<?php echo site_url("clients/dashboard"); ?>',
+      'clients': '<?php echo site_url("clients"); ?>',
       'team-dashboard': '<?php echo site_url("tasks/my-dashboard"); ?>',
       'list': '<?php echo site_url("my-works?view=list"); ?>',
       'requirements': '<?php echo site_url("requirements"); ?>'
@@ -396,6 +396,26 @@ document.addEventListener('DOMContentLoaded', function() {
   function resolveTabLoadUrl(tabName) {
     var saved = getSavedTabPaneUrl(tabName);
     var base = saved || applyParentFiltersToUrl(defaultUrlForTab(tabName));
+    if (tabName === 'daily-pulse') {
+      try {
+        var url = new URL(base, window.location.origin);
+        var parent = new URLSearchParams(window.location.search);
+        ['reward_period', 'score_from', 'score_to'].forEach(function(key) {
+          if (!parent.has(key)) {
+            return;
+          }
+          var value = parent.get(key);
+          if (value === null || value === '') {
+            return;
+          }
+          // Prefer parent URL only when pane has no saved filter yet.
+          if (!saved || !url.searchParams.has(key)) {
+            url.searchParams.set(key, value);
+          }
+        });
+        base = url.pathname + url.search + url.hash;
+      } catch (e) {}
+    }
     return forceTabViewParams(base, tabName);
   }
 
@@ -647,10 +667,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       
+      var isClientsListLink = false;
+      try {
+        var clientsUrl = new URL(href, window.location.origin);
+        var clientsPath = clientsUrl.pathname.replace(/\/+$/, '');
+        isClientsListLink = /\/clients$/.test(clientsPath) || /\/clients\/dashboard$/.test(clientsPath);
+      } catch (err) {
+        isClientsListLink = /\/clients(\?|$)/.test(href) || href.indexOf('clients/dashboard') >= 0;
+      }
+
       var isDashboardLink = href.indexOf('my-works') >= 0 || 
                             href.indexOf('projects/dashboard') >= 0 ||
                             href.indexOf('tasks/my-dashboard') >= 0 ||
-                            href.indexOf('clients/dashboard') >= 0 ||
+                            isClientsListLink ||
                             href.indexOf('requirements') >= 0 ||
                             href.indexOf('daily-pulse') >= 0;
                             

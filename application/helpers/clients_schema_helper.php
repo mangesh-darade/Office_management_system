@@ -88,5 +88,40 @@ if (!function_exists('clients_schema_ensure')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $db->query($sql2);
         }
+        // Multiple URL + DB sets per client
+        if (!$db->table_exists('client_urls')) {
+            $sql3 = "CREATE TABLE `client_urls` (
+                `id` int(11) NOT NULL AUTO_INCREMENT,
+                `client_id` int(11) NOT NULL,
+                `version` varchar(50) NOT NULL DEFAULT '1.0',
+                `url` varchar(500) NOT NULL,
+                `url_type` varchar(30) DEFAULT 'website',
+                `db_name` varchar(255) DEFAULT NULL,
+                `db_username` varchar(255) DEFAULT NULL,
+                `db_password` varchar(255) DEFAULT NULL,
+                `db_host` varchar(255) DEFAULT NULL,
+                `db_port` varchar(20) DEFAULT NULL,
+                `created_by` int(11) DEFAULT NULL,
+                `created_at` datetime DEFAULT NULL,
+                `updated_at` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_client_id` (`client_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+            $db->query($sql3);
+        }
+        if ($db->table_exists('client_urls')) {
+            $url_db_fields = array(
+                'db_name' => "ALTER TABLE `client_urls` ADD `db_name` varchar(255) DEFAULT NULL AFTER `url_type`",
+                'db_username' => "ALTER TABLE `client_urls` ADD `db_username` varchar(255) DEFAULT NULL AFTER `db_name`",
+                'db_password' => "ALTER TABLE `client_urls` ADD `db_password` varchar(255) DEFAULT NULL AFTER `db_username`",
+                'db_host' => "ALTER TABLE `client_urls` ADD `db_host` varchar(255) DEFAULT NULL AFTER `db_password`",
+                'db_port' => "ALTER TABLE `client_urls` ADD `db_port` varchar(20) DEFAULT NULL AFTER `db_host`",
+            );
+            foreach ($url_db_fields as $field => $sql) {
+                if (!schema_table_has_column($db, 'client_urls', $field)) {
+                    $db->query($sql);
+                }
+            }
+        }
     }
 }

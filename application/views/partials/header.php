@@ -19,7 +19,7 @@ if ($embed) {
   <link href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.min.css" rel="stylesheet">
   <link rel="manifest" href="<?php echo base_url('assets/pwa/manifest.webmanifest'); ?>">
   <link href="<?php echo base_url('assets/css/app.css?v=' . (is_file(FCPATH . 'assets/css/app.css') ? filemtime(FCPATH . 'assets/css/app.css') : '1')); ?>" rel="stylesheet">
-  <link href="<?php echo base_url('assets/css/compact-forms.css'); ?>" rel="stylesheet">
+  <link href="<?php echo base_url('assets/css/compact-forms.css?v=' . (is_file(FCPATH . 'assets/css/compact-forms.css') ? filemtime(FCPATH . 'assets/css/compact-forms.css') : '1')); ?>" rel="stylesheet">
   <style>
     /* Show user avatar on mobile */
     @media (max-width: 576px) {
@@ -34,9 +34,29 @@ if ($embed) {
     }
   </style>
   <?php
+    if (!function_exists('oms_css_href')) {
+      function oms_css_href($rel_path) {
+        $rel_path = ltrim((string) $rel_path, '/');
+        // Strip existing query string from path for filemtime lookup.
+        $path_only = $rel_path;
+        $qpos = strpos($path_only, '?');
+        if ($qpos !== false) {
+          $path_only = substr($path_only, 0, $qpos);
+        }
+        $full = FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $path_only);
+        $ver = is_file($full) ? (string) filemtime($full) : (string) time();
+        return base_url($path_only . '?v=' . $ver);
+      }
+    }
     if (isset($extra_css) && is_array($extra_css)) {
         foreach ($extra_css as $cssFile) {
-            echo '<link href="'.esc_view(base_url($cssFile), ENT_QUOTES, 'UTF-8').'" rel="stylesheet">' . PHP_EOL;
+            echo '<link href="' . esc_view(oms_css_href($cssFile), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
+        }
+    }
+    // Also accept header_css alias used by some views.
+    if (isset($header_css) && is_array($header_css)) {
+        foreach ($header_css as $cssFile) {
+            echo '<link href="' . esc_view(oms_css_href($cssFile), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
         }
     }
     $coaching_uri = '';
@@ -44,7 +64,7 @@ if ($embed) {
         $coaching_uri = strtolower((string) $this->uri->segment(1));
     }
     if ($coaching_uri === 'coaching' || strpos($coaching_uri, 'coaching-') === 0) {
-        echo '<link href="' . esc_view(base_url('assets/css/coaching.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
+        echo '<link href="' . esc_view(oms_css_href('assets/css/coaching.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
     }
   ?>
   <!-- jQuery must be loaded early so that inline view scripts relying on it (e.g., chats/app.php) can use $.ajax and delegated events -->
@@ -275,7 +295,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
       <a class="nav-link sidebar-link <?php echo $active==='superadmin'?'active':''; ?>" href="<?php echo site_url('superadmin'); ?>"><i class="bi bi-shield-lock-fill me-2 text-danger"></i>Super Admin</a>
       <?php endif; ?>
       
-      <?php if(function_exists('has_module_access') && has_module_access('clients')): ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('clients') || has_module_access('clients_list') || has_module_access('clients_urls'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='clients'?'active':''; ?>" href="<?php echo site_url('clients'); ?>"><i class="bi bi-briefcase me-2"></i>Clients</a>
       <?php endif; ?>
       
