@@ -128,7 +128,7 @@ $this->load->view('partials/oms_page_head', array(
 
 <div class="kanban board-responsive">
   <?php
-    $assigneeName = function ($t) {
+    $assigneeName = function ($t) use ($assignee_names_map) {
       $name = '';
       if (isset($t->emp_name) && trim((string) $t->emp_name) !== '') {
         $name = $t->emp_name;
@@ -139,7 +139,11 @@ $this->load->view('partials/oms_page_head', array(
       } else if (isset($t->assignee_email)) {
         $name = $t->assignee_email;
       }
-      return trim((string) $name);
+      $name = trim((string) $name);
+      if (function_exists('multi_assignees_format_label') && isset($t->id) && isset($assignee_names_map[(int) $t->id]) && is_array($assignee_names_map[(int) $t->id])) {
+        $name = multi_assignees_format_label($name, $assignee_names_map[(int) $t->id]);
+      }
+      return $name;
     };
     $initials = function ($text) {
       $text = trim((string) $text);

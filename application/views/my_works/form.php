@@ -42,7 +42,20 @@
 
   $curProject = (int) $field('project_id', 0);
 
-  $curFor = $isEdit ? (int) $item->created_for : (int) $field('created_for', $uid);
+  $curForIds = array();
+  if (isset($assigned_user_ids) && is_array($assigned_user_ids)) {
+    $curForIds = array_map('intval', $assigned_user_ids);
+  } elseif ($isEdit && !empty($item->created_for)) {
+    $curForIds = array((int) $item->created_for);
+  } else {
+    $fallback = (int) $field('created_for', $uid);
+    if ($fallback > 0) {
+      $curForIds = array($fallback);
+    }
+  }
+  if (empty($curForIds)) {
+    $curForIds = array($uid);
+  }
 
 ?>
 
@@ -133,33 +146,11 @@
 
           <div class="row g-2 oms-form-grid mw-form-assignment-row">
 
-            <div class="col-12 col-lg-4 mw-form-field">
+            <div class="col-12 col-lg-8 mw-form-field">
 
               <label class="form-label fw-semibold" for="mw-form-title">Task title <span class="text-danger">*</span></label>
 
               <input type="text" name="title" id="mw-form-title" class="form-control" required maxlength="255" value="<?php echo esc_view((string) $field('title')); ?>" placeholder="e.g. Follow up with client on proposal" autofocus>
-
-            </div>
-
-            <div class="col-12 col-lg-4 mw-form-field">
-
-              <label class="form-label fw-semibold" for="mw-form-created-for">Assigned to <span class="text-danger">*</span></label>
-
-              <select name="created_for" id="mw-form-created-for" class="form-select" required>
-
-                <?php foreach ((array) $users as $u): ?>
-
-                  <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $u->id === $curFor ? 'selected' : ''; ?>>
-
-                    <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id)); ?>
-
-                  </option>
-
-                <?php endforeach; ?>
-
-              </select>
-
-              <div class="form-text">The person responsible for completing this item.</div>
 
             </div>
 
@@ -178,6 +169,28 @@
                 'placeholder' => '— Select type —',
 
               )); ?>
+
+            </div>
+
+            <div class="col-12 mw-form-field">
+
+              <label class="form-label fw-semibold" for="mw-form-created-for">Assigned to <span class="text-danger">*</span></label>
+
+              <select name="created_for[]" id="mw-form-created-for" class="form-select oms-select2-multi" multiple style="width: 100%;" required>
+
+                <?php foreach ((array) $users as $u): ?>
+
+                  <option value="<?php echo (int) $u->id; ?>" <?php echo in_array((int) $u->id, $curForIds, true) ? 'selected' : ''; ?>>
+
+                    <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id)); ?>
+
+                  </option>
+
+                <?php endforeach; ?>
+
+              </select>
+
+              <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
 
             </div>
 
@@ -627,4 +640,10 @@
 
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+  $this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#mw-form-created-for'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+  ));
+?>
 

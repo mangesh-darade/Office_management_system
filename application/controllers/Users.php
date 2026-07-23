@@ -75,6 +75,7 @@ class Users extends CI_Controller {
 
     public function create() {
         require_module_access(['users_add', 'users'], true);
+        $org = $this->_departments_designations();
         $data = [
             'title' => 'Add User',
             'row' => (object)[
@@ -93,6 +94,10 @@ class Users extends CI_Controller {
             'is_edit' => false,
             'roles' => $this->roles(),
             'shifts' => $this->Shift_model->get_all(true),
+            'departments' => $org['departments'],
+            'designations' => $org['designations'],
+            'employee' => null,
+            'current_shift_id' => null,
         ];
         $this->load->view('users/form', $data);
     }
@@ -169,29 +174,12 @@ class Users extends CI_Controller {
                 $description = 'User: ' . (isset($data['name']) ? $data['name'] : (isset($data['email']) ? $data['email'] : 'User #' . $new_id));
                 auto_track_insert('users', $new_id, $data, $description);
 
-                // Handle Shift Assignment (Create Employee Record if needed)
-                $shift_id = $this->input->post('shift_id');
-                if ($shift_id) {
-                    $emp = $this->Employee_model->get_by_user_id($new_id);
-                    if (!$emp) {
-                        // Create new employee record
-                        $nameParts = explode(' ', trim($data['name']), 2);
-                        $fname = $nameParts[0];
-                        $lname = isset($nameParts[1]) ? $nameParts[1] : '';
-                        $empData = [
-                            'user_id' => $new_id,
-                            'emp_code' => $this->Employee_model->generate_emp_code(),
-                            'first_name' => $fname,
-                            'last_name' => $lname,
-                            'personal_email' => $data['email'],
-                            'shift_id' => (int)$shift_id
-                        ];
-                        $this->Employee_model->create($empData);
-                    } else {
-                        // Update existing
-                        $this->Employee_model->update($emp->id, ['shift_id' => (int)$shift_id]);
-                    }
-                }
+                // Sync shift / department / designation onto linked employee
+                $this->_sync_linked_employee(
+                    $new_id,
+                    isset($data['name']) ? $data['name'] : '',
+                    isset($data['email']) ? $data['email'] : ''
+                );
             }
             $this->session->unset_userdata(['reg_email','reg_code_hash','reg_code_expires']);
         }
@@ -220,15 +208,19 @@ class Users extends CI_Controller {
         $row->face_registered_date = $faceRecord ? $faceRecord->created_at : null;
         $row->face_image = ($faceRecord && !empty($faceRecord->image_path)) ? $faceRecord->image_path : null;
         
+        $org = $this->_departments_designations();
+        $employee = $this->Employee_model->get_by_user_id($id);
         $data = [
             'title' => 'Edit User',
             'row' => $row,
             'is_edit' => true,
             'roles' => $this->roles(),
             'shifts' => $this->Shift_model->get_all(true),
+            'departments' => $org['departments'],
+            'designations' => $org['designations'],
+            'employee' => $employee,
+            'current_shift_id' => $employee ? $employee->shift_id : null,
         ];
-        $employee = $this->Employee_model->get_by_user_id($id);
-        $data['current_shift_id'] = $employee ? $employee->shift_id : null;
         $this->load->view('users/form', $data);
     }
 
@@ -325,34 +317,13 @@ class Users extends CI_Controller {
             track_changes_after('users', 'users', $id, $old_data, $data, $description);
         }
 
-        // Handle Shift Assignment
+        // Sync shift / department / designation onto linked employee
         if ($ok) {
-            $shift_id = $this->input->post('shift_id');
-            // Check if shift_id was actually posted (to distinguish from not set)
-            if ($this->input->post('shift_id') !== null) {
-                $shift_id = (int)$shift_id ?: null; // Handle empty string as null
-                $emp = $this->Employee_model->get_by_user_id($id);
-                if (!$emp && $shift_id) {
-                    // Create new employee record if assigning a shift
-                    $nameVal = isset($data['name']) ? $data['name'] : $row->name;
-                    $emailVal = isset($data['email']) ? $data['email'] : $row->email;
-                    $nameParts = explode(' ', trim($nameVal), 2);
-                    $fname = $nameParts[0];
-                    $lname = isset($nameParts[1]) ? $nameParts[1] : '';
-                    $empData = [
-                        'user_id' => $id,
-                        'emp_code' => $this->Employee_model->generate_emp_code(),
-                        'first_name' => $fname,
-                        'last_name' => $lname,
-                        'personal_email' => $emailVal,
-                        'shift_id' => $shift_id
-                    ];
-                    $this->Employee_model->create($empData);
-                } elseif ($emp) {
-                    // Update existing
-                    $this->Employee_model->update($emp->id, ['shift_id' => $shift_id]);
-                }
-            }
+            $this->_sync_linked_employee(
+                $id,
+                isset($data['name']) ? $data['name'] : $row->name,
+                isset($data['email']) ? $data['email'] : $row->email
+            );
         }
         
         if ($ok) {
@@ -399,6 +370,112 @@ class Users extends CI_Controller {
         }
         
         $this->_flash_redirect($ok, 'User deleted', 'users');
+    }
+
+    /**
+     * Load department/designation select lists (same as Employees form).
+     * @return array{departments: array, designations: array}
+     */
+    private function _departments_designations() {
+        $departments = [];
+        $designations = [];
+        if ($this->db->table_exists('departments')) {
+            $departments = $this->db->select('id, dept_name')->from('departments')->order_by('dept_name', 'ASC')->get()->result();
+        }
+        if ($this->db->table_exists('designations')) {
+            $designations = $this->db->select('id, designation_name, department_id')->from('designations')->order_by('designation_name', 'ASC')->get()->result();
+        }
+        return ['departments' => $departments, 'designations' => $designations];
+    }
+
+    /**
+     * Resolve posted department_id / designation_id to name strings (Employees.php pattern).
+     * @return array{department: string, designation: string}
+     */
+    private function _resolve_dept_desg_names() {
+        $dept_id = $this->input->post('department_id');
+        $desg_id = $this->input->post('designation_id');
+        $dept_name = trim((string)$this->input->post('department'));
+        $desg_name = trim((string)$this->input->post('designation'));
+        if ($dept_id && $this->db->table_exists('departments')) {
+            $d = $this->db->select('dept_name')->from('departments')->where('id', (int)$dept_id)->get()->row();
+            if ($d) {
+                $dept_name = $d->dept_name;
+            }
+        } elseif (!$dept_id) {
+            $dept_name = '';
+        }
+        if ($desg_id && $this->db->table_exists('designations')) {
+            $d = $this->db->select('designation_name')->from('designations')->where('id', (int)$desg_id)->get()->row();
+            if ($d) {
+                $desg_name = $d->designation_name;
+            }
+        } elseif (!$desg_id) {
+            $desg_name = '';
+        }
+        return ['department' => $dept_name, 'designation' => $desg_name];
+    }
+
+    /**
+     * Sync shift / department / designation onto the linked employee row.
+     * Creates a minimal employee when any value is set and no row exists.
+     */
+    private function _sync_linked_employee($user_id, $name, $email) {
+        $user_id = (int)$user_id;
+        if ($user_id <= 0) {
+            return;
+        }
+
+        $shift_posted = $this->input->post('shift_id') !== null;
+        $dept_posted = $this->input->post('department_id') !== null;
+        $desg_posted = $this->input->post('designation_id') !== null;
+        if (!$shift_posted && !$dept_posted && !$desg_posted) {
+            return;
+        }
+
+        $payload = [];
+        if ($shift_posted) {
+            $shift_raw = $this->input->post('shift_id');
+            $payload['shift_id'] = (int)$shift_raw ?: null;
+        }
+        if ($dept_posted || $desg_posted) {
+            $names = $this->_resolve_dept_desg_names();
+            if ($dept_posted) {
+                $payload['department'] = $names['department'];
+            }
+            if ($desg_posted) {
+                $payload['designation'] = $names['designation'];
+            }
+        }
+        if (empty($payload)) {
+            return;
+        }
+
+        $emp = $this->Employee_model->get_by_user_id($user_id);
+        if ($emp) {
+            $this->Employee_model->update((int)$emp->id, $payload);
+            return;
+        }
+
+        $has_shift = !empty($payload['shift_id']);
+        $has_dept = isset($payload['department']) && $payload['department'] !== '';
+        $has_desg = isset($payload['designation']) && $payload['designation'] !== '';
+        if (!$has_shift && !$has_dept && !$has_desg) {
+            return;
+        }
+
+        $name_parts = explode(' ', trim((string)$name), 2);
+        $emp_data = [
+            'user_id' => $user_id,
+            'emp_code' => $this->Employee_model->generate_emp_code(),
+            'first_name' => $name_parts[0],
+            'last_name' => isset($name_parts[1]) ? $name_parts[1] : '',
+            'personal_email' => $email,
+        ];
+        foreach ($payload as $k => $v) {
+            $emp_data[$k] = $v;
+        }
+        $this->Employee_model->create($emp_data);
     }
 
     private function _sanitize() {

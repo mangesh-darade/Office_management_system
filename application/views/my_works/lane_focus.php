@@ -47,6 +47,8 @@
       'force_show_date' => true,
       'show_status_column' => true,
       'can_view_all' => !empty($can_view_all),
+      'assignee_names_map' => isset($assignee_names_map) ? $assignee_names_map : array(),
+      'task_assignee_names_map' => isset($task_assignee_names_map) ? $task_assignee_names_map : array(),
     )); ?>
   </section>
 

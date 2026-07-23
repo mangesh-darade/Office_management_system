@@ -15,7 +15,7 @@ class My_works extends CI_Controller
         $this->load->helper(array(
             'url', 'form', 'permission', 'hierarchy_filter', 'data_scope',
             'my_works', 'my_works_status', 'my_works_access', 'my_works_query', 'my_works_form',
-            'my_works_attachment', 'my_works_daily_pulse', 'download', 'estimate_hours',
+            'my_works_attachment', 'my_works_daily_pulse', 'download', 'estimate_hours', 'multi_assignee',
         ));
         $this->load->library(array('session', 'upload'));
         $this->load->model('My_work_model', 'my_works');
@@ -28,6 +28,7 @@ class My_works extends CI_Controller
     {
         $this->load->helper('my_works_schema');
         my_works_schema_ensure($this->db);
+        multi_assignees_ensure_schema($this->db);
         $this->load->model('Type_model', 'module_types');
         $dir = FCPATH . $this->upload_dir;
         if (!is_dir($dir)) {
@@ -364,7 +365,11 @@ class My_works extends CI_Controller
     {
         require_module_access(array('my_works_list', 'my_works'), true);
         $c = $this->_ctx();
-        $pulse = my_works_build_daily_pulse($this->db, $c['user_id'], $c['can_view_all'], $c['role_id']);
+        $pulse = my_works_build_daily_pulse($this->db, $c['user_id'], $c['can_view_all'], $c['role_id'], array(
+            'reward_period' => $this->input->get('reward_period'),
+            'score_from'    => $this->input->get('score_from'),
+            'score_to'      => $this->input->get('score_to'),
+        ));
         $this->load->view('my_works/daily_pulse', array(
             'embed' => (bool) $this->input->get('embed'),
             'pulse' => $pulse,
@@ -401,6 +406,15 @@ class My_works extends CI_Controller
             $dash = my_works_build_dashboard_sections($rows, true);
             $data['dashboard_sections'] = $dash['sections'];
             $data['dashboard_counts'] = $dash['counts'];
+            $task_ids = array();
+            foreach ($rows as $row) {
+                if (!empty($row->item_source) && $row->item_source === 'tasks' && !empty($row->id)) {
+                    $task_ids[] = (int) $row->id;
+                }
+            }
+            $data['task_assignee_names_map'] = !empty($task_ids)
+                ? multi_assignees_names_map('task_assignees', 'task_id', $task_ids)
+                : array();
             $this->load->view('my_works/overview', $data);
             return;
         }
@@ -408,8 +422,13 @@ class My_works extends CI_Controller
             $c = $this->_ctx();
             $data['feed'] = my_works_fetch_recent_feed($this->db, $c['can_view_all'], $c['user_id'], 40);
             $overview_items = array();
+            $assignee_names_map = isset($data['assignee_names_map']) ? $data['assignee_names_map'] : array();
             foreach ($data['rows'] as $row) {
-                $overview_items[(int) $row->id] = my_works_overview_item_payload($row, $data['attachments_map']);
+                $wid = (int) $row->id;
+                $extra = (isset($assignee_names_map[$wid]) && is_array($assignee_names_map[$wid]))
+                    ? $assignee_names_map[$wid]
+                    : array();
+                $overview_items[$wid] = my_works_overview_item_payload($row, $data['attachments_map'], $extra);
             }
             $data['overview_items'] = $overview_items;
             $data['can_edit'] = function_exists('has_module_access') && (has_module_access('my_works_edit') || has_module_access('my_works'));
@@ -446,6 +465,15 @@ class My_works extends CI_Controller
         $data['focus_count'] = $focus['count'];
         $data['lane_key'] = $lane_key;
         $data['focus_section'] = $section;
+        $task_ids = array();
+        foreach ($rows as $row) {
+            if (!empty($row->item_source) && $row->item_source === 'tasks' && !empty($row->id)) {
+                $task_ids[] = (int) $row->id;
+            }
+        }
+        $data['task_assignee_names_map'] = !empty($task_ids)
+            ? multi_assignees_names_map('task_assignees', 'task_id', $task_ids)
+            : array();
         $pages = my_works_dashboard_lane_focus_pages();
         $meta = isset($pages[$lane_key]) ? $pages[$lane_key] : $pages['todays_plan'];
         $labels = my_works_dashboard_lane_labels();
@@ -553,10 +581,19 @@ class My_works extends CI_Controller
                 return;
             }
             $payload['created_by'] = $c['user_id'];
+            $assignee_ids = isset($payload['_assignee_ids']) && is_array($payload['_assignee_ids'])
+                ? $payload['_assignee_ids']
+                : array((int) $payload['created_for']);
+            unset($payload['_assignee_ids']);
             $id = $this->my_works->insert($payload);
+            multi_assignees_sync('my_works_assignees', 'work_id', (int) $id, $assignee_ids);
             $this->_save_new_attachments($id, $uploads);
             $this->my_works->log_activity($id, $c['user_id'], 'created', 'Work item created (quick add)');
-            my_works_notify_assignee($id, $payload['created_for'], $payload['title'], $payload['created_by']);
+            if (function_exists('my_works_notify_assignees')) {
+                my_works_notify_assignees($id, $assignee_ids, $payload['title'], $payload['created_by']);
+            } else {
+                my_works_notify_assignee($id, $payload['created_for'], $payload['title'], $payload['created_by']);
+            }
             $this->_clear_dashboard_cache();
             $this->session->set_flashdata('success', 'Work item added.');
             redirect(my_works_safe_redirect($redirect_path, $redirect_default));
@@ -627,15 +664,27 @@ class My_works extends CI_Controller
                 return;
             }
 
-            $assigned_raw = (int) $this->input->post('assigned_to');
-            if ($assigned_raw < 1) {
-                $assigned_raw = (int) $this->input->post('created_for');
+            $assigned_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
+            if (empty($assigned_ids)) {
+                $assigned_ids = multi_assignees_normalize_ids($this->input->post('created_for'));
             }
-            if ($assigned_raw < 1) {
-                $assigned_raw = $user_id;
+            if (empty($assigned_ids)) {
+                $assigned_ids = array($user_id);
             }
-            $assigned_to = my_works_validate_created_for($assigned_raw, $c['can_view_all'], $user_id, $c['role_id']);
-            if ($assigned_to === false) {
+            $validated_ids = array();
+            foreach ($assigned_ids as $aid) {
+                $ok = my_works_validate_created_for($aid, $c['can_view_all'], $user_id, $c['role_id']);
+                if ($ok === false) {
+                    redirect('my-works/template-tasks');
+                    return;
+                }
+                if (!in_array((int) $ok, $validated_ids, true)) {
+                    $validated_ids[] = (int) $ok;
+                }
+            }
+            $assigned_to = multi_assignees_primary($validated_ids);
+            if (!$assigned_to) {
+                $this->session->set_flashdata('error', 'Please select at least one assignee.');
                 redirect('my-works/template-tasks');
                 return;
             }
@@ -735,6 +784,8 @@ class My_works extends CI_Controller
                 return;
             }
 
+            multi_assignees_sync('task_assignees', 'task_id', $id, $validated_ids);
+
             $this->_save_template_task_attachments($id, $user_id, $uploads);
 
             $this->load->helper('change_tracker');
@@ -742,7 +793,7 @@ class My_works extends CI_Controller
                 auto_log_insert('tasks', 'tasks', $id, $data, 'Task: ' . (string) $data['title'] . ' (from template)');
             }
 
-            if (!empty($data['assigned_to'])) {
+            if (!empty($validated_ids)) {
                 $task_details = $this->db->select('t.*, p.name as project_name')
                     ->from('tasks t')
                     ->join('projects p', 'p.id = t.project_id', 'left')
@@ -752,20 +803,26 @@ class My_works extends CI_Controller
                     if (!function_exists('send_notification_with_settings')) {
                         $this->load->helper('email_settings');
                     }
-                    if (function_exists('send_notification_with_settings')) {
-                        send_notification_with_settings('tasks', 'created', $task_details, $task_details->assigned_to);
-                    }
                     $this->load->helper('notification');
-                    if (function_exists('create_notification')) {
-                        create_notification(
-                            (int) $data['assigned_to'],
-                            'New task assigned',
-                            (string) $data['title'],
-                            'info',
-                            'tasks',
-                            $id,
-                            site_url('tasks/' . $id)
-                        );
+                    foreach ($validated_ids as $notify_uid) {
+                        $notify_uid = (int) $notify_uid;
+                        if ($notify_uid < 1) {
+                            continue;
+                        }
+                        if (function_exists('send_notification_with_settings')) {
+                            send_notification_with_settings('tasks', 'created', $task_details, $notify_uid);
+                        }
+                        if (function_exists('create_notification')) {
+                            create_notification(
+                                $notify_uid,
+                                'New task assigned',
+                                (string) $data['title'],
+                                'info',
+                                'tasks',
+                                $id,
+                                site_url('tasks/' . $id)
+                            );
+                        }
                     }
                 }
             }
@@ -1181,18 +1238,39 @@ class My_works extends CI_Controller
                 return;
             }
             $payload['created_by'] = $this->_current_user_id();
+            $assignee_ids = isset($payload['_assignee_ids']) && is_array($payload['_assignee_ids'])
+                ? $payload['_assignee_ids']
+                : array((int) $payload['created_for']);
+            unset($payload['_assignee_ids']);
             $id = $this->my_works->insert($payload);
+            multi_assignees_sync('my_works_assignees', 'work_id', (int) $id, $assignee_ids);
             $this->_save_new_attachments($id, $uploads);
             $this->my_works->log_activity($id, $this->_current_user_id(), 'created', 'Work item created');
-            my_works_notify_assignee($id, $payload['created_for'], $payload['title'], $payload['created_by']);
+            if (function_exists('my_works_notify_assignees')) {
+                my_works_notify_assignees($id, $assignee_ids, $payload['title'], $payload['created_by']);
+            } else {
+                my_works_notify_assignee($id, $payload['created_for'], $payload['title'], $payload['created_by']);
+            }
             $this->_clear_dashboard_cache();
             $this->session->set_flashdata('success', 'Work item created.');
             redirect('my-works/' . (int) $id);
             return;
         }
+        $assigned_user_ids = array();
+        if ($old && isset($old['created_for'])) {
+            if (is_array($old['created_for'])) {
+                $assigned_user_ids = array_map('intval', $old['created_for']);
+            } elseif ((int) $old['created_for'] > 0) {
+                $assigned_user_ids = array((int) $old['created_for']);
+            }
+        }
+        if (empty($assigned_user_ids)) {
+            $assigned_user_ids = array($this->_current_user_id());
+        }
         $this->load->view('my_works/form_create', array(
             'item' => $old ? (object) $old : null,
             'users' => $this->_assignable_users(),
+            'assigned_user_ids' => $assigned_user_ids,
             'tags' => $this->my_works->distinct_tags_scoped(array($this, '_apply_list_scope')),
             'scope' => $this->_scope_context(),
             'clients' => my_works_clients_for_dropdown($this->db),
@@ -1228,15 +1306,25 @@ class My_works extends CI_Controller
             }
         }
         $uid = $this->_current_user_id();
+        $is_multi_assignee = multi_assignees_includes_user('my_works_assignees', 'work_id', (int) $id, $uid);
+        $assignee_ids = multi_assignees_resolve_for_edit(
+            'my_works_assignees',
+            'work_id',
+            (int) $id,
+            isset($item->created_for) ? (int) $item->created_for : 0
+        );
+        $assignee_names_map = multi_assignees_names_map('my_works_assignees', 'work_id', array((int) $id));
         $this->load->view('my_works/view', array(
             'item' => $item,
             'creator' => $creator,
             'assignee' => $assignee,
+            'assigned_user_ids' => $assignee_ids,
+            'assignee_extra_names' => isset($assignee_names_map[(int) $id]) ? $assignee_names_map[(int) $id] : array(),
             'can_edit' => $this->_can_edit_full($item),
             'can_update_status' => $this->_can_update_status($item),
             'can_delete' => $this->_can_delete($item),
             'can_comment' => $this->_user_can_access($item),
-            'is_assignee' => ((int) $item->created_for === $uid),
+            'is_assignee' => ((int) $item->created_for === $uid) || $is_multi_assignee,
             'is_creator' => ((int) $item->created_by === $uid),
             'scope' => $this->_scope_context(),
             'comments' => $this->my_works->list_comments((int) $id),
@@ -1273,13 +1361,30 @@ class My_works extends CI_Controller
             $this->_save_new_attachments((int) $id, $uploads);
             $prev_for = (int) $item->created_for;
             $prev_status = (string) $item->status;
+            $old_assignee_ids = multi_assignees_resolve_for_edit(
+                'my_works_assignees',
+                'work_id',
+                (int) $id,
+                $prev_for
+            );
+            $assignee_ids = isset($payload['_assignee_ids']) && is_array($payload['_assignee_ids'])
+                ? $payload['_assignee_ids']
+                : array((int) $payload['created_for']);
+            unset($payload['_assignee_ids']);
             $this->my_works->update((int) $id, $payload);
+            multi_assignees_sync('my_works_assignees', 'work_id', (int) $id, $assignee_ids);
             if ($prev_status !== $payload['status']) {
                 $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'status', $prev_status . ' → ' . $payload['status']);
             }
-            if ($prev_for !== (int) $payload['created_for']) {
+            $newly_added = array_values(array_diff($assignee_ids, $old_assignee_ids));
+            if ($prev_for !== (int) $payload['created_for'] || !empty($newly_added)) {
                 $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'reassigned', 'Assignee changed');
-                my_works_notify_assignee((int) $id, (int) $payload['created_for'], $payload['title'], $this->_current_user_id());
+                $notify_ids = !empty($newly_added) ? $newly_added : array((int) $payload['created_for']);
+                if (function_exists('my_works_notify_assignees')) {
+                    my_works_notify_assignees((int) $id, $notify_ids, $payload['title'], $this->_current_user_id());
+                } else {
+                    my_works_notify_assignee((int) $id, (int) $payload['created_for'], $payload['title'], $this->_current_user_id());
+                }
             } else {
                 $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'updated', 'Details updated');
             }
@@ -1288,10 +1393,17 @@ class My_works extends CI_Controller
             redirect('my-works/' . (int) $id);
             return;
         }
+        $assigned_user_ids = multi_assignees_resolve_for_edit(
+            'my_works_assignees',
+            'work_id',
+            (int) $id,
+            isset($item->created_for) ? (int) $item->created_for : 0
+        );
         $this->load->view('my_works/form', array(
             'action' => 'edit',
             'item' => $item,
             'users' => $this->_assignable_users(),
+            'assigned_user_ids' => $assigned_user_ids,
             'tags' => $this->my_works->distinct_tags_scoped(array($this, '_apply_list_scope')),
             'scope' => $this->_scope_context(),
             'clients' => my_works_clients_for_dropdown($this->db),

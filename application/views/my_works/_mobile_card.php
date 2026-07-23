@@ -9,9 +9,14 @@
   $stColor = isset($statusColors[$r->status]) ? $statusColors[$r->status] : 'secondary';
   $stLabel = isset($statusLabels[$r->status]) ? $statusLabels[$r->status] : $r->status;
   $forLabel = my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for);
+  if (function_exists('multi_assignees_format_label') && isset($assignee_names_map[(int) $r->id]) && is_array($assignee_names_map[(int) $r->id])) {
+    $forLabel = multi_assignees_format_label($forLabel, $assignee_names_map[(int) $r->id]);
+  }
   $byLabel = my_works_user_label($r->created_by_name, $r->created_by_email, $r->created_by);
   $uid = isset($uid) ? (int) $uid : 0;
-  $canStatus = (!empty($can_quick_edit) || (int) $r->created_for === $uid);
+  $canStatus = function_exists('my_works_can_update_status')
+    ? my_works_can_update_status($r, !empty($can_view_all), $uid)
+    : (!empty($can_quick_edit) || (int) $r->created_for === $uid);
   $overdue = my_works_is_overdue($r);
 ?>
 <div class="mw-item-card mw-list-status-row <?php echo $borderClass; ?>"

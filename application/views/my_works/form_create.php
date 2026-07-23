@@ -16,7 +16,19 @@
 
   $curClient = (int) $field('client_id', 0);
   $curProject = (int) $field('project_id', 0);
-  $curFor = (int) $field('created_for', $uid);
+  $curForIds = array();
+  if (isset($assigned_user_ids) && is_array($assigned_user_ids)) {
+    $curForIds = array_map('intval', $assigned_user_ids);
+  } elseif ($item && isset($item->created_for)) {
+    if (is_array($item->created_for)) {
+      $curForIds = array_map('intval', $item->created_for);
+    } elseif ((int) $item->created_for > 0) {
+      $curForIds = array((int) $item->created_for);
+    }
+  }
+  if (empty($curForIds)) {
+    $curForIds = array($uid);
+  }
   $status = ($item && isset($item->status)) ? (string) $item->status : 'new';
 
   $this->load->helper('my_works_status');
@@ -25,20 +37,19 @@
 ?>
 
 <div class="oms-form-compact">
-<div class="container-fluid py-3 mw-form-page mw-form-create-page">
+<div class="container-fluid py-2 mw-form-page mw-form-create-page">
 
-  <nav aria-label="breadcrumb" class="small mb-2 d-none d-md-block mw-breadcrumb">
+  <nav aria-label="breadcrumb" class="small mb-1 d-none d-md-block mw-breadcrumb">
     <ol class="breadcrumb mb-0">
       <li class="breadcrumb-item"><a href="<?php echo site_url('my-works'); ?>">My Works</a></li>
       <li class="breadcrumb-item active" aria-current="page">Create</li>
     </ol>
   </nav>
 
-  <div class="mw-form-page-head mw-page-head-with-back d-flex align-items-start gap-2 mb-3">
+  <div class="mw-form-page-head mw-page-head-with-back d-flex align-items-center gap-2 mb-2">
     <?php $this->load->view('my_works/_back_btn', array('back_url' => site_url('my-works'))); ?>
     <div class="min-w-0 flex-grow-1">
-      <h1 class="h4 mb-0 fw-bold text-dark mw-form-page-title">New Work Item</h1>
-      <p class="text-muted small mb-0 d-none d-sm-block">Set status, due date, and assignment for the new work item</p>
+      <h1 class="h5 mb-0 fw-semibold text-dark mw-form-page-title">New Work Item</h1>
     </div>
   </div>
 
@@ -51,7 +62,7 @@
   <?php endif; ?>
 
   <div class="card shadow-sm border-0 mw-form-card">
-    <div class="card-body p-3 p-md-4">
+    <div class="card-body p-2 p-md-3">
       <form method="post" enctype="multipart/form-data" action="<?php echo site_url('my-works/create'); ?>" id="mw-work-form" class="mw-upload-form" data-tinymce-id="mw-form-details">
         <?php $this->load->view('my_works/_csrf'); ?>
 
@@ -71,17 +82,18 @@
               </div>
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-created-for">Assigned to <span class="text-danger">*</span></label>
-                <select name="created_for" id="mw-form-created-for" class="form-select mw-create-control" required>
+                <select name="created_for[]" id="mw-form-created-for" class="form-select mw-create-control oms-select2-multi" multiple style="width: 100%;" required>
                   <?php foreach ((array) $users as $u): ?>
-                    <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $u->id === $curFor ? 'selected' : ''; ?>>
+                    <option value="<?php echo (int) $u->id; ?>" <?php echo in_array((int) $u->id, $curForIds, true) ? 'selected' : ''; ?>>
                       <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
                     </option>
                   <?php endforeach; ?>
                 </select>
+                <div class="form-text d-none d-md-block">× removes a person. First = primary.</div>
               </div>
               <div class="mw-create-field mw-form-priority-field">
                 <label class="form-label mw-create-label">Priority</label>
-                <div class="mw-flag-pills d-flex gap-2">
+                <div class="mw-flag-pills d-flex gap-1">
                   <input type="checkbox" class="btn-check" name="is_urgent" value="1" id="isUrgent" <?php echo (int) $field('is_urgent', 0) === 1 ? 'checked' : ''; ?>>
                   <label class="btn btn-outline-danger btn-sm mw-create-priority-btn" for="isUrgent" title="Urgent"><i class="bi bi-exclamation-triangle"></i><span class="mw-create-priority-text">Urgent</span></label>
                   <input type="checkbox" class="btn-check" name="is_important" value="1" id="isImportant" <?php echo (int) $field('is_important', 0) === 1 ? 'checked' : ''; ?>>
@@ -160,7 +172,7 @@
               </div>
             </div>
 
-            <div class="mw-create-row mw-create-row-3">
+            <div class="mw-create-row mw-create-row-2">
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-url">Ref URL</label>
                 <div class="input-group mw-ref-url-group">
@@ -168,9 +180,6 @@
                   <input type="text" name="url" id="mw-form-url" class="form-control mw-create-control" value="<?php echo esc_view((string) $field('url'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="https://example.com">
                 </div>
               </div>
-            </div>
-
-            <div class="mw-create-row mw-create-row-1">
               <div class="mw-create-field mw-create-field--attach">
                 <label class="form-label mw-create-label" for="mw-form-attachment">Attach file</label>
                 <?php $this->load->view('my_works/_attachment_field', array(
@@ -183,16 +192,16 @@
 
             <div class="mw-create-field mw-create-field--full">
               <label class="form-label mw-create-label" for="mw-form-details">Description</label>
-              <textarea id="mw-form-details" name="details" class="form-control" rows="6" placeholder="Notes, steps, background, or context…"><?php echo esc_view((string) $field('details'), ENT_QUOTES, 'UTF-8'); ?></textarea>
+              <textarea id="mw-form-details" name="details" class="form-control" rows="4" placeholder="Notes, steps, background, or context…"><?php echo esc_view((string) $field('details'), ENT_QUOTES, 'UTF-8'); ?></textarea>
             </div>
           </div>
         </div>
 
-        <div class="mw-form-actions mw-form-create-actions d-flex flex-column flex-sm-row gap-2">
-          <button type="submit" class="btn btn-primary px-4">
+        <div class="mw-form-actions mw-form-create-actions d-flex flex-row flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary btn-sm px-3">
             <i class="bi bi-check-lg me-1"></i>Create work item
           </button>
-          <a class="btn btn-outline-secondary" href="<?php echo site_url('my-works'); ?>">Cancel</a>
+          <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('my-works'); ?>">Cancel</a>
         </div>
       </form>
     </div>
@@ -257,7 +266,7 @@
       plugins: 'lists link autolink code wordcount',
       toolbar: 'undo redo | bold italic underline strikethrough | bullist numlist | link | removeformat',
       branding: false,
-      height: 280,
+      height: 180,
       width: '100%',
       convert_urls: false,
       default_link_target: '_blank'
@@ -279,3 +288,9 @@
 <?php $this->load->view('my_works/_media_preview_scripts'); ?>
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+  $this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#mw-form-created-for'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+  ));
+?>

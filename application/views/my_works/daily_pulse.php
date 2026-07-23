@@ -364,14 +364,60 @@ $pulse_count_badge = function ($total) {
     <?php endif; ?>
 
     <?php $spl = $section('spl_group_scores'); if (is_array($spl)): ?>
+    <?php
+      $spl_period = isset($spl['period']) ? (string) $spl['period'] : 'week';
+      $spl_from = isset($spl['from']) ? (string) $spl['from'] : '';
+      $spl_to = isset($spl['to']) ? (string) $spl['to'] : '';
+      $spl_label = isset($spl['label']) ? (string) $spl['label'] : '';
+      if ($spl_label === '' && $spl_from !== '' && $spl_to !== '') {
+          $spl_label = $spl_from . ' → ' . $spl_to;
+      } elseif ($spl_label === '' && $spl_period === 'all') {
+          $spl_label = 'All time';
+      }
+      $spl_period_options = function_exists('spl_reward_period_options')
+          ? spl_reward_period_options()
+          : array('today' => 'Today', 'week' => 'This week', 'month' => 'This month', 'all' => 'All time');
+      $spl_filter_base = site_url('my-works/daily-pulse');
+      $spl_preset_url = function ($period_key) use ($spl_filter_base) {
+          return $spl_filter_base . '?' . http_build_query(array('reward_period' => $period_key));
+      };
+    ?>
     <section class="mw-pulse-card mw-pulse-card--wide">
       <div class="mw-pulse-card-head">
         <h3 class="mw-pulse-card-title"><i class="bi bi-trophy"></i>SPL Group Scores</h3>
         <div class="mw-pulse-head-meta">
-          <span class="mw-pulse-range"><?php echo esc_view($spl['from'] . ' → ' . $spl['to'], ENT_QUOTES, 'UTF-8'); ?></span>
+          <span class="mw-pulse-range"><?php echo esc_view($spl_label, ENT_QUOTES, 'UTF-8'); ?></span>
           <a class="btn btn-sm btn-outline-primary mw-pulse-action" href="<?php echo esc_view($spl['url'], ENT_QUOTES, 'UTF-8'); ?>">Groups</a>
         </div>
       </div>
+      <form method="get" action="<?php echo esc_view($spl_filter_base, ENT_QUOTES, 'UTF-8'); ?>" class="mw-pulse-spl-filter">
+        <input type="hidden" name="reward_period" value="<?php echo esc_view($spl_period === 'custom' ? 'week' : $spl_period, ENT_QUOTES, 'UTF-8'); ?>">
+        <div class="mw-pulse-spl-filter__row">
+          <div class="spl-period-filter" role="group" aria-label="Score period">
+            <div class="spl-period-filter__track">
+              <?php foreach ($spl_period_options as $periodKey => $periodLabel): ?>
+              <a
+                href="<?php echo esc_view($spl_preset_url($periodKey), ENT_QUOTES, 'UTF-8'); ?>"
+                class="spl-period-filter__btn<?php echo ($spl_period === $periodKey) ? ' is-active' : ''; ?>"
+                aria-pressed="<?php echo ($spl_period === $periodKey) ? 'true' : 'false'; ?>"
+              ><?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?></a>
+              <?php endforeach; ?>
+            </div>
+          </div>
+          <div class="mw-pulse-spl-filter__dates">
+            <label class="visually-hidden" for="mwPulseScoreFrom">From</label>
+            <input type="date" class="form-control form-control-sm" id="mwPulseScoreFrom" name="score_from"
+                   value="<?php echo esc_view($spl_period === 'custom' ? $spl_from : '', ENT_QUOTES, 'UTF-8'); ?>"
+                   title="From">
+            <span class="mw-pulse-spl-filter__sep" aria-hidden="true">–</span>
+            <label class="visually-hidden" for="mwPulseScoreTo">To</label>
+            <input type="date" class="form-control form-control-sm" id="mwPulseScoreTo" name="score_to"
+                   value="<?php echo esc_view($spl_period === 'custom' ? $spl_to : '', ENT_QUOTES, 'UTF-8'); ?>"
+                   title="To">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+          </div>
+        </div>
+      </form>
       <?php $items = isset($spl['items']['items']) ? $spl['items']['items'] : array(); ?>
       <?php if (empty($items)): ?>
       <p class="mw-pulse-empty">No SPL groups.</p>

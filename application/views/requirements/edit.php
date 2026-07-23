@@ -112,12 +112,18 @@
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-6">
           <label class="form-label">Assigned To</label>
-          <select name="assigned_to" class="form-select">
-            <option value="">-- Unassigned --</option>
+          <?php
+            $curAssignedIds = array();
+            if (isset($assigned_user_ids) && is_array($assigned_user_ids)) {
+                $curAssignedIds = array_map('intval', $assigned_user_ids);
+            } elseif (isset($row) && isset($row->assigned_to) && $row->assigned_to !== null) {
+                $curAssignedIds = array((int) $row->assigned_to);
+            }
+          ?>
+          <select name="assigned_to[]" id="req-assigned-to-select" class="form-select oms-select2-multi" multiple style="width: 100%;">
             <?php 
-            $curAssigned = isset($row) && isset($row->assigned_to) && $row->assigned_to !== null ? (int)$row->assigned_to : 0;
             if (isset($members) && is_array($members)) foreach ($members as $m): 
               $label = '';
               if (isset($m->full_label) && $m->full_label!=='') { $label = $m->full_label; }
@@ -125,9 +131,10 @@
               else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
               else if (isset($m->email)) { $label = $m->email; }
             ?>
-              <option value="<?php echo (int)$m->id; ?>" <?php echo $curAssigned===(int)$m->id?'selected':''; ?>><?php echo esc_view($label); ?></option>
+              <option value="<?php echo (int)$m->id; ?>" <?php echo in_array((int)$m->id, $curAssignedIds, true)?'selected':''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
+          <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
         </div>
       </div>
       <div>
@@ -139,6 +146,12 @@
 </div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+  $this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#req-assigned-to-select'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+  ));
+?>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
   // Initialize TinyMCE for description field

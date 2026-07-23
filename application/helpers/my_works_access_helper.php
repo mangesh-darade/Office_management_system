@@ -26,6 +26,13 @@ if (!function_exists('my_works_apply_list_scope')) {
         $db->group_start();
         $db->where('w.created_by', $user_id);
         $db->or_where('w.created_for', $user_id);
+        if ($db->table_exists('my_works_assignees')) {
+            $db->or_where(
+                'EXISTS (SELECT 1 FROM `my_works_assignees` _mwa WHERE _mwa.`work_id` = w.id AND _mwa.`user_id` = ' . $user_id . ')',
+                null,
+                false
+            );
+        }
         $db->group_end();
     }
 }
@@ -161,7 +168,11 @@ if (!function_exists('my_works_can_update_status')) {
             return true;
         }
         $user_id = (int) $user_id;
-        return $user_id > 0 && (int) $item->created_for === $user_id;
+        return $user_id > 0 && (
+            (int) $item->created_for === $user_id
+            || (function_exists('multi_assignees_includes_user')
+                && multi_assignees_includes_user('my_works_assignees', 'work_id', (int) $item->id, $user_id))
+        );
     }
 }
 

@@ -429,18 +429,33 @@ if (!function_exists('my_works_validate_payload')) {
     function my_works_validate_payload($is_edit, $existing, $can_view_all, $user_id, $role_id)
     {
         $CI =& get_instance();
+        if (!function_exists('multi_assignees_normalize_ids')) {
+            $CI->load->helper('multi_assignee');
+        }
         $title = trim((string) $CI->input->post('title'));
         if ($title === '') {
             $CI->session->set_flashdata('error', 'Task title is required.');
             return false;
         }
-        $posted_for = (int) $CI->input->post('created_for');
-        if ($posted_for <= 0) {
+        $raw_for = $CI->input->post('created_for');
+        $candidate_ids = multi_assignees_normalize_ids($raw_for);
+        if (empty($candidate_ids)) {
             $CI->session->set_flashdata('error', 'Assigned to is required.');
             return false;
         }
-        $created_for = my_works_validate_created_for($posted_for, $can_view_all, $user_id, $role_id);
-        if ($created_for === false) {
+        $assignee_ids = array();
+        foreach ($candidate_ids as $cid) {
+            $ok = my_works_validate_created_for($cid, $can_view_all, $user_id, $role_id);
+            if ($ok === false) {
+                return false;
+            }
+            if (!in_array((int) $ok, $assignee_ids, true)) {
+                $assignee_ids[] = (int) $ok;
+            }
+        }
+        $created_for = multi_assignees_primary($assignee_ids);
+        if (!$created_for) {
+            $CI->session->set_flashdata('error', 'Assigned to is required.');
             return false;
         }
         $CI->load->helper('my_works_status');
@@ -494,6 +509,7 @@ if (!function_exists('my_works_validate_payload')) {
             'tag'             => my_works_normalize_tags($CI->input->post('tag')),
             'url'             => $url !== '' ? $url : null,
             'created_for'     => $created_for,
+            '_assignee_ids'   => $assignee_ids,
             'status'          => $status,
             'is_urgent'       => $CI->input->post('is_urgent') ? 1 : 0,
             'is_important'    => $CI->input->post('is_important') ? 1 : 0,
@@ -539,6 +555,9 @@ if (!function_exists('my_works_validate_quick_payload')) {
     function my_works_validate_quick_payload($can_view_all, $user_id, $role_id)
     {
         $CI =& get_instance();
+        if (!function_exists('multi_assignees_normalize_ids')) {
+            $CI->load->helper('multi_assignee');
+        }
         $title = trim((string) $CI->input->post('title'));
         if ($title === '') {
             $CI->session->set_flashdata('error', 'Task title is required.');
@@ -548,8 +567,24 @@ if (!function_exists('my_works_validate_quick_payload')) {
             $CI->session->set_flashdata('error', 'Task title must be 255 characters or fewer.');
             return false;
         }
-        $created_for = my_works_validate_created_for((int) $CI->input->post('created_for'), $can_view_all, $user_id, $role_id);
-        if ($created_for === false) {
+        $raw_for = $CI->input->post('created_for');
+        $candidate_ids = multi_assignees_normalize_ids($raw_for);
+        if (empty($candidate_ids)) {
+            $candidate_ids = array((int) $user_id);
+        }
+        $assignee_ids = array();
+        foreach ($candidate_ids as $cid) {
+            $ok = my_works_validate_created_for($cid, $can_view_all, $user_id, $role_id);
+            if ($ok === false) {
+                return false;
+            }
+            if (!in_array((int) $ok, $assignee_ids, true)) {
+                $assignee_ids[] = (int) $ok;
+            }
+        }
+        $created_for = multi_assignees_primary($assignee_ids);
+        if (!$created_for) {
+            $CI->session->set_flashdata('error', 'Assigned to is required.');
             return false;
         }
         $details = my_works_sanitize_details_html($CI->input->post('details'));
@@ -565,6 +600,7 @@ if (!function_exists('my_works_validate_quick_payload')) {
             'title'       => $title,
             'details'     => $details,
             'created_for' => $created_for,
+            '_assignee_ids' => $assignee_ids,
             'status'      => 'new',
             'is_urgent'   => 0,
             'is_important'=> 0,

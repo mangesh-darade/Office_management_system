@@ -129,7 +129,7 @@
 
           <div class="col-md-4">
             <label class="form-label" for="mw-tt-assign">Assigned To <span class="text-danger">*</span></label>
-            <select name="assigned_to" id="mw-tt-assign" class="form-select" required>
+            <select name="assigned_to[]" id="mw-tt-assign" class="form-select oms-select2-multi" multiple style="width: 100%;" required>
               <?php
                 $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
                 foreach ($users as $u):
@@ -147,6 +147,7 @@
                 <option value="<?php echo $uid; ?>" <?php echo $uid === $current_user_id ? 'selected' : ''; ?>><?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?></option>
               <?php endforeach; ?>
             </select>
+            <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
           </div>
 
           <div class="col-md-4">
@@ -568,3 +569,9 @@
 
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+  $this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#mw-tt-assign'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+  ));
+?>

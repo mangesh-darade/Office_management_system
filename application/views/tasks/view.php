@@ -48,6 +48,25 @@ $task_priority = isset($task->priority) ? (string) $task->priority : '';
 $priority_class = isset($priority_colors[$task_priority]) ? $priority_colors[$task_priority] : 'secondary';
 
 $assigneeName = $getDisplayName($task);
+if (isset($assignee_names) && is_array($assignee_names) && !empty($assignee_names)) {
+  $parts = array();
+  $seen = array();
+  if (trim((string) $assigneeName) !== '') {
+    $parts[] = trim((string) $assigneeName);
+    $seen[strtolower(trim((string) $assigneeName))] = true;
+  }
+  foreach ($assignee_names as $n) {
+    $n = trim((string) $n);
+    if ($n === '' || isset($seen[strtolower($n)])) {
+      continue;
+    }
+    $seen[strtolower($n)] = true;
+    $parts[] = $n;
+  }
+  if (!empty($parts)) {
+    $assigneeName = implode(', ', $parts);
+  }
+}
 $creatorName = $getDisplayName((object) array(
   'emp_name' => isset($task->creator_name) ? $task->creator_name : '',
   'full_name' => isset($task->creator_full_name) ? $task->creator_full_name : '',

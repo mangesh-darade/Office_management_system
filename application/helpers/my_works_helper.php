@@ -53,7 +53,14 @@ if (!function_exists('my_works_user_in_personal_scope')) {
         if ($user_id < 1) {
             return false;
         }
-        return ((int) $work->created_by === $user_id) || ((int) $work->created_for === $user_id);
+        if (((int) $work->created_by === $user_id) || ((int) $work->created_for === $user_id)) {
+            return true;
+        }
+        $work_id = isset($work->id) ? (int) $work->id : 0;
+        if ($work_id > 0 && function_exists('multi_assignees_includes_user')) {
+            return multi_assignees_includes_user('my_works_assignees', 'work_id', $work_id, $user_id);
+        }
+        return false;
     }
 }
 
@@ -294,6 +301,22 @@ if (!function_exists('my_works_notify_assignee')) {
         if ($CI->db->table_exists('notifications')) {
             $CI->load->model('Notification_model', 'notif');
             $CI->notif->create($assignee_user_id, 'My Works assignment', $msg, 'info', 'my_works', $work_id, $url);
+        }
+    }
+}
+
+if (!function_exists('my_works_notify_assignees')) {
+    /**
+     * @param int $work_id
+     * @param int[] $assignee_user_ids
+     * @param string $title
+     * @param int $creator_user_id
+     * @return void
+     */
+    function my_works_notify_assignees($work_id, $assignee_user_ids, $title, $creator_user_id)
+    {
+        foreach ((array) $assignee_user_ids as $uid) {
+            my_works_notify_assignee($work_id, (int) $uid, $title, $creator_user_id);
         }
     }
 }

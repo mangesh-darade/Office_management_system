@@ -42,6 +42,9 @@
             <?php foreach ($colItems as $r): ?>
               <?php
                 $forLabel = my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for);
+                if (function_exists('multi_assignees_format_label') && isset($assignee_names_map[(int) $r->id]) && is_array($assignee_names_map[(int) $r->id])) {
+                  $forLabel = multi_assignees_format_label($forLabel, $assignee_names_map[(int) $r->id]);
+                }
                 $borderClass = my_works_row_border_class($r);
                 $overdue = my_works_is_overdue($r);
               ?>

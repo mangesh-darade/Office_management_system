@@ -103,11 +103,17 @@
           // Show attachment input only if column exists to avoid DB issues
           $attachment_enabled = schema_table_has_column($this->db, 'tasks', 'attachment_path');
         ?>
-        <div class="col-md-3">
+        <div class="col-md-6">
           <label class="form-label">Assign To</label>
-          <?php $curUser = isset($task) && $task->assigned_to !== null ? (int)$task->assigned_to : 0; ?>
-          <select name="assigned_to" class="form-select">
-            <option value="">-- Unassigned --</option>
+          <?php
+            $curUsers = array();
+            if (isset($assigned_user_ids) && is_array($assigned_user_ids)) {
+                $curUsers = array_map('intval', $assigned_user_ids);
+            } elseif (isset($task) && $task->assigned_to !== null) {
+                $curUsers = array((int) $task->assigned_to);
+            }
+          ?>
+          <select name="assigned_to[]" id="assigned-to-select" class="form-select oms-select2-multi" multiple style="width: 100%;">
             <?php if (!empty($users)) foreach ($users as $u): ?>
               <?php 
                 // Prefer employee name if available
@@ -119,11 +125,12 @@
                 $label = trim($label);
                 $label = $label ? $label.' ('.$u->email.')' : $u->email;
               ?>
-              <option value="<?php echo (int)$u->id; ?>" <?php echo $curUser===(int)$u->id?'selected':''; ?>>
+              <option value="<?php echo (int)$u->id; ?>" <?php echo in_array((int)$u->id, $curUsers, true) ? 'selected' : ''; ?>>
                 <?php echo esc_view($label); ?>
               </option>
             <?php endforeach; ?>
           </select>
+          <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">
@@ -216,76 +223,21 @@
   </div>
 </div>
 
- <!-- Select2 CSS and JS for multi-select dropdown -->
- <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
- <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
- <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+ <!-- Select2 chip multi-select (projects + assignees) -->
+ <?php $this->load->view('partials/oms_select2_multi', array('oms_select2_selectors' => array())); ?>
  
  <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
  <style>
- .oms-form-compact .select2-container .select2-selection--multiple {
-   min-height: calc(1.5em + 0.56rem + 2px);
-   border-radius: 6px;
-   border-color: #ced4da;
-   font-size: 0.8125rem;
- }
- .oms-form-compact .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
-   margin-top: 2px;
-   margin-bottom: 2px;
-   font-size: 0.75rem;
-   padding: 0.08rem 0.35rem;
- }
  .oms-form-compact .tox-tinymce {
    border-radius: 6px !important;
  }
  </style>
  <script>
    $(document).ready(function() {
-     // Initialize Select2 for project multi-select
-     $('#project-select').select2({
-       theme: 'bootstrap-5',
-       placeholder: 'Select one or more projects...',
-       allowClear: true,
-       width: '100%',
-       closeOnSelect: false,
-       tags: false,
-       multiple: true,
-       matcher: function(params, data) {
-         // Check if this item is selected - only filter it out if it's actually selected
-         if (data.element) {
-           var $option = $(data.element);
-           // Only hide if the option element exists and is actually selected
-           if ($option.length > 0 && $option.prop('selected') === true) {
-             return null; // Hide selected items completely from dropdown
-           }
-         }
-         // If no search term, show all unselected items
-         if (!params.term || params.term.trim() === '') {
-           return data;
-         }
-         // If searching, do normal search matching on unselected items only
-         var term = params.term.toLowerCase();
-         if (data.text && typeof data.text === 'string' && data.text.toLowerCase().indexOf(term) > -1) {
-           return data;
-         }
-         return null;
-       },
-       templateResult: function(data) {
-         // Hide selected items from dropdown
-         if (!data.id) {
-           return data.text; // Loading message or no results
-         }
-         // Check if this item is selected
-         if (data.element) {
-           var $option = $(data.element);
-           // Only hide if the option element exists and is actually selected
-           if ($option.length > 0 && $option.prop('selected') === true) {
-             return null; // Return null to completely hide selected items from dropdown
-           }
-         }
-         return data.text; // Show unselected items
-       }
-     });
+     if (window.omsInitSelect2Multi) {
+       window.omsInitSelect2Multi('#project-select', { placeholder: 'Select one or more projects...', allowClear: true });
+       window.omsInitSelect2Multi('#assigned-to-select', { placeholder: 'Select assignee(s)...', allowClear: false });
+     }
      
      // Update selected projects count
      function updateProjectCount() {

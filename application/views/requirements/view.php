@@ -36,6 +36,35 @@
             <div class="text-muted">Owner</div>
             <div><?php echo esc_view(isset($req->owner_name)?$req->owner_name:'Unassigned'); ?></div>
           </div>
+          <div class="col-md-6">
+            <div class="text-muted">Assigned To</div>
+            <div><?php
+              $assigneeLabel = isset($req->assigned_to_name) ? trim((string) $req->assigned_to_name) : '';
+              if ($assigneeLabel === '' && !empty($req->assigned_to)) {
+                $assigneeLabel = 'User #' . (int) $req->assigned_to;
+              }
+              if (!empty($assignee_names) && is_array($assignee_names)) {
+                $parts = array();
+                $seen = array();
+                if ($assigneeLabel !== '') {
+                  $parts[] = $assigneeLabel;
+                  $seen[strtolower($assigneeLabel)] = true;
+                }
+                foreach ($assignee_names as $n) {
+                  $n = trim((string) $n);
+                  if ($n === '' || isset($seen[strtolower($n)])) {
+                    continue;
+                  }
+                  $seen[strtolower($n)] = true;
+                  $parts[] = $n;
+                }
+                if (!empty($parts)) {
+                  $assigneeLabel = implode(', ', $parts);
+                }
+              }
+              echo esc_view($assigneeLabel !== '' ? $assigneeLabel : 'Unassigned');
+            ?></div>
+          </div>
           <?php if (!empty($req->reference_url)): ?>
           <div class="col-md-12 mt-2">
             <?php $this->load->view('partials/reference_url_display', ['reference_url' => $req->reference_url, 'wrapper_class' => 'mb-0']); ?>

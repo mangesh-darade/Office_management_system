@@ -5,7 +5,7 @@ class Requirements extends CI_Controller {
     public function __construct(){
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','hierarchy_filter','schema_columns','types','validation']);
+        $this->load->helper(['url','form','permission','hierarchy_filter','schema_columns','types','validation','multi_assignee']);
         $this->load->model('Type_model', 'module_types');
         $this->load->library(['session','upload']);
         
@@ -19,6 +19,7 @@ class Requirements extends CI_Controller {
     private function ensure_schema() {
         $this->load->helper('requirements_schema');
         requirements_schema_ensure($this->db);
+        multi_assignees_ensure_schema($this->db);
     }
 
     private function _requirement_type_options()
@@ -73,12 +74,23 @@ class Requirements extends CI_Controller {
         $rows = $this->requirements->get_requirements($filters, null, 0);
         $clients = $this->requirements->get_clients_for_filter();
         $members = $this->requirements->get_team_members();
+        $assignee_names_map = array();
+        if (!empty($rows) && function_exists('multi_assignees_names_map')) {
+            $req_ids = array();
+            foreach ($rows as $row) {
+                if (!empty($row->id)) {
+                    $req_ids[] = (int) $row->id;
+                }
+            }
+            $assignee_names_map = multi_assignees_names_map('requirement_assignees', 'requirement_id', $req_ids);
+        }
         $this->load->view('requirements/index', [
             'rows'=>$rows,
             'filters'=>$filters,
             'clients'=>$clients,
             'members'=>$members,
             'requirement_types'=>$this->_requirement_type_options(),
+            'assignee_names_map' => $assignee_names_map,
         ]);
     }
 
@@ -110,6 +122,9 @@ class Requirements extends CI_Controller {
                 return;
             }
             
+            $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
+            $primary_assignee = multi_assignees_primary($assignee_ids);
+
             $data = [
                 'req_number' => $this->generate_req_number(),
                 'client_id' => (int)$this->input->post('client_id'),
@@ -122,23 +137,27 @@ class Requirements extends CI_Controller {
                 'expected_delivery_date' => $expected_delivery_date,
                 'received_date' => $received_date,
                 'owner_id' => (int)$owner_raw,
-                'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
+                'assigned_to' => $primary_assignee,
                 'created_by' => (int)$this->session->userdata('user_id'),
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
                 'reference_url' => $reference_url,
             ];
             $id = $this->requirements->create_requirement($data);
+            multi_assignees_sync('requirement_assignees', 'requirement_id', (int) $id, $assignee_ids);
             // create initial version 1
             $this->requirements->create_version($id, 1, $data);
             
-            // Notify owner + assignee: in-app + SMTP email with portal link (NOT Google Calendar)
+            // Notify owner + all assignees: in-app + SMTP email with portal link (NOT Google Calendar)
             $notify_users = [];
             if (isset($data['owner_id']) && (int)$data['owner_id'] > 0) {
                 $notify_users[] = (int)$data['owner_id'];
             }
-            if (isset($data['assigned_to']) && (int)$data['assigned_to'] > 0 && !in_array((int)$data['assigned_to'], $notify_users, true)) {
-                $notify_users[] = (int)$data['assigned_to'];
+            foreach ($assignee_ids as $aid) {
+                $aid = (int) $aid;
+                if ($aid > 0 && !in_array($aid, $notify_users, true)) {
+                    $notify_users[] = $aid;
+                }
             }
             
             if (!empty($notify_users)) {
@@ -273,6 +292,15 @@ class Requirements extends CI_Controller {
                 return;
             }
             
+            $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
+            $primary_assignee = multi_assignees_primary($assignee_ids);
+            $old_assignee_ids = multi_assignees_resolve_for_edit(
+                'requirement_assignees',
+                'requirement_id',
+                (int) $id,
+                isset($row->assigned_to) ? $row->assigned_to : null
+            );
+
             $data = [
                 'client_id' => (int)$this->input->post('client_id'),
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,
@@ -284,7 +312,7 @@ class Requirements extends CI_Controller {
                 'expected_delivery_date' => $expected_delivery_date,
                 'received_date' => $received_date,
                 'owner_id' => $this->input->post('owner_id') !== '' ? (int)$this->input->post('owner_id') : null,
-                'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
+                'assigned_to' => $primary_assignee,
                 'updated_at' => date('Y-m-d H:i:s'),
                 'reference_url' => $reference_url,
             ];
@@ -292,11 +320,12 @@ class Requirements extends CI_Controller {
             $old_status = $row->status;
             $new_status = $data['status'] ?: $row->status;
             $status_changed = ($old_status !== $new_status);
-            $old_assignee = isset($row->assigned_to) ? (int) $row->assigned_to : 0;
             $new_assignee = isset($data['assigned_to']) ? (int) $data['assigned_to'] : 0;
-            $assignee_changed = ($new_assignee > 0 && $new_assignee !== $old_assignee);
+            $added_assignees = array_values(array_diff($assignee_ids, $old_assignee_ids));
+            $assignee_changed = !empty($added_assignees);
             
             $this->requirements->update_requirement((int)$id, $data);
+            multi_assignees_sync('requirement_assignees', 'requirement_id', (int) $id, $assignee_ids);
             // compute next version number
             $nextVer = $this->requirements->next_version_no((int)$id);
             $verData = $data;
@@ -312,7 +341,7 @@ class Requirements extends CI_Controller {
             }
             $this->load->helper('notification');
 
-            // New assignee: SMTP email + link (not Google Calendar)
+            // Newly added assignees: SMTP email + link (not Google Calendar)
             if ($assignee_changed) {
                 $email_data = (object) array(
                     'id' => (int) $id,
@@ -322,37 +351,46 @@ class Requirements extends CI_Controller {
                     'status' => $new_status,
                     'assigned_to' => $new_assignee,
                 );
-                if (function_exists('create_notification')) {
-                    create_notification(
-                        $new_assignee,
-                        'Requirement assigned: '.$req_number,
-                        'You have been assigned to requirement: '.$req_title,
-                        'info',
-                        'requirements',
-                        (int) $id,
-                        $view_url
-                    );
+                foreach ($added_assignees as $notify_uid) {
+                    $notify_uid = (int) $notify_uid;
+                    if ($notify_uid < 1) {
+                        continue;
+                    }
+                    if (function_exists('create_notification')) {
+                        create_notification(
+                            $notify_uid,
+                            'Requirement assigned: '.$req_number,
+                            'You have been assigned to requirement: '.$req_title,
+                            'info',
+                            'requirements',
+                            (int) $id,
+                            $view_url
+                        );
+                    }
+                    send_user_notification_email($notify_uid, 'requirements', 'created', $email_data);
                 }
-                send_user_notification_email($new_assignee, 'requirements', 'created', $email_data);
             }
 
-            // Status change: notify NEW owner/assignee/creator via SMTP + link
+            // Status change: notify NEW owner/assignees/creator via SMTP + link
             if ($status_changed) {
                 $notify_users = [];
                 $new_owner = isset($data['owner_id']) ? (int) $data['owner_id'] : (isset($row->owner_id) ? (int) $row->owner_id : 0);
                 if ($new_owner > 0) {
                     $notify_users[] = $new_owner;
                 }
-                if ($new_assignee > 0 && !in_array($new_assignee, $notify_users, true)) {
-                    $notify_users[] = $new_assignee;
+                foreach ($assignee_ids as $aid) {
+                    $aid = (int) $aid;
+                    if ($aid > 0 && !in_array($aid, $notify_users, true)) {
+                        $notify_users[] = $aid;
+                    }
                 }
                 if (isset($row->created_by) && (int)$row->created_by > 0 && !in_array((int)$row->created_by, $notify_users, true)) {
                     $notify_users[] = (int)$row->created_by;
                 }
-                // If we already emailed new assignee for reassignment in same save, skip duplicate status email to them
+                // If we already emailed new assignees for reassignment in same save, skip duplicate status email to them
                 if ($assignee_changed) {
-                    $notify_users = array_values(array_filter($notify_users, function ($uid) use ($new_assignee) {
-                        return (int) $uid !== (int) $new_assignee;
+                    $notify_users = array_values(array_filter($notify_users, function ($uid) use ($added_assignees) {
+                        return !in_array((int) $uid, $added_assignees, true);
                     }));
                 }
 
@@ -411,6 +449,12 @@ class Requirements extends CI_Controller {
             'projects'=>$projects,
             'statuses'=>$statuses_list,
             'requirement_types'=>$this->_requirement_type_options(),
+            'assigned_user_ids' => multi_assignees_resolve_for_edit(
+                'requirement_assignees',
+                'requirement_id',
+                (int) $id,
+                isset($row->assigned_to) ? $row->assigned_to : null
+            ),
         ]);
     }
 
@@ -423,6 +467,7 @@ class Requirements extends CI_Controller {
         $type = $this->input->get('type');
         $versions = $this->requirements->get_versions((int)$id, $type);
         $comments = $this->requirements->get_requirement_comments((int)$id);
+        $assignee_names_map = multi_assignees_names_map('requirement_assignees', 'requirement_id', array((int) $id));
         $this->load->view('requirements/view', [
             'req'=>$req,
             'attachments'=>$attachments,
@@ -430,6 +475,7 @@ class Requirements extends CI_Controller {
             'comments'=>$comments,
             'type_filter'=>$type,
             'requirement_types'=>$this->_requirement_type_options(),
+            'assignee_names' => isset($assignee_names_map[(int) $id]) ? $assignee_names_map[(int) $id] : array(),
         ]);
     }
 

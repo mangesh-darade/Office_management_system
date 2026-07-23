@@ -529,8 +529,61 @@ if (!function_exists('my_works_daily_pulse_overview_today')) {
     }
 }
 
+if (!function_exists('my_works_daily_pulse_resolve_spl_bounds')) {
+    /**
+     * Resolve SPL score date bounds from preset period and/or custom score_from/score_to.
+     * Custom Y-m-d range wins when both dates are valid.
+     *
+     * @return array{period:string,from:?string,to:?string,label:string,use_period:bool}
+     */
+    function my_works_daily_pulse_resolve_spl_bounds($reward_period = null, $score_from = null, $score_to = null)
+    {
+        $CI =& get_instance();
+        $CI->load->helper('spl');
+
+        $from_raw = trim((string) $score_from);
+        $to_raw = trim((string) $score_to);
+        $ymd = '/^\d{4}-\d{2}-\d{2}$/';
+        if (preg_match($ymd, $from_raw) && preg_match($ymd, $to_raw)) {
+            if ($from_raw > $to_raw) {
+                $tmp = $from_raw;
+                $from_raw = $to_raw;
+                $to_raw = $tmp;
+            }
+            return array(
+                'period'     => 'custom',
+                'from'       => $from_raw,
+                'to'         => $to_raw,
+                'label'      => $from_raw . ' → ' . $to_raw,
+                'use_period' => true,
+            );
+        }
+
+        $period = function_exists('spl_normalize_reward_period')
+            ? spl_normalize_reward_period($reward_period !== null && $reward_period !== '' ? $reward_period : 'week')
+            : 'week';
+        $bounds = function_exists('spl_reward_period_bounds')
+            ? spl_reward_period_bounds($period)
+            : array('from' => date('Y-m-d', strtotime('monday this week')), 'to' => date('Y-m-d'), 'label' => 'This week');
+        $use_period = ($period !== 'all');
+
+        return array(
+            'period'     => $period,
+            'from'       => $use_period ? (isset($bounds['from']) ? $bounds['from'] : null) : null,
+            'to'         => $use_period ? (isset($bounds['to']) ? $bounds['to'] : null) : null,
+            'label'      => isset($bounds['label']) ? (string) $bounds['label'] : $period,
+            'use_period' => $use_period,
+        );
+    }
+}
+
 if (!function_exists('my_works_daily_pulse_spl_groups')) {
-    function my_works_daily_pulse_spl_groups()
+    /**
+     * @param string|null $from   Y-m-d or null (all-time)
+     * @param string|null $to     Y-m-d or null (all-time)
+     * @param string      $period today|week|month|all|custom
+     */
+    function my_works_daily_pulse_spl_groups($from = null, $to = null, $period = 'week')
     {
         $CI =& get_instance();
         $CI->load->helper('spl');
@@ -543,14 +596,33 @@ if (!function_exists('my_works_daily_pulse_spl_groups')) {
         if (!$CI->db->table_exists('spl_groups')) {
             return null;
         }
+
+        if ($period === 'custom') {
+            $resolved = my_works_daily_pulse_resolve_spl_bounds('week', $from, $to);
+        } else {
+            $resolved = my_works_daily_pulse_resolve_spl_bounds($period !== null && $period !== '' ? $period : 'week');
+        }
+
+        $period = $resolved['period'];
+        $from = $resolved['from'];
+        $to = $resolved['to'];
+        $label = $resolved['label'];
+        $use_period = !empty($resolved['use_period']);
+
         $CI->load->model('Spl_model', 'spl');
-        $bounds = spl_reward_period_bounds('week');
-        $from = isset($bounds['from']) ? $bounds['from'] : date('Y-m-d', strtotime('monday this week'));
-        $to = isset($bounds['to']) ? $bounds['to'] : date('Y-m-d');
-        $board = $CI->spl->list_groups_board(true, $from, $to);
-        usort($board, function ($a, $b) {
-            $pa = isset($a->total_period_net) ? (float) $a->total_period_net : 0;
-            $pb = isset($b->total_period_net) ? (float) $b->total_period_net : 0;
+        $board = $CI->spl->list_groups_board(
+            true,
+            $use_period ? $from : null,
+            $use_period ? $to : null
+        );
+        usort($board, function ($a, $b) use ($use_period) {
+            if ($use_period) {
+                $pa = isset($a->total_period_net) ? (float) $a->total_period_net : 0;
+                $pb = isset($b->total_period_net) ? (float) $b->total_period_net : 0;
+            } else {
+                $pa = isset($a->total_lifetime_points) ? (float) $a->total_lifetime_points : 0;
+                $pb = isset($b->total_lifetime_points) ? (float) $b->total_lifetime_points : 0;
+            }
             if ($pa === $pb) {
                 return strcmp((string) $a->name, (string) $b->name);
             }
@@ -559,9 +631,14 @@ if (!function_exists('my_works_daily_pulse_spl_groups')) {
         $out = array();
         $rank = 1;
         foreach ($board as $g) {
-            $points = isset($g->total_period_net) ? (float) $g->total_period_net : 0;
+            if ($use_period) {
+                $points = isset($g->total_period_net) ? (float) $g->total_period_net : 0;
+                $avg = isset($g->avg_period_points) ? (float) $g->avg_period_points : 0;
+            } else {
+                $points = isset($g->total_lifetime_points) ? (float) $g->total_lifetime_points : 0;
+                $avg = isset($g->avg_lifetime_points) ? (float) $g->avg_lifetime_points : 0;
+            }
             $member_count = isset($g->member_count) ? (int) $g->member_count : 0;
-            $avg = isset($g->avg_period_points) ? (float) $g->avg_period_points : 0;
             if ($avg == 0.0 && $member_count > 0) {
                 $avg = $points / $member_count;
             }
@@ -576,21 +653,24 @@ if (!function_exists('my_works_daily_pulse_spl_groups')) {
                 'url'          => site_url('spl/groups/' . (int) $g->id),
             );
         }
+        $groups_period = in_array($period, array('today', 'week', 'month', 'all'), true) ? $period : 'week';
         return array(
             'items'  => my_works_daily_pulse_trim_list($out),
-            'period' => 'week',
+            'period' => $period,
             'from'   => $from,
             'to'     => $to,
-            'url'    => function_exists('spl_groups_url') ? spl_groups_url('week') : site_url('spl/groups'),
+            'label'  => $label,
+            'url'    => function_exists('spl_groups_url') ? spl_groups_url($groups_period) : site_url('spl/groups'),
         );
     }
 }
 
 if (!function_exists('my_works_build_daily_pulse')) {
     /**
+     * @param array $spl_opts Optional keys: reward_period, score_from, score_to
      * @return array
      */
-    function my_works_build_daily_pulse($db, $user_id, $can_view_all, $role_id = 0)
+    function my_works_build_daily_pulse($db, $user_id, $can_view_all, $role_id = 0, $spl_opts = array())
     {
         $CI =& get_instance();
         $CI->load->helper(array('schema_columns', 'my_works_access', 'hierarchy_filter'));
@@ -609,6 +689,13 @@ if (!function_exists('my_works_build_daily_pulse')) {
         $today = date('Y-m-d');
         $user_map = my_works_daily_pulse_scoped_users($db, $can_view_all, $user_id, $role_id);
 
+        $spl_opts = is_array($spl_opts) ? $spl_opts : array();
+        $spl_bounds = my_works_daily_pulse_resolve_spl_bounds(
+            isset($spl_opts['reward_period']) ? $spl_opts['reward_period'] : null,
+            isset($spl_opts['score_from']) ? $spl_opts['score_from'] : null,
+            isset($spl_opts['score_to']) ? $spl_opts['score_to'] : null
+        );
+
         return array(
             'date'               => $today,
             'clients_added'      => my_works_daily_pulse_clients_added($db, $today),
@@ -619,7 +706,11 @@ if (!function_exists('my_works_build_daily_pulse')) {
             'requirements_added' => my_works_daily_pulse_requirements($db, $today),
             'defects_added'      => my_works_daily_pulse_defects($db, $today),
             'overview_today'     => my_works_daily_pulse_overview_today($db, $can_view_all, $user_id),
-            'spl_group_scores'   => my_works_daily_pulse_spl_groups(),
+            'spl_group_scores'   => my_works_daily_pulse_spl_groups(
+                $spl_bounds['from'],
+                $spl_bounds['to'],
+                $spl_bounds['period']
+            ),
         );
     }
 }

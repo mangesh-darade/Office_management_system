@@ -5,7 +5,7 @@ class Tasks extends CI_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->database();
-        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns','validation','estimate_hours']);
+        $this->load->helper(['url','form','permission','group_filter','hierarchy_filter','email_settings','schema_columns','validation','estimate_hours','multi_assignee']);
         $this->load->library(['session']);
         $this->load->model('Task_model');
         
@@ -13,6 +13,7 @@ class Tasks extends CI_Controller {
         // Allow users with either 'tasks' or 'tasks_list' access
         require_module_access(['tasks', 'tasks_list'], true);
         estimate_hours_ensure_column($this->db, 'tasks', 'due_date');
+        multi_assignees_ensure_schema($this->db);
     }
 
     public function index() {
@@ -50,16 +51,18 @@ class Tasks extends CI_Controller {
         }
         $this->db->select(implode(',', $select));
         
-        // Admin sees all tasks; others see tasks assigned to them only
+        // Admin sees all tasks; others see tasks assigned to them / hierarchy (incl. junction)
         $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
             || has_module_access('tasks_view_all');
         if (!$can_view_all && $user_id) {
-            apply_role_hierarchy_filter($this->db, 't.assigned_to', $user_id, $role_id);
+            multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id);
         }
         
         // Apply filters
         if ($project_filter !== '') { $this->db->where('t.project_id', (int)$project_filter); }
-        if ($is_admin && $assignee_filter !== '') { $this->db->where('t.assigned_to', (int)$assignee_filter); }
+        if ($is_admin && $assignee_filter !== '') {
+            multi_assignees_apply_user_match($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', (int)$assignee_filter);
+        }
         if ($status_filter !== '') { $this->db->where('t.status', $status_filter); }
         if ($priority_filter !== '' && schema_table_has_column($this->db, 'tasks', 'priority')) { $this->db->where('t.priority', $priority_filter); }
         if (schema_table_has_column($this->db, 'tasks', 'priority')) {
@@ -73,6 +76,15 @@ class Tasks extends CI_Controller {
         }
         $this->db->order_by('t.id', 'DESC');
         $tasks = $this->db->get()->result();
+
+        $assignee_names_map = array();
+        if (!empty($tasks)) {
+            $task_ids = array();
+            foreach ($tasks as $trow) {
+                $task_ids[] = (int) $trow->id;
+            }
+            $assignee_names_map = multi_assignees_names_map('task_assignees', 'task_id', $task_ids);
+        }
 
         // Dropdown data
         $projects = [];
@@ -109,6 +121,7 @@ class Tasks extends CI_Controller {
             'is_admin' => $is_admin,
             'projects' => $projects,
             'assignees' => $assignees,
+            'assignee_names_map' => $assignee_names_map,
             'filter_project_id' => $project_filter,
             'filter_assigned_to' => $assignee_filter,
             'filter_status' => $status_filter,
@@ -149,11 +162,14 @@ class Tasks extends CI_Controller {
             // Cache field list once — avoids multiple DB roundtrips and safely handles un-migrated schemas
             $task_fields = $this->db->list_fields('tasks');
 
+            $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
+            $primary_assignee = multi_assignees_primary($assignee_ids);
+
             $data = [
                 'project_id'  => $project_id,
                 'title'       => trim($this->input->post('title')),
                 'description' => $this->input->post('description', TRUE),
-                'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
+                'assigned_to' => $primary_assignee,
                 'status'      => $this->input->post('status') ?: 'pending',
                 'created_by'  => $user_id,
             ];
@@ -219,6 +235,7 @@ class Tasks extends CI_Controller {
             }
             $this->db->insert('tasks', $data);
             $id = $this->db->insert_id();
+            multi_assignees_sync('task_assignees', 'task_id', (int) $id, $assignee_ids);
             
             // Log task creation with change tracking
             $this->load->helper('change_tracker');
@@ -226,7 +243,7 @@ class Tasks extends CI_Controller {
             auto_log_insert('tasks', 'tasks', (int)$id, $data, $description);
             
             // Send SMTP email with portal link (not Google Calendar — that caused duplicate invites)
-            if (isset($data['assigned_to']) && !empty($data['assigned_to'])){
+            if (!empty($assignee_ids)){
                 $task_details = $this->db->select('t.*, p.name as project_name')
                     ->from('tasks t')
                     ->join('projects p', 'p.id = t.project_id', 'left')
@@ -237,23 +254,29 @@ class Tasks extends CI_Controller {
                     if (!function_exists('send_notification_with_settings')) {
                         $this->load->helper('email_settings');
                     }
-                    $sent = send_notification_with_settings('tasks', 'created', $task_details, $task_details->assigned_to);
-                    if ($sent) {
-                        log_message('info', 'Task notification sent using settings system for task #' . $id);
-                    } else {
-                        log_message('info', 'Task notification disabled or failed for task #' . $id);
-                    }
                     $this->load->helper('notification');
-                    if (function_exists('create_notification')) {
-                        create_notification(
-                            (int) $data['assigned_to'],
-                            'New task assigned',
-                            (string) $data['title'],
-                            'info',
-                            'tasks',
-                            (int) $id,
-                            site_url('tasks/' . $id)
-                        );
+                    foreach ($assignee_ids as $notify_uid) {
+                        $notify_uid = (int) $notify_uid;
+                        if ($notify_uid < 1) {
+                            continue;
+                        }
+                        $sent = send_notification_with_settings('tasks', 'created', $task_details, $notify_uid);
+                        if ($sent) {
+                            log_message('info', 'Task notification sent using settings system for task #' . $id . ' user #' . $notify_uid);
+                        } else {
+                            log_message('info', 'Task notification disabled or failed for task #' . $id . ' user #' . $notify_uid);
+                        }
+                        if (function_exists('create_notification')) {
+                            create_notification(
+                                $notify_uid,
+                                'New task assigned',
+                                (string) $data['title'],
+                                'info',
+                                'tasks',
+                                (int) $id,
+                                site_url('tasks/' . $id)
+                            );
+                        }
                     }
                 }
             }
@@ -307,7 +330,8 @@ class Tasks extends CI_Controller {
             'projects' => $projects, 
             'users' => $users, 
             'requirements' => $requirements,
-            'preselected_requirement' => $preselected_requirement
+            'preselected_requirement' => $preselected_requirement,
+            'assigned_user_ids' => array(),
         ]);
     }
 
@@ -373,7 +397,8 @@ class Tasks extends CI_Controller {
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             $visible_ids = get_accessible_hierarchy_user_ids($user_id, (int)$this->session->userdata('role_id'));
             $can_see_hierarchy = empty($visible_ids) ? true : in_array($creator, $visible_ids, true);
-            if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id) {
+            $is_multi_assignee = multi_assignees_includes_user('task_assignees', 'task_id', (int) $id, $user_id);
+            if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id && !$is_multi_assignee) {
                 return $this->output->set_status_header(403)
                     ->set_content_type('application/json')
                     ->set_output(json_encode(['error' => 'Access denied']));
@@ -564,10 +589,15 @@ class Tasks extends CI_Controller {
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             $visible_ids = get_accessible_hierarchy_user_ids($user_id, (int)$this->session->userdata('role_id'));
             $can_see_hierarchy = empty($visible_ids) ? true : in_array($creator, $visible_ids, true);
-            if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id) { show_error('Forbidden', 403); }
+            $is_multi_assignee = multi_assignees_includes_user('task_assignees', 'task_id', (int) $id, $user_id);
+            if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id && !$is_multi_assignee) { show_error('Forbidden', 403); }
         }
         
-        $this->load->view('tasks/view', ['task' => $task]);
+        $assignee_names_map = multi_assignees_names_map('task_assignees', 'task_id', array((int) $id));
+        $this->load->view('tasks/view', [
+            'task' => $task,
+            'assignee_names' => isset($assignee_names_map[(int) $id]) ? $assignee_names_map[(int) $id] : array(),
+        ]);
     }
 
     // GET /tasks/{id}/edit, POST /tasks/{id}/edit
@@ -607,11 +637,20 @@ class Tasks extends CI_Controller {
             // Cache field list once — avoids multiple DB roundtrips and safely handles un-migrated schemas
             $task_fields = $this->db->list_fields('tasks');
 
+            $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
+            $primary_assignee = multi_assignees_primary($assignee_ids);
+            $old_assignee_ids = multi_assignees_resolve_for_edit(
+                'task_assignees',
+                'task_id',
+                (int) $id,
+                isset($task->assigned_to) ? $task->assigned_to : null
+            );
+
             $data = [
                 'project_id'  => $project_id,
                 'title'       => trim($this->input->post('title')),
                 'description' => $this->input->post('description', TRUE),
-                'assigned_to' => $this->input->post('assigned_to') !== '' ? (int)$this->input->post('assigned_to') : null,
+                'assigned_to' => $primary_assignee,
                 'status'      => $this->input->post('status') ?: 'pending',
             ];
             // Guard all migration-added columns
@@ -686,6 +725,8 @@ class Tasks extends CI_Controller {
                 redirect('tasks/'.$id.'/edit');
                 return;
             }
+
+            multi_assignees_sync('task_assignees', 'task_id', (int) $id, $assignee_ids);
             
             // Load activity tracking helper
             $this->load->helper('change_tracker');
@@ -697,12 +738,12 @@ class Tasks extends CI_Controller {
             $description = 'Task: ' . (string)$data['title'];
             track_changes_after('tasks', 'tasks', (int)$id, $old_data, $data, $description);
             
-            // Send one SMTP email to assignee (settings-aware). Avoid double-send if assignee + status both change.
-            $old_assignee_id = isset($task->assigned_to) ? (int)$task->assigned_to : null;
+            // Notify newly added assignees; status change still notifies primary
             $new_assignee_id = isset($data['assigned_to']) ? (int)$data['assigned_to'] : null;
             $old_status = isset($task->status) ? $task->status : 'pending';
             $new_status = $data['status'];
-            $assignee_changed = ($new_assignee_id && $new_assignee_id !== $old_assignee_id);
+            $added_assignees = array_values(array_diff($assignee_ids, $old_assignee_ids));
+            $assignee_changed = !empty($added_assignees);
             $status_changed = ($old_status !== $new_status && $new_assignee_id);
 
             if ($assignee_changed || $status_changed) {
@@ -715,21 +756,28 @@ class Tasks extends CI_Controller {
                     ->where('t.id', $id)
                     ->get()->row();
                 if ($task_details) {
-                    $event = $assignee_changed ? 'updated' : 'status_changed';
-                    send_notification_with_settings('tasks', $event, $task_details, $new_assignee_id);
+                    $this->load->helper('notification');
                     if ($assignee_changed) {
-                        $this->load->helper('notification');
-                        if (function_exists('create_notification')) {
-                            create_notification(
-                                $new_assignee_id,
-                                'Task assigned to you',
-                                (string) $task_details->title,
-                                'info',
-                                'tasks',
-                                (int) $id,
-                                site_url('tasks/' . $id)
-                            );
+                        foreach ($added_assignees as $notify_uid) {
+                            $notify_uid = (int) $notify_uid;
+                            if ($notify_uid < 1) {
+                                continue;
+                            }
+                            send_notification_with_settings('tasks', 'updated', $task_details, $notify_uid);
+                            if (function_exists('create_notification')) {
+                                create_notification(
+                                    $notify_uid,
+                                    'Task assigned to you',
+                                    (string) $task_details->title,
+                                    'info',
+                                    'tasks',
+                                    (int) $id,
+                                    site_url('tasks/' . $id)
+                                );
+                            }
                         }
+                    } elseif ($status_changed) {
+                        send_notification_with_settings('tasks', 'status_changed', $task_details, $new_assignee_id);
                     }
                 }
             }
@@ -790,7 +838,13 @@ class Tasks extends CI_Controller {
             'projects' => $projects, 
             'users' => $users, 
             'requirements' => $requirements,
-            'statuses' => $statuses_list
+            'statuses' => $statuses_list,
+            'assigned_user_ids' => multi_assignees_resolve_for_edit(
+                'task_assignees',
+                'task_id',
+                (int) $id,
+                isset($task->assigned_to) ? $task->assigned_to : null
+            ),
         ]);
     }
 
@@ -809,7 +863,8 @@ class Tasks extends CI_Controller {
         if ($currentUser && !$can_manage_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
-            if ($assigned !== $currentUser && $creator !== $currentUser) { show_error('Forbidden', 403); }
+            $is_multi_assignee = multi_assignees_includes_user('task_assignees', 'task_id', (int) $id, $currentUser);
+            if ($assigned !== $currentUser && $creator !== $currentUser && !$is_multi_assignee) { show_error('Forbidden', 403); }
         }
 
         // Load activity tracking helper
@@ -1106,6 +1161,135 @@ class Tasks extends CI_Controller {
     }
 
     /**
+     * Primary assignee OR secondary junction assignee (task / requirement / my_works).
+     *
+     * @param object $item
+     * @param int $user_id
+     * @return bool
+     */
+    private function _user_dashboard_item_matches_user($item, $user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id < 1 || !is_object($item)) {
+            return false;
+        }
+        if ($this->_user_dashboard_item_assignee_id($item) === $user_id) {
+            return true;
+        }
+        $source = isset($item->item_source) ? (string) $item->item_source : '';
+        $id = isset($item->id) ? (int) $item->id : 0;
+        if ($id < 1 || !function_exists('multi_assignees_includes_user')) {
+            return false;
+        }
+        if ($source === 'tasks') {
+            return multi_assignees_includes_user('task_assignees', 'task_id', $id, $user_id);
+        }
+        if ($source === 'requirements') {
+            return multi_assignees_includes_user('requirement_assignees', 'requirement_id', $id, $user_id);
+        }
+        if ($source === 'my_works') {
+            return multi_assignees_includes_user('my_works_assignees', 'work_id', $id, $user_id);
+        }
+        return false;
+    }
+
+    /**
+     * Bulk load junction assignee user_ids keyed by "source:id".
+     *
+     * @param array $tasks
+     * @return array<string, int[]>
+     */
+    private function _user_dashboard_bulk_assignee_map(array $tasks)
+    {
+        $by_source = array(
+            'tasks' => array(),
+            'requirements' => array(),
+            'my_works' => array(),
+        );
+        foreach ($tasks as $task) {
+            if (!is_object($task) || empty($task->id)) {
+                continue;
+            }
+            $source = isset($task->item_source) ? (string) $task->item_source : '';
+            if ($source === '' && isset($task->item_type)) {
+                $itype = (string) $task->item_type;
+                if ($itype === 'requirement') {
+                    $source = 'requirements';
+                } elseif ($itype === 'my_work' || $itype === 'ad_hoc') {
+                    $source = 'my_works';
+                } else {
+                    $source = 'tasks';
+                }
+            }
+            if (!isset($by_source[$source])) {
+                continue;
+            }
+            $by_source[$source][] = (int) $task->id;
+        }
+
+        $table_map = array(
+            'tasks' => array('task_assignees', 'task_id'),
+            'requirements' => array('requirement_assignees', 'requirement_id'),
+            'my_works' => array('my_works_assignees', 'work_id'),
+        );
+        $out = array();
+        if (!function_exists('multi_assignees_ids_map')) {
+            return $out;
+        }
+        foreach ($table_map as $source => $meta) {
+            $ids = array_values(array_unique(array_filter($by_source[$source])));
+            if (empty($ids)) {
+                continue;
+            }
+            $id_map = multi_assignees_ids_map($meta[0], $meta[1], $ids);
+            foreach ($id_map as $parent_id => $user_ids) {
+                $out[$source . ':' . (int) $parent_id] = $user_ids;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * All assignee user_ids for a dashboard item (primary + junction).
+     *
+     * @param object $item
+     * @param array<string, int[]> $junction_map
+     * @return int[]
+     */
+    private function _user_dashboard_all_assignee_ids($item, array $junction_map)
+    {
+        $ids = array();
+        $primary = $this->_user_dashboard_item_assignee_id($item);
+        if ($primary > 0) {
+            $ids[] = $primary;
+        }
+        if (!is_object($item) || empty($item->id)) {
+            return $ids;
+        }
+        $source = isset($item->item_source) ? (string) $item->item_source : '';
+        if ($source === '' && isset($item->item_type)) {
+            $itype = (string) $item->item_type;
+            if ($itype === 'requirement') {
+                $source = 'requirements';
+            } elseif ($itype === 'my_work' || $itype === 'ad_hoc') {
+                $source = 'my_works';
+            } else {
+                $source = 'tasks';
+            }
+        }
+        $key = $source . ':' . (int) $item->id;
+        if (!empty($junction_map[$key]) && is_array($junction_map[$key])) {
+            foreach ($junction_map[$key] as $uid) {
+                $uid = (int) $uid;
+                if ($uid > 0 && !in_array($uid, $ids, true)) {
+                    $ids[] = $uid;
+                }
+            }
+        }
+        return $ids;
+    }
+
+    /**
      * @param array $items
      * @return array
      */
@@ -1337,12 +1521,26 @@ class Tasks extends CI_Controller {
             }
             dashboard_apply_complete_view_to_query($this->db, 't.status', $complete_view, $filter_status, 'task');
             if ($filter_user_id > 0 && schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
-                $this->db->where('t.assigned_to', $filter_user_id);
+                multi_assignees_apply_user_match(
+                    $this->db,
+                    't.assigned_to',
+                    'task_assignees',
+                    'task_id',
+                    't.id',
+                    $filter_user_id
+                );
             }
 
             if (!$can_view_all) {
                 $this->db->group_start();
-                $this->db->where('t.assigned_to', $user_id);
+                multi_assignees_apply_user_match(
+                    $this->db,
+                    't.assigned_to',
+                    'task_assignees',
+                    'task_id',
+                    't.id',
+                    $user_id
+                );
                 if (schema_table_has_column($this->db, 'tasks', 'created_by')) {
                     $this->db->or_where('t.created_by', $user_id);
                 }
@@ -1426,12 +1624,26 @@ class Tasks extends CI_Controller {
             }
             dashboard_apply_complete_view_to_query($this->db, 'r.status', $complete_view, $filter_status, 'task');
             if ($filter_user_id > 0 && schema_table_has_column($this->db, 'requirements', 'assigned_to')) {
-                $this->db->where('r.assigned_to', $filter_user_id);
+                multi_assignees_apply_user_match(
+                    $this->db,
+                    'r.assigned_to',
+                    'requirement_assignees',
+                    'requirement_id',
+                    'r.id',
+                    $filter_user_id
+                );
             }
 
             if (!$can_view_all) {
                 $this->db->group_start();
-                $this->db->where('r.assigned_to', $user_id);
+                multi_assignees_apply_user_match(
+                    $this->db,
+                    'r.assigned_to',
+                    'requirement_assignees',
+                    'requirement_id',
+                    'r.id',
+                    $user_id
+                );
                 if (schema_table_has_column($this->db, 'requirements', 'created_by')) {
                     $this->db->or_where('r.created_by', $user_id);
                 }
@@ -1542,7 +1754,14 @@ class Tasks extends CI_Controller {
             if ($filter_user_id > 0) {
                 if (schema_table_has_column($this->db, 'my_works', 'created_for')) {
                     $this->db->group_start();
-                    $this->db->where('m.created_for', $filter_user_id);
+                    multi_assignees_apply_user_match(
+                        $this->db,
+                        'm.created_for',
+                        'my_works_assignees',
+                        'work_id',
+                        'm.id',
+                        $filter_user_id
+                    );
                     if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
                         $this->db->or_group_start();
                         $this->db->where('m.created_for IS NULL', null, false);
@@ -1562,7 +1781,14 @@ class Tasks extends CI_Controller {
             if (!$can_view_all) {
                 if (schema_table_has_column($this->db, 'my_works', 'created_for')) {
                     $this->db->group_start();
-                    $this->db->where('m.created_for', $user_id);
+                    multi_assignees_apply_user_match(
+                        $this->db,
+                        'm.created_for',
+                        'my_works_assignees',
+                        'work_id',
+                        'm.id',
+                        $user_id
+                    );
                     if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
                         $this->db->or_where('m.created_by', $user_id);
                     }
@@ -1591,7 +1817,7 @@ class Tasks extends CI_Controller {
         if ($filter_user_id > 0) {
             $scoped = array();
             foreach ($all_items as $item) {
-                if ($this->_user_dashboard_item_assignee_id($item) === $filter_user_id) {
+                if ($this->_user_dashboard_item_matches_user($item, $filter_user_id)) {
                     $scoped[] = $item;
                 }
             }
@@ -1648,12 +1874,29 @@ class Tasks extends CI_Controller {
             }
         }
 
+        // Unfiltered Team Dashboard: fan-out each item under EVERY assignee (primary + junction)
+        // so quick-add / multi-assign works show for all selected people.
+        // Filtered employee detail: keep row under that user only (already scoped by fetch).
+        $junction_map = ($filter_user_id > 0)
+            ? array()
+            : $this->_user_dashboard_bulk_assignee_map($tasks);
+
         foreach ($tasks as $task) {
-            $assignee_id = $this->_user_dashboard_item_assignee_id($task);
-            if (!isset($grouped[$assignee_id])) {
-                $grouped[$assignee_id] = array();
+            if ($filter_user_id > 0) {
+                $assignee_ids = array((int) $filter_user_id);
+            } else {
+                $assignee_ids = $this->_user_dashboard_all_assignee_ids($task, $junction_map);
+                if (empty($assignee_ids)) {
+                    $assignee_ids = array(0);
+                }
             }
-            $grouped[$assignee_id][] = $task;
+            foreach ($assignee_ids as $assignee_id) {
+                $assignee_id = (int) $assignee_id;
+                if (!isset($grouped[$assignee_id])) {
+                    $grouped[$assignee_id] = array();
+                }
+                $grouped[$assignee_id][] = $task;
+            }
         }
 
         if (empty($grouped)) {
@@ -1863,7 +2106,7 @@ class Tasks extends CI_Controller {
             
             // Apply base filters
             if (!$is_admin && $user_id) {
-                apply_role_hierarchy_filter($this->db, 't.created_by', $user_id, $role_id);
+                multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id);
             }
             $this->db->where('t.status', $st);
             
@@ -1872,7 +2115,7 @@ class Tasks extends CI_Controller {
                 $this->db->where('t.project_id', (int)$project_filter); 
             }
             if ($is_admin && $assignee_filter !== '') { 
-                $this->db->where('t.assigned_to', (int)$assignee_filter); 
+                multi_assignees_apply_user_match($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', (int)$assignee_filter);
             }
             if ($priority_filter !== '' && schema_table_has_column($this->db, 'tasks', 'priority')) { 
                 $this->db->where('t.priority', $priority_filter); 
@@ -1915,10 +2158,20 @@ class Tasks extends CI_Controller {
         
         $board_stats = array();
         $total_tasks = 0;
+        $all_board_ids = array();
         foreach ($statuses as $st) {
             $cnt = count($columns[$st]);
             $board_stats[$st] = $cnt;
             $total_tasks += $cnt;
+            foreach ($columns[$st] as $trow) {
+                if (!empty($trow->id)) {
+                    $all_board_ids[] = (int) $trow->id;
+                }
+            }
+        }
+        $assignee_names_map = array();
+        if (!empty($all_board_ids) && function_exists('multi_assignees_names_map')) {
+            $assignee_names_map = multi_assignees_names_map('task_assignees', 'task_id', $all_board_ids);
         }
         $completed_count = isset($board_stats['completed']) ? (int) $board_stats['completed'] : 0;
         $board_progress = ($total_tasks > 0) ? (int) round(($completed_count / $total_tasks) * 100) : 0;
@@ -1927,6 +2180,7 @@ class Tasks extends CI_Controller {
             'columns' => $columns,
             'projects' => $projects,
             'assignees' => $assignees,
+            'assignee_names_map' => $assignee_names_map,
             'filter_project_id' => $project_filter,
             'filter_assigned_to' => $assignee_filter,
             'filter_priority' => $priority_filter,

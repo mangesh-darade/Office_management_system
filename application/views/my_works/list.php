@@ -155,7 +155,9 @@ if (!$embed) {
 
                   $rowClass = my_works_row_border_class($r);
 
-                  $canStatus = !empty($can_quick_edit) || (int) $r->created_for === $uid;
+                  $canStatus = function_exists('my_works_can_update_status')
+                    ? my_works_can_update_status($r, !empty($can_view_all), $uid)
+                    : (!empty($can_quick_edit) || (int) $r->created_for === $uid);
 
                   $overdue = my_works_is_overdue($r);
 
@@ -164,6 +166,9 @@ if (!$embed) {
                   $priorityOrder = ((int) $r->is_urgent * 10) + (int) $r->is_important;
 
                   $forLabel = my_works_user_label($r->created_for_name, $r->created_for_email, $r->created_for);
+                  if (function_exists('multi_assignees_format_label') && isset($assignee_names_map[(int) $r->id]) && is_array($assignee_names_map[(int) $r->id])) {
+                    $forLabel = multi_assignees_format_label($forLabel, $assignee_names_map[(int) $r->id]);
+                  }
 
                   $rowAttachments = my_works_row_attachments($r, isset($attachments_map) ? $attachments_map : null);
 

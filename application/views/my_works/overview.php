@@ -137,6 +137,8 @@ if (!$embed) {
       'can_add' => !empty($can_add),
       'can_view_all' => !empty($can_view_all),
       'hide_empty_lanes' => $hide_empty_lanes,
+      'assignee_names_map' => isset($assignee_names_map) ? $assignee_names_map : array(),
+      'task_assignee_names_map' => isset($task_assignee_names_map) ? $task_assignee_names_map : array(),
     )); ?>
   </section>
   <?php endif; ?>
@@ -153,6 +155,8 @@ if (!$embed) {
       'can_add' => !empty($can_add),
       'can_view_all' => !empty($can_view_all),
       'hide_empty_lanes' => $hide_empty_lanes,
+      'assignee_names_map' => isset($assignee_names_map) ? $assignee_names_map : array(),
+      'task_assignee_names_map' => isset($task_assignee_names_map) ? $task_assignee_names_map : array(),
     )); ?>
   </section>
   <?php endif; ?>

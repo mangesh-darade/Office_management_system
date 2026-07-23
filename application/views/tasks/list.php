@@ -176,6 +176,9 @@ $this->load->view('partials/oms_page_head', array(
               } else if (isset($t->assignee_email) && $t->assignee_email !== '') {
                   $assignee = $t->assignee_email;
               }
+              if (isset($assignee_names_map[(int) $t->id]) && is_array($assignee_names_map[(int) $t->id])) {
+                  $assignee = multi_assignees_format_label($assignee, $assignee_names_map[(int) $t->id]);
+              }
               $desc_plain = isset($t->description) ? trim(strip_tags((string) $t->description)) : '';
             ?>
             <tr>

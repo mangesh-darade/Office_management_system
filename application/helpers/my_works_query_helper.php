@@ -118,7 +118,16 @@ if (!function_exists('my_works_apply_filters_to_query')) {
             $db->like('w.tag', $filters['tag']);
         }
         if ($filters['created_for'] > 0) {
-            $db->where('w.created_for', $filters['created_for']);
+            $CI =& get_instance();
+            $CI->load->helper('multi_assignee');
+            multi_assignees_apply_user_match(
+                $db,
+                'w.created_for',
+                'my_works_assignees',
+                'work_id',
+                'w.id',
+                (int) $filters['created_for']
+            );
         }
         if ($filters['created_by'] > 0) {
             $db->where('w.created_by', $filters['created_by']);
@@ -139,7 +148,16 @@ if (!function_exists('my_works_apply_filters_to_query')) {
         if ($filters['involvement'] === 'created') {
             $db->where('w.created_by', $filters['current_user_id']);
         } elseif ($filters['involvement'] === 'assigned') {
-            $db->where('w.created_for', $filters['current_user_id']);
+            $CI =& get_instance();
+            $CI->load->helper('multi_assignee');
+            multi_assignees_apply_user_match(
+                $db,
+                'w.created_for',
+                'my_works_assignees',
+                'work_id',
+                'w.id',
+                (int) $filters['current_user_id']
+            );
         }
         if ($filters['q'] !== '') {
             $db->group_start()
@@ -264,7 +282,15 @@ if (!function_exists('my_works_fetch_stats')) {
             $db->reset_query();
             $db->from('my_works w');
             my_works_apply_list_scope($db, $can_view_all, $user_id);
-            $db->where('w.created_for', $uid);
+            $CI->load->helper('multi_assignee');
+            multi_assignees_apply_user_match(
+                $db,
+                'w.created_for',
+                'my_works_assignees',
+                'work_id',
+                'w.id',
+                (int) $uid
+            );
             my_works_apply_open_status_filter($db, 'w.status');
             $stats['assigned_to_me'] = (int) $db->count_all_results();
         }
@@ -306,9 +332,15 @@ if (!function_exists('my_works_list_view_data')) {
             }
         }
         $attachments_map = my_works_attachments_bulk_map($db, $work_ids);
+        $assignee_names_map = array();
+        if (!empty($work_ids) && function_exists('multi_assignees_names_map')) {
+            $CI->load->helper('multi_assignee');
+            $assignee_names_map = multi_assignees_names_map('my_works_assignees', 'work_id', $work_ids);
+        }
         return array(
             'rows'             => $rows,
             'attachments_map'  => $attachments_map,
+            'assignee_names_map' => $assignee_names_map,
             'filters'          => $filters,
             'stats'            => $stats,
             'columns'          => $columns,
@@ -406,7 +438,7 @@ if (!function_exists('my_works_overview_item_payload')) {
      * @param array  $attachments_map
      * @return array<string, mixed>
      */
-    function my_works_overview_item_payload($row, array $attachments_map)
+    function my_works_overview_item_payload($row, array $attachments_map, $assignee_extra_names = null)
     {
         $statusLabels = my_works_status_labels();
         $statusColors = my_works_status_colors();
@@ -418,6 +450,9 @@ if (!function_exists('my_works_overview_item_payload')) {
             $details = substr($details, 0, 600) . '…';
         }
         $forLabel = my_works_user_label($row->created_for_name, $row->created_for_email, $row->created_for);
+        if (function_exists('multi_assignees_format_label')) {
+            $forLabel = multi_assignees_format_label($forLabel, $assignee_extra_names);
+        }
         $byLabel = my_works_user_label($row->created_by_name, $row->created_by_email, $row->created_by);
         $year = '';
         if (!empty($row->due_date)) {
@@ -629,7 +664,16 @@ if (!function_exists('my_works_fetch_overview_project_tasks')) {
             $db->where('t.project_id', (int) $filters['project_id']);
         }
         if (!empty($filters['created_for']) && schema_table_has_column($db, 'tasks', 'assigned_to')) {
-            $db->where('t.assigned_to', (int) $filters['created_for']);
+            $CI =& get_instance();
+            $CI->load->helper('multi_assignee');
+            multi_assignees_apply_user_match(
+                $db,
+                't.assigned_to',
+                'task_assignees',
+                'task_id',
+                't.id',
+                (int) $filters['created_for']
+            );
         }
         if (!empty($filters['created_by']) && schema_table_has_column($db, 'tasks', 'created_by')) {
             $db->where('t.created_by', (int) $filters['created_by']);
@@ -667,7 +711,16 @@ if (!function_exists('my_works_fetch_overview_project_tasks')) {
 
         $involvement = isset($filters['involvement']) ? (string) $filters['involvement'] : 'all';
         if ($involvement === 'assigned' && schema_table_has_column($db, 'tasks', 'assigned_to') && $user_id > 0) {
-            $db->where('t.assigned_to', $user_id);
+            $CI =& get_instance();
+            $CI->load->helper('multi_assignee');
+            multi_assignees_apply_user_match(
+                $db,
+                't.assigned_to',
+                'task_assignees',
+                'task_id',
+                't.id',
+                $user_id
+            );
         } elseif ($involvement === 'created' && schema_table_has_column($db, 'tasks', 'created_by') && $user_id > 0) {
             $db->where('t.created_by', $user_id);
         }
@@ -676,9 +729,18 @@ if (!function_exists('my_works_fetch_overview_project_tasks')) {
             if ($user_id < 1) {
                 return array();
             }
+            $CI =& get_instance();
+            $CI->load->helper('multi_assignee');
             $db->group_start();
             if (schema_table_has_column($db, 'tasks', 'assigned_to')) {
-                $db->where('t.assigned_to', $user_id);
+                multi_assignees_apply_user_match(
+                    $db,
+                    't.assigned_to',
+                    'task_assignees',
+                    'task_id',
+                    't.id',
+                    $user_id
+                );
             }
             if (schema_table_has_column($db, 'tasks', 'created_by')) {
                 $db->or_where('t.created_by', $user_id);

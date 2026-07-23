@@ -98,6 +98,54 @@
             </div>
 
             <div class="col-md-4">
+              <label class="form-label" for="department_id">Department</label>
+              <select name="department_id" id="department_id" class="form-select">
+                <option value="">-- Select department --</option>
+                <?php
+                  $currentDeptName = (isset($employee) && isset($employee->department)) ? (string)$employee->department : '';
+                  $currentDeptId = (isset($employee) && isset($employee->department_id)) ? (int)$employee->department_id : 0;
+                ?>
+                <?php if (isset($departments) && !empty($departments)) : foreach ($departments as $d): ?>
+                  <?php
+                    $sel = '';
+                    if ($currentDeptId && $currentDeptId === (int)$d->id) {
+                      $sel = 'selected';
+                    } elseif (!$currentDeptId && $currentDeptName !== '' && $currentDeptName === (string)$d->dept_name) {
+                      $sel = 'selected';
+                    }
+                  ?>
+                  <option value="<?php echo (int)$d->id; ?>" <?php echo $sel; ?>><?php echo esc_view($d->dept_name); ?></option>
+                <?php endforeach; endif; ?>
+              </select>
+              <input type="hidden" name="department" value="<?php echo esc_view((isset($employee) && isset($employee->department)) ? $employee->department : ''); ?>">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="designation_id">Designation</label>
+              <select name="designation_id" id="designation_id" class="form-select">
+                <option value="">-- Select designation --</option>
+                <?php
+                  $currentDesgName = (isset($employee) && isset($employee->designation)) ? (string)$employee->designation : '';
+                  $currentDesgId = (isset($employee) && isset($employee->designation_id)) ? (int)$employee->designation_id : 0;
+                ?>
+                <?php if (isset($designations) && !empty($designations)) : foreach ($designations as $dg): ?>
+                  <?php
+                    $sel = '';
+                    if ($currentDesgId && $currentDesgId === (int)$dg->id) {
+                      $sel = 'selected';
+                    } elseif (!$currentDesgId && $currentDesgName !== '' && $currentDesgName === (string)$dg->designation_name) {
+                      $sel = 'selected';
+                    }
+                  ?>
+                  <option value="<?php echo (int)$dg->id; ?>" data-department-id="<?php echo isset($dg->department_id) ? (int)$dg->department_id : 0; ?>" <?php echo $sel; ?>>
+                    <?php echo esc_view($dg->designation_name); ?>
+                  </option>
+                <?php endforeach; endif; ?>
+              </select>
+              <input type="hidden" name="designation" value="<?php echo esc_view((isset($employee) && isset($employee->designation)) ? $employee->designation : ''); ?>">
+            </div>
+
+            <div class="col-md-4">
               <label class="form-label">Status <span class="text-danger">*</span></label>
               <?php
                 $stRaw = isset($row->status) ? $row->status : 1;
@@ -239,6 +287,39 @@
 <script>
 (function(){
   document.addEventListener('DOMContentLoaded', function(){
+    var deptInput = document.querySelector('input[name="department"]');
+    var desgInput = document.querySelector('input[name="designation"]');
+    var deptSelect = document.querySelector('select[name="department_id"]');
+    var desgSelect = document.querySelector('select[name="designation_id"]');
+
+    if (deptSelect) {
+      deptSelect.addEventListener('change', function(){
+        var opt = deptSelect.options[deptSelect.selectedIndex];
+        if (opt && deptInput) {
+          deptInput.value = (opt.value === '') ? '' : (opt.textContent || '');
+        }
+      });
+    }
+
+    if (desgSelect) {
+      desgSelect.addEventListener('change', function(){
+        var opt = desgSelect.options[desgSelect.selectedIndex];
+        if (opt) {
+          var depId = opt.getAttribute('data-department-id');
+          if (depId && deptSelect && deptSelect.value !== depId) {
+            deptSelect.value = depId;
+            var depOpt = deptSelect.options[deptSelect.selectedIndex];
+            if (depOpt && deptInput) {
+              deptInput.value = (depOpt.value === '') ? '' : (depOpt.textContent || '');
+            }
+          }
+          if (desgInput) {
+            desgInput.value = (opt.value === '') ? '' : (opt.textContent || '');
+          }
+        }
+      });
+    }
+
     if (<?php echo $is_edit ? 'true' : 'false'; ?>) return;
     var site = '<?php echo rtrim(site_url(), "/"); ?>/';
     var emailInput = document.getElementById('userEmail');

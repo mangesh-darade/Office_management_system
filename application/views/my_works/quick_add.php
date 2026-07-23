@@ -8,6 +8,15 @@ $field = function ($key, $default = '') use ($item) {
     return $default;
 };
 $curFor = (int) $field('created_for', $uid);
+$curForIds = array();
+$rawCurFor = $field('created_for', $uid);
+if (is_array($rawCurFor)) {
+    $curForIds = array_map('intval', $rawCurFor);
+} elseif ((int) $rawCurFor > 0) {
+    $curForIds = array((int) $rawCurFor);
+} else {
+    $curForIds = array($uid);
+}
 $redirect_path = isset($redirect) ? trim((string) $redirect) : 'my-works';
 if ($redirect_path === '' || strpos($redirect_path, '://') !== false) {
     $redirect_path = 'my-works';
@@ -85,14 +94,14 @@ $back_url = site_url($redirect_path);
                 </div>
               </div>
               <label class="form-label fw-semibold" for="mw-qa-created-for">Assigned to <span class="text-danger">*</span></label>
-              <select class="form-select" id="mw-qa-created-for" name="created_for" required>
+              <select class="form-select oms-select2-multi" id="mw-qa-created-for" name="created_for[]" multiple style="width: 100%;" required>
                 <?php foreach ((array) $users as $u): ?>
-                  <option value="<?php echo (int) $u->id; ?>" <?php echo (int) $u->id === $curFor ? 'selected' : ''; ?>>
+                  <option value="<?php echo (int) $u->id; ?>" <?php echo in_array((int) $u->id, $curForIds, true) ? 'selected' : ''; ?>>
                     <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
-              <div class="form-text d-none d-md-block">You are recorded as the creator when you save.</div>
+              <div class="form-text d-none d-md-block">Type to search. Click <strong>×</strong> on a tag to remove that user. First selected is primary.</div>
 
               <label class="form-label fw-semibold mt-3" for="mw-qa-estimate-hours">Estimate (hrs)</label>
               <input type="number" name="estimate_hours" id="mw-qa-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25"
@@ -180,3 +189,9 @@ $back_url = site_url($redirect_path);
 <script src="<?php echo base_url('assets/js/my-works-attachment.js'); ?>"></script>
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+  $this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#mw-qa-created-for'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+  ));
+?>

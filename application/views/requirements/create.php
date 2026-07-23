@@ -133,6 +133,21 @@ $back_title = $redirect_path !== '' ? 'Back to Second Brain' : 'Back to Requirem
           </select>
         </div>
         <div class="col-md-6">
+          <label class="form-label">Assigned To</label>
+          <select name="assigned_to[]" id="req-assigned-to-select" class="form-select oms-select2-multi" multiple style="width: 100%;">
+            <?php if (isset($members) && is_array($members)) foreach ($members as $m): ?>
+              <?php $label = '';
+                if (isset($m->full_label) && $m->full_label!=='') { $label = $m->full_label; }
+                else if (isset($m->full_name) && $m->full_name!=='') { $label = $m->full_name; }
+                else if (isset($m->name) && $m->name!=='') { $label = $m->name; }
+                else if (isset($m->email)) { $label = $m->email; }
+              ?>
+              <option value="<?php echo (int)$m->id; ?>"><?php echo esc_view($label); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
+        </div>
+        <div class="col-md-3">
           <label class="form-label">Attachments</label>
           <input type="file" name="attachments[]" class="form-control" multiple>
         </div>
@@ -161,6 +176,12 @@ $back_title = $redirect_path !== '' ? 'Back to Second Brain' : 'Back to Requirem
 
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+  $this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#req-assigned-to-select'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+  ));
+?>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
   // Initialize TinyMCE for description field

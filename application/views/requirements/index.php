@@ -122,6 +122,7 @@ if (!$embed) {
             <th>Req#</th>
             <th>Client</th>
             <th>Title</th>
+            <th>Assigned</th>
             <th>Status</th>
             <th>Priority</th>
             <th>Expected</th>
@@ -130,7 +131,7 @@ if (!$embed) {
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-          <tr><td colspan="7" class="text-center text-muted py-3">No requirements found.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-3">No requirements found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
           <?php
             $st = isset($r->status) ? (string) $r->status : 'received';
@@ -139,6 +140,10 @@ if (!$embed) {
             if ($pr === 'critical') { $pr_class = 'danger'; }
             elseif ($pr === 'high') { $pr_class = 'warning text-dark'; }
             elseif ($pr === 'low') { $pr_class = 'light text-dark border'; }
+            $assignee = isset($r->assigned_to_name) ? trim((string) $r->assigned_to_name) : '';
+            if (function_exists('multi_assignees_format_label') && isset($assignee_names_map[(int) $r->id]) && is_array($assignee_names_map[(int) $r->id])) {
+              $assignee = multi_assignees_format_label($assignee, $assignee_names_map[(int) $r->id]);
+            }
           ?>
           <tr>
             <td class="text-nowrap fw-semibold"><?php echo esc_view(isset($r->req_number)?$r->req_number:''); ?></td>
@@ -148,6 +153,7 @@ if (!$embed) {
                 <?php echo esc_view($r->title); ?>
               </a>
             </td>
+            <td class="text-truncate" style="max-width:9rem;" title="<?php echo esc_view($assignee !== '' ? $assignee : '—'); ?>"><?php echo esc_view($assignee !== '' ? $assignee : '—'); ?></td>
             <td><span class="badge bg-light text-dark border req-badge"><?php echo esc_view(ucfirst(str_replace('_', ' ', $st))); ?></span></td>
             <td><span class="badge bg-<?php echo $pr_class; ?> req-badge"><?php echo esc_view(ucfirst($pr)); ?></span></td>
             <td class="text-nowrap text-muted"><?php echo esc_view(isset($r->expected_delivery_date)?$r->expected_delivery_date:''); ?></td>

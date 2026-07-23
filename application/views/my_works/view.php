@@ -14,6 +14,30 @@
   $creatorLabel = my_works_user_label($creator ? $creator->name : '', $creator ? $creator->email : '', $item->created_by);
 
   $assigneeLabel = my_works_user_label($assignee ? $assignee->name : '', $assignee ? $assignee->email : '', $item->created_for);
+  // Detail page: list every assignee name (not compact "Name +N").
+  $assignee_name_parts = array();
+  $assignee_seen = array();
+  if ($assigneeLabel !== '') {
+    $assignee_name_parts[] = $assigneeLabel;
+    $assignee_seen[strtolower($assigneeLabel)] = true;
+  }
+  if (!empty($assignee_extra_names) && is_array($assignee_extra_names)) {
+    foreach ($assignee_extra_names as $extra_name) {
+      $extra_name = trim((string) $extra_name);
+      if ($extra_name === '') {
+        continue;
+      }
+      $key = strtolower($extra_name);
+      if (isset($assignee_seen[$key])) {
+        continue;
+      }
+      $assignee_seen[$key] = true;
+      $assignee_name_parts[] = $extra_name;
+    }
+  }
+  if (!empty($assignee_name_parts)) {
+    $assigneeLabel = implode(', ', $assignee_name_parts);
+  }
 
   $tagList = my_works_parse_tags(isset($item->tag) ? $item->tag : '');
 

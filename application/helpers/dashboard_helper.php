@@ -188,6 +188,13 @@ if (!function_exists('calculate_dashboard_stats')) {
                 $CI->db->group_start();
                 $CI->db->where('w.created_by', (int) $user_id);
                 $CI->db->or_where('w.created_for', (int) $user_id);
+                if ($CI->db->table_exists('my_works_assignees')) {
+                    $CI->db->or_where(
+                        'EXISTS (SELECT 1 FROM `my_works_assignees` _mwa WHERE _mwa.`work_id` = w.id AND _mwa.`user_id` = ' . (int) $user_id . ')',
+                        null,
+                        false
+                    );
+                }
                 $CI->db->group_end();
             }
             $CI->db->where('w.status !=', 'closed');
@@ -198,6 +205,13 @@ if (!function_exists('calculate_dashboard_stats')) {
                 $CI->db->group_start();
                 $CI->db->where('w.created_by', (int) $user_id);
                 $CI->db->or_where('w.created_for', (int) $user_id);
+                if ($CI->db->table_exists('my_works_assignees')) {
+                    $CI->db->or_where(
+                        'EXISTS (SELECT 1 FROM `my_works_assignees` _mwa WHERE _mwa.`work_id` = w.id AND _mwa.`user_id` = ' . (int) $user_id . ')',
+                        null,
+                        false
+                    );
+                }
                 $CI->db->group_end();
             }
             $CI->db->where('w.is_urgent', 1);

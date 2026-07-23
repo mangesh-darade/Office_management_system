@@ -34,6 +34,13 @@
 
   $show_status_column = !empty($show_status_column);
 
+  if (!isset($assignee_names_map) || !is_array($assignee_names_map)) {
+    $assignee_names_map = array();
+  }
+  if (!isset($task_assignee_names_map) || !is_array($task_assignee_names_map)) {
+    $task_assignee_names_map = array();
+  }
+
   $uid = (int) $this->session->userdata('user_id');
 
   $statusLabels = array();
@@ -345,6 +352,13 @@
                       isset($r->created_for_email) ? $r->created_for_email : '',
                       isset($r->created_for) ? $r->created_for : 0
                     );
+                    if (function_exists('multi_assignees_format_label')) {
+                      if ($is_task_row && isset($task_assignee_names_map[(int) $r->id]) && is_array($task_assignee_names_map[(int) $r->id])) {
+                        $forLabel = multi_assignees_format_label($forLabel, $task_assignee_names_map[(int) $r->id]);
+                      } elseif (!$is_task_row && isset($assignee_names_map[(int) $r->id]) && is_array($assignee_names_map[(int) $r->id])) {
+                        $forLabel = multi_assignees_format_label($forLabel, $assignee_names_map[(int) $r->id]);
+                      }
+                    }
 
                     $projLabel = my_works_dashboard_project_label($r);
 
