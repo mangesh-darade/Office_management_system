@@ -12,8 +12,8 @@ class Settings extends CI_Controller {
         $this->load->model('Holiday_model','holidays');
         $this->load->model('Type_model','module_types');
         
-        // RBAC Audit: Centralized module access check
-        require_module_access(['settings', 'leave_types', 'holidays', 'types', 'subscription_builder'], true);
+        // RBAC: Permission Manager keys — checked checkbox = access (admin = general override)
+        require_module_access(['settings', 'admin', 'leave_types', 'holidays', 'types', 'subscription_builder'], true);
         
         $this->ensure_leave_types_schema();
         $this->ensure_holidays_schema();
@@ -66,7 +66,7 @@ class Settings extends CI_Controller {
 
     // GET /settings
     public function index(){
-        require_module_access('settings', true);
+        require_module_access(['settings', 'admin'], true);
         $all = $this->settings->get_all_settings();
         
         // Get all active users for HR dropdown
@@ -86,7 +86,7 @@ class Settings extends CI_Controller {
 
     // POST /settings/update
     public function update(){
-        require_module_access('settings', true);
+        require_module_access(['settings', 'admin'], true);
         if ($this->input->method() !== 'post') { show_404(); }
         $data = $this->input->post();
         $form_section = isset($data['form_section']) ? (string)$data['form_section'] : '';
@@ -284,7 +284,7 @@ class Settings extends CI_Controller {
 
     // POST /settings/remove-logo
     public function remove_logo(){
-        require_module_access('settings', true);
+        require_module_access(['settings', 'admin'], true);
         if ($this->input->method() !== 'post') { show_404(); }
         
         // Get current logo path to delete file
@@ -301,7 +301,7 @@ class Settings extends CI_Controller {
 
     // POST /settings/upload-logo
     public function upload_logo(){
-        require_module_access('settings', true);
+        require_module_access(['settings', 'admin'], true);
         if (!isset($_FILES['logo']) || $_FILES['logo']['error'] !== UPLOAD_ERR_OK){
             $this->session->set_flashdata('error', 'Upload a valid logo file.');
             redirect('settings'); return;
@@ -335,7 +335,7 @@ class Settings extends CI_Controller {
 
     // POST /settings/test-email
     public function test_email(){
-        require_module_access('settings', true);
+        require_module_access(['settings', 'admin'], true);
         $to = trim((string)$this->input->post('to')) ?: (string)$this->session->userdata('email');
         if (!filter_var($to, FILTER_VALIDATE_EMAIL)){
             $this->session->set_flashdata('error', 'Provide a valid email address');

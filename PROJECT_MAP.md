@@ -50,11 +50,7 @@ Schema reference: search `application/models/` and `application/migrations/`. No
 
 ## DB changes
 
-Log format: `table | change | reason | date`
-
-| Table | Change | Reason | Date |
-|-------|--------|--------|------|
-| *(none logged yet)* | | | |
+See **DB Changes** log at end of this file (full table).
 
 ## Frontend dependencies
 
@@ -67,6 +63,8 @@ Pinned in `application/views/partials/header.php` and `footer.php`:
 | DataTables | 2.0.7 | cdn.datatables.net |
 | DataTables Responsive | 3.0.2 | cdn.datatables.net |
 | Chart.js (Business Assessment) | 4.4.1 | jsDelivr (`assets/eba/eba-platform.html`) |
+| Select2 | 4.1.0-rc.0 | jsDelivr (`partials/oms_select2_multi.php`) |
+| Select2 Bootstrap 5 theme | 1.3.0 | jsDelivr |
 
 Module CSS/JS: `assets/css/`, `assets/js/`.
 
@@ -111,3 +109,9 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `template_tasks` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on templates | 2026-07-21 |
 | `projects` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on projects | 2026-07-21 |
 | `daily_work_log_attachments` | CREATE TABLE (log_id, original_name, stored_name, mime_type, file_size, sort_order) | File attachments on daily activity logs | 2026-07-21 |
+| `client_urls` | CREATE TABLE (id, client_id, version, url, url_type, db_name, db_username, db_password, db_host, db_port, …) | Multiple URL+DB sets per client | 2026-07-23 |
+| `task_assignees` | CREATE TABLE (id, task_id, user_id, created_at; UNIQUE task_id+user_id) | Multi-user task assignment (primary stays on tasks.assigned_to) | 2026-07-23 |
+| `requirement_assignees` | CREATE TABLE (id, requirement_id, user_id, created_at; UNIQUE requirement_id+user_id) | Multi-user requirement assignment (primary stays on requirements.assigned_to) | 2026-07-23 |
+| `my_works_assignees` | CREATE TABLE (id, work_id, user_id, created_at; UNIQUE work_id+user_id) | Multi-user My Works assignment (primary stays on my_works.created_for) | 2026-07-23 |
+| `leave_requests` | ADD `apply_email_message_id` VARCHAR(255) NULL | Thread approve/reject emails as reply to apply mail | 2026-07-23 |
+| `permissions` | SET `can_access=1` for Admin role_id=1 on System Settings / Admin / holidays / leave_types / permissions / etc. | Align Permission Manager checkboxes with Settings access (checked = allowed) | 2026-07-23 |
