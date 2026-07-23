@@ -558,6 +558,44 @@ function toggleSection(sectionClass, state) {
   });
   if (typeof updateCount === 'function') updateCount();
 }
+
+(function () {
+  var form = document.getElementById('permForm');
+  if (!form) {
+    return;
+  }
+  form.addEventListener('submit', function () {
+    var perms = {};
+    document.querySelectorAll('#permTable .perm-row input[type=checkbox]').forEach(function (cb) {
+      var match = cb.name.match(/^perms\[(\d+)\]\[([^\]]+)\]$/);
+      if (!match) {
+        return;
+      }
+      var rid = match[1];
+      var key = match[2];
+      if (!perms[rid]) {
+        perms[rid] = {};
+      }
+      if (cb.checked) {
+        perms[rid][key] = 1;
+      }
+    });
+
+    var payload = document.getElementById('perms_json_payload');
+    if (!payload) {
+      payload = document.createElement('input');
+      payload.type = 'hidden';
+      payload.name = 'perms_json';
+      payload.id = 'perms_json_payload';
+      form.appendChild(payload);
+    }
+    payload.value = JSON.stringify(perms);
+
+    document.querySelectorAll('#permTable input[type=checkbox]').forEach(function (cb) {
+      cb.disabled = true;
+    });
+  });
+})();
 </script>
 
 <?php $this->load->view('partials/footer'); ?>

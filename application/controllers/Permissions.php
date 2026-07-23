@@ -535,7 +535,19 @@ class Permissions extends CI_Controller {
 
         $roles = $this->roles();
         $modules = $this->modules();
-        $perms = $this->input->post('perms'); // perms[role_id][module] = 1
+        $perms = $this->input->post('perms'); // legacy: perms[role_id][module] = 1
+        $perms_json = $this->input->post('perms_json');
+        if (is_string($perms_json) && trim($perms_json) !== '') {
+            $decoded = json_decode($perms_json, true);
+            if (!is_array($decoded)) {
+                $this->session->set_flashdata('error', 'Invalid permission data. Please try saving again.');
+                redirect('permissions');
+                return;
+            }
+            $perms = $decoded;
+        } elseif (!is_array($perms)) {
+            $perms = array();
+        }
 
         // Load activity tracking helper
         $this->load->helper('change_tracker');
