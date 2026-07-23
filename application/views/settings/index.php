@@ -1,5 +1,5 @@
 <?php $this->load->view('partials/header', ['title' => 'Settings']); ?>
-<?php $can_save_settings = function_exists('has_module_access') && (has_module_access('settings') || has_module_access('system_settings') || is_admin_group()); ?>
+<?php $can_save_settings = function_exists('has_module_access') && (has_module_access('settings') || has_module_access('admin')); ?>
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">
     <i class="bi bi-gear-fill me-2"></i>System Settings
@@ -345,7 +345,7 @@
                   <?php endforeach; ?>
                 <?php endif; ?>
               </select>
-              <div class="form-text">HR will receive emails when leave is approved/rejected</div>
+              <div class="form-text">Receives leave apply emails (To). Lead and Manager from the apply form are CC’d.</div>
             </div>
           </div>
           <div class="d-flex gap-2">

@@ -110,12 +110,28 @@
                 <?php echo esc_view(isset($r->reason) ? $r->reason : ''); ?>
               </td>
               <td style="max-width: 300px;">
-                <?php if (!empty($r->comments)): ?>
+                <?php
+                  $my_decision = isset($r->decision) ? strtolower(trim((string) $r->decision)) : '';
+                  $my_comments = isset($r->comments) ? trim((string) $r->comments) : '';
+                  if ($my_comments !== '' && $my_decision !== '' && strcasecmp($my_comments, $my_decision) === 0) {
+                    $my_comments = '';
+                  }
+                  $my_approver = isset($r->approver_name) ? trim((string) $r->approver_name) : '';
+                  $my_has = ($my_decision !== '' || $my_comments !== '' || $my_approver !== '');
+                ?>
+                <?php if ($my_has): ?>
                   <div class="small">
-                    <strong><?php echo esc_view(isset($r->approver_name) ? $r->approver_name : 'Manager'); ?>:</strong>
-                    <span class="text-<?php echo (isset($r->decision) && $r->decision === 'approved') ? 'success' : 'danger'; ?>">
-                      <?php echo esc_view($r->comments); ?>
-                    </span>
+                    <?php if ($my_approver !== ''): ?>
+                    <div class="fw-semibold"><?php echo esc_view($my_approver); ?></div>
+                    <?php endif; ?>
+                    <?php if ($my_decision !== ''): ?>
+                    <span class="badge <?php echo ($my_decision === 'rejected') ? 'bg-danger' : 'bg-success'; ?>"><?php echo esc_view(ucfirst($my_decision)); ?></span>
+                    <?php endif; ?>
+                    <?php if ($my_comments !== ''): ?>
+                    <div class="mt-1"><?php echo esc_view($my_comments); ?></div>
+                    <?php else: ?>
+                    <div class="mt-1 text-muted">No comment text</div>
+                    <?php endif; ?>
                   </div>
                 <?php else: ?>
                   <span class="text-muted small">No comments</span>

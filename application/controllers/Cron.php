@@ -217,26 +217,46 @@ class Cron extends CI_Controller {
     }
 
     // Test email functionality
-    // Can be called via: http://localhost/Office_management_system/cron/test_email
-    public function test_email() {
-        // Load email helper and configure from settings
-        $this->load->helper('email');
+    // CLI: php index.php cron test_email sateri.mangesh@gmail.com
+    // HTTP: /cron/test_email
+    public function test_email($to = '') {
+        $to = trim((string) $to);
+        if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            $to = 'test@example.com';
+        }
+
+        $this->load->helper(array('email', 'company'));
         configure_email_from_settings();
 
-        $this->email->from(get_system_from_email(), get_company_name());
-        $this->email->to('test@example.com'); // Change to your test email
-        $this->email->subject('🧪 Test Email from Announcement System');
-        $this->email->message('
-            <h2>Test Email</h2>
-            <p>This is a test email from the ' . get_company_name() . ' announcement scheduler.</p>
-            <p>If you receive this, the email system is working correctly.</p>
-            <p><strong>Sent at:</strong> ' . date('Y-m-d H:i:s') . '</p>
-        ');
+        $from = get_system_from_email();
+        $company = function_exists('get_company_name') ? get_company_name() : 'Office Management System';
+
+        echo "SMTP probe\n";
+        echo "From: " . $from . "\n";
+        echo "To:   " . $to . "\n";
+        echo "Time: " . date('Y-m-d H:i:s') . "\n\n";
+
+        if ($from === '') {
+            echo "FAIL: SMTP from/user not configured in Settings > Email\n";
+            return;
+        }
+
+        $this->email->clear(true);
+        $this->email->from($from, $company);
+        $this->email->to($to);
+        $this->email->subject('OMS SMTP Test - ' . date('Y-m-d H:i:s'));
+        $this->email->message(
+            '<h2>OMS Email Test</h2>'
+            . '<p>This is a test email from <strong>' . htmlspecialchars($company, ENT_QUOTES, 'UTF-8') . '</strong>.</p>'
+            . '<p>If you received this, SMTP is working.</p>'
+            . '<p><strong>Sent at:</strong> ' . date('Y-m-d H:i:s') . '</p>'
+        );
 
         if ($this->email->send()) {
-            echo "✅ Test email sent successfully!\n";
+            echo "OK: Test email sent successfully to " . $to . "\n";
         } else {
-            echo "❌ Test email failed: " . $this->email->print_debugger() . "\n";
+            echo "FAIL: Test email was not sent\n\n";
+            echo strip_tags($this->email->print_debugger(array('headers', 'subject'))) . "\n";
         }
     }
 

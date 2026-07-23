@@ -466,15 +466,19 @@ class Leave_requests extends CI_Controller {
             }
         }
 
-        // Select query with lead information
+        // Select query with lead + latest approval comments
         $this->db->select('lr.*, lr.user_id, lt.name AS type_name, 
                           u.email AS user_email, u.name AS user_name, u.role_id AS user_role_id,
                           e.department AS emp_department, e.first_name AS emp_first_name, e.last_name AS emp_last_name,
-                          (SELECT la.remarks FROM leave_approvals la WHERE la.leave_id = lr.id ORDER BY la.decided_at DESC LIMIT 1) AS latest_remarks')
+                          lead_u.name AS lead_name, lead_u.email AS lead_email,
+                          (SELECT la.remarks FROM leave_approvals la WHERE la.leave_id = lr.id ORDER BY la.decided_at DESC LIMIT 1) AS latest_remarks,
+                          (SELECT la.decision FROM leave_approvals la WHERE la.leave_id = lr.id ORDER BY la.decided_at DESC LIMIT 1) AS latest_decision,
+                          (SELECT au.name FROM leave_approvals la JOIN users au ON au.id = la.approver_id WHERE la.leave_id = lr.id ORDER BY la.decided_at DESC LIMIT 1) AS latest_approver_name')
                  ->from('leave_requests lr')
                  ->join('leave_types lt', 'lt.id = lr.type_id', 'left')
                  ->join('users u', 'u.id = lr.user_id', 'left') // Applied user
-                 ->join('employees e', 'e.user_id = lr.user_id', 'left'); // Applied user employee info
+                 ->join('employees e', 'e.user_id = lr.user_id', 'left') // Applied user employee info
+                 ->join('users lead_u', 'lead_u.id = lr.current_approver_id', 'left'); // Selected Lead
         apply_role_hierarchy_filter($this->db, 'lr.user_id');
         
         // For Manager role, add department join if needed
@@ -532,11 +536,52 @@ class Leave_requests extends CI_Controller {
         
         $rows = $this->db->get()->result();
 
-        // Inject actionable flag and approval_request_id
-        foreach ($rows as &$r) {
-            $r->is_actionable = in_array((int)$r->id, $actionable_ids);
-            $r->approval_request_id = isset($approval_request_map[$r->id]) ? $approval_request_map[$r->id] : null;
+        // Attach full approval history (lead / manager / HR comments)
+        $approval_by_leave = array();
+        if (!empty($rows) && $this->db->table_exists('leave_approvals')) {
+            $leave_ids = array();
+            foreach ($rows as $row) {
+                $leave_ids[] = (int) $row->id;
+            }
+            $leave_ids = array_values(array_unique(array_filter($leave_ids)));
+            if (!empty($leave_ids)) {
+                $this->db->select('la.leave_id, la.decision, la.remarks, la.decided_at, la.approver_id, au.name AS approver_name, au.email AS approver_email')
+                         ->from('leave_approvals la')
+                         ->join('users au', 'au.id = la.approver_id', 'left')
+                         ->where_in('la.leave_id', $leave_ids)
+                         ->order_by('la.decided_at', 'ASC')
+                         ->order_by('la.id', 'ASC');
+                foreach ($this->db->get()->result() as $log) {
+                    $lid = (int) $log->leave_id;
+                    if (!isset($approval_by_leave[$lid])) {
+                        $approval_by_leave[$lid] = array();
+                    }
+                    $remarks = isset($log->remarks) ? trim((string) $log->remarks) : '';
+                    $decision = isset($log->decision) ? strtolower(trim((string) $log->decision)) : '';
+                    // Ignore legacy bug rows that stored decision word as remarks with no real approver
+                    if ((int) $log->approver_id <= 0 && $remarks !== '' && strcasecmp($remarks, $decision) === 0) {
+                        continue;
+                    }
+                    if ($remarks !== '' && $decision !== '' && strcasecmp($remarks, $decision) === 0) {
+                        $remarks = '';
+                    }
+                    $approval_by_leave[$lid][] = (object) array(
+                        'decision' => $decision,
+                        'remarks' => $remarks,
+                        'decided_at' => isset($log->decided_at) ? $log->decided_at : '',
+                        'approver_name' => !empty($log->approver_name) ? $log->approver_name : (!empty($log->approver_email) ? $log->approver_email : 'Approver'),
+                    );
+                }
+            }
         }
+
+        // Inject actionable flag, approval_request_id, and comment history
+        foreach ($rows as &$r) {
+            $r->is_actionable = in_array((int) $r->id, $actionable_ids);
+            $r->approval_request_id = isset($approval_request_map[$r->id]) ? $approval_request_map[$r->id] : null;
+            $r->approval_history = isset($approval_by_leave[(int) $r->id]) ? $approval_by_leave[(int) $r->id] : array();
+        }
+        unset($r);
 
         $this->load->view('leave_requests/team', [
             'rows' => $rows,
@@ -574,17 +619,18 @@ class Leave_requests extends CI_Controller {
                 // Final Approval
                 $this->leaves->update_status($id, 'approved');
                 $this->leaves->add_approval_log($id, 'approved', $comments, $approved_by); // Keep legacy log
-                leave_requests_notify_change($id, 'approved', $comments);
+                leave_requests_notify_change($id, 'approved', $comments, $approved_by);
                 rewards_automation_on_leave_approved($this->db, $id, $approved_by);
             } elseif ($result === 'pending_next_approval') {
-                // Moved to next step
-                // Ideally update 'current_approver_id' but complex to find who that is without logic
-                $this->leaves->add_approval_log($id, 'step_approved', $comments, $approved_by);
+                // Moved to next step — keep leave visible as lead_approved and notify thread
+                $this->leaves->update_status($id, 'lead_approved');
+                $this->leaves->add_approval_log($id, 'approved', $comments, $approved_by);
+                leave_requests_notify_change($id, 'step_approved', $comments, $approved_by);
             }
         } else {
             // Legacy Logic
             $ok = $this->leaves->approve_reject_leave($id, 'lead_approved', $comments, $approved_by);
-            leave_requests_notify_change($id, 'approved', $comments);
+            leave_requests_notify_change($id, 'approved', $comments, $approved_by);
             rewards_automation_on_leave_approved($this->db, $id, $approved_by);
         }
 
@@ -618,13 +664,13 @@ class Leave_requests extends CI_Controller {
             $this->Approval_model->reject_request($approval_req->id, $approved_by, $comments);
             $this->leaves->update_status($id, 'rejected');
             $this->leaves->add_approval_log($id, 'rejected', $comments, $approved_by);
-            leave_requests_notify_change($id, 'rejected', $comments);
+            leave_requests_notify_change($id, 'rejected', $comments, $approved_by);
             rewards_automation_on_leave_rejected($this->db, $id, $approved_by);
 
         } else {
             // Legacy Logic
             $ok = $this->leaves->approve_reject_leave($id, 'rejected', $comments, $approved_by);
-            leave_requests_notify_change($id, 'rejected', $comments);
+            leave_requests_notify_change($id, 'rejected', $comments, $approved_by);
             rewards_automation_on_leave_rejected($this->db, $id, $approved_by);
         }
 

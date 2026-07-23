@@ -57,12 +57,13 @@
             <th>Status</th>
             <th>Applied On</th>
             <th>Reason</th>
+            <th>Lead / Approve Comments</th>
             <th style="width:220px">Actions</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($rows)): ?>
-            <tr><td colspan="9" class="text-center text-muted">No leave requests found.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted">No leave requests found.</td></tr>
           <?php else: foreach ($rows as $r): ?>
             <tr class="leave-row-clickable" data-user-id="<?php echo (int)$r->user_id; ?>" data-user-email="<?php echo esc_view(isset($r->user_email) ? $r->user_email : ''); ?>" style="cursor: pointer;">
               <td>
@@ -127,48 +128,68 @@
               <td><span class="badge bg-info text-dark"><?php echo esc_view(ucfirst(str_replace('_',' ', $r->status))); ?></span></td>
               <td><?php echo esc_view(isset($r->created_at) ? $r->created_at : ''); ?></td>
               <td class="text-truncate" style="max-width:min(280px, 50vw);"><?php echo esc_view(isset($r->reason) ? $r->reason : ''); ?></td>
+              <td style="max-width: 280px;">
+                <?php
+                  $history = (isset($r->approval_history) && is_array($r->approval_history)) ? $r->approval_history : array();
+                ?>
+                <?php if (!empty($history)): ?>
+                  <div class="small d-flex flex-column gap-2">
+                    <?php foreach ($history as $h): ?>
+                      <div class="border-start border-2 ps-2 <?php echo (isset($h->decision) && $h->decision === 'rejected') ? 'border-danger' : 'border-success'; ?>">
+                        <div class="fw-semibold"><?php echo esc_view(isset($h->approver_name) ? $h->approver_name : 'Approver'); ?></div>
+                        <?php if (!empty($h->decision)): ?>
+                        <span class="badge <?php echo ($h->decision === 'rejected') ? 'bg-danger' : 'bg-success'; ?>">
+                          <?php echo esc_view(ucfirst($h->decision)); ?>
+                        </span>
+                        <?php endif; ?>
+                        <?php if (!empty($h->remarks)): ?>
+                        <div class="mt-1 text-body"><?php echo esc_view($h->remarks); ?></div>
+                        <?php else: ?>
+                        <div class="mt-1 text-muted">No comment text</div>
+                        <?php endif; ?>
+                        <?php if (!empty($h->decided_at)): ?>
+                        <div class="text-muted" style="font-size:0.75rem;"><?php echo esc_view($h->decided_at); ?></div>
+                        <?php endif; ?>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php else: ?>
+                  <span class="text-muted small">No comments</span>
+                <?php endif; ?>
+              </td>
               <td>
                 <div class="d-flex flex-column gap-2" onclick="event.stopPropagation();">
-                  <!-- Approve/Reject actions for managers - Single comment box -->
-                  <?php 
-                    // Disable actions only if request is in a final state
-                    // allowing intermediate states (lead_approved, etc.) to be acted upon
-                    $is_final = in_array($r->status, ['approved', 'rejected', 'cancelled'], true);
-                    $approve_disabled = $is_final ? 'disabled' : '';
-                    $reject_disabled = $is_final ? 'disabled' : '';
+                  <?php
+                    $is_final = in_array($r->status, array('approved', 'rejected', 'cancelled'), true);
+                    $csrf_name = $this->security->get_csrf_token_name();
+                    $csrf_hash = $this->security->get_csrf_hash();
                   ?>
-                  <div class="mb-2">
-                    <input type="text" class="form-control form-control-sm mb-1" name="comments" id="comments_<?php echo $r->id; ?>" placeholder="Enter comments (optional)" value="<?php echo esc_view(isset($r->latest_remarks) ? $r->latest_remarks : ''); ?>" />
-                    <div class="d-flex gap-1 align-items-center">
-                      <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
-                      <form method="post" action="<?php echo site_url('leave/approve/'.(int)$r->id); ?>" class="d-inline">
-                        <input type="hidden" name="comments" value="" id="approve_comments_<?php echo $r->id; ?>" />
-                        <button type="submit" class="btn btn-success btn-sm" <?php echo isset($approve_disabled) ? $approve_disabled : ''; ?> onclick="document.getElementById('approve_comments_<?php echo $r->id; ?>').value = document.getElementById('comments_<?php echo $r->id; ?>').value;">Approve</button>
-                      </form>
-                      <?php endif; ?>
-                      <?php if(function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
-                      <button type="button" class="btn btn-danger btn-sm" onclick="rejectLeave(<?php echo $r->id; ?>)" <?php echo isset($reject_disabled) ? $reject_disabled : ''; ?>>Reject</button>
-                      <?php endif; ?>
-                      <?php if(function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests'))): ?>
-                      <?php if (isset($is_admin) && $is_admin): ?>
-                        <!-- Admin Delete button - only visible to admin -->
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteLeave(<?php echo $r->id; ?>)" title="Delete Leave Request">
-                          <i class="bi bi-trash"></i>
-                        </button>
-                      <?php endif; ?>
+                  <?php if (!$is_final && function_exists('has_module_access') && (has_module_access('leave_approve') || has_module_access('leave_requests'))): ?>
+                  <form method="post" action="<?php echo site_url('leave/approve/' . (int) $r->id); ?>" class="leave-action-form">
+                    <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="text" class="form-control form-control-sm mb-1" name="comments" placeholder="Enter comments (optional)" autocomplete="off" />
+                    <div class="d-flex gap-1 align-items-center flex-wrap">
+                      <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                      <button type="submit" class="btn btn-danger btn-sm" formaction="<?php echo site_url('leave/reject/' . (int) $r->id); ?>">Reject</button>
+                      <?php if (function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests')) && !empty($is_admin)): ?>
+                      <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteLeave(<?php echo (int) $r->id; ?>)" title="Delete Leave Request">
+                        <i class="bi bi-trash"></i>
+                      </button>
                       <?php endif; ?>
                     </div>
-                  </div>
-                  <?php if(function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests'))): ?>
-                  <?php if (isset($is_admin) && $is_admin): ?>
-                    <!-- Hidden delete form for admin -->
-                    <form method="post" action="<?php echo site_url('leave/delete/'.(int)$r->id); ?>" id="delete_form_<?php echo $r->id; ?>" style="display:none;">
-                    </form>
-                  <?php endif; ?>
-                  <?php endif; ?>
-                  <form method="post" action="<?php echo site_url('leave/reject/'.(int)$r->id); ?>" id="reject_form_<?php echo $r->id; ?>" style="display:none;">
-                    <input type="hidden" name="comments" id="reject_comments_<?php echo $r->id; ?>" />
                   </form>
+                  <?php elseif (function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests')) && !empty($is_admin)): ?>
+                  <button type="button" class="btn btn-outline-danger btn-sm align-self-start" onclick="deleteLeave(<?php echo (int) $r->id; ?>)" title="Delete Leave Request">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                  <?php else: ?>
+                  <span class="text-muted small">—</span>
+                  <?php endif; ?>
+                  <?php if (function_exists('has_module_access') && (has_module_access('leaves_delete') || has_module_access('leave_requests')) && !empty($is_admin)): ?>
+                  <form method="post" action="<?php echo site_url('leave/delete/' . (int) $r->id); ?>" id="delete_form_<?php echo (int) $r->id; ?>" class="d-none">
+                    <input type="hidden" name="<?php echo esc_view($csrf_name, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo esc_view($csrf_hash, ENT_QUOTES, 'UTF-8'); ?>">
+                  </form>
+                  <?php endif; ?>
                 </div>
               </td>
             </tr>
@@ -233,15 +254,12 @@
 </div>
 
 <script>
-function rejectLeave(leaveId) {
-  var comments = document.getElementById('comments_' + leaveId).value;
-  document.getElementById('reject_comments_' + leaveId).value = comments;
-  document.getElementById('reject_form_' + leaveId).submit();
-}
-
 function deleteLeave(leaveId) {
   if (confirm('Are you sure you want to delete this leave request?')) {
-    document.getElementById('delete_form_' + leaveId).submit();
+    var form = document.getElementById('delete_form_' + leaveId);
+    if (form) {
+      form.submit();
+    }
   }
 }
 

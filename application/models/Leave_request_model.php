@@ -98,7 +98,12 @@ class Leave_request_model extends CI_Model {
         ]);
 
         // Log approval / rejection via dedicated method (avoids duplicate entries)
-        $this->add_approval_log($id, (int)$approved_by, ($status === 'rejected' ? 'rejected' : 'approved'), (string)$comments);
+        $this->add_approval_log(
+            $id,
+            ($status === 'rejected' ? 'rejected' : 'approved'),
+            (string) $comments,
+            (int) $approved_by
+        );
 
 
         // Check if this is a WFH request (by checking reason prefix or leave type name)
@@ -186,12 +191,20 @@ class Leave_request_model extends CI_Model {
     }
 
     public function add_approval_log($leave_id, $decision, $remarks, $approver_id) {
+        $decision = strtolower(trim((string) $decision));
+        // leave_approvals.decision is enum('approved','rejected') only
+        if ($decision === 'step_approved' || $decision === 'lead_approved' || $decision === 'hr_approved') {
+            $decision = 'approved';
+        }
+        if ($decision !== 'approved' && $decision !== 'rejected') {
+            $decision = 'approved';
+        }
         $this->db->insert('leave_approvals', [
-            'leave_id' => (int)$leave_id,
-            'approver_id' => (int)$approver_id,
-            'level' => 'system', 
+            'leave_id' => (int) $leave_id,
+            'approver_id' => (int) $approver_id,
+            'level' => 'system',
             'decision' => $decision,
-            'remarks' => $remarks,
+            'remarks' => (string) $remarks,
             'decided_at' => date('Y-m-d H:i:s')
         ]);
         return $this->db->insert_id();
