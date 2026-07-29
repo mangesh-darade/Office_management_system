@@ -206,7 +206,7 @@ $this->load->view('partials/oms_page_head', array(
                     $pr = isset($priority_meta[$priority]) ? $priority_meta[$priority] : $priority_meta['medium'];
                     $due = $formatDue($t);
                   ?>
-                  <div class="kanban-card tb-task-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int) $t->id; ?>" data-status="<?php echo esc_view($status); ?>" data-priority="<?php echo esc_view($priority); ?>" data-project="<?php echo esc_view(isset($t->project_name) ? $t->project_name : ''); ?>" data-assignee="<?php echo esc_view($assignee); ?>" data-title="<?php echo esc_view($t->title); ?>">
+                  <div class="kanban-card tb-task-card" draggable="true" ondragstart="handleDragStart(event)" data-id="<?php echo (int) $t->id; ?>" data-status="<?php echo esc_view($status); ?>" data-priority="<?php echo esc_view($priority); ?>" data-project="<?php echo esc_view(isset($t->project_name) ? $t->project_name : ''); ?>" data-assignee="<?php echo esc_view($assignee); ?>" data-title="<?php echo esc_view($t->title); ?>" data-estimate-hours="<?php echo esc_view(isset($t->estimate_hours) && $t->estimate_hours !== null && $t->estimate_hours !== '' ? (string) $t->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="tb-task-card-top">
                       <div class="tb-task-card-meta">
                         <span class="tb-task-id">#<?php echo (int) $t->id; ?></span>
@@ -372,9 +372,22 @@ $this->load->view('partials/oms_page_head', array(
       card.style.pointerEvents = 'none';
     }
     try {
+      var oldStatus = card ? (card.getAttribute('data-status') || '') : '';
+      var estimate = card ? (card.getAttribute('data-estimate-hours') || '') : '';
+      var actualHours = null;
+      if (window.omsActualHours && window.omsActualHours.isCompleteStatus(status)
+          && !window.omsActualHours.isCompleteStatus(oldStatus)) {
+        actualHours = await window.omsActualHours.prompt({ estimate: estimate });
+        if (actualHours === null) {
+          return;
+        }
+      }
       var form = new FormData();
       form.append('id', draggedId);
       form.append('status', status);
+      if (actualHours != null) {
+        form.append('actual_hours', String(actualHours));
+      }
       form.append('<?php echo $this->security->get_csrf_token_name(); ?>', '<?php echo $this->security->get_csrf_hash(); ?>');
       var res = await fetch('<?php echo site_url('tasks/update-status'); ?>', {
         method: 'POST',
@@ -393,6 +406,25 @@ $this->load->view('partials/oms_page_head', array(
         }
         updateColumnCounts();
         showNotification('Task moved to ' + status.replace('_', ' '), 'success');
+      } else if (json && json.need_actual_hours && window.omsActualHours) {
+        var hours = await window.omsActualHours.prompt({ estimate: estimate });
+        if (hours === null) {
+          return;
+        }
+        form.set('actual_hours', String(hours));
+        res = await fetch('<?php echo site_url('tasks/update-status'); ?>', {
+          method: 'POST',
+          body: form,
+          credentials: 'same-origin'
+        });
+        json = await res.json();
+        if (json && json.ok && card) {
+          card.dataset.status = status;
+          column.prepend(card);
+          updateColumnCounts();
+        } else {
+          showNotification((json && json.error) ? json.error : 'Could not update status', 'danger');
+        }
       } else {
         showNotification((json && json.error) ? json.error : 'Could not update status', 'danger');
       }

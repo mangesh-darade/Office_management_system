@@ -184,7 +184,7 @@
 
           <?php else: ?>
 
-            <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="d-inline">
+            <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="d-inline" data-current-status="<?php echo esc_view($item->status, ENT_QUOTES, 'UTF-8'); ?>" data-estimate-hours="<?php echo esc_view(isset($item->estimate_hours) && $item->estimate_hours !== null && $item->estimate_hours !== '' ? (string) $item->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>">
 
               <?php $this->load->view('my_works/_csrf'); ?>
 
@@ -329,7 +329,7 @@
               <?php if ($this->input->get('parent_tab')): ?>
                 <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
               <?php endif; ?>
-              <input type="hidden" name="redirect" value="<?php echo esc_view(site_url('my-works/' . (int) $item->id) . '?embed=1' . ($this->input->get('parent_tab') ? '&parent_tab=' . rawurlencode((string) $this->input->get('parent_tab')) : ''), ENT_QUOTES, 'UTF-8'); ?>">
+              <input type="hidden" name="redirect" value="<?php echo esc_view('my-works/' . (int) $item->id, ENT_QUOTES, 'UTF-8'); ?>">
             <?php endif; ?>
 
             <label class="form-label small fw-semibold mb-1">Add a comment</label>
@@ -459,6 +459,22 @@
                     $this->load->helper('estimate_hours');
                 }
                 echo esc_view(estimate_hours_display(isset($item->estimate_hours) ? $item->estimate_hours : null));
+              ?></div>
+
+            </div>
+
+          </div>
+
+          <div class="info-row">
+
+            <span class="info-icon"><i class="bi bi-stopwatch"></i></span>
+
+            <div>
+
+              <div class="info-label">Actual (hrs)</div>
+
+              <div class="info-value"><?php
+                echo esc_view(actual_hours_display(isset($item->actual_hours) ? $item->actual_hours : null));
               ?></div>
 
             </div>

@@ -13,6 +13,7 @@ class Tasks extends CI_Controller {
         // Allow users with either 'tasks' or 'tasks_list' access
         require_module_access(['tasks', 'tasks_list'], true);
         estimate_hours_ensure_column($this->db, 'tasks', 'due_date');
+        actual_hours_ensure_column($this->db, 'tasks', 'estimate_hours');
         multi_assignees_ensure_schema($this->db);
     }
 
@@ -187,13 +188,22 @@ class Tasks extends CI_Controller {
                 $data['due_date'] = $this->input->post('due_date') ?: null;
             }
             if (in_array('estimate_hours', $task_fields, true)) {
-                $est = estimate_hours_parse($this->input->post('estimate_hours'));
+                $est = estimate_hours_require($this->input->post('estimate_hours'));
                 if ($est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
                     redirect('tasks/create');
                     return;
                 }
                 $data['estimate_hours'] = $est;
+            }
+            if (in_array('actual_hours', $task_fields, true) && status_is_task_completed($data['status'])) {
+                $act = actual_hours_require($this->input->post('actual_hours'));
+                if ($act === false) {
+                    $this->session->set_flashdata('error', 'Actual (hrs) is required when status is Completed.');
+                    redirect('tasks/create');
+                    return;
+                }
+                $data['actual_hours'] = $act;
             }
             if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
                 $data['project_ids'] = $project_ids_json;
@@ -236,6 +246,15 @@ class Tasks extends CI_Controller {
             $this->db->insert('tasks', $data);
             $id = $this->db->insert_id();
             multi_assignees_sync('task_assignees', 'task_id', (int) $id, $assignee_ids);
+
+            $this->Task_model->log_activity((int) $id, $user_id, 'created', null, array(
+                'detail' => 'Task created: ' . (string) $data['title'],
+            ));
+            if (!empty($data['attachment_path'])) {
+                $this->Task_model->log_activity((int) $id, $user_id, 'attachment_added', null, array(
+                    'file' => basename((string) $data['attachment_path']),
+                ));
+            }
             
             // Log task creation with change tracking
             $this->load->helper('change_tracker');
@@ -594,9 +613,11 @@ class Tasks extends CI_Controller {
         }
         
         $assignee_names_map = multi_assignees_names_map('task_assignees', 'task_id', array((int) $id));
+        $this->load->helper('my_works');
         $this->load->view('tasks/view', [
             'task' => $task,
             'assignee_names' => isset($assignee_names_map[(int) $id]) ? $assignee_names_map[(int) $id] : array(),
+            'activity' => $this->Task_model->list_activity((int) $id),
         ]);
     }
 
@@ -667,13 +688,26 @@ class Tasks extends CI_Controller {
                 $data['due_date'] = $this->input->post('due_date') ?: null;
             }
             if (in_array('estimate_hours', $task_fields, true)) {
-                $est = estimate_hours_parse($this->input->post('estimate_hours'));
+                $est = estimate_hours_require($this->input->post('estimate_hours'));
                 if ($est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
                     redirect('tasks/'.$id.'/edit');
                     return;
                 }
                 $data['estimate_hours'] = $est;
+            }
+            $was_completed = status_is_task_completed(isset($task->status) ? $task->status : '');
+            if (in_array('actual_hours', $task_fields, true)
+                && status_is_task_completed($data['status'])
+                && !$was_completed
+            ) {
+                $act = actual_hours_require($this->input->post('actual_hours'));
+                if ($act === false) {
+                    $this->session->set_flashdata('error', 'Actual (hrs) is required when status is Completed.');
+                    redirect('tasks/'.$id.'/edit');
+                    return;
+                }
+                $data['actual_hours'] = $act;
             }
             if ($project_ids_json !== null && in_array('project_ids', $task_fields, true)) {
                 $data['project_ids'] = $project_ids_json;
@@ -727,6 +761,20 @@ class Tasks extends CI_Controller {
             }
 
             multi_assignees_sync('task_assignees', 'task_id', (int) $id, $assignee_ids);
+
+            $this->Task_model->log_task_changes(
+                (int) $id,
+                $user_id,
+                $task,
+                $data,
+                $old_assignee_ids,
+                $assignee_ids
+            );
+            if (!empty($data['attachment_path']) && (!isset($task->attachment_path) || (string) $task->attachment_path !== (string) $data['attachment_path'])) {
+                $this->Task_model->log_activity((int) $id, $user_id, 'attachment_added', null, array(
+                    'file' => basename((string) $data['attachment_path']),
+                ));
+            }
             
             // Load activity tracking helper
             $this->load->helper('change_tracker');
@@ -873,6 +921,7 @@ class Tasks extends CI_Controller {
         // Get old data before delete (already fetched above as $task)
         $old_data = $task ? (array)$task : track_changes_before('tasks', (int)$id);
 
+        $this->Task_model->delete_activity_for_task((int) $id);
         $this->db->where('id', (int)$id)->delete('tasks');
         
         // Log deletion
@@ -980,6 +1029,46 @@ class Tasks extends CI_Controller {
             }
         }
 
+        $filters_active = ($filter_user_id > 0
+            || $filter_project_id > 0
+            || ($filter_status !== '' && $filter_status !== 'all'));
+        if ($filters_active && !empty($group_cards)) {
+            if (!function_exists('dashboard_sort_nonempty_first')) {
+                $this->load->helper('my_works');
+            }
+            $group_cards = dashboard_sort_nonempty_first(
+                $group_cards,
+                function ($card) {
+                    return isset($card['items']) ? count($card['items']) : 0;
+                },
+                function ($a, $b) use ($group_mode) {
+                    $a_name = isset($a['entity']->name) ? strtolower(trim((string) $a['entity']->name)) : '';
+                    $b_name = isset($b['entity']->name) ? strtolower(trim((string) $b['entity']->name)) : '';
+                    if ($group_mode === 'employee') {
+                        if ($a_name === 'unassigned') {
+                            return 1;
+                        }
+                        if ($b_name === 'unassigned') {
+                            return -1;
+                        }
+                        return strcmp($a_name, $b_name);
+                    }
+                    if ($a_name === 'general tasks') {
+                        return 1;
+                    }
+                    if ($b_name === 'general tasks') {
+                        return -1;
+                    }
+                    if ($a_name === $b_name) {
+                        $a_code = isset($a['entity']->code) ? strtolower(trim((string) $a['entity']->code)) : '';
+                        $b_code = isset($b['entity']->code) ? strtolower(trim((string) $b['entity']->code)) : '';
+                        return strcmp($a_code, $b_code);
+                    }
+                    return strcmp($a_name, $b_name);
+                }
+            );
+        }
+
         $this->load->view('tasks/user_dashboard', array(
             'status_rows'   => $status_rows,
             'my_works_status_rows' => $my_works_status_rows,
@@ -1052,6 +1141,7 @@ class Tasks extends CI_Controller {
         }
 
         // Check permission if not admin
+        $item = null;
         if (!$is_admin) {
             $this->db->where('id', $id);
             $item = $this->db->get($table)->row();
@@ -1066,12 +1156,54 @@ class Tasks extends CI_Controller {
                 return $this->output->set_content_type('application/json')
                     ->set_output(json_encode(['success' => false, 'error' => 'Permission denied.']));
             }
+        } else {
+            $this->db->where('id', $id);
+            $item = $this->db->get($table)->row();
+            if (!$item) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(['success' => false, 'error' => 'Item not found.']));
+            }
+        }
+
+        $old_status = isset($item->status) ? (string) $item->status : '';
+
+        $payload = array('status' => $status);
+        $needs_actual = false;
+        if ($table === 'tasks' && status_is_task_completed($status) && !status_is_task_completed($old_status)) {
+            $needs_actual = true;
+        }
+        if ($table === 'my_works') {
+            if (!function_exists('my_works_status_is_closed')) {
+                $this->load->helper('my_works_status');
+            }
+            if (my_works_status_is_closed($status) && !my_works_status_is_closed($old_status)) {
+                $needs_actual = true;
+            }
+        }
+        if ($needs_actual && schema_table_has_column($this->db, $table, 'actual_hours')) {
+            $act = actual_hours_require($this->input->post('actual_hours'));
+            if ($act === false) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array(
+                        'success' => false,
+                        'error' => 'Actual (hrs) is required when marking complete.',
+                        'need_actual_hours' => true,
+                    )));
+            }
+            $payload['actual_hours'] = $act;
         }
 
         $this->db->where('id', $id);
-        $updated = $this->db->update($table, ['status' => $status]);
+        $updated = $this->db->update($table, $payload);
 
         if ($updated) {
+            if ($table === 'tasks' && $old_status !== $status) {
+                $this->Task_model->log_activity($id, $user_id, 'status_changed', array(
+                    'status' => $old_status,
+                ), array(
+                    'status' => $status,
+                ));
+            }
             return $this->output->set_content_type('application/json')
                 ->set_output(json_encode(['success' => true]));
         } else {
@@ -1381,6 +1513,10 @@ class Tasks extends CI_Controller {
         if (isset($t->estimate_hours) && $t->estimate_hours !== null && $t->estimate_hours !== '') {
             $estimate_hours = $t->estimate_hours;
         }
+        $actual_hours = null;
+        if (isset($t->actual_hours) && $t->actual_hours !== null && $t->actual_hours !== '') {
+            $actual_hours = $t->actual_hours;
+        }
 
         return array(
             'item_type'     => $item_type,
@@ -1393,6 +1529,7 @@ class Tasks extends CI_Controller {
             'status_color'  => $status_color,
             'date'          => isset($t->due_date) ? $t->due_date : '',
             'estimate_hours'=> $estimate_hours,
+            'actual_hours'  => $actual_hours,
             'url'           => $url,
             'detail'        => $detail,
         );
@@ -1474,6 +1611,9 @@ class Tasks extends CI_Controller {
             }
             if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
                 $select[] = 't.estimate_hours';
+            }
+            if (schema_table_has_column($this->db, 'tasks', 'actual_hours')) {
+                $select[] = 't.actual_hours';
             }
 
             $this->db->from('tasks t');
@@ -1685,6 +1825,9 @@ class Tasks extends CI_Controller {
             }
             if (schema_table_has_column($this->db, 'my_works', 'estimate_hours')) {
                 $select[] = 'm.estimate_hours';
+            }
+            if (schema_table_has_column($this->db, 'my_works', 'actual_hours')) {
+                $select[] = 'm.actual_hours';
             }
 
             $this->db->from('my_works m');
@@ -2207,11 +2350,33 @@ class Tasks extends CI_Controller {
         }
         
         $old_status = $task->status;
+
+        $update = array('status' => $status);
+        if (status_is_task_completed($status)
+            && !status_is_task_completed($old_status)
+            && schema_table_has_column($this->db, 'tasks', 'actual_hours')
+        ) {
+            $act = actual_hours_require($this->input->post('actual_hours'));
+            if ($act === false) {
+                return $this->output->set_status_header(422)->set_content_type('application/json')->set_output(json_encode(array(
+                    'ok' => false,
+                    'error' => 'Actual (hrs) is required when marking Completed.',
+                    'need_actual_hours' => true,
+                )));
+            }
+            $update['actual_hours'] = $act;
+        }
         
         // Update task status
-        $this->db->where('id',$id)->update('tasks',['status'=>$status]);
+        $this->db->where('id',$id)->update('tasks', $update);
+        $user_id = (int) $this->session->userdata('user_id');
+        $this->Task_model->log_activity($id, $user_id, 'status_changed', array(
+            'status' => (string) $old_status,
+        ), array(
+            'status' => (string) $status,
+        ));
         $this->load->helper('activity');
-        log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$status);
+        log_activity('tasks', 'status_changed', (int)$id, 'Status: '.$old_status.' → '.$status);
         
         // Send SMTP email if status changed and task has assignee (settings-aware)
         if ($old_status !== $status && !empty($task->assigned_to)) {
@@ -2274,15 +2439,53 @@ class Tasks extends CI_Controller {
         if (empty($valid_ids)) {
             return $this->output->set_status_header(403)->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'error'=>'Permission denied']));
         }
+
+        $tasks_before = $this->db->select('id, status')->where_in('id', $valid_ids)->get('tasks')->result();
+        $status_map = array();
+        foreach ($tasks_before as $row) {
+            $status_map[(int) $row->id] = isset($row->status) ? (string) $row->status : '';
+        }
+
+        $update = array('status' => $status);
+        if (status_is_task_completed($status) && schema_table_has_column($this->db, 'tasks', 'actual_hours')) {
+            $any_new_complete = false;
+            foreach ($status_map as $old_st) {
+                if (!status_is_task_completed($old_st)) {
+                    $any_new_complete = true;
+                    break;
+                }
+            }
+            if ($any_new_complete) {
+                $act = actual_hours_require($this->input->post('actual_hours'));
+                if ($act === false) {
+                    return $this->output->set_status_header(422)->set_content_type('application/json')->set_output(json_encode(array(
+                        'ok' => false,
+                        'error' => 'Actual (hrs) is required when marking Completed.',
+                        'need_actual_hours' => true,
+                    )));
+                }
+                $update['actual_hours'] = $act;
+            }
+        }
         
         // Perform bulk update
-        $this->db->where_in('id', $valid_ids)->update('tasks', ['status' => $status]);
+        $this->db->where_in('id', $valid_ids)->update('tasks', $update);
         $updated_count = $this->db->affected_rows();
         
         // Log activity for each task
         $this->load->helper('activity');
+        $user_id = (int) $this->session->userdata('user_id');
         foreach ($valid_ids as $id) {
-            log_activity('tasks', 'bulk_status_changed', (int)$id, 'Bulk Status: '.$status);
+            $id = (int) $id;
+            $old_status = isset($status_map[$id]) ? $status_map[$id] : '';
+            if ($old_status !== $status) {
+                $this->Task_model->log_activity($id, $user_id, 'status_changed', array(
+                    'status' => $old_status,
+                ), array(
+                    'status' => $status,
+                ));
+            }
+            log_activity('tasks', 'bulk_status_changed', $id, 'Bulk Status: '.$old_status.' → '.$status);
         }
         
         return $this->output->set_content_type('application/json')->set_output(json_encode([
@@ -2361,15 +2564,13 @@ class Tasks extends CI_Controller {
                 );
                 if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
                     $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
-                    if ($est_raw !== '') {
-                        $est = estimate_hours_parse($est_raw);
-                        if ($est === false) {
-                            $skipped++;
-                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use number 0–9999.99).');
-                            continue;
-                        }
-                        $data['estimate_hours'] = $est;
+                    $est = estimate_hours_require($est_raw);
+                    if ($est === false) {
+                        $skipped++;
+                        csv_import_add_row_error($row_errors, $line, 'estimate_hours is required (number 0–9999.99).');
+                        continue;
                     }
+                    $data['estimate_hours'] = $est;
                 }
                 if ($this->db->insert('tasks', $data)) {
                     $inserted++;
@@ -2597,6 +2798,9 @@ class Tasks extends CI_Controller {
             return;
         }
         $this->Task_model->add_comment($task_id, $user_id, $comment);
+        $this->Task_model->log_activity($task_id, $user_id, 'commented', null, array(
+            'comment' => mb_substr($comment, 0, 200),
+        ));
         $this->load->helper('activity');
         log_activity('tasks', 'commented', (int)$task_id, mb_substr($comment, 0, 120));
 

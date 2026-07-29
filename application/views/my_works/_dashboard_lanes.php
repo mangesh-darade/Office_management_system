@@ -32,6 +32,8 @@
 
   $hide_empty_lanes = !empty($hide_empty_lanes);
 
+  $prioritize_nonempty = !empty($prioritize_nonempty);
+
   $show_status_column = !empty($show_status_column);
 
   if (!isset($assignee_names_map) || !is_array($assignee_names_map)) {
@@ -75,6 +77,34 @@
 
     $lanes_class .= ' mw-dash-lanes-fullscreen';
 
+  }
+
+  // Precompute open-item counts and optionally put nonempty lanes first when filters are on.
+  $lane_open_counts = array();
+  foreach ($lane_keys as $lane_key_pre) {
+    $pre_items = isset($section_lanes[$lane_key_pre]) ? $section_lanes[$lane_key_pre] : array();
+    if (in_array((string) $lane_key_pre, array('future_pipeline', 'back_log', 'yesterday', 'todays_plan'), true) && !empty($pre_items)) {
+      if (!function_exists('my_works_row_is_finished')) {
+        $this->load->helper('my_works_status');
+      }
+      $open_n = 0;
+      foreach ($pre_items as $pre_row) {
+        if (!my_works_row_is_finished($pre_row)) {
+          $open_n++;
+        }
+      }
+      $lane_open_counts[$lane_key_pre] = $open_n;
+    } else {
+      $lane_open_counts[$lane_key_pre] = is_array($pre_items) ? count($pre_items) : 0;
+    }
+  }
+  if ($prioritize_nonempty && function_exists('dashboard_sort_nonempty_first')) {
+    $lane_keys = dashboard_sort_nonempty_first(
+      $lane_keys,
+      function ($lane_key) use ($lane_open_counts) {
+        return isset($lane_open_counts[$lane_key]) ? (int) $lane_open_counts[$lane_key] : 0;
+      }
+    );
   }
 
 ?>
@@ -377,6 +407,8 @@
                   <tr class="mw-dash-task-row mw-dash-status-<?php echo esc_view($dotClass); ?><?php echo $can_drag ? ' mw-dash-task-row-draggable' : ''; ?>"
 
                       style="background-color:<?php echo esc_view($rowBg, ENT_QUOTES, 'UTF-8'); ?>;--mw-status-color:<?php echo esc_view($dotColor, ENT_QUOTES, 'UTF-8'); ?>;"
+
+                      data-estimate-hours="<?php echo esc_view(isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== '' ? (string) $r->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>"
 
                       <?php if ($can_drag): ?>
 

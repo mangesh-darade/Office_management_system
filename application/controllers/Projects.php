@@ -14,6 +14,7 @@ class Projects extends CI_Controller {
         // Allow users with either 'projects' or 'projects_list' access
         require_module_access(['projects', 'projects_list'], true);
         estimate_hours_ensure_column($this->db, 'projects', 'end_date');
+        actual_hours_ensure_column($this->db, 'projects', 'estimate_hours');
     }
 
     public function index() {
@@ -193,6 +194,17 @@ class Projects extends CI_Controller {
                         return;
                     }
                     $data['estimate_hours'] = $est;
+                }
+                if (schema_table_has_column($this->db, 'projects', 'actual_hours')
+                    && status_is_project_completed($data['status'])
+                ) {
+                    $act = actual_hours_require($this->input->post('actual_hours'));
+                    if ($act === false) {
+                        $this->session->set_flashdata('error', 'Actual (hrs) is required when status is Completed.');
+                        redirect('projects/create' . ($embed ? '?embed=1' : ''));
+                        return;
+                    }
+                    $data['actual_hours'] = $act;
                 }
 
                 if (!$this->_apply_manager_id_from_post($data)) {
@@ -436,6 +448,10 @@ class Projects extends CI_Controller {
 
         $filter_user_id = $this->input->get('user_id') !== null ? (int)$this->input->get('user_id') : -1;
         $filter_project_id = $this->input->get('project_id') !== null ? (int)$this->input->get('project_id') : -1;
+        $filter_client_id = $this->input->get('client_id') !== null ? (int)$this->input->get('client_id') : 0;
+        if ($filter_client_id < 1) {
+            $filter_client_id = 0;
+        }
         $filter_status = $this->input->get('status') !== null ? (string)$this->input->get('status') : 'all';
         $filter_department_id = $this->input->get('department_id') !== null ? (int)$this->input->get('department_id') : -1;
         $this->load->helper('my_works');
@@ -449,9 +465,40 @@ class Projects extends CI_Controller {
             $projects = $this->Project_model->all(array());
         }
 
+        $has_project_client = schema_table_has_column($this->db, 'projects', 'client_id');
+
+        $filter_clients = array();
+        if ($has_project_client && $this->db->table_exists('clients')) {
+            $this->db->select('id, company_name');
+            $this->db->from('clients');
+            $this->db->order_by('company_name', 'ASC');
+            $filter_clients = $this->db->get()->result();
+        }
+
         $filter_projects = array();
         if ($this->db->table_exists('projects')) {
-            $filter_projects = $this->db->select('id, name')->order_by('name', 'asc')->get('projects')->result();
+            $this->db->select('id, name');
+            if ($has_project_client) {
+                $this->db->select('client_id');
+            }
+            $this->db->from('projects');
+            if ($has_project_client && $filter_client_id > 0) {
+                $this->db->where('client_id', $filter_client_id);
+            }
+            $this->db->order_by('name', 'asc');
+            $filter_projects = $this->db->get()->result();
+            if ($filter_project_id > 0) {
+                $project_ok = false;
+                foreach ($filter_projects as $fp) {
+                    if ((int) $fp->id === $filter_project_id) {
+                        $project_ok = true;
+                        break;
+                    }
+                }
+                if (!$project_ok) {
+                    $filter_project_id = 0;
+                }
+            }
         }
 
         $filter_users = array();
@@ -495,6 +542,13 @@ class Projects extends CI_Controller {
             if ($filter_project_id > 0 && $project_id !== $filter_project_id) {
                 continue;
             }
+            // If filtering by client, skip projects that don't match
+            if ($has_project_client && $filter_client_id > 0) {
+                $project_client_id = isset($project->client_id) ? (int) $project->client_id : 0;
+                if ($project_client_id !== $filter_client_id) {
+                    continue;
+                }
+            }
             // If filtering by department, skip projects that don't match
             $project_dept_id = isset($project->department_id) ? (int)$project->department_id : 0;
             if ($filter_department_id > 0 && $project_dept_id !== $filter_department_id) {
@@ -515,13 +569,39 @@ class Projects extends CI_Controller {
             );
         }
 
+        $filters_active = ($filter_user_id > 0
+            || $filter_project_id > 0
+            || $filter_client_id > 0
+            || ($filter_status !== '' && $filter_status !== 'all')
+            || $filter_department_id > 0);
+        if ($filters_active && !empty($project_cards)) {
+            $project_cards = dashboard_sort_nonempty_first(
+                $project_cards,
+                function ($card) {
+                    return isset($card['tasks']) ? count($card['tasks']) : 0;
+                },
+                function ($a, $b) {
+                    $a_name = isset($a['project']->name) ? strtolower(trim((string) $a['project']->name)) : '';
+                    $b_name = isset($b['project']->name) ? strtolower(trim((string) $b['project']->name)) : '';
+                    if ($a_name === $b_name) {
+                        $a_code = isset($a['project']->code) ? strtolower(trim((string) $a['project']->code)) : '';
+                        $b_code = isset($b['project']->code) ? strtolower(trim((string) $b['project']->code)) : '';
+                        return strcmp($a_code, $b_code);
+                    }
+                    return strcmp($a_name, $b_name);
+                }
+            );
+        }
+
         $this->load->view('projects/dashboard_index', array(
             'project_cards' => $project_cards,
             'status_rows'   => $status_rows,
             'filter_user_id'    => $filter_user_id,
             'filter_project_id' => $filter_project_id,
+            'filter_client_id'  => $filter_client_id,
             'filter_status'     => $filter_status,
             'filter_projects'   => $filter_projects,
+            'filter_clients'    => $filter_clients,
             'filter_users'      => $filter_users,
             'filter_departments' => $filter_departments,
             'filter_department_id' => $filter_department_id,
@@ -677,6 +757,19 @@ class Projects extends CI_Controller {
                         return;
                     }
                     $data['estimate_hours'] = $est;
+                }
+                $was_completed = status_is_project_completed(isset($project->status) ? $project->status : '');
+                if (schema_table_has_column($this->db, 'projects', 'actual_hours')
+                    && status_is_project_completed($data['status'])
+                    && !$was_completed
+                ) {
+                    $act = actual_hours_require($this->input->post('actual_hours'));
+                    if ($act === false) {
+                        $this->session->set_flashdata('error', 'Actual (hrs) is required when status is Completed.');
+                        redirect('projects/'.$id.'/edit');
+                        return;
+                    }
+                    $data['actual_hours'] = $act;
                 }
 
                 if (!$this->_apply_manager_id_from_post($data)) {

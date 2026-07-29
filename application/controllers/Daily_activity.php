@@ -338,7 +338,7 @@ class Daily_activity extends CI_Controller {
     }
 
     /**
-     * Today's task comments keyed by task_id.
+     * Today's task comments + status/activity keyed by task_id.
      *
      * @param array $task_ids
      * @param string $work_date
@@ -355,37 +355,211 @@ class Daily_activity extends CI_Controller {
             }
         }
         $ids = array_values(array_unique($ids));
-        if (empty($ids) || !$this->db->table_exists('task_comments')) {
+        if (empty($ids)) {
             return $out;
         }
         list($start, $end) = $this->summary_day_bounds($work_date);
-        $this->db->select('c.task_id, c.comment, c.created_at, u.name AS user_name, u.email AS user_email', false);
-        $this->db->from('task_comments c');
-        $this->db->join('users u', 'u.id = c.user_id', 'left');
-        $this->db->where_in('c.task_id', $ids);
-        $this->db->where('c.created_at >=', $start);
-        $this->db->where('c.created_at <=', $end);
-        $this->db->order_by('c.created_at', 'ASC');
-        $this->db->order_by('c.id', 'ASC');
-        $this->db->limit(200);
-        foreach ($this->db->get()->result() as $row) {
-            $tid = (int) $row->task_id;
-            $text = $this->summary_plain_text(isset($row->comment) ? $row->comment : '', 280);
+
+        if ($this->db->table_exists('task_comments')) {
+            $this->db->select('c.id, c.task_id, c.comment, c.created_at, u.name AS user_name, u.email AS user_email', false);
+            $this->db->from('task_comments c');
+            $this->db->join('users u', 'u.id = c.user_id', 'left');
+            $this->db->where_in('c.task_id', $ids);
+            $this->db->where('c.created_at >=', $start);
+            $this->db->where('c.created_at <=', $end);
+            $this->db->order_by('c.created_at', 'ASC');
+            $this->db->order_by('c.id', 'ASC');
+            $this->db->limit(200);
+            foreach ($this->db->get()->result() as $row) {
+                $tid = (int) $row->task_id;
+                $text = $this->summary_plain_text(isset($row->comment) ? $row->comment : '', 280);
+                if ($text === '') {
+                    continue;
+                }
+                $who = !empty($row->user_name) ? (string) $row->user_name : (!empty($row->user_email) ? (string) $row->user_email : 'User');
+                if (!isset($out[$tid])) {
+                    $out[$tid] = array();
+                }
+                $out[$tid][] = array(
+                    'kind' => 'comment',
+                    'time' => $this->summary_time_label($row->created_at),
+                    'user' => $who,
+                    'text' => $text,
+                    'sort' => (string) $row->created_at . '-c' . (int) $row->id,
+                );
+            }
+        }
+
+        if ($this->db->table_exists('task_activity')) {
+            $this->load->model('Task_model');
+            $this->db->select('a.id, a.task_id, a.action, a.old_value, a.new_value, a.created_at, u.name AS user_name, u.email AS user_email', false);
+            $this->db->from('task_activity a');
+            $this->db->join('users u', 'u.id = a.user_id', 'left');
+            $this->db->where_in('a.task_id', $ids);
+            $this->db->where('a.created_at >=', $start);
+            $this->db->where('a.created_at <=', $end);
+            $this->db->where_in('a.action', array('status_changed', 'assigned', 'updated', 'created'));
+            $this->db->order_by('a.created_at', 'ASC');
+            $this->db->order_by('a.id', 'ASC');
+            $this->db->limit(200);
+            foreach ($this->db->get()->result() as $row) {
+                $tid = (int) $row->task_id;
+                $text = '';
+                if (isset($this->Task_model) && method_exists($this->Task_model, 'format_activity_detail')) {
+                    $text = trim((string) $this->Task_model->format_activity_detail($row));
+                }
+                if ($text === '') {
+                    $action = trim((string) $row->action);
+                    $text = $action !== '' ? str_replace('_', ' ', $action) : 'update';
+                }
+                $who = !empty($row->user_name) ? (string) $row->user_name : (!empty($row->user_email) ? (string) $row->user_email : 'User');
+                if (!isset($out[$tid])) {
+                    $out[$tid] = array();
+                }
+                $out[$tid][] = array(
+                    'kind' => 'history',
+                    'time' => $this->summary_time_label($row->created_at),
+                    'user' => $who,
+                    'text' => $this->summary_plain_text($text, 180),
+                    'sort' => (string) $row->created_at . '-a' . (int) $row->id,
+                    'is_status' => ((string) $row->action === 'status_changed'),
+                );
+            }
+        }
+
+        foreach ($out as $tid => $entries) {
+            usort($entries, function ($a, $b) {
+                $sa = isset($a['sort']) ? (string) $a['sort'] : '';
+                $sb = isset($b['sort']) ? (string) $b['sort'] : '';
+                return strcmp($sa, $sb);
+            });
+            foreach ($entries as &$entry) {
+                unset($entry['sort']);
+            }
+            unset($entry);
+            $out[$tid] = $entries;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Latest status-change note from history entries (e.g. "Pending → In Progress").
+     *
+     * @param array $history
+     * @return string
+     */
+    private function summary_latest_status_note(array $history)
+    {
+        $note = '';
+        foreach ($history as $entry) {
+            // Only real status_changed entries — never due_date / field updates that also use "→".
+            if (empty($entry['is_status'])) {
+                continue;
+            }
+            $text = isset($entry['text']) ? trim((string) $entry['text']) : '';
             if ($text === '') {
                 continue;
             }
-            $who = !empty($row->user_name) ? (string) $row->user_name : (!empty($row->user_email) ? (string) $row->user_email : 'User');
-            if (!isset($out[$tid])) {
-                $out[$tid] = array();
-            }
-            $out[$tid][] = array(
-                'kind' => 'comment',
-                'time' => $this->summary_time_label($row->created_at),
-                'user' => $who,
-                'text' => $text,
-            );
+            $note = $text;
         }
-        return $out;
+        return $note;
+    }
+
+    /**
+     * Activity title from Tasks + My Works, preferring items with today's status/log changes.
+     *
+     * @param array $tasks
+     * @param array $my_works
+     * @param array $task_history_map
+     * @param array $mw_history_map
+     * @return array{title:string,task_id:int}
+     */
+    private function build_suggested_activity_title(array $tasks, array $my_works, array $task_history_map, array $mw_history_map)
+    {
+        $with_change = array();
+        $without = array();
+
+        foreach ($tasks as $task) {
+            $title = isset($task->title) ? trim((string) $task->title) : '';
+            if ($title === '') {
+                continue;
+            }
+            $tid = (int) $task->id;
+            $hist = isset($task_history_map[$tid]) ? $task_history_map[$tid] : array();
+            $status_note = $this->summary_latest_status_note($hist);
+            $entry = array(
+                'title' => $title,
+                'note' => $status_note,
+                'task_id' => $tid,
+                'has_change' => ($status_note !== '' || !empty($hist)),
+            );
+            if ($entry['has_change']) {
+                $with_change[] = $entry;
+            } else {
+                $without[] = $entry;
+            }
+        }
+
+        foreach ($my_works as $mw) {
+            $title = isset($mw->title) ? trim((string) $mw->title) : '';
+            if ($title === '') {
+                continue;
+            }
+            $wid = (int) $mw->id;
+            $hist = isset($mw_history_map[$wid]) ? $mw_history_map[$wid] : array();
+            $status_note = $this->summary_latest_status_note($hist);
+            $linked_task = (!empty($mw->task_id)) ? (int) $mw->task_id : 0;
+            $entry = array(
+                'title' => $title,
+                'note' => $status_note,
+                'task_id' => $linked_task,
+                'has_change' => ($status_note !== '' || !empty($hist)),
+            );
+            if ($entry['has_change']) {
+                $with_change[] = $entry;
+            } else {
+                $without[] = $entry;
+            }
+        }
+
+        $ordered = array_merge($with_change, $without);
+        if (empty($ordered)) {
+            return array('title' => '', 'task_id' => 0);
+        }
+
+        $max_parts = 4;
+        $parts = array();
+        $extra = 0;
+        $suggested_task_id = 0;
+        foreach ($ordered as $i => $entry) {
+            if ($suggested_task_id < 1 && !empty($entry['task_id'])) {
+                $suggested_task_id = (int) $entry['task_id'];
+            }
+            if (count($parts) >= $max_parts) {
+                $extra++;
+                continue;
+            }
+            $part = $entry['title'];
+            if (!empty($entry['note'])) {
+                $part .= ' (' . $entry['note'] . ')';
+            }
+            $parts[] = $part;
+        }
+        $title = implode(' · ', $parts);
+        if ($extra > 0) {
+            $title .= ' +' . $extra . ' more';
+        }
+        if (function_exists('mb_strlen') && mb_strlen($title) > 250) {
+            $title = mb_substr($title, 0, 247) . '…';
+        } elseif (strlen($title) > 250) {
+            $title = substr($title, 0, 247) . '…';
+        }
+
+        return array(
+            'title' => $title,
+            'task_id' => $suggested_task_id,
+        );
     }
 
     /**
@@ -467,12 +641,14 @@ class Daily_activity extends CI_Controller {
                 if (!isset($out[$wid])) {
                     $out[$wid] = array();
                 }
+                $is_status = (stripos($action, 'status') !== false);
                 $out[$wid][] = array(
                     'kind' => 'history',
                     'time' => $this->summary_time_label($row->created_at),
                     'user' => $who,
                     'text' => $text,
                     'sort' => (string) $row->created_at . '-a' . (int) $row->id,
+                    'is_status' => $is_status,
                 );
             }
         }
@@ -738,6 +914,8 @@ class Daily_activity extends CI_Controller {
             }
         }
 
+        $suggested = $this->build_suggested_activity_title($tasks, $my_works, $task_history_map, $mw_history_map);
+
         return array(
             'visible' => $has_any,
             'work_date' => $work_date,
@@ -751,6 +929,8 @@ class Daily_activity extends CI_Controller {
                 'my_works' => count($mw_items),
                 'templates' => count($tpl_lines),
             ),
+            'suggested_activity_title' => isset($suggested['title']) ? $suggested['title'] : '',
+            'suggested_task_id' => isset($suggested['task_id']) ? (int) $suggested['task_id'] : 0,
         );
     }
 

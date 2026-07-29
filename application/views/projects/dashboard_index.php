@@ -135,6 +135,27 @@ $show_project_toolbar = true;
     </label>
     <?php endif; ?>
 
+    <?php
+      $filter_client_id = isset($filter_client_id) ? (int) $filter_client_id : 0;
+      $filter_clients = isset($filter_clients) && is_array($filter_clients) ? $filter_clients : array();
+    ?>
+    <?php if (!empty($filter_clients)): ?>
+    <label class="project-dash-filter-label">
+      <span class="project-dash-filter-label-text">Client</span>
+      <select name="client_id" class="form-select form-select-sm project-dash-filter-select">
+        <option value="0"<?php echo $filter_client_id < 1 ? ' selected' : ''; ?>>All Clients</option>
+        <?php foreach ($filter_clients as $fc): ?>
+          <?php
+            $fc_id = (int) $fc->id;
+            $fc_name = isset($fc->company_name) ? trim((string) $fc->company_name) : '';
+            $fc_label = $fc_name !== '' ? $fc_name : ('Client #' . $fc_id);
+          ?>
+          <option value="<?php echo $fc_id; ?>"<?php echo $filter_client_id === $fc_id ? ' selected' : ''; ?>><?php echo esc_view($fc_label, ENT_QUOTES, 'UTF-8'); ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <?php endif; ?>
+
     <?php if (!empty($filter_projects)): ?>
     <label class="project-dash-filter-label">
       <span class="project-dash-filter-label-text">Project</span>
@@ -336,6 +357,8 @@ $show_project_toolbar = true;
                           <select class="form-select form-select-sm project-dash-status-select" 
                                   data-id="<?php echo (int) $row->id; ?>" 
                                   data-type="<?php echo $kind === 'requirement' ? 'requirement' : 'project_task'; ?>"
+                                  data-estimate-hours="<?php echo esc_view(($kind === 'task' && isset($row->estimate_hours) && $row->estimate_hours !== null && $row->estimate_hours !== '') ? (string) $row->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>"
+                                  data-prev-status="<?php echo esc_view($task_status, ENT_QUOTES, 'UTF-8'); ?>"
                                   style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border:1px solid <?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;font-weight:600;font-size:0.75rem;border-radius:4px;padding:2px 20px 2px 6px; cursor:pointer;"
                                   title="<?php echo esc_view($task_label, ENT_QUOTES, 'UTF-8'); ?>">
                             <?php foreach ($status_rows as $srow): ?>
@@ -462,12 +485,34 @@ $show_project_toolbar = true;
           id: itemId,
           type: itemType,
           status: newStatus,
+          actual_hours: $select.attr('data-actual-hours') || '',
           <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
         },
         dataType: 'json',
         success: function(res) {
           if (!res || !res.success) {
-            alert('Failed to update status.');
+            if (res && res.need_actual_hours && window.omsActualHours) {
+              window.omsActualHours.prompt({
+                estimate: $select.attr('data-estimate-hours') || null
+              }).then(function (hours) {
+                if (hours === null) {
+                  var prev = $select.attr('data-prev-status');
+                  if (prev) { $select.val(prev); }
+                  return;
+                }
+                $select.attr('data-actual-hours', String(hours));
+                $select.trigger('change');
+              });
+              return;
+            }
+            alert((res && res.error) ? res.error : 'Failed to update status.');
+            var prev = $select.attr('data-prev-status');
+            if (prev) {
+              $select.val(prev);
+            }
+          } else {
+            $select.attr('data-prev-status', newStatus);
+            $select.removeAttr('data-actual-hours');
           }
         },
         error: function() {
@@ -481,4 +526,7 @@ $show_project_toolbar = true;
 <?php endif; ?>
 <?php if (!$embed) {
   $this->load->view('partials/footer');
+} else {
+  // Embed panes: ensure actual-hours script is present if parent shell missed it.
+  echo '<script src="' . base_url('assets/js/actual-hours-complete.js') . '"></script>';
 } ?>

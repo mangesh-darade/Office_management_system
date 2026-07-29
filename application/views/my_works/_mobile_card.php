@@ -78,11 +78,11 @@
     </div>
   <?php endif; ?>
   <?php if ($canStatus): ?>
-    <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="mt-2 mw-quick-status">
+    <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="mt-2 mw-quick-status" data-current-status="<?php echo esc_view($r->status, ENT_QUOTES, 'UTF-8'); ?>" data-estimate-hours="<?php echo esc_view(isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== '' ? (string) $r->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>">
       <?php $this->load->view('my_works/_csrf'); ?>
       <input type="hidden" name="id" value="<?php echo (int) $r->id; ?>">
       <input type="hidden" name="redirect" value="<?php echo esc_view(current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')); ?>">
-      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+      <select name="status" class="form-select form-select-sm" data-original-status="<?php echo esc_view($r->status, ENT_QUOTES, 'UTF-8'); ?>" onchange="if (this.form.requestSubmit) { this.form.requestSubmit(); } else { this.form.submit(); }">
         <?php foreach ($statusLabels as $k => $lbl): ?>
           <option value="<?php echo $k; ?>" <?php echo $r->status === $k ? 'selected' : ''; ?>><?php echo esc_view($lbl); ?></option>
         <?php endforeach; ?>

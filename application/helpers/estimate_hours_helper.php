@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Shared estimate_hours parsing for Tasks / My Works / Templates / Projects.
+ * Shared estimate_hours / actual_hours parsing for Tasks / My Works / Templates / Projects.
  */
 
 if (!function_exists('estimate_hours_parse')) {
@@ -30,6 +30,23 @@ if (!function_exists('estimate_hours_parse')) {
             return false;
         }
         return round($v, 2);
+    }
+}
+
+if (!function_exists('estimate_hours_require')) {
+    /**
+     * Required estimate hours. Empty or invalid → false.
+     *
+     * @param mixed $raw
+     * @return float|false
+     */
+    function estimate_hours_require($raw)
+    {
+        $est = estimate_hours_parse($raw);
+        if ($est === null || $est === false) {
+            return false;
+        }
+        return $est;
     }
 }
 
@@ -91,5 +108,90 @@ if (!function_exists('estimate_hours_ensure_column')) {
             $after = ' AFTER `' . $after_column . '`';
         }
         $db->query('ALTER TABLE `' . $table . '` ADD `estimate_hours` DECIMAL(6,2) NULL' . $after);
+    }
+}
+
+if (!function_exists('actual_hours_parse')) {
+    /**
+     * @param mixed $raw
+     * @return float|null|false
+     */
+    function actual_hours_parse($raw)
+    {
+        return estimate_hours_parse($raw);
+    }
+}
+
+if (!function_exists('actual_hours_require')) {
+    /**
+     * Required actual hours when completing work. Empty or invalid → false.
+     *
+     * @param mixed $raw
+     * @return float|false
+     */
+    function actual_hours_require($raw)
+    {
+        return estimate_hours_require($raw);
+    }
+}
+
+if (!function_exists('actual_hours_display')) {
+    /**
+     * @param mixed $value
+     * @return string
+     */
+    function actual_hours_display($value)
+    {
+        return estimate_hours_display($value);
+    }
+}
+
+if (!function_exists('actual_hours_ensure_column')) {
+    /**
+     * @param CI_DB_query_builder $db
+     * @param string              $table
+     * @param string|null         $after_column Prefer estimate_hours when present
+     * @return void
+     */
+    function actual_hours_ensure_column($db, $table, $after_column = null)
+    {
+        if (!$db->table_exists($table)) {
+            return;
+        }
+        if (schema_table_has_column($db, $table, 'actual_hours')) {
+            return;
+        }
+        $after = '';
+        if ($after_column === null || $after_column === '') {
+            if (schema_table_has_column($db, $table, 'estimate_hours')) {
+                $after_column = 'estimate_hours';
+            }
+        }
+        if ($after_column !== null && $after_column !== '' && schema_table_has_column($db, $table, $after_column)) {
+            $after = ' AFTER `' . $after_column . '`';
+        }
+        $db->query('ALTER TABLE `' . $table . '` ADD `actual_hours` DECIMAL(6,2) NULL' . $after);
+    }
+}
+
+if (!function_exists('status_is_task_completed')) {
+    /**
+     * @param mixed $status
+     * @return bool
+     */
+    function status_is_task_completed($status)
+    {
+        return strtolower(trim((string) $status)) === 'completed';
+    }
+}
+
+if (!function_exists('status_is_project_completed')) {
+    /**
+     * @param mixed $status
+     * @return bool
+     */
+    function status_is_project_completed($status)
+    {
+        return strtolower(trim((string) $status)) === 'completed';
     }
 }

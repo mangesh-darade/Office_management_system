@@ -48,7 +48,7 @@
                 $borderClass = my_works_row_border_class($r);
                 $overdue = my_works_is_overdue($r);
               ?>
-              <div class="mw-board-card-wrap" draggable="true" data-id="<?php echo (int) $r->id; ?>" data-status="<?php echo esc_view($r->status); ?>">
+              <div class="mw-board-card-wrap" draggable="true" data-id="<?php echo (int) $r->id; ?>" data-status="<?php echo esc_view($r->status); ?>" data-estimate-hours="<?php echo esc_view(isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== '' ? (string) $r->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>">
                 <a href="<?php echo site_url('my-works/' . (int) $r->id); ?>" class="mw-board-card <?php echo $borderClass; ?>">
                   <div class="title"><?php echo esc_view($r->title); ?></div>
                   <?php if (!empty($r->project_name)): ?>
@@ -113,24 +113,42 @@
       var id = dragEl.getAttribute('data-id');
       var oldStatus = dragEl.getAttribute('data-status');
       if (!newStatus || !id || newStatus === oldStatus) return;
-      col.insertBefore(dragEl, col.querySelector('.mw-board-empty'));
-      var empty = col.querySelector('.mw-board-empty');
-      if (empty) empty.remove();
-      dragEl.setAttribute('data-status', newStatus);
-      var body = new URLSearchParams();
-      body.append('id', id);
-      body.append('status', newStatus);
-      body.append(csrfName, csrfHash);
-      fetch(updateUrl, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString()
-      }).then(function (r) { return r.json(); }).then(function (data) {
-        if (!data || !data.ok) {
-          window.location.reload();
+
+      function postStatus(actualHours) {
+        col.insertBefore(dragEl, col.querySelector('.mw-board-empty'));
+        var empty = col.querySelector('.mw-board-empty');
+        if (empty) empty.remove();
+        dragEl.setAttribute('data-status', newStatus);
+        var body = new URLSearchParams();
+        body.append('id', id);
+        body.append('status', newStatus);
+        if (actualHours != null && actualHours !== undefined) {
+          body.append('actual_hours', String(actualHours));
         }
-      }).catch(function () { window.location.reload(); });
-      dragEl = null;
+        body.append(csrfName, csrfHash);
+        fetch(updateUrl, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString()
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (!data || !data.ok) {
+            window.location.reload();
+          }
+        }).catch(function () { window.location.reload(); });
+        dragEl = null;
+      }
+
+      if (window.omsActualHours && window.omsActualHours.isCompleteStatus(newStatus)
+          && !window.omsActualHours.isCompleteStatus(oldStatus)) {
+        window.omsActualHours.prompt({
+          estimate: dragEl.getAttribute('data-estimate-hours') || null
+        }).then(function (hours) {
+          if (hours === null) { return; }
+          postStatus(hours);
+        });
+        return;
+      }
+      postStatus(undefined);
     });
   });
 

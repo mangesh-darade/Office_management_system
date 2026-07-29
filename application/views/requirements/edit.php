@@ -134,7 +134,7 @@
               <option value="<?php echo (int)$m->id; ?>" <?php echo in_array((int)$m->id, $curAssignedIds, true)?'selected':''; ?>><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
-          <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
+          <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
         </div>
       </div>
       <div>

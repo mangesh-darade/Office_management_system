@@ -329,10 +329,33 @@ if (!function_exists('my_works_safe_redirect')) {
             return site_url($fallback);
         }
         if (strpos($url, '://') !== false) {
-            return site_url($fallback);
+            $parts = parse_url($url);
+            $path = isset($parts['path']) ? (string) $parts['path'] : '';
+            $query = isset($parts['query']) ? (string) $parts['query'] : '';
+            $base_path = parse_url(base_url(), PHP_URL_PATH);
+            $base_path = is_string($base_path) ? rtrim($base_path, '/') : '';
+            if ($base_path !== '' && $base_path !== '/' && strpos($path, $base_path . '/') === 0) {
+                $path = substr($path, strlen($base_path) + 1);
+            } else {
+                $path = ltrim($path, '/');
+            }
+            if ($path === '') {
+                return site_url($fallback);
+            }
+            return site_url($path . ($query !== '' ? '?' . $query : ''));
         }
-        if ($url[0] === '/') {
-            return site_url(ltrim($url, '/'));
+        if (isset($url[0]) && $url[0] === '/') {
+            $base_path = parse_url(base_url(), PHP_URL_PATH);
+            $base_path = is_string($base_path) ? rtrim($base_path, '/') : '';
+            if ($base_path !== '' && $base_path !== '/' && strpos($url, $base_path . '/') === 0) {
+                $url = substr($url, strlen($base_path) + 1);
+            } else {
+                $url = ltrim($url, '/');
+            }
+            if ($url === '') {
+                return site_url($fallback);
+            }
+            return site_url($url);
         }
         return site_url($url);
     }
@@ -1333,6 +1356,38 @@ if (!function_exists('dashboard_parse_complete_view')) {
             return 'only';
         }
         return 'hide';
+    }
+}
+
+if (!function_exists('dashboard_sort_nonempty_first')) {
+    /**
+     * When filters are active: items with count > 0 first, empty last.
+     * Tie-break with optional comparator (keeps alphabetical within each group).
+     *
+     * @param array         $items
+     * @param callable      $count_fn function($item): int
+     * @param callable|null $tie_cmp  function($a, $b): int
+     * @return array
+     */
+    function dashboard_sort_nonempty_first(array $items, $count_fn, $tie_cmp = null)
+    {
+        if (count($items) < 2) {
+            return $items;
+        }
+        usort($items, function ($a, $b) use ($count_fn, $tie_cmp) {
+            $ac = (int) call_user_func($count_fn, $a);
+            $bc = (int) call_user_func($count_fn, $b);
+            $ae = ($ac > 0) ? 0 : 1;
+            $be = ($bc > 0) ? 0 : 1;
+            if ($ae !== $be) {
+                return $ae - $be;
+            }
+            if (is_callable($tie_cmp)) {
+                return (int) call_user_func($tie_cmp, $a, $b);
+            }
+            return 0;
+        });
+        return $items;
     }
 }
 

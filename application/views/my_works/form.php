@@ -190,7 +190,7 @@
 
               </select>
 
-              <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
+              <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
 
             </div>
 
@@ -228,9 +228,9 @@
 
             <div class="col-12 col-md-3">
 
-              <label class="form-label fw-semibold" for="mw-estimate-hours">Estimate (hrs)</label>
+              <label class="form-label fw-semibold" for="mw-estimate-hours">Estimate (hrs) <span class="text-danger">*</span></label>
 
-              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25"
+              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" required
                      value="<?php
                        $est_val = $field('estimate_hours', '');
                        if ($est_val !== '' && $est_val !== null && function_exists('estimate_hours_display')) {

@@ -76,53 +76,96 @@
       return false;
     }
 
-    $form.data('saving', true);
-    $toggle.prop('disabled', true);
-    $hidden.val(status);
+    function runSave(actualHours) {
+      $form.data('saving', true);
+      $toggle.prop('disabled', true);
+      $hidden.val(status);
 
-    $.ajax({
-      url: $form.attr('action'),
-      type: 'POST',
-      data: $form.serialize(),
-      dataType: 'json',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    }).done(function (resp) {
-      if (!resp || !resp.ok) {
-        $hidden.val(prevVal);
-        return;
+      var postData = $form.serialize();
+      if (actualHours != null && actualHours !== undefined) {
+        postData += '&actual_hours=' + encodeURIComponent(String(actualHours));
       }
 
-      applyRowStatus($row, $toggle, color, label);
-      $toggle.attr('data-prev-status', status);
-      $form.find('.mw-dash-status-option').removeClass('active');
-      $opt.addClass('active');
-
-      if (window.bootstrap && bootstrap.Dropdown) {
-        var inst = bootstrap.Dropdown.getInstance($toggle[0]);
-        if (inst) {
-          inst.hide();
+      $.ajax({
+        url: $form.attr('action'),
+        type: 'POST',
+        data: postData,
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      }).done(function (resp) {
+        if (!resp || !resp.ok) {
+          $hidden.val(prevVal);
+          if (resp && resp.need_actual_hours && window.omsActualHours) {
+            window.omsActualHours.prompt({
+              estimate: $row.attr('data-estimate-hours') || null
+            }).then(function (hours) {
+              if (hours === null) {
+                return;
+              }
+              runSave(hours);
+            });
+          }
+          return;
         }
-      }
 
-      if (leaves) {
-        var $tbody = $row.closest('tbody');
-        $row.fadeOut(150, function () {
-          $row.remove();
-          updateLaneCount($tbody);
-        });
-      }
-    }).fail(function () {
-      $hidden.val(prevVal);
-      if (window.toastr) {
-        toastr.error('Failed to update status.');
-      } else {
-        window.alert('Failed to update status.');
-      }
-    }).always(function () {
-      $form.data('saving', false);
-      $toggle.prop('disabled', false);
-    });
+        applyRowStatus($row, $toggle, color, label);
+        $toggle.attr('data-prev-status', status);
+        $form.find('.mw-dash-status-option').removeClass('active');
+        $opt.addClass('active');
 
+        if (window.bootstrap && bootstrap.Dropdown) {
+          var inst = bootstrap.Dropdown.getInstance($toggle[0]);
+          if (inst) {
+            inst.hide();
+          }
+        }
+
+        if (leaves) {
+          var $tbody = $row.closest('tbody');
+          $row.fadeOut(150, function () {
+            $row.remove();
+            updateLaneCount($tbody);
+          });
+        }
+      }).fail(function (xhr) {
+        $hidden.val(prevVal);
+        var resp = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+        if (resp && resp.need_actual_hours && window.omsActualHours) {
+          window.omsActualHours.prompt({
+            estimate: $row.attr('data-estimate-hours') || null
+          }).then(function (hours) {
+            if (hours === null) {
+              return;
+            }
+            runSave(hours);
+          });
+          return;
+        }
+        if (window.toastr) {
+          toastr.error('Failed to update status.');
+        } else {
+          window.alert('Failed to update status.');
+        }
+      }).always(function () {
+        $form.data('saving', false);
+        $toggle.prop('disabled', false);
+      });
+    }
+
+    if (window.omsActualHours && window.omsActualHours.isCompleteStatus(status)
+        && !window.omsActualHours.isCompleteStatus(prevVal)) {
+      window.omsActualHours.prompt({
+        estimate: $row.attr('data-estimate-hours') || null
+      }).then(function (hours) {
+        if (hours === null) {
+          return;
+        }
+        runSave(hours);
+      });
+      return false;
+    }
+
+    runSave(undefined);
     return false;
   });
 

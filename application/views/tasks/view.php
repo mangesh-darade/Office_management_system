@@ -173,6 +173,12 @@ if ($due_raw !== '' && $due_raw !== '0000-00-00') {
       </strong>
     </div>
     <div class="task-detail-stat-card">
+      <span class="task-detail-stat-label">Actual (hrs)</span>
+      <strong class="task-detail-stat-value">
+        <?php echo function_exists('actual_hours_display') ? esc_view(actual_hours_display(isset($task->actual_hours) ? $task->actual_hours : null)) : '—'; ?>
+      </strong>
+    </div>
+    <div class="task-detail-stat-card">
       <span class="task-detail-stat-label">Created</span>
       <strong class="task-detail-stat-value">
         <?php echo !empty($task->created_at) ? esc_view(date('M j, Y', strtotime($task->created_at))) : '—'; ?>
@@ -317,6 +323,51 @@ if ($due_raw !== '' && $due_raw !== '0000-00-00') {
           </dl>
         </div>
       </div>
+
+      <?php if (!empty($activity)): ?>
+      <div class="card task-detail-panel mb-1">
+        <div class="card-header">
+          <h2 class="task-detail-panel-title mb-0"><i class="bi bi-clock-history me-1"></i>Activity</h2>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled small mb-0 task-activity-list">
+            <?php foreach ($activity as $a): ?>
+              <?php
+                $actor_name = '';
+                if (!empty($a->user_name)) {
+                    $actor_name = (string) $a->user_name;
+                } elseif (!empty($a->user_full_name)) {
+                    $actor_name = (string) $a->user_full_name;
+                }
+                $actor_label = function_exists('my_works_user_label')
+                    ? my_works_user_label($actor_name, isset($a->user_email) ? $a->user_email : '', isset($a->user_id) ? $a->user_id : 0)
+                    : ($actor_name !== '' ? $actor_name : (isset($a->user_email) ? $a->user_email : 'System'));
+                $action_labels = array(
+                    'created' => 'Created',
+                    'updated' => 'Updated',
+                    'status_changed' => 'Status',
+                    'assigned' => 'Assignee',
+                    'commented' => 'Comment',
+                    'attachment_added' => 'Attachment',
+                );
+                $action_key = isset($a->action) ? (string) $a->action : 'updated';
+                $action_label = isset($action_labels[$action_key]) ? $action_labels[$action_key] : ucwords(str_replace('_', ' ', $action_key));
+                $detail = $this->Task_model->format_activity_detail($a);
+                $when_label = function_exists('my_works_format_when') ? my_works_format_when($a->created_at) : $a->created_at;
+              ?>
+              <li class="d-flex gap-2 py-1 border-bottom">
+                <span class="text-muted flex-shrink-0" title="<?php echo esc_view($a->created_at); ?>"><?php echo esc_view($when_label); ?></span>
+                <span>
+                  <strong><?php echo esc_view($actor_label); ?></strong>
+                  — <?php echo esc_view($action_label); ?>
+                  <?php if ($detail !== ''): ?><span class="text-muted">(<?php echo esc_view($detail); ?>)</span><?php endif; ?>
+                </span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      </div>
+      <?php endif; ?>
     </div>
   </div>
 </div>
@@ -406,24 +457,48 @@ function _csrfParam() {
 
 function updateTaskStatus(status) {
   var taskId = <?php echo (int) $task->id; ?>;
-  fetch('<?php echo site_url('tasks/update-status'); ?>', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'id=' + taskId + '&status=' + status + _csrfParam(),
-    credentials: 'same-origin'
-  })
-  .then(function(response) { return response.json(); })
-  .then(function(data) {
-    if (data.ok) {
-      showNotification('Task status updated', 'success');
-      setTimeout(function() { location.reload(); }, 700);
-    } else {
-      showNotification(data.error || 'Failed to update status', 'danger');
+  var estimate = <?php echo json_encode(isset($task->estimate_hours) ? (string) $task->estimate_hours : ''); ?>;
+  var prevStatus = <?php echo json_encode(isset($task->status) ? (string) $task->status : ''); ?>;
+
+  function doUpdate(actualHours) {
+    var body = 'id=' + taskId + '&status=' + encodeURIComponent(status) + _csrfParam();
+    if (actualHours != null && actualHours !== undefined) {
+      body += '&actual_hours=' + encodeURIComponent(String(actualHours));
     }
-  })
-  .catch(function() {
-    showNotification('Network error. Please try again.', 'danger');
-  });
+    fetch('<?php echo site_url('tasks/update-status'); ?>', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+      credentials: 'same-origin'
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        showNotification('Task status updated', 'success');
+        setTimeout(function() { location.reload(); }, 700);
+      } else if (data.need_actual_hours && window.omsActualHours) {
+        window.omsActualHours.prompt({ estimate: estimate }).then(function (hours) {
+          if (hours === null) { return; }
+          doUpdate(hours);
+        });
+      } else {
+        showNotification(data.error || 'Failed to update status', 'danger');
+      }
+    })
+    .catch(function() {
+      showNotification('Network error. Please try again.', 'danger');
+    });
+  }
+
+  if (window.omsActualHours && window.omsActualHours.isCompleteStatus(status)
+      && !window.omsActualHours.isCompleteStatus(prevStatus)) {
+    window.omsActualHours.prompt({ estimate: estimate }).then(function (hours) {
+      if (hours === null) { return; }
+      doUpdate(hours);
+    });
+    return;
+  }
+  doUpdate(undefined);
 }
 
 function showNotification(message, type) {

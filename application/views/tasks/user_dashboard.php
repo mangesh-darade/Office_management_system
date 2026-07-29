@@ -304,7 +304,7 @@ if (!$embed) {
   </div>
 <?php else: ?>
   <?php
-  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options) {
+  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options, $complete_view_on) {
       if (empty($section_items)) {
           echo '<div class="project-dash-section-empty"><span>No items</span></div>';
           return;
@@ -313,12 +313,16 @@ if (!$embed) {
       $table_id = isset($options['table_id']) ? (string) $options['table_id'] : '';
       $table_class = isset($options['table_class']) ? (string) $options['table_class'] : 'table table-sm project-dash-task-table mb-0';
       $is_full = !empty($options['full_width']);
+      $show_act = !empty($complete_view_on);
 
       echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . '">';
       echo '<thead><tr>';
       echo '<th>Task</th>';
       echo '<th>Date</th>';
       echo '<th class="text-end">Est</th>';
+      if ($show_act) {
+          echo '<th class="text-end">Act</th>';
+      }
       echo '<th>Status</th>';
       echo '</tr></thead><tbody>';
 
@@ -341,6 +345,9 @@ if (!$embed) {
           $item_url = isset($item['url']) ? (string) $item['url'] : '#';
           $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
           $item_est = estimate_hours_row(isset($item['estimate_hours']) ? $item['estimate_hours'] : null);
+          $item_act = $show_act
+              ? estimate_hours_row(isset($item['actual_hours']) ? $item['actual_hours'] : null)
+              : '';
           $status_scope = isset($item['status_scope']) ? (string) $item['status_scope'] : 'task';
           $item_status_options = isset($team_dash_status_options[$status_scope]) ? $team_dash_status_options[$status_scope] : (isset($team_dash_status_options['task']) ? $team_dash_status_options['task'] : array());
           $has_status_match = false;
@@ -362,11 +369,17 @@ if (!$embed) {
               <span class="project-dash-date" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
             </td>
             <td class="text-end text-nowrap project-dash-est" title="Estimate (hrs)"><?php echo esc_view($item_est); ?></td>
+            <?php if ($show_act): ?>
+            <td class="text-end text-nowrap project-dash-act" title="Actual (hrs)"><?php echo esc_view($item_act); ?></td>
+            <?php endif; ?>
             <td>
               <select class="form-select form-select-sm project-dash-status-select"
                       data-item-id="<?php echo (int) $item['id']; ?>"
                       data-item-type="<?php echo esc_view($item['item_type'], ENT_QUOTES, 'UTF-8'); ?>"
                       data-item-source="<?php echo esc_view(isset($item['item_source']) ? (string) $item['item_source'] : '', ENT_QUOTES, 'UTF-8'); ?>"
+                      data-estimate-hours="<?php echo esc_view(isset($item['estimate_hours']) && $item['estimate_hours'] !== null && $item['estimate_hours'] !== '' ? (string) $item['estimate_hours'] : '', ENT_QUOTES, 'UTF-8'); ?>"
+                      data-actual-hours="<?php echo esc_view(isset($item['actual_hours']) && $item['actual_hours'] !== null && $item['actual_hours'] !== '' ? (string) $item['actual_hours'] : '', ENT_QUOTES, 'UTF-8'); ?>"
+                      data-prev-status="<?php echo esc_view($item_status, ENT_QUOTES, 'UTF-8'); ?>"
                       style="color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>;background-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>1a;border-color:<?php echo esc_view($badge_color, ENT_QUOTES, 'UTF-8'); ?>40;"
                       title="<?php echo esc_view($item_label, ENT_QUOTES, 'UTF-8'); ?>"
                       aria-label="Status for <?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?>">
@@ -563,11 +576,33 @@ if (!$embed) {
               type: itemType,
               source: itemSource,
               status: newStatus,
+              actual_hours: $select.attr('data-actual-hours') || '',
               <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
           },
           success: function(response) {
               if (!response.success) {
+                  if (response.need_actual_hours && window.omsActualHours) {
+                      window.omsActualHours.prompt({
+                          estimate: $select.attr('data-estimate-hours') || null
+                      }).then(function (hours) {
+                          if (hours === null) {
+                              var prev = $select.attr('data-prev-status');
+                              if (prev) { $select.val(prev); }
+                              return;
+                          }
+                          $select.attr('data-actual-hours', String(hours));
+                          $select.trigger('change');
+                      });
+                      return;
+                  }
                   alert(response.error || 'Failed to update status.');
+                  var prev = $select.attr('data-prev-status');
+                  if (prev) {
+                      $select.val(prev);
+                  }
+              } else {
+                  $select.attr('data-prev-status', newStatus);
+                  $select.removeAttr('data-actual-hours');
               }
           },
           error: function() {
@@ -579,4 +614,6 @@ if (!$embed) {
 </script>
 <?php if (!$embed) {
   $this->load->view('partials/footer');
+} else {
+  echo '<script src="' . base_url('assets/js/actual-hours-complete.js') . '"></script>';
 } ?>

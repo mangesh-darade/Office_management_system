@@ -153,14 +153,18 @@ class Clients extends CI_Controller {
         }
 
         if ($active_tab === 'cart') {
-            $cart = $this->_build_client_cart_data();
+            $cart = $this->_build_client_cart_data(array(
+                'status'      => $this->input->get('status'),
+                'client_type' => $this->input->get('client_type'),
+                'search'      => $this->input->get('q'),
+                'project_id'  => $this->input->get('project_id'),
+            ));
             $this->load->view('clients/index', array_merge($cart, array(
                 'active_tab'   => 'cart',
-                'client_types' => $client_types,
+                'client_types' => isset($cart['client_types']) ? $cart['client_types'] : $client_types,
                 'rows'         => array(),
                 'lanes'        => array(),
                 'show_lanes'   => false,
-                'filters'      => array(),
                 'type_counts'  => array(),
                 'status_counts'=> array(),
                 'stats_total'  => isset($cart['client_cards']) ? count($cart['client_cards']) : 0,
@@ -170,6 +174,7 @@ class Clients extends CI_Controller {
                     'total' => 0,
                     'total_pages' => 1,
                 ),
+                'embed'        => (bool) $this->input->get('embed'),
             )));
             return;
         }
@@ -342,8 +347,8 @@ class Clients extends CI_Controller {
     /**
      * Client cart data: clients with nested projects and tasks (alphabetical).
      *
-     * @param array $filters Optional: status, client_type, search
-     * @return array{client_cards:array,total_projects:int,total_tasks:int,filters:array,client_types:array}
+     * @param array $filters Optional: status, client_type, search, project_id
+     * @return array{client_cards:array,total_projects:int,total_tasks:int,filters:array,client_types:array,filter_projects:array,filter_project_id:int}
      */
     private function _build_client_cart_data(array $filters = array())
     {
@@ -353,6 +358,10 @@ class Clients extends CI_Controller {
         $status = isset($filters['status']) ? trim((string) $filters['status']) : '';
         $client_type = isset($filters['client_type']) ? trim((string) $filters['client_type']) : '';
         $search = isset($filters['search']) ? trim((string) $filters['search']) : '';
+        $filter_project_id = isset($filters['project_id']) ? (int) $filters['project_id'] : 0;
+        if ($filter_project_id < 1) {
+            $filter_project_id = 0;
+        }
         if ($client_type !== '' && !isset($client_types[$client_type])) {
             $client_type = '';
         }
@@ -382,29 +391,55 @@ class Clients extends CI_Controller {
         $projects_by_client = array();
         $tasks_by_project = array();
         $all_project_ids = array();
+        $filter_projects = array();
 
         if ($this->db->table_exists('projects')
             && schema_table_has_column($this->db, 'projects', 'client_id')
-            && !empty($client_rows)
         ) {
-            $client_ids = array();
-            foreach ($client_rows as $c) {
-                $client_ids[] = (int) $c->id;
-            }
-            $client_ids = array_values(array_filter($client_ids));
+            // Dropdown: all client-linked projects (name ASC).
+            $this->db->select('id, name, client_id');
+            $this->db->from('projects');
+            $this->db->where('client_id IS NOT NULL', null, false);
+            $this->db->where('client_id >', 0);
+            $this->db->order_by('name', 'ASC');
+            $filter_projects = $this->db->get()->result();
 
-            if (!empty($client_ids)) {
-                $this->db->from('projects');
-                $this->db->where_in('client_id', $client_ids);
-                $this->db->order_by('name', 'ASC');
-                foreach ($this->db->get()->result() as $project) {
-                    $cid = (int) $project->client_id;
-                    $pid = (int) $project->id;
-                    if (!isset($projects_by_client[$cid])) {
-                        $projects_by_client[$cid] = array();
+            if ($filter_project_id > 0) {
+                $found = false;
+                foreach ($filter_projects as $fp) {
+                    if ((int) $fp->id === $filter_project_id) {
+                        $found = true;
+                        break;
                     }
-                    $projects_by_client[$cid][] = $project;
-                    $all_project_ids[] = $pid;
+                }
+                if (!$found) {
+                    $filter_project_id = 0;
+                }
+            }
+
+            if (!empty($client_rows)) {
+                $client_ids = array();
+                foreach ($client_rows as $c) {
+                    $client_ids[] = (int) $c->id;
+                }
+                $client_ids = array_values(array_filter($client_ids));
+
+                if (!empty($client_ids)) {
+                    $this->db->from('projects');
+                    $this->db->where_in('client_id', $client_ids);
+                    if ($filter_project_id > 0) {
+                        $this->db->where('id', $filter_project_id);
+                    }
+                    $this->db->order_by('name', 'ASC');
+                    foreach ($this->db->get()->result() as $project) {
+                        $cid = (int) $project->client_id;
+                        $pid = (int) $project->id;
+                        if (!isset($projects_by_client[$cid])) {
+                            $projects_by_client[$cid] = array();
+                        }
+                        $projects_by_client[$cid][] = $project;
+                        $all_project_ids[] = $pid;
+                    }
                 }
             }
         }
@@ -445,6 +480,10 @@ class Clients extends CI_Controller {
         foreach ($client_rows as $c) {
             $cid = (int) $c->id;
             $projects = isset($projects_by_client[$cid]) ? $projects_by_client[$cid] : array();
+            // Project filter: skip clients that do not own the selected project.
+            if ($filter_project_id > 0 && empty($projects)) {
+                continue;
+            }
             $project_sections = array();
             $client_task_count = 0;
             foreach ($projects as $project) {
@@ -472,16 +511,39 @@ class Clients extends CI_Controller {
             return strcmp($an, $bn);
         });
 
+        $filters_active = ($status !== '' || $client_type !== '' || $search !== '' || $filter_project_id > 0);
+        if ($filters_active && !empty($client_cards)) {
+            if (!function_exists('dashboard_sort_nonempty_first')) {
+                $this->load->helper('my_works');
+            }
+            $client_cards = dashboard_sort_nonempty_first(
+                $client_cards,
+                function ($card) {
+                    $tasks = isset($card['task_count']) ? (int) $card['task_count'] : 0;
+                    $projects = isset($card['project_count']) ? (int) $card['project_count'] : 0;
+                    return ($tasks > 0) ? $tasks : $projects;
+                },
+                function ($a, $b) {
+                    $an = isset($a['client']->company_name) ? strtolower(trim((string) $a['client']->company_name)) : '';
+                    $bn = isset($b['client']->company_name) ? strtolower(trim((string) $b['client']->company_name)) : '';
+                    return strcmp($an, $bn);
+                }
+            );
+        }
+
         return array(
-            'client_cards'   => $client_cards,
-            'total_projects' => $total_projects,
-            'total_tasks'    => $total_tasks,
-            'filters'        => array(
+            'client_cards'       => $client_cards,
+            'total_projects'     => $total_projects,
+            'total_tasks'        => $total_tasks,
+            'filters'            => array(
                 'status'      => $status,
                 'client_type' => $client_type,
                 'search'      => $search,
+                'project_id'  => $filter_project_id,
             ),
-            'client_types'   => $client_types,
+            'client_types'       => $client_types,
+            'filter_projects'    => $filter_projects,
+            'filter_project_id'  => $filter_project_id,
         );
     }
 
@@ -667,6 +729,7 @@ class Clients extends CI_Controller {
             'status'      => $this->input->get('status'),
             'client_type' => $this->input->get('client_type'),
             'search'      => $this->input->get('q'),
+            'project_id'  => $this->input->get('project_id'),
         ));
 
         $this->load->view('clients/dashboard', array_merge($cart, array(
@@ -1793,11 +1856,12 @@ class Clients extends CI_Controller {
         }
 
         $est = null;
-        $est_provided = ($estimate_hours !== null);
-        if ($est_provided) {
-            $est = estimate_hours_parse($estimate_hours);
+        $task_fields = $this->db->list_fields('tasks');
+        $estimate_required = in_array('estimate_hours', $task_fields, true);
+        if ($estimate_required) {
+            $est = estimate_hours_require($estimate_hours);
             if ($est === false) {
-                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a number between 0 and 9999.99.', 400);
+                return $this->_inline_json(false, array(), 'Estimate (hrs) is required (number between 0 and 9999.99).', 400);
             }
         }
 
@@ -1817,11 +1881,10 @@ class Clients extends CI_Controller {
                 'status' => $status,
                 'assigned_to' => $assigned_to,
             );
-            $task_fields = $this->db->list_fields('tasks');
             if (in_array('priority', $task_fields, true)) {
                 $update['priority'] = $priority;
             }
-            if ($est_provided && in_array('estimate_hours', $task_fields, true)) {
+            if ($estimate_required) {
                 $update['estimate_hours'] = $est;
             }
             if ($project_id > 0) {
@@ -1845,7 +1908,6 @@ class Clients extends CI_Controller {
         }
 
         $user_id = (int) $this->session->userdata('user_id');
-        $task_fields = $this->db->list_fields('tasks');
         $insert = array(
             'project_id' => $project_id,
             'title' => $title,
@@ -1856,7 +1918,7 @@ class Clients extends CI_Controller {
         if (in_array('priority', $task_fields, true)) {
             $insert['priority'] = $priority;
         }
-        if ($est_provided && in_array('estimate_hours', $task_fields, true)) {
+        if ($estimate_required) {
             $insert['estimate_hours'] = $est;
         }
         $this->db->insert('tasks', $insert);

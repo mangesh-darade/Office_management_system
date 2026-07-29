@@ -14,7 +14,19 @@ if (!$embed) {
   $filterProjectId = isset($filters['project_id']) ? (int) $filters['project_id'] : 0;
   $filterAssignee = isset($filters['created_for']) ? (int) $filters['created_for'] : 0;
   $filterSearch = isset($filters['q']) ? trim((string) $filters['q']) : '';
-  $hide_empty_lanes = ($filterAssignee > 0 || $filterProjectId > 0 || $filterSearch !== '');
+  $filters_active = ($filterAssignee > 0 || $filterProjectId > 0 || $filterSearch !== '');
+  // When filters on: show empty carts after nonempty (do not hide).
+  $hide_empty_lanes = false;
+  $prioritize_nonempty = $filters_active;
+  $section_order = array('ad_hoc', 'project');
+  if ($prioritize_nonempty && function_exists('dashboard_sort_nonempty_first')) {
+    $section_order = dashboard_sort_nonempty_first(
+      $section_order,
+      function ($key) use ($dashboard_counts) {
+        return isset($dashboard_counts[$key]) ? (int) $dashboard_counts[$key] : 0;
+      }
+    );
+  }
   $baseQuery = array('view' => 'overview');
   foreach ($filters as $k => $v) {
     if ($k === 'current_user_id') {
@@ -26,7 +38,8 @@ if (!$embed) {
   }
 ?>
 
-<div class="mw-dash-page<?php echo $embed ? ' mw-dash-page--embed' : ''; ?>">
+<div class="mw-dash-page<?php echo $embed ? ' mw-dash-page--embed' : ''; ?>"
+     data-lane-update-url="<?php echo esc_view(site_url('my-works/update-lane'), ENT_QUOTES, 'UTF-8'); ?>">
 
   <?php if ($this->session->flashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show py-2 mx-3 mt-2 mb-0" role="alert">
@@ -125,43 +138,32 @@ if (!$embed) {
     <?php endif; ?>
   </div>
 
-  <?php if (!$hide_empty_lanes || (int) $dashboard_counts['ad_hoc'] > 0): ?>
+  <?php foreach ($section_order as $section_key): ?>
+  <?php
+    $section_title = ($section_key === 'project') ? 'Project Tasks' : 'Ad hoc tasks';
+    $section_count = isset($dashboard_counts[$section_key]) ? (int) $dashboard_counts[$section_key] : 0;
+  ?>
   <section class="mw-dash-section">
     <h2 class="mw-dash-section-title">
-      Ad hoc tasks
-      <span class="mw-dash-section-count">(Count: <?php echo (int) $dashboard_counts['ad_hoc']; ?>)</span>
+      <?php echo esc_view($section_title); ?>
+      <span class="mw-dash-section-count">(Count: <?php echo $section_count; ?>)</span>
     </h2>
     <?php $this->load->view('my_works/_dashboard_lanes', array(
-      'section_key' => 'ad_hoc',
+      'section_key' => $section_key,
       'dashboard_sections' => $dashboard_sections,
       'can_add' => !empty($can_add),
       'can_view_all' => !empty($can_view_all),
       'hide_empty_lanes' => $hide_empty_lanes,
+      'prioritize_nonempty' => !empty($prioritize_nonempty),
+      'disable_lane_drag' => false,
+      'hide_drag_column' => false,
       'assignee_names_map' => isset($assignee_names_map) ? $assignee_names_map : array(),
       'task_assignee_names_map' => isset($task_assignee_names_map) ? $task_assignee_names_map : array(),
     )); ?>
   </section>
-  <?php endif; ?>
+  <?php endforeach; ?>
 
-  <?php if (!$hide_empty_lanes || (int) $dashboard_counts['project'] > 0): ?>
-  <section class="mw-dash-section">
-    <h2 class="mw-dash-section-title">
-      Project Tasks
-      <span class="mw-dash-section-count">(Count: <?php echo (int) $dashboard_counts['project']; ?>)</span>
-    </h2>
-    <?php $this->load->view('my_works/_dashboard_lanes', array(
-      'section_key' => 'project',
-      'dashboard_sections' => $dashboard_sections,
-      'can_add' => !empty($can_add),
-      'can_view_all' => !empty($can_view_all),
-      'hide_empty_lanes' => $hide_empty_lanes,
-      'assignee_names_map' => isset($assignee_names_map) ? $assignee_names_map : array(),
-      'task_assignee_names_map' => isset($task_assignee_names_map) ? $task_assignee_names_map : array(),
-    )); ?>
-  </section>
-  <?php endif; ?>
-
-  <?php if ($hide_empty_lanes && (int) $dashboard_counts['total'] < 1): ?>
+  <?php if (!empty($prioritize_nonempty) && (int) $dashboard_counts['total'] < 1): ?>
   <div class="mw-dash-empty-filter alert alert-light border text-muted mx-3">
     No work items match the selected filters.
   </div>
@@ -200,219 +202,12 @@ if (!$embed) {
 })();
 </script>
 
+<?php if (!$embed): ?>
 <script>
-(function () {
-  if (window.mwDashLaneDnDInited) { return; }
-  window.mwDashLaneDnDInited = true;
-
-  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
-  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
-  var updateUrl = <?php echo json_encode(site_url('my-works/update-lane')); ?>;
-  var dragRow = null;
-  var dragFromBody = null;
-  var dragActive = false;
-
-  function taskRow(el) {
-    return el && el.closest ? el.closest('.mw-dash-task-row-draggable') : null;
-  }
-
-  function laneBody(el) {
-    return el && el.closest ? el.closest('.mw-dash-lane-body') : null;
-  }
-
-  function laneCountEl(section, lane) {
-    var laneEl = document.querySelector('.mw-dash-lane[data-section="' + section + '"][data-lane="' + lane + '"]');
-    return laneEl ? laneEl.querySelector('.mw-dash-lane-count') : null;
-  }
-
-  function refreshLaneCount(section, lane) {
-    var countEl = laneCountEl(section, lane);
-    var body = document.querySelector('.mw-dash-lane-body[data-section="' + section + '"][data-lane="' + lane + '"]');
-    if (!countEl || !body) { return; }
-    var n = body.querySelectorAll('.mw-dash-task-row').length;
-    countEl.textContent = String(n);
-  }
-
-  function ensureEmptyRow(body) {
-    if (!body.querySelector('.mw-dash-task-row')) {
-      var colspan = body.getAttribute('data-colspan') || '4';
-      var tr = document.createElement('tr');
-      tr.className = 'mw-dash-lane-empty-row';
-      tr.innerHTML = '<td colspan="' + colspan + '" class="mw-dash-lane-empty">No tasks</td>';
-      body.appendChild(tr);
-    }
-  }
-
-  function removeEmptyRow(body) {
-    var empty = body.querySelector('.mw-dash-lane-empty-row');
-    if (empty) { empty.remove(); }
-  }
-
-  function formatLaneDate(raw) {
-    if (!raw) { return { label: '—', title: 'No due date' }; }
-    var parts = String(raw).substring(0, 10).split('-');
-    if (parts.length !== 3) {
-      return { label: String(raw), title: String(raw) };
-    }
-    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    var m = parseInt(parts[1], 10) - 1;
-    var d = parseInt(parts[2], 10);
-    var y = parts[0];
-    if (m < 0 || m > 11 || !d) {
-      return { label: String(raw), title: String(raw) };
-    }
-    return {
-      label: months[m] + ' ' + d + ', ' + y,
-      title: parts[0] + '-' + parts[1] + '-' + parts[2]
-    };
-  }
-
-  function adaptRowToLane(row, body, dueDate) {
-    if (!row || !body) { return; }
-    var laneEl = body.closest('.mw-dash-lane');
-    var showsDate = !!(laneEl && laneEl.classList.contains('mw-dash-lane-has-date'));
-    var dateCell = row.querySelector('.mw-dash-col-date-cell');
-    if (!showsDate) {
-      if (dateCell) {
-        dateCell.remove();
-      }
-      return;
-    }
-    var formatted = formatLaneDate(dueDate || '');
-    if (!dateCell) {
-      dateCell = document.createElement('td');
-      dateCell.className = 'mw-dash-col-date-cell';
-      row.appendChild(dateCell);
-    }
-    dateCell.textContent = formatted.label;
-    dateCell.setAttribute('title', formatted.title);
-  }
-
-  function clearDropTargets() {
-    document.querySelectorAll('.mw-dash-drop-target').forEach(function (el) {
-      el.classList.remove('mw-dash-drop-target');
-    });
-  }
-
-  function markDropTarget(body) {
-    clearDropTargets();
-    body.classList.add('mw-dash-drop-target');
-    var scroll = body.closest('.mw-dash-lane-body-scroll');
-    if (scroll) {
-      scroll.classList.add('mw-dash-drop-target');
-    }
-  }
-
-  document.addEventListener('dragstart', function (e) {
-    var handle = e.target.closest('.mw-dash-drag-handle');
-    if (!handle) { return; }
-    dragRow = taskRow(handle);
-    if (!dragRow) { return; }
-    dragFromBody = dragRow.parentElement;
-    dragActive = true;
-    dragRow.classList.add('mw-dash-dragging');
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', dragRow.getAttribute('data-id') || 'move');
-    }
-  }, true);
-
-  document.addEventListener('dragend', function (e) {
-    var row = taskRow(e.target);
-    if (row) {
-      row.classList.remove('mw-dash-dragging');
-    }
-    clearDropTargets();
-    window.setTimeout(function () {
-      dragRow = null;
-      dragFromBody = null;
-      dragActive = false;
-    }, 0);
-  }, true);
-
-  document.addEventListener('dragover', function (e) {
-    if (!dragRow) { return; }
-    var body = laneBody(e.target);
-    if (!body) { return; }
-    e.preventDefault();
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = 'move';
-    }
-    markDropTarget(body);
-  });
-
-  document.addEventListener('dragleave', function (e) {
-    var body = laneBody(e.target);
-    if (!body) { return; }
-    var related = e.relatedTarget;
-    if (related && body.contains(related)) { return; }
-    body.classList.remove('mw-dash-drop-target');
-    var scroll = body.closest('.mw-dash-lane-body-scroll');
-    if (scroll && (!related || !scroll.contains(related))) {
-      scroll.classList.remove('mw-dash-drop-target');
-    }
-  });
-
-  document.addEventListener('drop', function (e) {
-    if (!dragRow || !dragFromBody) { return; }
-    var body = laneBody(e.target);
-    if (!body) { return; }
-    e.preventDefault();
-    clearDropTargets();
-
-    var newLane = body.getAttribute('data-lane');
-    var newSection = body.getAttribute('data-section');
-    var oldLane = dragRow.getAttribute('data-lane');
-    var oldSection = dragRow.getAttribute('data-section');
-    var id = dragRow.getAttribute('data-id');
-    var movingRow = dragRow;
-    var fromBody = dragFromBody;
-
-    if (!newLane || !newSection || !id || newLane === oldLane) {
-      return;
-    }
-    if (newSection !== oldSection) {
-      return;
-    }
-
-    removeEmptyRow(body);
-    body.appendChild(movingRow);
-    movingRow.setAttribute('data-lane', newLane);
-    adaptRowToLane(movingRow, body, '');
-    ensureEmptyRow(fromBody);
-    refreshLaneCount(oldSection, oldLane);
-    refreshLaneCount(newSection, newLane);
-
-    var payload = new URLSearchParams();
-    payload.append('id', id);
-    payload.append('lane', newLane);
-    payload.append(csrfName, csrfHash);
-
-    fetch(updateUrl, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: payload.toString()
-    }).then(function (r) { return r.json(); }).then(function (data) {
-      if (!data || !data.ok || (data.computed_lane && data.computed_lane !== newLane)) {
-        window.location.reload();
-        return;
-      }
-      adaptRowToLane(movingRow, body, data.due_date || '');
-    }).catch(function () {
-      window.location.reload();
-    });
-  });
-
-  document.addEventListener('click', function (e) {
-    if (dragActive && e.target.closest('.mw-dash-task-link')) {
-      e.preventDefault();
-    }
-  }, true);
-})();
+  window.mwDashLaneUpdateUrl = <?php echo json_encode(site_url('my-works/update-lane')); ?>;
 </script>
+<script src="<?php echo base_url('assets/js/my-works-lane-dnd.js'); ?>"></script>
+<?php endif; ?>
 
 <?php if (!$embed) {
   $this->load->view('partials/footer');

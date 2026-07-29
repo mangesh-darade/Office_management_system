@@ -147,7 +147,7 @@
                 <option value="<?php echo $uid; ?>" <?php echo $uid === $current_user_id ? 'selected' : ''; ?>><?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?></option>
               <?php endforeach; ?>
             </select>
-            <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
+            <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
           </div>
 
           <div class="col-md-4">
@@ -189,10 +189,10 @@
 
           <div class="col-md-4">
             <label class="form-label" for="mw-tt-estimate-hours">
-              <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
+              <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs) <span class="text-danger">*</span>
             </label>
-            <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" placeholder="Auto from template">
-            <div class="form-text">Filled from catalog when you pick a task; you can override.</div>
+            <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" required placeholder="e.g. 2.5">
+            <div class="form-text">Required. Auto-filled from catalog when you pick a task; you can override.</div>
           </div>
 
           <div class="col-md-4">
@@ -467,7 +467,7 @@
             <span class="mw-tt-import-col-chip">team</span>
             <span class="mw-tt-import-col-chip">template_type</span>
             <span class="mw-tt-import-col-chip">title</span>
-            <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">estimate_hours</span>
+            <span class="mw-tt-import-col-chip">estimate_hours</span>
             <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">sort_order</span>
             <span class="mw-tt-import-col-chip mw-tt-import-col-chip--opt">is_active</span>
           </div>

@@ -3,6 +3,12 @@
   'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css', 'assets/css/clients.css')
 )); ?>
 <script src="<?php echo base_url('assets/js/my-works-lane-status.js'); ?>"></script>
+<script>
+  window.mwDashLaneUpdateUrl = <?php echo json_encode(site_url('my-works/update-lane')); ?>;
+</script>
+<script src="<?php echo base_url('assets/js/my-works-lane-dnd.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/actual-hours-complete.js'); ?>"></script>
+<?php $this->load->view('partials/actual_hours_modal'); ?>
 
 <style>
 #unifiedDashboardTabs {
@@ -336,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
       'overview': '<?php echo site_url("my-works?view=overview"); ?>',
       'daily-pulse': '<?php echo site_url("my-works/daily-pulse"); ?>',
       'project-dashboard': '<?php echo site_url("projects/dashboard"); ?>',
-      'clients': '<?php echo site_url("clients"); ?>',
+      'clients': '<?php echo site_url("clients/dashboard"); ?>',
       'team-dashboard': '<?php echo site_url("tasks/my-dashboard"); ?>',
       'list': '<?php echo site_url("my-works?view=list"); ?>',
       'requirements': '<?php echo site_url("requirements"); ?>'
@@ -610,7 +616,34 @@ document.addEventListener('DOMContentLoaded', function() {
           window.initPulseNoteTooltips($pane[0]);
         }
       },
-      error: function() {
+      error: function(xhr) {
+        // Recover from doubled base_url 404s (bad redirect Location) or stale saved pane URLs.
+        if (xhr && xhr.status === 404) {
+          var fallback = $pane.data('last-loaded-url') || defaultUrlForTab(tabName);
+          if (fallback) {
+            try {
+              var fb = new URL(fallback, window.location.origin);
+              var cur = new URL(resolvedUrl, window.location.origin);
+              if (fb.pathname + fb.search !== cur.pathname + cur.search) {
+                loadTabContent($pane, fallback, 'GET');
+                return;
+              }
+            } catch (e) {
+              if (fallback !== resolvedUrl) {
+                loadTabContent($pane, fallback, 'GET');
+                return;
+              }
+            }
+          }
+          if (upperMethod === 'GET') {
+            var def = defaultUrlForTab(tabName);
+            if (def) {
+              saveTabPaneUrl(tabName, '');
+              loadTabContent($pane, def, 'GET');
+              return;
+            }
+          }
+        }
         $content.html('<div class="alert alert-danger m-3">Failed to load content. Please try again.</div>');
         $spinner.hide();
         $content.show();

@@ -235,7 +235,7 @@ if (!$embed) {
 
                     <?php if ($canStatus): ?>
 
-                      <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="d-inline mw-quick-status">
+                      <form method="post" action="<?php echo site_url('my-works/update-status'); ?>" class="d-inline mw-quick-status" data-current-status="<?php echo esc_view($r->status, ENT_QUOTES, 'UTF-8'); ?>" data-estimate-hours="<?php echo esc_view(isset($r->estimate_hours) && $r->estimate_hours !== null && $r->estimate_hours !== '' ? (string) $r->estimate_hours : '', ENT_QUOTES, 'UTF-8'); ?>">
 
                         <?php $this->load->view('my_works/_csrf'); ?>
 
@@ -243,7 +243,7 @@ if (!$embed) {
 
                         <input type="hidden" name="redirect" value="<?php echo esc_view(current_url() . safe_query_suffix()); ?>">
 
-                        <select name="status" class="form-select form-select-sm mw-status-select" onchange="this.form.submit()">
+                        <select name="status" class="form-select form-select-sm mw-status-select" data-original-status="<?php echo esc_view($r->status, ENT_QUOTES, 'UTF-8'); ?>" onchange="if (this.form.requestSubmit) { this.form.requestSubmit(); } else { this.form.submit(); }">
 
                           <?php foreach ($statusLabels as $k => $lbl): ?>
 

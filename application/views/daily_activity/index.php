@@ -49,14 +49,27 @@ $date_short = date('M j, Y', strtotime($date));
 
           <div class="da-composer-row">
             <label class="da-field-label" for="activityTitleInput">Activity</label>
+            <?php
+              $suggested_title = '';
+              $suggested_task_id = 0;
+              if (!empty($today_summary) && is_array($today_summary)) {
+                  $suggested_title = isset($today_summary['suggested_activity_title'])
+                      ? trim((string) $today_summary['suggested_activity_title'])
+                      : '';
+                  $suggested_task_id = isset($today_summary['suggested_task_id'])
+                      ? (int) $today_summary['suggested_task_id']
+                      : 0;
+              }
+            ?>
             <input class="form-control form-control-sm" list="taskOptions" name="activity_title" id="activityTitleInput"
-                   placeholder="Task or title…" autocomplete="off">
+                   placeholder="Task or title…" autocomplete="off"
+                   value="<?php echo esc_view($suggested_title, ENT_QUOTES, 'UTF-8'); ?>">
             <datalist id="taskOptions">
               <?php foreach ((isset($tasks) && is_array($tasks) ? $tasks : array()) as $t): ?>
                 <option data-id="<?php echo (int) $t->id; ?>" value="<?php echo esc_view($t->title); ?>"></option>
               <?php endforeach; ?>
             </datalist>
-            <input type="hidden" name="task_id" id="taskIdInput">
+            <input type="hidden" name="task_id" id="taskIdInput" value="<?php echo $suggested_task_id > 0 ? (int) $suggested_task_id : ''; ?>">
           </div>
 
           <div class="da-composer-row">

@@ -98,6 +98,7 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 
 | Table | Change | Reason | Date |
 |-------|--------|--------|------|
+| `task_activity` | CREATE TABLE (id, task_id, user_id, action, old_value, new_value, created_at) | Per-task change history on task detail | 2026-07-27 |
 | `todays_plan_items` | ADD `repeat_type` varchar(20) DEFAULT 'once' | One time vs recurring plan points | 2026-07-15 |
 | `users` | ADD `google_alert_checkin`, `google_alert_checkout` TINYINT(1) DEFAULT 1 | Per-user check-in/out Google alerts | 2026-07-15 |
 | `settings` | Keys `attendance_checkin_alert_enabled`, `attendance_checkout_alert_enabled`, `attendance_checkin_alert_minutes_before`, `attendance_checkout_alert_minutes_before` | Org-level attendance Google alert toggles | 2026-07-15 |
@@ -108,6 +109,9 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `my_works` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on work items | 2026-07-21 |
 | `template_tasks` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on templates | 2026-07-21 |
 | `projects` | ADD `estimate_hours` DECIMAL(6,2) NULL | Planned estimate hours on projects | 2026-07-21 |
+| `my_works` | ADD `actual_hours` DECIMAL(6,2) NULL | Actual hours required when status closed/complete | 2026-07-29 |
+| `projects` | ADD `actual_hours` DECIMAL(6,2) NULL | Actual hours required when status completed | 2026-07-29 |
+| `tasks` | ENSURE `actual_hours` DECIMAL(6,2) NULL | Actual hours required when status completed | 2026-07-29 |
 | `daily_work_log_attachments` | CREATE TABLE (log_id, original_name, stored_name, mime_type, file_size, sort_order) | File attachments on daily activity logs | 2026-07-21 |
 | `client_urls` | CREATE TABLE (id, client_id, version, url, url_type, db_name, db_username, db_password, db_host, db_port, …) | Multiple URL+DB sets per client | 2026-07-23 |
 | `task_assignees` | CREATE TABLE (id, task_id, user_id, created_at; UNIQUE task_id+user_id) | Multi-user task assignment (primary stays on tasks.assigned_to) | 2026-07-23 |

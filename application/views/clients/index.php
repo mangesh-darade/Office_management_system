@@ -566,6 +566,17 @@ $cl_link_count = function ($c) {
   )); ?>
   <?php else: ?>
   <div class="client-dash-page project-dash-compact">
+    <?php
+    $this->load->view('clients/_cart_filters', array(
+      'filters'           => isset($filters) ? $filters : array(),
+      'client_types'      => isset($client_types) ? $client_types : array(),
+      'filter_projects'   => isset($filter_projects) ? $filter_projects : array(),
+      'filter_project_id' => isset($filter_project_id) ? (int) $filter_project_id : 0,
+      'embed'             => $embed,
+      'form_action'       => site_url('clients'),
+      'cart_tab'          => true,
+    ));
+    ?>
     <?php $this->load->view('clients/_cart_body'); ?>
   </div>
   <?php endif; ?>

@@ -130,7 +130,7 @@
               </option>
             <?php endforeach; ?>
           </select>
-          <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
+          <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">
@@ -186,9 +186,9 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">
-            <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
+            <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs) <span class="text-danger">*</span>
           </label>
-          <input type="number" name="estimate_hours" class="form-control" min="0" max="9999.99" step="0.25"
+          <input type="number" name="estimate_hours" class="form-control" min="0" max="9999.99" step="0.25" required
                  value="<?php echo isset($task) && isset($task->estimate_hours) && $task->estimate_hours !== null && $task->estimate_hours !== '' ? esc_view(estimate_hours_display($task->estimate_hours)) : ''; ?>"
                  placeholder="e.g. 2.5">
         </div>
@@ -224,7 +224,10 @@
 </div>
 
  <!-- Select2 chip multi-select (projects + assignees) -->
- <?php $this->load->view('partials/oms_select2_multi', array('oms_select2_selectors' => array())); ?>
+ <?php $this->load->view('partials/oms_select2_multi', array(
+   'oms_select2_selectors' => array(),
+   'oms_select2_auto_init' => false,
+ )); ?>
  
  <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
  <style>

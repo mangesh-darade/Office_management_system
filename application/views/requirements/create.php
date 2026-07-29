@@ -145,7 +145,7 @@ $back_title = $redirect_path !== '' ? 'Back to Second Brain' : 'Back to Requirem
               <option value="<?php echo (int)$m->id; ?>"><?php echo esc_view($label); ?></option>
             <?php endforeach; ?>
           </select>
-          <div class="form-text">Type to search. Tags = selected users (× to remove). First selected is primary.</div>
+          <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">Attachments</label>

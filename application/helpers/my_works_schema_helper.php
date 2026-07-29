@@ -34,6 +34,7 @@ if (!function_exists('my_works_schema_ensure')) {
                 `is_important` tinyint(1) NOT NULL DEFAULT 0,
                 `due_date` date DEFAULT NULL,
                 `estimate_hours` decimal(6,2) DEFAULT NULL,
+                `actual_hours` decimal(6,2) DEFAULT NULL,
                 `task_id` int(11) unsigned DEFAULT NULL,
                 `client_id` int(11) unsigned DEFAULT NULL,
                 `project_id` int(11) unsigned DEFAULT NULL,
@@ -69,6 +70,12 @@ if (!function_exists('my_works_schema_ensure')) {
             }
             if (!schema_table_has_column($db, 'my_works', 'estimate_hours')) {
                 $db->query('ALTER TABLE `my_works` ADD `estimate_hours` DECIMAL(6,2) NULL AFTER `due_date`');
+            }
+            if (!schema_table_has_column($db, 'my_works', 'actual_hours')) {
+                $after = schema_table_has_column($db, 'my_works', 'estimate_hours')
+                    ? ' AFTER `estimate_hours`'
+                    : ' AFTER `due_date`';
+                $db->query('ALTER TABLE `my_works` ADD `actual_hours` DECIMAL(6,2) NULL' . $after);
             }
             if (schema_table_has_column($db, 'my_works', 'tag')) {
                 $db->query('ALTER TABLE `my_works` MODIFY `tag` varchar(255) DEFAULT NULL');

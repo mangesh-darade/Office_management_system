@@ -541,7 +541,9 @@ document.getElementById('widgetSpeakBtn').addEventListener('click', async functi
 <script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/3.0.2/js/responsive.bootstrap5.min.js"></script>
 <script src="<?php echo base_url('assets/js/form-validation.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/actual-hours-complete.js'); ?>"></script>
 <script src="<?php echo base_url('assets/js/app.js'); ?>"></script>
+<?php $this->load->view('partials/actual_hours_modal'); ?>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){

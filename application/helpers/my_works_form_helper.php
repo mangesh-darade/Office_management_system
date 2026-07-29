@@ -498,12 +498,12 @@ if (!function_exists('my_works_validate_payload')) {
         }
         $closing_comment = trim((string) $CI->input->post('closing_comment'));
         $CI->load->helper('estimate_hours');
-        $est = estimate_hours_parse($CI->input->post('estimate_hours'));
+        $est = estimate_hours_require($CI->input->post('estimate_hours'));
         if ($est === false) {
-            $CI->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+            $CI->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
             return false;
         }
-        return array(
+        $payload = array(
             'title'           => $title,
             'details'         => my_works_sanitize_details_html($CI->input->post('details')),
             'tag'             => my_works_normalize_tags($CI->input->post('tag')),
@@ -520,6 +520,17 @@ if (!function_exists('my_works_validate_payload')) {
             'work_type'       => $work_type !== '' ? $work_type : null,
             'closing_comment' => $closing_comment !== '' ? $closing_comment : null,
         );
+        $prev_closed = $is_edit && $existing && function_exists('my_works_status_is_closed')
+            && my_works_status_is_closed(isset($existing->status) ? $existing->status : '');
+        if (function_exists('my_works_status_is_closed') && my_works_status_is_closed($status) && !$prev_closed) {
+            $act = actual_hours_require($CI->input->post('actual_hours'));
+            if ($act === false) {
+                $CI->session->set_flashdata('error', 'Actual (hrs) is required when status is Closed/Complete.');
+                return false;
+            }
+            $payload['actual_hours'] = $act;
+        }
+        return $payload;
     }
 }
 
@@ -536,6 +547,7 @@ if (!function_exists('my_works_flash_form_old')) {
             'status'       => $CI->input->post('status'),
             'due_date'     => $CI->input->post('due_date'),
             'estimate_hours'  => $CI->input->post('estimate_hours'),
+            'actual_hours'    => $CI->input->post('actual_hours'),
             'client_id'       => $CI->input->post('client_id'),
             'project_id'      => $CI->input->post('project_id'),
             'work_type'       => $CI->input->post('work_type'),
@@ -590,9 +602,9 @@ if (!function_exists('my_works_validate_quick_payload')) {
         $details = my_works_sanitize_details_html($CI->input->post('details'));
 
         $CI->load->helper('estimate_hours');
-        $est = estimate_hours_parse($CI->input->post('estimate_hours'));
+        $est = estimate_hours_require($CI->input->post('estimate_hours'));
         if ($est === false) {
-            $CI->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+            $CI->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
             return false;
         }
 

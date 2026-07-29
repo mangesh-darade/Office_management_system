@@ -49,28 +49,79 @@ class My_works extends CI_Controller
 
     /**
      * Redirect while keeping embed=1 (+ parent_tab) for unified tab AJAX.
+     * Accepts CI-relative URIs, absolute paths, or full site URLs without doubling base_url.
      *
      * @param string $uri
      * @return void
      */
     private function _redirect_with_embed($uri)
     {
-        $uri = (string) $uri;
-        if ($this->_wants_embed()) {
-            $parts = parse_url($uri);
-            $path = isset($parts['path']) ? $parts['path'] : $uri;
-            $query = array();
+        $uri = trim((string) $uri);
+        if ($uri === '') {
+            $uri = 'my-works';
+        }
+
+        $parts = parse_url($uri);
+        $path = '';
+        $query = array();
+        if (is_array($parts)) {
+            if (isset($parts['path'])) {
+                $path = (string) $parts['path'];
+            } elseif (!preg_match('#^https?://#i', $uri)) {
+                $qpos = strpos($uri, '?');
+                $path = $qpos === false ? $uri : substr($uri, 0, $qpos);
+            }
             if (!empty($parts['query'])) {
                 parse_str($parts['query'], $query);
             }
+        } else {
+            $path = $uri;
+        }
+
+        $path = $this->_uri_relative_to_app($path);
+        if ($path === '') {
+            $path = 'my-works';
+        }
+
+        if ($this->_wants_embed()) {
             $query['embed'] = '1';
             $parent = trim((string) $this->input->get_post('parent_tab'));
             if ($parent !== '') {
                 $query['parent_tab'] = $parent;
             }
-            $uri = $path . '?' . http_build_query($query);
         }
-        redirect($uri);
+
+        if (!empty($query)) {
+            $path .= (strpos($path, '?') === false ? '?' : '&') . http_build_query($query);
+        }
+        redirect($path);
+    }
+
+    /**
+     * Strip install subdirectory / leading slash so redirect()/site_url() do not double base_url.
+     *
+     * @param string $path
+     * @return string
+     */
+    private function _uri_relative_to_app($path)
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return '';
+        }
+
+        $base_path = parse_url(base_url(), PHP_URL_PATH);
+        $base_path = is_string($base_path) ? rtrim($base_path, '/') : '';
+        if ($base_path !== '' && $base_path !== '/') {
+            if ($path === $base_path) {
+                return '';
+            }
+            if (strpos($path, $base_path . '/') === 0) {
+                $path = substr($path, strlen($base_path) + 1);
+            }
+        }
+
+        return ltrim($path, '/');
     }
 
     /** @return array{user_id:int,role_id:int,can_view_all:bool} */
@@ -766,9 +817,14 @@ class My_works extends CI_Controller
                     $est = $posted_est;
                 } elseif (isset($template->estimate_hours) && $template->estimate_hours !== null && $template->estimate_hours !== '') {
                     $parsed = estimate_hours_parse($template->estimate_hours);
-                    if ($parsed !== false) {
+                    if ($parsed !== false && $parsed !== null) {
                         $est = $parsed;
                     }
+                }
+                if ($est === null) {
+                    $this->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
+                    redirect('my-works/template-tasks');
+                    return;
                 }
                 $data['estimate_hours'] = $est;
             }
@@ -1138,17 +1194,13 @@ class My_works extends CI_Controller
             );
             if (schema_table_has_column($this->db, 'template_tasks', 'estimate_hours')) {
                 $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
-                if ($est_raw !== '') {
-                    $est = estimate_hours_parse($est_raw);
-                    if ($est === false) {
-                        $skipped++;
-                        csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use number 0–9999.99).');
-                        continue;
-                    }
-                    $insert['estimate_hours'] = $est;
-                } else {
-                    $insert['estimate_hours'] = null;
+                $est = estimate_hours_require($est_raw);
+                if ($est === false) {
+                    $skipped++;
+                    csv_import_add_row_error($row_errors, $line, 'estimate_hours is required (number 0–9999.99).');
+                    continue;
                 }
+                $insert['estimate_hours'] = $est;
             }
 
             $id = $this->template_tasks->insert($insert);
@@ -1565,7 +1617,31 @@ class My_works extends CI_Controller
             show_error('Access denied.', 403);
         }
         $prev = (string) $item->status;
-        $this->my_works->update($id, array('status' => $status));
+        $update = array('status' => $status);
+        if (my_works_status_is_closed($status) && !my_works_status_is_closed($prev)) {
+            if (!function_exists('actual_hours_require')) {
+                $this->load->helper('estimate_hours');
+            }
+            if (schema_table_has_column($this->db, 'my_works', 'actual_hours')) {
+                $act = actual_hours_require($this->input->post('actual_hours'));
+                if ($act === false) {
+                    if ($this->input->is_ajax_request()) {
+                        $this->output->set_status_header(422);
+                        $this->output->set_content_type('application/json')->set_output(json_encode(array(
+                            'ok' => false,
+                            'error' => 'Actual (hrs) is required when closing.',
+                            'need_actual_hours' => true,
+                        )));
+                        return;
+                    }
+                    $this->session->set_flashdata('error', 'Actual (hrs) is required when closing.');
+                    redirect(my_works_safe_redirect($this->input->post('redirect'), 'my-works/' . $id));
+                    return;
+                }
+                $update['actual_hours'] = $act;
+            }
+        }
+        $this->my_works->update($id, $update);
         if ($prev !== $status) {
             $this->my_works->log_activity($id, $this->_current_user_id(), 'status', $prev . ' → ' . $status);
         }
