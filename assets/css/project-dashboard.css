@@ -633,6 +633,24 @@
   border-top: 2px solid #94a3b8;
 }
 
+.project-dash-index a.project-dash-stat {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.project-dash-index a.project-dash-stat:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.project-dash-index a.project-dash-stat.is-active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
 .project-dash-index .project-dash-stat-label {
   font-size: 0.6rem;
   margin-bottom: 0.05rem;

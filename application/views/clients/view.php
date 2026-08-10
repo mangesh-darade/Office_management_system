@@ -311,7 +311,7 @@ if ($st_lower === 'active') {
           </div>
         </div>
         <div class="col-lg-4">
-          <div class="card shadow-sm border-0 client-detail-panel">
+          <div class="card shadow-sm border-0 client-detail-panel mb-1">
             <div class="card-header bg-white">
               <h6 class="mb-0">Meta</h6>
             </div>
@@ -321,6 +321,55 @@ if ($st_lower === 'active') {
               <div><span>DB name</span> <?php echo esc_view(isset($client->db_name) ? $client->db_name : ''); ?></div>
               <div><span>DB user</span> <?php echo esc_view(isset($client->db_username) ? $client->db_username : ''); ?></div>
               <div><span>DB pass</span> <?php echo esc_view(isset($client->db_password) ? $client->db_password : ''); ?></div>
+            </div>
+          </div>
+          <?php
+          $activity = isset($activity) && is_array($activity) ? $activity : array();
+          ?>
+          <div class="card shadow-sm border-0 client-detail-panel">
+            <div class="card-header bg-white">
+              <h6 class="mb-0"><i class="bi bi-clock-history me-1"></i>Activity</h6>
+            </div>
+            <div class="card-body">
+              <?php if (empty($activity)): ?>
+                <div class="text-muted small">No activity yet.</div>
+              <?php else: ?>
+              <ul class="list-unstyled small mb-0 client-activity-list">
+                <?php foreach ($activity as $a): ?>
+                  <?php
+                    $actor_name = '';
+                    if (!empty($a->user_name)) {
+                        $actor_name = (string) $a->user_name;
+                    } elseif (!empty($a->user_full_name)) {
+                        $actor_name = (string) $a->user_full_name;
+                    }
+                    $actor_label = function_exists('my_works_user_label')
+                        ? my_works_user_label($actor_name, isset($a->user_email) ? $a->user_email : '', isset($a->user_id) ? $a->user_id : 0)
+                        : ($actor_name !== '' ? $actor_name : (isset($a->user_email) ? $a->user_email : 'System'));
+                    $action_labels = array(
+                        'created' => 'Created',
+                        'updated' => 'Updated',
+                        'status_changed' => 'Status',
+                        'contact_changed' => 'Contact',
+                        'urls_changed' => 'URLs',
+                        'commented' => 'Comment',
+                    );
+                    $action_key = isset($a->action) ? (string) $a->action : 'updated';
+                    $action_label = isset($action_labels[$action_key]) ? $action_labels[$action_key] : ucwords(str_replace('_', ' ', $action_key));
+                    $detail = $this->clients->format_activity_detail($a);
+                    $when_label = function_exists('my_works_format_when') ? my_works_format_when($a->created_at) : $a->created_at;
+                  ?>
+                  <li class="d-flex gap-2 py-1 border-bottom">
+                    <span class="text-muted flex-shrink-0" title="<?php echo esc_view($a->created_at); ?>"><?php echo esc_view($when_label); ?></span>
+                    <span>
+                      <strong><?php echo esc_view($actor_label); ?></strong>
+                      — <?php echo esc_view($action_label); ?>
+                      <?php if ($detail !== ''): ?><span class="text-muted">(<?php echo esc_view($detail); ?>)</span><?php endif; ?>
+                    </span>
+                  </li>
+                <?php endforeach; ?>
+              </ul>
+              <?php endif; ?>
             </div>
           </div>
         </div>
@@ -541,7 +590,7 @@ if ($st_lower === 'active') {
                 </td>
                 <td class="text-end text-nowrap">
                   <?php if ($can_manage_tasks): ?>
-                  <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.25" required placeholder="hrs" title="Estimate (hrs) *" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
+                  <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9" step="1" placeholder="—" title="Estimate (hrs)" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
                   <?php else: ?>
                   <span class="small text-muted"><?php echo esc_view($t_est_row); ?></span>
                   <?php endif; ?>
@@ -740,7 +789,7 @@ if ($st_lower === 'active') {
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($task_statuses as $st): ?><option value="<?php echo esc_view($st); ?>"><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-assignee"><option value="">Unassigned</option><?php echo $inline_user_options; ?></select></td>
-  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.25" required placeholder="hrs" title="Estimate (hrs) *" value=""></td>
+  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9" step="1" placeholder="—" title="Estimate (hrs)" value=""></td>
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_tasks): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
 </template>
@@ -921,8 +970,8 @@ if ($st_lower === 'active') {
     }
     if (payload.type === 'task') {
       var estRaw = String(payload.estimate_hours || '').trim();
-      if (estRaw === '' || isNaN(Number(estRaw)) || Number(estRaw) < 0 || Number(estRaw) > 9999.99) {
-        setRowState(row, 'Estimate (hrs) required', true);
+      if (estRaw !== '' && (isNaN(Number(estRaw)) || !/^[0-9]$/.test(estRaw) || Number(estRaw) < 0 || Number(estRaw) > 9)) {
+        setRowState(row, 'Estimate (hrs) must be 0–9', true);
         return;
       }
     }

@@ -246,8 +246,10 @@ Manage staff accounts, HR records, departments, job titles, shifts, assets, and 
 
 **How:**
 
-1. Delete from client list or detail.
-2. Export list to CSV from list page.
+1. Open Clients → open a client detail.
+2. On the Overview tab, the Activity panel shows create/edit/status and URL/DB change history (same style as Task activity).
+3. Delete from client list or detail.
+4. Export list to CSV from list page.
 
 ---
 

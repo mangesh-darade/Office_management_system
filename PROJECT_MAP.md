@@ -119,3 +119,5 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `my_works_assignees` | CREATE TABLE (id, work_id, user_id, created_at; UNIQUE work_id+user_id) | Multi-user My Works assignment (primary stays on my_works.created_for) | 2026-07-23 |
 | `leave_requests` | ADD `apply_email_message_id` VARCHAR(255) NULL | Thread approve/reject emails as reply to apply mail | 2026-07-23 |
 | `permissions` | SET `can_access=1` for Admin role_id=1 on System Settings / Admin / holidays / leave_types / permissions / etc. | Align Permission Manager checkboxes with Settings access (checked = allowed) | 2026-07-23 |
+| `client_activity` | CREATE TABLE (id, client_id, user_id, action, old_value, new_value, created_at) | Per-client change history on client detail (Task-style) | 2026-08-10 |
+| `clients` | Repair: dedupe triplicate rows; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT; ADD UNIQUE `uq_client_code` | Missing AI/PK caused insert_id=0 → "Clients create error" | 2026-08-10 |

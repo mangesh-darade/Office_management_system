@@ -809,7 +809,7 @@ class My_works extends CI_Controller
                 $est = null;
                 $posted_est = estimate_hours_parse($this->input->post('estimate_hours'));
                 if ($posted_est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
                     redirect('my-works/template-tasks');
                     return;
                 }
@@ -820,11 +820,6 @@ class My_works extends CI_Controller
                     if ($parsed !== false && $parsed !== null) {
                         $est = $parsed;
                     }
-                }
-                if ($est === null) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
-                    redirect('my-works/template-tasks');
-                    return;
                 }
                 $data['estimate_hours'] = $est;
             }
@@ -1194,10 +1189,10 @@ class My_works extends CI_Controller
             );
             if (schema_table_has_column($this->db, 'template_tasks', 'estimate_hours')) {
                 $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
-                $est = estimate_hours_require($est_raw);
+                $est = estimate_hours_parse($est_raw);
                 if ($est === false) {
                     $skipped++;
-                    csv_import_add_row_error($row_errors, $line, 'estimate_hours is required (number 0–9999.99).');
+                    csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use whole number 0–9 or leave blank).');
                     continue;
                 }
                 $insert['estimate_hours'] = $est;

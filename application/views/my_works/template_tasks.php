@@ -189,10 +189,10 @@
 
           <div class="col-md-4">
             <label class="form-label" for="mw-tt-estimate-hours">
-              <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs) <span class="text-danger">*</span>
+              <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
             </label>
-            <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" required placeholder="e.g. 2.5">
-            <div class="form-text">Required. Auto-filled from catalog when you pick a task; you can override.</div>
+            <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9" step="1" placeholder="e.g. 2">
+            <div class="form-text">Optional. Single digit 0–9. Auto-filled from catalog when you pick a task; you can override.</div>
           </div>
 
           <div class="col-md-4">

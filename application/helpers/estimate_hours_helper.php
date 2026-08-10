@@ -9,6 +9,7 @@ if (!function_exists('estimate_hours_parse')) {
     /**
      * Parse optional estimate hours from form/CSV.
      * Empty → null. Invalid → false.
+     * EST hr is single digit only: whole numbers 0–9.
      *
      * @param mixed $raw
      * @return float|null|false
@@ -26,10 +27,14 @@ if (!function_exists('estimate_hours_parse')) {
             return false;
         }
         $v = (float) $s;
-        if ($v < 0 || $v > 9999.99) {
+        if ($v < 0 || $v > 9) {
             return false;
         }
-        return round($v, 2);
+        // Single digit only — no decimals (2.5 rejected).
+        if (abs($v - round($v)) > 0.001) {
+            return false;
+        }
+        return (float) (int) round($v);
     }
 }
 
@@ -113,12 +118,29 @@ if (!function_exists('estimate_hours_ensure_column')) {
 
 if (!function_exists('actual_hours_parse')) {
     /**
+     * Parse optional actual hours (wider range than EST).
+     * Empty → null. Invalid → false.
+     *
      * @param mixed $raw
      * @return float|null|false
      */
     function actual_hours_parse($raw)
     {
-        return estimate_hours_parse($raw);
+        if ($raw === null) {
+            return null;
+        }
+        $s = trim((string) $raw);
+        if ($s === '') {
+            return null;
+        }
+        if (!is_numeric($s)) {
+            return false;
+        }
+        $v = (float) $s;
+        if ($v < 0 || $v > 9999.99) {
+            return false;
+        }
+        return round($v, 2);
     }
 }
 
@@ -131,7 +153,11 @@ if (!function_exists('actual_hours_require')) {
      */
     function actual_hours_require($raw)
     {
-        return estimate_hours_require($raw);
+        $act = actual_hours_parse($raw);
+        if ($act === null || $act === false) {
+            return false;
+        }
+        return $act;
     }
 }
 

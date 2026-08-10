@@ -33,33 +33,96 @@ foreach ($status_rows as $sr) {
     }
 }
 
-$total_projects = count($project_cards);
+$total_projects = isset($total_projects_scope) ? (int) $total_projects_scope : count($project_cards);
 $total_tasks = 0;
 $total_requirements = 0;
-$status_totals = array();
-foreach ($status_rows as $sr) {
+if (!isset($status_totals) || !is_array($status_totals)) {
+  $status_totals = array();
+  foreach ($status_rows as $sr) {
     $status_totals[(string) $sr->code] = 0;
+  }
+  foreach ($project_cards as $card) {
+    $tasks = isset($card['tasks']) ? $card['tasks'] : array();
+    foreach ($tasks as $task) {
+      $st = trim((string) $task->status);
+      if ($st === '') {
+        $st = 'pending';
+      }
+      if (!isset($status_totals[$st])) {
+        $status_totals[$st] = 0;
+      }
+      $status_totals[$st]++;
+    }
+  }
+}
+foreach ($status_rows as $sr) {
+  $code = (string) $sr->code;
+  if (!isset($status_totals[$code])) {
+    $status_totals[$code] = 0;
+  }
 }
 foreach ($project_cards as $card) {
-    $tasks = isset($card['tasks']) ? $card['tasks'] : array();
-    $requirements = isset($card['requirements']) ? $card['requirements'] : array();
-    $total_tasks += count($tasks);
-    $total_requirements += count($requirements);
-    foreach ($tasks as $task) {
-        $st = trim((string) $task->status);
-        if ($st === '') {
-            $st = 'pending';
-        }
-        if (!isset($status_totals[$st])) {
-            $status_totals[$st] = 0;
-        }
-        $status_totals[$st]++;
-    }
+  $tasks = isset($card['tasks']) ? $card['tasks'] : array();
+  $requirements = isset($card['requirements']) ? $card['requirements'] : array();
+  $total_tasks += count($tasks);
+  $total_requirements += count($requirements);
+}
+$total_tasks_all = 0;
+foreach ($status_totals as $cnt) {
+  $total_tasks_all += (int) $cnt;
 }
 
 $filter_project_id = isset($filter_project_id) ? (int) $filter_project_id : 0;
 $filter_projects = isset($filter_projects) ? $filter_projects : array();
+$filter_status = isset($filter_status) ? (string) $filter_status : 'all';
+$filter_user_id = isset($filter_user_id) ? (int) $filter_user_id : -1;
+$filter_client_id = isset($filter_client_id) ? (int) $filter_client_id : 0;
+$filter_department_id = isset($filter_department_id) ? (int) $filter_department_id : -1;
+$complete_view_on = !empty($complete_view_on);
 
+$pd_url = function ($overrides = array()) use (
+  $embed,
+  $filter_status,
+  $filter_project_id,
+  $filter_user_id,
+  $filter_client_id,
+  $filter_department_id,
+  $complete_view_on
+) {
+  $params = array();
+  $status = array_key_exists('status', $overrides) ? $overrides['status'] : $filter_status;
+  $project_id = array_key_exists('project_id', $overrides) ? (int) $overrides['project_id'] : $filter_project_id;
+  $user_id = array_key_exists('user_id', $overrides) ? (int) $overrides['user_id'] : $filter_user_id;
+  $client_id = array_key_exists('client_id', $overrides) ? (int) $overrides['client_id'] : $filter_client_id;
+  $department_id = array_key_exists('department_id', $overrides) ? (int) $overrides['department_id'] : $filter_department_id;
+
+  if ($status !== '' && $status !== null && $status !== 'all') {
+    $params['status'] = $status;
+  }
+  if ($project_id > 0) {
+    $params['project_id'] = $project_id;
+  }
+  if ($user_id >= 0) {
+    $params['user_id'] = $user_id;
+  }
+  if ($client_id > 0) {
+    $params['client_id'] = $client_id;
+  }
+  if ($department_id >= 0) {
+    $params['department_id'] = $department_id;
+  }
+  if (!empty($complete_view_on)) {
+    $params['complete_view'] = 1;
+  }
+  if ($embed) {
+    $params['embed'] = 1;
+    $parent_tab = trim((string) get_instance()->input->get('parent_tab'));
+    if ($parent_tab !== '') {
+      $params['parent_tab'] = $parent_tab;
+    }
+  }
+  return site_url('projects/dashboard' . (!empty($params) ? ('?' . http_build_query($params)) : ''));
+};
 $head_actions = '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects') . '"><i class="bi bi-kanban me-1"></i>All Projects</a>';
 if (function_exists('has_module_access') && (has_module_access('projects_matrix') || has_module_access('projects') || has_module_access('projects_list'))) {
     $head_actions .= '<a class="btn btn-outline-secondary btn-sm" href="' . site_url('projects/matrix') . '"><i class="bi bi-grid-3x3-gap me-1"></i>Matrix</a>';
@@ -221,15 +284,19 @@ $show_project_toolbar = true;
 <?php endif; ?>
 
 <div class="project-dash-summary">
-  <div class="project-dash-stat">
+  <a class="project-dash-stat<?php echo ($filter_status === 'all' || $filter_status === '') ? ' is-active' : ''; ?>"
+     href="<?php echo esc_view($pd_url(array('status' => 'all')), ENT_QUOTES, 'UTF-8'); ?>"
+     title="Show all projects">
     <div class="project-dash-stat-label">Projects</div>
     <div class="project-dash-stat-value"><?php echo (int) $total_projects; ?></div>
-  </div>
-  <div class="project-dash-stat">
+  </a>
+  <a class="project-dash-stat<?php echo ($filter_status === 'all' || $filter_status === '') ? ' is-active' : ''; ?>"
+     href="<?php echo esc_view($pd_url(array('status' => 'all')), ENT_QUOTES, 'UTF-8'); ?>"
+     title="Show all tasks">
     <div class="project-dash-stat-label">Total Tasks</div>
-    <div class="project-dash-stat-value"><?php echo (int) $total_tasks; ?></div>
-  </div>
-  <div class="project-dash-stat">
+    <div class="project-dash-stat-value"><?php echo (int) $total_tasks_all; ?></div>
+  </a>
+  <div class="project-dash-stat" title="Requirements">
     <div class="project-dash-stat-label">Requirements</div>
     <div class="project-dash-stat-value"><?php echo (int) $total_requirements; ?></div>
   </div>
@@ -238,13 +305,18 @@ $show_project_toolbar = true;
       $code = (string) $sr->code;
       $label = isset($status_labels[$code]) ? $status_labels[$code] : $code;
       $count = isset($status_totals[$code]) ? (int) $status_totals[$code] : 0;
+      $color = isset($status_colors[$code]) ? $status_colors[$code] : '#374151';
+      $is_active = ($filter_status === $code);
     ?>
-    <div class="project-dash-stat">
+    <a class="project-dash-stat<?php echo $is_active ? ' is-active' : ''; ?>"
+       href="<?php echo esc_view($pd_url(array('status' => $code)), ENT_QUOTES, 'UTF-8'); ?>"
+       title="Show <?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?> tasks"
+       style="border-top-color:<?php echo esc_view($color, ENT_QUOTES, 'UTF-8'); ?>;">
       <div class="project-dash-stat-label"><?php echo esc_view($label); ?></div>
-      <div class="project-dash-stat-value" style="color:<?php echo esc_view(isset($status_colors[$code]) ? $status_colors[$code] : '#374151', ENT_QUOTES, 'UTF-8'); ?>;">
+      <div class="project-dash-stat-value" style="color:<?php echo esc_view($color, ENT_QUOTES, 'UTF-8'); ?>;">
         <?php echo $count; ?>
       </div>
-    </div>
+    </a>
   <?php endforeach; ?>
 </div>
 

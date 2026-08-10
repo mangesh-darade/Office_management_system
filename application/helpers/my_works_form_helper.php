@@ -498,9 +498,9 @@ if (!function_exists('my_works_validate_payload')) {
         }
         $closing_comment = trim((string) $CI->input->post('closing_comment'));
         $CI->load->helper('estimate_hours');
-        $est = estimate_hours_require($CI->input->post('estimate_hours'));
+        $est = estimate_hours_parse($CI->input->post('estimate_hours'));
         if ($est === false) {
-            $CI->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
+            $CI->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
             return false;
         }
         $payload = array(
@@ -602,9 +602,9 @@ if (!function_exists('my_works_validate_quick_payload')) {
         $details = my_works_sanitize_details_html($CI->input->post('details'));
 
         $CI->load->helper('estimate_hours');
-        $est = estimate_hours_require($CI->input->post('estimate_hours'));
+        $est = estimate_hours_parse($CI->input->post('estimate_hours'));
         if ($est === false) {
-            $CI->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
+            $CI->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
             return false;
         }
 

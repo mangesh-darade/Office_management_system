@@ -293,7 +293,7 @@
                             </td>
                             <td class="text-end text-nowrap">
                                 <?php if ($can_manage_tasks): ?>
-                                <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.25" placeholder="—" title="Estimate (hrs)" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
+                                <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9" step="1" placeholder="—" title="Estimate (hrs)" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
                                 <?php else: ?>
                                 <span class="small text-muted"><?php echo esc_view($t_est_row); ?></span>
                                 <?php endif; ?>
@@ -599,7 +599,7 @@
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($task_statuses as $st): ?><option value="<?php echo esc_view($st); ?>"><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-assignee"><option value="">Unassigned</option><?php echo $inline_user_options; ?></select></td>
-  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.25" placeholder="—" title="Estimate (hrs)" value=""></td>
+  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9" step="1" placeholder="—" title="Estimate (hrs)" value=""></td>
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_tasks): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
 </template>

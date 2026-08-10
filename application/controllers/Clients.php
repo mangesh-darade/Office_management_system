@@ -681,6 +681,16 @@ class Clients extends CI_Controller {
                 }
 
                 $this->_save_posted_client_envs((int) $id, $url_catalog_rows);
+
+                $uid = (int) $this->session->userdata('user_id');
+                $this->clients->log_activity((int) $id, $uid, 'created', null, array(
+                    'detail' => $company_name . ' (' . $client_code . ')',
+                ));
+                if (!empty($url_catalog_rows)) {
+                    $this->clients->log_activity((int) $id, $uid, 'urls_changed', null, array(
+                        'detail' => count($url_catalog_rows) . ' URL/DB set(s)',
+                    ));
+                }
                 
                 $success_msg = get_notification_message('clients', 'create', 'success');
                 $this->session->set_flashdata('success', $success_msg);
@@ -763,9 +773,11 @@ class Clients extends CI_Controller {
 
             $c = $result['data'];
             $related = $this->_client_related_work($id);
+            $this->load->helper('my_works');
 
             $this->load->view('clients/view', array_merge(array(
                 'client' => $c,
+                'activity' => $this->clients->list_activity($id),
                 'assignable_users' => $this->_load_assignable_users(),
                 'can_manage_tasks' => function_exists('has_module_access')
                     && (has_module_access('tasks_add') || has_module_access('tasks_edit') || has_module_access('tasks')),
@@ -1109,7 +1121,15 @@ class Clients extends CI_Controller {
                         return;
                     }
 
+                    $uid = (int) $this->session->userdata('user_id');
+                    $urls_before = $this->client_urls->get_by_client((int) $id);
                     $this->_save_posted_client_envs((int) $id, $url_catalog_rows);
+                    $this->clients->log_client_changes((int) $id, $uid, $c, $data);
+                    if ($this->_client_url_rows_signature($urls_before) !== $this->_client_url_rows_signature($url_catalog_rows)) {
+                        $this->clients->log_activity((int) $id, $uid, 'urls_changed', null, array(
+                            'detail' => count($url_catalog_rows) . ' URL/DB set(s)',
+                        ));
+                    }
                     
                     $success_msg = get_notification_message('clients', 'update', 'success');
                     $this->session->set_flashdata('success', $success_msg);
@@ -1856,12 +1876,13 @@ class Clients extends CI_Controller {
         }
 
         $est = null;
+        $est_provided = ($estimate_hours !== null);
         $task_fields = $this->db->list_fields('tasks');
-        $estimate_required = in_array('estimate_hours', $task_fields, true);
-        if ($estimate_required) {
-            $est = estimate_hours_require($estimate_hours);
+        $has_estimate = in_array('estimate_hours', $task_fields, true);
+        if ($est_provided && $has_estimate) {
+            $est = estimate_hours_parse($estimate_hours);
             if ($est === false) {
-                return $this->_inline_json(false, array(), 'Estimate (hrs) is required (number between 0 and 9999.99).', 400);
+                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a single digit (0–9).', 400);
             }
         }
 
@@ -1884,7 +1905,7 @@ class Clients extends CI_Controller {
             if (in_array('priority', $task_fields, true)) {
                 $update['priority'] = $priority;
             }
-            if ($estimate_required) {
+            if ($est_provided && $has_estimate) {
                 $update['estimate_hours'] = $est;
             }
             if ($project_id > 0) {
@@ -1918,7 +1939,7 @@ class Clients extends CI_Controller {
         if (in_array('priority', $task_fields, true)) {
             $insert['priority'] = $priority;
         }
-        if ($estimate_required) {
+        if ($est_provided && $has_estimate) {
             $insert['estimate_hours'] = $est;
         }
         $this->db->insert('tasks', $insert);
@@ -2434,6 +2455,31 @@ class Clients extends CI_Controller {
     }
 
     /**
+     * Compare URL/DB catalog rows without passwords (for activity logging).
+     *
+     * @param array $rows objects or associative arrays
+     * @return string
+     */
+    private function _client_url_rows_signature($rows)
+    {
+        $parts = array();
+        foreach ((array) $rows as $row) {
+            $r = is_object($row) ? (array) $row : (array) $row;
+            $parts[] = implode('|', array(
+                isset($r['version']) ? trim((string) $r['version']) : '',
+                isset($r['url']) ? trim((string) $r['url']) : '',
+                isset($r['url_type']) ? trim((string) $r['url_type']) : '',
+                isset($r['db_name']) ? trim((string) $r['db_name']) : '',
+                isset($r['db_username']) ? trim((string) $r['db_username']) : '',
+                isset($r['db_host']) ? trim((string) $r['db_host']) : '',
+                isset($r['db_port']) ? trim((string) $r['db_port']) : '',
+            ));
+        }
+        sort($parts);
+        return implode("\n", $parts);
+    }
+
+    /**
      * GET /clients/urls — redirect into Clients tab.
      */
     public function urls()
@@ -2510,6 +2556,13 @@ class Clients extends CI_Controller {
 
         $client_id = (int) $row->client_id;
         $this->client_urls->delete($id);
+        if ($client_id > 0) {
+            $uid = (int) $this->session->userdata('user_id');
+            $url_label = isset($row->url) ? trim((string) $row->url) : '';
+            $this->clients->log_activity($client_id, $uid, 'urls_changed', null, array(
+                'detail' => 'Removed URL/DB set' . ($url_label !== '' ? (': ' . $url_label) : ''),
+            ));
+        }
         $this->session->set_flashdata('success', 'URL / DB set deleted.');
         redirect('clients?tab=urls' . ($client_id > 0 ? ('&client_id=' . $client_id) : ''));
     }
@@ -2544,6 +2597,7 @@ class Clients extends CI_Controller {
             return;
         }
 
+        $deleted = 0;
         foreach ($ids as $id) {
             $row = $this->client_urls->get($id);
             if (!$row) {
@@ -2556,6 +2610,14 @@ class Clients extends CI_Controller {
                 $client_id = (int) $row->client_id;
             }
             $this->client_urls->delete($id);
+            $deleted++;
+        }
+
+        if ($client_id > 0 && $deleted > 0) {
+            $uid = (int) $this->session->userdata('user_id');
+            $this->clients->log_activity($client_id, $uid, 'urls_changed', null, array(
+                'detail' => 'Removed ' . $deleted . ' URL/DB row(s)',
+            ));
         }
 
         $this->session->set_flashdata('success', 'URL / DB set deleted.');

@@ -103,8 +103,8 @@ $back_url = site_url($redirect_path);
               </select>
               <div class="form-text d-none d-md-block">Type to search. Click <strong>×</strong> on a tag to remove that user. First selected is primary.</div>
 
-              <label class="form-label fw-semibold mt-3" for="mw-qa-estimate-hours">Estimate (hrs) <span class="text-danger">*</span></label>
-              <input type="number" name="estimate_hours" id="mw-qa-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" required
+              <label class="form-label fw-semibold mt-3" for="mw-qa-estimate-hours">Estimate (hrs)</label>
+              <input type="number" name="estimate_hours" id="mw-qa-estimate-hours" class="form-control" min="0" max="9" step="1"
                      value="<?php
                        $est_val = $field('estimate_hours', '');
                        if ($est_val !== '' && $est_val !== null && function_exists('estimate_hours_display')) {
@@ -113,8 +113,8 @@ $back_url = site_url($redirect_path);
                            echo esc_view((string) $est_val, ENT_QUOTES, 'UTF-8');
                        }
                      ?>"
-                     placeholder="e.g. 2.5">
-              <div class="form-text">Required planned hours (0.25 steps).</div>
+                     placeholder="e.g. 2">
+              <div class="form-text">Optional. Single digit 0–9 only.</div>
             </div>
 
             <div class="mw-form-section mw-quick-add-section">

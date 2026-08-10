@@ -18,7 +18,7 @@
         <li><strong>description</strong> — optional text.</li>
         <li><strong>assigned_to</strong> — user ID from Users; leave blank for unassigned.</li>
         <li><strong>status</strong> — <code>pending</code>, <code>in_progress</code>, <code>completed</code>, or <code>blocked</code> (defaults to <code>pending</code>).</li>
-        <li><strong>estimate_hours</strong> — required decimal hours (e.g. <code>2.5</code>).</li>
+        <li><strong>estimate_hours</strong> — optional whole number 0–9 (e.g. <code>2</code>).</li>
       </ul>
       <?php $this->load->view('partials/import_errors'); ?>
       <?php if($this->session->flashdata('error')): ?>

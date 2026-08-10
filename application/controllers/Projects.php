@@ -189,7 +189,7 @@ class Projects extends CI_Controller {
                 if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
                     $est = estimate_hours_parse($this->input->post('estimate_hours'));
                     if ($est === false) {
-                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
                         redirect('projects/create' . ($embed ? '?embed=1' : ''));
                         return;
                     }
@@ -533,9 +533,18 @@ class Projects extends CI_Controller {
         foreach ($projects as $project) {
             $project_ids[] = (int) $project->id;
         }
-        $tasks_by_project = $this->_project_dashboard_tasks_for_projects($project_ids, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
+        // Load all statuses (for cart counts); apply status filter when building cards.
+        $tasks_by_project_all = $this->_project_dashboard_tasks_for_projects(
+            $project_ids,
+            $filter_user_id,
+            $filter_project_id,
+            'all',
+            ($filter_status === 'all') ? $complete_view : 'all'
+        );
 
         $project_cards = array();
+        $status_totals = array();
+        $total_projects_scope = 0;
         foreach ($projects as $project) {
             $project_id = (int) $project->id;
             // If filtering by project, skip projects that don't match
@@ -557,15 +566,44 @@ class Projects extends CI_Controller {
 
             // Set department name
             $project->department_name = isset($department_map[$project_dept_id]) ? $department_map[$project_dept_id] : '';
+            $total_projects_scope++;
 
-            // If the project doesn't have tasks matching the filter, we could choose to hide it.
-            // But let's just show it empty if it matches the project_id (or if no project_id filter).
+            $all_tasks = isset($tasks_by_project_all[$project_id]) ? $tasks_by_project_all[$project_id] : array();
+            foreach ($all_tasks as $task) {
+                $st = trim((string) $task->status);
+                if ($st === '') {
+                    $st = 'pending';
+                }
+                if (!isset($status_totals[$st])) {
+                    $status_totals[$st] = 0;
+                }
+                $status_totals[$st]++;
+            }
+
+            $display_tasks = $all_tasks;
+            if ($filter_status !== '' && $filter_status !== 'all') {
+                $display_tasks = array();
+                foreach ($all_tasks as $task) {
+                    $st = trim((string) $task->status);
+                    if ($st === '') {
+                        $st = 'pending';
+                    }
+                    if ($st === $filter_status) {
+                        $display_tasks[] = $task;
+                    }
+                }
+                // Status cart click: only show projects that have matching tasks.
+                if (empty($display_tasks)) {
+                    continue;
+                }
+            }
+
             $project_cards[] = array(
                 'project' => $project,
-                'tasks'   => isset($tasks_by_project[$project_id]) ? dashboard_filter_items_by_complete_view(
-                    $tasks_by_project[$project_id],
+                'tasks'   => dashboard_filter_items_by_complete_view(
+                    $display_tasks,
                     ($filter_status === 'all') ? $complete_view : 'all'
-                ) : array(),
+                ),
             );
         }
 
@@ -596,6 +634,8 @@ class Projects extends CI_Controller {
         $this->load->view('projects/dashboard_index', array(
             'project_cards' => $project_cards,
             'status_rows'   => $status_rows,
+            'status_totals' => $status_totals,
+            'total_projects_scope' => $total_projects_scope,
             'filter_user_id'    => $filter_user_id,
             'filter_project_id' => $filter_project_id,
             'filter_client_id'  => $filter_client_id,
@@ -752,7 +792,7 @@ class Projects extends CI_Controller {
                 if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
                     $est = estimate_hours_parse($this->input->post('estimate_hours'));
                     if ($est === false) {
-                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
+                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
                         redirect('projects/'.$id.'/edit');
                         return;
                     }
@@ -951,7 +991,7 @@ class Projects extends CI_Controller {
                         $est = estimate_hours_parse($est_raw);
                         if ($est === false) {
                             $skipped++;
-                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use number 0–9999.99).');
+                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use whole number 0–9 or leave blank).');
                             continue;
                         }
                         $data['estimate_hours'] = $est;
@@ -1868,7 +1908,7 @@ class Projects extends CI_Controller {
         if ($est_provided) {
             $est = estimate_hours_parse($estimate_hours);
             if ($est === false) {
-                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a number between 0 and 9999.99.', 400);
+                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a single digit (0–9).', 400);
             }
         }
 

@@ -228,9 +228,9 @@
 
             <div class="col-12 col-md-3">
 
-              <label class="form-label fw-semibold" for="mw-estimate-hours">Estimate (hrs) <span class="text-danger">*</span></label>
+              <label class="form-label fw-semibold" for="mw-estimate-hours">Estimate (hrs)</label>
 
-              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9999.99" step="0.25" required
+              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9" step="1"
                      value="<?php
                        $est_val = $field('estimate_hours', '');
                        if ($est_val !== '' && $est_val !== null && function_exists('estimate_hours_display')) {
@@ -239,7 +239,7 @@
                            echo esc_view((string) $est_val);
                        }
                      ?>"
-                     placeholder="e.g. 2.5">
+                     placeholder="e.g. 2">
 
             </div>
 

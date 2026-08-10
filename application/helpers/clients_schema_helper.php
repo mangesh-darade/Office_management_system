@@ -67,6 +67,24 @@ if (!function_exists('clients_schema_ensure')) {
                     $db->query($sql);
                 }
             }
+            // Ensure id is usable as insert PK (missing AI caused "Clients create error").
+            // Only when ids are already unique — never rewrite / dedupe data here.
+            $id_col = $db->query("SHOW COLUMNS FROM `clients` LIKE 'id'");
+            $id_meta = ($id_col && $id_col->num_rows() > 0) ? $id_col->row_array() : null;
+            if (is_array($id_meta)) {
+                $extra = isset($id_meta['Extra']) ? strtolower((string) $id_meta['Extra']) : '';
+                $key = isset($id_meta['Key']) ? strtoupper((string) $id_meta['Key']) : '';
+                $dup = $db->query('SELECT id FROM `clients` GROUP BY id HAVING COUNT(*) > 1 LIMIT 1');
+                $has_dup = ($dup && $dup->num_rows() > 0);
+                if (!$has_dup) {
+                    if ($key !== 'PRI') {
+                        $db->query('ALTER TABLE `clients` ADD PRIMARY KEY (`id`)');
+                    }
+                    if (strpos($extra, 'auto_increment') === false) {
+                        $db->query('ALTER TABLE `clients` MODIFY `id` int(11) NOT NULL AUTO_INCREMENT');
+                    }
+                }
+            }
         }
         if (!$db->table_exists('client_contacts')){
             $sql2 = "CREATE TABLE `client_contacts` (
@@ -122,6 +140,20 @@ if (!function_exists('clients_schema_ensure')) {
                     $db->query($sql);
                 }
             }
+        }
+        if (!$db->table_exists('client_activity')) {
+            $db->query("CREATE TABLE `client_activity` (
+                `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `client_id` int(11) UNSIGNED NOT NULL,
+                `user_id` int(11) UNSIGNED DEFAULT NULL,
+                `action` varchar(50) NOT NULL,
+                `old_value` longtext DEFAULT NULL,
+                `new_value` longtext DEFAULT NULL,
+                `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_cact_client` (`client_id`),
+                KEY `idx_cact_user` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
     }
 }

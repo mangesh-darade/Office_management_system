@@ -188,9 +188,9 @@ class Tasks extends CI_Controller {
                 $data['due_date'] = $this->input->post('due_date') ?: null;
             }
             if (in_array('estimate_hours', $task_fields, true)) {
-                $est = estimate_hours_require($this->input->post('estimate_hours'));
+                $est = estimate_hours_parse($this->input->post('estimate_hours'));
                 if ($est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
                     redirect('tasks/create');
                     return;
                 }
@@ -688,9 +688,9 @@ class Tasks extends CI_Controller {
                 $data['due_date'] = $this->input->post('due_date') ?: null;
             }
             if (in_array('estimate_hours', $task_fields, true)) {
-                $est = estimate_hours_require($this->input->post('estimate_hours'));
+                $est = estimate_hours_parse($this->input->post('estimate_hours'));
                 if ($est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) is required (number between 0 and 9999.99).');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
                     redirect('tasks/'.$id.'/edit');
                     return;
                 }
@@ -2564,10 +2564,10 @@ class Tasks extends CI_Controller {
                 );
                 if (schema_table_has_column($this->db, 'tasks', 'estimate_hours')) {
                     $est_raw = csv_import_get($opened['map'], $row, 'estimate_hours', '');
-                    $est = estimate_hours_require($est_raw);
+                    $est = estimate_hours_parse($est_raw);
                     if ($est === false) {
                         $skipped++;
-                        csv_import_add_row_error($row_errors, $line, 'estimate_hours is required (number 0–9999.99).');
+                        csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use whole number 0–9 or leave blank).');
                         continue;
                     }
                     $data['estimate_hours'] = $est;

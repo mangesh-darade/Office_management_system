@@ -108,8 +108,8 @@
                 <input type="date" name="due_date" id="mw-form-due-date" class="form-control mw-create-control" required value="<?php echo esc_view((string) $field('due_date'), ENT_QUOTES, 'UTF-8'); ?>">
               </div>
               <div class="mw-create-field">
-                <label class="form-label mw-create-label" for="mw-estimate-hours">Estimate (hrs) <span class="text-danger">*</span></label>
-                <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control mw-create-control" min="0" max="9999.99" step="0.25" required
+                <label class="form-label mw-create-label" for="mw-estimate-hours">Estimate (hrs)</label>
+                <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control mw-create-control" min="0" max="9" step="1"
                        value="<?php
                          $est_val = $field('estimate_hours', '');
                          if ($est_val !== '' && $est_val !== null && function_exists('estimate_hours_display')) {
@@ -118,7 +118,7 @@
                              echo esc_view((string) $est_val, ENT_QUOTES, 'UTF-8');
                          }
                        ?>"
-                       placeholder="e.g. 2.5">
+                       placeholder="e.g. 2">
               </div>
               <div class="mw-create-field">
                 <label class="form-label mw-create-label" for="mw-form-status">Status</label>

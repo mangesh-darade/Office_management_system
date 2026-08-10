@@ -318,10 +318,12 @@ if (!function_exists('my_works_apply_open_status_filter')) {
             return;
         }
 
+        // MySQL 8 / strict mode rejects DATETIME literal '0000-00-00 00:00:00' (errno 1525).
+        // Compare as CHAR so legacy zero-dates still count as open.
         $closed_col = (strpos($column, 'w.') === 0) ? 'w.closed_at' : 'closed_at';
         $db->group_start()
             ->where($closed_col . ' IS NULL', null, false)
-            ->or_where($closed_col, '0000-00-00 00:00:00')
+            ->or_where("CAST(" . $closed_col . " AS CHAR) = '0000-00-00 00:00:00'", null, false)
             ->group_end();
     }
 }
