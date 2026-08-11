@@ -246,9 +246,10 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 **Steps:**
 
-1. Select project.
-2. Describe issue and steps to reproduce.
-3. Assign if known → Save.
+1. Optionally select Client to filter projects.
+2. Select project (required).
+3. Describe issue and steps to reproduce.
+4. Assign if known → Save.
 
 ### Edit (update existing)
 

@@ -47,6 +47,22 @@ Personal to-dos, daily activity logs, and performance appraisals.
 
 ---
 
+## Defects (Second Brain)
+
+**Purpose:** Browse and filter project defects inside Second Brain (same list as Defect Tracking).
+
+**Menu:** Second Brain → Defects
+
+### View list
+
+**Steps:**
+
+1. Open Second Brain → Defects.
+2. Filter by client, project, status, severity, assignee, or overdue.
+3. Use Add Defect / Log Defect to create; after save you return to this tab when opened from Second Brain.
+
+---
+
 ## Template Tasks
 
 **Purpose:** Create a My Works item from a team template catalog, or import catalog rows from CSV.

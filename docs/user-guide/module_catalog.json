@@ -307,9 +307,9 @@
           "name": "Defects",
           "menu": "Project → Defects",
           "purpose": "Log, assign, and resolve bugs linked to projects, releases, and tasks.",
-          "list": {"route": "defects"},
-          "add": {"route": "defects/create", "steps": ["Select project.", "Describe issue and steps to reproduce.", "Assign if known → Save."]},
-          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved.", "Set due date for SLA tracking.", "Add comments and attachments on the detail page."]},
+          "list": {"route": "defects", "steps": ["Filter by client, project, status, severity, assignee, or overdue.", "Open a row to view details or edit."]},
+          "add": {"route": "defects/create", "steps": ["Optionally select Client to filter projects.", "Select project (required).", "Describe issue and steps to reproduce.", "Assign if known → Save."]},
+          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved.", "Set due date for SLA tracking.", "Review History table for all changes; optionally add a history note."]},
           "delete": {"steps": ["Open defect detail → Delete (soft delete, admin)."]}
         }
       ]
@@ -343,17 +343,34 @@
         {
           "name": "Clients (Second Brain)",
           "menu": "Second Brain → Clients",
-          "purpose": "Alphabetical client cards with nested projects; click a project row to expand related tasks.",
+          "purpose": "List, Client cart, and Client URLs views inside Second Brain (same as Clients module).",
           "list": {"route": "my-works?tab=clients"},
           "add": null,
           "edit": null,
           "delete": {"steps": [
             "Open Second Brain → Clients.",
-            "Client cards are listed A–Z.",
+            "Use List / Client cart / Client URLs tabs.",
+            "Client cards are listed A–Z on Client cart.",
             "Each card lists that client’s projects.",
             "Click a project row to expand its tasks; use the open icon for full project/task pages.",
             "Open a client detail to see the Activity history panel (create/edit/status/URL changes)."
           ]}
+        },
+        {
+          "name": "Defects (Second Brain)",
+          "menu": "Second Brain → Defects",
+          "purpose": "Browse and filter project defects inside Second Brain (same list as Defect Tracking).",
+          "list": {
+            "route": "my-works?tab=defects",
+            "steps": [
+              "Open Second Brain → Defects.",
+              "Filter by client, project, status, severity, assignee, or overdue.",
+              "Use Add Defect / Log Defect to create; after save you return to this tab when opened from Second Brain."
+            ]
+          },
+          "add": {"route": "defects/create?redirect=my-works%3Ftab%3Ddefects"},
+          "edit": {"list_route": "my-works?tab=defects", "steps": ["Open a defect from the tab → Edit or View on the full defect screens."]},
+          "delete": null
         },
         {
           "name": "Template Tasks",
