@@ -1,27 +1,39 @@
-<?php $this->load->view('partials/header', array('title' => 'Create Template Task', 'extra_css' => array('assets/css/my-works.css', 'assets/css/tasks.css'))); ?>
-<div class="oms-form-compact">
-
 <?php
-  $clients = isset($clients) ? $clients : array();
-  $projects = isset($projects) ? $projects : array();
-  $projects_have_client = !empty($projects_have_client);
-  $users = isset($users) ? $users : array();
-  $teams = isset($teams) ? $teams : array();
-  $template_json = isset($template_json) ? $template_json : array();
-  $can_import_templates = !empty($can_import_templates);
-  $can_export_templates = !empty($can_export_templates);
-  $import_errors = $this->session->flashdata('import_errors');
-?>
+$clients = isset($clients) ? $clients : array();
+$projects = isset($projects) ? $projects : array();
+$projects_have_client = !empty($projects_have_client);
+$users = isset($users) ? $users : array();
+$teams = isset($teams) ? $teams : array();
+$template_json = isset($template_json) ? $template_json : array();
+$can_import_templates = !empty($can_import_templates);
+$can_export_templates = !empty($can_export_templates);
+$import_errors = $this->session->flashdata('import_errors');
 
-<div class="container-fluid py-2 mw-page">
-  <div class="oms-form-page-head mw-page-head-with-back d-flex align-items-start gap-2 mb-2 flex-wrap">
-    <?php $this->load->view('my_works/_back_btn', array(
-      'back_url' => site_url('my-works'),
-      'back_title' => 'Back to Second Brain',
-    )); ?>
-    <div class="min-w-0 flex-grow-1">
-      <h1 class="h5 mb-0 fw-semibold">Create Template Task</h1>
-      <p class="text-muted small mb-0">Select project, team, type, and one template — saved to Tasks.</p>
+$this->load->view('partials/header', array(
+  'title' => 'Create Template Task',
+  'extra_css' => array('assets/css/my-works.css', 'assets/css/tasks.css', 'assets/css/defects-form.css'),
+));
+?>
+<div class="oms-form-compact defect-form-page">
+<div class="container-fluid py-2 py-md-3 px-2 px-md-3 mw-page">
+
+  <nav aria-label="breadcrumb" class="defect-form-crumb small mb-2 d-none d-md-block">
+    <ol class="breadcrumb mb-0">
+      <li class="breadcrumb-item"><a href="<?php echo site_url('my-works'); ?>">Second Brain</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Template Task</li>
+    </ol>
+  </nav>
+
+  <div class="defect-form-hero oms-form-page-head d-flex align-items-center gap-2 gap-md-3 mb-3 flex-wrap">
+    <a href="<?php echo site_url('my-works'); ?>" class="btn btn-light border defect-form-back oms-form-back" title="Back to Second Brain">
+      <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Back</span>
+    </a>
+    <div class="defect-form-hero-icon d-none d-sm-flex" aria-hidden="true">
+      <i class="bi bi-collection"></i>
+    </div>
+    <div class="oms-form-page-titles min-w-0 flex-grow-1">
+      <h1 class="defect-form-title mb-0">Create Template Task</h1>
+      <p class="defect-form-sub text-muted mb-0 d-none d-md-block">Pick project &amp; template on the left, describe the task on the right.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap ms-sm-auto">
       <?php if ($can_import_templates): ?>
@@ -41,191 +53,205 @@
   </div>
 
   <?php if ($this->session->flashdata('success')): ?>
-    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
-      <?php echo esc_view((string) $this->session->flashdata('success'), ENT_QUOTES, 'UTF-8'); ?>
+    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm py-2" role="alert">
+      <?php echo esc_view((string) $this->session->flashdata('success')); ?>
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
   <?php endif; ?>
 
   <?php if ($this->session->flashdata('error')): ?>
-    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
-      <?php echo esc_view((string) $this->session->flashdata('error'), ENT_QUOTES, 'UTF-8'); ?>
+    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm py-2" role="alert">
+      <?php echo esc_view((string) $this->session->flashdata('error')); ?>
       <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
   <?php endif; ?>
 
   <?php if (!empty($import_errors) && is_array($import_errors)): ?>
-    <div class="alert alert-warning py-2 small">
+    <div class="alert alert-warning border-0 shadow-sm py-2 small">
       <div class="fw-semibold mb-1">Import notes</div>
       <ul class="mb-0 ps-3">
         <?php foreach ($import_errors as $err_line): ?>
-          <li><?php echo esc_view((string) $err_line, ENT_QUOTES, 'UTF-8'); ?></li>
+          <li><?php echo esc_view((string) $err_line); ?></li>
         <?php endforeach; ?>
       </ul>
     </div>
   <?php endif; ?>
 
-  <div class="card shadow-sm border-0 oms-form-card">
-    <div class="card-body">
-      <form method="post" action="<?php echo site_url('my-works/template-tasks'); ?>" id="mw-template-task-form" enctype="multipart/form-data">
-        <?php $this->load->view('my_works/_csrf'); ?>
+  <form method="post" action="<?php echo site_url('my-works/template-tasks'); ?>" id="mw-template-task-form" class="defect-form" enctype="multipart/form-data">
+    <?php $this->load->view('my_works/_csrf'); ?>
 
-        <div class="row g-2 oms-form-grid">
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-client">
-              <i class="bi bi-building me-1"></i>Client
-            </label>
-            <?php if (!empty($clients)): ?>
-              <select name="client_id" id="mw-tt-client" class="form-select">
-                <option value="">-- Optional --</option>
-                <?php foreach ($clients as $client): ?>
-                  <option value="<?php echo (int) $client->id; ?>">
-                    <?php echo esc_view((string) $client->company_name, ENT_QUOTES, 'UTF-8'); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            <?php else: ?>
-              <select id="mw-tt-client" class="form-select" disabled>
-                <option>No clients in system</option>
-              </select>
-              <input type="hidden" name="client_id" value="0">
-            <?php endif; ?>
+    <div class="row g-3 defect-form-split">
+      <div class="col-12 col-md-4 defect-form-meta">
+        <aside class="defect-form-panel defect-form-panel--meta h-100">
+          <header class="defect-form-panel-head">
+            <span class="defect-form-panel-icon"><i class="bi bi-sliders"></i></span>
+            <div>
+              <h2 class="defect-form-panel-title">Details</h2>
+              <p class="defect-form-panel-hint mb-0">Project, template &amp; assignment</p>
+            </div>
+          </header>
+
+          <div class="defect-form-group">
+            <div class="defect-form-group-label">Context</div>
+            <div class="vstack gap-2">
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-client">Client</label>
+                <?php if (!empty($clients)): ?>
+                  <select name="client_id" id="mw-tt-client" class="form-select">
+                    <option value="">-- Optional --</option>
+                    <?php foreach ($clients as $client): ?>
+                      <option value="<?php echo (int) $client->id; ?>">
+                        <?php echo esc_view((string) $client->company_name); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                <?php else: ?>
+                  <select id="mw-tt-client" class="form-select" disabled>
+                    <option>No clients in system</option>
+                  </select>
+                  <input type="hidden" name="client_id" value="0">
+                <?php endif; ?>
+              </div>
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-project">Project <span class="text-danger">*</span></label>
+                <?php if (!empty($projects)): ?>
+                  <select name="project_id" id="mw-tt-project" class="form-select" required>
+                    <option value="">-- Select project --</option>
+                    <?php foreach ($projects as $p): ?>
+                      <option value="<?php echo (int) $p->id; ?>"
+                        data-client-id="<?php echo ($projects_have_client && isset($p->client_id)) ? (int) $p->client_id : 0; ?>">
+                        <?php echo esc_view($p->name ? (string) $p->name : ('Project #' . (int) $p->id)); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                  <?php if ($projects_have_client && !empty($clients)): ?>
+                    <div class="form-text">Filters by client when selected</div>
+                  <?php endif; ?>
+                <?php else: ?>
+                  <select id="mw-tt-project" class="form-select" disabled required>
+                    <option>No projects in system</option>
+                  </select>
+                  <input type="hidden" name="project_id" value="0">
+                <?php endif; ?>
+              </div>
+              <div class="defect-field">
+                <label class="form-label">Priority</label>
+                <select name="priority" class="form-select">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-project">
-              <i class="bi bi-folder me-1"></i>Project <span class="text-danger">*</span>
-            </label>
-            <?php if (!empty($projects)): ?>
-              <select name="project_id" id="mw-tt-project" class="form-select" required>
-                <option value="">-- Select project --</option>
-                <?php foreach ($projects as $p): ?>
-                  <option value="<?php echo (int) $p->id; ?>"
-                    data-client-id="<?php echo ($projects_have_client && isset($p->client_id)) ? (int) $p->client_id : 0; ?>">
-                    <?php echo esc_view($p->name ? (string) $p->name : ('Project #' . (int) $p->id), ENT_QUOTES, 'UTF-8'); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-              <?php if ($projects_have_client && !empty($clients)): ?>
-                <div class="form-text">Filters by client when selected</div>
-              <?php endif; ?>
-            <?php else: ?>
-              <select id="mw-tt-project" class="form-select" disabled required>
-                <option>No projects in system</option>
-              </select>
-              <input type="hidden" name="project_id" value="0">
-            <?php endif; ?>
+          <div class="defect-form-group">
+            <div class="defect-form-group-label">Template</div>
+            <div class="vstack gap-2">
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-team">Team <span class="text-danger">*</span></label>
+                <select name="team" id="mw-tt-team" class="form-select" required>
+                  <option value="">-- Select team --</option>
+                  <?php foreach ($teams as $team): ?>
+                    <option value="<?php echo esc_view($team); ?>">
+                      <?php echo esc_view($team); ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-type">Type <span class="text-danger">*</span></label>
+                <select name="template_type" id="mw-tt-type" class="form-select" required disabled>
+                  <option value="">-- Select type --</option>
+                </select>
+              </div>
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-task">Task <span class="text-danger">*</span></label>
+                <select name="template_id" id="mw-tt-task" class="form-select" required disabled>
+                  <option value="">-- Select task --</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div class="col-md-4">
-            <label class="form-label"><i class="bi bi-flag me-1"></i>Priority</label>
-            <select name="priority" class="form-select">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-assign">Assigned To <span class="text-danger">*</span></label>
-            <select name="assigned_to[]" id="mw-tt-assign" class="form-select oms-select2-multi" multiple style="width: 100%;" required>
-              <?php
-                $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
-                foreach ($users as $u):
-                  if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
-                    $label = trim((string) $u->emp_name);
-                  } else {
-                    $label = !empty($u->full_name) ? $u->full_name : (!empty($u->name) ? $u->name : $u->email);
-                  }
-                  $label = trim((string) $label);
-                  if ($label === '') {
-                    $label = !empty($u->email) ? (string) $u->email : ('User #' . (int) $u->id);
-                  }
-                  $uid = (int) $u->id;
-              ?>
-                <option value="<?php echo $uid; ?>" <?php echo $uid === $current_user_id ? 'selected' : ''; ?>><?php echo esc_view($label, ENT_QUOTES, 'UTF-8'); ?></option>
-              <?php endforeach; ?>
-            </select>
-            <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-team">
-              <i class="bi bi-people me-1"></i>Team <span class="text-danger">*</span>
-            </label>
-            <select name="team" id="mw-tt-team" class="form-select" required>
-              <option value="">-- Select team --</option>
-              <?php foreach ($teams as $team): ?>
-                <option value="<?php echo esc_view($team, ENT_QUOTES, 'UTF-8'); ?>">
-                  <?php echo esc_view($team, ENT_QUOTES, 'UTF-8'); ?>
-                </option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-type">
-              <i class="bi bi-tags me-1"></i>Type <span class="text-danger">*</span>
-            </label>
-            <select name="template_type" id="mw-tt-type" class="form-select" required disabled>
-              <option value="">-- Select type --</option>
-            </select>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-task">
-              <i class="bi bi-check2-square me-1"></i>Task <span class="text-danger">*</span>
-            </label>
-            <select name="template_id" id="mw-tt-task" class="form-select" required disabled>
-              <option value="">-- Select task --</option>
-            </select>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label"><i class="bi bi-calendar-check me-1"></i>Due Date</label>
-            <input type="date" name="due_date" class="form-control">
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-estimate-hours">
-              <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
-            </label>
-            <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9" step="1" placeholder="e.g. 2">
-            <div class="form-text">Optional. Single digit 0–9. Auto-filled from catalog when you pick a task; you can override.</div>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label" for="mw-tt-attachment">
-              <i class="bi bi-paperclip me-1"></i>Attachment
-            </label>
-            <?php $this->load->view('my_works/_attachment_field', array(
-              'input_id' => 'mw-tt-attachment',
-              'input_name' => 'attachments[]',
-            )); ?>
+          <div class="defect-form-group">
+            <div class="defect-form-group-label">Schedule &amp; people</div>
+            <div class="vstack gap-2">
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-assign">Assigned To <span class="text-danger">*</span></label>
+                <select name="assigned_to[]" id="mw-tt-assign" class="form-select oms-select2-multi" multiple style="width: 100%;" required>
+                  <?php
+                    $current_user_id = isset($current_user_id) ? (int) $current_user_id : 0;
+                    foreach ($users as $u):
+                      if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
+                        $label = trim((string) $u->emp_name);
+                      } else {
+                        $label = !empty($u->full_name) ? $u->full_name : (!empty($u->name) ? $u->name : $u->email);
+                      }
+                      $label = trim((string) $label);
+                      if ($label === '') {
+                        $label = !empty($u->email) ? (string) $u->email : ('User #' . (int) $u->id);
+                      }
+                      $uid = (int) $u->id;
+                  ?>
+                    <option value="<?php echo $uid; ?>" <?php echo $uid === $current_user_id ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <div class="form-text">Type to search. Click × on a tag to remove that user. First selected is primary.</div>
+              </div>
+              <div class="defect-field">
+                <label class="form-label">Due Date</label>
+                <input type="date" name="due_date" class="form-control">
+              </div>
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-estimate-hours">Estimate (hrs)</label>
+                <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9" step="1" placeholder="e.g. 2">
+                <div class="form-text">Optional. Single digit 0–9. Auto-filled from catalog when you pick a task; you can override.</div>
+              </div>
+              <div class="defect-field">
+                <label class="form-label" for="mw-tt-attachment">Attachment</label>
+                <?php $this->load->view('my_works/_attachment_field', array(
+                  'input_id' => 'mw-tt-attachment',
+                  'input_name' => 'attachments[]',
+                )); ?>
+              </div>
+            </div>
           </div>
 
           <input type="hidden" name="status" value="pending">
+        </aside>
+      </div>
 
-          <div class="col-12">
-            <label class="form-label" for="mw-tt-description">
-              <i class="bi bi-file-text me-1"></i>Description
-            </label>
-            <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new task"></textarea>
-            <div class="form-text">Rich text — bold, italic, colors, lists, and links supported.</div>
+      <div class="col-12 col-md-8 defect-form-main">
+        <section class="defect-form-panel defect-form-panel--main h-100">
+          <header class="defect-form-panel-head">
+            <span class="defect-form-panel-icon defect-form-panel-icon--main"><i class="bi bi-card-text"></i></span>
+            <div>
+              <h2 class="defect-form-panel-title">Description</h2>
+              <p class="defect-form-panel-hint mb-0">Optional details for the new task</p>
+            </div>
+          </header>
+          <div class="vstack gap-3 defect-form-main-body">
+            <div class="defect-field">
+              <label class="form-label" for="mw-tt-description">Description</label>
+              <textarea id="mw-tt-description" name="description" rows="6" class="form-control" placeholder="Optional description for the new task"></textarea>
+              <div class="form-text">Rich text — bold, italic, colors, lists, and links supported.</div>
+            </div>
           </div>
-        </div>
-
-        <div class="oms-form-actions">
-          <button class="btn btn-primary" type="submit">
-            <i class="bi bi-check-lg me-1"></i>Create Task
-          </button>
-          <a class="btn btn-light" href="<?php echo site_url('tasks'); ?>">Cancel</a>
-        </div>
-      </form>
+        </section>
+      </div>
     </div>
-  </div>
-</div>
+
+    <div class="defect-form-actions">
+      <div class="defect-form-actions-inner">
+        <button class="btn btn-primary defect-btn-save" type="submit">
+          <i class="bi bi-check-lg me-1"></i>Create Task
+        </button>
+        <a class="btn btn-light border" href="<?php echo site_url('tasks'); ?>">Cancel</a>
+      </div>
+    </div>
+  </form>
 
 <script>
 (function () {
@@ -566,7 +592,7 @@
 })();
 </script>
 <?php endif; ?>
-
+</div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
 <?php
@@ -575,3 +601,4 @@
     'oms_select2_placeholder' => 'Select assignee(s)…',
   ));
 ?>
+

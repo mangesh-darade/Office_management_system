@@ -839,6 +839,11 @@ class My_works extends CI_Controller
 
             $this->_save_template_task_attachments($id, $user_id, $uploads);
 
+            $this->load->model('Task_model');
+            $this->Task_model->log_activity($id, $user_id, 'created', null, array(
+                'detail' => 'Task created from template',
+            ));
+
             $this->load->helper('change_tracker');
             if (function_exists('auto_log_insert')) {
                 auto_log_insert('tasks', 'tasks', $id, $data, 'Task: ' . (string) $data['title'] . ' (from template)');

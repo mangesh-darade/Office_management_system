@@ -37,7 +37,7 @@
   $redirectBack .= safe_query_suffix();
 
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
-  $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works');
+  $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works?tab=requirements');
 
 ?>
 

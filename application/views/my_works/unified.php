@@ -75,7 +75,7 @@
   $can_clients_tab = function_exists('has_module_access') && (has_module_access('clients_list') || has_module_access('clients_view') || has_module_access('clients'));
   $redirectBack = 'my-works' . safe_query_suffix();
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
-  $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works');
+  $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works?tab=requirements');
   $defectCreateUrl = site_url('defects/create') . '?redirect=' . rawurlencode('my-works?tab=defects');
   $complete_view_on = !empty($complete_view_on);
   $show_complete_toggle = in_array($active_tab, array('project-dashboard', 'team-dashboard'), true);
@@ -327,6 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!tabName || !paneUrl) {
       return;
     }
+    paneUrl = normalizeEmbedPaneUrl(tabName, paneUrl);
     var state = readPersistedState();
     state.activeTab = tabName;
     state.tabs = state.tabs || {};
@@ -342,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (tabName === 'clients' && typeof saved === 'string' && saved.indexOf('clients/dashboard') >= 0) {
         return defaultUrlForTab('clients');
       }
-      return saved;
+      return normalizeEmbedPaneUrl(tabName, saved);
     }
     return '';
   }
@@ -381,6 +382,37 @@ document.addEventListener('DOMContentLoaded', function() {
       'defects': '<?php echo site_url("defects"); ?>'
     };
     return map[tabName] || map.overview;
+  }
+
+  /**
+   * Forms with TinyMCE / full shell CSS must NOT load inside the AJAX embed pane.
+   * Embed skips header/footer assets, so editors and layout drop after refresh.
+   */
+  function isFullPageShellUrl(urlString) {
+    try {
+      var path = new URL(urlString, window.location.origin).pathname.replace(/\/+$/, '');
+      if (/\/requirements\/(create|edit|import|board|calendar)(\/|$)/i.test(path)) {
+        return true;
+      }
+      if (/\/defects\/(create|edit|import)(\/|$)/i.test(path)) {
+        return true;
+      }
+      if (/\/my-works\/(create|quick-add|template-tasks)(\/|$)/i.test(path)) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return /requirements\/(create|edit|import|board|calendar)/i.test(urlString)
+        || /defects\/(create|edit|import)/i.test(urlString)
+        || /my-works\/(create|quick-add|template-tasks)/i.test(urlString);
+    }
+  }
+
+  function normalizeEmbedPaneUrl(tabName, urlString) {
+    if (!urlString || isFullPageShellUrl(urlString)) {
+      return defaultUrlForTab(tabName);
+    }
+    return urlString;
   }
 
   function applyParentFiltersToUrl(urlString) {
@@ -614,8 +646,15 @@ document.addEventListener('DOMContentLoaded', function() {
     var tabName = ($pane.attr('id') || '').replace(/^pane-/, '') || getActiveUnifiedTab();
     var resolvedUrl = url;
 
+    // TinyMCE / form pages need full document shell — never AJAX-embed them.
+    if (upperMethod === 'GET' && isFullPageShellUrl(resolvedUrl)) {
+      window.location.href = resolvedUrl;
+      return;
+    }
+
     if (upperMethod === 'GET') {
       resolvedUrl = forceTabViewParams(mergeQueryIntoUrl(url, data || {}), tabName);
+      resolvedUrl = normalizeEmbedPaneUrl(tabName, resolvedUrl);
       $pane.data('last-loaded-url', resolvedUrl);
       saveTabPaneUrl(tabName, resolvedUrl);
       syncParentUrlFromPane(tabName, resolvedUrl);
@@ -749,6 +788,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             href.indexOf('requirements') >= 0 ||
                             href.indexOf('defects') >= 0 ||
                             href.indexOf('daily-pulse') >= 0;
+
+      // Create/edit/import need full page (TinyMCE + CSS). Do not AJAX into the tab.
+      if (isFullPageShellUrl(href)) {
+        return;
+      }
                             
       if (isDashboardLink) {
         e.preventDefault();
