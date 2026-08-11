@@ -474,9 +474,30 @@ class Clients extends CI_Controller {
             }
         }
 
+        $defects_by_project = array();
+        if ($this->db->table_exists('project_defects') && !empty($all_project_ids)) {
+            $this->db->select('d.id, d.project_id');
+            $this->db->from('project_defects d');
+            $this->db->where_in('d.project_id', $all_project_ids);
+            if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
+                $this->db->group_start();
+                $this->db->where('d.is_deleted', 0);
+                $this->db->or_where('d.is_deleted IS NULL', null, false);
+                $this->db->group_end();
+            }
+            foreach ($this->db->get()->result() as $defect) {
+                $pid = (int) $defect->project_id;
+                if (!isset($defects_by_project[$pid])) {
+                    $defects_by_project[$pid] = 0;
+                }
+                $defects_by_project[$pid]++;
+            }
+        }
+
         $client_cards = array();
         $total_projects = 0;
         $total_tasks = 0;
+        $total_defects = 0;
         foreach ($client_rows as $c) {
             $cid = (int) $c->id;
             $projects = isset($projects_by_client[$cid]) ? $projects_by_client[$cid] : array();
@@ -486,10 +507,12 @@ class Clients extends CI_Controller {
             }
             $project_sections = array();
             $client_task_count = 0;
+            $client_defect_count = 0;
             foreach ($projects as $project) {
                 $pid = (int) $project->id;
                 $tasks = isset($tasks_by_project[$pid]) ? $tasks_by_project[$pid] : array();
                 $client_task_count += count($tasks);
+                $client_defect_count += isset($defects_by_project[$pid]) ? (int) $defects_by_project[$pid] : 0;
                 $project_sections[] = array(
                     'project' => $project,
                     'tasks'   => $tasks,
@@ -497,11 +520,13 @@ class Clients extends CI_Controller {
             }
             $total_projects += count($project_sections);
             $total_tasks += $client_task_count;
+            $total_defects += $client_defect_count;
             $client_cards[] = array(
                 'client'        => $c,
                 'projects'      => $project_sections,
                 'project_count' => count($project_sections),
                 'task_count'    => $client_task_count,
+                'defect_count'  => $client_defect_count,
             );
         }
 
@@ -535,6 +560,7 @@ class Clients extends CI_Controller {
             'client_cards'       => $client_cards,
             'total_projects'     => $total_projects,
             'total_tasks'        => $total_tasks,
+            'total_defects'      => $total_defects,
             'filters'            => array(
                 'status'      => $status,
                 'client_type' => $client_type,

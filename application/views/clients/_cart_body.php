@@ -2,6 +2,7 @@
 $client_cards = isset($client_cards) && is_array($client_cards) ? $client_cards : array();
 $total_projects = isset($total_projects) ? (int) $total_projects : 0;
 $total_tasks = isset($total_tasks) ? (int) $total_tasks : 0;
+$total_defects = isset($total_defects) ? (int) $total_defects : 0;
 
 $assignee_label = function ($task) {
     if (isset($task->assignee_name) && trim((string) $task->assignee_name) !== '') {
@@ -46,6 +47,10 @@ $status_badge = function ($status) {
     <div class="project-dash-stat-label">Tasks</div>
     <div class="project-dash-stat-value"><?php echo (int) $total_tasks; ?></div>
   </div>
+  <div class="project-dash-stat">
+    <div class="project-dash-stat-label">Defects</div>
+    <div class="project-dash-stat-value"><?php echo (int) $total_defects; ?></div>
+  </div>
 </div>
 
 <?php if (empty($client_cards)): ?>
@@ -65,6 +70,7 @@ $status_badge = function ($status) {
       $projects = isset($card['projects']) ? $card['projects'] : array();
       $pc = (int) $card['project_count'];
       $tc = (int) $card['task_count'];
+      $dc = isset($card['defect_count']) ? (int) $card['defect_count'] : 0;
     ?>
     <div class="col-12 col-md-6 col-lg-4 project-dash-grid-col"
          data-client-search="<?php echo esc_view(strtolower(trim(
@@ -86,6 +92,7 @@ $status_badge = function ($status) {
             <div class="client-dash-card-counts">
               <span title="Projects"><?php echo $pc; ?>p</span>
               <span title="Tasks"><?php echo $tc; ?>t</span>
+              <span title="Defects"><?php echo $dc; ?>d</span>
             </div>
           </div>
 
