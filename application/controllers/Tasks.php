@@ -165,6 +165,10 @@ class Tasks extends CI_Controller {
 
             $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
             $primary_assignee = multi_assignees_primary($assignee_ids);
+            if ($primary_assignee === null || (int) $primary_assignee < 1) {
+                $primary_assignee = $user_id;
+                $assignee_ids = array($user_id);
+            }
 
             $data = [
                 'project_id'  => $project_id,
@@ -998,6 +1002,12 @@ class Tasks extends CI_Controller {
             $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
         }
 
+        $this->load->helper('my_works_form');
+        $dash_clients = my_works_clients_for_dropdown($this->db);
+        $dash_projects = my_works_projects_for_dropdown($this->db);
+        $can_add_task = function_exists('has_module_access')
+            && (has_module_access('tasks_add') || has_module_access('tasks'));
+
         $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
 
         $type_counts = array(
@@ -1091,10 +1101,152 @@ class Tasks extends CI_Controller {
             'filter_status'     => $filter_status,
             'filter_projects'   => $filter_projects,
             'filter_users'      => $filter_users,
+            'dash_clients'      => $dash_clients,
+            'dash_projects'     => $dash_projects,
+            'can_add_task'      => $can_add_task,
             'complete_view'     => $complete_view,
             'complete_view_on'  => ($complete_view === 'only'),
             'embed'             => (bool) $this->input->get('embed'),
         ));
+    }
+
+    /**
+     * POST /tasks/ajax-dashboard-create-task — Team dashboard inline task create.
+     */
+    public function ajax_dashboard_create_task()
+    {
+        if (!$this->input->is_ajax_request() || $this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+
+        if (!has_module_access('tasks_add') && !has_module_access('tasks')) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Permission denied.')));
+        }
+
+        $user_id = (int) $this->session->userdata('user_id');
+        if ($user_id < 1) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Not authenticated.')));
+        }
+
+        $title = trim((string) $this->input->post('title'));
+        if ($title === '') {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Title is required.')));
+        }
+
+        $client_id = (int) $this->input->post('client_id');
+        $project_id = (int) $this->input->post('project_id');
+
+        if ($project_id > 0) {
+            if (!$this->db->table_exists('projects')) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid project.')));
+            }
+            $project = $this->db->where('id', $project_id)->get('projects')->row();
+            if (!$project) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid project.')));
+            }
+            if ($client_id > 0
+                && schema_table_has_column($this->db, 'projects', 'client_id')
+                && (int) $project->client_id !== $client_id) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Project does not belong to the selected client.')));
+            }
+        } elseif ($client_id > 0) {
+            if (!$this->db->table_exists('clients') || !$this->db->where('id', $client_id)->get('clients')->row()) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid client.')));
+            }
+        }
+
+        $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
+        $primary_assignee = multi_assignees_primary($assignee_ids);
+        if ($primary_assignee === null || (int) $primary_assignee < 1) {
+            $primary_assignee = $user_id;
+            $assignee_ids = array($user_id);
+        }
+
+        $task_fields = $this->db->list_fields('tasks');
+        $data = array(
+            'project_id'  => $project_id > 0 ? $project_id : 0,
+            'title'       => $title,
+            'assigned_to' => $primary_assignee,
+            'status'      => 'pending',
+            'created_by'  => $user_id,
+        );
+        if (in_array('priority', $task_fields, true)) {
+            $data['priority'] = 'medium';
+        }
+        if ($project_id > 0 && in_array('project_ids', $task_fields, true)) {
+            $data['project_ids'] = json_encode(array($project_id));
+        }
+
+        $this->db->insert('tasks', $data);
+        $id = (int) $this->db->insert_id();
+        if ($id < 1) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Failed to create task.')));
+        }
+
+        multi_assignees_sync('task_assignees', 'task_id', $id, $assignee_ids);
+
+        $client_name = '';
+        $project_name = '';
+        if ($project_id > 0 && $this->db->table_exists('projects')) {
+            $p_row = $this->db->select('name' . (schema_table_has_column($this->db, 'projects', 'client_id') ? ', client_id' : ''))
+                ->where('id', $project_id)->get('projects')->row();
+            if ($p_row) {
+                $project_name = isset($p_row->name) ? (string) $p_row->name : '';
+                if ($client_id < 1 && isset($p_row->client_id)) {
+                    $client_id = (int) $p_row->client_id;
+                }
+            }
+        }
+        if ($client_id > 0 && $this->db->table_exists('clients')
+            && schema_table_has_column($this->db, 'clients', 'company_name')) {
+            $c_row = $this->db->select('company_name')->where('id', $client_id)->get('clients')->row();
+            if ($c_row) {
+                $client_name = (string) $c_row->company_name;
+            }
+        }
+
+        $status_code = 'pending';
+        $status_label = 'Pending';
+        $status_color = '#6b7280';
+        $this->load->model('Status_model', 'statuses');
+        $pending_status = $this->statuses->get_by_code($status_code, 'tasks');
+        if ($pending_status) {
+            if (!empty($pending_status->name)) {
+                $status_label = (string) $pending_status->name;
+            }
+            if (!empty($pending_status->color)) {
+                $status_color = (string) $pending_status->color;
+            }
+        }
+
+        return $this->output->set_content_type('application/json')
+            ->set_output(json_encode(array(
+                'success' => true,
+                'data' => array(
+                    'id' => $id,
+                    'title' => $title,
+                    'status' => $status_code,
+                    'status_label' => $status_label,
+                    'status_color' => $status_color,
+                    'client_name' => $client_name,
+                    'project_name' => $project_name,
+                    'client_id' => $client_id,
+                    'project_id' => $project_id,
+                    'url' => site_url('tasks/' . $id),
+                    'item_type' => $project_id > 0 ? 'project_task' : 'ad_hoc',
+                    'item_source' => 'tasks',
+                    'status_scope' => 'task',
+                ),
+            )));
     }
 
     public function ajax_update_item_status()
@@ -1518,6 +1670,11 @@ class Tasks extends CI_Controller {
             $actual_hours = $t->actual_hours;
         }
 
+        $client_name = !empty($t->client_name) ? trim((string) $t->client_name) : '';
+        $project_name = !empty($t->project_name) ? trim((string) $t->project_name) : '';
+        $client_id = isset($t->client_id) ? (int) $t->client_id : 0;
+        $project_id = isset($t->project_id) ? (int) $t->project_id : 0;
+
         return array(
             'item_type'     => $item_type,
             'item_source'   => $item_source,
@@ -1532,6 +1689,10 @@ class Tasks extends CI_Controller {
             'actual_hours'  => $actual_hours,
             'url'           => $url,
             'detail'        => $detail,
+            'client_name'   => $client_name,
+            'project_name'  => $project_name,
+            'client_id'     => $client_id,
+            'project_id'    => $project_id,
         );
     }
 
@@ -1621,6 +1782,11 @@ class Tasks extends CI_Controller {
             if ($this->db->table_exists('projects') && schema_table_has_column($this->db, 'projects', 'name')) {
                 $select[] = 'p.name AS project_name';
                 $this->db->join('projects p', 'p.id = t.project_id', 'left');
+                if ($this->db->table_exists('clients') && schema_table_has_column($this->db, 'projects', 'client_id')) {
+                    $select[] = 'p.client_id AS client_id';
+                    $select[] = 'cl.company_name AS client_name';
+                    $this->db->join('clients cl', 'cl.id = p.client_id', 'left');
+                }
             }
 
             if ($can_view_all) {
@@ -1723,6 +1889,11 @@ class Tasks extends CI_Controller {
                 $select[] = 'p.name AS project_name';
                 if (schema_table_has_column($this->db, 'requirements', 'project_id')) {
                     $this->db->join('projects p', 'p.id = r.project_id', 'left');
+                    if ($this->db->table_exists('clients') && schema_table_has_column($this->db, 'projects', 'client_id')) {
+                        $select[] = 'p.client_id AS client_id';
+                        $select[] = 'cl.company_name AS client_name';
+                        $this->db->join('clients cl', 'cl.id = p.client_id', 'left');
+                    }
                 }
             }
 
@@ -1836,6 +2007,11 @@ class Tasks extends CI_Controller {
                 && schema_table_has_column($this->db, 'my_works', 'project_id')) {
                 $select[] = 'p.name AS project_name';
                 $this->db->join('projects p', 'p.id = m.project_id', 'left');
+                if ($this->db->table_exists('clients') && schema_table_has_column($this->db, 'projects', 'client_id')) {
+                    $select[] = 'p.client_id AS client_id';
+                    $select[] = 'cl.company_name AS client_name';
+                    $this->db->join('clients cl', 'cl.id = p.client_id', 'left');
+                }
             }
 
             if ($can_view_all) {

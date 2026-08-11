@@ -1031,7 +1031,7 @@
   border-radius: 6px;
 }
 
-/* 4-column team tables: Task | Date | Est | Status — give Status room */
+/* Team tables: Task | Client | Project | Date | Est | [Act] | Status */
 .team-dash-index .project-dash-task-table {
   table-layout: fixed;
   border: none;
@@ -1046,16 +1046,39 @@
   border-top: none;
 }
 
-.team-dash-index .project-dash-task-table thead th:nth-child(1) { width: 42%; }
-.team-dash-index .project-dash-task-table thead th:nth-child(2) { width: 14%; }
-.team-dash-index .project-dash-task-table thead th:nth-child(3) { width: 12%; }
-.team-dash-index .project-dash-task-table thead th:nth-child(4) { width: 32%; }
-.team-dash-index .project-dash-task-table thead th:nth-child(5) { width: auto; }
+.team-dash-index .project-dash-task-table thead th:nth-child(1) { width: 28%; }
+.team-dash-index .project-dash-task-table thead th:nth-child(2) { width: 16%; }
+.team-dash-index .project-dash-task-table thead th:nth-child(3) { width: 16%; }
+.team-dash-index .project-dash-task-table thead th:nth-child(4) { width: 10%; }
+.team-dash-index .project-dash-task-table thead th:nth-child(5) { width: 8%; }
+.team-dash-index .project-dash-task-table thead th:nth-child(6) { width: 22%; }
+.team-dash-index .project-dash-task-table thead th:nth-child(7) { width: auto; }
 
 .team-dash-index .project-dash-task-table tbody td {
   padding: 0.2rem 0.4rem;
   border-left: none;
   border-right: none;
+}
+
+.team-dash-index .team-dash-client,
+.team-dash-index .team-dash-project {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  max-width: 100%;
+}
+
+.team-dash-index .team-dash-add-bar {
+  padding: 0 0.15rem;
+}
+
+.team-dash-index .team-dash-inline-row .form-control,
+.team-dash-index .team-dash-inline-row .form-select {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.35rem;
+  min-height: 1.55rem;
 }
 
 .team-dash-index .project-dash-task-title {

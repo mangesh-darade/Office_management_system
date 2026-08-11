@@ -18,6 +18,9 @@ $team_dash_status_options = isset($team_dash_status_options) ? $team_dash_status
     'requirement' => $requirement_status_rows,
 );
 $complete_view_on = !empty($complete_view_on);
+$can_add_task = !empty($can_add_task);
+$dash_clients = isset($dash_clients) && is_array($dash_clients) ? $dash_clients : array();
+$dash_projects = isset($dash_projects) && is_array($dash_projects) ? $dash_projects : array();
 $empty_message = 'No tasks, requirements, Second Brain items, or ad hoc items found for your team.';
 
 $embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
@@ -304,20 +307,29 @@ if (!$embed) {
   </div>
 <?php else: ?>
   <?php
-  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options, $complete_view_on) {
-      if (empty($section_items)) {
-          echo '<div class="project-dash-section-empty"><span>No items</span></div>';
-          return;
-      }
-
+  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options, $complete_view_on, $can_add_task) {
       $table_id = isset($options['table_id']) ? (string) $options['table_id'] : '';
       $table_class = isset($options['table_class']) ? (string) $options['table_class'] : 'table table-sm project-dash-task-table mb-0';
       $is_full = !empty($options['full_width']);
       $show_act = !empty($complete_view_on);
+      $allow_add = $can_add_task && !empty($options['allow_add']);
 
-      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . '">';
+      if (empty($section_items) && !$allow_add) {
+          echo '<div class="project-dash-section-empty"><span>No items</span></div>';
+          return;
+      }
+
+      if ($allow_add) {
+          echo '<div class="team-dash-add-bar d-flex justify-content-end mb-1">';
+          echo '<button type="button" class="btn btn-outline-primary btn-sm team-dash-add-btn" title="Add task" aria-label="Add task"><i class="bi bi-plus-lg"></i></button>';
+          echo '</div>';
+      }
+
+      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . ' team-dash-items-table" data-can-add="' . ($allow_add ? '1' : '0') . '">';
       echo '<thead><tr>';
       echo '<th>Task</th>';
+      echo '<th>Client</th>';
+      echo '<th>Project</th>';
       echo '<th>Date</th>';
       echo '<th class="text-end">Est</th>';
       if ($show_act) {
@@ -344,6 +356,8 @@ if (!$embed) {
           $item_title = isset($item['title']) ? (string) $item['title'] : '';
           $item_url = isset($item['url']) ? (string) $item['url'] : '#';
           $item_detail = isset($item['detail']) ? trim((string) $item['detail']) : '';
+          $item_client = isset($item['client_name']) ? trim((string) $item['client_name']) : '';
+          $item_project = isset($item['project_name']) ? trim((string) $item['project_name']) : '';
           $item_est = estimate_hours_row(isset($item['estimate_hours']) ? $item['estimate_hours'] : null);
           $item_act = $show_act
               ? estimate_hours_row(isset($item['actual_hours']) ? $item['actual_hours'] : null)
@@ -365,6 +379,8 @@ if (!$embed) {
                 <?php echo esc_view($item_title); ?>
               </a>
             </td>
+            <td><span class="team-dash-client text-muted" title="<?php echo esc_view($item_client !== '' ? $item_client : '—', ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_client !== '' ? $item_client : '—'); ?></span></td>
+            <td><span class="team-dash-project text-muted" title="<?php echo esc_view($item_project !== '' ? $item_project : '—', ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_project !== '' ? $item_project : '—'); ?></span></td>
             <td>
               <span class="project-dash-date" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
             </td>
@@ -410,7 +426,7 @@ if (!$embed) {
       $focus_item_count = count($items);
     ?>
     <div class="table-responsive bg-white border shadow-sm team-dash-focus-table-wrap">
-      <?php if (empty($items)): ?>
+      <?php if (empty($items) && !$can_add_task): ?>
         <div class="text-center py-3 text-muted small">
           <i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;"></i>
           No items found for this employee.
@@ -420,6 +436,7 @@ if (!$embed) {
           'table_id'    => 'unifiedEmployeeTasksTable',
           'table_class' => 'table table-hover table-striped datatable sortable-table align-middle mb-0',
           'full_width'  => true,
+          'allow_add'   => true,
         )); ?>
       <?php endif; ?>
     </div>
@@ -437,10 +454,17 @@ if (!$embed) {
               if (!empty($it['title'])) {
                   $team_search_bits[] = strtolower((string) $it['title']);
               }
+              if (!empty($it['client_name'])) {
+                  $team_search_bits[] = strtolower((string) $it['client_name']);
+              }
+              if (!empty($it['project_name'])) {
+                  $team_search_bits[] = strtolower((string) $it['project_name']);
+              }
           }
           $team_search_hay = implode(' ', $team_search_bits);
+          $card_assignee_id = ($group_mode === 'employee' && $entity && isset($entity->id)) ? (int) $entity->id : 0;
         ?>
-        <div class="<?php echo esc_view($grid_col_class); ?>" data-team-search="<?php echo esc_view($team_search_hay, ENT_QUOTES, 'UTF-8'); ?>">
+        <div class="<?php echo esc_view($grid_col_class); ?>" data-team-search="<?php echo esc_view($team_search_hay, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $card_assignee_id > 0 ? ' data-assignee-id="' . $card_assignee_id . '"' : ''; ?>>
           <div class="card project-dash-card">
             <div class="card-body">
               <div class="project-dash-head">
@@ -481,7 +505,7 @@ if (!$embed) {
                   <?php endif; ?>
               </div>
 
-              <?php if (empty($items)): ?>
+              <?php if (empty($items) && !$can_add_task): ?>
                 <div class="project-dash-task-list">
                   <div class="project-dash-empty">
                     <i class="bi bi-inbox"></i>
@@ -490,7 +514,7 @@ if (!$embed) {
                 </div>
               <?php else: ?>
                 <div class="project-dash-task-list project-dash-task-list-section">
-                  <?php $render_team_dash_items_table($items); ?>
+                  <?php $render_team_dash_items_table($items, array('allow_add' => true)); ?>
                 </div>
               <?php endif; ?>
             </div>
@@ -501,6 +525,40 @@ if (!$embed) {
   <?php endif; ?>
 <?php endif; ?>
 </div>
+<?php if ($can_add_task): ?>
+<template id="teamDashInlineRowTpl">
+<tr class="team-dash-inline-row project-dash-task-row">
+  <td><input type="text" class="form-control form-control-sm team-dash-inline-title" maxlength="500" placeholder="Title" aria-label="Task title"></td>
+  <td>
+    <select class="form-select form-select-sm team-dash-inline-client" aria-label="Client">
+      <option value="">Client</option>
+      <?php foreach ($dash_clients as $cl): ?>
+        <option value="<?php echo (int) $cl->id; ?>"><?php echo esc_view(isset($cl->company_name) ? $cl->company_name : ''); ?></option>
+      <?php endforeach; ?>
+    </select>
+  </td>
+  <td>
+    <select class="form-select form-select-sm team-dash-inline-project" aria-label="Project">
+      <option value="">Project</option>
+      <?php foreach ($dash_projects as $pr): ?>
+        <option value="<?php echo (int) $pr->id; ?>" data-client-id="<?php echo isset($pr->client_id) ? (int) $pr->client_id : 0; ?>"><?php echo esc_view(isset($pr->name) ? $pr->name : ''); ?></option>
+      <?php endforeach; ?>
+    </select>
+  </td>
+  <td><span class="project-dash-date text-muted">—</span></td>
+  <td class="text-end text-nowrap project-dash-est text-muted">—</td>
+  <?php if ($complete_view_on): ?>
+  <td class="text-end text-nowrap project-dash-act text-muted">—</td>
+  <?php endif; ?>
+  <td class="text-nowrap">
+    <div class="d-flex align-items-center gap-1 justify-content-between">
+      <span class="text-muted small team-dash-inline-hint">Auto-saves</span>
+      <button type="button" class="btn btn-outline-secondary btn-sm team-dash-inline-cancel" title="Cancel" aria-label="Cancel"><i class="bi bi-x-lg"></i></button>
+    </div>
+  </td>
+</tr>
+</template>
+<?php endif; ?>
 <script>
 (function () {
   var completeToggle = document.getElementById('teamDashCompleteToggle');
@@ -545,6 +603,320 @@ if (!$embed) {
       if (e.key === 'Enter') {
         e.preventDefault();
       }
+    });
+  }
+
+  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+  var createUrl = <?php echo json_encode(site_url('tasks/ajax-dashboard-create-task')); ?>;
+  var focusAssigneeId = <?php echo (int) $filter_user_id; ?>;
+  var showAct = <?php echo $complete_view_on ? 'true' : 'false'; ?>;
+  var canAddTask = <?php echo $can_add_task ? 'true' : 'false'; ?>;
+  <?php
+  $team_dash_status_js = array();
+  foreach ($team_dash_status_options as $scope_key => $scope_rows) {
+      $team_dash_status_js[$scope_key] = array();
+      if (!is_array($scope_rows)) {
+          continue;
+      }
+      foreach ($scope_rows as $sr) {
+          if (!is_object($sr) || !isset($sr->code)) {
+              continue;
+          }
+          $team_dash_status_js[$scope_key][] = array(
+              'code'  => (string) $sr->code,
+              'name'  => isset($sr->name) ? (string) $sr->name : (string) $sr->code,
+              'color' => isset($sr->color) && (string) $sr->color !== '' ? (string) $sr->color : '#6b7280',
+          );
+      }
+  }
+  if (empty($team_dash_status_js['task'])) {
+      $team_dash_status_js['task'] = array(
+          array('code' => 'pending', 'name' => 'Pending', 'color' => '#6c757d'),
+          array('code' => 'in_progress', 'name' => 'In Progress', 'color' => '#007bff'),
+          array('code' => 'completed', 'name' => 'Completed', 'color' => '#28a745'),
+          array('code' => 'blocked', 'name' => 'Blocked', 'color' => '#dc3545'),
+      );
+  }
+  ?>
+  var teamDashStatusOptions = <?php echo json_encode($team_dash_status_js); ?>;
+
+  function filterProjectOptions(projectSelect, clientId) {
+    if (!projectSelect) {
+      return;
+    }
+    var cid = parseInt(clientId, 10) || 0;
+    var options = projectSelect.querySelectorAll('option');
+    var keepVal = '';
+    options.forEach(function (opt) {
+      if (!opt.value) {
+        opt.hidden = false;
+        return;
+      }
+      var optClient = parseInt(opt.getAttribute('data-client-id') || '0', 10) || 0;
+      var show = (cid < 1) || (optClient === cid) || (optClient === 0);
+      opt.hidden = !show;
+      if (show && opt.value === projectSelect.value) {
+        keepVal = opt.value;
+      }
+    });
+    projectSelect.value = keepVal;
+  }
+
+  function escapeHtml(text) {
+    return $('<div>').text(text == null ? '' : String(text)).html();
+  }
+
+  function statusOptionsForScope(scope) {
+    var key = scope || 'task';
+    if (teamDashStatusOptions[key] && teamDashStatusOptions[key].length) {
+      return teamDashStatusOptions[key];
+    }
+    return teamDashStatusOptions.task || [];
+  }
+
+  function buildSavedRowHtml(data) {
+    var status = data.status || 'pending';
+    var scope = data.status_scope || 'task';
+    var statusOpts = statusOptionsForScope(scope);
+    var color = data.status_color || '#6b7280';
+    var label = data.status_label || 'Pending';
+    var matched = false;
+    statusOpts.forEach(function (opt) {
+      if (opt.code === status) {
+        matched = true;
+        if (!data.status_color && opt.color) {
+          color = opt.color;
+        }
+        if (!data.status_label && opt.name) {
+          label = opt.name;
+        }
+      }
+    });
+    var bg = color + '14';
+    var title = data.title || '';
+    var url = data.url || '#';
+    var client = data.client_name || '—';
+    var project = data.project_name || '—';
+    var html = '<tr class="project-dash-task-row project-dash-task-row-' + escapeHtml(status) + '" style="--pd-row-status-color:' + escapeHtml(color) + ';background:' + escapeHtml(bg) + ';">';
+    html += '<td><a href="' + escapeHtml(url) + '" class="project-dash-task-title" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</a></td>';
+    html += '<td><span class="team-dash-client text-muted" title="' + escapeHtml(client) + '">' + escapeHtml(client) + '</span></td>';
+    html += '<td><span class="team-dash-project text-muted" title="' + escapeHtml(project) + '">' + escapeHtml(project) + '</span></td>';
+    html += '<td><span class="project-dash-date">—</span></td>';
+    html += '<td class="text-end text-nowrap project-dash-est">—</td>';
+    if (showAct) {
+      html += '<td class="text-end text-nowrap project-dash-act">—</td>';
+    }
+    html += '<td><select class="form-select form-select-sm project-dash-status-select"';
+    html += ' data-item-id="' + (data.id || 0) + '"';
+    html += ' data-item-type="' + escapeHtml(data.item_type || 'project_task') + '"';
+    html += ' data-item-source="' + escapeHtml(data.item_source || 'tasks') + '"';
+    html += ' data-estimate-hours="" data-actual-hours="" data-prev-status="' + escapeHtml(status) + '"';
+    html += ' style="color:' + escapeHtml(color) + ';background-color:' + escapeHtml(color) + '1a;border-color:' + escapeHtml(color) + '40;"';
+    html += ' title="' + escapeHtml(label) + '">';
+    if (!matched) {
+      html += '<option value="' + escapeHtml(status) + '" selected data-color="' + escapeHtml(color) + '">' + escapeHtml(label) + '</option>';
+    }
+    statusOpts.forEach(function (opt) {
+      html += '<option value="' + escapeHtml(opt.code) + '" data-color="' + escapeHtml(opt.color || '#6b7280') + '"' + (opt.code === status ? ' selected' : '') + '>' + escapeHtml(opt.name) + '</option>';
+    });
+    html += '</select></td></tr>';
+    return html;
+  }
+
+  function destroyTeamDashDataTable($table) {
+    if (!$table || !$table.length) {
+      return false;
+    }
+    var tbl = $table[0];
+    var wasDt = false;
+    try {
+      if ($.fn.dataTable && $.fn.dataTable.isDataTable && $.fn.dataTable.isDataTable(tbl)) {
+        $table.DataTable().destroy();
+        wasDt = true;
+      }
+    } catch (e) {}
+    tbl.classList.remove('dataTable');
+    delete tbl.dataset.dtInited;
+    $table.find('tbody tr td.dataTables_empty').closest('tr').remove();
+    return wasDt || $table.hasClass('datatable') || $table.hasClass('sortable-table');
+  }
+
+  function initTeamDashDataTable($table) {
+    if (!$table || !$table.length || !window.DataTable) {
+      return;
+    }
+    var tbl = $table[0];
+    if (tbl.dataset.dtInited === '1' || tbl.classList.contains('dataTable')) {
+      return;
+    }
+    if (!$table.hasClass('datatable') && !$table.hasClass('sortable-table')) {
+      return;
+    }
+    try {
+      new DataTable(tbl);
+      tbl.dataset.dtInited = '1';
+    } catch (e) {}
+  }
+
+  function bumpTeamDashCounts($table, delta) {
+    delta = parseInt(delta, 10) || 0;
+    if (!delta) {
+      return;
+    }
+    var $badge = $('.mw-focus-screen-head .badge').first();
+    if ($badge.length) {
+      var n = (parseInt($badge.text(), 10) || 0) + delta;
+      if (n < 0) {
+        n = 0;
+      }
+      $badge.text(n + ' item' + (n === 1 ? '' : 's'));
+    }
+    var $card = $table.closest('.project-dash-card');
+    var $count = $card.find('.project-dash-count').first();
+    if ($count.length) {
+      var c = (parseInt($count.text(), 10) || 0) + delta;
+      if (c < 0) {
+        c = 0;
+      }
+      $count.text(c);
+      $count.toggleClass('is-zero', c < 1);
+      $count.attr('title', c + ' item(s)');
+    }
+  }
+
+  if (canAddTask) {
+    $(document).on('click', '.team-dash-add-btn', function () {
+      var $wrap = $(this).closest('.team-dash-add-bar').parent();
+      var $table = $wrap.find('table.team-dash-items-table').first();
+      if (!$table.length) {
+        $table = $(this).closest('.project-dash-card, .team-dash-focus-table-wrap').find('table.team-dash-items-table').first();
+      }
+      var tpl = document.getElementById('teamDashInlineRowTpl');
+      if (!$table.length || !tpl || !tpl.content) {
+        return;
+      }
+      if ($table.find('tbody .team-dash-inline-row').length) {
+        $table.find('.team-dash-inline-title').first().focus();
+        return;
+      }
+      destroyTeamDashDataTable($table);
+      var row = tpl.content.firstElementChild.cloneNode(true);
+      var $col = $(this).closest('[data-assignee-id]');
+      if ($col.length) {
+        row.setAttribute('data-assignee-id', $col.attr('data-assignee-id') || '');
+      } else if (focusAssigneeId > 0) {
+        row.setAttribute('data-assignee-id', String(focusAssigneeId));
+      }
+      $table.find('tbody').prepend(row);
+      $(row).find('.team-dash-inline-title').focus();
+    });
+
+    $(document).on('change', '.team-dash-inline-client', function () {
+      var $row = $(this).closest('tr');
+      filterProjectOptions($row.find('.team-dash-inline-project')[0], $(this).val());
+    });
+
+    $(document).on('mousedown', '.team-dash-inline-cancel', function () {
+      $(this).closest('tr.team-dash-inline-row').attr('data-cancel', '1');
+    });
+
+    $(document).on('click', '.team-dash-inline-cancel', function () {
+      var $row = $(this).closest('tr.team-dash-inline-row');
+      var $table = $row.closest('table');
+      $row.remove();
+      initTeamDashDataTable($table);
+    });
+
+    function saveInlineRow($row, opts) {
+      opts = opts || {};
+      if (!$row || !$row.length || !$row.hasClass('team-dash-inline-row')) {
+        return;
+      }
+      if ($row.attr('data-saving') === '1' || $row.attr('data-cancel') === '1') {
+        return;
+      }
+      var title = String($row.find('.team-dash-inline-title').val() || '').trim();
+      if (!title) {
+        if (opts.quiet) {
+          var $tableEmpty = $row.closest('table');
+          $row.remove();
+          initTeamDashDataTable($tableEmpty);
+          return;
+        }
+        $row.find('.team-dash-inline-title').focus();
+        return;
+      }
+      var payload = {
+        title: title,
+        client_id: $row.find('.team-dash-inline-client').val() || '',
+        project_id: $row.find('.team-dash-inline-project').val() || ''
+      };
+      var assignee = parseInt($row.attr('data-assignee-id') || '0', 10) || 0;
+      if (assignee > 0) {
+        payload.assigned_to = assignee;
+      }
+      payload[csrfName] = csrfHash;
+      $row.attr('data-saving', '1');
+      $row.find('.team-dash-inline-title, .team-dash-inline-client, .team-dash-inline-project, .team-dash-inline-cancel').prop('disabled', true);
+      $.ajax({
+        url: createUrl,
+        type: 'POST',
+        dataType: 'json',
+        data: payload,
+        success: function (response) {
+          if (!response || !response.success) {
+            alert((response && response.error) ? response.error : 'Failed to create task.');
+            $row.removeAttr('data-saving');
+            $row.find('.team-dash-inline-title, .team-dash-inline-client, .team-dash-inline-project, .team-dash-inline-cancel').prop('disabled', false);
+            return;
+          }
+          if (response.data) {
+            var $table = $row.closest('table');
+            destroyTeamDashDataTable($table);
+            $row.replaceWith(buildSavedRowHtml(response.data));
+            bumpTeamDashCounts($table, 1);
+            initTeamDashDataTable($table);
+          } else {
+            window.location.reload();
+          }
+        },
+        error: function () {
+          alert('An error occurred while creating the task.');
+          $row.removeAttr('data-saving');
+          $row.find('.team-dash-inline-title, .team-dash-inline-client, .team-dash-inline-project, .team-dash-inline-cancel').prop('disabled', false);
+        }
+      });
+    }
+
+    $(document).on('keydown', '.team-dash-inline-title', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveInlineRow($(this).closest('tr.team-dash-inline-row'));
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        var $row = $(this).closest('tr.team-dash-inline-row');
+        $row.attr('data-cancel', '1');
+        var $table = $row.closest('table');
+        $row.remove();
+        initTeamDashDataTable($table);
+      }
+    });
+
+    $(document).on('focusout', 'tr.team-dash-inline-row', function () {
+      var $row = $(this);
+      setTimeout(function () {
+        if (!$row.closest('body').length) {
+          return;
+        }
+        if ($row.attr('data-cancel') === '1' || $row.attr('data-saving') === '1') {
+          return;
+        }
+        if ($row.has(document.activeElement).length) {
+          return;
+        }
+        saveInlineRow($row, { quiet: true });
+      }, 120);
     });
   }
 
