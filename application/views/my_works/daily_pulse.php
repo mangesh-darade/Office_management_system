@@ -235,7 +235,32 @@ $pulse_count_badge = function ($total) {
     </section>
     <?php endif; ?>
 
-    <?php $ph = $section('project_history'); ?>
+    <?php
+      $pulse_history_meta = function ($row) {
+          $parts = array();
+          if (!empty($row['project_name'])) {
+              $parts[] = (string) $row['project_name'];
+          }
+          if (!empty($row['client_name'])) {
+              $parts[] = (string) $row['client_name'];
+          }
+          if (!empty($row['action'])) {
+              $parts[] = (string) $row['action'];
+          }
+          if (!empty($row['user_name'])) {
+              $parts[] = (string) $row['user_name'];
+          }
+          if (!empty($row['at'])) {
+              $parts[] = date('H:i', strtotime($row['at']));
+          }
+          if (empty($parts)) {
+              return;
+          }
+          echo '<span class="mw-pulse-item-meta">' . esc_view(implode(' · ', $parts), ENT_QUOTES, 'UTF-8') . '</span>';
+      };
+    ?>
+
+    <?php $ph = $section('project_history'); if (!is_array($ph)) { $ph = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
     <section class="mw-pulse-card">
       <div class="mw-pulse-card-head">
         <h3 class="mw-pulse-card-title"><i class="bi bi-kanban"></i>Project Task History</h3>
@@ -246,9 +271,9 @@ $pulse_count_badge = function ($total) {
       <?php else: ?>
       <ul class="mw-pulse-list mw-pulse-list--compact">
         <?php foreach ($ph['items'] as $row): ?>
-        <li title="<?php echo esc_view($row['title'] . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
+        <li title="<?php echo esc_view($row['title'] . (!empty($row['project_name']) ? ' · ' . $row['project_name'] : '') . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
           <a class="mw-pulse-item-primary" href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?></a>
-          <span class="mw-pulse-item-meta"><?php echo esc_view($row['action'], ENT_QUOTES, 'UTF-8'); ?><?php if ($row['user_name'] !== ''): ?> · <?php echo esc_view($row['user_name'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?> · <?php echo esc_view(date('H:i', strtotime($row['at'])), ENT_QUOTES, 'UTF-8'); ?></span>
+          <?php $pulse_history_meta($row); ?>
         </li>
         <?php endforeach; ?>
       </ul>
@@ -256,7 +281,28 @@ $pulse_count_badge = function ($total) {
       <?php endif; ?>
     </section>
 
-    <?php $ah = $section('adhoc_history'); ?>
+    <?php $ch = $section('client_history'); if (!is_array($ch)) { $ch = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
+    <section class="mw-pulse-card">
+      <div class="mw-pulse-card-head">
+        <h3 class="mw-pulse-card-title"><i class="bi bi-building"></i>Client Task History</h3>
+        <?php $pulse_count_badge(isset($ch['total']) ? $ch['total'] : 0); ?>
+      </div>
+      <?php if (empty($ch['items'])): ?>
+      <p class="mw-pulse-empty">No client task activity today.</p>
+      <?php else: ?>
+      <ul class="mw-pulse-list mw-pulse-list--compact">
+        <?php foreach ($ch['items'] as $row): ?>
+        <li title="<?php echo esc_view($row['title'] . (!empty($row['client_name']) ? ' · ' . $row['client_name'] : '') . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
+          <a class="mw-pulse-item-primary" href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?></a>
+          <?php $pulse_history_meta($row); ?>
+        </li>
+        <?php endforeach; ?>
+      </ul>
+      <?php $render_more($ch); ?>
+      <?php endif; ?>
+    </section>
+
+    <?php $ah = $section('adhoc_history'); if (!is_array($ah)) { $ah = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
     <section class="mw-pulse-card">
       <div class="mw-pulse-card-head">
         <h3 class="mw-pulse-card-title"><i class="bi bi-lightning"></i>Ad hoc Task History</h3>
@@ -269,7 +315,7 @@ $pulse_count_badge = function ($total) {
         <?php foreach ($ah['items'] as $row): ?>
         <li title="<?php echo esc_view($row['title'] . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
           <a class="mw-pulse-item-primary" href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?></a>
-          <span class="mw-pulse-item-meta"><?php echo esc_view($row['action'], ENT_QUOTES, 'UTF-8'); ?><?php if ($row['user_name'] !== ''): ?> · <?php echo esc_view($row['user_name'], ENT_QUOTES, 'UTF-8'); ?><?php endif; ?> · <?php echo esc_view(date('H:i', strtotime($row['at'])), ENT_QUOTES, 'UTF-8'); ?></span>
+          <?php $pulse_history_meta($row); ?>
         </li>
         <?php endforeach; ?>
       </ul>
@@ -360,98 +406,6 @@ $pulse_count_badge = function ($total) {
           <?php endif; ?>
         </div>
       </div>
-    </section>
-    <?php endif; ?>
-
-    <?php $spl = $section('spl_group_scores'); if (is_array($spl)): ?>
-    <?php
-      $spl_period = isset($spl['period']) ? (string) $spl['period'] : 'week';
-      $spl_from = isset($spl['from']) ? (string) $spl['from'] : '';
-      $spl_to = isset($spl['to']) ? (string) $spl['to'] : '';
-      $spl_label = isset($spl['label']) ? (string) $spl['label'] : '';
-      if ($spl_label === '' && $spl_from !== '' && $spl_to !== '') {
-          $spl_label = $spl_from . ' → ' . $spl_to;
-      } elseif ($spl_label === '' && $spl_period === 'all') {
-          $spl_label = 'All time';
-      }
-      $spl_period_options = function_exists('spl_reward_period_options')
-          ? spl_reward_period_options()
-          : array('today' => 'Today', 'week' => 'This week', 'month' => 'This month', 'all' => 'All time');
-      $spl_filter_base = site_url('my-works/daily-pulse');
-      $spl_preset_url = function ($period_key) use ($spl_filter_base) {
-          return $spl_filter_base . '?' . http_build_query(array('reward_period' => $period_key));
-      };
-    ?>
-    <section class="mw-pulse-card mw-pulse-card--wide">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-trophy"></i>SPL Group Scores</h3>
-        <div class="mw-pulse-head-meta">
-          <span class="mw-pulse-range"><?php echo esc_view($spl_label, ENT_QUOTES, 'UTF-8'); ?></span>
-          <a class="btn btn-sm btn-outline-primary mw-pulse-action" href="<?php echo esc_view($spl['url'], ENT_QUOTES, 'UTF-8'); ?>">Groups</a>
-        </div>
-      </div>
-      <form method="get" action="<?php echo esc_view($spl_filter_base, ENT_QUOTES, 'UTF-8'); ?>" class="mw-pulse-spl-filter">
-        <input type="hidden" name="reward_period" value="<?php echo esc_view($spl_period === 'custom' ? 'week' : $spl_period, ENT_QUOTES, 'UTF-8'); ?>">
-        <div class="mw-pulse-spl-filter__row">
-          <div class="spl-period-filter" role="group" aria-label="Score period">
-            <div class="spl-period-filter__track">
-              <?php foreach ($spl_period_options as $periodKey => $periodLabel): ?>
-              <a
-                href="<?php echo esc_view($spl_preset_url($periodKey), ENT_QUOTES, 'UTF-8'); ?>"
-                class="spl-period-filter__btn<?php echo ($spl_period === $periodKey) ? ' is-active' : ''; ?>"
-                aria-pressed="<?php echo ($spl_period === $periodKey) ? 'true' : 'false'; ?>"
-              ><?php echo esc_view($periodLabel, ENT_QUOTES, 'UTF-8'); ?></a>
-              <?php endforeach; ?>
-            </div>
-          </div>
-          <div class="mw-pulse-spl-filter__dates">
-            <label class="visually-hidden" for="mwPulseScoreFrom">From</label>
-            <input type="date" class="form-control form-control-sm" id="mwPulseScoreFrom" name="score_from"
-                   value="<?php echo esc_view($spl_period === 'custom' ? $spl_from : '', ENT_QUOTES, 'UTF-8'); ?>"
-                   title="From">
-            <span class="mw-pulse-spl-filter__sep" aria-hidden="true">–</span>
-            <label class="visually-hidden" for="mwPulseScoreTo">To</label>
-            <input type="date" class="form-control form-control-sm" id="mwPulseScoreTo" name="score_to"
-                   value="<?php echo esc_view($spl_period === 'custom' ? $spl_to : '', ENT_QUOTES, 'UTF-8'); ?>"
-                   title="To">
-            <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
-          </div>
-        </div>
-      </form>
-      <?php $items = isset($spl['items']['items']) ? $spl['items']['items'] : array(); ?>
-      <?php if (empty($items)): ?>
-      <p class="mw-pulse-empty">No SPL groups.</p>
-      <?php else: ?>
-      <div class="mw-pulse-table-wrap">
-        <table class="table table-sm align-middle mb-0 mw-pulse-table">
-          <thead>
-            <tr>
-              <th>Group</th>
-              <th class="text-end">Points</th>
-              <th class="text-end">Avg</th>
-              <th class="text-end">Members</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($items as $row): ?>
-            <tr>
-              <td>
-                <span class="mw-pulse-rank"><?php echo (int) $row['rank']; ?></span>
-                <a href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></a>
-              </td>
-              <td class="text-end fw-semibold"><?php echo ($row['points'] >= 0 ? '+' : '') . number_format((float) $row['points'], 0); ?></td>
-              <td class="text-end"><?php
-                $avg = isset($row['avg']) ? (float) $row['avg'] : 0;
-                echo ($avg >= 0 ? '+' : '') . number_format($avg, 0);
-              ?></td>
-              <td class="text-end text-muted"><?php echo (int) $row['member_count']; ?></td>
-            </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
-      <?php $render_more($spl['items']); ?>
-      <?php endif; ?>
     </section>
     <?php endif; ?>
 

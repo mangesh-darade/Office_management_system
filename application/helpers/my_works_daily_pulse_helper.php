@@ -345,7 +345,10 @@ if (!function_exists('my_works_daily_pulse_daily_activity')) {
 
 if (!function_exists('my_works_daily_pulse_work_history')) {
     /**
-     * @param string $mode project|adhoc
+     * Work activity history for Daily Pulse.
+     * Split (no double-count): project = project_id>0; client = client_id>0 AND no project; adhoc = no project and no client.
+     *
+     * @param string $mode project|client|adhoc
      */
     function my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, $mode)
     {
@@ -355,25 +358,77 @@ if (!function_exists('my_works_daily_pulse_work_history')) {
         $CI =& get_instance();
         $CI->load->helper(array('my_works_access', 'schema_columns'));
 
+        $has_project = schema_table_has_column($db, 'my_works', 'project_id');
+        $has_client = schema_table_has_column($db, 'my_works', 'client_id');
+        $join_projects = $has_project && $db->table_exists('projects');
+        $join_clients = $has_client && $db->table_exists('clients');
+
+        if ($mode === 'client' && !$has_client) {
+            return my_works_daily_pulse_trim_list(array());
+        }
+
+        $select = 'a.id, a.work_id, a.action, a.detail, a.created_at, a.user_id, w.title, u.name AS user_name';
+        if ($has_project) {
+            $select .= ', w.project_id';
+        }
+        if ($has_client) {
+            $select .= ', w.client_id';
+        }
+        if ($join_projects) {
+            $select .= ', p.name AS project_name';
+        } else {
+            $select .= ', NULL AS project_name';
+        }
+        if ($join_clients) {
+            $select .= ', cl.company_name AS client_name';
+        } else {
+            $select .= ', NULL AS client_name';
+        }
+
         $db->reset_query();
-        $db->select('a.id, a.work_id, a.action, a.detail, a.created_at, a.user_id, w.title, w.project_id, u.name AS user_name, p.name AS project_name', false);
+        $db->select($select, false);
         $db->from('my_work_activity a');
         $db->join('my_works w', 'w.id = a.work_id', 'inner');
         $db->join('users u', 'u.id = a.user_id', 'left');
-        if ($db->table_exists('projects') && schema_table_has_column($db, 'my_works', 'project_id')) {
+        if ($join_projects) {
             $db->join('projects p', 'p.id = w.project_id', 'left');
         }
-        $db->where('DATE(a.created_at)', $today);
-        if ($mode === 'project') {
-            $db->group_start()
-                ->where('w.project_id >', 0)
-                ->group_end();
-        } else {
-            $db->group_start()
-                ->where('w.project_id IS NULL', null, false)
-                ->or_where('w.project_id', 0)
-                ->group_end();
+        if ($join_clients) {
+            $db->join('clients cl', 'cl.id = w.client_id', 'left');
         }
+        $db->where('DATE(a.created_at)', $today);
+
+        // Prefer project | client-only | pure adhoc (mutually exclusive).
+        if ($mode === 'project') {
+            if ($has_project) {
+                $db->where('w.project_id >', 0);
+            } else {
+                return my_works_daily_pulse_trim_list(array());
+            }
+        } elseif ($mode === 'client') {
+            $db->where('w.client_id >', 0);
+            if ($has_project) {
+                $db->group_start()
+                    ->where('w.project_id IS NULL', null, false)
+                    ->or_where('w.project_id', 0)
+                    ->group_end();
+            }
+        } else {
+            // adhoc: no project and no client
+            if ($has_project) {
+                $db->group_start()
+                    ->where('w.project_id IS NULL', null, false)
+                    ->or_where('w.project_id', 0)
+                    ->group_end();
+            }
+            if ($has_client) {
+                $db->group_start()
+                    ->where('w.client_id IS NULL', null, false)
+                    ->or_where('w.client_id', 0)
+                    ->group_end();
+            }
+        }
+
         my_works_apply_list_scope($db, $can_view_all, $user_id);
         $db->order_by('a.created_at', 'DESC');
         $db->limit(100);
@@ -388,6 +443,7 @@ if (!function_exists('my_works_daily_pulse_work_history')) {
                 'detail'       => (string) (isset($r->detail) ? $r->detail : ''),
                 'user_name'    => (string) ($r->user_name ?: ''),
                 'project_name' => (string) (isset($r->project_name) ? $r->project_name : ''),
+                'client_name'  => (string) (isset($r->client_name) ? $r->client_name : ''),
                 'at'           => (string) $r->created_at,
                 'url'          => site_url('my-works/' . (int) $r->work_id),
             );
@@ -529,154 +585,18 @@ if (!function_exists('my_works_daily_pulse_overview_today')) {
     }
 }
 
-if (!function_exists('my_works_daily_pulse_resolve_spl_bounds')) {
-    /**
-     * Resolve SPL score date bounds from preset period and/or custom score_from/score_to.
-     * Custom Y-m-d range wins when both dates are valid.
-     *
-     * @return array{period:string,from:?string,to:?string,label:string,use_period:bool}
-     */
-    function my_works_daily_pulse_resolve_spl_bounds($reward_period = null, $score_from = null, $score_to = null)
-    {
-        $CI =& get_instance();
-        $CI->load->helper('spl');
-
-        $from_raw = trim((string) $score_from);
-        $to_raw = trim((string) $score_to);
-        $ymd = '/^\d{4}-\d{2}-\d{2}$/';
-        if (preg_match($ymd, $from_raw) && preg_match($ymd, $to_raw)) {
-            if ($from_raw > $to_raw) {
-                $tmp = $from_raw;
-                $from_raw = $to_raw;
-                $to_raw = $tmp;
-            }
-            return array(
-                'period'     => 'custom',
-                'from'       => $from_raw,
-                'to'         => $to_raw,
-                'label'      => $from_raw . ' → ' . $to_raw,
-                'use_period' => true,
-            );
-        }
-
-        $period = function_exists('spl_normalize_reward_period')
-            ? spl_normalize_reward_period($reward_period !== null && $reward_period !== '' ? $reward_period : 'week')
-            : 'week';
-        $bounds = function_exists('spl_reward_period_bounds')
-            ? spl_reward_period_bounds($period)
-            : array('from' => date('Y-m-d', strtotime('monday this week')), 'to' => date('Y-m-d'), 'label' => 'This week');
-        $use_period = ($period !== 'all');
-
-        return array(
-            'period'     => $period,
-            'from'       => $use_period ? (isset($bounds['from']) ? $bounds['from'] : null) : null,
-            'to'         => $use_period ? (isset($bounds['to']) ? $bounds['to'] : null) : null,
-            'label'      => isset($bounds['label']) ? (string) $bounds['label'] : $period,
-            'use_period' => $use_period,
-        );
-    }
-}
-
-if (!function_exists('my_works_daily_pulse_spl_groups')) {
-    /**
-     * @param string|null $from   Y-m-d or null (all-time)
-     * @param string|null $to     Y-m-d or null (all-time)
-     * @param string      $period today|week|month|all|custom
-     */
-    function my_works_daily_pulse_spl_groups($from = null, $to = null, $period = 'week')
-    {
-        $CI =& get_instance();
-        $CI->load->helper('spl');
-        if (!function_exists('spl_can_access') || !spl_can_access()) {
-            return null;
-        }
-        if (function_exists('spl_can_view_groups') && !spl_can_view_groups()) {
-            return null;
-        }
-        if (!$CI->db->table_exists('spl_groups')) {
-            return null;
-        }
-
-        if ($period === 'custom') {
-            $resolved = my_works_daily_pulse_resolve_spl_bounds('week', $from, $to);
-        } else {
-            $resolved = my_works_daily_pulse_resolve_spl_bounds($period !== null && $period !== '' ? $period : 'week');
-        }
-
-        $period = $resolved['period'];
-        $from = $resolved['from'];
-        $to = $resolved['to'];
-        $label = $resolved['label'];
-        $use_period = !empty($resolved['use_period']);
-
-        $CI->load->model('Spl_model', 'spl');
-        $board = $CI->spl->list_groups_board(
-            true,
-            $use_period ? $from : null,
-            $use_period ? $to : null
-        );
-        usort($board, function ($a, $b) use ($use_period) {
-            if ($use_period) {
-                $pa = isset($a->total_period_net) ? (float) $a->total_period_net : 0;
-                $pb = isset($b->total_period_net) ? (float) $b->total_period_net : 0;
-            } else {
-                $pa = isset($a->total_lifetime_points) ? (float) $a->total_lifetime_points : 0;
-                $pb = isset($b->total_lifetime_points) ? (float) $b->total_lifetime_points : 0;
-            }
-            if ($pa === $pb) {
-                return strcmp((string) $a->name, (string) $b->name);
-            }
-            return ($pa < $pb) ? 1 : -1;
-        });
-        $out = array();
-        $rank = 1;
-        foreach ($board as $g) {
-            if ($use_period) {
-                $points = isset($g->total_period_net) ? (float) $g->total_period_net : 0;
-                $avg = isset($g->avg_period_points) ? (float) $g->avg_period_points : 0;
-            } else {
-                $points = isset($g->total_lifetime_points) ? (float) $g->total_lifetime_points : 0;
-                $avg = isset($g->avg_lifetime_points) ? (float) $g->avg_lifetime_points : 0;
-            }
-            $member_count = isset($g->member_count) ? (int) $g->member_count : 0;
-            if ($avg == 0.0 && $member_count > 0) {
-                $avg = $points / $member_count;
-            }
-            $out[] = array(
-                'rank'         => $rank++,
-                'id'           => (int) $g->id,
-                'name'         => (string) $g->name,
-                'code'         => (string) $g->code,
-                'points'       => $points,
-                'avg'          => $avg,
-                'member_count' => $member_count,
-                'url'          => site_url('spl/groups/' . (int) $g->id),
-            );
-        }
-        $groups_period = in_array($period, array('today', 'week', 'month', 'all'), true) ? $period : 'week';
-        return array(
-            'items'  => my_works_daily_pulse_trim_list($out),
-            'period' => $period,
-            'from'   => $from,
-            'to'     => $to,
-            'label'  => $label,
-            'url'    => function_exists('spl_groups_url') ? spl_groups_url($groups_period) : site_url('spl/groups'),
-        );
-    }
-}
-
 if (!function_exists('my_works_build_daily_pulse')) {
     /**
-     * @param array $spl_opts Optional keys: reward_period, score_from, score_to
      * @return array
      */
-    function my_works_build_daily_pulse($db, $user_id, $can_view_all, $role_id = 0, $spl_opts = array())
+    function my_works_build_daily_pulse($db, $user_id, $can_view_all, $role_id = 0)
     {
         $CI =& get_instance();
         $CI->load->helper(array('schema_columns', 'my_works_access', 'hierarchy_filter'));
         // Warm column maps before section queries so list_fields does not reset QB mid-build.
         schema_table_has_column($db, 'users', 'status');
         schema_table_has_column($db, 'my_works', 'project_id');
+        schema_table_has_column($db, 'my_works', 'client_id');
         schema_table_has_column($db, 'requirements', 'req_number');
         schema_table_has_column($db, 'requirements', 'project_id');
         schema_table_has_column($db, 'requirements', 'created_by');
@@ -689,28 +609,17 @@ if (!function_exists('my_works_build_daily_pulse')) {
         $today = date('Y-m-d');
         $user_map = my_works_daily_pulse_scoped_users($db, $can_view_all, $user_id, $role_id);
 
-        $spl_opts = is_array($spl_opts) ? $spl_opts : array();
-        $spl_bounds = my_works_daily_pulse_resolve_spl_bounds(
-            isset($spl_opts['reward_period']) ? $spl_opts['reward_period'] : null,
-            isset($spl_opts['score_from']) ? $spl_opts['score_from'] : null,
-            isset($spl_opts['score_to']) ? $spl_opts['score_to'] : null
-        );
-
         return array(
             'date'               => $today,
             'clients_added'      => my_works_daily_pulse_clients_added($db, $today),
             'attendance'         => my_works_daily_pulse_attendance($db, $today, $user_map),
             'daily_activity'     => my_works_daily_pulse_daily_activity($db, $today, $user_map),
             'project_history'    => my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, 'project'),
+            'client_history'     => my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, 'client'),
             'adhoc_history'      => my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, 'adhoc'),
             'requirements_added' => my_works_daily_pulse_requirements($db, $today),
             'defects_added'      => my_works_daily_pulse_defects($db, $today),
             'overview_today'     => my_works_daily_pulse_overview_today($db, $can_view_all, $user_id),
-            'spl_group_scores'   => my_works_daily_pulse_spl_groups(
-                $spl_bounds['from'],
-                $spl_bounds['to'],
-                $spl_bounds['period']
-            ),
         );
     }
 }

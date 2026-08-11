@@ -416,11 +416,7 @@ class My_works extends CI_Controller
     {
         require_module_access(array('my_works_list', 'my_works'), true);
         $c = $this->_ctx();
-        $pulse = my_works_build_daily_pulse($this->db, $c['user_id'], $c['can_view_all'], $c['role_id'], array(
-            'reward_period' => $this->input->get('reward_period'),
-            'score_from'    => $this->input->get('score_from'),
-            'score_to'      => $this->input->get('score_to'),
-        ));
+        $pulse = my_works_build_daily_pulse($this->db, $c['user_id'], $c['can_view_all'], $c['role_id']);
         $this->load->view('my_works/daily_pulse', array(
             'embed' => (bool) $this->input->get('embed'),
             'pulse' => $pulse,

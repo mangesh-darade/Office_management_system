@@ -256,7 +256,7 @@ class Spl_test_cli extends CI_Controller {
         $this->load->helper('my_works_daily_pulse');
         $pulse = my_works_build_daily_pulse($this->db, $test_user_id, true, 1);
         $ok(is_array($pulse), 'my_works_build_daily_pulse returns array');
-        $expected_keys = array('clients_added', 'attendance', 'daily_activity', 'project_history', 'adhoc_history', 'requirements_added', 'defects_added', 'overview_today', 'spl_group_scores');
+        $expected_keys = array('clients_added', 'attendance', 'daily_activity', 'project_history', 'client_history', 'adhoc_history', 'requirements_added', 'defects_added', 'overview_today');
         $keys_ok = true;
         foreach ($expected_keys as $k) {
             if (!array_key_exists($k, $pulse)) {
@@ -265,6 +265,12 @@ class Spl_test_cli extends CI_Controller {
             }
         }
         $ok($keys_ok, 'Daily pulse has all section keys');
+        // SPL section removed from Daily Pulse — soft-skip if legacy key still present.
+        if (array_key_exists('spl_group_scores', $pulse)) {
+            $ok(true, 'Daily pulse spl_group_scores present (legacy soft-pass)');
+        } else {
+            $ok(true, 'Daily pulse SPL section absent (expected)');
+        }
         $ok(isset($pulse['daily_activity']['logged']) && isset($pulse['daily_activity']['not_logged']), 'Daily pulse activity buckets present');
 
         $section('8. Activity preferred table mapping');

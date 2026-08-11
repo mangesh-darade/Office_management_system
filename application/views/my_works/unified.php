@@ -303,10 +303,10 @@ document.addEventListener('DOMContentLoaded', function() {
     'created_for', 'project_id', 'q', 'view', 'section', 'status', 'tag',
     'client_id', 'work_type', 'involvement', 'urgent_only', 'important_only',
     'overdue_only', 'complete_view', 'created_by', 'department_id', 'user_id',
-    'client_type', 'reward_period', 'score_from', 'score_to'
+    'client_type'
   ];
   // Tab-owned params — never copy these from the shell URL onto another tab.
-  var MW_TAB_OWNED_KEYS = ['view', 'section', 'reward_period', 'score_from', 'score_to'];
+  var MW_TAB_OWNED_KEYS = ['view', 'section'];
 
   function readPersistedState() {
     try {
@@ -467,26 +467,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function resolveTabLoadUrl(tabName) {
     var saved = getSavedTabPaneUrl(tabName);
     var base = saved || applyParentFiltersToUrl(defaultUrlForTab(tabName));
-    if (tabName === 'daily-pulse') {
-      try {
-        var url = new URL(base, window.location.origin);
-        var parent = new URLSearchParams(window.location.search);
-        ['reward_period', 'score_from', 'score_to'].forEach(function(key) {
-          if (!parent.has(key)) {
-            return;
-          }
-          var value = parent.get(key);
-          if (value === null || value === '') {
-            return;
-          }
-          // Prefer parent URL only when pane has no saved filter yet.
-          if (!saved || !url.searchParams.has(key)) {
-            url.searchParams.set(key, value);
-          }
-        });
-        base = url.pathname + url.search + url.hash;
-      } catch (e) {}
-    }
     return forceTabViewParams(base, tabName);
   }
 
