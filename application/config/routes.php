@@ -170,7 +170,8 @@ $route['tasks/board'] = 'tasks/board';
 $route['tasks/update-status'] = 'tasks/update_status';
 $route['tasks/send-daily-summary'] = 'tasks/send_daily_summary';
 $route['tasks/send-all-summaries'] = 'tasks/send_all_summaries';
-// Task comments
+// Task comments / history notes
+$route['tasks/add-comment/(:num)'] = 'tasks/add_comment/$1';
 $route['tasks/(:num)/comment'] = 'tasks/add_comment/$1';
 $route['tasks/(:num)/comments'] = 'tasks/get_comments/$1';
 $route['tasks/comment/(:num)/delete'] = 'tasks/delete_comment/$1';
@@ -805,10 +806,13 @@ $route['timesheets/analytics'] = 'timesheets/analytics';
 $route['timesheets/task-tracking/(:num)'] = 'timesheets/task_tracking/$1';
 $route['timesheets/task-tracking'] = 'timesheets/task_tracking';
 
-// Requirements comments (AJAX)
+// Requirements history notes (Defects-style) + legacy comment aliases
+$route['requirements/add-comment/(:num)'] = 'requirements/add_comment/$1';
+$route['requirements/(:num)/comment'] = 'requirements/add_comment/$1';
 $route['requirements/(:num)/comments'] = 'requirements/get_comments/$1';
 $route['requirements/(:num)/add-comment'] = 'requirements/add_comment/$1';
 $route['requirements/(:num)/delete-comment/(:num)'] = 'requirements/delete_comment/$1/$2';
+$route['requirements/comment/(:num)/delete'] = 'requirements/delete_comment/$1';
 
 // AI Chat extras
 $route['ai-chat/export'] = 'ai_chat/export';

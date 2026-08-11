@@ -61,6 +61,10 @@ class Requirement_model extends CI_Model {
         $this->db->from('requirements r')->where('r.id',(int)$id);
         $this->db->select('r.*');
         if ($this->db->table_exists('clients')){ $this->db->join('clients c','c.id=r.client_id','left'); $this->db->select('c.company_name AS client_name'); }
+        if ($this->db->table_exists('projects')) {
+            $this->db->join('projects p', 'p.id = r.project_id', 'left');
+            $this->db->select('p.name AS project_name');
+        }
         if ($this->db->table_exists('users')){
             // Assigned
             $this->db->join('users u','u.id=r.assigned_to','left');
@@ -195,5 +199,159 @@ class Requirement_model extends CI_Model {
         // Allow owner to delete
         $this->db->where(['id' => (int)$comment_id, 'user_id' => (int)$user_id])->delete('requirement_comments');
         return $this->db->affected_rows() > 0;
+    }
+
+    public function log_activity($requirement_id, $user_id, $action, $detail = '')
+    {
+        if (!$this->db->table_exists('requirement_activity')) {
+            return;
+        }
+        $this->db->insert('requirement_activity', array(
+            'requirement_id' => (int) $requirement_id,
+            'user_id' => (int) $user_id,
+            'action' => (string) $action,
+            'detail' => $detail !== '' ? (string) $detail : null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ));
+    }
+
+    public function list_activity($requirement_id)
+    {
+        if (!$this->db->table_exists('requirement_activity')) {
+            return array();
+        }
+        $this->db->select('a.*, u.name AS user_name');
+        $this->db->from('requirement_activity a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->where('a.requirement_id', (int) $requirement_id);
+        $this->db->order_by('a.id', 'DESC');
+        return $this->db->get()->result();
+    }
+
+    /**
+     * History timeline: activity + legacy comments as notes.
+     *
+     * @return array
+     */
+    public function list_history($requirement_id)
+    {
+        $requirement_id = (int) $requirement_id;
+        $rows = array();
+
+        foreach ($this->list_activity($requirement_id) as $a) {
+            $rows[] = (object) array(
+                'id' => (int) $a->id,
+                'source' => 'activity',
+                'action' => (string) $a->action,
+                'detail' => isset($a->detail) ? (string) $a->detail : '',
+                'user_name' => isset($a->user_name) ? (string) $a->user_name : '',
+                'user_id' => (int) $a->user_id,
+                'created_at' => (string) $a->created_at,
+                'sort_ts' => strtotime((string) $a->created_at) ?: 0,
+            );
+        }
+
+        foreach ($this->get_requirement_comments($requirement_id) as $c) {
+            $name = '';
+            if (isset($c->name) && trim((string) $c->name) !== '') {
+                $name = (string) $c->name;
+            } elseif (isset($c->full_name) && trim((string) $c->full_name) !== '') {
+                $name = (string) $c->full_name;
+            } elseif (isset($c->email)) {
+                $name = (string) $c->email;
+            }
+            $rows[] = (object) array(
+                'id' => (int) $c->id,
+                'source' => 'comment',
+                'action' => 'note',
+                'detail' => isset($c->comment) ? (string) $c->comment : '',
+                'user_name' => $name,
+                'user_id' => (int) $c->user_id,
+                'created_at' => (string) $c->created_at,
+                'sort_ts' => strtotime((string) $c->created_at) ?: 0,
+            );
+        }
+
+        usort($rows, function ($a, $b) {
+            if ($a->sort_ts === $b->sort_ts) {
+                return $b->id - $a->id;
+            }
+            return ($a->sort_ts < $b->sort_ts) ? 1 : -1;
+        });
+
+        return $rows;
+    }
+
+    public function build_change_details($old, array $new)
+    {
+        if (!$old) {
+            return array();
+        }
+        $labels = array(
+            'title' => 'Title',
+            'client_id' => 'Client',
+            'project_id' => 'Project',
+            'requirement_type' => 'Type',
+            'priority' => 'Priority',
+            'status' => 'Status',
+            'expected_delivery_date' => 'Expected delivery',
+            'received_date' => 'Received date',
+            'owner_id' => 'Owner',
+            'assigned_to' => 'Assignee',
+            'description' => 'Description',
+            'reference_url' => 'URL / Link',
+        );
+        $lines = array();
+        foreach ($labels as $key => $label) {
+            if (!array_key_exists($key, $new)) {
+                continue;
+            }
+            $before = isset($old->$key) ? (string) $old->$key : '';
+            $after = $new[$key] === null ? '' : (string) $new[$key];
+            if ($before === $after) {
+                continue;
+            }
+            if ($key === 'description') {
+                $lines[] = $label . ': updated';
+                continue;
+            }
+            $before_disp = $this->_history_value_label($key, $before);
+            $after_disp = $this->_history_value_label($key, $after);
+            $lines[] = $label . ': ' . $before_disp . ' → ' . $after_disp;
+        }
+        return $lines;
+    }
+
+    private function _history_value_label($field, $value)
+    {
+        $value = trim((string) $value);
+        if ($value === '' || $value === '0') {
+            return '—';
+        }
+        if (in_array($field, array('status', 'priority', 'requirement_type'), true)) {
+            return ucfirst(str_replace('_', ' ', $value));
+        }
+        if (in_array($field, array('assigned_to', 'owner_id'), true) && ctype_digit($value)) {
+            return $this->user_display_name((int) $value);
+        }
+        if ($field === 'client_id' && ctype_digit($value) && $this->db->table_exists('clients')) {
+            $c = $this->db->select('company_name')->where('id', (int) $value)->get('clients', 1)->row();
+            return ($c && $c->company_name !== '') ? (string) $c->company_name : ('#' . $value);
+        }
+        if ($field === 'project_id' && ctype_digit($value) && $this->db->table_exists('projects')) {
+            $p = $this->db->select('name')->where('id', (int) $value)->get('projects', 1)->row();
+            return ($p && $p->name !== '') ? (string) $p->name : ('#' . $value);
+        }
+        return $value;
+    }
+
+    public function user_display_name($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id < 1) {
+            return 'Unassigned';
+        }
+        $u = $this->db->select('name')->where('id', $user_id)->get('users', 1)->row();
+        return ($u && $u->name !== '') ? (string) $u->name : ('#' . $user_id);
     }
 }

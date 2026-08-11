@@ -17,7 +17,7 @@ if (!function_exists('requirements_schema_ensure')) {
             $sql = "CREATE TABLE `requirements` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `req_number` varchar(50) DEFAULT NULL,
-                `client_id` int(11) NOT NULL,
+                `client_id` int(11) DEFAULT NULL,
                 `project_id` int(11) DEFAULT NULL,
                 `title` varchar(500) NOT NULL,
                 `description` text,
@@ -45,6 +45,8 @@ if (!function_exists('requirements_schema_ensure')) {
             $fields = $db->list_fields('requirements');
             if (!in_array('owner_id', $fields, true)) { $db->query("ALTER TABLE `requirements` ADD `owner_id` INT(11) NULL AFTER `received_date`"); }
             if (!in_array('reference_url', $fields, true)) { $db->query("ALTER TABLE `requirements` ADD `reference_url` VARCHAR(500) NULL DEFAULT NULL"); }
+            // Client optional (same idea as defects project optional)
+            $db->query("ALTER TABLE `requirements` MODIFY COLUMN `client_id` int(11) DEFAULT NULL");
         }
         if (!$db->table_exists('requirement_attachments')){
             $sql2 = "CREATE TABLE `requirement_attachments` (
@@ -97,6 +99,18 @@ if (!function_exists('requirements_schema_ensure')) {
                 KEY `idx_user_comment` (`user_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
             $db->query($sql4);
+        }
+        if (!$db->table_exists('requirement_activity')) {
+            $db->query("CREATE TABLE `requirement_activity` (
+                `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+                `requirement_id` int(11) NOT NULL,
+                `user_id` int(11) NOT NULL,
+                `action` varchar(50) NOT NULL,
+                `detail` text DEFAULT NULL,
+                `created_at` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `idx_ra_requirement` (`requirement_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
         // Add missing columns to versions as well
         if ($db->table_exists('requirement_versions')){

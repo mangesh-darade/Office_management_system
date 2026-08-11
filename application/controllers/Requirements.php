@@ -124,10 +124,15 @@ class Requirements extends CI_Controller {
             
             $assignee_ids = multi_assignees_normalize_ids($this->input->post('assigned_to'));
             $primary_assignee = multi_assignees_primary($assignee_ids);
+            $client_id_raw = $this->input->post('client_id');
+            $client_id = ($client_id_raw !== '' && $client_id_raw !== null) ? (int) $client_id_raw : null;
+            if ($client_id !== null && $client_id < 1) {
+                $client_id = null;
+            }
 
             $data = [
                 'req_number' => $this->generate_req_number(),
-                'client_id' => (int)$this->input->post('client_id'),
+                'client_id' => $client_id,
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,
                 'title' => trim($this->input->post('title')),
                 'description' => $this->input->post('description'),
@@ -147,6 +152,7 @@ class Requirements extends CI_Controller {
             multi_assignees_sync('requirement_assignees', 'requirement_id', (int) $id, $assignee_ids);
             // create initial version 1
             $this->requirements->create_version($id, 1, $data);
+            $this->requirements->log_activity((int) $id, (int) $this->session->userdata('user_id'), 'created', 'Requirement created');
             
             // Notify owner + all assignees: in-app + SMTP email with portal link (NOT Google Calendar)
             $notify_users = [];
@@ -302,7 +308,9 @@ class Requirements extends CI_Controller {
             );
 
             $data = [
-                'client_id' => (int)$this->input->post('client_id'),
+                'client_id' => ($this->input->post('client_id') !== '' && $this->input->post('client_id') !== null && (int) $this->input->post('client_id') > 0)
+                    ? (int) $this->input->post('client_id')
+                    : null,
                 'project_id' => $this->input->post('project_id') !== '' ? (int)$this->input->post('project_id') : null,
                 'title' => trim($this->input->post('title')),
                 'description' => $this->input->post('description'),
@@ -332,6 +340,26 @@ class Requirements extends CI_Controller {
             $verData['created_by'] = (int)$this->session->userdata('user_id');
             $verData['created_at'] = date('Y-m-d H:i:s');
             $this->requirements->create_version((int)$id, $nextVer, $verData);
+
+            $uid = (int) $this->session->userdata('user_id');
+            $change_lines = $this->requirements->build_change_details($row, $data);
+            if (!empty($change_lines)) {
+                $this->requirements->log_activity((int) $id, $uid, 'updated', implode('; ', $change_lines));
+            } else {
+                $this->requirements->log_activity((int) $id, $uid, 'updated', 'Details updated');
+            }
+            if ($status_changed) {
+                $this->requirements->log_activity((int) $id, $uid, 'status', $old_status . ' → ' . $new_status);
+            }
+            if ($assignee_changed) {
+                $old_primary = !empty($old_assignee_ids) ? (int) $old_assignee_ids[0] : (int) (isset($row->assigned_to) ? $row->assigned_to : 0);
+                $this->requirements->log_activity(
+                    (int) $id,
+                    $uid,
+                    'reassigned',
+                    'Assignee: ' . $this->requirements->user_display_name($old_primary) . ' → ' . $this->requirements->user_display_name($new_assignee)
+                );
+            }
             
             $req_number = isset($row->req_number) ? $row->req_number : '#'.$id;
             $req_title = isset($data['title']) ? mb_substr($data['title'], 0, 80) : (isset($row->title) ? mb_substr($row->title, 0, 80) : 'Requirement');
@@ -467,12 +495,14 @@ class Requirements extends CI_Controller {
         $type = $this->input->get('type');
         $versions = $this->requirements->get_versions((int)$id, $type);
         $comments = $this->requirements->get_requirement_comments((int)$id);
+        $history = $this->requirements->list_history((int) $id);
         $assignee_names_map = multi_assignees_names_map('requirement_assignees', 'requirement_id', array((int) $id));
         $this->load->view('requirements/view', [
             'req'=>$req,
             'attachments'=>$attachments,
             'versions'=>$versions,
             'comments'=>$comments,
+            'history' => $history,
             'type_filter'=>$type,
             'requirement_types'=>$this->_requirement_type_options(),
             'assignee_names' => isset($assignee_names_map[(int) $id]) ? $assignee_names_map[(int) $id] : array(),
@@ -667,51 +697,65 @@ class Requirements extends CI_Controller {
         exit;
     }
 
-    // POST /requirements/{requirement_id}/comment
+    // POST /requirements/add-comment/{id}  (same pattern as defects/add-comment/{id})
     public function add_comment($requirement_id)
     {
-        $requirement_id = (int)$requirement_id;
-        $user_id = (int)$this->session->userdata('user_id');
-        if (!$user_id) { redirect('auth/login'); return; }
-        if ($this->input->method() !== 'post') { show_404(); }
-
-        $req = $this->requirements->get_requirement($requirement_id);
-        if (!$req) { show_404(); }
-        $comment = trim((string)$this->input->post('comment'));
-        if ($comment === '') {
-            $this->session->set_flashdata('error', 'Comment cannot be empty.');
-            redirect('requirements/view/'.$requirement_id);
+        $requirement_id = (int) $requirement_id;
+        $user_id = (int) $this->session->userdata('user_id');
+        if (!$user_id) {
+            redirect('auth/login');
             return;
         }
-        $this->requirements->add_comment($requirement_id, $user_id, $comment);
-        $this->load->helper('activity');
-        log_activity('requirements', 'commented', (int)$requirement_id, mb_substr($comment, 0, 120));
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+            return;
+        }
 
-        // Notify owner and assigned_to if exists and not self
-        $notify_users = [];
-        if (isset($req->owner_id) && (int)$req->owner_id > 0 && (int)$req->owner_id !== $user_id) {
-            $notify_users[] = (int)$req->owner_id;
+        $req = $this->requirements->get_requirement($requirement_id);
+        if (!$req) {
+            show_404();
+            return;
         }
-        if (isset($req->assigned_to) && (int)$req->assigned_to > 0 && (int)$req->assigned_to !== $user_id && !in_array((int)$req->assigned_to, $notify_users)) {
-            $notify_users[] = (int)$req->assigned_to;
+
+        $note = trim((string) $this->input->post('note'));
+        if ($note === '') {
+            $note = trim((string) $this->input->post('comment'));
         }
-        
+        if ($note === '') {
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
+            redirect('requirements/view/' . $requirement_id . '#history');
+            return;
+        }
+
+        // Persist in requirement_activity (History table) — same concept as Defects.
+        $this->requirements->log_activity($requirement_id, $user_id, 'note', $note);
+        $this->load->helper('activity');
+        log_activity('requirements', 'note', $requirement_id, mb_substr($note, 0, 120));
+
+        $notify_users = array();
+        if (isset($req->owner_id) && (int) $req->owner_id > 0 && (int) $req->owner_id !== $user_id) {
+            $notify_users[] = (int) $req->owner_id;
+        }
+        if (isset($req->assigned_to) && (int) $req->assigned_to > 0 && (int) $req->assigned_to !== $user_id && !in_array((int) $req->assigned_to, $notify_users, true)) {
+            $notify_users[] = (int) $req->assigned_to;
+        }
+
         if (!empty($notify_users)) {
             $this->load->model('Notification_model');
-            $req_ref = ($req->req_number ? $req->req_number : '#'.$requirement_id);
+            $req_ref = !empty($req->req_number) ? $req->req_number : ('#' . $requirement_id);
             $this->Notification_model->create_bulk(
                 $notify_users,
-                'New comment on requirement ' . $req_ref,
-                mb_substr($comment, 0, 200),
+                'History note on requirement ' . $req_ref,
+                mb_substr($note, 0, 200),
                 'info',
                 'requirements',
-                (int)$requirement_id,
+                $requirement_id,
                 site_url('requirements/view/' . $requirement_id)
             );
         }
 
-        $this->session->set_flashdata('success', 'Comment added.');
-        redirect('requirements/view/'.$requirement_id);
+        $this->session->set_flashdata('success', 'History note saved.');
+        redirect('requirements/view/' . $requirement_id . '#history');
     }
 
     // GET /requirements/{requirement_id}/comments (AJAX JSON)
