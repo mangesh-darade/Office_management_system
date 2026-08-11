@@ -1,5 +1,9 @@
 <?php
 $embed = (bool) $this->input->get('embed');
+$create_url = site_url('requirements/create');
+if ($embed) {
+  $create_url .= '?redirect=' . rawurlencode('my-works?tab=requirements');
+}
 if (!$embed) {
   $this->load->view('partials/header', [
     'title' => 'Requirements',
@@ -15,7 +19,7 @@ if (!$embed) {
 ob_start();
 if (function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))):
 ?>
-<a class="btn btn-primary btn-sm" href="<?php echo site_url('requirements/create'); ?>" title="New requirement"><i class="bi bi-plus-lg me-1"></i>New</a>
+<a class="btn btn-primary btn-sm" href="<?php echo esc_view($create_url); ?>" title="New requirement"><i class="bi bi-plus-lg me-1"></i>New</a>
 <?php endif; ?>
 <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('requirements/board'); ?>" title="Board view"><i class="bi bi-columns me-1"></i>Board</a>
 <a class="btn btn-outline-secondary btn-sm" href="<?php echo site_url('requirements/calendar'); ?>" title="Calendar view"><i class="bi bi-calendar3 me-1"></i>Calendar</a>

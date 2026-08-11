@@ -1,402 +1,321 @@
-<?php $this->load->view('partials/header', ['title' => 'Requirement Details']); ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Requirement: <?php echo esc_view(isset($req->req_number)?$req->req_number:'#'.(int)$req->id); ?></h1>
-  <div class="d-flex gap-2">
-    <a class="btn btn-primary btn-sm" href="<?php echo site_url('requirements/edit/'.(int)$req->id); ?>">Edit</a>
-    <a class="btn btn-light btn-sm" href="<?php echo site_url('requirements'); ?>">Back</a>
-  </div>
-</div>
+<?php
+$req = isset($req) ? $req : null;
+if (!$req) {
+    show_404();
+}
+$history = isset($history) ? $history : array();
+$attachments = isset($attachments) ? $attachments : array();
+$can_edit = function_exists('has_module_access') && (has_module_access('requirements_edit') || has_module_access('requirements'));
+$can_note = function_exists('has_module_access') && (has_module_access('requirements_view') || has_module_access('requirements_list') || has_module_access('requirements'));
 
-<div class="row g-3">
-  <div class="col-lg-8">
-    <div class="card shadow-soft mb-3">
-      <div class="card-body">
-        <h5 class="mb-1"><?php echo esc_view($req->title); ?></h5>
-        <div class="mb-2 text-muted small">
-          <span class="me-3">Client: <?php echo esc_view(isset($req->client_name)?$req->client_name:''); ?></span>
-          <span class="me-3">Status: <span class="badge bg-light text-dark border"><?php echo esc_view(isset($req->status)?$req->status:'received'); ?></span></span>
-          <span class="me-3">Priority: <span class="badge bg-secondary"><?php echo esc_view(isset($req->priority)?$req->priority:'medium'); ?></span></span>
-          <?php if (!empty($req->requirement_type)): ?>
-          <span>Type: <span class="badge bg-info text-dark"><?php echo esc_view(function_exists('module_type_label') ? module_type_label($req->requirement_type, 'requirements') : $req->requirement_type); ?></span></span>
-          <?php endif; ?>
-        </div>
-        <?php if (isset($req->description) && $req->description !== ''): ?>
-        <div class="border rounded p-3 bg-white">
-          <?php echo sanitize_html_output($req->description); ?>
-        </div>
-        <?php else: ?>
-        <div class="text-muted small">No description provided.</div>
+$action_label = function ($action) {
+    $map = array(
+        'created' => 'Created',
+        'updated' => 'Updated',
+        'status' => 'Status',
+        'reassigned' => 'Reassigned',
+        'attachment' => 'Attachment',
+        'note' => 'Note',
+        'comment' => 'Note',
+    );
+    $key = strtolower((string) $action);
+    return isset($map[$key]) ? $map[$key] : ucfirst($key);
+};
+
+$status_pill = function ($s) {
+    $s = strtolower((string) $s);
+    if ($s === 'received') {
+        return 'defect-pill defect-pill--open';
+    }
+    if (in_array($s, array('in_progress', 'in-progress', 'working'), true)) {
+        return 'defect-pill defect-pill--progress';
+    }
+    if (in_array($s, array('completed', 'done', 'delivered', 'closed'), true)) {
+        return 'defect-pill defect-pill--fixed';
+    }
+    if (in_array($s, array('rejected', 'cancelled', 'on_hold'), true)) {
+        return 'defect-pill defect-pill--closed';
+    }
+    return 'defect-pill defect-pill--muted';
+};
+
+$priority_pill = function ($p) {
+    $p = strtolower((string) $p);
+    if ($p === 'urgent' || $p === 'high') {
+        return 'defect-pill defect-pill--high';
+    }
+    if ($p === 'medium') {
+        return 'defect-pill defect-pill--medium';
+    }
+    if ($p === 'low') {
+        return 'defect-pill defect-pill--low';
+    }
+    return 'defect-pill defect-pill--muted';
+};
+
+$assigneeLabel = isset($req->assigned_to_name) ? trim((string) $req->assigned_to_name) : '';
+if ($assigneeLabel === '' && !empty($req->assigned_to)) {
+    $assigneeLabel = 'User #' . (int) $req->assigned_to;
+}
+if (!empty($assignee_names) && is_array($assignee_names)) {
+    $parts = array();
+    $seen = array();
+    if ($assigneeLabel !== '') {
+        $parts[] = $assigneeLabel;
+        $seen[strtolower($assigneeLabel)] = true;
+    }
+    foreach ($assignee_names as $n) {
+        $n = trim((string) $n);
+        if ($n === '' || isset($seen[strtolower($n)])) {
+            continue;
+        }
+        $seen[strtolower($n)] = true;
+        $parts[] = $n;
+    }
+    if (!empty($parts)) {
+        $assigneeLabel = implode(', ', $parts);
+    }
+}
+if ($assigneeLabel === '') {
+    $assigneeLabel = 'Unassigned';
+}
+
+$linked_tasks = array();
+if ($this->db->table_exists('tasks') && schema_table_has_column($this->db, 'tasks', 'requirement_id')) {
+    $this->db->select('t.id, t.title, t.status, t.priority, t.due_date, p.name AS project_name');
+    $this->db->from('tasks t');
+    $this->db->join('projects p', 'p.id = t.project_id', 'left');
+    $this->db->where('t.requirement_id', (int) $req->id);
+    $this->db->order_by('t.id', 'DESC');
+    $linked_tasks = $this->db->get()->result();
+}
+
+$req_number = isset($req->req_number) && $req->req_number !== '' ? $req->req_number : ('#' . (int) $req->id);
+$req_title = isset($req->title) ? (string) $req->title : '';
+$req_status = isset($req->status) ? (string) $req->status : 'received';
+$req_priority = isset($req->priority) ? (string) $req->priority : 'medium';
+$type_label = '';
+if (!empty($req->requirement_type)) {
+    $type_label = function_exists('module_type_label')
+        ? module_type_label($req->requirement_type, 'requirements')
+        : (string) $req->requirement_type;
+}
+
+$this->load->view('partials/header', array(
+    'title' => $req_number,
+    'extra_css' => array('assets/css/defects-form.css'),
+));
+?>
+<script>document.body.classList.add('defect-view-active');</script>
+
+<div class="defect-view-simple">
+  <div class="defect-view-toolbar mb-3">
+    <a href="<?php echo site_url('requirements'); ?>" class="btn btn-sm btn-outline-secondary defect-view-back" title="Back to list">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div class="defect-view-heading min-w-0">
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <h1 class="h5 mb-0 text-truncate" title="<?php echo esc_view($req_title); ?>">
+          <?php echo esc_view($req_title !== '' ? $req_title : 'Untitled requirement'); ?>
+        </h1>
+        <span class="<?php echo esc_view($status_pill($req_status)); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $req_status))); ?></span>
+        <span class="<?php echo esc_view($priority_pill($req_priority)); ?>"><?php echo esc_view(ucfirst($req_priority)); ?></span>
+        <?php if ($type_label !== ''): ?>
+          <span class="defect-pill defect-pill--muted"><?php echo esc_view($type_label); ?></span>
         <?php endif; ?>
-        <div class="row mt-3 small">
-          <div class="col-md-6">
-            <div class="text-muted">Expected Delivery</div>
-            <div><?php echo esc_view(isset($req->expected_delivery_date)?$req->expected_delivery_date:''); ?></div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted">Owner</div>
-            <div><?php echo esc_view(isset($req->owner_name)?$req->owner_name:'Unassigned'); ?></div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted">Assigned To</div>
-            <div><?php
-              $assigneeLabel = isset($req->assigned_to_name) ? trim((string) $req->assigned_to_name) : '';
-              if ($assigneeLabel === '' && !empty($req->assigned_to)) {
-                $assigneeLabel = 'User #' . (int) $req->assigned_to;
-              }
-              if (!empty($assignee_names) && is_array($assignee_names)) {
-                $parts = array();
-                $seen = array();
-                if ($assigneeLabel !== '') {
-                  $parts[] = $assigneeLabel;
-                  $seen[strtolower($assigneeLabel)] = true;
-                }
-                foreach ($assignee_names as $n) {
-                  $n = trim((string) $n);
-                  if ($n === '' || isset($seen[strtolower($n)])) {
-                    continue;
-                  }
-                  $seen[strtolower($n)] = true;
-                  $parts[] = $n;
-                }
-                if (!empty($parts)) {
-                  $assigneeLabel = implode(', ', $parts);
-                }
-              }
-              echo esc_view($assigneeLabel !== '' ? $assigneeLabel : 'Unassigned');
-            ?></div>
+      </div>
+      <div class="small text-muted mt-1">
+        <span class="font-monospace fw-semibold text-body"><?php echo esc_view($req_number); ?></span>
+      </div>
+    </div>
+    <div class="defect-view-actions d-flex align-items-center gap-1 flex-shrink-0">
+      <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('requirements'); ?>" title="List"><i class="bi bi-list-ul"></i></a>
+      <?php if ($can_edit): ?>
+        <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('requirements/edit/' . (int) $req->id); ?>" title="Edit"><i class="bi bi-pencil"></i></a>
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <?php if ($this->session->flashdata('success')): ?>
+    <div class="alert alert-success py-2 mb-2"><?php echo esc_view($this->session->flashdata('success')); ?></div>
+  <?php endif; ?>
+  <?php if ($this->session->flashdata('error')): ?>
+    <div class="alert alert-danger py-2 mb-2"><?php echo esc_view($this->session->flashdata('error')); ?></div>
+  <?php endif; ?>
+
+  <div class="row g-2">
+    <div class="col-12 col-lg-8">
+      <div class="card mb-2">
+        <div class="card-body py-2 px-3">
+          <div class="small text-muted fw-semibold mb-1">Description</div>
+          <div class="defect-rich-content small mb-0">
+            <?php if (!empty($req->description)): ?>
+              <?php echo sanitize_html_output($req->description); ?>
+            <?php else: ?>
+              <span class="text-muted">—</span>
+            <?php endif; ?>
           </div>
           <?php if (!empty($req->reference_url)): ?>
-          <div class="col-md-12 mt-2">
-            <?php $this->load->view('partials/reference_url_display', ['reference_url' => $req->reference_url, 'wrapper_class' => 'mb-0']); ?>
+            <div class="mt-2 pt-2 border-top">
+              <?php $this->load->view('partials/reference_url_display', array('reference_url' => $req->reference_url, 'wrapper_class' => 'mb-0')); ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <?php if (!empty($attachments)): ?>
+      <div class="card mb-2">
+        <div class="card-body py-2 px-3">
+          <div class="small text-muted fw-semibold mb-1">Attachments</div>
+          <ul class="list-unstyled small mb-0">
+            <?php foreach ($attachments as $a): ?>
+              <li class="mb-1">
+                <a href="<?php echo base_url($a->file_path); ?>" download>
+                  <i class="bi bi-paperclip me-1"></i><?php echo esc_view(isset($a->original_name) ? $a->original_name : $a->file_name); ?>
+                </a>
+                <?php if (isset($a->file_size)): ?>
+                  <span class="text-muted">(<?php echo (int) $a->file_size; ?> KB)</span>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <div class="card mb-2">
+        <div class="card-body py-2 px-3">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <div class="small text-muted fw-semibold">Linked Tasks<?php echo !empty($linked_tasks) ? ' (' . count($linked_tasks) . ')' : ''; ?></div>
+            <a href="<?php echo site_url('tasks/create?requirement_id=' . (int) $req->id); ?>" class="btn btn-sm btn-outline-primary" title="Create task">
+              <i class="bi bi-plus-lg me-1"></i>Create task
+            </a>
           </div>
+          <?php if (empty($linked_tasks)): ?>
+            <p class="text-muted small mb-0">No linked tasks yet.</p>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:4rem;">ID</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Due</th>
+                    <th class="text-end" style="width:4rem;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($linked_tasks as $lt): ?>
+                    <tr>
+                      <td class="small text-muted">#<?php echo (int) $lt->id; ?></td>
+                      <td class="small"><?php echo esc_view($lt->title); ?></td>
+                      <td class="small"><?php echo esc_view(ucwords(str_replace('_', ' ', (string) $lt->status))); ?></td>
+                      <td class="small text-nowrap"><?php echo !empty($lt->due_date) ? esc_view($lt->due_date) : '—'; ?></td>
+                      <td class="text-end text-nowrap">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
+                          <a href="<?php echo site_url('tasks/' . (int) $lt->id); ?>" class="btn btn-outline-secondary" title="View"><i class="bi bi-eye"></i></a>
+                        </div>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <div class="card mb-2" id="history">
+        <div class="card-body py-2 px-3">
+          <?php if ($can_note): ?>
+            <div class="small text-muted fw-semibold mb-1">Save note</div>
+            <form method="post" action="<?php echo site_url('requirements/add-comment/' . (int) $req->id); ?>" class="mb-3">
+              <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+              <textarea name="note" id="requirementHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+            </form>
+          <?php endif; ?>
+
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <div class="small text-muted fw-semibold">History</div>
+            <span class="text-muted small"><?php echo count($history); ?></span>
+          </div>
+
+          <?php if (empty($history)): ?>
+            <p class="text-muted small mb-0">No history yet.</p>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0 align-middle defect-history-grid">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-start" style="width:9.5rem;">Date</th>
+                    <th>Comments</th>
+                    <th style="width:9rem;">Added By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($history as $h): ?>
+                    <?php
+                      $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                      $changed = trim((string) $h->detail);
+                      if ($changed === '') {
+                          $changed = $action_label($h->action);
+                      } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
+                          if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                              $changed = $action_label($h->action) . ': ' . $changed;
+                          }
+                      }
+                      $parts = preg_split('/\s*;\s*/', $changed);
+                    ?>
+                    <tr>
+                      <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                      <td class="small">
+                        <?php if (count($parts) > 1): ?>
+                          <ul class="mb-0 ps-3 defect-history-changes">
+                            <?php foreach ($parts as $part): ?>
+                              <?php if (trim($part) === '') { continue; } ?>
+                              <li><?php echo esc_view(trim($part)); ?></li>
+                            <?php endforeach; ?>
+                          </ul>
+                        <?php else: ?>
+                          <?php echo nl2br(esc_view($changed)); ?>
+                        <?php endif; ?>
+                      </td>
+                      <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
           <?php endif; ?>
         </div>
       </div>
     </div>
 
-    <div class="card shadow-soft">
-      <div class="card-header"><h6 class="mb-0">Attachments</h6></div>
-      <div class="card-body">
-        <?php if (empty($attachments)): ?>
-          <div class="text-muted small">No attachments.</div>
-        <?php else: ?>
-        <div class="list-group">
-          <?php foreach ($attachments as $a): ?>
-          <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="<?php echo base_url($a->file_path); ?>" download>
-            <div>
-              <i class="bi bi-file-earmark me-2"></i>
-              <strong><?php echo esc_view(isset($a->original_name)?$a->original_name:$a->file_name); ?></strong>
-              <?php if (isset($a->file_size)): ?><small class="text-muted"> (<?php echo (int)$a->file_size; ?> KB)</small><?php endif; ?>
-            </div>
-            <i class="bi bi-download"></i>
-          </a>
-          <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-      </div>
-    </div>
-
-    <?php
-    // Get linked tasks for this requirement
-    $linked_tasks = [];
-    if ($this->db->table_exists('tasks') && schema_table_has_column($this->db, 'tasks', 'requirement_id')) {
-        $this->db->select('t.id, t.title, t.status, t.priority, t.due_date, p.name AS project_name');
-        $this->db->from('tasks t');
-        $this->db->join('projects p', 'p.id = t.project_id', 'left');
-        $this->db->where('t.requirement_id', (int)$req->id);
-        $this->db->order_by('t.id', 'DESC');
-        $linked_tasks = $this->db->get()->result();
-    }
-    ?>
-    
-    <?php if (!empty($linked_tasks)): ?>
-    <div class="card shadow-soft mt-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">
-          <i class="bi bi-list-task me-2"></i>Linked Tasks (<?php echo count($linked_tasks); ?>)
-        </h6>
-        <a href="<?php echo site_url('tasks/create?requirement_id='.(int)$req->id); ?>" class="btn btn-sm btn-primary">
-          <i class="bi bi-plus-lg me-1"></i>Create Task
-        </a>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th>Task ID</th>
-                <th>Title</th>
-                <th>Project</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Due Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+    <div class="col-12 col-lg-4">
+      <div class="card mb-2">
+        <div class="card-body py-2 px-3">
+          <div class="small text-muted fw-semibold mb-2">Details</div>
+          <table class="table table-sm mb-0 defect-simple-meta">
             <tbody>
-              <?php foreach ($linked_tasks as $lt): ?>
-              <tr>
-                <td>#<?php echo (int)$lt->id; ?></td>
-                <td><?php echo esc_view($lt->title); ?></td>
-                <td><?php echo esc_view(isset($lt->project_name) ? $lt->project_name : ''); ?></td>
-                <td>
-                  <?php 
-                  $statusColors = ['pending' => 'warning', 'in_progress' => 'info', 'completed' => 'success', 'blocked' => 'danger'];
-                  $statusColor = isset($statusColors[$lt->status]) ? $statusColors[$lt->status] : 'secondary';
-                  ?>
-                  <span class="badge bg-<?php echo $statusColor; ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $lt->status))); ?></span>
-                </td>
-                <td>
-                  <?php 
-                  $priorityColors = ['low' => 'success', 'medium' => 'warning', 'high' => 'danger', 'urgent' => 'danger'];
-                  $priorityColor = isset($priorityColors[$lt->priority]) ? $priorityColors[$lt->priority] : 'secondary';
-                  ?>
-                  <span class="badge bg-<?php echo $priorityColor; ?>"><?php echo esc_view(ucfirst($lt->priority)); ?></span>
-                </td>
-                <td>
-                  <?php if (isset($lt->due_date) && $lt->due_date): ?>
-                    <?php 
-                    $dueDate = strtotime($lt->due_date);
-                    $today = strtotime('today');
-                    $class = $dueDate < $today ? 'text-danger' : ($dueDate <= strtotime('+3 days') ? 'text-warning' : '');
-                    ?>
-                    <span class="<?php echo $class; ?>"><?php echo date('M j, Y', $dueDate); ?></span>
-                  <?php else: ?>
-                    <span class="text-muted">-</span>
-                  <?php endif; ?>
-                </td>
-                <td>
-                  <a href="<?php echo site_url('tasks/'.(int)$lt->id); ?>" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye me-1"></i>View
-                  </a>
-                </td>
-              </tr>
-              <?php endforeach; ?>
+              <tr><th>Client</th><td><?php echo esc_view(!empty($req->client_name) ? $req->client_name : '—'); ?></td></tr>
+              <tr><th>Project</th><td><?php echo esc_view(!empty($req->project_name) ? $req->project_name : '—'); ?></td></tr>
+              <tr><th>Type</th><td><?php echo esc_view($type_label !== '' ? $type_label : '—'); ?></td></tr>
+              <tr><th>Priority</th><td><?php echo esc_view(ucfirst($req_priority)); ?></td></tr>
+              <tr><th>Status</th><td><?php echo esc_view(ucwords(str_replace('_', ' ', $req_status))); ?></td></tr>
+              <tr><th>Expected</th><td><?php echo esc_view(!empty($req->expected_delivery_date) ? $req->expected_delivery_date : '—'); ?></td></tr>
+              <tr><th>Received</th><td><?php echo esc_view(!empty($req->received_date) ? $req->received_date : '—'); ?></td></tr>
+              <tr><th>Owner</th><td><?php echo esc_view(!empty($req->owner_name) ? $req->owner_name : 'Unassigned'); ?></td></tr>
+              <tr><th>Assignee</th><td><?php echo esc_view($assigneeLabel); ?></td></tr>
+              <tr><th>Created</th><td><?php echo esc_view(!empty($req->created_at) ? $req->created_at : '—'); ?></td></tr>
+              <tr><th>Updated</th><td><?php echo esc_view(!empty($req->updated_at) ? $req->updated_at : '—'); ?></td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
-    <?php else: ?>
-    <div class="card shadow-soft mt-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">
-          <i class="bi bi-list-task me-2"></i>Linked Tasks
-        </h6>
-        <a href="<?php echo site_url('tasks/create?requirement_id='.(int)$req->id); ?>" class="btn btn-sm btn-primary">
-          <i class="bi bi-plus-lg me-1"></i>Create Task from Requirement
-        </a>
-      </div>
-      <div class="card-body">
-        <div class="text-center text-muted py-4">
-          <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-          <p class="mt-2 mb-0">No tasks linked to this requirement yet.</p>
-          <p class="small">Create a task to start working on this requirement.</p>
-        </div>
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <div class="card shadow-soft mt-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">Version History</h6>
-        <form method="get" action="<?php echo site_url('requirements/view/'.(int)$req->id); ?>" class="d-flex align-items-center gap-2">
-          <?php $curType = isset($type_filter) ? (string)$type_filter : ''; ?>
-          <label class="small text-muted me-2">Filter by type</label>
-          <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="" <?php echo $curType === '' ? 'selected' : ''; ?>>All</option>
-            <?php if (isset($requirement_types) && is_array($requirement_types)): foreach ($requirement_types as $code => $label): ?>
-              <option value="<?php echo esc_view($code); ?>" <?php echo ($curType === (string) $code) ? 'selected' : ''; ?>><?php echo esc_view($label); ?></option>
-            <?php endforeach; endif; ?>
-          </select>
-        </form>
-      </div>
-      <div class="card-body">
-        <?php if (!isset($versions) || empty($versions)): ?>
-          <div class="text-muted small">No versions yet.</div>
-        <?php else: ?>
-        <div class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th>Version</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Created At</th>
-                <th>By</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($versions as $v): ?>
-              <tr>
-                <td><?php echo (int)$v->version_no; ?></td>
-                <td><?php echo esc_view(isset($v->title)?$v->title:''); ?></td>
-                <td><?php echo esc_view(isset($v->status)?$v->status:''); ?></td>
-                <td><?php echo esc_view(isset($v->priority)?$v->priority:''); ?></td>
-                <td><?php echo esc_view(isset($v->created_at)?$v->created_at:''); ?></td>
-                <td><?php echo esc_view(isset($v->created_by)?$v->created_by:''); ?></td>
-                <td><a class="btn btn-light btn-sm" href="<?php echo site_url('requirements/version/'.(int)$v->id); ?>">View</a></td>
-              </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-        <?php endif; ?>
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-4">
-    <div class="card shadow-soft">
-      <div class="card-header"><h6 class="mb-0">Meta</h6></div>
-      <div class="card-body small text-muted">
-        <div>Received: <?php echo esc_view(isset($req->received_date)?$req->received_date:''); ?></div>
-        <div>Created: <?php echo esc_view(isset($req->created_at)?$req->created_at:''); ?></div>
-        <div>Updated: <?php echo esc_view(isset($req->updated_at)?$req->updated_at:''); ?></div>
-      </div>
-    </div>
   </div>
 </div>
-
-<!-- Comments Section -->
-<div class="row mt-4">
-  <div class="col-12">
-    <div class="card shadow-soft">
-      <div class="card-header bg-light">
-        <h5 class="card-title mb-0">
-          <i class="bi bi-chat-dots me-2"></i>Comments
-          <span class="badge bg-secondary ms-2" id="comment-count">0</span>
-        </h5>
-      </div>
-      <div class="card-body">
-        <!-- Flash Messages -->
-        <?php if ($this->session->flashdata('error')): ?>
-          <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?php echo esc_view($this->session->flashdata('error')); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        <?php endif; ?>
-        <?php if ($this->session->flashdata('success')): ?>
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?php echo esc_view($this->session->flashdata('success')); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        <?php endif; ?>
-        
-        <!-- Comment Form -->
-        <div class="mb-4">
-          <form method="post" action="<?php echo site_url('requirements/'.(int)$req->id.'/comment'); ?>" id="commentForm">
-            <div class="mb-3">
-              <textarea class="form-control" name="comment" rows="3" placeholder="Add a comment..." required></textarea>
-            </div>
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted">Press Enter to submit, Shift+Enter for new line</small>
-              <button type="submit" class="btn btn-primary">
-                <i class="bi bi-send me-1"></i>Post Comment
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        <!-- Comments List -->
-        <div id="comments" class="vstack gap-3"></div>
-        <div id="comments-empty" class="text-center text-muted py-4" style="display:none">
-          <i class="bi bi-chat-dots" style="font-size: 3rem;"></i>
-          <p class="mt-2">No comments yet. Be the first to comment!</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-(function(){
-  const container = document.getElementById('comments');
-  const empty = document.getElementById('comments-empty');
-  const commentCount = document.getElementById('comment-count');
-  const requirementId = <?php echo (int)$req->id; ?>;
-
-  function timeago(iso){
-    const d = new Date(iso.replace(' ', 'T'));
-    const diff = (Date.now() - d.getTime())/1000;
-    if (diff < 60) return Math.floor(diff)+'s ago';
-    if (diff < 3600) return Math.floor(diff/60)+'m ago';
-    if (diff < 86400) return Math.floor(diff/3600)+'h ago';
-    return Math.floor(diff/86400)+'d ago';
-  }
-
-  function getInitials(text) {
-    text = text || '';
-    if (!text) return 'NA';
-    const parts = text.trim().split(/\s+/);
-    const first = parts[0] ? parts[0].charAt(0).toUpperCase() : '';
-    const last = parts.length > 1 ? parts[parts.length - 1].charAt(0).toUpperCase() : '';
-    return first + (last && last !== first ? last : '');
-  }
-
-  function render(list){
-    container.innerHTML = '';
-    if (!list || list.length === 0){ 
-      empty.style.display = 'block'; 
-      commentCount.textContent = '0';
-      return; 
-    }
-    empty.style.display = 'none';
-    commentCount.textContent = list.length;
-    
-    list.forEach(function(c){
-      const name = c.name || c.full_name || c.email || ('User #'+c.user_id);
-      const item = document.createElement('div');
-      item.className = 'comment-item border-bottom pb-3 mb-3';
-      item.innerHTML = 
-        '<div class="d-flex gap-3 align-items-start">' +
-          '<div class="avatar avatar-bg" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.875rem; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; flex-shrink: 0;">' +
-            getInitials(name) +
-          '</div>' +
-          '<div class="flex-grow-1">' +
-            '<div class="d-flex justify-content-between align-items-center mb-2">' +
-              '<div class="fw-semibold">' + escapeHtml(name) + '</div>' +
-              '<div class="text-muted small">' + (c.created_at ? escapeHtml(timeago(c.created_at)) : '') + '</div>' +
-            '</div>' +
-            '<div class="comment-content mb-2">' + escapeHtml(c.comment || '').replace(/\n/g, '<br>') + '</div>' +
-            '<div class="comment-actions">' +
-              '<a href="<?php echo site_url('requirements/comment'); ?>/' + c.id + '/delete?ref=<?php echo rawurlencode(site_url('requirements/view/'.(int)$req->id)); ?>" class="link-danger small text-decoration-none" onclick="return confirm(\'Delete this comment?\')">' +
-                '<i class="bi bi-trash me-1"></i>Delete' +
-              '</a>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      container.appendChild(item);
-    });
-  }
-
-  function escapeHtml(s){
-    return (s||'').replace(/[&<>"']/g, function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c];
-    });
-  }
-
-  function load(){
-    fetch('<?php echo site_url('requirements'); ?>/'+requirementId+'/comments', { credentials: 'same-origin' })
-      .then(function(r) { return r.json(); }).then(function(res){ 
-        if (res && res.ok) render(res.comments||[]); 
-      });
-  }
-
-  // Handle form submission with Enter key
-  const commentForm = document.getElementById('commentForm');
-  const commentTextarea = commentForm.querySelector('textarea');
-  
-  commentTextarea.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      commentForm.submit();
-    }
-  });
-
-  load();
-})();
-</script>
 
 <?php $this->load->view('partials/footer'); ?>
