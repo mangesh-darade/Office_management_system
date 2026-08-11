@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', array(
   'title' => 'Second Brain',
-  'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css', 'assets/css/clients.css')
+  'extra_css' => array('assets/css/my-works.css', 'assets/css/project-dashboard.css', 'assets/css/clients.css', 'assets/css/defects-form.css')
 )); ?>
 <script src="<?php echo base_url('assets/js/my-works-lane-status.js'); ?>"></script>
 <script>
@@ -70,10 +70,13 @@
   $can_add = function_exists('has_module_access') && (has_module_access('my_works_add') || has_module_access('my_works'));
   $can_req_list = function_exists('has_module_access') && (has_module_access('requirements_list') || has_module_access('requirements'));
   $can_req_add = function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'));
+  $can_defects_tab = function_exists('has_module_access') && (has_module_access('defects_list') || has_module_access('defects_view') || has_module_access('defects'));
+  $can_defects_add = function_exists('has_module_access') && (has_module_access('defects_add') || has_module_access('defects'));
   $can_clients_tab = function_exists('has_module_access') && (has_module_access('clients_list') || has_module_access('clients_view') || has_module_access('clients'));
   $redirectBack = 'my-works' . safe_query_suffix();
   $quickAddUrl = site_url('my-works/quick-add') . '?redirect=' . rawurlencode($redirectBack);
   $reqCreateUrl = site_url('requirements/create') . '?redirect=' . rawurlencode('my-works');
+  $defectCreateUrl = site_url('defects/create') . '?redirect=' . rawurlencode('my-works?tab=defects');
   $complete_view_on = !empty($complete_view_on);
   $show_complete_toggle = in_array($active_tab, array('project-dashboard', 'team-dashboard'), true);
   ?>
@@ -129,6 +132,15 @@
       </button>
     </li>
     <?php endif; ?>
+    <?php if ($can_defects_tab): ?>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <?php echo $active_tab === 'defects' ? 'active' : ''; ?>"
+              id="tab-defects" data-tab="defects" type="button" role="tab"
+              title="Defects">
+        <i class="bi bi-bug me-1"></i>Defects
+      </button>
+    </li>
+    <?php endif; ?>
   </ul>
 
   <div class="mw-unified-toolbar-actions">
@@ -150,8 +162,13 @@
     </a>
     <?php endif; ?>
     <?php if ($can_req_add): ?>
-    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($reqCreateUrl, ENT_QUOTES, 'UTF-8'); ?>" title="Add Requirement">
+    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($reqCreateUrl); ?>" title="Add Requirement">
       <i class="bi bi-plus-lg me-1"></i>Add Req
+    </a>
+    <?php endif; ?>
+    <?php if ($can_defects_add): ?>
+    <a class="btn btn-outline-primary btn-sm mw-unified-action-btn" href="<?php echo esc_view($defectCreateUrl); ?>" title="Log Defect">
+      <i class="bi bi-bug me-1"></i>Add Defect
     </a>
     <?php endif; ?>
   </div>
@@ -213,6 +230,16 @@
   <?php if ($can_req_list): ?>
   <!-- Requirements Tab -->
   <div class="tab-pane fade <?php echo $active_tab === 'requirements' ? 'show active' : ''; ?>" id="pane-requirements" role="tabpanel">
+    <div class="tab-loading-spinner text-center py-5" style="display: none;">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    <div class="tab-pane-content"></div>
+  </div>
+  <?php endif; ?>
+
+  <?php if ($can_defects_tab): ?>
+  <!-- Defects Tab -->
+  <div class="tab-pane fade <?php echo $active_tab === 'defects' ? 'show active' : ''; ?>" id="pane-defects" role="tabpanel">
     <div class="tab-loading-spinner text-center py-5" style="display: none;">
       <div class="spinner-border text-primary" role="status"></div>
     </div>
@@ -310,7 +337,12 @@ document.addEventListener('DOMContentLoaded', function() {
   function getSavedTabPaneUrl(tabName) {
     var state = readPersistedState();
     if (state.tabs && state.tabs[tabName]) {
-      return state.tabs[tabName];
+      var saved = state.tabs[tabName];
+      // Clients tab used to load dashboard-only; migrate to full Clients (List / Cart / URLs).
+      if (tabName === 'clients' && typeof saved === 'string' && saved.indexOf('clients/dashboard') >= 0) {
+        return defaultUrlForTab('clients');
+      }
+      return saved;
     }
     return '';
   }
@@ -342,10 +374,11 @@ document.addEventListener('DOMContentLoaded', function() {
       'overview': '<?php echo site_url("my-works?view=overview"); ?>',
       'daily-pulse': '<?php echo site_url("my-works/daily-pulse"); ?>',
       'project-dashboard': '<?php echo site_url("projects/dashboard"); ?>',
-      'clients': '<?php echo site_url("clients/dashboard"); ?>',
+      'clients': '<?php echo site_url("clients"); ?>',
       'team-dashboard': '<?php echo site_url("tasks/my-dashboard"); ?>',
       'list': '<?php echo site_url("my-works?view=list"); ?>',
-      'requirements': '<?php echo site_url("requirements"); ?>'
+      'requirements': '<?php echo site_url("requirements"); ?>',
+      'defects': '<?php echo site_url("defects"); ?>'
     };
     return map[tabName] || map.overview;
   }
@@ -706,7 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var clientsPath = clientsUrl.pathname.replace(/\/+$/, '');
         isClientsListLink = /\/clients$/.test(clientsPath) || /\/clients\/dashboard$/.test(clientsPath);
       } catch (err) {
-        isClientsListLink = /\/clients(\?|$)/.test(href) || href.indexOf('clients/dashboard') >= 0;
+        isClientsListLink = /\/clients(\?|$)/.test(href) || href.indexOf('clients/dashboard') >= 0 || /[?&]tab=(list|cart|urls)/.test(href);
       }
 
       var isDashboardLink = href.indexOf('my-works') >= 0 || 
@@ -714,6 +747,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             href.indexOf('tasks/my-dashboard') >= 0 ||
                             isClientsListLink ||
                             href.indexOf('requirements') >= 0 ||
+                            href.indexOf('defects') >= 0 ||
                             href.indexOf('daily-pulse') >= 0;
                             
       if (isDashboardLink) {
@@ -744,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (shouldLoad) {
         var initialUrl = resolveTabLoadUrl(tabName);
         // Always refresh projects/team/clients/reqs so complete_view and remote state stay current.
-        if (tabName === 'project-dashboard' || tabName === 'team-dashboard' || tabName === 'clients' || tabName === 'requirements') {
+        if (tabName === 'project-dashboard' || tabName === 'team-dashboard' || tabName === 'clients' || tabName === 'requirements' || tabName === 'defects') {
           initialUrl = applyParentFiltersToUrl(getSavedTabPaneUrl(tabName) || defaultUrlForTab(tabName));
         }
         loadTabContent($pane, initialUrl, 'GET');
