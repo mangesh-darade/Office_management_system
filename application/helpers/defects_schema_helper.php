@@ -37,6 +37,7 @@ if (!function_exists('defects_schema_ensure')) {
                 `verified_by` int(11) DEFAULT NULL,
                 `due_date` date DEFAULT NULL,
                 `resolved_at` datetime DEFAULT NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT 1,
                 `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
                 `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -59,6 +60,14 @@ if (!function_exists('defects_schema_ensure')) {
             }
             if (!schema_table_has_column($db, 'project_defects', 'is_deleted')) {
                 $db->query("ALTER TABLE `project_defects` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0 AFTER `resolved_at`");
+            }
+            // Record active flag (separate from workflow status open/fixed/…).
+            if (!schema_table_has_column($db, 'project_defects', 'is_active')) {
+                if (schema_table_has_column($db, 'project_defects', 'is_deleted')) {
+                    $db->query("ALTER TABLE `project_defects` ADD COLUMN `is_active` tinyint(1) NOT NULL DEFAULT 1 AFTER `is_deleted`");
+                } else {
+                    $db->query("ALTER TABLE `project_defects` ADD COLUMN `is_active` tinyint(1) NOT NULL DEFAULT 1 AFTER `resolved_at`");
+                }
             }
             // Project optional on create/edit (was NOT NULL).
             $col = $db->query("SHOW COLUMNS FROM `project_defects` LIKE 'project_id'")->row_array();

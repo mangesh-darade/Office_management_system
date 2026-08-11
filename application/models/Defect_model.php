@@ -81,7 +81,43 @@ class Defect_model extends CI_Model
         if ($limit !== null) {
             $this->db->limit((int) $limit, (int) $offset);
         }
-        return $this->db->get()->result();
+        $rows = $this->db->get()->result();
+        // List shows all non-deleted (active + inactive); is_active is for UI toggle only.
+        $has_active = schema_table_has_column($this->db, 'project_defects', 'is_active');
+        foreach ($rows as $r) {
+            if (!$has_active || !isset($r->is_active)) {
+                $r->is_active = 1;
+            } else {
+                $r->is_active = (int) $r->is_active;
+            }
+        }
+        return $rows;
+    }
+
+    /**
+     * Flip project_defects.is_active (not workflow status).
+     *
+     * @return int|false New is_active (0|1), or false on failure
+     */
+    public function toggle_active($id)
+    {
+        if (!schema_table_has_column($this->db, 'project_defects', 'is_active')) {
+            return false;
+        }
+        $item = $this->get_defect((int) $id);
+        if (!$item) {
+            return false;
+        }
+        $current = isset($item->is_active) ? (int) $item->is_active : 1;
+        $next = $current === 1 ? 0 : 1;
+        $ok = $this->db->where('id', (int) $id)->update('project_defects', array(
+            'is_active' => $next,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ));
+        if (!$ok) {
+            return false;
+        }
+        return $next;
     }
 
     public function get_defect($id, $include_deleted = false)

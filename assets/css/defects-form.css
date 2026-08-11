@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Defects create/edit â€” modern split UI (meta left / content right).
  */
 .defect-form-page {
@@ -536,6 +536,15 @@
 
 .defect-list-page .defect-row-overdue {
   background: #fff8eb;
+}
+
+.defect-list-page .defect-row-inactive,
+.defect-list-page .defect-mobile-card.is-inactive {
+  opacity: 0.55;
+}
+
+.defect-list-page .defect-active-switch .form-check-input {
+  cursor: pointer;
 }
 
 .defect-list-page .defect-pill,

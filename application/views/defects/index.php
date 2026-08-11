@@ -201,7 +201,7 @@ if (!$embed) {
         $overdue = function_exists('defect_is_overdue') && defect_is_overdue($r);
         $client_name = isset($r->client_name) && $r->client_name !== '' ? $r->client_name : '—';
       ?>
-      <article class="defect-mobile-card<?php echo $overdue ? ' is-overdue' : ''; ?>">
+      <article class="defect-mobile-card<?php echo $overdue ? ' is-overdue' : ''; ?><?php echo empty($r->is_active) ? ' is-inactive' : ''; ?>" data-defect-id="<?php echo (int) $r->id; ?>">
         <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
           <a class="defect-mobile-id" href="<?php echo site_url('defects/view/' . (int) $r->id); ?>"><?php echo esc_view($r->defect_number); ?></a>
           <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
@@ -215,10 +215,25 @@ if (!$embed) {
           <span><i class="bi bi-building"></i> <?php echo esc_view($client_name); ?></span>
           <span><i class="bi bi-folder"></i> <?php echo esc_view($r->project_name ?: '—'); ?></span>
         </div>
-        <div class="d-flex flex-wrap gap-1 mt-2">
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
           <span class="<?php echo esc_view($sev_class($r->severity)); ?>"><?php echo esc_view(ucfirst((string) $r->severity)); ?></span>
           <span class="<?php echo esc_view($status_class($r->status)); ?>"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $r->status))); ?></span>
           <span class="defect-pill defect-pill--muted"><?php echo esc_view($r->assignee_name ?: 'Unassigned'); ?></span>
+          <?php if ($can_edit): ?>
+            <div class="form-check form-switch defect-active-switch mb-0">
+              <input class="form-check-input defect-active-toggle" type="checkbox" role="switch"
+                     id="defectActiveM<?php echo (int) $r->id; ?>"
+                     data-id="<?php echo (int) $r->id; ?>"
+                     title="Active"
+                     aria-label="Active"
+                     <?php echo !empty($r->is_active) ? 'checked' : ''; ?>>
+              <label class="form-check-label small" for="defectActiveM<?php echo (int) $r->id; ?>">Active</label>
+            </div>
+          <?php else: ?>
+            <span class="defect-pill <?php echo !empty($r->is_active) ? 'defect-pill--fixed' : 'defect-pill--muted'; ?>">
+              <?php echo !empty($r->is_active) ? 'Active' : 'Inactive'; ?>
+            </span>
+          <?php endif; ?>
         </div>
       </article>
     <?php endforeach; ?>
@@ -236,6 +251,7 @@ if (!$embed) {
             <th>Project</th>
             <th>Severity</th>
             <th>Status</th>
+            <th>Active</th>
             <th>Due</th>
             <th>Assignee</th>
             <th class="text-end">Actions</th>
@@ -247,7 +263,7 @@ if (!$embed) {
               $overdue = function_exists('defect_is_overdue') && defect_is_overdue($r);
               $client_name = isset($r->client_name) && $r->client_name !== '' ? $r->client_name : '—';
             ?>
-            <tr class="<?php echo $overdue ? 'defect-row-overdue' : ''; ?>">
+            <tr class="<?php echo $overdue ? 'defect-row-overdue' : ''; ?><?php echo empty($r->is_active) ? ' defect-row-inactive' : ''; ?>" data-defect-id="<?php echo (int) $r->id; ?>">
               <td>
                 <a class="defect-id-link" href="<?php echo site_url('defects/view/' . (int) $r->id); ?>"><?php echo esc_view($r->defect_number); ?></a>
               </td>
@@ -261,6 +277,23 @@ if (!$embed) {
               <td><?php echo esc_view($r->project_name ?: '—'); ?></td>
               <td><span class="<?php echo esc_view($sev_class($r->severity)); ?>"><?php echo esc_view(ucfirst((string) $r->severity)); ?></span></td>
               <td><span class="<?php echo esc_view($status_class($r->status)); ?>"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $r->status))); ?></span></td>
+              <td>
+                <?php if ($can_edit): ?>
+                  <div class="form-check form-switch defect-active-switch mb-0">
+                    <input class="form-check-input defect-active-toggle" type="checkbox" role="switch"
+                           id="defectActive<?php echo (int) $r->id; ?>"
+                           data-id="<?php echo (int) $r->id; ?>"
+                           title="Active"
+                           aria-label="Active"
+                           <?php echo !empty($r->is_active) ? 'checked' : ''; ?>>
+                    <label class="form-check-label visually-hidden" for="defectActive<?php echo (int) $r->id; ?>">Active</label>
+                  </div>
+                <?php else: ?>
+                  <span class="defect-pill <?php echo !empty($r->is_active) ? 'defect-pill--fixed' : 'defect-pill--muted'; ?>">
+                    <?php echo !empty($r->is_active) ? 'Active' : 'Inactive'; ?>
+                  </span>
+                <?php endif; ?>
+              </td>
               <td class="text-nowrap"><?php echo esc_view(!empty($r->due_date) ? $r->due_date : '—'); ?></td>
               <td><?php echo esc_view($r->assignee_name ?: '—'); ?></td>
               <td class="text-end text-nowrap">
@@ -320,6 +353,88 @@ if (!$embed) {
   filterProjects();
 })();
 </script>
+<?php if ($can_edit): ?>
+<!-- List choice: show ALL non-deleted defects (active + inactive). Inactive rows are dimmed; is_active is independent of workflow status. -->
+<script>
+(function () {
+  if (window.__defectActiveToggleBound) {
+    return;
+  }
+  window.__defectActiveToggleBound = true;
+
+  var csrfName = (typeof window.getCsrfName === 'function')
+    ? window.getCsrfName()
+    : <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = (typeof window.getCsrfToken === 'function')
+    ? window.getCsrfToken()
+    : <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+
+  function syncRowDim(id, isActive) {
+    var nodes = document.querySelectorAll('[data-defect-id="' + id + '"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (el.tagName === 'TR') {
+        el.classList.toggle('defect-row-inactive', !isActive);
+      } else {
+        el.classList.toggle('is-inactive', !isActive);
+      }
+    }
+    var toggles = document.querySelectorAll('.defect-active-toggle[data-id="' + id + '"]');
+    for (var j = 0; j < toggles.length; j++) {
+      toggles[j].checked = !!isActive;
+    }
+  }
+
+  document.addEventListener('change', function (e) {
+    var input = e.target;
+    if (!input || !input.classList || !input.classList.contains('defect-active-toggle')) {
+      return;
+    }
+    var id = parseInt(input.getAttribute('data-id'), 10) || 0;
+    if (id < 1) {
+      return;
+    }
+    var wanted = input.checked;
+    input.disabled = true;
+
+    var body = new FormData();
+    body.append(csrfName, csrfHash);
+
+    fetch(<?php echo json_encode(site_url('defects/toggle-active')); ?> + '/' + id, {
+      method: 'POST',
+      body: body,
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function (res) {
+      return res.json().then(function (payload) {
+        return { ok: res.ok, payload: payload };
+      });
+    }).then(function (result) {
+      var payload = result.payload || {};
+      if (!result.ok || payload.status !== 'success') {
+        input.checked = !wanted;
+        if (window.toastr) {
+          toastr.error((payload && payload.message) ? payload.message : 'Could not update active state');
+        }
+        return;
+      }
+      var isActive = !!(payload.data && parseInt(payload.data.is_active, 10) === 1);
+      syncRowDim(id, isActive);
+      if (window.toastr) {
+        toastr.success(payload.message || 'Updated');
+      }
+    }).catch(function () {
+      input.checked = !wanted;
+      if (window.toastr) {
+        toastr.error('Could not update active state');
+      }
+    }).then(function () {
+      input.disabled = false;
+    });
+  });
+})();
+</script>
+<?php endif; ?>
 <?php if (!$embed) {
     $this->load->view('partials/footer');
 } ?>

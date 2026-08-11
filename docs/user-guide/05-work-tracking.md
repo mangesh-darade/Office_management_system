@@ -59,7 +59,8 @@ Personal to-dos, daily activity logs, and performance appraisals.
 
 1. Open Second Brain → Defects.
 2. Filter by client, project, status, severity, assignee, or overdue.
-3. Use Add Defect / Log Defect to create; after save you return to this tab when opened from Second Brain.
+3. Use the Active switch to deactivate a defect (row dims); workflow status is unchanged.
+4. Use Add Defect / Log Defect to create; after save you return to this tab when opened from Second Brain.
 
 ---
 

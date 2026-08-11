@@ -242,6 +242,14 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 **Menu:** Project → Defects
 
+### View list
+
+**Steps:**
+
+1. Filter by client, project, status, severity, assignee, or overdue.
+2. List shows all non-deleted defects; use the Active switch to mark inactive (dimmed) without changing workflow status.
+3. Open a row to view details or edit.
+
 ### Add (create new)
 
 **Steps:**
@@ -256,8 +264,9 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 **Steps:**
 
 1. Open defect → Edit status to Fixed/Verified/Closed when resolved.
-2. Set due date for SLA tracking.
-3. Add comments and attachments on the detail page.
+2. Or toggle Active on the list to deactivate without changing open/fixed status.
+3. Set due date for SLA tracking.
+4. Review History table for all changes; optionally add a history note.
 
 ### Delete / remove
 

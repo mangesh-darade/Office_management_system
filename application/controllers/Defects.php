@@ -865,6 +865,114 @@ class Defects extends CI_Controller
 
 
 
+    public function toggle_active($id)
+
+    {
+
+        require_module_access(array('defects_edit', 'defects'), true);
+
+        if ($this->input->method() !== 'post') {
+
+            $this->output
+
+                ->set_status_header(405)
+
+                ->set_content_type('application/json')
+
+                ->set_output(json_encode(array(
+
+                    'status' => 'error',
+
+                    'message' => 'Invalid request',
+
+                    'data' => array(),
+
+                )));
+
+            return;
+
+        }
+
+        $id = (int) $id;
+
+        $item = $this->defects->get_defect($id);
+
+        if (!$item) {
+
+            $this->output
+
+                ->set_status_header(404)
+
+                ->set_content_type('application/json')
+
+                ->set_output(json_encode(array(
+
+                    'status' => 'error',
+
+                    'message' => 'Defect not found',
+
+                    'data' => array(),
+
+                )));
+
+            return;
+
+        }
+
+        $next = $this->defects->toggle_active($id);
+
+        if ($next === false) {
+
+            $this->output
+
+                ->set_status_header(500)
+
+                ->set_content_type('application/json')
+
+                ->set_output(json_encode(array(
+
+                    'status' => 'error',
+
+                    'message' => 'Unable to update active state',
+
+                    'data' => array(),
+
+                )));
+
+            return;
+
+        }
+
+        $uid = (int) $this->session->userdata('user_id');
+
+        $label = $next === 1 ? 'Active' : 'Inactive';
+
+        $this->defects->log_activity($id, $uid, 'active', 'Set to ' . $label);
+
+        if (function_exists('log_activity')) {
+
+            log_activity('defects', 'toggle_active', $id, 'Defect ' . $item->defect_number . ' set to ' . $label);
+
+        }
+
+        $this->output
+
+            ->set_content_type('application/json')
+
+            ->set_output(json_encode(array(
+
+                'status' => 'success',
+
+                'message' => 'Defect marked ' . strtolower($label) . '.',
+
+                'data' => array('is_active' => (int) $next),
+
+            )));
+
+    }
+
+
+
     public function delete($id)
 
     {

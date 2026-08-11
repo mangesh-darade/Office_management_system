@@ -122,5 +122,6 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `client_activity` | CREATE TABLE (id, client_id, user_id, action, old_value, new_value, created_at) | Per-client change history on client detail (Task-style) | 2026-08-10 |
 | `clients` | Repair: dedupe triplicate rows; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT; ADD UNIQUE `uq_client_code` | Missing AI/PK caused insert_id=0 → "Clients create error" | 2026-08-10 |
 | `project_defects` | MODIFY `project_id` int(11) DEFAULT NULL | Project optional on defect create/edit | 2026-08-11 |
+| `project_defects` | ADD `is_active` tinyint(1) NOT NULL DEFAULT 1 | Active/Inactive toggle on defects list (separate from workflow status) | 2026-08-11 |
 | `requirement_activity` | CREATE TABLE (id, requirement_id, user_id, action, detail, created_at) | Requirement view History (Defects-style notes + change log) | 2026-08-11 |
 | `requirements` | MODIFY `client_id` int(11) DEFAULT NULL | Client optional on requirement create/edit | 2026-08-11 |

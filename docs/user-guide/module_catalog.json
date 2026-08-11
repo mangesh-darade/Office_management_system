@@ -307,9 +307,9 @@
           "name": "Defects",
           "menu": "Project → Defects",
           "purpose": "Log, assign, and resolve bugs linked to projects, releases, and tasks.",
-          "list": {"route": "defects", "steps": ["Filter by client, project, status, severity, assignee, or overdue.", "Open a row to view details or edit."]},
+          "list": {"route": "defects", "steps": ["Filter by client, project, status, severity, assignee, or overdue.", "List shows all non-deleted defects; use the Active switch to mark inactive (dimmed) without changing workflow status.", "Open a row to view details or edit."]},
           "add": {"route": "defects/create", "steps": ["Optionally select Client to filter projects.", "Select project (required).", "Describe issue and steps to reproduce.", "Assign if known → Save."]},
-          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved.", "Set due date for SLA tracking.", "Review History table for all changes; optionally add a history note."]},
+          "edit": {"list_route": "defects", "steps": ["Open defect → Edit status to Fixed/Verified/Closed when resolved.", "Or toggle Active on the list to deactivate without changing open/fixed status.", "Set due date for SLA tracking.", "Review History table for all changes; optionally add a history note."]},
           "delete": {"steps": ["Open defect detail → Delete (soft delete, admin)."]}
         }
       ]
@@ -365,6 +365,7 @@
             "steps": [
               "Open Second Brain → Defects.",
               "Filter by client, project, status, severity, assignee, or overdue.",
+              "Use the Active switch to deactivate a defect (row dims); workflow status is unchanged.",
               "Use Add Defect / Log Defect to create; after save you return to this tab when opened from Second Brain."
             ]
           },
