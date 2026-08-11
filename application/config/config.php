@@ -419,7 +419,7 @@ $config['encryption_key'] = $__enc_key;
 */
 $config['sess_driver'] = 'files';
 $config['sess_cookie_name'] = 'ci_session';
-$config['sess_expiration'] = 7200;
+$config['sess_expiration'] = 28800;
 // Save sessions inside the app for both local and server. Ensure this directory exists and is writable.
 $config['sess_save_path'] = APPPATH.'cache/sessions';
 $config['sess_match_ip'] = FALSE;
@@ -496,7 +496,7 @@ $config['global_xss_filtering'] = FALSE;
 $config['csrf_protection'] = TRUE;
 $config['csrf_token_name'] = 'ci_csrf_token';
 $config['csrf_cookie_name'] = 'ci_csrf_token';
-$config['csrf_expire'] = 7200;
+$config['csrf_expire'] = 28800;
 $config['csrf_regenerate'] = FALSE;
 $config['csrf_exclude_uris'] = array(
     // Background / cron / API (no browser session)
