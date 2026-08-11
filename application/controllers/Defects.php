@@ -48,6 +48,8 @@ class Defects extends CI_Controller
 
             'project_id' => (int) $this->input->get('project_id'),
 
+            'client_id' => (int) $this->input->get('client_id'),
+
             'assigned_to' => (int) $this->input->get('assigned_to'),
 
             'q' => trim((string) $this->input->get('q')),
@@ -88,6 +90,8 @@ class Defects extends CI_Controller
 
             'rows' => $rows,
 
+            'clients' => $this->defects->client_options(),
+
             'projects' => $this->defects->project_options(),
 
             'members' => $this->defects->user_options(),
@@ -118,6 +122,8 @@ class Defects extends CI_Controller
 
             'project_id' => (int) $this->input->get('project_id'),
 
+            'client_id' => (int) $this->input->get('client_id'),
+
             'assigned_to' => (int) $this->input->get('assigned_to'),
 
             'q' => trim((string) $this->input->get('q')),
@@ -134,7 +140,7 @@ class Defects extends CI_Controller
 
         $out = fopen('php://output', 'w');
 
-        fputcsv($out, array('Number', 'Title', 'Project', 'Severity', 'Priority', 'Status', 'Assignee', 'Due Date', 'Reporter', 'Created'), ',', '"', '\\');
+        fputcsv($out, array('Number', 'Title', 'Client', 'Project', 'Severity', 'Priority', 'Status', 'Assignee', 'Due Date', 'Reporter', 'Created'), ',', '"', '\\');
 
         foreach ($rows as $r) {
 
@@ -143,6 +149,8 @@ class Defects extends CI_Controller
                 $r->defect_number,
 
                 $r->title,
+
+                isset($r->client_name) ? $r->client_name : '',
 
                 $r->project_name,
 
@@ -520,17 +528,57 @@ class Defects extends CI_Controller
 
             $this->defects->log_activity($id, $uid, 'created', 'Defect logged');
 
+            if (!empty($uploads)) {
+
+                $names = array();
+
+                foreach ($uploads as $up) {
+
+                    $names[] = $up['original_name'];
+
+                }
+
+                $this->defects->log_activity($id, $uid, 'attachment', 'Uploaded: ' . implode(', ', $names));
+
+            }
+
             if (!empty($payload['assigned_to'])) {
 
                 defect_notify_assignee($id, (int) $payload['assigned_to'], $payload['title'], $uid);
+
+                $this->defects->log_activity($id, $uid, 'reassigned', 'Assigned to user #' . (int) $payload['assigned_to']);
 
             }
 
             $this->session->set_flashdata('success', 'Defect logged.');
 
+            $redirect_path = $this->_safe_redirect_path();
+
+            if ($redirect_path !== '') {
+
+                $this->load->helper('my_works');
+
+                redirect(my_works_safe_redirect($redirect_path, 'my-works?tab=defects'));
+
+                return;
+
+            }
+
             redirect('defects/view/' . $id);
 
             return;
+
+        }
+
+        $redirect_path = $this->_safe_redirect_path();
+
+        $pre_project = (int) $this->input->get('project_id');
+
+        $pre_client = (int) $this->input->get('client_id');
+
+        if ($pre_client < 1 && $pre_project > 0) {
+
+            $pre_client = $this->defects->project_client_id($pre_project);
 
         }
 
@@ -540,6 +588,12 @@ class Defects extends CI_Controller
 
             'item' => null,
 
+            'clients' => $this->defects->client_options(),
+
+            'selected_client_id' => $pre_client,
+
+            'preselected_project_id' => $pre_project,
+
             'projects' => $this->defects->project_options(),
 
             'releases' => array(),
@@ -547,6 +601,8 @@ class Defects extends CI_Controller
             'tasks' => array(),
 
             'members' => $this->defects->user_options(),
+
+            'redirect_path' => $redirect_path,
 
         ));
 
@@ -572,11 +628,9 @@ class Defects extends CI_Controller
 
             'item' => $item,
 
-            'comments' => $this->defects->list_comments((int) $id),
-
             'attachments' => $this->defects->list_attachments((int) $id),
 
-            'activity' => $this->defects->list_activity((int) $id),
+            'history' => $this->defects->list_history((int) $id),
 
             'is_overdue' => defect_is_overdue($item),
 
@@ -624,17 +678,55 @@ class Defects extends CI_Controller
 
             track_changes_after('defects', 'project_defects', (int) $id, $old_data, $payload, 'Defect: ' . $payload['title']);
 
-            $this->defects->log_activity((int) $id, $uid, 'updated', 'Details updated');
+            $change_lines = $this->defects->build_change_details($item, $payload);
+
+            if (!empty($change_lines)) {
+
+                $this->defects->log_activity((int) $id, $uid, 'updated', implode('; ', $change_lines));
+
+            } else {
+
+                $this->defects->log_activity((int) $id, $uid, 'updated', 'Details updated');
+
+            }
+
+            if (!empty($uploads)) {
+
+                $names = array();
+
+                foreach ($uploads as $up) {
+
+                    $names[] = $up['original_name'];
+
+                }
+
+                $this->defects->log_activity((int) $id, $uid, 'attachment', 'Uploaded: ' . implode(', ', $names));
+
+            }
 
             $old_assignee = (int) $item->assigned_to;
 
             $new_assignee = isset($payload['assigned_to']) ? (int) $payload['assigned_to'] : 0;
 
-            if ($new_assignee && $new_assignee !== $old_assignee) {
+            if ($new_assignee !== $old_assignee) {
 
-                defect_notify_assignee((int) $id, $new_assignee, $payload['title'], $uid);
+                if ($new_assignee) {
 
-                $this->defects->log_activity((int) $id, $uid, 'reassigned', 'Assignee changed');
+                    defect_notify_assignee((int) $id, $new_assignee, $payload['title'], $uid);
+
+                }
+
+                $this->defects->log_activity(
+
+                    (int) $id,
+
+                    $uid,
+
+                    'reassigned',
+
+                    'Assignee: ' . $this->defects->user_display_name($old_assignee) . ' → ' . $this->defects->user_display_name($new_assignee)
+
+                );
 
             }
 
@@ -661,6 +753,12 @@ class Defects extends CI_Controller
             'action' => 'edit',
 
             'item' => $item,
+
+            'clients' => $this->defects->client_options(),
+
+            'selected_client_id' => $this->defects->project_client_id((int) $item->project_id),
+
+            'preselected_project_id' => (int) $item->project_id,
 
             'projects' => $this->defects->project_options(),
 
@@ -698,11 +796,17 @@ class Defects extends CI_Controller
 
         $uid = (int) $this->session->userdata('user_id');
 
-        $comment = trim((string) $this->input->post('comment'));
+        $note = trim((string) $this->input->post('comment'));
 
-        if ($comment === '') {
+        if ($note === '') {
 
-            $this->session->set_flashdata('error', 'Comment cannot be empty.');
+            $note = trim((string) $this->input->post('note'));
+
+        }
+
+        if ($note === '') {
+
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
 
             redirect('defects/view/' . (int) $id);
 
@@ -710,13 +814,12 @@ class Defects extends CI_Controller
 
         }
 
-        $this->defects->add_comment((int) $id, $uid, $comment);
+        // Persist as history activity (comments UI replaced by History table).
+        $this->defects->log_activity((int) $id, $uid, 'note', $note);
 
-        $this->defects->log_activity((int) $id, $uid, 'comment', 'Comment added');
+        log_activity('defects', 'note', (int) $id, 'History note on defect: ' . $item->defect_number);
 
-        log_activity('defects', 'comment', (int) $id, 'Comment on defect: ' . $item->defect_number);
-
-        $this->session->set_flashdata('success', 'Comment added.');
+        $this->session->set_flashdata('success', 'History note saved.');
 
         redirect('defects/view/' . (int) $id);
 
@@ -798,6 +901,36 @@ class Defects extends CI_Controller
 
 
 
+    private function _safe_redirect_path()
+
+    {
+
+        $redirect = trim((string) $this->input->post('redirect'));
+
+        if ($redirect === '') {
+
+            $redirect = trim((string) $this->input->get('redirect'));
+
+        }
+
+        if ($redirect === '' || strpos($redirect, '://') !== false) {
+
+            return '';
+
+        }
+
+        if (isset($redirect[0]) && $redirect[0] === '/') {
+
+            return ltrim($redirect, '/');
+
+        }
+
+        return $redirect;
+
+    }
+
+
+
     private function _build_payload($uid, $item = null)
 
     {
@@ -808,21 +941,80 @@ class Defects extends CI_Controller
 
         $task = $this->input->post('task_id');
 
+        $project_id = (int) $this->input->post('project_id');
+
+        $title = trim((string) $this->input->post('title'));
+
+        $allowed_levels = array('low', 'medium', 'high', 'critical');
+
+        $severity = strtolower(trim((string) $this->input->post('severity')));
+
+        $priority = strtolower(trim((string) $this->input->post('priority')));
+
+        // Project is optional — drop invalid / inaccessible values instead of blocking save.
+        if ($project_id > 0 && !$this->defects->is_project_accessible($project_id)) {
+
+            $project_id = 0;
+
+        }
+
+        if ($title === '') {
+
+            $title = 'Untitled defect';
+
+        }
+
+        if (strlen($title) > 255) {
+
+            $title = substr($title, 0, 255);
+
+        }
+
+        if (!in_array($severity, $allowed_levels, true)) {
+
+            $severity = 'medium';
+
+        }
+
+        if (!in_array($priority, $allowed_levels, true)) {
+
+            $priority = 'medium';
+
+        }
+
+        $release_id = ($release !== '' && $release !== null) ? (int) $release : null;
+
+        if ($release_id && ($project_id < 1 || !$this->defects->release_belongs_to_project($release_id, $project_id))) {
+
+            $release_id = null;
+
+        }
+
+        $task_id = ($task !== '' && $task !== null) ? (int) $task : null;
+
+        if ($task_id && ($project_id < 1 || !$this->defects->task_belongs_to_project($task_id, $project_id))) {
+
+            $task_id = null;
+
+        }
+
+        $assigned_to = ($assigned !== '' && $assigned !== null) ? (int) $assigned : null;
+
+        if ($assigned_to && !$this->defects->is_user_assignable($assigned_to)) {
+
+            $assigned_to = null;
+
+        }
+
         $oldStatus = $item ? (string) $item->status : 'open';
 
         $newStatus = trim((string) $this->input->post('status')) ?: $oldStatus;
 
         $this->load->helper('module_status');
 
-        $newStatus = module_status_sanitize($newStatus, 'defects', $oldStatus);
+        $sanitized = module_status_sanitize($newStatus, 'defects', $oldStatus);
 
-        if ($newStatus === false) {
-
-            $this->session->set_flashdata('error', 'Invalid defect status selected.');
-
-            return false;
-
-        }
+        $newStatus = ($sanitized === false) ? $oldStatus : $sanitized;
 
         $resolvedAt = $item ? $item->resolved_at : null;
 
@@ -846,27 +1038,33 @@ class Defects extends CI_Controller
 
         $due = trim((string) $this->input->post('due_date'));
 
+        if ($due !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $due)) {
+
+            $due = '';
+
+        }
+
         return array(
 
-            'project_id' => (int) $this->input->post('project_id'),
+            'project_id' => ($project_id > 0) ? $project_id : null,
 
-            'release_id' => ($release !== '' && $release !== null) ? (int) $release : null,
+            'release_id' => $release_id,
 
-            'task_id' => ($task !== '' && $task !== null) ? (int) $task : null,
+            'task_id' => $task_id,
 
-            'title' => trim((string) $this->input->post('title')),
+            'title' => $title,
 
             'description' => (string) $this->input->post('description'),
 
             'steps_to_reproduce' => (string) $this->input->post('steps_to_reproduce'),
 
-            'severity' => trim((string) $this->input->post('severity')) ?: 'medium',
+            'severity' => $severity,
 
-            'priority' => trim((string) $this->input->post('priority')) ?: 'medium',
+            'priority' => $priority,
 
             'status' => $newStatus,
 
-            'assigned_to' => ($assigned !== '' && $assigned !== null) ? (int) $assigned : null,
+            'assigned_to' => $assigned_to,
 
             'due_date' => $due !== '' ? $due : null,
 

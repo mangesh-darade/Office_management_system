@@ -23,7 +23,7 @@ if (!function_exists('defects_schema_ensure')) {
             $db->query("CREATE TABLE `project_defects` (
                 `id` int(11) NOT NULL AUTO_INCREMENT,
                 `defect_number` varchar(30) NOT NULL,
-                `project_id` int(11) NOT NULL,
+                `project_id` int(11) DEFAULT NULL,
                 `release_id` int(11) DEFAULT NULL,
                 `task_id` int(11) DEFAULT NULL,
                 `title` varchar(255) NOT NULL,
@@ -59,6 +59,11 @@ if (!function_exists('defects_schema_ensure')) {
             }
             if (!schema_table_has_column($db, 'project_defects', 'is_deleted')) {
                 $db->query("ALTER TABLE `project_defects` ADD COLUMN `is_deleted` tinyint(1) NOT NULL DEFAULT 0 AFTER `resolved_at`");
+            }
+            // Project optional on create/edit (was NOT NULL).
+            $col = $db->query("SHOW COLUMNS FROM `project_defects` LIKE 'project_id'")->row_array();
+            if (!empty($col) && isset($col['Null']) && strtoupper((string) $col['Null']) === 'NO') {
+                $db->query("ALTER TABLE `project_defects` MODIFY COLUMN `project_id` int(11) DEFAULT NULL");
             }
         }
 

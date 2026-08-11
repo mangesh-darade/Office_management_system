@@ -26,6 +26,11 @@ class Defect_model extends CI_Model
         if (!empty($filters['project_id'])) {
             $this->db->where('d.project_id', (int) $filters['project_id']);
         }
+        if (!empty($filters['client_id'])
+            && $this->db->table_exists('projects')
+            && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $this->db->where('p.client_id', (int) $filters['client_id']);
+        }
         if (!empty($filters['assigned_to'])) {
             $this->db->where('d.assigned_to', (int) $filters['assigned_to']);
         }
@@ -49,15 +54,25 @@ class Defect_model extends CI_Model
     public function count_defects($filters = array())
     {
         $this->db->from('project_defects d');
+        $this->db->join('projects p', 'p.id = d.project_id', 'left');
         $this->_apply_defect_filters($filters);
         return (int) $this->db->count_all_results();
     }
 
     public function list_defects($filters = array(), $limit = null, $offset = 0)
     {
-        $this->db->select('d.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, r.version AS release_version');
+        $select = 'd.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, r.version AS release_version';
+        if ($this->db->table_exists('clients')
+            && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $select .= ', c.company_name AS client_name, p.client_id AS client_id';
+        }
+        $this->db->select($select);
         $this->db->from('project_defects d');
         $this->db->join('projects p', 'p.id = d.project_id', 'left');
+        if ($this->db->table_exists('clients')
+            && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $this->db->join('clients c', 'c.id = p.client_id', 'left');
+        }
         $this->db->join('users rep', 'rep.id = d.reported_by', 'left');
         $this->db->join('users asn', 'asn.id = d.assigned_to', 'left');
         $this->db->join('project_releases r', 'r.id = d.release_id', 'left');
@@ -72,8 +87,16 @@ class Defect_model extends CI_Model
     public function get_defect($id, $include_deleted = false)
     {
         $this->db->select('d.*, p.name AS project_name, rep.name AS reporter_name, asn.name AS assignee_name, ver.name AS verifier_name, r.version AS release_version, r.title AS release_title, t.title AS task_title');
+        if ($this->db->table_exists('clients')
+            && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $this->db->select('c.company_name AS client_name, p.client_id AS client_id', false);
+        }
         $this->db->from('project_defects d');
         $this->db->join('projects p', 'p.id = d.project_id', 'left');
+        if ($this->db->table_exists('clients')
+            && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $this->db->join('clients c', 'c.id = p.client_id', 'left');
+        }
         $this->db->join('users rep', 'rep.id = d.reported_by', 'left');
         $this->db->join('users asn', 'asn.id = d.assigned_to', 'left');
         $this->db->join('users ver', 'ver.id = d.verified_by', 'left');
@@ -88,9 +111,12 @@ class Defect_model extends CI_Model
             return null;
         }
         if (!defects_releases_sees_all_org()) {
-            $ids = defects_releases_scoped_project_ids();
-            if (!in_array((int) $row->project_id, $ids, true)) {
-                return null;
+            $pid = (int) $row->project_id;
+            if ($pid > 0) {
+                $ids = defects_releases_scoped_project_ids();
+                if (!in_array($pid, $ids, true)) {
+                    return null;
+                }
             }
         }
         return $row;
@@ -158,6 +184,152 @@ class Defect_model extends CI_Model
         $this->db->where('a.defect_id', (int) $defect_id);
         $this->db->order_by('a.id', 'DESC');
         return $this->db->get()->result();
+    }
+
+    /**
+     * Full history timeline: activity log + legacy comments (as note rows).
+     *
+     * @return array
+     */
+    public function list_history($defect_id)
+    {
+        $defect_id = (int) $defect_id;
+        $rows = array();
+
+        foreach ($this->list_activity($defect_id) as $a) {
+            $rows[] = (object) array(
+                'id' => (int) $a->id,
+                'source' => 'activity',
+                'action' => (string) $a->action,
+                'detail' => isset($a->detail) ? (string) $a->detail : '',
+                'user_name' => isset($a->user_name) ? (string) $a->user_name : '',
+                'user_id' => (int) $a->user_id,
+                'created_at' => (string) $a->created_at,
+                'sort_ts' => strtotime((string) $a->created_at) ?: 0,
+            );
+        }
+
+        foreach ($this->list_comments($defect_id) as $c) {
+            $rows[] = (object) array(
+                'id' => (int) $c->id,
+                'source' => 'comment',
+                'action' => 'note',
+                'detail' => isset($c->comment) ? (string) $c->comment : '',
+                'user_name' => isset($c->user_name) ? (string) $c->user_name : '',
+                'user_id' => (int) $c->user_id,
+                'created_at' => (string) $c->created_at,
+                'sort_ts' => strtotime((string) $c->created_at) ?: 0,
+            );
+        }
+
+        usort($rows, function ($a, $b) {
+            if ($a->sort_ts === $b->sort_ts) {
+                return $b->id - $a->id;
+            }
+            return ($a->sort_ts < $b->sort_ts) ? 1 : -1;
+        });
+
+        return $rows;
+    }
+
+    /**
+     * Build human-readable change lines for history.
+     *
+     * @param object $old
+     * @param array  $new
+     * @return array
+     */
+    public function build_change_details($old, array $new)
+    {
+        if (!$old) {
+            return array();
+        }
+        $labels = array(
+            'title' => 'Title',
+            'project_id' => 'Project',
+            'release_id' => 'Release',
+            'task_id' => 'Task',
+            'severity' => 'Severity',
+            'priority' => 'Priority',
+            'status' => 'Status',
+            'assigned_to' => 'Assignee',
+            'due_date' => 'Due date',
+            'description' => 'Description',
+            'steps_to_reproduce' => 'Steps to reproduce',
+        );
+        $lines = array();
+        foreach ($labels as $key => $label) {
+            if (!array_key_exists($key, $new)) {
+                continue;
+            }
+            $before = isset($old->$key) ? (string) $old->$key : '';
+            $after = $new[$key] === null ? '' : (string) $new[$key];
+            if ($before === $after) {
+                continue;
+            }
+            if (in_array($key, array('description', 'steps_to_reproduce'), true)) {
+                $lines[] = $label . ': updated';
+                continue;
+            }
+            $before_disp = $this->_history_value_label($key, $before);
+            $after_disp = $this->_history_value_label($key, $after);
+            $lines[] = $label . ': ' . $before_disp . ' → ' . $after_disp;
+        }
+        return $lines;
+    }
+
+    /**
+     * Human label for history values (IDs → names where possible).
+     *
+     * @param string $field
+     * @param string $value
+     * @return string
+     */
+    private function _history_value_label($field, $value)
+    {
+        $value = trim((string) $value);
+        if ($value === '' || $value === '0') {
+            return '—';
+        }
+        if (in_array($field, array('status', 'severity', 'priority'), true)) {
+            return ucfirst(str_replace('_', ' ', $value));
+        }
+        if ($field === 'assigned_to' && ctype_digit($value)) {
+            $u = $this->db->select('name')->where('id', (int) $value)->get('users', 1)->row();
+            return ($u && $u->name !== '') ? (string) $u->name : ('#' . $value);
+        }
+        if ($field === 'project_id' && ctype_digit($value) && $this->db->table_exists('projects')) {
+            $p = $this->db->select('name')->where('id', (int) $value)->get('projects', 1)->row();
+            return ($p && $p->name !== '') ? (string) $p->name : ('#' . $value);
+        }
+        if ($field === 'release_id' && ctype_digit($value) && $this->db->table_exists('project_releases')) {
+            $r = $this->db->select('version, title')->where('id', (int) $value)->get('project_releases', 1)->row();
+            if ($r) {
+                return trim((string) $r->version . ' — ' . (string) $r->title);
+            }
+            return '#' . $value;
+        }
+        if ($field === 'task_id' && ctype_digit($value) && $this->db->table_exists('tasks')) {
+            $t = $this->db->select('title')->where('id', (int) $value)->get('tasks', 1)->row();
+            return ($t && $t->title !== '') ? (string) $t->title : ('#' . $value);
+        }
+        return $value;
+    }
+
+    /**
+     * Resolve user display name for history logs.
+     *
+     * @param int $user_id
+     * @return string
+     */
+    public function user_display_name($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id < 1) {
+            return 'Unassigned';
+        }
+        $u = $this->db->select('name')->where('id', $user_id)->get('users', 1)->row();
+        return ($u && $u->name !== '') ? (string) $u->name : ('#' . $user_id);
     }
 
     public function add_comment($defect_id, $user_id, $comment)
@@ -235,6 +407,11 @@ class Defect_model extends CI_Model
         if (!$this->db->table_exists('projects')) {
             return array();
         }
+        $select = 'id, name';
+        $has_client = schema_table_has_column($this->db, 'projects', 'client_id');
+        if ($has_client) {
+            $select .= ', client_id';
+        }
         if (!defects_releases_sees_all_org()) {
             $ids = defects_releases_scoped_project_ids();
             if (empty($ids)) {
@@ -242,7 +419,91 @@ class Defect_model extends CI_Model
             }
             $this->db->where_in('id', $ids);
         }
-        return $this->db->select('id, name')->order_by('name')->get('projects')->result();
+        return $this->db->select($select)->order_by('name')->get('projects')->result();
+    }
+
+    public function client_options()
+    {
+        if (!$this->db->table_exists('clients')) {
+            return array();
+        }
+        $this->db->select('id, company_name')->from('clients');
+        if (schema_table_has_column($this->db, 'clients', 'is_deleted')) {
+            $this->db->where('is_deleted', 0);
+        }
+        return $this->db->order_by('company_name', 'ASC')->get()->result();
+    }
+
+    public function project_client_id($project_id)
+    {
+        $project_id = (int) $project_id;
+        if ($project_id < 1 || !$this->db->table_exists('projects')
+            || !schema_table_has_column($this->db, 'projects', 'client_id')) {
+            return 0;
+        }
+        $row = $this->db->select('client_id')->where('id', $project_id)->get('projects', 1)->row();
+        return ($row && !empty($row->client_id)) ? (int) $row->client_id : 0;
+    }
+
+    public function is_project_accessible($project_id)
+    {
+        $project_id = (int) $project_id;
+        if ($project_id < 1 || !$this->db->table_exists('projects')) {
+            return false;
+        }
+        if (!defects_releases_sees_all_org()) {
+            $ids = defects_releases_scoped_project_ids();
+            if (!in_array($project_id, $ids, true)) {
+                return false;
+            }
+        }
+        $row = $this->db->select('id')->where('id', $project_id)->get('projects', 1)->row();
+        return (bool) $row;
+    }
+
+    public function is_user_assignable($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id < 1 || !$this->db->table_exists('users')) {
+            return false;
+        }
+        $this->db->select('id')->from('users')->where('id', $user_id);
+        if (schema_table_has_column($this->db, 'users', 'status')) {
+            $this->db->where('status', 'active');
+        }
+        return (bool) $this->db->limit(1)->get()->row();
+    }
+
+    public function release_belongs_to_project($release_id, $project_id)
+    {
+        $release_id = (int) $release_id;
+        $project_id = (int) $project_id;
+        if ($release_id < 1 || $project_id < 1 || !$this->db->table_exists('project_releases')) {
+            return false;
+        }
+        $this->db->select('id')->from('project_releases')
+            ->where('id', $release_id)
+            ->where('project_id', $project_id);
+        if (schema_table_has_column($this->db, 'project_releases', 'is_deleted')) {
+            $this->db->where('is_deleted', 0);
+        }
+        return (bool) $this->db->limit(1)->get()->row();
+    }
+
+    public function task_belongs_to_project($task_id, $project_id)
+    {
+        $task_id = (int) $task_id;
+        $project_id = (int) $project_id;
+        if ($task_id < 1 || $project_id < 1 || !$this->db->table_exists('tasks')) {
+            return false;
+        }
+        $row = $this->db->select('id')->from('tasks')
+            ->where('id', $task_id)
+            ->where('project_id', $project_id)
+            ->limit(1)
+            ->get()
+            ->row();
+        return (bool) $row;
     }
 
     public function release_options($project_id = null)
