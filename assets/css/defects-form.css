@@ -1,0 +1,786 @@
+﻿/**
+ * Defects create/edit â€” modern split UI (meta left / content right).
+ */
+.defect-form-page {
+  --df-radius: 14px;
+  --df-border: #e6ebf2;
+  --df-muted: #64748b;
+  --df-ink: #0f172a;
+  --df-panel: #ffffff;
+  --df-soft: #f4f7fb;
+  --df-accent: #0d6efd;
+  max-width: 1320px;
+  padding-bottom: 5.25rem;
+}
+
+.defect-form-page .defect-form-crumb .breadcrumb {
+  background: transparent;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
+.defect-form-page .defect-form-crumb .breadcrumb-item a {
+  color: var(--df-muted);
+  text-decoration: none;
+}
+
+.defect-form-page .defect-form-crumb .breadcrumb-item a:hover {
+  color: var(--df-accent);
+}
+
+.defect-form-page .defect-form-hero {
+  padding: 0.35rem 0;
+}
+
+.defect-form-page .defect-form-back {
+  border-radius: 10px;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.7rem;
+  background: #fff;
+}
+
+.defect-form-page .defect-form-hero-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 12px;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e8f1ff 0%, #dbeafe 100%);
+  color: var(--df-accent);
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.12);
+}
+
+.defect-form-page .defect-form-title {
+  font-size: 1.28rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--df-ink);
+  line-height: 1.2;
+}
+
+.defect-form-page .defect-form-sub {
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
+.defect-form-page .defect-form-split {
+  align-items: stretch;
+}
+
+.defect-form-page .defect-form-panel {
+  background: var(--df-panel);
+  border: 1px solid var(--df-border);
+  border-radius: var(--df-radius);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.05);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.defect-form-page .defect-form-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-bottom: 1px solid var(--df-border);
+}
+
+.defect-form-page .defect-form-panel-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2f7;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.defect-form-page .defect-form-panel-icon--main {
+  background: #e8f1ff;
+  color: var(--df-accent);
+}
+
+.defect-form-page .defect-form-panel-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--df-ink);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.defect-form-page .defect-form-panel-hint {
+  font-size: 0.72rem;
+  color: var(--df-muted);
+  margin-top: 0.1rem;
+}
+
+.defect-form-page .defect-form-panel--meta .defect-form-group,
+.defect-form-page .defect-form-panel--main .defect-form-main-body {
+  padding: 0.85rem 1rem 1rem;
+}
+
+.defect-form-page .defect-form-group + .defect-form-group {
+  border-top: 1px dashed #e8edf3;
+}
+
+.defect-form-page .defect-form-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 0.55rem;
+}
+
+.defect-form-page .defect-field .form-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.2rem;
+}
+
+.defect-form-page .form-control,
+.defect-form-page .form-select {
+  border-radius: 9px;
+  border-color: #dbe3ee;
+  background: #fff;
+  min-height: 2.35rem;
+  font-size: 0.84rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.defect-form-page .form-control:focus,
+.defect-form-page .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.12);
+}
+
+.defect-form-page .defect-title-input {
+  font-size: 0.95rem !important;
+  font-weight: 600;
+  min-height: 2.55rem !important;
+  letter-spacing: -0.01em;
+}
+
+.defect-form-page .defect-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.defect-form-page .defect-field--file {
+  position: relative;
+}
+
+.defect-form-page .defect-file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  text-align: center;
+  border: 1.5px dashed #c9d6e8;
+  border-radius: 11px;
+  background: var(--df-soft);
+  padding: 0.85rem 0.65rem;
+  cursor: pointer;
+  color: #475569;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  margin: 0;
+}
+
+.defect-form-page .defect-file-drop:hover,
+.defect-form-page .defect-field--file:focus-within .defect-file-drop {
+  border-color: #86b7fe;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.08);
+}
+
+.defect-form-page .defect-file-drop i {
+  font-size: 1.25rem;
+  color: var(--df-accent);
+  margin-bottom: 0.15rem;
+}
+
+.defect-form-page .defect-file-drop-title {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--df-ink);
+}
+
+.defect-form-page .defect-file-drop-hint {
+  font-size: 0.68rem;
+  color: var(--df-muted);
+  line-height: 1.3;
+}
+
+.defect-form-page .tox-tinymce {
+  border-radius: 10px !important;
+  border-color: #dbe3ee !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+.defect-form-page .tox .tox-toolbar,
+.defect-form-page .tox .tox-toolbar__primary {
+  background: #f8fafc !important;
+}
+
+.defect-form-page .defect-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 0.85rem;
+  padding: 0.75rem 0 0.15rem;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.92) 28%, #f8fafc 100%);
+}
+
+.defect-form-page .defect-form-actions-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--df-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 -2px 18px rgba(15, 23, 42, 0.06);
+}
+
+.defect-form-page .defect-btn-save {
+  min-height: 2.4rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 6px 14px rgba(13, 110, 253, 0.22);
+}
+
+.defect-form-page .defect-form-actions .btn-light {
+  min-height: 2.4rem;
+  border-radius: 10px;
+}
+
+@media (max-width: 767.98px) {
+  .defect-form-page {
+    max-width: none;
+    padding-bottom: 5.5rem;
+  }
+
+  .defect-form-page .defect-form-title {
+    font-size: 1.12rem;
+  }
+
+  .defect-form-page .defect-form-main {
+    order: -1;
+  }
+
+  .defect-form-page .defect-form-panel-head {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .defect-form-page .defect-form-panel--meta .defect-form-group,
+  .defect-form-page .defect-form-panel--main .defect-form-main-body {
+    padding: 0.75rem 0.85rem 0.9rem;
+  }
+
+  .defect-form-page .defect-form-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0.55rem 0.75rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(248, 250, 252, 0.96);
+    border-top: 1px solid var(--df-border);
+  }
+
+  .defect-form-page .defect-form-actions-inner {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    justify-content: stretch;
+  }
+
+  .defect-form-page .defect-form-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .defect-form-page .defect-btn-save {
+    flex: 1.45 1 auto;
+    box-shadow: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .defect-form-page {
+    padding-bottom: 1.25rem;
+  }
+
+  .defect-form-page .defect-form-panel--meta {
+    position: sticky;
+    top: 0.75rem;
+  }
+}
+
+/* ========== Defects list ========== */
+.defect-list-page .defect-list-bar {
+  margin-bottom: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  background: #fff;
+}
+
+.defect-list-page .defect-list-bar > .card-body {
+  padding: 0.55rem 0.7rem;
+}
+
+.defect-list-page .defect-list-actions-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.55rem;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.defect-list-page .defect-list-count {
+  font-size: 0.8125rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.defect-list-page .defect-list-toolbar.btn-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+
+.defect-list-page .defect-list-toolbar .btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.28rem 0.7rem;
+}
+
+.defect-list-page .defect-filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.5rem;
+}
+
+.defect-list-page .defect-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin: 0;
+  min-width: 7.5rem;
+  max-width: 12rem;
+  flex: 1 1 8.5rem;
+}
+
+.defect-list-page .defect-filter-field.defect-filter-search {
+  flex: 1 1 11rem;
+  min-width: 10rem;
+  max-width: 16rem;
+}
+
+.defect-list-page .defect-filter-field.defect-filter-narrow {
+  flex: 0 1 7rem;
+  min-width: 6.5rem;
+  max-width: 8rem;
+}
+
+.defect-list-page .defect-filter-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.defect-list-page .defect-filter-form .form-select-sm,
+.defect-list-page .defect-filter-form .form-control-sm {
+  font-size: 0.75rem;
+  min-height: 1.85rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  border-radius: 6px;
+  border-color: #e2e8f0;
+}
+
+.defect-list-page .defect-filter-overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  min-height: 1.85rem;
+  padding: 0 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.defect-list-page .defect-filter-overdue .form-check-input {
+  margin: 0;
+}
+
+.defect-list-page .defect-filter-actions {
+  display: flex;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+.defect-list-page .defect-filter-actions .btn-sm {
+  min-height: 1.85rem;
+  padding: 0.25rem 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+@media (max-width: 575.98px) {
+  .defect-list-page .defect-list-actions-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .defect-list-page .defect-list-toolbar.btn-group {
+    width: 100%;
+  }
+
+  .defect-list-page .defect-list-toolbar .btn {
+    flex: 1 1 auto;
+  }
+
+  .defect-list-page .defect-filter-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .defect-list-page .defect-filter-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Second Brain embed polish */
+.mw-defect-embed.defect-list-page {
+  padding: 0 !important;
+}
+
+.mw-defect-embed .defect-list-bar > .card-body {
+  padding: 0.45rem 0.55rem;
+}
+
+.defect-list-page .defect-list-overdue {
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+}
+
+.defect-list-page .defect-list-table-card {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.defect-list-page .defect-list-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 700;
+  background: #f8fafc;
+  border-bottom: 1px solid #e6ebf2;
+  white-space: nowrap;
+  padding: 0.7rem 0.85rem;
+}
+
+.defect-list-page .defect-list-table tbody td {
+  padding: 0.75rem 0.85rem;
+  font-size: 0.86rem;
+  border-color: #eef2f7;
+  vertical-align: middle;
+}
+
+.defect-list-page .defect-id-link {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: #0d6efd;
+}
+
+.defect-list-page .defect-id-link:hover {
+  text-decoration: underline;
+}
+
+.defect-list-page .defect-title-cell {
+  font-weight: 600;
+  color: #0f172a;
+  max-width: 280px;
+}
+
+.defect-list-page .defect-row-overdue {
+  background: #fff8eb;
+}
+
+.defect-list-page .defect-pill,
+.defect-view-simple .defect-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.defect-list-page .defect-pill--low,
+.defect-view-simple .defect-pill--low {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.defect-list-page .defect-pill--medium,
+.defect-view-simple .defect-pill--medium {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.defect-list-page .defect-pill--high,
+.defect-view-simple .defect-pill--high {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.defect-list-page .defect-pill--critical,
+.defect-view-simple .defect-pill--critical {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.defect-list-page .defect-pill--open,
+.defect-view-simple .defect-pill--open {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.defect-list-page .defect-pill--progress,
+.defect-view-simple .defect-pill--progress {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+.defect-list-page .defect-pill--fixed,
+.defect-view-simple .defect-pill--fixed {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.defect-list-page .defect-pill--closed,
+.defect-list-page .defect-pill--muted,
+.defect-view-simple .defect-pill--closed,
+.defect-view-simple .defect-pill--muted {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.defect-list-page .defect-list-empty {
+  border-radius: 14px;
+}
+
+.defect-list-page .defect-list-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f1ff;
+  color: #0d6efd;
+  font-size: 1.35rem;
+}
+
+.defect-list-page .defect-mobile-card {
+  background: #fff;
+  border: 1px solid #e6ebf2;
+  border-radius: 12px;
+  padding: 0.85rem 0.9rem;
+  margin-bottom: 0.65rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.defect-list-page .defect-mobile-card.is-overdue {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.defect-list-page .defect-mobile-id {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.defect-list-page .defect-mobile-title {
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: #0f172a;
+  margin-bottom: 0.35rem;
+}
+
+.defect-list-page .defect-mobile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.defect-list-page .defect-mobile-meta i {
+  margin-right: 0.2rem;
+}
+
+
+/* ========== Defect view — simple compact ========== */
+body.defect-view-active main.col-12.col-md-9.col-lg-10 {
+  padding: 0.5rem 0.65rem !important;
+}
+
+.defect-view-simple .defect-view-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.defect-view-simple .defect-view-back {
+  flex-shrink: 0;
+}
+
+.defect-view-simple .defect-view-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.defect-view-simple .defect-view-heading .h5 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #0f172a;
+  max-width: 100%;
+}
+
+.defect-view-simple .defect-view-actions {
+  margin-left: auto;
+}
+
+@media (max-width: 575.98px) {
+  .defect-view-simple .defect-view-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .defect-view-simple .defect-view-heading {
+    flex: 1 1 calc(100% - 3rem);
+  }
+
+  .defect-view-simple .defect-view-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+}
+
+.defect-view-simple .card {
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.defect-view-simple .card-body {
+  padding: 0.55rem 0.7rem;
+}
+
+.defect-view-simple .defect-simple-meta th {
+  width: 6rem;
+  font-weight: 600;
+  color: #6c757d;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  vertical-align: top;
+  padding: 0.28rem 0.4rem 0.28rem 0;
+  border: 0;
+}
+
+.defect-view-simple .defect-simple-meta td {
+  font-size: 0.8125rem;
+  vertical-align: top;
+  padding: 0.28rem 0;
+  border: 0;
+}
+
+.defect-view-simple .defect-rich-content ul,
+.defect-view-simple .defect-rich-content ol {
+  padding-left: 1.1rem;
+  margin-bottom: 0.35rem;
+}
+
+.defect-view-simple .defect-rich-content p:last-child {
+  margin-bottom: 0;
+}
+
+.defect-view-simple .table-bordered th,
+.defect-view-simple .table-bordered td {
+  font-size: 0.78rem;
+}
+
+.defect-view-simple .defect-history-grid th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+}
+
+.defect-view-simple .defect-history-grid th:first-child,
+.defect-view-simple .defect-history-grid td:first-child {
+  text-align: left !important;
+}
+
+.defect-view-simple .defect-history-changes {
+  margin: 0;
+}
+
+.defect-view-simple .defect-history-changes li {
+  margin-bottom: 0.15rem;
+}
+
+.mw-defect-embed .defect-list-table-card {
+  box-shadow: none !important;
+  border: 1px solid #e5e7eb !important;
+}
+
