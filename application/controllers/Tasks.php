@@ -617,7 +617,7 @@ class Tasks extends CI_Controller {
         $this->load->view('tasks/view', [
             'task' => $task,
             'assignee_names' => isset($assignee_names_map[(int) $id]) ? $assignee_names_map[(int) $id] : array(),
-            'activity' => $this->Task_model->list_activity((int) $id),
+            'history' => $this->Task_model->list_history((int) $id),
         ]);
     }
 
@@ -2780,46 +2780,59 @@ class Tasks extends CI_Controller {
         redirect('tasks');
     }
 
-    // POST /tasks/{task_id}/comment
+    // POST /tasks/add-comment/{id} or /tasks/{id}/comment
     public function add_comment($task_id)
     {
-        $task_id = (int)$task_id;
-        $user_id = (int)$this->session->userdata('user_id');
-        if (!$user_id) { redirect('login'); return; }
-        if ($this->input->method() !== 'post') { show_404(); }
-
-        $task = $this->db->where('id', $task_id)->get('tasks')->row();
-        if (!$task) { show_404(); }
-        
-        $comment = trim((string)$this->input->post('comment'));
-        if ($comment === '') {
-            $this->session->set_flashdata('error', 'Comment cannot be empty.');
-            redirect('tasks/'.$task_id);
+        $task_id = (int) $task_id;
+        $user_id = (int) $this->session->userdata('user_id');
+        if (!$user_id) {
+            redirect('login');
             return;
         }
-        $this->Task_model->add_comment($task_id, $user_id, $comment);
-        $this->Task_model->log_activity($task_id, $user_id, 'commented', null, array(
-            'comment' => mb_substr($comment, 0, 200),
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+            return;
+        }
+
+        $task = $this->db->where('id', $task_id)->get('tasks')->row();
+        if (!$task) {
+            show_404();
+            return;
+        }
+
+        $note = trim((string) $this->input->post('note'));
+        if ($note === '') {
+            $note = trim((string) $this->input->post('comment'));
+        }
+        if ($note === '') {
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
+            redirect('tasks/' . $task_id . '#history');
+            return;
+        }
+
+        // Persist as history activity (comments UI replaced by History table).
+        $this->Task_model->log_activity($task_id, $user_id, 'note', null, array(
+            'detail' => $note,
+            'comment' => mb_substr($note, 0, 2000),
         ));
         $this->load->helper('activity');
-        log_activity('tasks', 'commented', (int)$task_id, mb_substr($comment, 0, 120));
+        log_activity('tasks', 'note', $task_id, mb_substr($note, 0, 120));
 
-        // Notify assignee if exists and not self
-        if (isset($task->assigned_to) && (int)$task->assigned_to > 0 && (int)$task->assigned_to !== $user_id) {
+        if (isset($task->assigned_to) && (int) $task->assigned_to > 0 && (int) $task->assigned_to !== $user_id) {
             $this->load->model('Notification_model');
             $this->Notification_model->create(
-                (int)$task->assigned_to,
-                'New comment on task #' . $task_id,
-                mb_substr($comment, 0, 200),
+                (int) $task->assigned_to,
+                'History note on task #' . $task_id,
+                mb_substr($note, 0, 200),
                 'info',
                 'tasks',
-                (int)$task_id,
+                $task_id,
                 site_url('tasks/' . $task_id)
             );
         }
 
-        $this->session->set_flashdata('success', 'Comment added.');
-        redirect('tasks/'.$task_id);
+        $this->session->set_flashdata('success', 'History note saved.');
+        redirect('tasks/' . $task_id . '#history');
     }
 
     // GET /tasks/{task_id}/comments (AJAX JSON)

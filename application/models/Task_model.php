@@ -40,7 +40,7 @@ class Task_model extends CI_Model {
         if (!$this->db->table_exists('task_activity')) {
             return 0;
         }
-        $allowed = array('created', 'updated', 'status_changed', 'assigned', 'commented', 'attachment_added');
+        $allowed = array('created', 'updated', 'status_changed', 'assigned', 'commented', 'attachment_added', 'note');
         $action = (string) $action;
         if (!in_array($action, $allowed, true)) {
             $action = 'updated';
@@ -85,6 +85,73 @@ class Task_model extends CI_Model {
         return $this->db->get()->result();
     }
 
+    /**
+     * History timeline for Defects-style UI: activity + legacy comments as notes.
+     *
+     * @param int $task_id
+     * @return array
+     */
+    public function list_history($task_id)
+    {
+        $task_id = (int) $task_id;
+        $rows = array();
+
+        foreach ($this->list_activity($task_id, 200) as $a) {
+            $action = isset($a->action) ? (string) $a->action : 'updated';
+            // Legacy comments are merged below; skip duplicate "commented" activity rows.
+            if ($action === 'commented') {
+                continue;
+            }
+            $name = '';
+            if (!empty($a->user_name)) {
+                $name = (string) $a->user_name;
+            } elseif (!empty($a->user_full_name)) {
+                $name = (string) $a->user_full_name;
+            } elseif (!empty($a->user_email)) {
+                $name = (string) $a->user_email;
+            }
+            $detail = $this->format_activity_detail($a);
+            $rows[] = (object) array(
+                'id' => (int) $a->id,
+                'source' => 'activity',
+                'action' => $action,
+                'detail' => $detail,
+                'user_name' => $name,
+                'user_id' => isset($a->user_id) ? (int) $a->user_id : 0,
+                'created_at' => (string) $a->created_at,
+                'sort_ts' => strtotime((string) $a->created_at) ?: 0,
+            );
+        }
+
+        foreach ($this->get_task_comments($task_id) as $c) {
+            $name = '';
+            if (isset($c->name) && trim((string) $c->name) !== '') {
+                $name = (string) $c->name;
+            } elseif (isset($c->email)) {
+                $name = (string) $c->email;
+            }
+            $rows[] = (object) array(
+                'id' => (int) $c->id,
+                'source' => 'comment',
+                'action' => 'note',
+                'detail' => isset($c->comment) ? (string) $c->comment : '',
+                'user_name' => $name,
+                'user_id' => (int) $c->user_id,
+                'created_at' => (string) $c->created_at,
+                'sort_ts' => strtotime((string) $c->created_at) ?: 0,
+            );
+        }
+
+        usort($rows, function ($a, $b) {
+            if ($a->sort_ts === $b->sort_ts) {
+                return $b->id - $a->id;
+            }
+            return ($a->sort_ts < $b->sort_ts) ? 1 : -1;
+        });
+
+        return $rows;
+    }
+
     public function delete_activity_for_task($task_id)
     {
         if (!$this->db->table_exists('task_activity')) {
@@ -124,6 +191,10 @@ class Task_model extends CI_Model {
         }
 
         if ($action === 'commented' && !empty($new['comment'])) {
+            return (string) $new['comment'];
+        }
+
+        if ($action === 'note' && !empty($new['comment'])) {
             return (string) $new['comment'];
         }
 
