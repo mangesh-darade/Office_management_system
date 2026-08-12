@@ -66,8 +66,8 @@ Record daily punch in/out, request time off, approve team leave, and log timeshe
 
 **Steps:**
 
-1. Fill type, dates, reason.
-2. Submit → manager notified.
+1. Fill type, dates, reason; select one or more Leads (admin-group users).
+2. Submit → HR Manager (Settings → Leave) gets To; selected Leads are CC’d.
 
 ### Edit (update existing)
 

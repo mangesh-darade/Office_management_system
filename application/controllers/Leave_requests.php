@@ -36,15 +36,33 @@ class Leave_requests extends CI_Controller {
                 return;
             }
             
-            // Validate Lead selection (Admin is optional)
-            $selected_lead_id = $this->input->post('selected_lead_id') ? (int)$this->input->post('selected_lead_id') : null;
-            $selected_admin_id = $this->input->post('selected_admin_id') ? (int)$this->input->post('selected_admin_id') : null;
-            
-            if (!$selected_lead_id) {
-                $this->session->set_flashdata('error', 'Please select a Lead.');
+            // Validate Lead multi-select (admin-group users); Manager field removed
+            $selected_lead_ids = leave_requests_normalize_lead_ids($this->input->post('selected_lead_ids'));
+            if (empty($selected_lead_ids)) {
+                $selected_lead_ids = leave_requests_normalize_lead_ids($this->input->post('selected_lead_id'));
+            }
+            if (empty($selected_lead_ids)) {
+                $this->session->set_flashdata('error', 'Please select at least one Lead.');
                 redirect('leave/apply');
                 return;
             }
+
+            $allowed_leads = leave_requests_admin_group_users($this->db);
+            $allowed_map = array();
+            foreach ($allowed_leads as $lu) {
+                $allowed_map[(int) $lu->id] = true;
+            }
+            $selected_lead_ids = array_values(array_filter($selected_lead_ids, function ($id) use ($allowed_map) {
+                return isset($allowed_map[(int) $id]);
+            }));
+            if (empty($selected_lead_ids)) {
+                $this->session->set_flashdata('error', 'Please select a valid Lead from the list.');
+                redirect('leave/apply');
+                return;
+            }
+
+            $primary_lead_id = (int) $selected_lead_ids[0];
+            $notify_cc_json = json_encode($selected_lead_ids);
             
             // Check if selected leave type is "Work From Home" / WFH
             $leave_type = $this->db->select('name')->from('leave_types')->where('id', $type_id)->get()->row();
@@ -121,8 +139,8 @@ class Leave_requests extends CI_Controller {
                     }
                 }
 
-                // Use Lead as approver (already validated above)
-                $approver_id = $selected_lead_id;
+                // Use first selected Lead as primary approver (legacy field)
+                $approver_id = $primary_lead_id;
 
                 // Ensure manager_id column exists in leave_requests table
                 if ($this->db->table_exists('leave_requests') && !schema_table_has_column($this->db, 'leave_requests', 'manager_id')) {
@@ -144,11 +162,14 @@ class Leave_requests extends CI_Controller {
                         'days' => $wd,
                         'reason' => $reason,
                         'status' => 'pending',
-                        'current_approver_id' => $approver_id, // Legacy field, usage may change
-                        'manager_id' => $selected_admin_id, // Store manager/admin ID
+                        'current_approver_id' => $approver_id,
+                        'manager_id' => null,
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
                     ];
+                    if (schema_table_has_column($this->db, 'leave_requests', 'notify_cc_user_ids')) {
+                        $data['notify_cc_user_ids'] = $notify_cc_json;
+                    }
                     $leave_id = $this->leaves->apply_leave($data);
                     
                     if ($leave_id) {
@@ -189,7 +210,7 @@ class Leave_requests extends CI_Controller {
                 // Send email notifications after all leave requests are created
                 if (!empty($leave_ids)) {
                     try {
-                    leave_requests_notify_applied($leave_ids, $user_id, $type_id, $selected_lead_id, $selected_admin_id);
+                    leave_requests_notify_applied($leave_ids, $user_id, $type_id, $selected_lead_ids);
                     } catch (Exception $e) {
                         log_message('error', 'Leave notification error: ' . $e->getMessage());
                         // Don't fail the request if notification fails
@@ -299,8 +320,8 @@ class Leave_requests extends CI_Controller {
                 }
             }
 
-            // Use Lead as approver (already validated above)
-            $approver_id = $selected_lead_id;
+            // Use first selected Lead as primary approver (legacy field)
+            $approver_id = $primary_lead_id;
 
             // Ensure manager_id column exists in leave_requests table
             if ($this->db->table_exists('leave_requests') && !schema_table_has_column($this->db, 'leave_requests', 'manager_id')) {
@@ -315,11 +336,14 @@ class Leave_requests extends CI_Controller {
                 'days' => $days,
                 'reason' => $reason,
                 'status' => 'pending',
-                'current_approver_id' => $approver_id, // Legacy
-                'manager_id' => $selected_admin_id, // Store manager/admin ID
+                'current_approver_id' => $approver_id,
+                'manager_id' => null,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
+            if (schema_table_has_column($this->db, 'leave_requests', 'notify_cc_user_ids')) {
+                $data['notify_cc_user_ids'] = $notify_cc_json;
+            }
             $id = $this->leaves->apply_leave($data);
 
             if ($id) {
@@ -332,10 +356,14 @@ class Leave_requests extends CI_Controller {
                 }
                 
                 // Send email notifications
-                leave_requests_notify_applied([$id], $user_id, $type_id, $selected_lead_id, $selected_admin_id);
+                leave_requests_notify_applied([$id], $user_id, $type_id, $selected_lead_ids);
+                $this->session->set_flashdata('success', 'Leave request submitted.');
+            } else {
+                $this->session->set_flashdata('error', 'Failed to create leave request. Please try again.');
+                redirect('leave/apply');
+                return;
             }
 
-            $this->session->set_flashdata('success', 'Leave request submitted.');
             redirect('leave/my');
             return;
         }
@@ -347,25 +375,8 @@ class Leave_requests extends CI_Controller {
             $balances[(int)$t->id] = $b ? $b->available : 0;
         }
 
-        // Get Lead users (role_id = 3)
-        $this->db->select('u.id, u.name, u.email');
-        $this->db->from('users u');
-        $this->db->where('u.role_id', 3); // Lead role
-        if (schema_table_has_column($this->db, 'users', 'status')) {
-            $this->db->where('u.status', 'active');
-        }
-        $this->db->order_by('u.name', 'ASC');
-        $leads = $this->db->get()->result();
-
-        // Get Admin users (role_id = 1)
-        $this->db->select('u.id, u.name, u.email');
-        $this->db->from('users u');
-        $this->db->where('u.role_id', 1); // Admin role
-        if (schema_table_has_column($this->db, 'users', 'status')) {
-            $this->db->where('u.status', 'active');
-        }
-        $this->db->order_by('u.name', 'ASC');
-        $admins = $this->db->get()->result();
+        // Lead multi-select: all users in Admin group (roles.group_type = admin)
+        $leads = leave_requests_admin_group_users($this->db);
 
         // Get holidays from database
         $holidays = [];
@@ -401,7 +412,6 @@ class Leave_requests extends CI_Controller {
             'types' => $types,
             'balances' => $balances,
             'leads' => $leads,
-            'admins' => $admins,
             'holidays' => $holidays,
             'weekend_days' => $weekend_days,
             'today_date' => $today_date,

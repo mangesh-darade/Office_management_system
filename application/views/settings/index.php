@@ -345,7 +345,7 @@
                   <?php endforeach; ?>
                 <?php endif; ?>
               </select>
-              <div class="form-text">Receives leave apply emails (To). Lead and Manager from the apply form are CC’d.</div>
+              <div class="form-text">Receives leave apply emails (To). Selected Lead(s) on the apply form are CC’d.</div>
             </div>
           </div>
           <div class="d-flex gap-2">

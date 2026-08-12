@@ -69,27 +69,16 @@
                 <option value="half">Half Day</option>
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label"> Lead <span class="text-danger">*</span></label>
-              <select class="form-select" name="selected_lead_id" id="selected_lead_id" required>
-                <option value="">Select Lead</option>
+            <div class="col-md-8">
+              <label class="form-label">Lead <span class="text-danger">*</span></label>
+              <select class="form-select oms-select2-multi" name="selected_lead_ids[]" id="selected_lead_ids" multiple required aria-label="Lead">
                 <?php foreach ($leads as $lead): ?>
                   <option value="<?php echo (int)$lead->id; ?>">
                     <?php echo esc_view(!empty($lead->name) ? $lead->name : $lead->email); ?>
                   </option>
                 <?php endforeach; ?>
               </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Manager</label>
-              <select class="form-select" name="selected_admin_id" id="selected_admin_id">
-                <option value="">Select Manager</option>
-                <?php foreach ($admins as $admin): ?>
-                  <option value="<?php echo (int)$admin->id; ?>">
-                    <?php echo esc_view(!empty($admin->name) ? $admin->name : $admin->email); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
+              <div class="form-text">Admin-group users. All selected are CC’d on leave emails (HR Manager is To when set in Settings).</div>
             </div>
           </div>
         </div>
@@ -103,7 +92,7 @@
         </div>
       </div>
       <div class="oms-form-actions">
-        <button type="submit" class="btn btn-primary">Submit Request</button>
+        <button type="submit" class="btn btn-primary" id="leaveApplySubmitBtn">Submit Request</button>
       </div>
     </form>
   </div>
@@ -382,10 +371,30 @@
   var leaveForm = document.querySelector('form[method="post"]');
   if (leaveForm) {
     leaveForm.addEventListener('submit', function(e) {
+      if (leaveForm.getAttribute('data-submitting') === '1') {
+        e.preventDefault();
+        return false;
+      }
+
       // Validate Leave Type
       if (!typeIdSelect || !typeIdSelect.value) {
         e.preventDefault();
         alert('Please select a leave type.');
+        return false;
+      }
+
+      var leadSelect = document.getElementById('selected_lead_ids');
+      var leadCount = 0;
+      if (leadSelect) {
+        if (window.jQuery && jQuery(leadSelect).data('select2')) {
+          leadCount = jQuery(leadSelect).val() ? jQuery(leadSelect).val().length : 0;
+        } else {
+          leadCount = leadSelect.selectedOptions ? leadSelect.selectedOptions.length : 0;
+        }
+      }
+      if (leadCount < 1) {
+        e.preventDefault();
+        alert('Please select at least one Lead.');
         return false;
       }
       
@@ -413,20 +422,14 @@
           alert('You have selected duplicate dates: ' + duplicates.join(', ') + '. Please remove duplicates and try again.');
           return false;
         }
-      } else {
-        // Check for date validation in range mode
-        var startDate = document.getElementById('start_date').value;
-        var endDate = document.getElementById('end_date').value;
-        
-        if (startDate && endDate && startDate === endDate) {
-          var duration = document.getElementById('duration_type').value;
-          if (duration === 'half') {
-            // Half-day is allowed for same date
-            return true;
-          }
-        }
       }
-      
+
+      leaveForm.setAttribute('data-submitting', '1');
+      var btn = document.getElementById('leaveApplySubmitBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Submitting…';
+      }
       return true;
     });
   }
@@ -435,3 +438,10 @@
 
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+$this->load->view('partials/oms_select2_multi', array(
+  'oms_select2_selectors' => array('#selected_lead_ids'),
+  'oms_select2_placeholder' => 'Select Lead(s)…',
+  'oms_select2_allow_clear' => true,
+));
+?>

@@ -137,14 +137,111 @@ if (!function_exists('leave_requests_get_last_sent_message_id')) {
     }
 }
 
+if (!function_exists('leave_requests_admin_group_users')) {
+    /**
+     * Users whose role has group_type = admin (Admin / Manager / Lead roles).
+     *
+     * @param object $db
+     * @return array
+     */
+    function leave_requests_admin_group_users($db)
+    {
+        if (!$db || !$db->table_exists('users')) {
+            return array();
+        }
+        $db->reset_query();
+        $db->select('u.id, u.name, u.email');
+        $db->from('users u');
+        if ($db->table_exists('roles') && schema_table_has_column($db, 'roles', 'group_type')) {
+            $db->join('roles r', 'r.id = u.role_id', 'inner');
+            $db->where('r.group_type', 'admin');
+        } else {
+            $db->where_in('u.role_id', array(1, 2, 3));
+        }
+        if (schema_table_has_column($db, 'users', 'status')) {
+            $db->where('u.status', 'active');
+        }
+        $db->order_by('u.name', 'ASC');
+        return $db->get()->result();
+    }
+}
+
+if (!function_exists('leave_requests_normalize_lead_ids')) {
+    /**
+     * @param mixed $raw
+     * @return int[]
+     */
+    function leave_requests_normalize_lead_ids($raw)
+    {
+        if (!is_array($raw)) {
+            if ($raw === null || $raw === '') {
+                return array();
+            }
+            $raw = array($raw);
+        }
+        $ids = array();
+        foreach ($raw as $v) {
+            $id = (int) $v;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        return array_values($ids);
+    }
+}
+
+if (!function_exists('leave_requests_parse_cc_user_ids')) {
+    /**
+     * @param object|null $row leave_requests row
+     * @return int[]
+     */
+    function leave_requests_parse_cc_user_ids($row)
+    {
+        $ids = array();
+        if ($row && !empty($row->notify_cc_user_ids)) {
+            $decoded = json_decode((string) $row->notify_cc_user_ids, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $v) {
+                    $id = (int) $v;
+                    if ($id > 0) {
+                        $ids[$id] = $id;
+                    }
+                }
+            }
+        }
+        if ($row && !empty($row->current_approver_id)) {
+            $id = (int) $row->current_approver_id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        // Legacy single manager_id (pre multi-lead)
+        if ($row && !empty($row->manager_id)) {
+            $id = (int) $row->manager_id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        return array_values($ids);
+    }
+}
+
 if (!function_exists('leave_requests_notify_applied')) {
-    function leave_requests_notify_applied($leave_ids, $user_id, $type_id, $selected_lead_id, $selected_admin_id)
+    /**
+     * @param array $leave_ids
+     * @param int $user_id
+     * @param int $type_id
+     * @param int|int[] $selected_lead_ids Multi-select Lead (admin-group) user ids → email CC
+     * @param int|null $selected_admin_id Deprecated; ignored (Manager field removed)
+     */
+    function leave_requests_notify_applied($leave_ids, $user_id, $type_id, $selected_lead_ids, $selected_admin_id = null)
     {
         $CI =& get_instance();
         if (empty($leave_ids)) {
             return;
         }
 
+        $lead_ids = leave_requests_normalize_lead_ids($selected_lead_ids);
         leave_requests_ensure_email_thread_column();
 
         try {
@@ -185,12 +282,7 @@ if (!function_exists('leave_requests_notify_applied')) {
 
             $request_count = count($leaves);
 
-            $lead = leave_requests_user_mail($selected_lead_id);
-            $manager = leave_requests_user_mail($selected_admin_id);
             $hr = leave_requests_get_hr_email();
-
-            $lead_email = $lead ? $lead['email'] : null;
-            $admin_email = $manager ? $manager['email'] : null;
             $hr_email = $hr ? $hr['email'] : null;
 
             $CI->load->helper('email');
@@ -237,7 +329,7 @@ if (!function_exists('leave_requests_notify_applied')) {
             $message .= '<p>Thank you.</p>';
             $message .= '</body></html>';
 
-            // To = HR Manager (Settings → Leave); CC = Lead + Manager (from apply form)
+            // To = HR Manager (Settings → Leave); CC = all selected Leads (admin-group multi-select)
             if (!$hr_email) {
                 log_message('error', 'Leave apply email skipped: HR Manager not set in Settings → Leave');
                 return;
@@ -245,11 +337,16 @@ if (!function_exists('leave_requests_notify_applied')) {
 
             $primary_to = $hr_email;
             $cc_list = array();
-            if ($lead_email && $lead_email !== $primary_to) {
-                $cc_list[] = $lead_email;
-            }
-            if ($admin_email && $admin_email !== $primary_to && !in_array($admin_email, $cc_list, true)) {
-                $cc_list[] = $admin_email;
+            foreach ($lead_ids as $lid) {
+                $lead = leave_requests_user_mail($lid);
+                if (!$lead || empty($lead['email'])) {
+                    continue;
+                }
+                $em = trim((string) $lead['email']);
+                if ($em === '' || $em === $primary_to || in_array($em, $cc_list, true)) {
+                    continue;
+                }
+                $cc_list[] = $em;
             }
 
             $thread_leave_id = (int) $first_leave->id;
@@ -310,13 +407,10 @@ if (!function_exists('leave_requests_notify_change')) {
             return;
         }
 
-        $lead = leave_requests_user_mail(!empty($row->current_approver_id) ? $row->current_approver_id : 0);
-        $manager = leave_requests_user_mail(!empty($row->manager_id) ? $row->manager_id : 0);
         $hr = leave_requests_get_hr_email();
         $actor = leave_requests_user_mail($actor_user_id);
 
-        $lead_email = $lead ? $lead['email'] : null;
-        $manager_email = $manager ? $manager['email'] : null;
+        $cc_user_ids = leave_requests_parse_cc_user_ids($row);
         $hr_email = $hr ? $hr['email'] : null;
         $employee_email = trim((string) $row->user_email);
 
@@ -396,25 +490,39 @@ if (!function_exists('leave_requests_notify_change')) {
             $message .= '<p>Thank you.</p>';
             $message .= '</body></html>';
 
-            // Same conversation people as apply: To = HR, CC = Lead + Manager + Employee
+            // Same conversation people as apply: To = HR, CC = selected Leads + Employee
             $primary_to = null;
             $cc_list = array();
 
+            $first_lead_email = null;
+            foreach ($cc_user_ids as $cid) {
+                $person = leave_requests_user_mail($cid);
+                if (!$person || empty($person['email'])) {
+                    continue;
+                }
+                if ($first_lead_email === null) {
+                    $first_lead_email = trim((string) $person['email']);
+                }
+            }
+
             if ($hr_email) {
                 $primary_to = $hr_email;
-            } elseif ($lead_email) {
-                $primary_to = $lead_email;
-            } elseif ($manager_email) {
-                $primary_to = $manager_email;
+            } elseif ($first_lead_email) {
+                $primary_to = $first_lead_email;
             } else {
                 $primary_to = $employee_email;
             }
 
-            if ($lead_email && $lead_email !== $primary_to) {
-                $cc_list[] = $lead_email;
-            }
-            if ($manager_email && $manager_email !== $primary_to && !in_array($manager_email, $cc_list, true)) {
-                $cc_list[] = $manager_email;
+            foreach ($cc_user_ids as $cid) {
+                $person = leave_requests_user_mail($cid);
+                if (!$person || empty($person['email'])) {
+                    continue;
+                }
+                $em = trim((string) $person['email']);
+                if ($em === '' || $em === $primary_to || in_array($em, $cc_list, true)) {
+                    continue;
+                }
+                $cc_list[] = $em;
             }
             if ($employee_email !== '' && $employee_email !== $primary_to && !in_array($employee_email, $cc_list, true)) {
                 $cc_list[] = $employee_email;
