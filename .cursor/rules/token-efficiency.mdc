@@ -1,36 +1,13 @@
 ---
-description: Token efficiency — short context, minimal tools, concise replies on every prompt
-alwaysApply: true
+description: Token efficiency notes (see master-dev-rules.mdc for always-on rules)
+alwaysApply: false
 ---
 
-# Token efficiency (every prompt)
+# Token efficiency
 
-## Conversation
-- Prefer a **new chat** for a new screen/topic; do not drag unrelated prior module context.
-- Answer the **latest user ask only** — no full history restatement or long “plan then do” essays.
-- If the ask is clear, proceed; ask **at most one** clarifying question when blocked.
+Superseded for always-on use by `master-dev-rules.mdc`. Keep this file only as a short reference:
 
-## Scope
-- Touch **only** files needed for the ask. No drive-by refactors or unrelated modules.
-- Read/search the **smallest** set of files. Do not scan the whole codebase for a one-screen fix.
-- Prefer paths the user names (controller / view / route).
-
-## Output
-- **Short replies**: bullets over paragraphs; no preamble.
-- Show changed blocks / commit list — not full-file dumps.
-- **Skip** canvases, architecture essays, WhatsApp writeups, and new markdown docs **unless explicitly asked**.
-- Do not narrate tool usage or repeat the task back.
-
-## Tools
-- Batch independent reads; avoid re-reading the same large file.
-- No broad explore agents for small UI/logic fixes.
-- Prefer pasted error/URL/text over screenshot analysis when both exist.
-- Smoke/lint **only** touched paths when risk warrants it — no full-suite by default.
-
-## Git
-- Commit **only** when the user asks. Prefer small screen-wise commits.
-- Do not commit cache, sessions, logs, `assets.zip`, or throwaway smoke screenshots unless asked.
-
-## Still required
-- Smallest correct CI3 diff; match existing style.
-- No business-logic / API / schema / UI behavior change unless the user explicitly requests it.
+- New chat per topic; latest ask only
+- Smallest file set; short replies
+- No canvases/docs unless asked
+- Commit only when asked

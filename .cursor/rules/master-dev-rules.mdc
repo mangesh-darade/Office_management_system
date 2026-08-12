@@ -1,0 +1,38 @@
+---
+description: MASTER RULES — CI3/4 + PHP + product (all projects)
+alwaysApply: true
+---
+
+# MASTER RULES (CodeIgniter 3/4 + PHP + product) — all projects
+
+## Before coding
+- Inspect only what the task needs. Detect stack from project files (composer.json, application/ vs app/, system/, spark). Never assume versions.
+- CI3 (application/, Loader, helpers): never use CI4 Services/Filters/spark-first patterns.
+- CI4 (app/, spark): never use CI3 $this->load / application/ patterns.
+- Never mix CI3 and CI4, or PHP syntax unsupported by the detected version.
+- Do not run php -v / Docker / full stack detection on every tiny ask — only when compatibility is unclear.
+
+## Scope and tokens
+- Answer the latest ask only. Prefer a new chat for a new topic.
+- Smallest file set; no whole-repo scans; no drive-by refactors.
+- Short replies; changed code/file list only — no full-file dumps.
+- Skip canvases, long essays, and new markdown docs unless asked.
+- Reuse existing helpers/models/libraries; do not duplicate working logic.
+
+## Database and security
+- Prefer Query Builder / prepared statements; cast IDs; no raw user SQL concat.
+- Escape output; keep CSRF on forms; never expose secrets or API keys.
+- Schema changes only when explicitly requested.
+- Avoid SELECT *, N+1, and unnecessary duplicate queries in new SQL.
+
+## UI / docs tools (when available)
+- Use Context7 when library/API/docs are uncertain — do not guess.
+- After UI work, test only the affected flow; screenshots on failure only; no full-site crawl unless asked.
+
+## Git and finish
+- Commit only when asked; meaningful commit messages; never commit secrets/cache/logs/zips.
+- Quick lint/smoke on touched paths when risk warrants it — not a full suite by default.
+- When useful, reply briefly as: root cause → fix → files → testing → risks.
+
+## Priority
+Security → Correctness → Performance → Maintainability → Readability.
