@@ -118,6 +118,9 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `requirement_assignees` | CREATE TABLE (id, requirement_id, user_id, created_at; UNIQUE requirement_id+user_id) | Multi-user requirement assignment (primary stays on requirements.assigned_to) | 2026-07-23 |
 | `my_works_assignees` | CREATE TABLE (id, work_id, user_id, created_at; UNIQUE work_id+user_id) | Multi-user My Works assignment (primary stays on my_works.created_for) | 2026-07-23 |
 | `leave_requests` | ADD `apply_email_message_id` VARCHAR(255) NULL | Thread approve/reject emails as reply to apply mail | 2026-07-23 |
+| `leave_requests` | ADD `notify_cc_user_ids` TEXT NULL | JSON list of Lead (admin-group) user ids CC’d on leave emails | 2026-08-12 |
+| `leave_types` | Repair: dedupe triplicate name rows; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT | Missing PK caused JOIN×3 on My Leaves; same root as clients insert_id bug | 2026-08-12 |
+| `leave_requests` | Repair: dedupe copies; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT; expand status ENUM +`approved` | insert_id=0 skipped apply email; UI showed ghost triples | 2026-08-12 |
 | `permissions` | SET `can_access=1` for Admin role_id=1 on System Settings / Admin / holidays / leave_types / permissions / etc. | Align Permission Manager checkboxes with Settings access (checked = allowed) | 2026-07-23 |
 | `client_activity` | CREATE TABLE (id, client_id, user_id, action, old_value, new_value, created_at) | Per-client change history on client detail (Task-style) | 2026-08-10 |
 | `clients` | Repair: dedupe triplicate rows; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT; ADD UNIQUE `uq_client_code` | Missing AI/PK caused insert_id=0 → "Clients create error" | 2026-08-10 |

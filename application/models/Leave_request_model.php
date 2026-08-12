@@ -29,6 +29,56 @@ class Leave_request_model extends CI_Model {
                 KEY `approver_id` (`approver_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
         }
+        if ($this->db->table_exists('leave_requests')
+            && !schema_table_has_column($this->db, 'leave_requests', 'notify_cc_user_ids')) {
+            $this->db->query("ALTER TABLE `leave_requests` ADD COLUMN `notify_cc_user_ids` TEXT NULL DEFAULT NULL AFTER `manager_id`");
+        }
+        $this->_ensure_leave_table_primary_keys();
+    }
+
+    /**
+     * leave_requests / leave_types must have PK + AUTO_INCREMENT or insert_id=0
+     * (email skipped) and JOIN duplication blows up My Leaves rows.
+     */
+    private function _ensure_leave_table_primary_keys()
+    {
+        static $pk_done = false;
+        if ($pk_done) {
+            return;
+        }
+        $pk_done = true;
+
+        foreach (array('leave_types', 'leave_requests') as $table) {
+            if (!$this->db->table_exists($table)) {
+                continue;
+            }
+            $has_pk = false;
+            $idx = $this->db->query("SHOW INDEX FROM `{$table}` WHERE Key_name = 'PRIMARY'");
+            if ($idx && $idx->num_rows() > 0) {
+                $has_pk = true;
+            }
+            if ($has_pk) {
+                continue;
+            }
+            // Soft repair only when table is empty or ids already unique — full dedupe is ops script.
+            $cnt = (int) $this->db->count_all($table);
+            $distinct = (int) $this->db->query("SELECT COUNT(DISTINCT id) AS c FROM `{$table}`")->row()->c;
+            if ($cnt > 0 && $cnt !== $distinct) {
+                log_message('error', $table . ' missing PRIMARY KEY and has duplicate ids; run repair_leave_pk.php');
+                continue;
+            }
+            $this->db->query("ALTER TABLE `{$table}` MODIFY `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (`id`)");
+        }
+    }
+
+    public function apply_leave($data){
+        $this->db->insert('leave_requests', $data);
+        $id = (int) $this->db->insert_id();
+        if ($id < 1) {
+            log_message('error', 'leave_requests insert_id=0 — table likely missing AUTO_INCREMENT PRIMARY KEY on id');
+            return false;
+        }
+        return $id;
     }
 
     public function get_user_leaves($user_id, $filters = []){
@@ -48,11 +98,6 @@ class Leave_request_model extends CI_Model {
         apply_role_hierarchy_filter($this->db, 'lr.user_id');
         $this->db->order_by('lr.start_date', 'DESC');
         return $this->db->get()->result();
-    }
-
-    public function apply_leave($data){
-        $this->db->insert('leave_requests', $data);
-        return (int)$this->db->insert_id();
     }
 
     public function get_pending_approvals($manager_id){
