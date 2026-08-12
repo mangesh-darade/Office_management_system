@@ -40,22 +40,29 @@ class Defects extends CI_Controller
 
         require_module_access(array('defects_list', 'defects'), true);
 
+        $sort = strtolower(trim((string) $this->input->get('sort')));
+        $dir = strtolower(trim((string) $this->input->get('dir')));
+        $allowed_sort = array(
+            'id', 'title', 'client', 'project', 'severity', 'status',
+            'active', 'due', 'assignee', 'created_by', 'created_at',
+        );
+        if (!in_array($sort, $allowed_sort, true)) {
+            $sort = 'created_at';
+        }
+        if ($dir !== 'asc' && $dir !== 'desc') {
+            $dir = 'desc';
+        }
+
         $filters = array(
-
             'status' => trim((string) $this->input->get('status')),
-
             'severity' => trim((string) $this->input->get('severity')),
-
             'project_id' => (int) $this->input->get('project_id'),
-
             'client_id' => (int) $this->input->get('client_id'),
-
             'assigned_to' => (int) $this->input->get('assigned_to'),
-
             'q' => trim((string) $this->input->get('q')),
-
             'overdue' => $this->input->get('overdue') === '1',
-
+            'sort' => $sort,
+            'dir' => $dir,
         );
 
         $per_page = 25;
@@ -63,23 +70,14 @@ class Defects extends CI_Controller
         $total = $this->defects->count_defects($filters);
 
         $config = array(
-
             'base_url' => site_url('defects/index'),
-
             'total_rows' => $total,
-
             'per_page' => $per_page,
-
             'uri_segment' => 3,
-
             'reuse_query_string' => true,
-
             'full_tag_open' => '<nav><ul class="pagination pagination-sm justify-content-center mb-0">',
-
             'full_tag_close' => '</ul></nav>',
-
             'attributes' => array('class' => 'page-link'),
-
         );
 
         $this->pagination->initialize($config);
@@ -87,23 +85,16 @@ class Defects extends CI_Controller
         $rows = $this->defects->list_defects($filters, $per_page, (int) $offset);
 
         $this->load->view('defects/index', array(
-
             'rows' => $rows,
-
             'clients' => $this->defects->client_options(),
-
             'projects' => $this->defects->project_options(),
-
             'members' => $this->defects->user_options(),
-
             'filters' => $filters,
-
+            'sort' => $sort,
+            'dir' => $dir,
             'pagination_links' => $this->pagination->create_links(),
-
             'total' => $total,
-
         ));
-
     }
 
 

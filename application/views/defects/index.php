@@ -5,11 +5,63 @@ $members = isset($members) ? $members : array();
 $filters = isset($filters) ? $filters : array();
 $rows = isset($rows) ? $rows : array();
 $total = isset($total) ? (int) $total : 0;
+$sort = isset($sort) ? (string) $sort : (isset($filters['sort']) ? (string) $filters['sort'] : 'created_at');
+$dir = isset($dir) ? (string) $dir : (isset($filters['dir']) ? (string) $filters['dir'] : 'desc');
+if ($dir !== 'asc' && $dir !== 'desc') {
+    $dir = 'desc';
+}
 $can_add = function_exists('has_module_access') && (has_module_access('defects_add') || has_module_access('defects'));
 $can_export = function_exists('has_module_access') && (has_module_access('defects_export') || has_module_access('defects_list') || has_module_access('defects'));
 $can_edit = function_exists('has_module_access') && (has_module_access('defects_edit') || has_module_access('defects'));
 $embed = (bool) $this->input->get('embed');
 $parent_tab = trim((string) $this->input->get('parent_tab'));
+
+$defect_sort_url = function ($col) use ($filters, $sort, $dir, $embed, $parent_tab) {
+    $next_dir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+    if ($sort !== $col) {
+        $next_dir = ($col === 'created_at' || $col === 'due' || $col === 'id') ? 'desc' : 'asc';
+    }
+    $params = array(
+        'status' => isset($filters['status']) ? $filters['status'] : '',
+        'severity' => isset($filters['severity']) ? $filters['severity'] : '',
+        'project_id' => !empty($filters['project_id']) ? (int) $filters['project_id'] : 0,
+        'client_id' => !empty($filters['client_id']) ? (int) $filters['client_id'] : 0,
+        'assigned_to' => !empty($filters['assigned_to']) ? (int) $filters['assigned_to'] : 0,
+        'q' => isset($filters['q']) ? $filters['q'] : '',
+        'sort' => $col,
+        'dir' => $next_dir,
+    );
+    if (!empty($filters['overdue'])) {
+        $params['overdue'] = '1';
+    }
+    if ($embed) {
+        $params['embed'] = '1';
+    }
+    if ($parent_tab !== '') {
+        $params['parent_tab'] = $parent_tab;
+    }
+    foreach ($params as $k => $v) {
+        if ($v === '' || $v === 0 || $v === '0') {
+            unset($params[$k]);
+        }
+    }
+    return site_url('defects') . '?' . http_build_query($params);
+};
+
+$defect_sort_th = function ($col, $label, $extra_class = '') use ($defect_sort_url, $sort, $dir) {
+    $icon = 'bi-arrow-down-up';
+    $aria = 'Sort by ' . $label;
+    if ($sort === $col) {
+        $icon = ($dir === 'asc') ? 'bi-sort-up' : 'bi-sort-down';
+        $aria = $label . ' sorted ' . $dir;
+    }
+    $cls = trim('defect-sort-th ' . $extra_class);
+    echo '<th class="' . esc_view($cls, ENT_QUOTES, 'UTF-8') . '">';
+    echo '<a href="' . esc_view($defect_sort_url($col), ENT_QUOTES, 'UTF-8') . '" class="defect-sort-link text-decoration-none text-body" title="' . esc_view($aria, ENT_QUOTES, 'UTF-8') . '" aria-label="' . esc_view($aria, ENT_QUOTES, 'UTF-8') . '">';
+    echo esc_view($label);
+    echo ' <i class="bi ' . esc_view($icon, ENT_QUOTES, 'UTF-8') . ' small text-muted"></i>';
+    echo '</a></th>';
+};
 
 $sev_class = function ($s) {
     $s = strtolower((string) $s);
@@ -100,6 +152,8 @@ if (!$embed) {
           <input type="hidden" name="parent_tab" value="<?php echo esc_view($parent_tab); ?>">
         <?php endif; ?>
       <?php endif; ?>
+      <input type="hidden" name="sort" value="<?php echo esc_view($sort); ?>">
+      <input type="hidden" name="dir" value="<?php echo esc_view($dir); ?>">
 
         <label class="defect-filter-field defect-filter-search">
           <span class="defect-filter-label">Search</span>
@@ -219,6 +273,13 @@ if (!$embed) {
           <span class="<?php echo esc_view($sev_class($r->severity)); ?>"><?php echo esc_view(ucfirst((string) $r->severity)); ?></span>
           <span class="<?php echo esc_view($status_class($r->status)); ?>"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $r->status))); ?></span>
           <span class="defect-pill defect-pill--muted"><?php echo esc_view($r->assignee_name ?: 'Unassigned'); ?></span>
+          <span class="defect-pill defect-pill--muted" title="Created by"><i class="bi bi-person"></i> <?php echo esc_view(!empty($r->reporter_name) ? $r->reporter_name : '—'); ?></span>
+          <?php if (!empty($r->created_at)): ?>
+            <span class="defect-pill defect-pill--muted" title="Created at"><i class="bi bi-clock"></i> <?php
+              $ts = strtotime($r->created_at);
+              echo esc_view($ts ? date('Y-m-d H:i', $ts) : $r->created_at);
+            ?></span>
+          <?php endif; ?>
           <?php if ($can_edit): ?>
             <div class="form-check form-switch defect-active-switch mb-0">
               <input class="form-check-input defect-active-toggle" type="checkbox" role="switch"
@@ -245,15 +306,17 @@ if (!$embed) {
       <table class="table table-hover align-middle mb-0 defect-list-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Client</th>
-            <th>Project</th>
-            <th>Severity</th>
-            <th>Status</th>
-            <th>Active</th>
-            <th>Due</th>
-            <th>Assignee</th>
+            <?php $defect_sort_th('id', 'ID'); ?>
+            <?php $defect_sort_th('title', 'Title'); ?>
+            <?php $defect_sort_th('client', 'Client'); ?>
+            <?php $defect_sort_th('project', 'Project'); ?>
+            <?php $defect_sort_th('severity', 'Severity'); ?>
+            <?php $defect_sort_th('status', 'Status'); ?>
+            <?php $defect_sort_th('active', 'Active'); ?>
+            <?php $defect_sort_th('due', 'Due'); ?>
+            <?php $defect_sort_th('assignee', 'Assignee'); ?>
+            <?php $defect_sort_th('created_by', 'Created by'); ?>
+            <?php $defect_sort_th('created_at', 'Created at'); ?>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -296,6 +359,15 @@ if (!$embed) {
               </td>
               <td class="text-nowrap"><?php echo esc_view(!empty($r->due_date) ? $r->due_date : '—'); ?></td>
               <td><?php echo esc_view($r->assignee_name ?: '—'); ?></td>
+              <td><?php echo esc_view(!empty($r->reporter_name) ? $r->reporter_name : '—'); ?></td>
+              <td class="text-nowrap"><?php
+                if (!empty($r->created_at)) {
+                  $ts = strtotime($r->created_at);
+                  echo esc_view($ts ? date('Y-m-d H:i', $ts) : $r->created_at);
+                } else {
+                  echo '—';
+                }
+              ?></td>
               <td class="text-end text-nowrap">
                 <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
                   <?php if ($can_edit): ?>

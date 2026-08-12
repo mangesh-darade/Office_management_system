@@ -77,7 +77,7 @@ class Defect_model extends CI_Model
         $this->db->join('users asn', 'asn.id = d.assigned_to', 'left');
         $this->db->join('project_releases r', 'r.id = d.release_id', 'left');
         $this->_apply_defect_filters($filters);
-        $this->db->order_by('d.id', 'DESC');
+        $this->_apply_list_sort($filters);
         if ($limit !== null) {
             $this->db->limit((int) $limit, (int) $offset);
         }
@@ -92,6 +92,53 @@ class Defect_model extends CI_Model
             }
         }
         return $rows;
+    }
+
+    /**
+     * Whitelist column sort for defect list (GET sort + dir).
+     *
+     * @param array $filters
+     * @return void
+     */
+    private function _apply_list_sort($filters = array())
+    {
+        $sort = isset($filters['sort']) ? strtolower(trim((string) $filters['sort'])) : '';
+        $dir = isset($filters['dir']) ? strtolower(trim((string) $filters['dir'])) : '';
+        if ($dir !== 'asc' && $dir !== 'desc') {
+            $dir = 'desc';
+        }
+
+        $map = array(
+            'id' => 'd.defect_number',
+            'title' => 'd.title',
+            'severity' => 'd.severity',
+            'status' => 'd.status',
+            'due' => 'd.due_date',
+            'assignee' => 'asn.name',
+            'created_by' => 'rep.name',
+            'created_at' => 'd.created_at',
+            'project' => 'p.name',
+        );
+        if (schema_table_has_column($this->db, 'project_defects', 'is_active')) {
+            $map['active'] = 'd.is_active';
+        }
+        if ($this->db->table_exists('clients')
+            && schema_table_has_column($this->db, 'projects', 'client_id')) {
+            $map['client'] = 'c.company_name';
+        }
+
+        if ($sort === '' || !isset($map[$sort])) {
+            if (schema_table_has_column($this->db, 'project_defects', 'created_at')) {
+                $this->db->order_by('d.created_at', 'DESC');
+            }
+            $this->db->order_by('d.id', 'DESC');
+            return;
+        }
+
+        $this->db->order_by($map[$sort], strtoupper($dir));
+        if ($sort !== 'id' && $sort !== 'created_at') {
+            $this->db->order_by('d.id', 'DESC');
+        }
     }
 
     /**

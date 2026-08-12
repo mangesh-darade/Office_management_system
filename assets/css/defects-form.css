@@ -509,6 +509,23 @@
   padding: 0.7rem 0.85rem;
 }
 
+.defect-list-page .defect-sort-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: inherit;
+}
+.defect-list-page .defect-sort-link:hover {
+  color: #0d6efd;
+}
+.defect-list-page .defect-sort-link .bi {
+  opacity: 0.55;
+}
+.defect-list-page .defect-sort-th:has(.defect-sort-link:hover) .bi,
+.defect-list-page .defect-sort-link:hover .bi {
+  opacity: 1;
+}
+
 .defect-list-page .defect-list-table tbody td {
   padding: 0.75rem 0.85rem;
   font-size: 0.86rem;
