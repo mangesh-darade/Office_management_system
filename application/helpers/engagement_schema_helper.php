@@ -170,5 +170,19 @@ if (!function_exists('engagement_schema_ensure')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
 
+        if (!$db->table_exists('project_release_activity')) {
+            $db->query("CREATE TABLE IF NOT EXISTS `project_release_activity` (
+                `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `release_id` int(11) UNSIGNED NOT NULL,
+                `user_id` int(11) UNSIGNED DEFAULT NULL,
+                `action` varchar(50) NOT NULL,
+                `detail` text DEFAULT NULL,
+                `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_ract_release` (`release_id`),
+                KEY `idx_ract_user` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+
     }
 }

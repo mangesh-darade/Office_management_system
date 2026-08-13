@@ -301,7 +301,7 @@
           "list": {"route": "releases"},
           "add": {"route": "releases/create", "steps": ["Pick project and version.", "Add release note points (what is included).", "Set planned date → Save."]},
           "edit": {"list_route": "releases", "steps": ["Open release → Add or edit release note points.", "Use Add all fixed defects to notes for bulk changelog.", "Review related defects (Add to notes per item).", "Select recipients and Send notes now, or check Send when I save.", "Set status to Released when live."]},
-          "delete": {"steps": ["Open release edit → Delete (soft delete, admin)."]}
+          "delete": {"steps": ["Open release edit → Delete (soft delete, admin).", "On release detail, Save note and History (Date / Comments / Added By) work like Defects."]}
         },
         {
           "name": "Defects",

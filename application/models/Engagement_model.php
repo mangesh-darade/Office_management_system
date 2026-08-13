@@ -382,4 +382,82 @@ class Engagement_model extends CI_Model
         }
         return $this->db->order_by('name')->get()->result();
     }
+
+    public function log_activity($release_id, $user_id, $action, $detail = '')
+    {
+        if (!$this->db->table_exists('project_release_activity')) {
+            return 0;
+        }
+        $this->db->insert('project_release_activity', array(
+            'release_id' => (int) $release_id,
+            'user_id' => (int) $user_id > 0 ? (int) $user_id : null,
+            'action' => substr((string) $action, 0, 50),
+            'detail' => $detail !== '' ? (string) $detail : null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ));
+        return (int) $this->db->insert_id();
+    }
+
+    public function list_activity($release_id)
+    {
+        if (!$this->db->table_exists('project_release_activity')) {
+            return array();
+        }
+        $this->db->select('a.*, u.name AS user_name');
+        $this->db->from('project_release_activity a');
+        $this->db->join('users u', 'u.id = a.user_id', 'left');
+        $this->db->where('a.release_id', (int) $release_id);
+        $this->db->order_by('a.id', 'DESC');
+        return $this->db->get()->result();
+    }
+
+    public function list_history($release_id)
+    {
+        $rows = array();
+        foreach ($this->list_activity((int) $release_id) as $a) {
+            $rows[] = (object) array(
+                'id' => (int) $a->id,
+                'source' => 'activity',
+                'action' => (string) $a->action,
+                'detail' => isset($a->detail) ? (string) $a->detail : '',
+                'user_name' => isset($a->user_name) ? (string) $a->user_name : '',
+                'user_id' => isset($a->user_id) ? (int) $a->user_id : 0,
+                'created_at' => (string) $a->created_at,
+            );
+        }
+        return $rows;
+    }
+
+    public function build_change_details($old, array $new)
+    {
+        if (!$old) {
+            return array();
+        }
+        $labels = array(
+            'project_id' => 'Project',
+            'version' => 'Version',
+            'title' => 'Title',
+            'description' => 'Description',
+            'planned_date' => 'Planned date',
+            'status' => 'Status',
+            'released_at' => 'Released at',
+        );
+        $lines = array();
+        foreach ($labels as $key => $label) {
+            if (!array_key_exists($key, $new)) {
+                continue;
+            }
+            $before = isset($old->$key) ? (string) $old->$key : '';
+            $after = $new[$key] === null ? '' : (string) $new[$key];
+            if ($before === $after) {
+                continue;
+            }
+            if ($key === 'description') {
+                $lines[] = $label . ': updated';
+                continue;
+            }
+            $lines[] = $label . ': ' . ($before !== '' ? $before : '—') . ' → ' . ($after !== '' ? $after : '—');
+        }
+        return $lines;
+    }
 }

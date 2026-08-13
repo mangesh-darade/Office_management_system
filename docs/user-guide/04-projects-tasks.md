@@ -234,6 +234,7 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 **How:**
 
 1. Open release edit → Delete (soft delete, admin).
+2. On release detail, Save note and History (Date / Comments / Added By) work like Defects.
 
 ---
 

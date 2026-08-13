@@ -845,6 +845,7 @@ $route['releases'] = 'releases/index';
 $route['releases/index/(:num)'] = 'releases/index/$1';
 $route['releases/create'] = 'releases/create';
 $route['releases/view/(:num)'] = 'releases/view/$1';
+$route['releases/add-comment/(:num)'] = 'releases/add_comment/$1';
 $route['releases/edit/(:num)'] = 'releases/edit/$1';
 $route['releases/delete/(:num)'] = 'releases/delete/$1';
 $route['releases/export'] = 'releases/export';

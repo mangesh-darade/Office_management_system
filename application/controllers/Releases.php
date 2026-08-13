@@ -366,7 +366,67 @@ class Releases extends CI_Controller
 
             'related_defects' => $related,
 
+            'history' => $this->eng->list_history((int) $id),
+
         ));
+
+    }
+
+
+
+    public function add_comment($id)
+
+    {
+
+        require_module_access(array('releases_view', 'releases_list', 'releases'), true);
+
+        if ($this->input->method() !== 'post') {
+
+            show_error('Invalid request', 405);
+
+            return;
+
+        }
+
+        $id = (int) $id;
+
+        $item = $this->eng->get_release($id);
+
+        if (!$item) {
+
+            show_404();
+
+            return;
+
+        }
+
+        $uid = (int) $this->session->userdata('user_id');
+
+        $note = trim((string) $this->input->post('note'));
+
+        if ($note === '') {
+
+            $note = trim((string) $this->input->post('comment'));
+
+        }
+
+        if ($note === '') {
+
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
+
+            redirect('releases/view/' . $id);
+
+            return;
+
+        }
+
+        $this->eng->log_activity($id, $uid, 'note', $note);
+
+        log_activity('releases', 'note', $id, 'History note on release: ' . $item->version);
+
+        $this->session->set_flashdata('success', 'History note saved.');
+
+        redirect('releases/view/' . $id . '#history');
 
     }
 
@@ -431,6 +491,8 @@ class Releases extends CI_Controller
             $this->eng->save_release_notes($id, release_parse_note_points_post($this->input));
 
             auto_log_insert('releases', 'project_releases', $id, array('version' => $version), 'Release: ' . $version);
+
+            $this->eng->log_activity($id, $uid, 'created', 'Release created');
 
             $this->session->set_flashdata('success', 'Release created.');
 
@@ -539,6 +601,20 @@ class Releases extends CI_Controller
             $this->eng->save_release_notes($id, release_parse_note_points_post($this->input));
 
             track_changes_after('releases', 'project_releases', $id, $old_data, $payload, 'Release: ' . $version);
+
+            $uid = (int) $this->session->userdata('user_id');
+
+            $change_lines = $this->eng->build_change_details($item, $payload);
+
+            if (!empty($change_lines)) {
+
+                $this->eng->log_activity($id, $uid, 'updated', implode('; ', $change_lines));
+
+            } else {
+
+                $this->eng->log_activity($id, $uid, 'updated', 'Details updated');
+
+            }
 
 
 
