@@ -216,4 +216,61 @@ class My_work_model extends CI_Model
         sort($tags);
         return array_values($tags);
     }
+
+    public function list_history($work_id)
+    {
+        $work_id = (int) $work_id;
+        $rows = array();
+
+        foreach ($this->list_activity($work_id, 200) as $a) {
+            $action = isset($a->action) ? (string) $a->action : 'updated';
+            if ($action === 'comment') {
+                continue;
+            }
+            $name = '';
+            if (!empty($a->user_name)) {
+                $name = (string) $a->user_name;
+            } elseif (!empty($a->user_email)) {
+                $name = (string) $a->user_email;
+            }
+            $rows[] = (object) array(
+                'id' => (int) $a->id,
+                'source' => 'activity',
+                'action' => $action,
+                'detail' => isset($a->detail) ? (string) $a->detail : '',
+                'user_name' => $name,
+                'user_id' => isset($a->user_id) ? (int) $a->user_id : 0,
+                'created_at' => (string) $a->created_at,
+                'sort_ts' => strtotime((string) $a->created_at) ?: 0,
+            );
+        }
+
+        foreach ($this->list_comments($work_id) as $c) {
+            $name = '';
+            if (!empty($c->user_name)) {
+                $name = (string) $c->user_name;
+            } elseif (!empty($c->user_email)) {
+                $name = (string) $c->user_email;
+            }
+            $rows[] = (object) array(
+                'id' => (int) $c->id,
+                'source' => 'comment',
+                'action' => 'note',
+                'detail' => isset($c->comment) ? (string) $c->comment : '',
+                'user_name' => $name,
+                'user_id' => isset($c->user_id) ? (int) $c->user_id : 0,
+                'created_at' => (string) $c->created_at,
+                'sort_ts' => strtotime((string) $c->created_at) ?: 0,
+            );
+        }
+
+        usort($rows, function ($a, $b) {
+            if ($a->sort_ts === $b->sort_ts) {
+                return $b->id - $a->id;
+            }
+            return ($a->sort_ts < $b->sort_ts) ? 1 : -1;
+        });
+
+        return $rows;
+    }
 }

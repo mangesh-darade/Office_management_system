@@ -1375,8 +1375,7 @@ class My_works extends CI_Controller
             'is_assignee' => ((int) $item->created_for === $uid) || $is_multi_assignee,
             'is_creator' => ((int) $item->created_by === $uid),
             'scope' => $this->_scope_context(),
-            'comments' => $this->my_works->list_comments((int) $id),
-            'activity' => $this->my_works->list_activity((int) $id),
+            'history' => $this->my_works->list_history((int) $id),
             'client_label' => $client_label,
             'project_label' => $project_label,
             'attachments' => my_works_attachments_for_work($this->db, (int) $id),
@@ -1472,9 +1471,12 @@ class My_works extends CI_Controller
             show_404();
         }
         $this->_require_access($item);
-        $comment = trim((string) $this->input->post('comment'));
+        $comment = trim((string) $this->input->post('note'));
         if ($comment === '') {
-            $this->session->set_flashdata('error', 'Comment cannot be empty.');
+            $comment = trim((string) $this->input->post('comment'));
+        }
+        if ($comment === '') {
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
             $redirect = trim((string) $this->input->post('redirect'));
             if ($redirect !== '' && strpos($redirect, 'my-works') !== false) {
                 $this->_redirect_with_embed($redirect);
@@ -1493,15 +1495,13 @@ class My_works extends CI_Controller
             }
             return;
         }
-        $this->my_works->add_comment((int) $id, $this->_current_user_id(), $comment);
+        $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'note', $comment);
         if (!empty($uploads)) {
             $this->_save_new_attachments((int) $id, $uploads);
-            $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'comment', 'Added a comment with attachment(s)');
-        } else {
-            $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'comment', 'Added a comment');
+            $this->my_works->log_activity((int) $id, $this->_current_user_id(), 'attachment', 'Uploaded with history note');
         }
         $this->_clear_dashboard_cache();
-        $this->session->set_flashdata('success', 'Comment added.');
+        $this->session->set_flashdata('success', 'History note saved.');
         $redirect = trim((string) $this->input->post('redirect'));
         if ($redirect !== '' && strpos($redirect, 'my-works') !== false) {
             $this->_redirect_with_embed($redirect);

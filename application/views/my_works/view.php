@@ -283,108 +283,95 @@
 
 
 
-      <?php if (!empty($can_comment)): ?>
-
-      <div class="card border-0 shadow-sm mw-detail-card mb-2">
-
+      <?php
+        $history = isset($history) && is_array($history) ? $history : array();
+        $mw_action_label = function ($action) {
+          $map = array(
+            'created' => 'Created',
+            'updated' => 'Updated',
+            'status' => 'Status',
+            'reassigned' => 'Reassigned',
+            'priority' => 'Priority',
+            'lane' => 'Lane',
+            'due_date' => 'Due date',
+            'note' => 'Note',
+            'comment' => 'Note',
+            'attachment' => 'Attachment',
+          );
+          $key = strtolower((string) $action);
+          return isset($map[$key]) ? $map[$key] : ucfirst(str_replace('_', ' ', (string) $action));
+        };
+      ?>
+      <div class="card border-0 shadow-sm mw-detail-card mb-2" id="history">
         <div class="card-body">
-
-          <h2 class="mw-detail-section-label"><i class="bi bi-chat-dots me-1"></i>Comments</h2>
-
-          <?php if (empty($comments)): ?>
-
-            <p class="text-muted small mb-2">No comments yet. Start the conversation below.</p>
-
-          <?php else: ?>
-
-            <div class="mw-comments mb-2">
-
-              <?php foreach ($comments as $c): ?>
-
-                <div class="comment-item">
-
-                  <div class="d-flex justify-content-between small text-muted mb-1">
-
-                    <strong class="text-dark"><?php echo esc_view(my_works_user_label($c->user_name, $c->user_email, $c->user_id)); ?></strong>
-
-                    <span title="<?php echo esc_view($c->created_at); ?>"><?php echo my_works_format_when($c->created_at); ?></span>
-
-                  </div>
-
-                  <div><?php echo nl2br(esc_view($c->comment)); ?></div>
-
-                </div>
-
-              <?php endforeach; ?>
-
-            </div>
-
-          <?php endif; ?>
-
-          <form method="post" action="<?php echo site_url('my-works/' . (int) $item->id . '/comment'); ?>">
-
-            <?php $this->load->view('my_works/_csrf'); ?>
-            <?php if ($embed): ?>
-              <input type="hidden" name="embed" value="1">
-              <?php if ($this->input->get('parent_tab')): ?>
-                <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+          <?php if (!empty($can_comment)): ?>
+            <div class="small text-muted fw-semibold mb-1">Save note</div>
+            <form method="post" action="<?php echo site_url('my-works/' . (int) $item->id . '/comment'); ?>" class="mb-3">
+              <?php $this->load->view('my_works/_csrf'); ?>
+              <?php if ($embed): ?>
+                <input type="hidden" name="embed" value="1">
+                <?php if ($this->input->get('parent_tab')): ?>
+                  <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+                <?php endif; ?>
+                <input type="hidden" name="redirect" value="<?php echo esc_view('my-works/' . (int) $item->id, ENT_QUOTES, 'UTF-8'); ?>">
               <?php endif; ?>
-              <input type="hidden" name="redirect" value="<?php echo esc_view('my-works/' . (int) $item->id, ENT_QUOTES, 'UTF-8'); ?>">
-            <?php endif; ?>
-
-            <label class="form-label small fw-semibold mb-1">Add a comment</label>
-
-            <textarea name="comment" class="form-control form-control-sm mb-2" rows="2" required placeholder="Share an update or note…"></textarea>
-
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-send me-1"></i>Post comment</button>
-
-          </form>
-
+              <textarea name="note" id="myWorkHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+            </form>
+          <?php endif; ?>
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <div class="small text-muted fw-semibold">History</div>
+            <span class="text-muted small"><?php echo count($history); ?></span>
+          </div>
+          <?php if (empty($history)): ?>
+            <p class="text-muted small mb-0">No history yet.</p>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-start" style="width:9.5rem;">Date</th>
+                    <th>Comments</th>
+                    <th style="width:9rem;">Added By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($history as $h): ?>
+                    <?php
+                      $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                      $changed = trim((string) $h->detail);
+                      if ($changed === '') {
+                          $changed = $mw_action_label($h->action);
+                      } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
+                          if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                              $changed = $mw_action_label($h->action) . ': ' . $changed;
+                          }
+                      }
+                      $parts = preg_split('/\s*;\s*/', $changed);
+                    ?>
+                    <tr>
+                      <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                      <td class="small">
+                        <?php if (count($parts) > 1): ?>
+                          <ul class="mb-0 ps-3">
+                            <?php foreach ($parts as $part): ?>
+                              <?php if (trim($part) === '') { continue; } ?>
+                              <li><?php echo esc_view(trim($part)); ?></li>
+                            <?php endforeach; ?>
+                          </ul>
+                        <?php else: ?>
+                          <?php echo nl2br(esc_view($changed)); ?>
+                        <?php endif; ?>
+                      </td>
+                      <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
         </div>
-
       </div>
-
-      <?php endif; ?>
-
-
-
-      <?php if (!empty($activity)): ?>
-
-      <div class="card border-0 shadow-sm mw-detail-card mb-0">
-
-        <div class="card-body">
-
-          <h2 class="mw-detail-section-label"><i class="bi bi-clock-history me-1"></i>Activity</h2>
-
-          <ul class="list-unstyled small mb-0 mw-activity-list">
-
-            <?php foreach ($activity as $a): ?>
-
-              <li class="d-flex gap-2 py-1 border-bottom">
-
-                <span class="text-muted flex-shrink-0" title="<?php echo esc_view($a->created_at); ?>"><?php echo my_works_format_when($a->created_at); ?></span>
-
-                <span>
-
-                  <strong><?php echo esc_view(my_works_user_label($a->user_name, $a->user_email, $a->user_id)); ?></strong>
-
-                  — <?php echo esc_view($a->action); ?>
-
-                  <?php if (!empty($a->detail)): ?><span class="text-muted">(<?php echo esc_view($a->detail); ?>)</span><?php endif; ?>
-
-                </span>
-
-              </li>
-
-            <?php endforeach; ?>
-
-          </ul>
-
-        </div>
-
-      </div>
-
-      <?php endif; ?>
 
     </div>
 

@@ -44,6 +44,7 @@ Personal to-dos, daily activity logs, and performance appraisals.
 
 1. Open item → Delete.
 2. Export filtered list from list page.
+3. On item detail, Save note and History (Date / Comments / Added By) replace the old Comments and Activity lists.
 
 ---
 

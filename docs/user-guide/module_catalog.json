@@ -329,7 +329,7 @@
           "list": {"image": "images/05-work/my-works.png", "video": "videos/05-work/my-works-crud.webm", "route": "my-works"},
           "add": {"image": "images/05-work/my-works-add.png", "route": "my-works/create"},
           "edit": {"image": "images/05-work/my-works-edit.png", "list_route": "my-works", "steps": ["List, Board, or Matrix view.", "Matrix uses Action Priority (Effort × Impact); drag to reprioritize.", "Mark Important/Urgent on form; click project for project detail."]},
-          "delete": {"steps": ["Open item → Delete.", "Export filtered list from list page."]}
+          "delete": {"steps": ["Open item → Delete.", "Export filtered list from list page.", "On item detail, Save note and History (Date / Comments / Added By) replace the old Comments and Activity lists."]}
         },
         {
           "name": "Daily Pulse",
