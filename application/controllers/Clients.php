@@ -799,11 +799,10 @@ class Clients extends CI_Controller {
 
             $c = $result['data'];
             $related = $this->_client_related_work($id);
-            $this->load->helper('my_works');
 
             $this->load->view('clients/view', array_merge(array(
                 'client' => $c,
-                'activity' => $this->clients->list_activity($id),
+                'history' => $this->clients->list_history($id),
                 'assignable_users' => $this->_load_assignable_users(),
                 'can_manage_tasks' => function_exists('has_module_access')
                     && (has_module_access('tasks_add') || has_module_access('tasks_edit') || has_module_access('tasks')),
@@ -830,6 +829,54 @@ class Clients extends CI_Controller {
             redirect('clients');
             return;
         }
+    }
+
+    // POST /clients/add-comment/{id}
+    public function add_comment($id)
+    {
+        require_module_access(['clients_view', 'clients'], true);
+        $id = (int) $id;
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+            return;
+        }
+        if ($id <= 0) {
+            show_404();
+            return;
+        }
+
+        $client = $this->clients->get_client($id);
+        if (!$client) {
+            show_404();
+            return;
+        }
+
+        $uid = (int) $this->session->userdata('user_id');
+        $note = trim((string) $this->input->post('note'));
+        if ($note === '') {
+            $note = trim((string) $this->input->post('comment'));
+        }
+        if ($note === '') {
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
+            redirect('clients/view/' . $id . '#history');
+            return;
+        }
+
+        $this->clients->log_activity($id, $uid, 'note', null, array(
+            'detail' => $note,
+            'comment' => mb_substr($note, 0, 2000),
+        ));
+        $this->load->helper('activity');
+        $label = '';
+        if (!empty($client->client_code)) {
+            $label = (string) $client->client_code;
+        } elseif (!empty($client->company_name)) {
+            $label = (string) $client->company_name;
+        }
+        log_activity('clients', 'note', $id, 'History note on client: ' . $label);
+
+        $this->session->set_flashdata('success', 'History note saved.');
+        redirect('clients/view/' . $id . '#history');
     }
 
     /**

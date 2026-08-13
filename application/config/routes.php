@@ -111,6 +111,7 @@ $route['clients/urls/edit/(:num)'] = 'clients/url_edit/$1';
 $route['clients/urls/delete/(:num)'] = 'clients/url_delete/$1';
 $route['clients/urls/delete-set'] = 'clients/url_delete_set';
 $route['clients/view/(:num)'] = 'clients/view/$1';
+$route['clients/add-comment/(:num)'] = 'clients/add_comment/$1';
 $route['clients/edit/(:num)'] = 'clients/edit/$1';
 $route['clients/delete/(:num)'] = 'clients/delete/$1';
 $route['clients/bulk-delete'] = 'clients/bulk_delete';

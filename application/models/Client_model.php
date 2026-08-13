@@ -241,7 +241,7 @@ class Client_model extends CI_Model {
         if (!$this->db->table_exists('client_activity')) {
             return 0;
         }
-        $allowed = array('created', 'updated', 'status_changed', 'contact_changed', 'urls_changed', 'commented');
+        $allowed = array('created', 'updated', 'status_changed', 'contact_changed', 'urls_changed', 'commented', 'note');
         $action = (string) $action;
         if (!in_array($action, $allowed, true)) {
             $action = 'updated';
@@ -286,6 +286,52 @@ class Client_model extends CI_Model {
         return $this->db->get()->result();
     }
 
+    /**
+     * History timeline for Defects-style UI.
+     *
+     * @param int $client_id
+     * @return array
+     */
+    public function list_history($client_id)
+    {
+        $client_id = (int) $client_id;
+        $rows = array();
+
+        foreach ($this->list_activity($client_id, 200) as $a) {
+            $action = isset($a->action) ? (string) $a->action : 'updated';
+            if ($action === 'commented') {
+                $action = 'note';
+            }
+            $name = '';
+            if (!empty($a->user_name)) {
+                $name = (string) $a->user_name;
+            } elseif (!empty($a->user_full_name)) {
+                $name = (string) $a->user_full_name;
+            } elseif (!empty($a->user_email)) {
+                $name = (string) $a->user_email;
+            }
+            $rows[] = (object) array(
+                'id' => (int) $a->id,
+                'source' => 'activity',
+                'action' => $action,
+                'detail' => $this->format_activity_detail($a),
+                'user_name' => $name,
+                'user_id' => isset($a->user_id) ? (int) $a->user_id : 0,
+                'created_at' => (string) $a->created_at,
+                'sort_ts' => strtotime((string) $a->created_at) ?: 0,
+            );
+        }
+
+        usort($rows, function ($a, $b) {
+            if ($a->sort_ts === $b->sort_ts) {
+                return $b->id - $a->id;
+            }
+            return ($a->sort_ts < $b->sort_ts) ? 1 : -1;
+        });
+
+        return $rows;
+    }
+
     public function delete_activity_for_client($client_id)
     {
         if (!$this->db->table_exists('client_activity')) {
@@ -316,7 +362,7 @@ class Client_model extends CI_Model {
             }
         }
 
-        if ($action === 'commented' && !empty($new['comment'])) {
+        if (($action === 'commented' || $action === 'note') && !empty($new['comment'])) {
             return (string) $new['comment'];
         }
 

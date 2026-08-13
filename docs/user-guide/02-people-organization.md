@@ -247,7 +247,7 @@ Manage staff accounts, HR records, departments, job titles, shifts, assets, and 
 **How:**
 
 1. Open Clients → open a client detail.
-2. On the Overview tab, the Activity panel shows create/edit/status and URL/DB change history (same style as Task activity).
+2. On the Overview tab, Save note and History (Date / Comments / Added By) work like Defects: notes plus create/edit/status and URL/DB changes.
 3. Delete from client list or detail.
 4. Export list to CSV from list page.
 

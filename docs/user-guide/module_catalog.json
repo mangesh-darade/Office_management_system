@@ -126,7 +126,7 @@
           "edit": {"image": "images/02-people/clients-edit.png", "list_route": "clients"},
           "delete": {"steps": [
             "Open Clients → open a client detail.",
-            "On the Overview tab, the Activity panel shows create/edit/status and URL/DB change history (same style as Task activity).",
+            "On the Overview tab, Save note and History (Date / Comments / Added By) work like Defects: notes plus create/edit/status and URL/DB changes.",
             "On Requirements / Tasks / Defects tabs, use the + button to add an inline row (same pattern as Project Details).",
             "Requirements can be created without a project; Tasks and Defects require selecting one of the client’s projects.",
             "Edit title, status, priority, assignee, or project inline; delete with the trash icon when permitted.",
@@ -353,7 +353,7 @@
             "Client cards are listed A–Z on Client cart.",
             "Each card lists that client’s projects.",
             "Click a project row to expand its tasks; use the open icon for full project/task pages.",
-            "Open a client detail to see the Activity history panel (create/edit/status/URL changes)."
+            "Open a client detail to see Save note and History (Date / Comments / Added By), same as Defects."
           ]}
         },
         {

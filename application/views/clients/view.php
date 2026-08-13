@@ -25,11 +25,28 @@ $client_code = isset($client->client_code) ? (string) $client->client_code : '';
 $client_status = isset($client->status) ? (string) $client->status : 'active';
 $client_type = isset($client->client_type) ? (string) $client->client_type : '';
 
+$history = isset($history) && is_array($history) ? $history : array();
 $can_edit = function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'));
 $can_delete = function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'));
+$can_note = function_exists('has_module_access') && (has_module_access('clients_view') || has_module_access('clients'));
 $can_requirements = function_exists('has_module_access') && (has_module_access('requirements') || has_module_access('requirements_view'));
 $can_tasks = function_exists('has_module_access') && (has_module_access('tasks') || has_module_access('tasks_view'));
 $can_defects = function_exists('has_module_access') && (has_module_access('defects') || has_module_access('defects_list') || has_module_access('defects_view'));
+
+$action_label = function ($action) {
+    $map = array(
+        'created' => 'Created',
+        'updated' => 'Updated',
+        'status_changed' => 'Status',
+        'contact_changed' => 'Contact',
+        'urls_changed' => 'URLs',
+        'note' => 'Note',
+        'comment' => 'Note',
+        'commented' => 'Note',
+    );
+    $key = strtolower((string) $action);
+    return isset($map[$key]) ? $map[$key] : ucfirst(str_replace('_', ' ', (string) $action));
+};
 
 $active_tab = trim((string) $this->input->get('tab'));
 $allowed_tabs = array('overview', 'requirements', 'tasks', 'defects');
@@ -309,6 +326,72 @@ if ($st_lower === 'active') {
               </div>
             </div>
           </div>
+
+          <div class="card shadow-sm border-0 client-detail-panel mb-1" id="history">
+            <div class="card-body py-2 px-3">
+              <?php if ($can_note): ?>
+                <div class="small text-muted fw-semibold mb-1">Save note</div>
+                <form method="post" action="<?php echo site_url('clients/add-comment/' . $client_id); ?>" class="mb-3">
+                  <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+                  <textarea name="note" id="clientHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+                  <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+                </form>
+              <?php endif; ?>
+
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="small text-muted fw-semibold">History</div>
+                <span class="text-muted small"><?php echo count($history); ?></span>
+              </div>
+
+              <?php if (empty($history)): ?>
+                <p class="text-muted small mb-0">No history yet.</p>
+              <?php else: ?>
+                <div class="table-responsive">
+                  <table class="table table-sm table-bordered mb-0 align-middle client-history-grid">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="text-start" style="width:9.5rem;">Date</th>
+                        <th>Comments</th>
+                        <th style="width:9rem;">Added By</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php foreach ($history as $h): ?>
+                        <?php
+                          $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                          $changed = trim((string) $h->detail);
+                          if ($changed === '') {
+                              $changed = $action_label($h->action);
+                          } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment' && strtolower((string) $h->action) !== 'commented') {
+                              if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                                  $changed = $action_label($h->action) . ': ' . $changed;
+                              }
+                          }
+                          $parts = preg_split('/\s*;\s*/', $changed);
+                        ?>
+                        <tr>
+                          <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                          <td class="small">
+                            <?php if (count($parts) > 1): ?>
+                              <ul class="mb-0 ps-3 client-history-changes">
+                                <?php foreach ($parts as $part): ?>
+                                  <?php if (trim($part) === '') { continue; } ?>
+                                  <li><?php echo esc_view(trim($part)); ?></li>
+                                <?php endforeach; ?>
+                              </ul>
+                            <?php else: ?>
+                              <?php echo nl2br(esc_view($changed)); ?>
+                            <?php endif; ?>
+                          </td>
+                          <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+              <?php endif; ?>
+            </div>
+          </div>
         </div>
         <div class="col-lg-4">
           <div class="card shadow-sm border-0 client-detail-panel mb-1">
@@ -321,55 +404,6 @@ if ($st_lower === 'active') {
               <div><span>DB name</span> <?php echo esc_view(isset($client->db_name) ? $client->db_name : ''); ?></div>
               <div><span>DB user</span> <?php echo esc_view(isset($client->db_username) ? $client->db_username : ''); ?></div>
               <div><span>DB pass</span> <?php echo esc_view(isset($client->db_password) ? $client->db_password : ''); ?></div>
-            </div>
-          </div>
-          <?php
-          $activity = isset($activity) && is_array($activity) ? $activity : array();
-          ?>
-          <div class="card shadow-sm border-0 client-detail-panel">
-            <div class="card-header bg-white">
-              <h6 class="mb-0"><i class="bi bi-clock-history me-1"></i>Activity</h6>
-            </div>
-            <div class="card-body">
-              <?php if (empty($activity)): ?>
-                <div class="text-muted small">No activity yet.</div>
-              <?php else: ?>
-              <ul class="list-unstyled small mb-0 client-activity-list">
-                <?php foreach ($activity as $a): ?>
-                  <?php
-                    $actor_name = '';
-                    if (!empty($a->user_name)) {
-                        $actor_name = (string) $a->user_name;
-                    } elseif (!empty($a->user_full_name)) {
-                        $actor_name = (string) $a->user_full_name;
-                    }
-                    $actor_label = function_exists('my_works_user_label')
-                        ? my_works_user_label($actor_name, isset($a->user_email) ? $a->user_email : '', isset($a->user_id) ? $a->user_id : 0)
-                        : ($actor_name !== '' ? $actor_name : (isset($a->user_email) ? $a->user_email : 'System'));
-                    $action_labels = array(
-                        'created' => 'Created',
-                        'updated' => 'Updated',
-                        'status_changed' => 'Status',
-                        'contact_changed' => 'Contact',
-                        'urls_changed' => 'URLs',
-                        'commented' => 'Comment',
-                    );
-                    $action_key = isset($a->action) ? (string) $a->action : 'updated';
-                    $action_label = isset($action_labels[$action_key]) ? $action_labels[$action_key] : ucwords(str_replace('_', ' ', $action_key));
-                    $detail = $this->clients->format_activity_detail($a);
-                    $when_label = function_exists('my_works_format_when') ? my_works_format_when($a->created_at) : $a->created_at;
-                  ?>
-                  <li class="d-flex gap-2 py-1 border-bottom">
-                    <span class="text-muted flex-shrink-0" title="<?php echo esc_view($a->created_at); ?>"><?php echo esc_view($when_label); ?></span>
-                    <span>
-                      <strong><?php echo esc_view($actor_label); ?></strong>
-                      — <?php echo esc_view($action_label); ?>
-                      <?php if ($detail !== ''): ?><span class="text-muted">(<?php echo esc_view($detail); ?>)</span><?php endif; ?>
-                    </span>
-                  </li>
-                <?php endforeach; ?>
-              </ul>
-              <?php endif; ?>
             </div>
           </div>
         </div>

@@ -1615,3 +1615,20 @@
   }
 }
 
+.client-detail-page .client-history-grid th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+}
+.client-detail-page .client-history-grid th:first-child,
+.client-detail-page .client-history-grid td:first-child {
+  text-align: left !important;
+}
+.client-detail-page .client-history-changes {
+  margin: 0;
+}
+.client-detail-page .client-history-changes li {
+  margin-bottom: 0.15rem;
+}
+
