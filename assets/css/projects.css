@@ -572,3 +572,20 @@
 .project-detail-complete-toggle .form-check-input {
   cursor: pointer;
 }
+
+.project-detail-page .project-history-grid th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+}
+.project-detail-page .project-history-grid th:first-child,
+.project-detail-page .project-history-grid td:first-child {
+  text-align: left !important;
+}
+.project-detail-page .project-history-changes {
+  margin: 0;
+}
+.project-detail-page .project-history-changes li {
+  margin-bottom: 0.15rem;
+}

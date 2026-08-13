@@ -41,6 +41,7 @@ Plan projects, capture requirements, assign tasks, track releases and defects, a
 
 1. Delete from project detail (admin).
 2. Add members after create.
+3. On project detail, Save note and History (Date / Comments / Added By) work like Defects.
 
 ---
 

@@ -238,7 +238,7 @@
           "list": {"image": "images/04-projects/projects.png", "route": "projects"},
           "add": {"image": "images/04-projects/projects-add.png", "route": "projects/create"},
           "edit": {"image": "images/04-projects/projects-edit.png", "list_route": "projects", "steps": ["Open Portfolio Matrix (projects/matrix).", "Quadrants: Quick Wins, Major Projects, Fill-ins, Hard Slogs.", "Click project name → project detail."]},
-          "delete": {"steps": ["Delete from project detail (admin).", "Add members after create."]}
+          "delete": {"steps": ["Delete from project detail (admin).", "Add members after create.", "On project detail, Save note and History (Date / Comments / Added By) work like Defects."]}
         },
         {
           "name": "Project Members",

@@ -262,6 +262,7 @@ class Projects extends CI_Controller {
                 $this->load->helper('change_tracker');
                 $description = 'Project: ' . (string)$data['name'];
                 auto_log_insert('projects', 'projects', (int)$id, $data, $description);
+                $this->Project_model->log_activity((int) $id, (int) $this->session->userdata('user_id'), 'created', 'Project created');
                 
                 $success_msg = get_notification_message('projects', 'create', 'success');
                 $this->session->set_flashdata('success', $success_msg);
@@ -430,6 +431,7 @@ class Projects extends CI_Controller {
                 'can_delete_releases' => $can_delete_releases,
                 'complete_view'    => $complete_view,
                 'complete_view_on' => ($complete_view === 'only'),
+                'history' => $this->Project_model->list_history((int) $id),
             ];
             
             $this->load->view('projects/view', $data);
@@ -437,6 +439,47 @@ class Projects extends CI_Controller {
             log_message('error', 'Project view error: ' . $e->getMessage());
             show_error('An error occurred while loading project details.', 500);
         }
+    }
+
+    // POST /projects/add-comment/{id}
+    public function add_comment($id)
+    {
+        require_module_access(['projects', 'projects_list'], true);
+        $id = (int) $id;
+        if ($this->input->method() !== 'post') {
+            show_error('Invalid request', 405);
+            return;
+        }
+        if ($id <= 0) {
+            show_404();
+            return;
+        }
+        $project = $this->db->where('id', $id)->get('projects')->row();
+        if (!$project) {
+            show_404();
+            return;
+        }
+        if (!$this->_user_can_access_project($id)) {
+            return;
+        }
+
+        $note = trim((string) $this->input->post('note'));
+        if ($note === '') {
+            $note = trim((string) $this->input->post('comment'));
+        }
+        if ($note === '') {
+            $this->session->set_flashdata('error', 'History note cannot be empty.');
+            redirect('projects/' . $id . '#history');
+            return;
+        }
+
+        $uid = (int) $this->session->userdata('user_id');
+        $this->Project_model->log_activity($id, $uid, 'note', $note);
+        $this->load->helper('activity');
+        log_activity('projects', 'note', $id, 'History note on project: ' . (isset($project->code) ? $project->code : $project->name));
+
+        $this->session->set_flashdata('success', 'History note saved.');
+        redirect('projects/' . $id . '#history');
     }
 
     // GET /projects/dashboard
@@ -856,6 +899,13 @@ class Projects extends CI_Controller {
                 // Log update with change tracking
                 $description = 'Project: ' . (string)$data['name'];
                 track_changes_after('projects', 'projects', (int)$id, $old_data, $data, $description);
+                $uid = (int) $this->session->userdata('user_id');
+                $change_lines = $this->Project_model->build_change_details($project, $data);
+                if (!empty($change_lines)) {
+                    $this->Project_model->log_activity((int) $id, $uid, 'updated', implode('; ', $change_lines));
+                } else {
+                    $this->Project_model->log_activity((int) $id, $uid, 'updated', 'Details updated');
+                }
                 
                 $success_msg = get_notification_message('projects', 'update', 'success');
                 $this->session->set_flashdata('success', $success_msg);
@@ -911,6 +961,7 @@ class Projects extends CI_Controller {
             // Use transaction to ensure data integrity
             // Note: Foreign key constraints should handle cascade deletes for project_members
             $this->db->trans_start();
+            $this->Project_model->delete_activity_for_project((int) $id);
             $this->db->where('id', (int)$id)->delete('projects');
             $this->db->trans_complete();
             

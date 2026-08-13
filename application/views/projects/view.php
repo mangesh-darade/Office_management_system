@@ -102,6 +102,85 @@
       </div>
     </div>
   </div>
+
+  <?php
+    $history = isset($history) && is_array($history) ? $history : array();
+    $can_note = function_exists('has_module_access') && (has_module_access('projects') || has_module_access('projects_list'));
+    $project_action_label = function ($action) {
+      $map = array(
+        'created' => 'Created',
+        'updated' => 'Updated',
+        'note' => 'Note',
+        'comment' => 'Note',
+      );
+      $key = strtolower((string) $action);
+      return isset($map[$key]) ? $map[$key] : ucfirst(str_replace('_', ' ', (string) $action));
+    };
+  ?>
+  <div class="card mb-1" id="history">
+    <div class="card-body py-2 px-3">
+      <?php if ($can_note): ?>
+        <div class="small text-muted fw-semibold mb-1">Save note</div>
+        <form method="post" action="<?php echo site_url('projects/add-comment/' . (int) $project->id); ?>" class="mb-3">
+          <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+          <textarea name="note" id="projectHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+          <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+        </form>
+      <?php endif; ?>
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <div class="small text-muted fw-semibold">History</div>
+        <span class="text-muted small"><?php echo count($history); ?></span>
+      </div>
+      <?php if (empty($history)): ?>
+        <p class="text-muted small mb-0">No history yet.</p>
+      <?php else: ?>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0 align-middle project-history-grid">
+            <thead class="table-light">
+              <tr>
+                <th class="text-start" style="width:9.5rem;">Date</th>
+                <th>Comments</th>
+                <th style="width:9rem;">Added By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($history as $h): ?>
+                <?php
+                  $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                  $changed = trim((string) $h->detail);
+                  if ($changed === '') {
+                      $changed = $project_action_label($h->action);
+                  } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
+                      if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                          $changed = $project_action_label($h->action) . ': ' . $changed;
+                      }
+                  }
+                  $parts = preg_split('/\s*;\s*/', $changed);
+                ?>
+                <tr>
+                  <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                  <td class="small">
+                    <?php if (count($parts) > 1): ?>
+                      <ul class="mb-0 ps-3 project-history-changes">
+                        <?php foreach ($parts as $part): ?>
+                          <?php if (trim($part) === '') { continue; } ?>
+                          <li><?php echo esc_view(trim($part)); ?></li>
+                        <?php endforeach; ?>
+                      </ul>
+                    <?php else: ?>
+                      <?php echo nl2br(esc_view($changed)); ?>
+                    <?php endif; ?>
+                  </td>
+                  <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      <?php endif; ?>
+    </div>
+  </div>
+
   <!-- Main Content Tabs -->
   <?php
     $show_defects_tab = function_exists('has_module_access') && (has_module_access('defects') || has_module_access('defects_list'));
