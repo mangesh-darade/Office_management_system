@@ -6,7 +6,7 @@
       <div class="card-header bg-info bg-opacity-10">Webhook URLs</div>
       <div class="card-body small">
         <p class="mb-1"><strong>Razorpay:</strong> <code><?php echo site_url('coaching-webhooks/razorpay'); ?></code></p>
-        <p class="mb-1"><strong>Twilio WhatsApp inbound:</strong> <code><?php echo site_url('coaching-webhooks/whatsapp-inbound'); ?></code></p>
+        <p class="mb-1"><strong>Meta WhatsApp webhook:</strong> <code><?php echo site_url('whatsapp/webhook'); ?></code></p>
         <p class="mb-0 text-muted">Session reminders: <code><?php echo site_url('cron/coaching-session-reminders'); ?>?token=...</code></p>
       </div>
     </div>

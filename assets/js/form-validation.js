@@ -67,7 +67,11 @@
           }
         }
         if (!maxLength) {
-          maxLength = 255;
+          if (field.type === 'password' || tagName === 'textarea') {
+            maxLength = 0;
+          } else {
+            maxLength = 255;
+          }
         }
 
         this.validationRules[fieldName] = {
@@ -166,8 +170,8 @@
         errorMessage = rule.customMessage || 
           `${rule.label} must be at least ${rule.minLength} characters long.`;
       }
-      // Check maximum length
-      else if (value.length > rule.maxLength) {
+      // Check maximum length (0 = no cap — tokens, passwords, textareas)
+      else if (rule.maxLength > 0 && value.length > rule.maxLength) {
         isValid = false;
         errorMessage = rule.customMessage || 
           `${rule.label} cannot exceed ${rule.maxLength} characters.`;
@@ -275,7 +279,7 @@
       
       if (value === '') return false;
       if (value.length < rule.minLength) return false;
-      if (value.length > rule.maxLength) return false;
+      if (rule.maxLength > 0 && value.length > rule.maxLength) return false;
       if (rule.pattern && !rule.pattern.test(value)) return false;
       if (field.name === 'phone' && !/^[0-9+\s\-\(\)]+$/.test(value)) return false;
       if (field.type === 'email' && value !== '' && !this.isValidEmail(value)) return false;

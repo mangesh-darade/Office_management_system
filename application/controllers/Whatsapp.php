@@ -3,51 +3,46 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
  * WhatsApp Controller
- * 
- * Handles WhatsApp message sending for tasks and reports
- * Supports Twilio WhatsApp API
+ *
+ * Meta Cloud API inbox, templates, and outbound send (tasks/reports).
  */
 class Whatsapp extends CI_Controller {
-    
-    private $provider;
     
     public function __construct() {
         parent::__construct();
         $this->load->helper(['url', 'form', 'permission', 'api_integration']);
         $this->load->library('session');
         $this->load->database();
-        
-        // RBAC Audit: Centralized module access check
-        require_module_access('whatsapp', true);
-        
-        // Try to get credentials from database first, then fallback to config
-        $creds = get_whatsapp_credentials();
-        
-        if (!empty($creds['account_sid']) && !empty($creds['auth_token'])) {
-            // Use database credentials - store in config_data for compatibility
-            $this->config_data = [
-                'twilio_account_sid' => $creds['account_sid'],
-                'twilio_auth_token' => $creds['auth_token'],
-                'twilio_whatsapp_from' => $creds['from_number'] ?: 'whatsapp:+14155238886',
-                'twilio_content_sid' => $creds['content_sid'] ?: '',
-                'whatsapp_provider' => 'twilio'
-            ];
-            $this->provider = 'twilio';
-        } else {
-            // Fallback to config file
-            $this->load->config('whatsapp', true);
-            // Access config items from the whatsapp section
-            $this->config_data = [];
-            $this->provider = $this->config->item('whatsapp_provider', 'whatsapp') ?: $this->config->item('whatsapp_provider') ?: 'twilio';
+        $this->load->model('Whatsapp_model', 'whatsapp_inbox');
+
+        if (strtolower((string) $this->router->method) === 'webhook') {
+            return;
         }
+
+        require_module_access('whatsapp', true);
+        $this->load->config('whatsapp', true);
     }
     
     /**
      * GET /whatsapp
-     * Display WhatsApp sending interface
+     * Inbox + send tools
      */
     public function index() {
-        // Get employees with phone numbers
+        $conv_id = (int) $this->input->get('c');
+        $conversation = $conv_id ? $this->whatsapp_inbox->get_conversation($conv_id) : null;
+        $messages = array();
+        $window = array('open' => false, 'hours_left' => 0, 'expires_at' => null, 'last_inbound_at' => null);
+        if ($conversation) {
+            $this->whatsapp_inbox->mark_read($conv_id);
+            $conversation->unread_count = 0;
+            $messages = $this->whatsapp_inbox->list_messages($conv_id);
+            $window = whatsapp_conversation_window($conv_id);
+            $last_wamid = $this->whatsapp_inbox->last_inbound_wamid($conv_id);
+            if ($last_wamid !== '') {
+                mark_whatsapp_message_read($last_wamid);
+            }
+        }
+
         $employees = $this->db->select('e.id, e.first_name, e.last_name, e.phone, e.emp_code, e.department, u.email')
             ->from('employees e')
             ->join('users u', 'u.id = e.user_id', 'left')
@@ -56,14 +51,292 @@ class Whatsapp extends CI_Controller {
             ->order_by('e.first_name', 'ASC')
             ->get()
             ->result();
-        
-        $data = [
+
+        $this->load->view('whatsapp/index', [
             'employees' => $employees,
             'config_configured' => $this->_is_configured(),
-            'provider' => $this->provider
-        ];
-        
-        $this->load->view('whatsapp/index', $data);
+            'conversations' => $this->whatsapp_inbox->list_conversations(),
+            'conversation' => $conversation,
+            'messages' => $messages,
+            'templates' => list_whatsapp_templates(),
+            'webhook_url' => site_url('whatsapp/webhook'),
+            'creds' => get_whatsapp_credentials(),
+            'window' => $window,
+        ]);
+    }
+
+    /**
+     * GET/POST /whatsapp/webhook — Meta Cloud API (public).
+     */
+    public function webhook()
+    {
+        handle_meta_whatsapp_webhook_http();
+    }
+
+    /**
+     * POST /whatsapp/reply
+     */
+    public function reply()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $conv_id = (int) $this->input->post('conversation_id');
+        $message = trim((string) $this->input->post('message'));
+        $template_name = trim((string) $this->input->post('template_name'));
+        if ($template_name === '') {
+            $template_name = trim((string) $this->input->post('template_name_custom'));
+        }
+        $conversation = $this->whatsapp_inbox->get_conversation($conv_id);
+        if (!$conversation) {
+            $this->session->set_flashdata('error', 'Conversation not found.');
+            redirect('whatsapp');
+            return;
+        }
+        if (!$this->_is_configured()) {
+            $this->session->set_flashdata('error', 'WhatsApp is not configured.');
+            redirect('whatsapp?c=' . $conv_id);
+            return;
+        }
+        $options = array();
+        if ($template_name !== '') {
+            $options['template_name'] = $template_name;
+            $options['language'] = trim((string) $this->input->post('template_language')) ?: 'en_US';
+            $components = build_whatsapp_template_body_components(whatsapp_collect_template_vars_from_post());
+            if (!empty($components)) {
+                $options['template_components'] = $components;
+            }
+        } elseif ($message !== '') {
+            $window = whatsapp_conversation_window($conv_id);
+            if (empty($window['open'])) {
+                $this->session->set_flashdata('error', 'Free-text is blocked outside the 24-hour window. Choose an approved template (and fill {{variables}} if required).');
+                redirect('whatsapp?c=' . $conv_id);
+                return;
+            }
+        }
+        if ($message === '' && $template_name === '') {
+            $this->session->set_flashdata('error', 'Enter a message or choose a template.');
+            redirect('whatsapp?c=' . $conv_id);
+            return;
+        }
+        $result = send_whatsapp_message($conversation->wa_id, $message, $options);
+        if (!empty($result['success'])) {
+            $this->session->set_flashdata('success', 'Message sent.');
+        } else {
+            $this->session->set_flashdata('error', !empty($result['error']) ? $result['error'] : 'Send failed.');
+        }
+        redirect('whatsapp?c=' . $conv_id);
+    }
+
+    /**
+     * POST /whatsapp/start — new thread by phone.
+     */
+    public function start()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $phone = trim((string) $this->input->post('phone'));
+        $message = trim((string) $this->input->post('message'));
+        $template_name = trim((string) $this->input->post('template_name'));
+        if ($template_name === '') {
+            $template_name = trim((string) $this->input->post('template_name_custom'));
+        }
+        $wa_id = normalize_whatsapp_phone($phone);
+        if ($wa_id === '') {
+            $this->session->set_flashdata('error', 'Enter a valid phone number.');
+            redirect('whatsapp');
+            return;
+        }
+        if (!$this->_is_configured()) {
+            $this->session->set_flashdata('error', 'WhatsApp is not configured.');
+            redirect('whatsapp');
+            return;
+        }
+        $options = array();
+        if ($template_name !== '') {
+            $options['template_name'] = $template_name;
+            $options['language'] = trim((string) $this->input->post('template_language')) ?: 'en_US';
+            $components = build_whatsapp_template_body_components(whatsapp_collect_template_vars_from_post());
+            if (!empty($components)) {
+                $options['template_components'] = $components;
+            }
+        }
+        if ($message === '' && $template_name === '') {
+            $creds = get_whatsapp_credentials();
+            if (!empty($creds['default_template'])) {
+                $options['template_name'] = $creds['default_template'];
+            } else {
+                $cached = list_whatsapp_templates(null, true);
+                if (!empty($cached[0]['name'])) {
+                    $options['template_name'] = $cached[0]['name'];
+                    if (!empty($cached[0]['language'])) {
+                        $options['language'] = $cached[0]['language'];
+                    }
+                } else {
+                    $this->session->set_flashdata('error', 'First contact needs a Meta template name (e.g. hello_world). Add it under Templates or type it in New chat.');
+                    redirect('whatsapp');
+                    return;
+                }
+            }
+        } elseif ($message !== '' && $template_name === '') {
+            $this->session->set_flashdata('error', 'First contact outside the 24-hour window must use a template. Select or type a template name.');
+            redirect('whatsapp');
+            return;
+        }
+        $result = send_whatsapp_message($wa_id, $message, $options);
+        $conv_id = 0;
+        if (!empty($result['success'])) {
+            $conv_id = $this->whatsapp_inbox->upsert_conversation($wa_id, '');
+            $this->session->set_flashdata('success', 'Message sent.');
+        } else {
+            $this->session->set_flashdata('error', !empty($result['error']) ? $result['error'] : 'Send failed.');
+        }
+        redirect('whatsapp' . ($conv_id ? ('?c=' . (int) $conv_id) : ''));
+    }
+
+    /**
+     * GET /whatsapp/templates
+     */
+    public function templates()
+    {
+        $this->load->view('whatsapp/templates', array(
+            'config_configured' => $this->_is_configured(),
+            'templates' => $this->whatsapp_inbox->list_templates(false),
+            'last_synced' => $this->whatsapp_inbox->templates_synced_at(),
+            'creds' => get_whatsapp_credentials(),
+        ));
+    }
+
+    /**
+     * POST /whatsapp/sync-templates
+     */
+    public function sync_templates()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        if (!$this->_is_configured()) {
+            $this->session->set_flashdata('error', 'WhatsApp is not configured.');
+            redirect('whatsapp/templates');
+            return;
+        }
+        $result = sync_whatsapp_templates();
+        if (!empty($result['ok'])) {
+            $this->session->set_flashdata('success', 'Synced ' . (int) $result['count'] . ' template(s) from Meta.');
+        } else {
+            $this->session->set_flashdata('error', !empty($result['error']) ? $result['error'] : 'Template sync failed.');
+        }
+        redirect('whatsapp/templates');
+    }
+
+    /**
+     * POST /whatsapp/send-template
+     */
+    public function send_template()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $phone = trim((string) $this->input->post('phone'));
+        $template_name = trim((string) $this->input->post('template_name'));
+        $language = trim((string) $this->input->post('language'));
+        if ($language === '') {
+            $language = 'en_US';
+        }
+        if ($phone === '' || $template_name === '') {
+            $this->session->set_flashdata('error', 'Phone and template are required.');
+            redirect('whatsapp/templates');
+            return;
+        }
+        if (!$this->_is_configured()) {
+            $this->session->set_flashdata('error', 'WhatsApp is not configured.');
+            redirect('whatsapp/templates');
+            return;
+        }
+        $result = send_whatsapp_message($phone, '', array(
+            'template_name' => $template_name,
+            'language' => $language,
+            'template_components' => build_whatsapp_template_body_components(whatsapp_collect_template_vars_from_post()),
+        ));
+        if (!empty($result['success'])) {
+            $this->session->set_flashdata('success', 'Template sent.');
+        } else {
+            $this->session->set_flashdata('error', !empty($result['error']) ? $result['error'] : 'Send failed.');
+        }
+        redirect('whatsapp/templates');
+    }
+
+    /**
+     * POST /whatsapp/test-connection
+     */
+    public function test_connection()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $d = diagnose_whatsapp_connection();
+        $msg = format_whatsapp_diagnose_message($d);
+        if (!empty($d['ok'])) {
+            if (!empty($d['error'])) {
+                $this->session->set_flashdata('warning', $msg);
+            } else {
+                $this->session->set_flashdata('success', $msg);
+            }
+        } else {
+            $this->session->set_flashdata('error', $msg);
+        }
+        $back = trim((string) $this->input->post('back'));
+        if ($back === 'inbox') {
+            redirect('whatsapp');
+            return;
+        }
+        redirect('whatsapp/templates');
+    }
+
+    /**
+     * POST /whatsapp/add-template — cache a Meta template name locally when Graph list is blocked.
+     */
+    public function add_template()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $name = trim((string) $this->input->post('name'));
+        $language = trim((string) $this->input->post('language'));
+        if ($language === '') {
+            $language = 'en_US';
+        }
+        $id = $this->whatsapp_inbox->add_template(array(
+            'name' => $name,
+            'language' => $language,
+            'category' => trim((string) $this->input->post('category')),
+            'body' => trim((string) $this->input->post('body')),
+            'status' => 'APPROVED',
+        ));
+        if ($id) {
+            $this->session->set_flashdata('success', 'Template saved locally. Send still uses this exact name in WhatsApp Manager.');
+        } else {
+            $this->session->set_flashdata('error', 'Template name must be lowercase letters, numbers, and underscores only (e.g. hello_world).');
+        }
+        redirect('whatsapp/templates');
+    }
+
+    /**
+     * POST /whatsapp/delete-template
+     */
+    public function delete_template()
+    {
+        if ($this->input->method() !== 'post') {
+            show_404();
+        }
+        $ok = $this->whatsapp_inbox->delete_template((int) $this->input->post('id'));
+        if ($ok) {
+            $this->session->set_flashdata('success', 'Template removed from local cache.');
+        } else {
+            $this->session->set_flashdata('error', 'Template not found.');
+        }
+        redirect('whatsapp/templates');
     }
     
     /**
@@ -71,31 +344,27 @@ class Whatsapp extends CI_Controller {
      * Send WhatsApp message
      */
     public function send() {
-        // Check permission - Super Admin (role_id 1) or users with whatsapp permission
         $role_id = (int)$this->session->userdata('role_id');
         $is_superadmin = ($role_id === 1);
         if (!$is_superadmin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
-            $this->output->set_status_header(403);
-            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            $this->_json(false, 'Permission denied', 403);
             return;
         }
         
         if (!$this->_is_configured()) {
-            $this->output->set_status_header(400);
-            echo json_encode(['success' => false, 'message' => 'WhatsApp is not configured. Please set API credentials.']);
+            $this->_json(false, 'WhatsApp is not configured. Please set API credentials.', 400);
             return;
         }
         
         $employee_id = (int)$this->input->post('employee_id');
-        $message = trim($this->input->post('message'));
+        $message = trim((string) $this->input->post('message'));
+        $template_name = trim((string) $this->input->post('template_name'));
         
-        if (!$employee_id || !$message) {
-            $this->output->set_status_header(400);
-            echo json_encode(['success' => false, 'message' => 'Employee ID and message are required']);
+        if (!$employee_id || ($message === '' && $template_name === '')) {
+            $this->_json(false, 'Employee and a message or template are required.', 400);
             return;
         }
         
-        // Get employee phone number
         $employee = $this->db->select('e.id, e.first_name, e.last_name, e.phone, e.emp_code')
             ->from('employees e')
             ->where('e.id', $employee_id)
@@ -103,28 +372,24 @@ class Whatsapp extends CI_Controller {
             ->row();
         
         if (!$employee || !$employee->phone) {
-            $this->output->set_status_header(404);
-            echo json_encode(['success' => false, 'message' => 'Employee not found or phone number not available']);
+            $this->_json(false, 'Employee not found or phone number not available.', 404);
             return;
         }
         
-        // Format phone number (add country code if needed)
         $phone = $this->_format_phone($employee->phone);
-        
-        // Send WhatsApp message
-        $result = $this->_send_message($phone, $message);
-        
-        if ($result['success']) {
-            // Log the message
-            $this->_log_message($employee_id, $phone, $message, 'sent');
-            $status_msg = 'WhatsApp message sent successfully';
-            if (isset($result['status']) && $result['status'] === 'queued') {
-                $status_msg .= ' (Message queued - recipient may need to join Twilio Sandbox)';
-            }
-            echo json_encode(['success' => true, 'message' => $status_msg, 'details' => $result]);
-        } else {
-            echo json_encode(['success' => false, 'message' => $result['error']]);
+        $options = array();
+        if ($template_name !== '') {
+            $options['template_name'] = $template_name;
+            $options['language'] = trim((string) $this->input->post('template_language')) ?: 'en_US';
         }
+        $result = $this->_send_message($phone, $message, $options);
+        
+        if (!empty($result['success'])) {
+            $this->_log_message($employee_id, $phone, $message, 'sent');
+            $this->_json(true, 'WhatsApp message sent successfully.', 200, array('details' => $result));
+            return;
+        }
+        $this->_json(false, !empty($result['error']) ? $result['error'] : 'Send failed.', 400);
     }
     
     /**
@@ -132,18 +397,15 @@ class Whatsapp extends CI_Controller {
      * Send task assignment/update via WhatsApp
      */
     public function send_task() {
-        // Check permission - Super Admin (role_id 1) or users with whatsapp permission
         $role_id = (int)$this->session->userdata('role_id');
         $is_superadmin = ($role_id === 1);
         if (!$is_superadmin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
-            $this->output->set_status_header(403);
-            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            $this->_json(false, 'Permission denied', 403);
             return;
         }
         
         if (!$this->_is_configured()) {
-            $this->output->set_status_header(400);
-            echo json_encode(['success' => false, 'message' => 'WhatsApp is not configured. Please add WhatsApp integration in Settings → API Integrations.']);
+            $this->_json(false, 'WhatsApp is not configured. Please add WhatsApp integration in Settings → API Integrations.', 400);
             return;
         }
         
@@ -151,12 +413,10 @@ class Whatsapp extends CI_Controller {
         $employee_id = (int)$this->input->post('employee_id');
         
         if (!$task_id) {
-            $this->output->set_status_header(400);
-            echo json_encode(['success' => false, 'message' => 'Task ID is required']);
+            $this->_json(false, 'Task ID is required.', 400);
             return;
         }
         
-        // Get task details
         $task = $this->db->select('t.*, p.name as project_name')
             ->from('tasks t')
             ->join('projects p', 'p.id = t.project_id', 'left')
@@ -165,12 +425,10 @@ class Whatsapp extends CI_Controller {
             ->row();
         
         if (!$task) {
-            $this->output->set_status_header(404);
-            echo json_encode(['success' => false, 'message' => 'Task not found']);
+            $this->_json(false, 'Task not found.', 404);
             return;
         }
         
-        // Get employee if specified, otherwise get assigned user
         if ($employee_id) {
             $employee = $this->db->select('e.id, e.first_name, e.last_name, e.phone, e.emp_code, e.user_id')
                 ->from('employees e')
@@ -186,38 +444,26 @@ class Whatsapp extends CI_Controller {
                     ->get()
                     ->row();
             } else {
-                $this->output->set_status_header(400);
-                echo json_encode(['success' => false, 'message' => 'No employee assigned to this task']);
+                $this->_json(false, 'No employee assigned to this task.', 400);
                 return;
             }
         }
         
         if (!$employee || !$employee->phone) {
-            $this->output->set_status_header(404);
-            echo json_encode(['success' => false, 'message' => 'Employee not found or phone number not available']);
+            $this->_json(false, 'Employee not found or phone number not available.', 404);
             return;
         }
         
-        // Format message
         $message = $this->_format_task_message($task, $employee);
-        
-        // Format phone number
         $phone = $this->_format_phone($employee->phone);
-        
-        // Send WhatsApp message
         $result = $this->_send_message($phone, $message);
         
-        if ($result['success']) {
-            // Log the message
+        if (!empty($result['success'])) {
             $this->_log_message($employee->id, $phone, $message, 'task', $task_id);
-            $status_msg = 'Task notification sent via WhatsApp';
-            if (isset($result['status']) && $result['status'] === 'queued') {
-                $status_msg .= ' (Message queued - recipient may need to join Twilio Sandbox)';
-            }
-            echo json_encode(['success' => true, 'message' => $status_msg, 'details' => $result]);
-        } else {
-            echo json_encode(['success' => false, 'message' => $result['error']]);
+            $this->_json(true, 'Task notification sent via WhatsApp.', 200, array('details' => $result));
+            return;
         }
+        $this->_json(false, !empty($result['error']) ? $result['error'] : 'Send failed.', 400);
     }
     
     /**
@@ -225,32 +471,27 @@ class Whatsapp extends CI_Controller {
      * Send report summary via WhatsApp
      */
     public function send_report() {
-        // Check permission - allow admin or users with whatsapp permission
         $role_id = (int)$this->session->userdata('role_id');
         $is_admin = ($role_id === 1) || (function_exists('is_admin_group') && is_admin_group());
         if (!$is_admin && (!function_exists('has_module_access') || !has_module_access('whatsapp'))) {
-            $this->output->set_status_header(403);
-            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            $this->_json(false, 'Permission denied', 403);
             return;
         }
         
         if (!$this->_is_configured()) {
-            $this->output->set_status_header(400);
-            echo json_encode(['success' => false, 'message' => 'WhatsApp is not configured. Please add WhatsApp integration in Settings → API Integrations.']);
+            $this->_json(false, 'WhatsApp is not configured. Please add WhatsApp integration in Settings → API Integrations.', 400);
             return;
         }
         
         $employee_id = (int)$this->input->post('employee_id');
-        $report_type = $this->input->post('report_type'); // 'attendance', 'tasks', etc.
-        $period = $this->input->post('period'); // 'week', 'month', etc.
+        $report_type = $this->input->post('report_type');
+        $period = $this->input->post('period');
         
         if (!$employee_id || !$report_type) {
-            $this->output->set_status_header(400);
-            echo json_encode(['success' => false, 'message' => 'Employee ID and report type are required']);
+            $this->_json(false, 'Employee ID and report type are required.', 400);
             return;
         }
         
-        // Get employee
         $employee = $this->db->select('e.id, e.first_name, e.last_name, e.phone, e.emp_code, e.user_id')
             ->from('employees e')
             ->where('e.id', $employee_id)
@@ -258,50 +499,45 @@ class Whatsapp extends CI_Controller {
             ->row();
         
         if (!$employee || !$employee->phone) {
-            $this->output->set_status_header(404);
-            echo json_encode(['success' => false, 'message' => 'Employee not found or phone number not available']);
+            $this->_json(false, 'Employee not found or phone number not available.', 404);
             return;
         }
         
-        // Generate report summary
         $report_data = $this->_generate_report_summary($employee->user_id, $report_type, $period);
-        
-        // Format message
         $message = $this->_format_report_message($employee, $report_type, $period, $report_data);
-        
-        // Format phone number
         $phone = $this->_format_phone($employee->phone);
-        
-        // Send WhatsApp message
         $result = $this->_send_message($phone, $message);
         
-        if ($result['success']) {
-            // Log the message
+        if (!empty($result['success'])) {
             $this->_log_message($employee->id, $phone, $message, 'report', null, $report_type);
-            $status_msg = 'Report sent via WhatsApp';
-            if (isset($result['status']) && $result['status'] === 'queued') {
-                $status_msg .= ' (Message queued - recipient may need to join Twilio Sandbox)';
-            }
-            echo json_encode(['success' => true, 'message' => $status_msg, 'details' => $result]);
-        } else {
-            echo json_encode(['success' => false, 'message' => $result['error']]);
+            $this->_json(true, 'Report sent via WhatsApp.', 200, array('details' => $result));
+            return;
         }
+        $this->_json(false, !empty($result['error']) ? $result['error'] : 'Send failed.', 400);
     }
     
+    private function _json($success, $message, $http = 200, $extra = array())
+    {
+        $payload = array_merge(array(
+            'success' => !empty($success),
+            'message' => (string) $message,
+        ), is_array($extra) ? $extra : array());
+        $this->output
+            ->set_status_header((int) $http)
+            ->set_content_type('application/json', 'utf-8')
+            ->set_output(json_encode($payload));
+    }
+
     /**
-     * Send WhatsApp message via configured provider (Twilio).
+     * Send WhatsApp message via Meta Cloud API.
      *
-     * @param string $to Phone number (+91… or local digits)
-     * @param string $message Message body (or template message if using ContentSid)
-     * @param array  $options Optional: content_sid, content_variables, integration_id, default_country
+     * @param string $to Phone number
+     * @param string $message Message body
+     * @param array  $options Optional: template_name, language, integration_id, default_country
      * @return array
      */
     private function _send_message($to, $message, $options = array())
     {
-        if ($this->provider !== 'twilio') {
-            return array('success' => false, 'error' => 'Unsupported provider');
-        }
-
         return send_whatsapp_message($to, $message, $options);
     }
 
@@ -499,43 +735,8 @@ class Whatsapp extends CI_Controller {
      * Check if WhatsApp is configured
      */
     private function _is_configured() {
-        if ($this->provider === 'twilio') {
-            // First check database
-            $creds = get_whatsapp_credentials();
-            if (!empty($creds['account_sid']) && !empty($creds['auth_token'])) {
-                return true;
-            }
-            
-            // Fallback to config
-            $account_sid = isset($this->config_data['twilio_account_sid']) ? $this->config_data['twilio_account_sid'] : '';
-            $auth_token = isset($this->config_data['twilio_auth_token']) ? $this->config_data['twilio_auth_token'] : '';
-            
-            if (empty($account_sid)) {
-                $account_sid = $this->config->item('twilio_account_sid', 'whatsapp');
-            }
-            if (empty($auth_token)) {
-                $auth_token = $this->config->item('twilio_auth_token', 'whatsapp');
-            }
-            
-            // If not found in section, try without section (merged config)
-            if (empty($account_sid)) {
-                $account_sid = $this->config->item('twilio_account_sid');
-            }
-            if (empty($auth_token)) {
-                $auth_token = $this->config->item('twilio_auth_token');
-            }
-            
-            // Also check environment variables as fallback
-            if (empty($account_sid)) {
-                $account_sid = getenv('TWILIO_ACCOUNT_SID') ?: '';
-            }
-            if (empty($auth_token)) {
-                $auth_token = getenv('TWILIO_AUTH_TOKEN') ?: '';
-            }
-            
-            return !empty($account_sid) && !empty($auth_token);
-        }
-        return false;
+        $creds = get_whatsapp_credentials();
+        return !empty($creds['phone_number_id']) && !empty($creds['access_token']);
     }
 }
 

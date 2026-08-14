@@ -600,7 +600,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
               $comm_parent_url = site_url('dashboard');
           }
-          $comm_nav_active = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
+          $comm_nav_active = in_array($active, array('mail', 'sendgrid', 'whatsapp', 'whatsapp-templates'), true);
       }
       ?>
       <?php if (!empty($comm_show) && $comm_show): ?>
@@ -619,6 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php endif; ?>
             <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
             <a class="submenu-link <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+            <a class="submenu-link <?php echo $active==='whatsapp-templates'?'active':''; ?>" href="<?php echo site_url('whatsapp/templates'); ?>"><i class="bi bi-file-earmark-text me-1"></i>Templates</a>
             <?php endif; ?>
           </div>
         </div>

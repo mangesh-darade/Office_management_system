@@ -9,11 +9,28 @@
   </a>
 </div>
 
-<?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
+<?php
+$flash_error = $this->session->flashdata('error');
+$flash_success = $this->session->flashdata('success');
+$flash_warning = $this->session->flashdata('warning');
+?>
+<?php if ($flash_error): ?>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle me-1"></i><?php echo esc_view($flash_error); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 <?php endif; ?>
-<?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
+<?php if ($flash_warning): ?>
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-circle me-1"></i><?php echo esc_view($flash_warning); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<?php endif; ?>
+<?php if ($flash_success): ?>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-1"></i><?php echo esc_view($flash_success); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 <?php endif; ?>
 
 <div class="card shadow-sm">
@@ -108,15 +125,23 @@
                     <span class="text-muted">-</span>
                   <?php endif; ?>
                 </td>
-                <td class="text-end">
-                  <div class="btn-group btn-group-sm">
-                    <a class="btn btn-outline-secondary" href="<?php echo site_url('api-integrations/edit/' . $int->id); ?>" title="Edit">
-                      <i class="bi bi-pencil"></i>
-                    </a>
-                    <form method="post" action="<?php echo site_url('api-integrations/delete/' . $int->id); ?>" class="d-inline" onsubmit="return confirm('Delete this API integration? This action cannot be undone.');">
-                      <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
-                      <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
-                    </form>
+                <td class="text-end text-nowrap">
+                  <div class="d-inline-flex gap-1 align-items-center justify-content-end">
+                    <?php if ($int->service_type === 'whatsapp'): ?>
+                      <?php echo form_open('api-integrations/test-whatsapp', array('class' => 'd-inline')); ?>
+                        <input type="hidden" name="id" value="<?php echo (int) $int->id; ?>">
+                        <button type="submit" class="btn btn-outline-success btn-sm" title="Test connection"><i class="bi bi-plug"></i></button>
+                      <?php echo form_close(); ?>
+                    <?php endif; ?>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
+                      <a class="btn btn-outline-primary" href="<?php echo site_url('api-integrations/edit/' . $int->id); ?>" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <form method="post" action="<?php echo site_url('api-integrations/delete/' . $int->id); ?>" class="d-inline" onsubmit="return confirm('Delete this API integration? This action cannot be undone.');">
+                        <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>" value="<?php echo $this->security->get_csrf_hash(); ?>">
+                        <button type="submit" class="btn btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </div>
                   </div>
                 </td>
               </tr>

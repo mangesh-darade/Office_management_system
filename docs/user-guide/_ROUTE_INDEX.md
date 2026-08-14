@@ -53,6 +53,7 @@
 | `/api-integrations` | `api_integrations/index` |
 | `/api-integrations/create` | `api_integrations/create` |
 | `/api-integrations/delete/(:num)` | `api_integrations/delete/$1` |
+| `/api-integrations/test-whatsapp` | `api_integrations/test_whatsapp` |
 | `/api-integrations/edit/(:num)` | `api_integrations/edit/$1` |
 | `/api-integrations/store` | `api_integrations/store` |
 | `/api-integrations/update/(:num)` | `api_integrations/update/$1` |
@@ -720,6 +721,15 @@
 | URL | Controller action |
 |-----|-------------------|
 | `/whatsapp` | `whatsapp/index` |
+| `/whatsapp/templates` | `whatsapp/templates` |
+| `/whatsapp/sync-templates` | `whatsapp/sync_templates` |
+| `/whatsapp/send-template` | `whatsapp/send_template` |
+| `/whatsapp/add-template` | `whatsapp/add_template` |
+| `/whatsapp/delete-template` | `whatsapp/delete_template` |
+| `/whatsapp/test-connection` | `whatsapp/test_connection` |
+| `/whatsapp/webhook` | `whatsapp/webhook` |
+| `/whatsapp/reply` | `whatsapp/reply` |
+| `/whatsapp/start` | `whatsapp/start` |
 | `/whatsapp/send` | `whatsapp/send` |
 | `/whatsapp/send-report` | `whatsapp/send_report` |
 | `/whatsapp/send-task` | `whatsapp/send_task` |

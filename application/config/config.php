@@ -423,8 +423,10 @@ $config['sess_expiration'] = 28800;
 // Save sessions inside the app for both local and server. Ensure this directory exists and is writable.
 $config['sess_save_path'] = APPPATH.'cache/sessions';
 $config['sess_match_ip'] = FALSE;
-$config['sess_time_to_update'] = 300;
-$config['sess_regenerate_destroy'] = TRUE;
+// Regenerating every 5 minutes with destroy=TRUE races dashboard AJAX (calls poll every 3s)
+// and deletes the old session file while another request still uses it → sudden logout.
+$config['sess_time_to_update'] = 1800;
+$config['sess_regenerate_destroy'] = FALSE;
 
 // NOTE: encryption_key is now set as a static value above. Change it per environment.
 

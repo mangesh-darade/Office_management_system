@@ -259,7 +259,7 @@ class Sendgrid extends CI_Controller {
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curl_error = curl_error($ch);
-        curl_close($ch);
+        oms_curl_close($ch);
         
         if ($curl_error) {
             return [

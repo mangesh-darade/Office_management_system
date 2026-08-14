@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Public webhooks (no login): Razorpay, Twilio WhatsApp inbound.
+ * Public webhooks (no login): Razorpay, Meta WhatsApp inbound.
  */
 class Coaching_webhooks extends Coaching_Controller {
 
@@ -68,75 +68,11 @@ class Coaching_webhooks extends Coaching_Controller {
     }
 
     /**
-     * POST Twilio WhatsApp inbound — set webhook on Twilio number to this URL.
+     * POST/GET Meta WhatsApp webhook (legacy coaching URL; same handler as whatsapp/webhook).
      * Route: coaching-webhooks/whatsapp-inbound
      */
     public function whatsapp_inbound()
     {
-        $creds = get_whatsapp_credentials();
-        $auth_token = isset($creds['auth_token']) ? (string) $creds['auth_token'] : '';
-
-        // Fail closed: without an auth token we cannot verify the sender.
-        if ($auth_token === '') {
-            log_message('error', 'Coaching_webhooks: Twilio auth token not configured; rejecting whatsapp_inbound');
-            $this->output->set_status_header(503);
-            return;
-        }
-
-        $signature = (string) $this->input->get_request_header('X-Twilio-Signature', true);
-        $post_vars = $this->input->post(null, false);
-        if (!is_array($post_vars)) {
-            $post_vars = array();
-        }
-
-        if (!validate_twilio_webhook_signature(
-            $signature,
-            twilio_webhook_request_url(),
-            $post_vars,
-            $auth_token
-        )) {
-            log_message('error', 'Coaching_webhooks: invalid Twilio signature on whatsapp_inbound');
-            $this->output->set_status_header(403);
-            return;
-        }
-
-        $from = (string) $this->input->post('From');
-        $body = trim((string) $this->input->post('Body'));
-        $profile = trim((string) $this->input->post('ProfileName'));
-
-        if ($from === '' && $body === '') {
-            $this->output->set_status_header(400);
-            return;
-        }
-
-        $phone = preg_replace('/^whatsapp:/i', '', $from);
-        $phone = preg_replace('/\D/', '', $phone);
-        if (strlen($phone) > 10) {
-            $phone = substr($phone, -10);
-        }
-
-        $lead_id = null;
-        $existing = $this->db->where('phone', $phone)->order_by('id', 'DESC')->get('coaching_leads')->row();
-        if (!$existing && $body !== '') {
-            $lead_id = $this->coaching->lead_save([
-                'full_name' => $profile !== '' ? $profile : ('WhatsApp ' . $phone),
-                'phone' => $phone,
-                'source' => 'whatsapp_inbound',
-                'status' => 'new',
-                'notes' => $body,
-            ]);
-        }
-
-        $this->coaching->enquiry_save([
-            'phone' => $phone,
-            'contact_name' => $profile !== '' ? $profile : null,
-            'message' => $body !== '' ? $body : '(empty message)',
-            'status' => 'open',
-            'lead_id' => $lead_id ?: ($existing ? (int) $existing->id : null),
-        ]);
-
-        $this->output->set_content_type('text/xml')->set_output(
-            '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'
-        );
+        handle_meta_whatsapp_webhook_http();
     }
 }

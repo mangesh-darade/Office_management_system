@@ -65,6 +65,9 @@ class AuthHook {
         if (preg_match('#^coaching-webhooks/(razorpay|whatsapp-inbound)(/|$)#', $uri)) {
             return;
         }
+        if (preg_match('#^whatsapp/webhook(/|$)#', $uri)) {
+            return;
+        }
         if (preg_match('#^coaching-leads/workshop-register(/|$)#', $uri)) {
             return;
         }
@@ -297,16 +300,18 @@ class AuthHook {
             }
         }
         
-        // Check session timeout
+        // Idle timeout (Settings → Session). Cookie lifetime is sess_expiration (8h).
         $session_timeout_enabled = $CI->settings->get_setting('security_session_timeout_enabled', 'no');
         if ($session_timeout_enabled === 'yes') {
-            $timeout_minutes = (int)$CI->settings->get_setting('security_session_timeout', 30);
+            $timeout_minutes = (int) $CI->settings->get_setting('security_session_timeout', 480);
+            if ($timeout_minutes < 1) {
+                $timeout_minutes = 480;
+            }
             $last_activity = $CI->session->userdata('last_activity');
             
             if ($last_activity) {
                 $timeout_seconds = $timeout_minutes * 60;
                 if ((time() - $last_activity) > $timeout_seconds) {
-                    // Session expired
                     if ($CI->settings->get_setting('security_audit_login', 'no') === 'yes') {
                         $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
                         $CI->audit->log('session_timeout', $user_id, "Session expired after {$timeout_minutes} minutes", $ip);
@@ -317,25 +322,17 @@ class AuthHook {
                 }
             }
             
-            // Update last activity
             $CI->session->set_userdata('last_activity', time());
         }
         
-        // Check single session enforcement
+        // CI regenerates the PHP session id on a timer. The id stored at login
+        // goes stale — that is not a second login. Keep this session.
         $single_session_enabled = $CI->settings->get_setting('security_single_session', 'no');
         if ($single_session_enabled === 'yes') {
             $stored_session_id = $CI->session->userdata('session_id');
             $current_session_id = session_id();
-            
-            // If session IDs don't match, destroy session
             if ($stored_session_id && $stored_session_id !== $current_session_id) {
-                if ($CI->settings->get_setting('security_audit_login', 'no') === 'yes') {
-                    $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
-                    $CI->audit->log('session_conflict', $user_id, "Another session detected", $ip);
-                }
-                $CI->session->sess_destroy();
-                redirect('auth/login?session_conflict=1');
-                exit;
+                $CI->session->set_userdata('session_id', $current_session_id);
             }
         }
 

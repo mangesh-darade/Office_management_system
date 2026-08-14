@@ -71,12 +71,54 @@ Chat with colleagues, send mail, post announcements, and schedule reminders.
 
 ## WhatsApp
 
-**Purpose:** WhatsApp integration (admin).
+**Purpose:** Meta Cloud API inbox, templates, and outbound messages (admin).
 
-**Menu:** WhatsApp
+**Menu:** Communication → WhatsApp
 
 ![View list — WhatsApp](images/07-communication/whatsapp.png)
 
+### Add (create new)
+
+**Steps:**
+
+1. Settings → API Integrations → add WhatsApp (Meta Cloud API): Phone Number ID, access token, WABA ID, App Secret, webhook verify token.
+2. In Meta App Dashboard set Callback URL to `/whatsapp/webhook`, verify token, and subscribe the `messages` field.
+3. Open WhatsApp inbox to read threads and reply. First contact outside the 24-hour window must use an approved template.
+
+### Edit (update existing)
+
+**Steps:**
+
+1. Open a conversation → type a reply (only inside the 24-hour window) or pick an approved template → fill {{variables}} if shown → Send.
+2. Chat header shows remaining customer-care window hours, or “Template only” when closed.
+
+---
+
+## WhatsApp Templates
+
+**Purpose:** Sync WhatsApp message templates from Meta and send them.
+
+**Menu:** Communication → Templates
+
+### Add (create new)
+
+**Steps:**
+
+1. Create templates in WhatsApp Manager and wait for Meta approval.
+2. Open Communication → Templates → Sync from Meta, or **Add template name** if Graph cannot list them (`hello_world` for Meta test numbers).
+3. Use **Test connection** to verify the System User token can access the Phone Number ID. Assign the WhatsApp account to that System User in Business Manager if the test fails.
+
+### Edit (update existing)
+
+**Steps:**
+
+1. Click Send on an APPROVED row, enter phone, send.
+
+### Delete / remove
+
+**How:**
+
+1. Delete removes the local cache row only, not the template in WhatsApp Manager.
 
 ---
 

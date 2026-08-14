@@ -124,7 +124,11 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `permissions` | SET `can_access=1` for Admin role_id=1 on System Settings / Admin / holidays / leave_types / permissions / etc. | Align Permission Manager checkboxes with Settings access (checked = allowed) | 2026-07-23 |
 | `client_activity` | CREATE TABLE (id, client_id, user_id, action, old_value, new_value, created_at) | Per-client change history on client detail (Task-style) | 2026-08-10 |
 | `project_activity` | CREATE TABLE (id, project_id, user_id, action, detail, created_at) | Project detail History (Defects-style notes + change log) | 2026-08-13 |
-| `project_release_activity` | CREATE TABLE (id, release_id, user_id, action, detail, created_at) | Release detail History (Defects-style notes + change log) | 2026-08-13 |
+| `whatsapp_conversations` | CREATE TABLE (id, wa_id, profile_name, last_message, last_direction, last_at, unread_count) | Meta WhatsApp inbox threads | 2026-08-13 |
+| `whatsapp_inbox_messages` | CREATE TABLE (id, conversation_id, wamid, direction, msg_type, body, status, template_name) | Meta WhatsApp inbox messages | 2026-08-13 |
+| `whatsapp_templates` | CREATE TABLE (id, meta_id, name, language, category, status, body, synced_at) | Cached Meta WhatsApp message templates | 2026-08-13 |
+| `api_integrations` | ADD `app_secret`, `webhook_verify_token` | Meta WhatsApp webhook HMAC + GET verify | 2026-08-13 |
+| `api_integrations` | MODIFY `auth_token` TEXT | Meta access tokens exceed varchar(255) | 2026-08-13 |
 | `clients` | Repair: dedupe triplicate rows; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT; ADD UNIQUE `uq_client_code` | Missing AI/PK caused insert_id=0 → "Clients create error" | 2026-08-10 |
 | `project_defects` | MODIFY `project_id` int(11) DEFAULT NULL | Project optional on defect create/edit | 2026-08-11 |
 | `project_defects` | ADD `is_active` tinyint(1) NOT NULL DEFAULT 1 | Active/Inactive toggle on defects list (separate from workflow status) | 2026-08-11 |

@@ -94,7 +94,7 @@ flowchart LR
 | `auth/forgot_password`, `auth/reset_password` | Password reset |
 | `install/schema` | DB installer |
 | `training-assessment/take/*`, `training_assessment_take/*` | Candidate assessment (token) |
-| `coaching-webhooks/razorpay`, `coaching-webhooks/whatsapp-inbound` | Payment / WhatsApp webhooks |
+| `coaching-webhooks/razorpay`, `coaching-webhooks/whatsapp-inbound`, `whatsapp/webhook` | Payment / Meta WhatsApp webhooks |
 | `coaching-leads/workshop-register/*` | Public workshop registration |
 
 ---
@@ -220,7 +220,7 @@ flowchart LR
 | `Reminders` | CI_Controller | Reminder_model, Setting_model | reminders/dashboard, reminders/send_enhanced | reminders, reminders_list, reminders_add… | index, dashboard, cron_morning, cron_night, send_queue, send_selected… |
 | `Mail` | CI_Controller | Setting_model | mail/index | mail, settings, admin | index, send, test |
 | `Sendgrid` | CI_Controller | — | sendgrid/index | sendgrid, email_settings, settings… | index, send, test |
-| `Whatsapp` | CI_Controller | — | whatsapp/index | whatsapp | index, send, send_task, send_report |
+| `Whatsapp` | CI_Controller | Whatsapp_model | whatsapp/index, whatsapp/templates | whatsapp | index, templates, sync_templates, send_template, add_template, delete_template, test_connection, webhook, reply, start, send, send_task, send_report |
 | `Activity` | CI_Controller | — | activity/index | activity | index, export, get_record_data |
 
 ### 08 — Training & LMS

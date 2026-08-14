@@ -1231,8 +1231,9 @@
                               <input type="hidden" name="form_section" value="security_session">
                               <div class="row g-2">
                                  <div class="col-md-6">
-                                     <label class="form-label small fw-bold">Timeout (Min)</label>
-                                     <input type="number" class="form-control form-control-sm" name="security_session_timeout" value="<?php echo esc_view(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '60'); ?>">
+                                     <label class="form-label small fw-bold">Idle timeout (minutes)</label>
+                                     <input type="number" min="1" class="form-control form-control-sm" name="security_session_timeout" value="<?php echo esc_view(isset($settings['security_session_timeout']) ? $settings['security_session_timeout'] : '480'); ?>">
+                                     <div class="form-text">480 = 8 hours. Session cookie already lasts 8 hours; this value is idle logout only.</div>
                                  </div>
                                  <div class="col-md-6">
                                      <label class="form-label small fw-bold">Lockout (Min)</label>

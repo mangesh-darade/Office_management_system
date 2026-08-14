@@ -154,7 +154,7 @@ System settings, permissions, email, holidays, attendance manage (admin), activi
 
 ## API integrations
 
-**Purpose:** Store Twilio, Azure, and other API keys.
+**Purpose:** Store Meta WhatsApp, SendGrid, Azure, and other API keys.
 
 **Menu:** Settings → API Integrations
 

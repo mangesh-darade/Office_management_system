@@ -386,6 +386,7 @@ $route['api-integrations/store'] = 'api_integrations/store';
 $route['api-integrations/edit/(:num)'] = 'api_integrations/edit/$1';
 $route['api-integrations/update/(:num)'] = 'api_integrations/update/$1';
 $route['api-integrations/delete/(:num)'] = 'api_integrations/delete/$1';
+$route['api-integrations/test-whatsapp'] = 'api_integrations/test_whatsapp';
 
 // Google Calendar email reminders
 $route['calendar-reminders'] = 'calendar_reminders/index';
@@ -524,6 +525,15 @@ $route['sendgrid/test'] = 'sendgrid/test';
 
 // WhatsApp Integration
 $route['whatsapp'] = 'whatsapp/index';
+$route['whatsapp/templates'] = 'whatsapp/templates';
+$route['whatsapp/sync-templates'] = 'whatsapp/sync_templates';
+$route['whatsapp/send-template'] = 'whatsapp/send_template';
+$route['whatsapp/add-template'] = 'whatsapp/add_template';
+$route['whatsapp/delete-template'] = 'whatsapp/delete_template';
+$route['whatsapp/test-connection'] = 'whatsapp/test_connection';
+$route['whatsapp/webhook'] = 'whatsapp/webhook';
+$route['whatsapp/reply'] = 'whatsapp/reply';
+$route['whatsapp/start'] = 'whatsapp/start';
 $route['whatsapp/send'] = 'whatsapp/send';
 $route['whatsapp/send-task'] = 'whatsapp/send_task';
 $route['whatsapp/send-report'] = 'whatsapp/send_report';

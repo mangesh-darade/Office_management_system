@@ -681,9 +681,9 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
           || (function_exists('has_module_access') && has_module_access('whatsapp'));
       if ($comm_show) {
           if (function_exists('has_module_access') && has_module_access('mail')) {
-              $comm_mobile_open = in_array($active, array('mail', 'sendgrid', 'whatsapp'), true);
+              $comm_mobile_open = in_array($active, array('mail', 'sendgrid', 'whatsapp', 'whatsapp-templates'), true);
           } else {
-              $comm_mobile_open = ($active === 'whatsapp');
+              $comm_mobile_open = ($active === 'whatsapp' || $active === 'whatsapp-templates');
           }
       } else {
           $comm_mobile_open = false;
@@ -702,6 +702,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
             <?php endif; ?>
             <?php if ($is_superadmin || (function_exists('has_module_access') && has_module_access('whatsapp'))): ?>
             <a class="nav-link sidebar-link small <?php echo $active==='whatsapp'?'active':''; ?>" href="<?php echo site_url('whatsapp'); ?>"><i class="bi bi-whatsapp me-2"></i>WhatsApp</a>
+            <a class="nav-link sidebar-link small <?php echo $active==='whatsapp-templates'?'active':''; ?>" href="<?php echo site_url('whatsapp/templates'); ?>"><i class="bi bi-file-earmark-text me-2"></i>Templates</a>
             <?php endif; ?>
           </div>
         </div>

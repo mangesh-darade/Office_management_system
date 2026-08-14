@@ -110,7 +110,7 @@ class Web_push {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         $body = curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        oms_curl_close($ch);
 
         $expired = ($status === 404 || $status === 410);
         return ['status' => $status, 'body' => $body, 'expired' => $expired];

@@ -6,6 +6,7 @@ require_once APPPATH . 'core/Schema_columns_trait.php';
 class Api_integration_model extends CI_Model {
     use Schema_columns_trait;
     private $table = 'api_integrations';
+    private $last_error = 'Failed to save API integration.';
     
     public function __construct() {
         parent::__construct();
@@ -31,7 +32,7 @@ class Api_integration_model extends CI_Model {
                 `from_email` varchar(255) DEFAULT NULL COMMENT 'For email services',
                 `from_name` varchar(255) DEFAULT NULL COMMENT 'For email services',
                 `from_number` varchar(50) DEFAULT NULL COMMENT 'For WhatsApp/SMS',
-                `content_sid` varchar(255) DEFAULT NULL COMMENT 'Twilio Content Template SID',
+                `content_sid` varchar(255) DEFAULT NULL COMMENT 'WhatsApp WABA ID',
                 `is_active` tinyint(1) DEFAULT 1,
                 `is_default` tinyint(1) DEFAULT 0 COMMENT 'Default service for this type',
                 `notes` text DEFAULT NULL,
@@ -42,7 +43,17 @@ class Api_integration_model extends CI_Model {
                 KEY `idx_is_active` (`is_active`),
                 KEY `idx_is_default` (`is_default`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        if ($this->db->table_exists($this->table) && schema_table_has_column($this->db, $this->table, 'auth_token')) {
+            $col = $this->db->query("SHOW COLUMNS FROM `{$this->table}` LIKE 'auth_token'")->row();
+            $col_type = ($col && isset($col->Type)) ? strtolower((string) $col->Type) : '';
+            if ($col_type !== '' && strpos($col_type, 'text') === false) {
+                $this->db->query("ALTER TABLE `{$this->table}` MODIFY `auth_token` text DEFAULT NULL COMMENT 'Auth Token, API Secret, Password'");
+                schema_invalidate_db_cache($this->db, $this->table);
+            }
+        }
         schema_safe_add_column($this->db, $this->table, 'created_by', "ALTER TABLE `{$this->table}` ADD `created_by` int(11) DEFAULT NULL");
+        schema_safe_add_column($this->db, $this->table, 'app_secret', "ALTER TABLE `{$this->table}` ADD `app_secret` text DEFAULT NULL");
+        schema_safe_add_column($this->db, $this->table, 'webhook_verify_token', "ALTER TABLE `{$this->table}` ADD `webhook_verify_token` varchar(255) DEFAULT NULL");
         if ($this->db->table_exists($this->table) && schema_table_has_column($this->db, $this->table, 'created_by')) {
             $idx = $this->db->query("SHOW INDEX FROM `{$this->table}` WHERE Key_name = 'idx_created_by'")->row();
             if (!$idx) {
@@ -90,6 +101,44 @@ class Api_integration_model extends CI_Model {
         
         return $result;
     }
+
+    public function last_error()
+    {
+        return $this->last_error;
+    }
+
+    public function get_first_by_service_type($service_type)
+    {
+        return $this->db->where('service_type', $service_type)
+            ->order_by('id', 'ASC')
+            ->limit(1)
+            ->get($this->table)
+            ->row();
+    }
+
+    private function _row_for_write($data)
+    {
+        $fields = $this->db->list_fields($this->table);
+        $out = array();
+        foreach ($data as $key => $val) {
+            if (in_array($key, $fields, true)) {
+                $out[$key] = $val;
+            }
+        }
+        return $out;
+    }
+
+    private function _set_db_error($fallback)
+    {
+        $err = $this->db->error();
+        $msg = (is_array($err) && !empty($err['message'])) ? $err['message'] : '';
+        if ($msg !== '' && stripos($msg, 'EAA') === false) {
+            $this->last_error = $msg;
+        } else {
+            $this->last_error = $fallback;
+        }
+        log_message('error', 'api_integrations write failed | code:' . (isset($err['code']) ? $err['code'] : ''));
+    }
     
     public function create($data) {
         $data['created_at'] = date('Y-m-d H:i:s');
@@ -105,8 +154,22 @@ class Api_integration_model extends CI_Model {
                 ->update($this->table, ['is_default' => 0]);
         }
         
-        $this->db->insert($this->table, $data);
-        return $this->db->insert_id();
+        $data = $this->_row_for_write($data);
+        if (empty($data)) {
+            $this->last_error = 'Nothing to save.';
+            return false;
+        }
+
+        if (!$this->db->insert($this->table, $data)) {
+            $this->_set_db_error('Failed to create API integration.');
+            return false;
+        }
+        $id = (int) $this->db->insert_id();
+        if ($id < 1) {
+            $this->_set_db_error('Failed to create API integration.');
+            return false;
+        }
+        return $id;
     }
     
     public function update($id, $data) {
@@ -122,7 +185,17 @@ class Api_integration_model extends CI_Model {
             }
         }
         
-        $this->db->where('id', (int)$id)->update($this->table, $data);
+        $data = $this->_row_for_write($data);
+        if (empty($data)) {
+            $this->last_error = 'Nothing to save.';
+            return false;
+        }
+
+        $ok = $this->db->where('id', (int) $id)->update($this->table, $data);
+        if ($ok === false) {
+            $this->_set_db_error('Failed to update API integration.');
+            return false;
+        }
         return true;
     }
     

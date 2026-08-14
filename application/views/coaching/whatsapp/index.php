@@ -1,6 +1,6 @@
 <?php $this->load->view('partials/header', ['title' => 'WhatsApp CRM']); ?>
 <?php $this->load->view('coaching/_subnav'); ?>
-<div class="alert alert-info small">Twilio inbound webhook URL: <code><?php echo site_url('coaching-webhooks/whatsapp-inbound'); ?></code></div>
+<div class="alert alert-info small">Meta WhatsApp webhook URL: <code><?php echo site_url('whatsapp/webhook'); ?></code></div>
 <div class="row g-3">
 <div class="col-md-6">
   <div class="card shadow-soft"><div class="card-header">Enquiries</div>
@@ -17,7 +17,13 @@
 <div class="col-md-6">
   <div class="card shadow-soft"><div class="card-header">Bulk broadcast</div>
   <div class="card-body"><?php echo form_open('coaching-whatsapp-crm/broadcast'); ?>
-    <textarea name="message" class="form-control mb-2" rows="3" required></textarea>
+    <select name="template_name" class="form-select mb-2">
+      <option value="">Text (24h window only)</option>
+      <?php if (!empty($templates)): foreach ($templates as $tpl): ?>
+        <option value="<?php echo esc_view($tpl['name']); ?>"><?php echo esc_view($tpl['name']); ?></option>
+      <?php endforeach; endif; ?>
+    </select>
+    <textarea name="message" class="form-control mb-2" rows="3" placeholder="Optional text if not using a template"></textarea>
     <button class="btn btn-warning btn-sm">Send to client phones</button>
   <?php echo form_close(); ?></div></div></div>
 </div>

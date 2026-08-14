@@ -31,6 +31,7 @@ Visibility is role/permission based in `application/views/partials/sidebar.php`.
 - Mail (SMTP) -> `/mail`
 - SendGrid (API) -> `/sendgrid`
 - WhatsApp -> `/whatsapp`
+- WhatsApp Templates -> `/whatsapp/templates`
 
 ## Recruitment
 

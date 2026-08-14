@@ -114,12 +114,12 @@ class Ai_handler {
 
         if (curl_errno($ch)) {
             $error_msg = curl_error($ch);
-            curl_close($ch);
+            oms_curl_close($ch);
             return ['error' => 'Azure TTS CURL error: ' . $error_msg];
         }
 
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        oms_curl_close($ch);
 
         if ($http_code !== 200 || !$audio) {
             return ['error' => 'Azure TTS request failed with status code ' . $http_code];
@@ -640,10 +640,10 @@ Do NOT invent data. Return ONLY the rewritten HTML, no markdown fences.";
         
         $response = curl_exec($ch);
         if (curl_errno($ch)) {
-            curl_close($ch);
+            oms_curl_close($ch);
             return [];
         }
-        curl_close($ch);
+        oms_curl_close($ch);
         
         $decoded = json_decode($response, true);
         if (!$decoded || !isset($decoded['models'])) {
@@ -939,11 +939,11 @@ Do NOT invent data. Return ONLY the rewritten HTML, no markdown fences.";
         
         if (curl_errno($ch)) {
             $error_msg = curl_error($ch);
-            curl_close($ch);
+            oms_curl_close($ch);
             return ['error' => 'CURL Error: ' . $error_msg];
         }
 
-        curl_close($ch);
+        oms_curl_close($ch);
         $decoded = json_decode($response, true);
         
         if (!$decoded) {

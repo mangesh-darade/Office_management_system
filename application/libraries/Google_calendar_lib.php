@@ -482,7 +482,7 @@ class Google_calendar_lib
         $errno = curl_errno($ch);
         $error = curl_error($ch);
         $http_code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        oms_curl_close($ch);
 
         if ($errno || $raw === false) {
             log_message('error', 'Google Calendar cURL error: ' . $error . ' (errno ' . $errno . ')');
@@ -564,7 +564,7 @@ class Google_calendar_lib
 
         $raw = curl_exec($ch);
         $errno = curl_errno($ch);
-        curl_close($ch);
+        oms_curl_close($ch);
 
         if ($errno || $raw === false) {
             return false;

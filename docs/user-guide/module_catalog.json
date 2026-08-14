@@ -538,12 +538,32 @@
         },
         {
           "name": "WhatsApp",
-          "menu": "WhatsApp",
-          "purpose": "WhatsApp integration (admin).",
+          "menu": "Communication → WhatsApp",
+          "purpose": "Meta Cloud API inbox, templates, and outbound messages (admin).",
           "list": {"image": "images/07-communication/whatsapp.png", "route": "whatsapp"},
-          "add": null,
-          "edit": null,
+          "add": {"steps": [
+            "Settings → API Integrations → add WhatsApp (Meta Cloud API): Phone Number ID, access token, WABA ID, App Secret, webhook verify token.",
+            "In Meta App Dashboard set Callback URL to /whatsapp/webhook, verify token, and subscribe the messages field.",
+            "Open WhatsApp inbox to read threads and reply. First contact outside the 24-hour window must use an approved template."
+          ]},
+          "edit": {"steps": [
+            "Open a conversation → type a reply (only inside the 24-hour window) or pick an approved template → fill {{variables}} if shown → Send.",
+            "Chat header shows remaining customer-care window hours, or Template only when closed."
+          ]},
           "delete": null
+        },
+        {
+          "name": "WhatsApp Templates",
+          "menu": "Communication → Templates",
+          "purpose": "Sync WhatsApp message templates from Meta and send them.",
+          "list": {"route": "whatsapp/templates"},
+          "add": {"steps": [
+            "Create templates in WhatsApp Manager and wait for Meta approval.",
+            "Open Communication → Templates → Sync from Meta, or Add template name if Graph cannot list them.",
+            "Use Test connection to verify the System User token can access the Phone Number ID."
+          ]},
+          "edit": {"steps": ["Click Send on an APPROVED row, enter phone, send."]},
+          "delete": {"steps": ["Delete removes the local cache row only, not the template in WhatsApp Manager."]}
         },
         {
           "name": "Announcements",
@@ -767,7 +787,7 @@
         {
           "name": "API integrations",
           "menu": "Settings → API Integrations",
-          "purpose": "Store Twilio, Azure, and other API keys.",
+          "purpose": "Store Meta WhatsApp, SendGrid, Azure, and other API keys.",
           "list": {"image": "images/10-admin/api-integrations.png", "route": "api-integrations"},
           "add": {"image": "images/10-admin/api-integrations-add.png", "route": "api-integrations/create"},
           "edit": {"image": "images/10-admin/api-integrations-edit.png", "list_route": "api-integrations"},

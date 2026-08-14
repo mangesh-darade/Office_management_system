@@ -7,9 +7,11 @@ class Coaching_whatsapp_crm extends Coaching_Controller {
 
     public function index()
     {
+        $this->load->helper('api_integration');
         $this->load->view('coaching/whatsapp/index', [
             'enquiries' => $this->coaching->enquiries_all(),
             'broadcasts' => $this->coaching->broadcasts_all(),
+            'templates' => list_whatsapp_templates(),
         ]);
     }
 
@@ -37,6 +39,12 @@ class Coaching_whatsapp_crm extends Coaching_Controller {
         }
         $this->load->helper('api_integration');
         $message = trim((string) $this->input->post('message'));
+        $template_name = trim((string) $this->input->post('template_name'));
+        if ($message === '' && $template_name === '') {
+            $this->session->set_flashdata('error', 'Choose an approved template or enter a message.');
+            redirect('coaching-whatsapp-crm');
+            return;
+        }
         $audience = $this->input->post('audience') ?: 'all_clients';
         $phones = array();
         if ($audience === 'all_clients') {
@@ -48,8 +56,12 @@ class Coaching_whatsapp_crm extends Coaching_Controller {
             }
         }
         $sent = 0;
+        $options = array();
+        if ($template_name !== '') {
+            $options['template_name'] = $template_name;
+        }
         foreach (array_unique($phones) as $phone) {
-            $result = send_whatsapp_message($phone, $message);
+            $result = send_whatsapp_message($phone, $message, $options);
             if (!empty($result['success'])) {
                 $sent++;
             }
@@ -62,7 +74,7 @@ class Coaching_whatsapp_crm extends Coaching_Controller {
             'sent_at' => date('Y-m-d H:i:s'),
             'created_by' => (int) $this->session->userdata('user_id'),
         ]);
-        $this->session->set_flashdata('success', 'Broadcast sent to ' . $sent . ' contacts (requires Twilio config).');
+        $this->session->set_flashdata('success', 'Broadcast sent to ' . $sent . ' contacts.');
         redirect('coaching-whatsapp-crm');
     }
 }
