@@ -250,9 +250,11 @@
     <!-- Brand Section -->
     <div class="login-brand">
       <div class="logo">
-        <?php echo isset($settings['company_logo']) && $settings['company_logo'] ? 
-          '<img src="'.base_url('uploads/'.$settings['company_logo']).'" alt="Logo" style="max-width: 50px; max-height: 50px;">' : 
-          '<i class="bi bi-building"></i>'; ?>
+        <?php if (!empty($settings['company_logo'])): ?>
+          <img src="<?php echo esc_view(base_url($settings['company_logo'])); ?>" alt="Logo" style="max-width: 50px; max-height: 50px;">
+        <?php else: ?>
+          <i class="bi bi-building"></i>
+        <?php endif; ?>
       </div>
       <h2><?php echo isset($settings['company_name']) ? esc_view($settings['company_name']) : get_company_name(); ?></h2>
       <p>Sign in to continue to your account</p>

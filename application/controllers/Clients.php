@@ -800,9 +800,19 @@ class Clients extends CI_Controller {
             $c = $result['data'];
             $related = $this->_client_related_work($id);
 
+            $history_filters = array(
+                'q' => trim((string) $this->input->get('q')),
+                'action' => trim((string) $this->input->get('action')),
+                'user_id' => (int) $this->input->get('user_id'),
+                'date_from' => trim((string) $this->input->get('date_from')),
+                'date_to' => trim((string) $this->input->get('date_to')),
+            );
+
             $this->load->view('clients/view', array_merge(array(
                 'client' => $c,
-                'history' => $this->clients->list_history($id),
+                'history' => $this->clients->list_history($id, $history_filters),
+                'history_filters' => $history_filters,
+                'history_users' => $this->_client_history_users($id),
                 'assignable_users' => $this->_load_assignable_users(),
                 'can_manage_tasks' => function_exists('has_module_access')
                     && (has_module_access('tasks_add') || has_module_access('tasks_edit') || has_module_access('tasks')),
@@ -852,20 +862,38 @@ class Clients extends CI_Controller {
         }
 
         $uid = (int) $this->session->userdata('user_id');
-        $note = trim((string) $this->input->post('note'));
-        if ($note === '') {
-            $note = trim((string) $this->input->post('comment'));
+        $note_raw = (string) $this->input->post('note');
+        if (trim($note_raw) === '') {
+            $note_raw = (string) $this->input->post('comment');
         }
-        if ($note === '') {
-            $this->session->set_flashdata('error', 'History note cannot be empty.');
-            redirect('clients/view/' . $id . '#history');
+        $note = sanitize_html_output($note_raw);
+        $note_plain = trim(preg_replace('/\s+/u', ' ', strip_tags($note)));
+
+        $attachments = $this->_upload_client_history_attachments($id);
+        if ($note_plain === '' && empty($attachments)) {
+            $this->session->set_flashdata('error', 'Add a note or attachment.');
+            redirect('clients/view/' . $id . '?tab=history');
             return;
         }
+        if ($note_plain === '' && !empty($attachments)) {
+            $names = array();
+            foreach ($attachments as $att) {
+                $names[] = $att['original_name'];
+            }
+            $note = sanitize_html_output('<p>Attachment: ' . esc_view(implode(', ', $names)) . '</p>');
+            $note_plain = trim(strip_tags($note));
+        }
 
-        $this->clients->log_activity($id, $uid, 'note', null, array(
+        $payload = array(
             'detail' => $note,
-            'comment' => mb_substr($note, 0, 2000),
-        ));
+            'comment' => mb_substr($note_plain, 0, 2000),
+            'is_html' => 1,
+        );
+        if (!empty($attachments)) {
+            $payload['attachments'] = $attachments;
+        }
+
+        $this->clients->log_activity($id, $uid, 'note', null, $payload);
         $this->load->helper('activity');
         $label = '';
         if (!empty($client->client_code)) {
@@ -875,8 +903,112 @@ class Clients extends CI_Controller {
         }
         log_activity('clients', 'note', $id, 'History note on client: ' . $label);
 
-        $this->session->set_flashdata('success', 'History note saved.');
-        redirect('clients/view/' . $id . '#history');
+        $this->session->set_flashdata('success', 'History entry added.');
+        redirect('clients/view/' . $id . '?tab=history');
+    }
+
+    /**
+     * GET /clients/history-attachment/{client_id}/{activity_id}/{index}
+     */
+    public function history_attachment($client_id, $activity_id, $index = 0)
+    {
+        require_module_access(['clients_view', 'clients'], true);
+        $client_id = (int) $client_id;
+        $activity_id = (int) $activity_id;
+        $index = (int) $index;
+        $att = $this->clients->get_history_attachment($client_id, $activity_id, $index);
+        if (!$att) {
+            show_404();
+            return;
+        }
+        $path = FCPATH . ltrim(str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $att->path), DIRECTORY_SEPARATOR);
+        $real = realpath($path);
+        $root = realpath(FCPATH . 'uploads' . DIRECTORY_SEPARATOR . 'clients' . DIRECTORY_SEPARATOR . 'history');
+        if ($real === false || $root === false || strpos($real, $root) !== 0 || !is_file($real)) {
+            show_404();
+            return;
+        }
+        $this->load->helper('download');
+        force_download($att->original_name, file_get_contents($real));
+    }
+
+    /**
+     * Upload optional history attachments for a client note.
+     *
+     * @param int $client_id
+     * @return array
+     */
+    private function _upload_client_history_attachments($client_id)
+    {
+        $client_id = (int) $client_id;
+        if (empty($_FILES['attachments']) || !is_array($_FILES['attachments']['name'])) {
+            return array();
+        }
+        $names = $_FILES['attachments']['name'];
+        $tmp = $_FILES['attachments']['tmp_name'];
+        $errors = $_FILES['attachments']['error'];
+        $sizes = $_FILES['attachments']['size'];
+        $dir = FCPATH . 'uploads/clients/history/' . $client_id . '/';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $allowed_ext = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip');
+        $out = array();
+        $count = is_array($names) ? count($names) : 0;
+        for ($i = 0; $i < $count && count($out) < 5; $i++) {
+            if (!isset($errors[$i]) || (int) $errors[$i] !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            $orig = (string) $names[$i];
+            $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+            if ($ext === '' || !in_array($ext, $allowed_ext, true)) {
+                continue;
+            }
+            if ((int) $sizes[$i] > 5 * 1024 * 1024) {
+                continue;
+            }
+            $safe = bin2hex(random_bytes(8)) . '.' . $ext;
+            $dest = $dir . $safe;
+            if (!is_uploaded_file($tmp[$i]) || !move_uploaded_file($tmp[$i], $dest)) {
+                continue;
+            }
+            $out[] = array(
+                'path' => 'uploads/clients/history/' . $client_id . '/' . $safe,
+                'original_name' => $orig,
+                'size' => (int) $sizes[$i],
+            );
+        }
+        return $out;
+    }
+
+    /**
+     * Distinct users who have written client history (for filter dropdown).
+     *
+     * @param int $client_id
+     * @return array
+     */
+    private function _client_history_users($client_id)
+    {
+        $client_id = (int) $client_id;
+        if ($client_id < 1 || !$this->db->table_exists('client_activity')) {
+            return array();
+        }
+        $select = array('u.id');
+        if (schema_table_has_column($this->db, 'users', 'name')) {
+            $select[] = 'u.name';
+        }
+        if (schema_table_has_column($this->db, 'users', 'full_name')) {
+            $select[] = 'u.full_name';
+        }
+        $select[] = 'u.email';
+        $this->db->distinct();
+        $this->db->select(implode(', ', $select), false);
+        $this->db->from('client_activity a');
+        $this->db->join('users u', 'u.id = a.user_id', 'inner');
+        $this->db->where('a.client_id', $client_id);
+        $this->db->where('a.user_id IS NOT NULL', null, false);
+        $this->db->order_by('u.email', 'ASC');
+        return $this->db->get()->result();
     }
 
     /**

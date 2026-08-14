@@ -287,17 +287,19 @@ class Client_model extends CI_Model {
     }
 
     /**
-     * History timeline for Defects-style UI.
+     * History timeline for Defects-style UI (optional filters).
      *
      * @param int $client_id
+     * @param array $filters q, action, user_id, date_from, date_to
      * @return array
      */
-    public function list_history($client_id)
+    public function list_history($client_id, $filters = array())
     {
         $client_id = (int) $client_id;
         $rows = array();
+        $filters = is_array($filters) ? $filters : array();
 
-        foreach ($this->list_activity($client_id, 200) as $a) {
+        foreach ($this->list_activity($client_id, 500) as $a) {
             $action = isset($a->action) ? (string) $a->action : 'updated';
             if ($action === 'commented') {
                 $action = 'note';
@@ -310,6 +312,21 @@ class Client_model extends CI_Model {
             } elseif (!empty($a->user_email)) {
                 $name = (string) $a->user_email;
             }
+            $new = $this->_decode_activity_json(isset($a->new_value) ? $a->new_value : null);
+            $attachments = array();
+            if (!empty($new['attachments']) && is_array($new['attachments'])) {
+                foreach ($new['attachments'] as $idx => $att) {
+                    if (!is_array($att) || empty($att['path'])) {
+                        continue;
+                    }
+                    $attachments[] = (object) array(
+                        'index' => (int) $idx,
+                        'path' => (string) $att['path'],
+                        'original_name' => !empty($att['original_name']) ? (string) $att['original_name'] : basename((string) $att['path']),
+                        'size' => isset($att['size']) ? (int) $att['size'] : 0,
+                    );
+                }
+            }
             $rows[] = (object) array(
                 'id' => (int) $a->id,
                 'source' => 'activity',
@@ -319,6 +336,7 @@ class Client_model extends CI_Model {
                 'user_id' => isset($a->user_id) ? (int) $a->user_id : 0,
                 'created_at' => (string) $a->created_at,
                 'sort_ts' => strtotime((string) $a->created_at) ?: 0,
+                'attachments' => $attachments,
             );
         }
 
@@ -329,7 +347,81 @@ class Client_model extends CI_Model {
             return ($a->sort_ts < $b->sort_ts) ? 1 : -1;
         });
 
-        return $rows;
+        $q = isset($filters['q']) ? trim((string) $filters['q']) : '';
+        $action_f = isset($filters['action']) ? strtolower(trim((string) $filters['action'])) : '';
+        $user_f = isset($filters['user_id']) ? (int) $filters['user_id'] : 0;
+        $date_from = isset($filters['date_from']) ? trim((string) $filters['date_from']) : '';
+        $date_to = isset($filters['date_to']) ? trim((string) $filters['date_to']) : '';
+
+        if ($q === '' && $action_f === '' && $user_f <= 0 && $date_from === '' && $date_to === '') {
+            return $rows;
+        }
+
+        $out = array();
+        foreach ($rows as $row) {
+            if ($action_f !== '' && strtolower((string) $row->action) !== $action_f) {
+                continue;
+            }
+            if ($user_f > 0 && (int) $row->user_id !== $user_f) {
+                continue;
+            }
+            if ($date_from !== '' && substr((string) $row->created_at, 0, 10) < $date_from) {
+                continue;
+            }
+            if ($date_to !== '' && substr((string) $row->created_at, 0, 10) > $date_to) {
+                continue;
+            }
+            if ($q !== '') {
+                $hay = strtolower(strip_tags((string) $row->detail) . ' ' . $row->user_name . ' ' . $row->action);
+                foreach ($row->attachments as $att) {
+                    $hay .= ' ' . strtolower((string) $att->original_name);
+                }
+                if (strpos($hay, strtolower($q)) === false) {
+                    continue;
+                }
+            }
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    /**
+     * Resolve a stored history attachment for download.
+     *
+     * @param int $client_id
+     * @param int $activity_id
+     * @param int $index
+     * @return object|null
+     */
+    public function get_history_attachment($client_id, $activity_id, $index = 0)
+    {
+        if (!$this->db->table_exists('client_activity')) {
+            return null;
+        }
+        $row = $this->db->where('id', (int) $activity_id)
+            ->where('client_id', (int) $client_id)
+            ->get('client_activity')
+            ->row();
+        if (!$row) {
+            return null;
+        }
+        $new = $this->_decode_activity_json(isset($row->new_value) ? $row->new_value : null);
+        if (empty($new['attachments']) || !is_array($new['attachments'])) {
+            return null;
+        }
+        $index = (int) $index;
+        if (!isset($new['attachments'][$index]) || !is_array($new['attachments'][$index])) {
+            return null;
+        }
+        $att = $new['attachments'][$index];
+        if (empty($att['path'])) {
+            return null;
+        }
+        return (object) array(
+            'path' => (string) $att['path'],
+            'original_name' => !empty($att['original_name']) ? (string) $att['original_name'] : basename((string) $att['path']),
+            'size' => isset($att['size']) ? (int) $att['size'] : 0,
+        );
     }
 
     public function delete_activity_for_client($client_id)

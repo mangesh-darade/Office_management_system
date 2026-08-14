@@ -100,6 +100,15 @@ if (!function_exists('subscription_builder_quote_logo_data_uri')) {
 if (!function_exists('subscription_builder_quote_resolve_logo_path')) {
     function subscription_builder_quote_resolve_logo_path()
     {
+        // Prefer Settings → company logo so uploads show on quotes.
+        $path = trim((string) get_company_logo());
+        if ($path !== '') {
+            $absolute = FCPATH . ltrim(str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+            if (is_file($absolute)) {
+                return $path;
+            }
+        }
+
         $candidates = array(
             'uploads/settings/branding/sateri-digital-logo-quote-header.png',
             'uploads/settings/d0c4bd77a2b7606a41fca0a6bfda35e4.png',
@@ -110,14 +119,6 @@ if (!function_exists('subscription_builder_quote_resolve_logo_path')) {
             $absolute = FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
             if (is_file($absolute)) {
                 return $candidate;
-            }
-        }
-
-        $path = trim((string) get_company_logo());
-        if ($path !== '') {
-            $absolute = FCPATH . ltrim(str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
-            if (is_file($absolute)) {
-                return $path;
             }
         }
 

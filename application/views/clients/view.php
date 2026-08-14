@@ -26,6 +26,10 @@ $client_status = isset($client->status) ? (string) $client->status : 'active';
 $client_type = isset($client->client_type) ? (string) $client->client_type : '';
 
 $history = isset($history) && is_array($history) ? $history : array();
+$history_filters = isset($history_filters) && is_array($history_filters) ? $history_filters : array(
+    'q' => '', 'action' => '', 'user_id' => 0, 'date_from' => '', 'date_to' => '',
+);
+$history_users = isset($history_users) && is_array($history_users) ? $history_users : array();
 $can_edit = function_exists('has_module_access') && (has_module_access('clients_edit') || has_module_access('clients'));
 $can_delete = function_exists('has_module_access') && (has_module_access('clients_delete') || has_module_access('clients'));
 $can_note = function_exists('has_module_access') && (has_module_access('clients_view') || has_module_access('clients'));
@@ -49,7 +53,7 @@ $action_label = function ($action) {
 };
 
 $active_tab = trim((string) $this->input->get('tab'));
-$allowed_tabs = array('overview', 'requirements', 'tasks', 'defects');
+$allowed_tabs = array('overview', 'requirements', 'tasks', 'defects', 'history');
 if ($active_tab === '' || !in_array($active_tab, $allowed_tabs, true)) {
     $active_tab = 'overview';
 }
@@ -202,6 +206,11 @@ if ($st_lower === 'active') {
         Defects <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeDefects"><?php echo count($defects); ?></span>
       </button>
     </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link<?php echo $active_tab === 'history' ? ' active' : ''; ?>" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="<?php echo $active_tab === 'history' ? 'true' : 'false'; ?>">
+        History <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeHistory"><?php echo count($history); ?></span>
+      </button>
+    </li>
   </ul>
 
   <div class="tab-content" id="clientTabsContent">
@@ -324,72 +333,6 @@ if ($st_lower === 'active') {
                   <span class="client-detail-dl-value"><?php echo nl2br(esc_view(isset($client->notes) ? $client->notes : '')); ?></span>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div class="card shadow-sm border-0 client-detail-panel mb-1" id="history">
-            <div class="card-body py-2 px-3">
-              <?php if ($can_note): ?>
-                <div class="small text-muted fw-semibold mb-1">Save note</div>
-                <form method="post" action="<?php echo site_url('clients/add-comment/' . $client_id); ?>" class="mb-3">
-                  <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
-                  <textarea name="note" id="clientHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
-                  <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
-                </form>
-              <?php endif; ?>
-
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <div class="small text-muted fw-semibold">History</div>
-                <span class="text-muted small"><?php echo count($history); ?></span>
-              </div>
-
-              <?php if (empty($history)): ?>
-                <p class="text-muted small mb-0">No history yet.</p>
-              <?php else: ?>
-                <div class="table-responsive">
-                  <table class="table table-sm table-bordered mb-0 align-middle client-history-grid">
-                    <thead class="table-light">
-                      <tr>
-                        <th class="text-start" style="width:9.5rem;">Date</th>
-                        <th>Comments</th>
-                        <th style="width:9rem;">Added By</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <?php foreach ($history as $h): ?>
-                        <?php
-                          $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                          $changed = trim((string) $h->detail);
-                          if ($changed === '') {
-                              $changed = $action_label($h->action);
-                          } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment' && strtolower((string) $h->action) !== 'commented') {
-                              if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                                  $changed = $action_label($h->action) . ': ' . $changed;
-                              }
-                          }
-                          $parts = preg_split('/\s*;\s*/', $changed);
-                        ?>
-                        <tr>
-                          <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                          <td class="small">
-                            <?php if (count($parts) > 1): ?>
-                              <ul class="mb-0 ps-3 client-history-changes">
-                                <?php foreach ($parts as $part): ?>
-                                  <?php if (trim($part) === '') { continue; } ?>
-                                  <li><?php echo esc_view(trim($part)); ?></li>
-                                <?php endforeach; ?>
-                              </ul>
-                            <?php else: ?>
-                              <?php echo nl2br(esc_view($changed)); ?>
-                            <?php endif; ?>
-                          </td>
-                          <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                        </tr>
-                      <?php endforeach; ?>
-                    </tbody>
-                  </table>
-                </div>
-              <?php endif; ?>
             </div>
           </div>
         </div>
@@ -768,6 +711,170 @@ if ($st_lower === 'active') {
             </tfoot>
             <?php endif; ?>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="tab-pane fade<?php echo $active_tab === 'history' ? ' show active' : ''; ?>" id="history" role="tabpanel" aria-labelledby="history-tab">
+      <div class="card shadow-sm border-0 client-detail-panel mb-1">
+        <div class="card-body py-2 px-3">
+          <?php if ($can_note): ?>
+            <div class="small text-muted fw-semibold mb-1">Add</div>
+            <form method="post" action="<?php echo site_url('clients/add-comment/' . $client_id); ?>" enctype="multipart/form-data" class="mb-3" id="clientHistoryAddForm">
+              <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+              <textarea name="note" id="clientHistoryNote" class="form-control form-control-sm mb-2" rows="4" placeholder="Add a note to history…"></textarea>
+              <div class="row g-2 align-items-end mb-2 mt-1">
+                <div class="col-md-8">
+                  <label class="form-label small text-muted mb-0" for="clientHistoryAttachments">Attachment</label>
+                  <input type="file" name="attachments[]" id="clientHistoryAttachments" class="form-control form-control-sm" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
+                  <div class="form-text">Optional. Up to 5 files, 5 MB each.</div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                  <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                </div>
+              </div>
+            </form>
+          <?php endif; ?>
+
+          <form method="get" action="<?php echo site_url('clients/view/' . $client_id); ?>" class="row g-2 align-items-end mb-3 client-history-filters">
+            <input type="hidden" name="tab" value="history">
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-0">Search</label>
+              <input type="search" name="q" value="<?php echo esc_view(isset($history_filters['q']) ? $history_filters['q'] : ''); ?>" class="form-control form-control-sm" placeholder="Comment, user, file…">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-0">Type</label>
+              <select name="action" class="form-select form-select-sm">
+                <option value="">All</option>
+                <?php
+                $hist_actions = array('note' => 'Note', 'created' => 'Created', 'updated' => 'Updated', 'status_changed' => 'Status', 'contact_changed' => 'Contact', 'urls_changed' => 'URLs');
+                $sel_action = isset($history_filters['action']) ? (string) $history_filters['action'] : '';
+                foreach ($hist_actions as $ak => $al):
+                ?>
+                <option value="<?php echo esc_view($ak); ?>" <?php echo $sel_action === $ak ? 'selected' : ''; ?>><?php echo esc_view($al); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-0">Added by</label>
+              <select name="user_id" class="form-select form-select-sm">
+                <option value="">All</option>
+                <?php
+                $sel_uid = isset($history_filters['user_id']) ? (int) $history_filters['user_id'] : 0;
+                foreach ($history_users as $hu):
+                  $hu_label = '';
+                  if (!empty($hu->name)) {
+                      $hu_label = (string) $hu->name;
+                  } elseif (!empty($hu->full_name)) {
+                      $hu_label = (string) $hu->full_name;
+                  } else {
+                      $hu_label = (string) $hu->email;
+                  }
+                ?>
+                <option value="<?php echo (int) $hu->id; ?>" <?php echo $sel_uid === (int) $hu->id ? 'selected' : ''; ?>><?php echo esc_view($hu_label); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-0">From</label>
+              <input type="date" name="date_from" value="<?php echo esc_view(isset($history_filters['date_from']) ? $history_filters['date_from'] : ''); ?>" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small text-muted mb-0">To</label>
+              <input type="date" name="date_to" value="<?php echo esc_view(isset($history_filters['date_to']) ? $history_filters['date_to'] : ''); ?>" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-1 d-flex gap-1">
+              <button type="submit" class="btn btn-sm btn-outline-secondary" title="Filter"><i class="bi bi-funnel"></i></button>
+              <a href="<?php echo site_url('clients/view/' . $client_id . '?tab=history'); ?>" class="btn btn-sm btn-outline-secondary" title="Clear"><i class="bi bi-x-lg"></i></a>
+            </div>
+          </form>
+
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <div class="small text-muted fw-semibold">History</div>
+            <span class="text-muted small"><?php echo count($history); ?></span>
+          </div>
+
+          <?php if (empty($history)): ?>
+            <p class="text-muted small mb-0">No history yet.</p>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0 align-middle client-history-grid">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-start" style="width:9.5rem;">Date</th>
+                    <th>Comments</th>
+                    <th style="width:12rem;">Attachment</th>
+                    <th style="width:9rem;">Added By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($history as $h): ?>
+                    <?php
+                      $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                      $changed = trim((string) $h->detail);
+                      $action_key = strtolower((string) $h->action);
+                      $is_note = ($action_key === 'note' || $action_key === 'comment' || $action_key === 'commented');
+                      if ($changed === '') {
+                          $changed = $action_label($h->action);
+                      } elseif (!$is_note) {
+                          if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                              $changed = $action_label($h->action) . ': ' . $changed;
+                          }
+                      }
+                      $parts = $is_note ? array($changed) : preg_split('/\s*;\s*/', $changed);
+                      $atts = !empty($h->attachments) && is_array($h->attachments) ? $h->attachments : array();
+                    ?>
+                    <tr>
+                      <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                      <td class="small client-history-comment">
+                        <?php if ($is_note): ?>
+                          <div class="client-history-rich"><?php echo sanitize_html_output($changed); ?></div>
+                        <?php elseif (count($parts) > 1): ?>
+                          <ul class="mb-0 ps-3 client-history-changes">
+                            <?php foreach ($parts as $part): ?>
+                              <?php if (trim($part) === '') { continue; } ?>
+                              <li><?php echo esc_view(trim($part)); ?></li>
+                            <?php endforeach; ?>
+                          </ul>
+                        <?php else: ?>
+                          <?php echo nl2br(esc_view($changed)); ?>
+                        <?php endif; ?>
+                      </td>
+                      <td class="small client-history-attachments">
+                        <?php if (empty($atts)): ?>
+                          <span class="text-muted">—</span>
+                        <?php else: ?>
+                          <ul class="list-unstyled mb-0">
+                            <?php foreach ($atts as $att): ?>
+                              <?php
+                                $att_url = site_url('clients/history-attachment/' . $client_id . '/' . (int) $h->id . '/' . (int) $att->index);
+                                $att_name = (string) $att->original_name;
+                              ?>
+                              <li class="d-flex align-items-center gap-1 mb-1">
+                                <span class="text-truncate" title="<?php echo esc_view($att_name); ?>">
+                                  <i class="bi bi-paperclip me-1"></i><?php echo esc_view($att_name); ?>
+                                </span>
+                                <?php if (!empty($att->size)): ?>
+                                  <span class="text-muted text-nowrap">(<?php echo number_format((int) $att->size / 1024, 1); ?> KB)</span>
+                                <?php endif; ?>
+                                <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="Attachment actions">
+                                  <a href="<?php echo esc_view($att_url); ?>" class="btn btn-outline-secondary" title="Download" aria-label="Download">
+                                    <i class="bi bi-download"></i>
+                                  </a>
+                                </div>
+                              </li>
+                            <?php endforeach; ?>
+                          </ul>
+                        <?php endif; ?>
+                      </td>
+                      <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -1177,6 +1284,10 @@ if ($st_lower === 'active') {
 </script>
 <?php endif; ?>
 
+<?php if ($can_note): ?>
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+<?php endif; ?>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var imgEl = document.getElementById('clientLogoModalImg');
@@ -1199,6 +1310,62 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+  var historyEditorReady = false;
+  function initClientHistoryEditor() {
+    if (historyEditorReady) {
+      return;
+    }
+    if (typeof tinymce === 'undefined') {
+      return;
+    }
+    if (!document.getElementById('clientHistoryNote')) {
+      return;
+    }
+    if (tinymce.get('clientHistoryNote')) {
+      historyEditorReady = true;
+      return;
+    }
+    var isNarrow = window.matchMedia && window.matchMedia('(max-width: 767.98px)').matches;
+    tinymce.init({
+      selector: '#clientHistoryNote',
+      height: isNarrow ? 180 : 220,
+      menubar: false,
+      statusbar: true,
+      branding: false,
+      convert_urls: false,
+      default_link_target: '_blank',
+      placeholder: 'Add a note to history…',
+      toolbar_mode: isNarrow ? 'scrolling' : 'wrap',
+      plugins: [
+        'advlist', 'autolink', 'lists', 'link', 'charmap',
+        'searchreplace', 'visualblocks', 'code',
+        'insertdatetime', 'table', 'wordcount'
+      ],
+      toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+      content_style: 'body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 14px; line-height: 1.5; }',
+      formats: {
+        bold: { inline: 'strong' },
+        italic: { inline: 'em' },
+        underline: { inline: 'u' },
+        strikethrough: { inline: 'del' }
+      },
+      setup: function (editor) {
+        editor.on('init', function () {
+          historyEditorReady = true;
+        });
+      }
+    });
+  }
+
+  var historyForm = document.getElementById('clientHistoryAddForm');
+  if (historyForm) {
+    historyForm.addEventListener('submit', function () {
+      if (window.tinymce && tinymce.get('clientHistoryNote')) {
+        tinymce.get('clientHistoryNote').save();
+      }
+    });
+  }
+
   var tabButtons = document.querySelectorAll('#clientTabs button[data-bs-toggle="tab"]');
   tabButtons.forEach(function (btn) {
     btn.addEventListener('shown.bs.tab', function (e) {
@@ -1207,13 +1374,25 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!tab) {
         return;
       }
+      if (tab === 'history') {
+        initClientHistoryEditor();
+      }
       try {
         var url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
+        if (tab !== 'history') {
+          ['q', 'action', 'user_id', 'date_from', 'date_to'].forEach(function (k) {
+            url.searchParams.delete(k);
+          });
+        }
         window.history.replaceState({}, '', url.toString());
       } catch (err) {}
     });
   });
+
+  <?php if ($active_tab === 'history'): ?>
+  initClientHistoryEditor();
+  <?php endif; ?>
 });
 
 function confirmDeleteClient(id, name) {
