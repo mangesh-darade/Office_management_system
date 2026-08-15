@@ -93,8 +93,16 @@ class Reminder_model extends CI_Model {
         $this->db->insert('reminders', $row);
         $id = (int) $this->db->insert_id();
         if ($id > 0) {
-            $this->load->helper('reminders_google');
-            reminders_google_after_enqueue($this, $id);
+            $deliver = isset($data['deliver']) ? (string) $data['deliver'] : 'smtp';
+            $this->load->helper(array('reminders_google', 'reminders_email'));
+            if ($deliver === 'none' || $deliver === 'queue') {
+                // Leave queued for cron / later send-queue
+            } elseif ($deliver === 'google') {
+                reminders_google_after_enqueue($this, $id);
+            } else {
+                // Default / smtp: real email via Settings → Email only
+                reminders_smtp_after_enqueue($this, $id);
+            }
         }
         return $id;
     }

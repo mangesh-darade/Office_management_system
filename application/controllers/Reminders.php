@@ -87,14 +87,21 @@ class Reminders extends CI_Controller {
     }
 
     public function send_queue(){
-        // SMTP cron send removed — delivery is via Google Calendar on enqueue/send.
         if ($this->input->is_cli_request() || $this->_valid_cron_token()) {
-            echo "Reminders SMTP send-queue disabled. Use Google Calendar (synced on create).\n";
+            $this->load->helper('reminders_email');
+            reminders_configure_email();
+            $rows = $this->reminders->fetch_queue(100);
+            $result = reminders_process_batch($this->email, $this->reminders, $rows);
+            echo 'Reminders SMTP queue: sent=' . (int) $result['sent'] . ' failed=' . (int) $result['failed'] . "\n";
             return;
         }
+        $this->load->helper('reminders_email');
+        reminders_configure_email();
+        $rows = $this->reminders->fetch_queue(100);
+        $result = reminders_process_batch($this->email, $this->reminders, $rows);
         $this->session->set_flashdata(
             'success',
-            'Send-queue cron is disabled. Reminders are delivered by Google Calendar when created/saved.'
+            'Queue processed. Sent: ' . (int) $result['sent'] . ' Failed: ' . (int) $result['failed']
         );
         redirect('reminders');
     }
@@ -117,9 +124,20 @@ class Reminders extends CI_Controller {
 
     public function send(){
         if ($this->input->method() === 'post') {
-            $delivery_method = $this->input->post('delivery_method') ?: 'immediate';
+            $delivery_method = trim((string) $this->input->post('delivery_method'));
+            if ($delivery_method === '' || $delivery_method === 'immediate') {
+                $delivery_method = 'smtp_now';
+            }
+            if ($delivery_method === 'scheduled') {
+                $delivery_method = 'smtp_scheduled';
+            }
+
+            $audience = trim((string) $this->input->post('audience'));
+            if ($audience !== 'all') {
+                $audience = 'selected';
+            }
+
             $user_ids = $this->input->post('user_ids');
-            // Backward compatible: single user_id from older forms
             if ((!is_array($user_ids) || empty($user_ids)) && $this->input->post('user_id') !== null) {
                 $one = (int) $this->input->post('user_id');
                 $user_ids = $one > 0 ? array($one) : array();
@@ -134,22 +152,60 @@ class Reminders extends CI_Controller {
             $from = reminders_admin_from_post($role_id, $this->input);
             $send_at = $this->input->post('send_at');
 
-            $clean_ids = array();
-            foreach ($user_ids as $uid) {
-                $uid = (int) $uid;
-                if ($uid > 0) {
-                    $clean_ids[$uid] = $uid;
+            $recipients = array();
+            if ($audience === 'all') {
+                foreach ($this->reminders->all_users() as $u) {
+                    $email = isset($u->email) ? trim((string) $u->email) : '';
+                    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        continue;
+                    }
+                    $uid = isset($u->id) ? (int) $u->id : 0;
+                    $name = '';
+                    if (!empty($u->full_label)) {
+                        $name = (string) $u->full_label;
+                    } elseif (!empty($u->full_name)) {
+                        $name = (string) $u->full_name;
+                    } elseif (!empty($u->name)) {
+                        $name = (string) $u->name;
+                    } else {
+                        $name = $email;
+                    }
+                    $recipients[$uid > 0 ? $uid : $email] = array(
+                        'user_id' => $uid > 0 ? $uid : null,
+                        'email' => $email,
+                        'name' => $name,
+                    );
+                }
+            } else {
+                $clean_ids = array();
+                foreach ($user_ids as $uid) {
+                    $uid = (int) $uid;
+                    if ($uid > 0) {
+                        $clean_ids[$uid] = $uid;
+                    }
+                }
+                foreach (array_values($clean_ids) as $user_id) {
+                    $contact = reminders_fetch_user_contact($this->db, $user_id);
+                    if ($contact['email'] === '') {
+                        continue;
+                    }
+                    $recipients[$user_id] = array(
+                        'user_id' => $user_id,
+                        'email' => $contact['email'],
+                        'name' => $contact['name'] !== '' ? $contact['name'] : $contact['email'],
+                    );
                 }
             }
-            $user_ids = array_values($clean_ids);
 
-            if (empty($user_ids) || $subject === '') {
-                $this->session->set_flashdata('error', 'Please select at least one recipient and enter a subject.');
+            if (empty($recipients) || $subject === '') {
+                $this->session->set_flashdata('error', 'Please choose recipients (or All users) and enter a subject.');
                 redirect('reminders/send');
                 return;
             }
 
-            if ($delivery_method === 'scheduled') {
+            $scheduled_time = null;
+            $deliver = 'smtp';
+            if ($delivery_method === 'smtp_scheduled') {
                 $send_at = trim((string) $send_at);
                 if ($send_at === '') {
                     $this->session->set_flashdata('error', 'Please choose a schedule date and time.');
@@ -167,27 +223,27 @@ class Reminders extends CI_Controller {
                     return;
                 }
                 $scheduled_time = $dtObj->format('Y-m-d H:i:s');
+                $deliver = 'queue';
+            } elseif ($delivery_method === 'google_now') {
+                $deliver = 'google';
             } else {
-                $scheduled_time = null;
+                $deliver = 'smtp';
             }
 
             $count = 0;
             $failed = 0;
-            foreach ($user_ids as $user_id) {
-                $contact = reminders_fetch_user_contact($this->db, $user_id);
-                if ($contact['email'] === '') {
-                    $failed++;
-                    continue;
-                }
+            $preview_sample = null;
+            $body_template = $body !== '' ? $body : ('Hello {name},' . "\n\n" . $subject);
+            foreach ($recipients as $contact) {
                 list($finalSubject, $finalBody) = reminders_replace_vars(
                     $subject,
-                    $body !== '' ? $body : ('Hello ' . $contact['name'] . "\n\n" . $subject),
+                    $body_template,
                     $contact['name'],
                     $contact['email']
                 );
                 $send_time = $scheduled_time ? $scheduled_time : date('Y-m-d H:i:00');
                 $rid = $this->reminders->enqueue(array(
-                    'user_id'    => $user_id,
+                    'user_id'    => $contact['user_id'],
                     'email'      => $contact['email'],
                     'type'       => 'manual',
                     'subject'    => $finalSubject,
@@ -195,13 +251,28 @@ class Reminders extends CI_Controller {
                     'from_email' => $from['from_email'] !== '' ? $from['from_email'] : null,
                     'from_name'  => $from['from_name'] !== '' ? $from['from_name'] : null,
                     'send_at'    => $send_time,
+                    'deliver'    => $deliver,
                 ));
-                if ($rid) {
+                if (!$rid) {
+                    $failed++;
+                    continue;
+                }
+                $ok_row = false;
+                if ($deliver === 'queue') {
+                    $ok_row = true;
+                } else {
                     $row = $this->reminders->get($rid);
-                    if ($row && isset($row->status) && $row->status === 'sent') {
-                        $count++;
-                    } else {
-                        $failed++;
+                    $ok_row = ($row && isset($row->status) && $row->status === 'sent');
+                }
+                if ($ok_row) {
+                    $count++;
+                    if ($preview_sample === null) {
+                        $preview_sample = array(
+                            'to_name' => $contact['name'],
+                            'to_email' => $contact['email'],
+                            'subject' => $finalSubject,
+                            'body' => $finalBody,
+                        );
                     }
                 } else {
                     $failed++;
@@ -209,21 +280,36 @@ class Reminders extends CI_Controller {
             }
 
             if ($count > 0) {
-                $message = $scheduled_time
-                    ? 'Reminders scheduled via Google Calendar for ' . date('M j, Y H:i', strtotime($scheduled_time))
-                    : 'Reminders created via Google Calendar';
-                $message .= ' for ' . $count . ' recipient(s).';
+                if ($deliver === 'queue') {
+                    $message = 'SMTP reminders queued for ' . date('M j, Y H:i', strtotime($scheduled_time))
+                        . ' — ' . $count . ' recipient(s).';
+                    $delivery_label = 'SMTP scheduled';
+                } elseif ($deliver === 'google') {
+                    $message = 'Google Calendar reminders created for ' . $count . ' recipient(s).';
+                    $delivery_label = 'Google Calendar';
+                } else {
+                    $message = 'SMTP email sent to ' . $count . ' recipient(s).';
+                    $delivery_label = 'SMTP email';
+                }
                 if ($failed > 0) {
                     $message .= ' Failed: ' . $failed . '.';
                 }
                 $this->session->set_flashdata('success', $message);
+                $this->session->set_flashdata('send_preview', array(
+                    'delivery' => $delivery_label,
+                    'audience' => $audience === 'all' ? 'All active users' : 'Selected users',
+                    'count' => $count,
+                    'failed' => $failed,
+                    'when' => $scheduled_time ? $scheduled_time : date('Y-m-d H:i:s'),
+                    'sample' => $preview_sample,
+                ));
             } else {
-                $this->session->set_flashdata(
-                    'error',
-                    'No reminders were created. Connect Google Calendar and ensure recipients have email addresses.'
-                );
+                $hint = ($deliver === 'google')
+                    ? 'Connect Google Calendar and ensure recipients have email addresses.'
+                    : 'Check Settings → Email (SMTP) and recipient email addresses.';
+                $this->session->set_flashdata('error', 'No reminders were sent. ' . $hint);
             }
-            redirect('reminders/dashboard');
+            redirect('reminders');
             return;
         }
         $this->load->view('reminders/send', array('users' => $this->reminders->all_users()));
@@ -437,7 +523,7 @@ class Reminders extends CI_Controller {
                 ));
                 $count++;
             }
-            $this->session->set_flashdata('success', 'Announcement queued to ' . $count . ' users.');
+            $this->session->set_flashdata('success', 'Announcement emailed to ' . $count . ' users (check list for sent/error).');
             redirect('reminders');
             return;
         }
@@ -590,11 +676,11 @@ class Reminders extends CI_Controller {
         }
         reminders_configure_email();
         if (reminders_send_one($this->email, $this->reminders, $reminder)) {
-            $this->session->set_flashdata('success', 'Reminder scheduled via Google Calendar for ' . $reminder->email);
+            $this->session->set_flashdata('success', 'SMTP email sent to ' . $reminder->email);
         } else {
             $this->session->set_flashdata(
                 'error',
-                'Failed to sync with Google Calendar. Connect Google under Calendar Reminder Settings.'
+                'SMTP send failed. Check Settings → Email and the recipient address.'
             );
         }
         redirect('reminders/dashboard');

@@ -16,6 +16,10 @@ $default_from_email = $ci->settings->get_setting('email_smtp_user', '');
 <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
 <?php endif; ?>
+<div class="alert alert-info small mb-3">
+  This sends a <strong>separate email to every active user</strong> using Settings → Email (SMTP).
+  Make sure SMTP host / user / password are saved before you queue.
+</div>
 <div class="card shadow-soft">
   <div class="card-body">
     <form method="post" action="<?php echo site_url('reminders/announce'); ?>" class="vstack gap-3">
@@ -38,7 +42,7 @@ $default_from_email = $ci->settings->get_setting('email_smtp_user', '');
         </div>
       </div>
       <div>
-        <button class="btn btn-primary" type="submit">Queue Announcement</button>
+        <button class="btn btn-primary" type="submit">Send to all users</button>
         <a class="btn btn-light" href="<?php echo site_url('reminders'); ?>">Cancel</a>
       </div>
     </form>

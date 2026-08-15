@@ -80,7 +80,8 @@ if (!function_exists('reminders_google_sync_row')) {
 
 if (!function_exists('reminders_google_after_enqueue')) {
     /**
-     * Called right after Reminder_model::enqueue insert.
+     * Called when deliver=google after Reminder_model::enqueue insert.
+     * Creates a Google Calendar reminder (not SMTP mail).
      *
      * @param Reminder_model $model
      * @param int            $id

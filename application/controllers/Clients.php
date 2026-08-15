@@ -774,9 +774,9 @@ class Clients extends CI_Controller {
     }
 
     // GET /clients/view/{id}
-    public function view($id){
+    public function view($id = 0){
         require_module_access(['clients_view', 'clients'], true);
-        $id = (int)$id;
+        $id = (int) $id;
         if ($id <= 0) {
             show_404();
             return;
@@ -842,7 +842,7 @@ class Clients extends CI_Controller {
     }
 
     // POST /clients/add-comment/{id}
-    public function add_comment($id)
+    public function add_comment($id = 0)
     {
         require_module_access(['clients_view', 'clients'], true);
         $id = (int) $id;
@@ -1191,7 +1191,7 @@ class Clients extends CI_Controller {
         );
     }
 
-    public function edit($id){
+    public function edit($id = 0){
         require_module_access(['clients_edit', 'clients'], true);
         $id = (int)$id;
         if ($id <= 0) {

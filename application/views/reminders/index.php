@@ -19,10 +19,48 @@
   </div>
 </div>
 <?php if ($this->session->flashdata('error')): ?>
-  <div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div>
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <?php echo esc_view($this->session->flashdata('error')); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 <?php endif; ?>
 <?php if ($this->session->flashdata('success')): ?>
-  <div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div>
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <?php echo esc_view($this->session->flashdata('success')); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<?php endif; ?>
+<?php
+$send_preview = $this->session->flashdata('send_preview');
+if (is_array($send_preview)):
+  $sample = isset($send_preview['sample']) && is_array($send_preview['sample']) ? $send_preview['sample'] : null;
+?>
+  <div class="card border-success shadow-sm mb-3">
+    <div class="card-header bg-success-subtle py-2">
+      <strong><i class="bi bi-envelope-check me-1"></i>Sent preview</strong>
+      <span class="text-muted small ms-2">
+        <?php echo esc_view(isset($send_preview['delivery']) ? $send_preview['delivery'] : ''); ?>
+        · <?php echo esc_view(isset($send_preview['audience']) ? $send_preview['audience'] : ''); ?>
+        · <?php echo (int) (isset($send_preview['count']) ? $send_preview['count'] : 0); ?> sent
+        <?php if (!empty($send_preview['failed'])): ?>
+          · <?php echo (int) $send_preview['failed']; ?> failed
+        <?php endif; ?>
+      </span>
+    </div>
+    <div class="card-body py-3">
+      <?php if ($sample): ?>
+        <div class="small text-muted mb-2">Example of what one recipient received:</div>
+        <div class="mb-1"><span class="text-muted">To:</span> <strong><?php echo esc_view($sample['to_name']); ?></strong> &lt;<?php echo esc_view($sample['to_email']); ?>&gt;</div>
+        <div class="mb-2"><span class="text-muted">Subject:</span> <strong><?php echo esc_view($sample['subject']); ?></strong></div>
+        <div class="border rounded p-3 bg-light small" style="white-space:pre-wrap;"><?php echo esc_view($sample['body']); ?></div>
+      <?php else: ?>
+        <div class="text-muted small">No sample body available.</div>
+      <?php endif; ?>
+      <?php if (!empty($send_preview['when'])): ?>
+        <div class="text-muted small mt-2">When: <?php echo esc_view($send_preview['when']); ?></div>
+      <?php endif; ?>
+    </div>
+  </div>
 <?php endif; ?>
 <div class="card shadow-soft">
   <div class="card-body">
