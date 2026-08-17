@@ -195,20 +195,113 @@
 }
 
 .att-punch-face-wrap {
-  border-radius: 12px;
+  position: relative;
+  margin: 0 auto;
+  width: min(100%, 260px);
+  aspect-ratio: 3 / 4;
+  height: auto;
+  max-height: 62vh;
+  border-radius: 16px;
   overflow: hidden;
   background: #0f172a;
 }
 
 .att-punch-face-wrap video,
-.att-punch-face-wrap canvas {
+.att-punch-face-shot {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: block;
   width: 100%;
-  height: auto;
-  min-height: 220px;
-  max-height: 320px;
+  height: 100%;
   object-fit: cover;
+  background: transparent;
+  pointer-events: none;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
+
+.att-punch-face-shot {
+  display: none;
+  background: #0f172a;
+}
+
+.att-punch-face-guide {
+  position: absolute;
+  inset: 12% 14%;
+  z-index: 2;
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.28);
+}
+
+.att-punch-face-shutter {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.att-punch-face-wrap.is-shutter .att-punch-face-shutter {
+  animation: attPunchShutter 0.32s ease-out;
+}
+
+@keyframes attPunchShutter {
+  0% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+.att-punch-face-wrap.is-captured video,
+.att-punch-face-wrap.is-captured .att-punch-face-overlay,
+.att-punch-face-wrap.is-captured .att-punch-face-guide {
+  display: none !important;
+}
+
+.att-punch-face-wrap.is-captured .att-punch-face-shot {
+  display: block;
+}
+
+.att-punch-face-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: transparent !important;
+}
+
+.att-punch-face-badge {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 3;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+}
+
+.att-punch-face-badge.is-found {
+  background: #198754;
+}
+
+.att-punch-face-wrap #cameraLoader {
+  z-index: 4;
+  color: #fff;
+}
+
+.att-punch-face-wrap video::-webkit-media-controls,
+.att-punch-face-wrap video::-webkit-media-controls-enclosure,
+.att-punch-face-wrap video::-webkit-media-controls-start-playback-button,
+.att-punch-face-wrap video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
 
 .att-punch-submit {
   min-height: 3rem;
@@ -231,5 +324,9 @@
   .att-punch-header-actions .btn {
     flex: 0 0 auto;
     min-width: 8rem;
+  }
+
+  .att-punch-face-wrap {
+    width: 280px;
   }
 }

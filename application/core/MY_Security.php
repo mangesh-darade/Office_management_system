@@ -8,10 +8,22 @@ class MY_Security extends CI_Security {
 
     public function csrf_verify()
     {
-        if (strtoupper(isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET') === 'POST') {
+        $method = strtoupper(isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET');
+        if ($method === 'POST') {
             $content_length = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
-            if ($content_length > 0 && empty($_POST)) {
+            $content_type = isset($_SERVER['CONTENT_TYPE']) ? strtolower((string) $_SERVER['CONTENT_TYPE']) : '';
+            $is_form_post = (strpos($content_type, 'application/x-www-form-urlencoded') !== false)
+                || (strpos($content_type, 'multipart/form-data') !== false);
+
+            // PHP leaves $_POST empty for JSON bodies AND when post_max_size is exceeded.
+            // Only the latter is an oversized form upload.
+            if ($is_form_post && $content_length > 0 && empty($_POST) && empty($_FILES)) {
                 $this->_show_post_body_too_large();
+            }
+
+            // CI3 only reads CSRF from $_POST. JSON/AJAX sends it in X-CSRF-Token.
+            if (empty($_POST[$this->_csrf_token_name]) && !empty($_SERVER['HTTP_X_CSRF_TOKEN'])) {
+                $_POST[$this->_csrf_token_name] = (string) $_SERVER['HTTP_X_CSRF_TOKEN'];
             }
         }
 

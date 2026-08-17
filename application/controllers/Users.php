@@ -607,9 +607,13 @@ class Users extends CI_Controller {
         if ($this->input->method() !== 'post') { show_404(); }
         $this->output->set_content_type('application/json');
 
-        $raw = $this->input->raw_input_stream;
-        $payload = json_decode($raw, true);
-        if (!is_array($payload)) {
+        $payload = $this->input->post();
+        if (!is_array($payload) || (!isset($payload['user_id']) && !isset($payload['descriptor']))) {
+            $raw = $this->input->raw_input_stream;
+            $decoded = json_decode($raw, true);
+            $payload = is_array($decoded) ? $decoded : array();
+        }
+        if (!is_array($payload) || empty($payload)) {
             return $this->output->set_status_header(400)->set_output(json_encode(['ok' => false, 'error' => 'Invalid payload']));
         }
 

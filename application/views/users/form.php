@@ -539,26 +539,37 @@
 
       setStatus('Saving face data...', false);
 
-      // Read CSRF token from cookie (set by CodeIgniter)
-      var csrfToken = '';
-      try {
-        var match = document.cookie.match(/(?:^|;\s*)ci_csrf_token=([^;]*)/);
-        if (match) csrfToken = decodeURIComponent(match[1]);
-      } catch(e) {}
+      var csrfToken = (typeof window.getCsrfToken === 'function') ? window.getCsrfToken() : '';
+      if (!csrfToken) {
+        var csrfInput = document.querySelector('input[name="ci_csrf_token"]');
+        if (csrfInput) csrfToken = csrfInput.value;
+      }
+
+      var fd = new FormData();
+      fd.append('user_id', String(payload.user_id));
+      fd.append('descriptor', payload.descriptor);
+      fd.append('image', payload.image);
+      if (csrfToken) {
+        fd.append('<?php echo $this->security->get_csrf_token_name(); ?>', csrfToken);
+      }
 
       fetch('<?php echo site_url('users/save_face'); ?>', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken
-        },
-        body: JSON.stringify(payload)
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
       }).then(function(r){
         if (!r.ok && r.status === 403) {
           setStatus('Access denied. You do not have permission to save face data.', true);
           return null;
         }
-        return r.json();
+        return r.text().then(function(text){
+          try {
+            return JSON.parse(text);
+          } catch (e) {
+            setStatus('Could not save face (HTTP ' + r.status + '). The server returned a page instead of JSON.', true);
+            return null;
+          }
+        });
       }).then(function(j){
         if (!j) return;
         if (j.ok){

@@ -277,15 +277,21 @@
             <label class="att-punch-section-label">
               <i class="bi bi-camera"></i> Face verification <?php echo $face_verification_enabled ? '<span class="text-danger">*</span>' : ''; ?>
             </label>
-            <div class="position-relative att-punch-face-wrap">
+            <div class="position-relative att-punch-face-wrap" id="attFaceMachine">
               <video id="attFaceVideo" class="w-100"
-                     autoplay muted playsinline></video>
+                     autoplay muted playsinline webkit-playsinline
+                     disablePictureInPicture disableRemotePlayback
+                     controlslist="nodownload nofullscreen noremoteplayback"></video>
+              <canvas id="attFaceCanvas" class="att-punch-face-shot" style="display:none;"></canvas>
+              <canvas id="attFaceOverlay" class="att-punch-face-overlay" style="display:none;"></canvas>
+              <div class="att-punch-face-guide" aria-hidden="true"></div>
+              <div class="att-punch-face-shutter" id="attFaceShutter" aria-hidden="true"></div>
+              <span class="badge att-punch-face-badge" id="attFaceBadge" style="display:none;">Looking for face…</span>
               <div class="position-absolute top-50 start-50 translate-middle text-white text-center" id="cameraLoader">
-                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <div class="spinner-border spinner-border-sm text-light" role="status"></div>
                 <div class="small mt-1">Starting camera...</div>
               </div>
             </div>
-            <canvas id="attFaceCanvas" class="w-100 mt-2" style="display: none;"></canvas>
             <div class="small mt-2 text-center" id="attFaceStatus"></div>
             <button type="button" class="btn btn-primary w-100 mt-3 fw-semibold att-punch-submit" id="btnAttFaceVerify" disabled>
               <i class="bi bi-camera-fill me-2"></i> Capture face
@@ -301,7 +307,7 @@
               <i class="bi bi-check-circle me-2"></i>Mark attendance
             </button>
             <div class="att-punch-validation text-muted mt-2" id="validationStatus">
-              <i class="bi bi-info-circle"></i> Complete required steps: <?php echo (isset($location_strict_enabled) && $location_strict_enabled) ? 'Location' : 'Location (optional)'; ?><?php echo $face_verification_enabled ? ', Face verification' : ''; ?>
+              <i class="bi bi-info-circle"></i> Complete required steps: Location<?php echo $face_verification_enabled ? ', Face verification' : ''; ?>
             </div>
         </div>
         <?php endif; ?>
@@ -347,7 +353,8 @@
           
           // Check if face verification is required from PHP setting
           var faceVerificationRequired = <?php echo $face_verification_enabled ? 'true' : 'false'; ?>;
-          var locationRequired = <?php echo (isset($location_strict_enabled) && $location_strict_enabled) ? 'true' : 'false'; ?>;
+          // Server always requires lat/lng on punch (strict mode only adds office-radius check)
+          var locationRequired = true;
           
           // Check if auto capture is enabled from PHP setting
           var autoCaptureEnabled = <?php echo isset($auto_capture_enabled) && $auto_capture_enabled ? 'true' : 'false'; ?>;
@@ -642,6 +649,66 @@
             }
           }
 
+          function getDetectorOptions(){
+            var inputSize = (window.innerWidth < 768) ? 224 : 320;
+            return new faceapi.TinyFaceDetectorOptions({ inputSize: inputSize, scoreThreshold: 0.4 });
+          }
+
+          function getFaceDisplaySize(){
+            var wrap = video && video.parentElement;
+            var w = wrap && wrap.clientWidth ? wrap.clientWidth : 320;
+            var h = wrap && wrap.clientHeight ? wrap.clientHeight : 240;
+            return { width: Math.round(w), height: Math.round(h) };
+          }
+
+          function setFaceBadge(text, found){
+            var badge = document.getElementById('attFaceBadge');
+            if (!badge) return;
+            if (!text) {
+              badge.style.display = 'none';
+              badge.textContent = '';
+              badge.classList.remove('is-found');
+              return;
+            }
+            badge.style.display = 'inline-block';
+            badge.textContent = text;
+            badge.classList.toggle('is-found', !!found);
+          }
+
+          function drawFaceOverlay(det){
+            var overlay = document.getElementById('attFaceOverlay');
+            if (!overlay || !window.faceapi) return;
+            if (!det) {
+              var ctxEmpty = overlay.getContext('2d', { alpha: true });
+              if (ctxEmpty) ctxEmpty.clearRect(0, 0, overlay.width, overlay.height);
+              overlay.style.display = 'none';
+              return;
+            }
+            overlay.style.display = 'block';
+            var size = getFaceDisplaySize();
+            if (overlay.width !== size.width || overlay.height !== size.height) {
+              overlay.width = size.width;
+              overlay.height = size.height;
+            }
+            var ctx = overlay.getContext('2d', { alpha: true });
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            var resized = faceapi.resizeResults(det, size);
+            faceapi.draw.drawDetections(overlay, resized);
+            if (resized.landmarks) {
+              faceapi.draw.drawFaceLandmarks(overlay, resized);
+            }
+          }
+
+          function hideFaceOverlay(){
+            var overlay = document.getElementById('attFaceOverlay');
+            if (overlay) {
+              var ctx = overlay.getContext('2d');
+              if (ctx) ctx.clearRect(0, 0, overlay.width, overlay.height);
+              overlay.style.display = 'none';
+            }
+            setFaceBadge('', false);
+          }
+
           async function ensureModels(){
             if (modelsLoaded || !window.faceapi) return;
             try {
@@ -654,8 +721,105 @@
             } catch(e){ setFaceStatus('Failed to load face models.', true); }
           }
 
+          function bindInlineCamera(videoEl, mediaStream){
+            if (!videoEl) return Promise.resolve();
+            videoEl.setAttribute('playsinline', 'true');
+            videoEl.setAttribute('webkit-playsinline', 'true');
+            videoEl.setAttribute('controlslist', 'nodownload nofullscreen noremoteplayback');
+            videoEl.controls = false;
+            videoEl.muted = true;
+            videoEl.defaultMuted = true;
+            videoEl.autoplay = true;
+            videoEl.playsInline = true;
+            if ('disablePictureInPicture' in videoEl) {
+              videoEl.disablePictureInPicture = true;
+            }
+            videoEl.srcObject = mediaStream;
+            return new Promise(function(resolve){
+              var done = false;
+              function finish(){
+                if (done) return;
+                done = true;
+                var p = videoEl.play();
+                if (p && typeof p.then === 'function') {
+                  p.then(function(){ resolve(true); }).catch(function(){ resolve(false); });
+                } else {
+                  resolve(true);
+                }
+              }
+              if (videoEl.readyState >= 1) {
+                finish();
+                return;
+              }
+              videoEl.addEventListener('loadedmetadata', finish, { once: true });
+              setTimeout(finish, 1500);
+            });
+          }
+
+          function waitForVideoReady(videoEl, timeoutMs){
+            timeoutMs = timeoutMs || 6000;
+            return new Promise(function(resolve){
+              if (!videoEl) { resolve(false); return; }
+              if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) { resolve(true); return; }
+              var done = false;
+              function finish(ok){
+                if (done) return;
+                done = true;
+                videoEl.removeEventListener('loadeddata', onReady);
+                videoEl.removeEventListener('playing', onReady);
+                videoEl.removeEventListener('canplay', onReady);
+                clearTimeout(timer);
+                resolve(!!ok);
+              }
+              function onReady(){ finish(videoEl.videoWidth > 0 || videoEl.readyState >= 2); }
+              var timer = setTimeout(function(){
+                finish(videoEl.readyState >= 2 && videoEl.videoWidth > 0);
+              }, timeoutMs);
+              videoEl.addEventListener('loadeddata', onReady);
+              videoEl.addEventListener('playing', onReady);
+              videoEl.addEventListener('canplay', onReady);
+            });
+          }
+
+          function preventVideoNativePlayer(videoEl){
+            if (!videoEl || videoEl.getAttribute('data-inline-bound') === '1') return;
+            videoEl.setAttribute('data-inline-bound', '1');
+            var exitFs = function(){
+              try {
+                if (document.fullscreenElement === videoEl && document.exitFullscreen) {
+                  document.exitFullscreen();
+                }
+                if (videoEl.webkitDisplayingFullscreen && videoEl.webkitExitFullscreen) {
+                  videoEl.webkitExitFullscreen();
+                }
+              } catch (e) {}
+            };
+            videoEl.addEventListener('webkitbeginfullscreen', function(ev){
+              if (ev && ev.preventDefault) ev.preventDefault();
+              exitFs();
+            });
+            videoEl.addEventListener('fullscreenchange', exitFs);
+          }
+
+          async function openCameraStream(){
+            var attempts = [
+              { video: { facingMode: { ideal: 'user' }, aspectRatio: { ideal: 0.75 }, width: { ideal: 480 }, height: { ideal: 640 } }, audio: false },
+              { video: { facingMode: { ideal: 'user' } }, audio: false },
+              { video: { facingMode: 'user' }, audio: false },
+              { video: true, audio: false }
+            ];
+            var lastErr = null;
+            for (var i = 0; i < attempts.length; i++) {
+              try {
+                return await navigator.mediaDevices.getUserMedia(attempts[i]);
+              } catch (e) {
+                lastErr = e;
+              }
+            }
+            throw lastErr || new Error('Camera not available');
+          }
+
           async function startCam(auto){
-            await ensureModels();
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
               setFaceStatus('Camera not supported', true);
               return;
@@ -668,29 +832,36 @@
             }
             
             try {
-              stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                  facingMode:'user',
-                  width: { ideal: 640 },
-                  height: { ideal: 480 }
-                }, 
-                audio:false 
-              });
-              video.srcObject = stream;
-              
-              // Hide camera loader
+              if (cameraLoader) cameraLoader.style.display = 'block';
+              hideFaceOverlay();
+              setFaceStatus('Starting camera...', false);
+
+              stream = await openCameraStream();
+              preventVideoNativePlayer(video);
+              await bindInlineCamera(video, stream);
+              var ready = await waitForVideoReady(video, 6000);
+
               if (cameraLoader) {
                 cameraLoader.style.display = 'none';
               }
-              
+              if (!ready || !video.videoWidth) {
+                setFaceStatus('Camera preview is blank. Allow camera permission and tap Retake.', true);
+                var retakeEarly = document.getElementById('btnRetakeFace');
+                if (retakeEarly) retakeEarly.style.display = 'block';
+              }
+
+              var modelsPromise = ensureModels();
+              await modelsPromise;
+
               if (auto) {
                 // Auto capture mode - hide "Capture Face" button, only show retake when needed
                 if (btnVerify) {
                   btnVerify.style.display = 'none';
+                  btnVerify.disabled = false;
                 }
-                btnVerify.disabled = false; // Keep enabled for internal use but hidden
                 // Continuous face detection - capture immediately when face detected
                 setFaceStatus('Detecting face...', false);
+                setFaceBadge('Looking for face…', false);
                 var detectionInterval = null;
                 var isDetecting = false;
                 var detectionStartTime = Date.now();
@@ -717,10 +888,12 @@
                       return;
                     }
                     
-                    var opts = new faceapi.TinyFaceDetectorOptions();
+                    var opts = getDetectorOptions();
                     var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
                     
                     if (det && det.descriptor) {
+                      drawFaceOverlay(det);
+                      setFaceBadge('Face detected', true);
                       // Face detected! Stop detection and capture immediately
                       if (detectionInterval) {
                         clearInterval(detectionInterval);
@@ -735,6 +908,8 @@
                       setFaceStatus('Face detected! Capturing...', false);
                       captureFace(true);
                     } else {
+                      drawFaceOverlay(null);
+                      setFaceBadge('Looking for face…', false);
                       isDetecting = false;
                       // Show retake button if no face detected after 3 seconds
                       var elapsedTime = Date.now() - detectionStartTime;
@@ -766,6 +941,27 @@
                 detectFace();
               } else {
                 setFaceStatus('Align face and capture', false);
+                setFaceBadge('Looking for face…', false);
+                var previewDetecting = false;
+                var previewInterval = setInterval(async function(){
+                  if (previewDetecting || (faceDescEl && faceDescEl.value) || !video || video.readyState < 2) return;
+                  previewDetecting = true;
+                  try {
+                    var det = await faceapi.detectSingleFace(video, getDetectorOptions()).withFaceLandmarks();
+                    if (det) {
+                      drawFaceOverlay(det);
+                      setFaceBadge('Face detected', true);
+                      setFaceStatus('Face detected. Tap Capture face.', false);
+                    } else {
+                      drawFaceOverlay(null);
+                      setFaceBadge('Looking for face…', false);
+                    }
+                  } catch (e) {
+                    drawFaceOverlay(null);
+                  }
+                  previewDetecting = false;
+                }, 400);
+                faceDetectionInterval = previewInterval;
               }
             } catch(e){ 
               setFaceStatus('Camera access denied', true);
@@ -785,7 +981,7 @@
             if (!modelsLoaded){ await ensureModels(); }
             if (!video || video.readyState < 2){ setFaceStatus('Camera not ready', true); return; }
             try {
-              var opts = new faceapi.TinyFaceDetectorOptions();
+              var opts = getDetectorOptions();
               var det = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
               if (!det || !det.descriptor){ 
                 setFaceStatus('No face detected', true); 
@@ -831,13 +1027,17 @@
                 return;
               }
               
-              // Show canvas, hide video
-              video.style.display = 'none';
-              canvas.style.display = 'block';
-              
-              // Ensure canvas is visible with proper styling
-              canvas.style.background = '#000';
-              canvas.style.objectFit = 'cover';
+              hideFaceOverlay();
+              var machine = document.getElementById('attFaceMachine');
+              if (machine) {
+                machine.classList.remove('is-shutter');
+                void machine.offsetWidth;
+                machine.classList.add('is-shutter');
+                machine.classList.add('is-captured');
+              }
+              if (video) video.style.display = 'none';
+              if (canvas) canvas.style.display = 'block';
+              setFaceBadge('Captured', true);
               
               // Hide capture button (if visible), show retake button
               if (btnVerify) btnVerify.style.display = 'none';
@@ -915,9 +1115,14 @@
               if (faceReqEl) faceReqEl.value = '0';
               hasFaceCapture = false;
               
-              // Hide canvas, show video
+              var machine = document.getElementById('attFaceMachine');
+              if (machine) {
+                machine.classList.remove('is-captured', 'is-shutter');
+              }
               if (canvas) canvas.style.display = 'none';
               if (video) video.style.display = 'block';
+              hideFaceOverlay();
+              setFaceBadge('Looking for face…', false);
               
               // Hide retake button initially (will show again if needed)
               retakeBtn.style.display = 'none';
