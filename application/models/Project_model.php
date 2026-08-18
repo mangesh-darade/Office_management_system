@@ -45,25 +45,33 @@ class Project_model extends CI_Model {
     public function all($filters = []){
         $this->db->select('p.*');
         $this->db->from($this->table . ' p');
-        
-        // Apply group filters for non-admin users
-        $member_scoped = false;
-        if (!empty($filters)) {
-            if (isset($filters['user_id'])) {
-                // Show only projects where user is a member
-                $this->db->join('project_members pm', 'pm.project_id = p.id');
-                $this->db->where('pm.user_id', $filters['user_id']);
-                $member_scoped = true;
+
+        // For non-admin users show projects where they are:
+        //   a) a member in project_members, OR
+        //   b) the manager_id, OR
+        //   c) the created_by
+        // Empty $filters means admin — no restriction.
+        if (!empty($filters) && isset($filters['user_id'])) {
+            $uid = (int) $filters['user_id'];
+            $has_created_by = $this->has_column('created_by');
+            $has_manager_id = $this->has_column('manager_id');
+            $has_members    = $this->db->table_exists('project_members');
+
+            $parts = array();
+            if ($has_members) {
+                $parts[] = 'EXISTS (SELECT 1 FROM `project_members` pm WHERE pm.project_id = p.id AND pm.user_id = ' . $uid . ')';
+            }
+            if ($has_manager_id) {
+                $parts[] = 'p.`manager_id` = ' . $uid;
+            }
+            if ($has_created_by) {
+                $parts[] = 'p.`created_by` = ' . $uid;
+            }
+            if (!empty($parts)) {
+                $this->db->where('(' . implode(' OR ', $parts) . ')', null, false);
             }
         }
-        if (!$member_scoped) {
-            if ($this->has_column('created_by')) {
-                apply_role_hierarchy_filter($this->db, 'p.created_by');
-            } else if ($this->has_column('manager_id')) {
-                apply_role_hierarchy_filter($this->db, 'p.manager_id');
-            }
-        }
-        
+
         return $this->db->order_by('p.id','DESC')->group_by('p.id')->get()->result();
     }
 
