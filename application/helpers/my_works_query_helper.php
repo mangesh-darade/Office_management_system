@@ -337,6 +337,7 @@ if (!function_exists('my_works_list_view_data')) {
             $CI->load->helper('multi_assignee');
             $assignee_names_map = multi_assignees_names_map('my_works_assignees', 'work_id', $work_ids);
         }
+        $filter_users = my_works_filter_users_for_dropdown($db, $can_view_all, $user_id, $role_id);
         return array(
             'rows'             => $rows,
             'attachments_map'  => $attachments_map,
@@ -352,9 +353,9 @@ if (!function_exists('my_works_list_view_data')) {
             'clients'          => my_works_clients_for_dropdown($db),
             'projects'         => my_works_projects_for_dropdown($db),
             'projects_have_client' => schema_table_has_column($db, 'projects', 'client_id'),
-            'users'            => my_works_filter_users_for_dropdown($db, $can_view_all, $user_id, $role_id),
+            'users'            => $filter_users,
             'can_view_all'     => $can_view_all,
-            'can_filter_users' => $can_view_all,
+            'can_filter_users' => $can_view_all || count($filter_users) > 1,
             'can_export'       => function_exists('has_module_access') && (has_module_access('my_works_export') || has_module_access('my_works')),
             'scope'            => my_works_scope_context($can_view_all, array($user_id)),
             'view_mode'        => $view_mode,

@@ -113,8 +113,10 @@ class Requirement_model extends CI_Model {
         if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
         if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
         $this->db->select(implode(',', $sel), false)->from('users');
-        apply_role_hierarchy_filter($this->db, 'id');
-        return $this->db->order_by('email','ASC')->get()->result();
+        if (schema_table_has_column($this->db, 'users', 'status')) {
+            $this->db->where('status', 'active');
+        }
+        return $this->db->order_by('name','ASC')->get()->result();
     }
 
     // Versioning

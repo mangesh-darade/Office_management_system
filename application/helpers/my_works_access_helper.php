@@ -123,18 +123,9 @@ if (!function_exists('my_works_user_options')) {
 if (!function_exists('my_works_assignable_users')) {
     function my_works_assignable_users($db, $can_view_all, $user_id, $role_id)
     {
-        $users = my_works_user_options($db);
-        $allowed = my_works_assignable_user_ids($can_view_all, $user_id, $role_id);
-        if ($allowed === null) {
-            return $users;
-        }
-        $out = array();
-        foreach ($users as $u) {
-            if (in_array((int) $u->id, $allowed, true)) {
-                $out[] = $u;
-            }
-        }
-        return $out;
+        // Always return all active users so every user can be assigned work
+        // regardless of the current user's role/hierarchy scope.
+        return my_works_user_options($db);
     }
 }
 

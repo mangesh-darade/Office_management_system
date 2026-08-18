@@ -109,10 +109,112 @@ if (!function_exists('get_department_peer_user_ids')) {
     }
 }
 
+if (!function_exists('get_spl_group_peer_user_ids')) {
+    /**
+     * User IDs in the same active SPL group(s) as $user_id (includes self).
+     * Returns [$user_id] when not in any group or tables are missing.
+     *
+     * @param int $user_id
+     * @return int[]
+     */
+    function get_spl_group_peer_user_ids($user_id)
+    {
+        $CI =& get_instance();
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return array();
+        }
+        if (!isset($CI->db) || !$CI->db->table_exists('spl_group_members')) {
+            return array($user_id);
+        }
+
+        $db = $CI->db;
+
+        // IMPORTANT:
+        // Do not use the shared query-builder here (no reset_query / select+from),
+        // because apply_role_hierarchy_filter() may already have an open query chain.
+        $group_ids = array();
+        if ($db->table_exists('spl_groups')) {
+            if (schema_table_has_column($db, 'spl_groups', 'is_active')) {
+                $sql = 'SELECT DISTINCT m.group_id
+                        FROM `spl_group_members` m
+                        INNER JOIN `spl_groups` g ON g.id = m.group_id
+                        WHERE m.user_id = ? AND g.is_active = 1';
+                $bindings = array($user_id);
+            } else {
+                $sql = 'SELECT DISTINCT m.group_id
+                        FROM `spl_group_members` m
+                        INNER JOIN `spl_groups` g ON g.id = m.group_id
+                        WHERE m.user_id = ?';
+                $bindings = array($user_id);
+            }
+            $group_rows = $db->query($sql, $bindings)->result();
+        } else {
+            $group_rows = $db->query(
+                'SELECT DISTINCT `group_id` FROM `spl_group_members` WHERE `user_id` = ?',
+                array($user_id)
+            )->result();
+        }
+
+        foreach ($group_rows as $row) {
+            $gid = isset($row->group_id) ? (int) $row->group_id : 0;
+            if ($gid > 0) {
+                $group_ids[] = $gid;
+            }
+        }
+
+        $group_ids = array_values(array_unique($group_ids));
+        if (empty($group_ids)) {
+            return array($user_id);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($group_ids), '?'));
+        $bindings = array_map('intval', $group_ids);
+        $member_rows = $db->query(
+            'SELECT DISTINCT `m`.`user_id`
+             FROM `spl_group_members` m
+             WHERE `m`.`group_id` IN (' . $placeholders . ')',
+            $bindings
+        )->result();
+
+        $ids = array($user_id);
+        foreach ($member_rows as $row) {
+            $uid = isset($row->user_id) ? (int) $row->user_id : 0;
+            if ($uid > 0) {
+                $ids[] = $uid;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+}
+
+if (!function_exists('hierarchy_expand_with_spl_group_peers')) {
+    /**
+     * Merge SPL group peer user IDs into a non-empty allowed set.
+     *
+     * @param int[] $allowed
+     * @param int   $user_id
+     * @return int[]
+     */
+    function hierarchy_expand_with_spl_group_peers(array $allowed, $user_id)
+    {
+        if (empty($allowed)) {
+            return $allowed;
+        }
+        $peers = get_spl_group_peer_user_ids($user_id);
+        if (empty($peers)) {
+            return array_values(array_unique(array_map('intval', $allowed)));
+        }
+        return array_values(array_unique(array_merge(array_map('intval', $allowed), $peers)));
+    }
+}
+
 if (!function_exists('get_accessible_hierarchy_user_ids')) {
     /**
      * User IDs the current role may see in lists/reports.
      * Admin → [] (no restriction). Lead → mapped team + self. Manager / team-progress → department peers. Staff → self only.
+     * SPL group members are always included for assign-to / team dropdowns when the user belongs to an active group.
      */
     function get_accessible_hierarchy_user_ids($user_id = null, $role_id = null)
     {
@@ -131,19 +233,22 @@ if (!function_exists('get_accessible_hierarchy_user_ids')) {
         if ($is_lead) {
             $mapped = get_mapped_user_ids_for_lead($user_id);
             $mapped[] = $user_id;
-            return array_values(array_unique(array_map('intval', $mapped)));
+            return hierarchy_expand_with_spl_group_peers(
+                array_values(array_unique(array_map('intval', $mapped))),
+                $user_id
+            );
         }
 
         $is_manager = (defined('ROLE_MANAGER') && $role_id === ROLE_MANAGER) || $role_name === 'manager';
         if ($is_manager) {
-            return get_department_peer_user_ids($user_id);
+            return hierarchy_expand_with_spl_group_peers(get_department_peer_user_ids($user_id), $user_id);
         }
 
         if (function_exists('has_module_access') && has_module_access('training_screen_ta_team_progress')) {
-            return get_department_peer_user_ids($user_id);
+            return hierarchy_expand_with_spl_group_peers(get_department_peer_user_ids($user_id), $user_id);
         }
 
-        return [$user_id];
+        return hierarchy_expand_with_spl_group_peers(array($user_id), $user_id);
     }
 }
 
@@ -231,7 +336,14 @@ if (!function_exists('apply_role_hierarchy_filter')) {
 
         $allowed_ids = get_accessible_hierarchy_user_ids($user_id, $role_id);
         if (empty($allowed_ids)) {
-            $db->where('1 = 0', null, false);
+            // Fallback: if we couldn't compute an allowed set but we do have a valid
+            // current user, show at least self (prevents empty dropdowns).
+            // If user_id is invalid/missing, keep the deny-all behavior.
+            if ((int) $user_id > 0) {
+                $db->where($column, (int) $user_id);
+            } else {
+                $db->where('1 = 0', null, false);
+            }
             return $db;
         }
 
