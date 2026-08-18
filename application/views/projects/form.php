@@ -80,8 +80,7 @@
                 } else {
                   $label = !empty($u->full_name) ? $u->full_name : (!empty($u->name) ? $u->name : $u->email);
                 }
-                $label = trim($label);
-                $label = $label ? $label . ' (' . $u->email . ')' : $u->email;
+                $label = trim($label) ?: $u->email;
                 $sel = in_array((int) $u->id, $cur_assigned_ids, true) ? 'selected' : '';
               ?>
               <option value="<?php echo (int) $u->id; ?>" <?php echo $sel; ?>>
