@@ -207,12 +207,9 @@ class Projects extends CI_Controller {
                     $data['actual_hours'] = $act;
                 }
 
-                if (!$this->_apply_manager_id_from_post($data)) {
-                    $this->session->set_flashdata('error', 'Please select a valid assignee.');
-                    redirect('projects/create' . ($embed ? '?embed=1' : ''));
-                    return;
-                }
-                
+                $assigned_ids = $this->_parse_project_assigned_to();
+                $data['manager_id'] = !empty($assigned_ids) ? $assigned_ids[0] : null;
+
                 // Use transaction for data integrity
                 $this->db->trans_start();
                 $this->db->insert('projects', $data);
@@ -231,32 +228,7 @@ class Projects extends CI_Controller {
                     throw new Exception('Database transaction failed');
                 }
 
-                if (!empty($data['manager_id'])) {
-                    $this->Project_model->add_member($id, (int) $data['manager_id'], 'manager');
-                    if (!function_exists('send_user_notification_email')) {
-                        $this->load->helper('email_settings');
-                    }
-                    $this->load->helper('notification');
-                    $email_data = (object) array(
-                        'id' => (int) $id,
-                        'project_id' => (int) $id,
-                        'title' => (string) $data['name'],
-                        'name' => (string) $data['name'],
-                        'role' => 'manager',
-                    );
-                    if (function_exists('create_notification')) {
-                        create_notification(
-                            (int) $data['manager_id'],
-                            'Added to Project',
-                            'You were added to "' . $data['name'] . '" as Manager.',
-                            'info',
-                            'projects',
-                            (int) $id,
-                            site_url('projects/' . $id)
-                        );
-                    }
-                    send_user_notification_email((int) $data['manager_id'], 'projects', 'member_added', $email_data);
-                }
+                $this->_sync_project_members((int) $id, $assigned_ids, (string) $data['name']);
                 
                 // Log project creation with change tracking
                 $this->load->helper('change_tracker');
@@ -855,12 +827,9 @@ class Projects extends CI_Controller {
                     $data['actual_hours'] = $act;
                 }
 
-                if (!$this->_apply_manager_id_from_post($data)) {
-                    $this->session->set_flashdata('error', 'Please select a valid assignee.');
-                    redirect('projects/'.$id.'/edit');
-                    return;
-                }
-                
+                $assigned_ids = $this->_parse_project_assigned_to();
+                $data['manager_id'] = !empty($assigned_ids) ? $assigned_ids[0] : null;
+
                 // Load activity tracking helper
                 $this->load->helper('change_tracker');
                 
@@ -869,32 +838,7 @@ class Projects extends CI_Controller {
                 
                 $this->db->where('id', (int)$id)->update('projects', $data);
 
-                if (!empty($data['manager_id']) && !$this->Project_model->check_user_is_member((int) $id, (int) $data['manager_id'])) {
-                    $this->Project_model->add_member((int) $id, (int) $data['manager_id'], 'manager');
-                    if (!function_exists('send_user_notification_email')) {
-                        $this->load->helper('email_settings');
-                    }
-                    $this->load->helper('notification');
-                    $email_data = (object) array(
-                        'id' => (int) $id,
-                        'project_id' => (int) $id,
-                        'title' => (string) $data['name'],
-                        'name' => (string) $data['name'],
-                        'role' => 'manager',
-                    );
-                    if (function_exists('create_notification')) {
-                        create_notification(
-                            (int) $data['manager_id'],
-                            'Added to Project',
-                            'You were added to "' . $data['name'] . '" as Manager.',
-                            'info',
-                            'projects',
-                            (int) $id,
-                            site_url('projects/' . $id)
-                        );
-                    }
-                    send_user_notification_email((int) $data['manager_id'], 'projects', 'member_added', $email_data);
-                }
+                $this->_sync_project_members((int) $id, $assigned_ids, (string) $data['name']);
                 
                 // Log update with change tracking
                 $description = 'Project: ' . (string)$data['name'];
@@ -927,6 +871,14 @@ class Projects extends CI_Controller {
         $departments = $this->Department_model->all();
         
         $project_types = module_type_options_resolved('projects');
+        $members = $this->Project_model->get_project_members((int) $id);
+        $current_member_ids = array();
+        foreach ($members as $m) {
+            $current_member_ids[] = (int) $m->user_id;
+        }
+        if (empty($current_member_ids) && !empty($project->manager_id)) {
+            $current_member_ids = array((int) $project->manager_id);
+        }
         $this->load->view('projects/form', [
             'action' => 'edit',
             'project' => $project,
@@ -935,6 +887,7 @@ class Projects extends CI_Controller {
             'users' => $this->_load_assignable_users(),
             'departments' => $departments,
             'clients' => $this->_load_project_clients(),
+            'current_member_ids' => $current_member_ids,
         ]);
     }
 
@@ -1536,6 +1489,68 @@ class Projects extends CI_Controller {
             ->from('users')
             ->order_by('email', 'ASC')
             ->get()->result();
+    }
+
+    private function _parse_project_assigned_to()
+    {
+        $raw = $this->input->post('project_assigned_to');
+        if (empty($raw)) {
+            return array();
+        }
+        $ids = is_array($raw) ? $raw : array($raw);
+        $out = array();
+        foreach ($ids as $v) {
+            $v = (int) $v;
+            if ($v > 0 && !in_array($v, $out, true)) {
+                $out[] = $v;
+            }
+        }
+        return $out;
+    }
+
+    private function _sync_project_members($project_id, array $user_ids, $project_name)
+    {
+        if (!$this->db->table_exists('project_members')) {
+            return;
+        }
+        // Remove all existing members then re-add the selected ones
+        $this->db->where('project_id', $project_id)->delete('project_members');
+        if (empty($user_ids)) {
+            return;
+        }
+        if (!function_exists('send_user_notification_email')) {
+            $this->load->helper('email_settings');
+        }
+        $this->load->helper('notification');
+        $first = true;
+        foreach ($user_ids as $uid) {
+            $role = $first ? 'manager' : 'member';
+            $first = false;
+            $this->db->insert('project_members', array(
+                'project_id' => $project_id,
+                'user_id'    => $uid,
+                'role'       => $role,
+                'created_at' => date('Y-m-d H:i:s'),
+            ));
+            if (function_exists('create_notification')) {
+                create_notification(
+                    $uid,
+                    'Added to Project',
+                    'You were added to "' . $project_name . '" as ' . ucfirst($role) . '.',
+                    'info',
+                    'projects',
+                    $project_id,
+                    site_url('projects/' . $project_id)
+                );
+            }
+            send_user_notification_email($uid, 'projects', 'member_added', (object) array(
+                'id'         => $project_id,
+                'project_id' => $project_id,
+                'title'      => $project_name,
+                'name'       => $project_name,
+                'role'       => $role,
+            ));
+        }
     }
 
     private function _apply_manager_id_from_post(&$data)

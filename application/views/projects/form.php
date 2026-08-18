@@ -66,9 +66,13 @@
         <?php if (function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'manager_id')): ?>
         <div class="col-md-4">
           <label class="form-label">Assigned To</label>
-          <?php $cur_manager = (isset($project) && !empty($project->manager_id)) ? (int) $project->manager_id : 0; ?>
-          <select name="manager_id" class="form-select">
-            <option value="">-- Unassigned --</option>
+          <?php
+            $cur_assigned_ids = isset($current_member_ids) ? (array) $current_member_ids : array();
+            if (empty($cur_assigned_ids) && isset($project) && !empty($project->manager_id)) {
+              $cur_assigned_ids = array((int) $project->manager_id);
+            }
+          ?>
+          <select name="project_assigned_to[]" id="project-assigned-to" class="form-select oms-select2-multi" multiple style="width:100%;">
             <?php if (!empty($users)) foreach ($users as $u): ?>
               <?php
                 if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
@@ -78,12 +82,14 @@
                 }
                 $label = trim($label);
                 $label = $label ? $label . ' (' . $u->email . ')' : $u->email;
+                $sel = in_array((int) $u->id, $cur_assigned_ids, true) ? 'selected' : '';
               ?>
-              <option value="<?php echo (int) $u->id; ?>" <?php echo $cur_manager === (int) $u->id ? 'selected' : ''; ?>>
+              <option value="<?php echo (int) $u->id; ?>" <?php echo $sel; ?>>
                 <?php echo esc_view($label); ?>
               </option>
             <?php endforeach; ?>
           </select>
+          <div class="form-text">Type to search. First selected is primary manager.</div>
         </div>
         <?php endif; ?>
         <?php if (!empty($project_types) && function_exists('schema_table_has_column') && schema_table_has_column($this->db, 'projects', 'project_type')): ?>
@@ -221,3 +227,9 @@
 
 </div>
 <?php $this->load->view('partials/footer'); ?>
+<?php
+$this->load->view('partials/oms_select2_multi', array(
+    'oms_select2_selectors' => array('#project-assigned-to'),
+    'oms_select2_placeholder' => 'Select assignee(s)…',
+));
+?>
