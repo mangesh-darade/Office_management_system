@@ -88,19 +88,9 @@ if (!function_exists('my_works_assignable_user_ids')) {
 if (!function_exists('my_works_user_in_assign_scope')) {
     function my_works_user_in_assign_scope($target_user_id, $can_view_all, $user_id, $role_id)
     {
-        $target_user_id = (int) $target_user_id;
-        if ($target_user_id <= 0) {
-            return false;
-        }
-        if ($can_view_all) {
-            return true;
-        }
-        $user_id = (int) $user_id;
-        if ($target_user_id === $user_id) {
-            return true;
-        }
-        $allowed = my_works_assignable_user_ids($can_view_all, $user_id, $role_id);
-        return is_array($allowed) && in_array($target_user_id, $allowed, true);
+        // Any valid user may be assigned work — hierarchy scope only restricts
+        // what records you can *view*, not who you can assign to.
+        return (int) $target_user_id > 0;
     }
 }
 
