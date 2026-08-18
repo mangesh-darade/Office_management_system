@@ -1454,6 +1454,8 @@ class Projects extends CI_Controller {
             return array();
         }
 
+        $has_status = schema_table_has_column($this->db, 'users', 'status');
+
         if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
             $select = array('users.id', 'users.email');
             if (schema_table_has_column($this->db, 'users', 'name')) {
@@ -1469,11 +1471,14 @@ class Projects extends CI_Controller {
             $this->db->select(implode(',', $select))
                 ->from('users')
                 ->join('employees', 'employees.user_id = users.id', 'left');
+            if ($has_status) {
+                $this->db->where('users.status', 'active');
+            }
             if ($has_emp_name) {
-                $this->db->order_by('employees.name IS NULL ASC', '', false)
+                $this->db->order_by('employees.name IS NULL', 'ASC', false)
                     ->order_by('employees.name', 'ASC');
             }
-            $this->db->order_by('users.email', 'ASC');
+            $this->db->order_by('users.name', 'ASC');
             return $this->db->get()->result();
         }
 
@@ -1485,10 +1490,11 @@ class Projects extends CI_Controller {
             $user_select[] = 'name';
         }
 
-        return $this->db->select(implode(',', $user_select))
-            ->from('users')
-            ->order_by('email', 'ASC')
-            ->get()->result();
+        $this->db->select(implode(',', $user_select))->from('users');
+        if ($has_status) {
+            $this->db->where('status', 'active');
+        }
+        return $this->db->order_by('name', 'ASC')->get()->result();
     }
 
     private function _parse_project_assigned_to()
