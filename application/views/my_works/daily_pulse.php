@@ -35,30 +35,19 @@ $pulse_count_badge = function ($total) {
     <span class="mw-pulse-sub"><?php echo esc_view($date_label, ENT_QUOTES, 'UTF-8'); ?></span>
   </div>
 
-  <div class="mw-pulse-grid">
 
-    <?php $clients = $section('clients_added'); if ($clients !== null): ?>
-    <section class="mw-pulse-card mw-pulse-card--wide">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-building"></i>Clients added</h3>
-        <?php $pulse_count_badge($clients['total']); ?>
-      </div>
-      <?php if (empty($clients['items'])): ?>
-      <p class="mw-pulse-empty">No clients added today.</p>
-      <?php else: ?>
-      <ul class="mw-pulse-chips">
-        <?php foreach ($clients['items'] as $c): ?>
-        <li>
-          <a class="mw-pulse-chip" href="<?php echo esc_view($c['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php echo !empty($c['client_code']) ? ' title="' . esc_view($c['client_code'], ENT_QUOTES, 'UTF-8') . '"' : ''; ?>>
-            <?php echo esc_view($c['company_name'] !== '' ? $c['company_name'] : 'Client #' . (int) $c['id'], ENT_QUOTES, 'UTF-8'); ?>
-          </a>
-        </li>
-        <?php endforeach; ?>
-      </ul>
-      <?php $render_more($clients); ?>
-      <?php endif; ?>
-    </section>
-    <?php endif; ?>
+  <ul class="nav nav-tabs mb-4 mw-pulse-tabs" id="pulseTabs" role="tablist" style="margin-top: 1.5rem;">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="pulse-summary-tab" data-bs-toggle="tab" data-bs-target="#pulse-summary" type="button" role="tab" aria-controls="pulse-summary" aria-selected="true">Summary</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pulse-updates-tab" data-bs-toggle="tab" data-bs-target="#pulse-updates" type="button" role="tab" aria-controls="pulse-updates" aria-selected="false">Updates</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="pulseTabsContent">
+    <div class="tab-pane fade show active" id="pulse-summary" role="tabpanel" aria-labelledby="pulse-summary-tab">
+<div class="pulse-updates-wrapper" style="display:flex; flex-direction:column; gap:16px;">
 
     <?php $att = $section('attendance'); if (is_array($att)): ?>
     <?php
@@ -80,9 +69,18 @@ $pulse_count_badge = function ($total) {
           echo '</span>';
       };
     ?>
-    <section class="mw-pulse-card mw-pulse-card--wide">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-person-check"></i>Attendance today</h3>
+    <div class="premium-card" style="width: 100%;">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-green">
+            <i class="bi bi bi-person-check"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Attendance today</h3>
+            <p class="premium-card-subtitle">Snapshot of today's records</p>
+        </div>
+        <div class="premium-card-menu">
+            
+        </div>
       </div>
       <div class="mw-pulse-cols mw-pulse-cols--4">
         <div class="mw-pulse-col">
@@ -186,148 +184,53 @@ $pulse_count_badge = function ($total) {
           <?php endif; ?>
         </div>
       </div>
-    </section>
+    </div>
     <?php endif; ?>
-
-    <?php $da = $section('daily_activity'); if (is_array($da)): ?>
-    <section class="mw-pulse-card mw-pulse-card--wide">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-journal-text"></i>Daily Activity</h3>
-        <a class="btn btn-sm btn-outline-primary mw-pulse-action" href="<?php echo esc_view($da['view_all_url'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener">View all</a>
-      </div>
-      <div class="mw-pulse-cols mw-pulse-cols--2">
-        <div class="mw-pulse-col">
-          <div class="mw-pulse-col-head">
-            <span class="mw-pulse-mini-title">Updated</span>
-            <?php $pulse_count_badge($da['logged']['total']); ?>
-          </div>
-          <?php if (empty($da['logged']['items'])): ?>
-          <p class="mw-pulse-empty mb-0">No updates yet.</p>
-          <?php else: ?>
-          <ul class="mw-pulse-list mw-pulse-list--compact">
-            <?php foreach ($da['logged']['items'] as $row): ?>
-            <li>
-              <span class="mw-pulse-item-primary"><?php echo esc_view($row['name'], ENT_QUOTES, 'UTF-8'); ?></span>
-              <span class="mw-pulse-count mw-pulse-count--soft"><?php echo (int) $row['entry_count']; ?></span>
-            </li>
-            <?php endforeach; ?>
-          </ul>
-          <?php $render_more($da['logged']); ?>
-          <?php endif; ?>
+    <?php $clients = $section('clients_added'); if ($clients !== null): ?>
+    <div class="premium-card" style="width: 100%;">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-blue">
+            <i class="bi bi bi-building"></i>
         </div>
-        <div class="mw-pulse-col<?php echo !empty($da['not_logged']['items']) ? ' mw-pulse-col--warn' : ''; ?>">
-          <div class="mw-pulse-col-head">
-            <span class="mw-pulse-mini-title">Not updated</span>
-            <?php $pulse_count_badge($da['not_logged']['total']); ?>
-          </div>
-          <?php if (empty($da['not_logged']['items'])): ?>
-          <p class="mw-pulse-empty mb-0">Everyone updated.</p>
-          <?php else: ?>
-          <ul class="mw-pulse-list mw-pulse-list--compact mw-pulse-list--missing">
-            <?php foreach ($da['not_logged']['items'] as $row): ?>
-            <li><span class="mw-pulse-item-primary"><?php echo esc_view(isset($row['label']) ? $row['label'] : $row['name'], ENT_QUOTES, 'UTF-8'); ?></span></li>
-            <?php endforeach; ?>
-          </ul>
-          <?php $render_more($da['not_logged']); ?>
-          <?php endif; ?>
+        <div>
+            <h3 class="premium-card-title">Clients added</h3>
+            <p class="premium-card-subtitle">Snapshot of today's records</p>
+        </div>
+        <div class="premium-card-menu">
+            <?php $pulse_count_badge($clients['total']); ?>
         </div>
       </div>
-    </section>
+      <?php if (empty($clients['items'])): ?>
+      <p class="mw-pulse-empty">No clients added today.</p>
+      <?php else: ?>
+      <ul class="mw-pulse-chips">
+        <?php foreach ($clients['items'] as $c): ?>
+        <li>
+          <a class="mw-pulse-chip" href="<?php echo esc_view($c['url'], ENT_QUOTES, 'UTF-8'); ?>"<?php echo !empty($c['client_code']) ? ' title="' . esc_view($c['client_code'], ENT_QUOTES, 'UTF-8') . '"' : ''; ?>>
+            <?php echo esc_view($c['company_name'] !== '' ? $c['company_name'] : 'Client #' . (int) $c['id'], ENT_QUOTES, 'UTF-8'); ?>
+          </a>
+        </li>
+        <?php endforeach; ?>
+      </ul>
+      <?php $render_more($clients); ?>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
 
-    <?php
-      $pulse_history_meta = function ($row) {
-          $parts = array();
-          if (!empty($row['project_name'])) {
-              $parts[] = (string) $row['project_name'];
-          }
-          if (!empty($row['client_name'])) {
-              $parts[] = (string) $row['client_name'];
-          }
-          if (!empty($row['action'])) {
-              $parts[] = (string) $row['action'];
-          }
-          if (!empty($row['user_name'])) {
-              $parts[] = (string) $row['user_name'];
-          }
-          if (!empty($row['at'])) {
-              $parts[] = date('H:i', strtotime($row['at']));
-          }
-          if (empty($parts)) {
-              return;
-          }
-          echo '<span class="mw-pulse-item-meta">' . esc_view(implode(' · ', $parts), ENT_QUOTES, 'UTF-8') . '</span>';
-      };
-    ?>
-
-    <?php $ph = $section('project_history'); if (!is_array($ph)) { $ph = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
-    <section class="mw-pulse-card">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-kanban"></i>Project Task History</h3>
-        <?php $pulse_count_badge(isset($ph['total']) ? $ph['total'] : 0); ?>
-      </div>
-      <?php if (empty($ph['items'])): ?>
-      <p class="mw-pulse-empty">No project task activity today.</p>
-      <?php else: ?>
-      <ul class="mw-pulse-list mw-pulse-list--compact">
-        <?php foreach ($ph['items'] as $row): ?>
-        <li title="<?php echo esc_view($row['title'] . (!empty($row['project_name']) ? ' · ' . $row['project_name'] : '') . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
-          <a class="mw-pulse-item-primary" href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?></a>
-          <?php $pulse_history_meta($row); ?>
-        </li>
-        <?php endforeach; ?>
-      </ul>
-      <?php $render_more($ph); ?>
-      <?php endif; ?>
-    </section>
-
-    <?php $ch = $section('client_history'); if (!is_array($ch)) { $ch = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
-    <section class="mw-pulse-card">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-building"></i>Client Task History</h3>
-        <?php $pulse_count_badge(isset($ch['total']) ? $ch['total'] : 0); ?>
-      </div>
-      <?php if (empty($ch['items'])): ?>
-      <p class="mw-pulse-empty">No client task activity today.</p>
-      <?php else: ?>
-      <ul class="mw-pulse-list mw-pulse-list--compact">
-        <?php foreach ($ch['items'] as $row): ?>
-        <li title="<?php echo esc_view($row['title'] . (!empty($row['client_name']) ? ' · ' . $row['client_name'] : '') . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
-          <a class="mw-pulse-item-primary" href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?></a>
-          <?php $pulse_history_meta($row); ?>
-        </li>
-        <?php endforeach; ?>
-      </ul>
-      <?php $render_more($ch); ?>
-      <?php endif; ?>
-    </section>
-
-    <?php $ah = $section('adhoc_history'); if (!is_array($ah)) { $ah = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
-    <section class="mw-pulse-card">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-lightning"></i>Ad hoc Task History</h3>
-        <?php $pulse_count_badge(isset($ah['total']) ? $ah['total'] : 0); ?>
-      </div>
-      <?php if (empty($ah['items'])): ?>
-      <p class="mw-pulse-empty">No ad hoc task activity today.</p>
-      <?php else: ?>
-      <ul class="mw-pulse-list mw-pulse-list--compact">
-        <?php foreach ($ah['items'] as $row): ?>
-        <li title="<?php echo esc_view($row['title'] . ' · ' . $row['action'], ENT_QUOTES, 'UTF-8'); ?>">
-          <a class="mw-pulse-item-primary" href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?></a>
-          <?php $pulse_history_meta($row); ?>
-        </li>
-        <?php endforeach; ?>
-      </ul>
-      <?php $render_more($ah); ?>
-      <?php endif; ?>
-    </section>
 
     <?php $reqs = $section('requirements_added'); if ($reqs !== null): ?>
-    <section class="mw-pulse-card">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-clipboard-check"></i>Requirements added</h3>
-        <?php $pulse_count_badge($reqs['total']); ?>
+    <div class="premium-card">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-orange">
+            <i class="bi bi bi-clipboard-check"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Requirements added</h3>
+            <p class="premium-card-subtitle">Snapshot of today's records</p>
+        </div>
+        <div class="premium-card-menu">
+            <?php $pulse_count_badge($reqs['total']); ?>
+        </div>
       </div>
       <?php if (empty($reqs['items'])): ?>
       <p class="mw-pulse-empty">No requirements added today.</p>
@@ -341,14 +244,22 @@ $pulse_count_badge = function ($total) {
       </ul>
       <?php $render_more($reqs); ?>
       <?php endif; ?>
-    </section>
+    </div>
     <?php endif; ?>
 
     <?php $defs = $section('defects_added'); if ($defs !== null): ?>
-    <section class="mw-pulse-card">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-bug"></i>Defects added</h3>
-        <?php $pulse_count_badge($defs['total']); ?>
+    <div class="premium-card">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-purple">
+            <i class="bi bi bi-bug"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Defects added</h3>
+            <p class="premium-card-subtitle">Snapshot of today's records</p>
+        </div>
+        <div class="premium-card-menu">
+            <?php $pulse_count_badge($defs['total']); ?>
+        </div>
       </div>
       <?php if (empty($defs['items'])): ?>
       <p class="mw-pulse-empty">No defects added today.</p>
@@ -363,14 +274,22 @@ $pulse_count_badge = function ($total) {
       </ul>
       <?php $render_more($defs); ?>
       <?php endif; ?>
-    </section>
+    </div>
     <?php endif; ?>
 
     <?php $ov = $section('overview_today'); if (is_array($ov)): ?>
-    <section class="mw-pulse-card mw-pulse-card--wide">
-      <div class="mw-pulse-card-head">
-        <h3 class="mw-pulse-card-title"><i class="bi bi-sunrise"></i>Overview — Today</h3>
-        <a class="btn btn-sm btn-outline-primary mw-pulse-action" href="<?php echo esc_view($ov['url'], ENT_QUOTES, 'UTF-8'); ?>">Open Overview</a>
+    <div class="premium-card" style="width: 100%;">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-blue">
+            <i class="bi bi bi-sunrise"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Overview — Today</h3>
+            <p class="premium-card-subtitle">Snapshot of today's records</p>
+        </div>
+        <div class="premium-card-menu">
+            <a class="btn btn-sm btn-outline-primary mw-pulse-action" href="<?php echo esc_view($ov['url'], ENT_QUOTES, 'UTF-8'); ?>">Open Overview</a>
+        </div>
       </div>
       <div class="mw-pulse-cols mw-pulse-cols--2">
         <div class="mw-pulse-col">
@@ -406,11 +325,424 @@ $pulse_count_badge = function ($total) {
           <?php endif; ?>
         </div>
       </div>
-    </section>
+    </div>
     <?php endif; ?>
-
   </div>
 </div>
+<div class="tab-pane fade" id="pulse-updates" role="tabpanel" aria-labelledby="pulse-updates-tab">
+      
+<style>
+.pulse-updates-wrapper {
+    margin-top: 16px;
+}
+.mw-pulse-cols--2 {
+    gap: 24px;
+}
+.premium-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #f1f3f5;
+    box-shadow: 0px 2px 12px rgba(0, 0, 0, 0.04);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.premium-card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.premium-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+.bg-light-blue { background: #e0e7ff; color: #4f46e5; }
+.bg-light-green { background: #dcfce7; color: #16a34a; }
+.bg-light-purple { background: #f3e8ff; color: #9333ea; }
+.bg-light-orange { background: #ffedd5; color: #ea580c; }
+
+.premium-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+    line-height: 1.2;
+}
+.premium-card-subtitle {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 2px 0 0 0;
+}
+.premium-card-menu {
+    margin-left: auto;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.premium-table-wrap {
+    flex-grow: 1;
+    overflow-x: auto;
+}
+.premium-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8rem;
+}
+.premium-table thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    padding: 6px 8px;
+    border: none;
+    letter-spacing: 0.05em;
+    white-space: normal;
+}
+.premium-table thead th:first-child {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+.premium-table thead th:last-child {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+.premium-table tbody td {
+    padding: 6px 8px;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    line-height: 1.3;
+}
+.premium-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.premium-title-link {
+    color: #0f172a;
+    font-weight: 500;
+    text-decoration: none;
+}
+.premium-title-link:hover {
+    color: #4f46e5;
+}
+.premium-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    display: inline-block;
+}
+.badge-success-light { background: #dcfce7; color: #16a34a; }
+.badge-warning-light { background: #ffedd5; color: #ea580c; }
+.badge-info-light { background: #e0f2fe; color: #0284c7; }
+.badge-purple-light { background: #f3e8ff; color: #9333ea; }
+.badge-gray-light { background: #f1f5f9; color: #64748b; }
+
+.premium-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+.premium-footer-link {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #4f46e5;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.premium-footer-link:hover {
+    text-decoration: underline;
+}
+</style>
+      <div class="pulse-updates-wrapper">
+      <div class="mw-pulse-grid mw-pulse-cols mw-pulse-cols--2">
+    <?php $client_history_var = $section('client_history'); if (!is_array($client_history_var)) { $client_history_var = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
+    <div class="premium-card">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-blue">
+            <i class="bi bi-building"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Client History</h3>
+            <p class="premium-card-subtitle">Real-time overview of client updates</p>
+        </div>
+        <div class="premium-card-menu"><i class="bi bi-three-dots-vertical"></i></div>
+      </div>
+      
+      <?php if (empty($client_history_var['items'])): ?>
+      <p class="text-muted" style="font-size:0.9rem;">No activity today.</p>
+      <?php else: ?>
+      <div class="premium-table-wrap">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Project</th>
+              <th>Client</th>
+              <th>Action / Status</th>
+              <th>Created By</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach (array_slice($client_history_var['items'], 0, 5) as $row): ?>
+            <?php 
+                // Determine badge color based on action
+                $action_lower = strtolower($row['action']);
+                $badge_class = 'badge-gray-light';
+                if (strpos($action_lower, 'add') !== false || strpos($action_lower, 'create') !== false) $badge_class = 'badge-success-light';
+                elseif (strpos($action_lower, 'updat') !== false || strpos($action_lower, 'edit') !== false) $badge_class = 'badge-info-light';
+                elseif (strpos($action_lower, 'delet') !== false || strpos($action_lower, 'remov') !== false) $badge_class = 'badge-warning-light';
+                elseif (strpos($action_lower, 'note') !== false || strpos($action_lower, 'comment') !== false) $badge_class = 'badge-purple-light';
+            ?>
+            <tr>
+              <td>
+                <a href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>" class="premium-title-link" title="<?php echo esc_view($row['detail'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?>
+                </a>
+              </td>
+              <td><?php echo esc_view($row['project_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><?php echo esc_view($row['client_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><span class="premium-badge <?php echo $badge_class; ?>"><?php echo esc_view($row['action'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+              <td><?php echo esc_view($row['user_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td class="text-nowrap text-muted"><?php echo esc_view(date('M j, H:i', strtotime($row['at'])), ENT_QUOTES, 'UTF-8'); ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
+      
+      <div class="premium-footer">
+        <a href="<?php echo site_url('clients'); ?>" class="premium-footer-link">View All Client History <i class="bi bi-chevron-right" style="font-size:0.75rem;"></i></a>
+      </div>
+    </div>
+    <?php $daily_activity_var = $section('daily_activity'); if (!is_array($daily_activity_var)) { $daily_activity_var = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
+    <div class="premium-card">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-purple">
+            <i class="bi bi-journal-text"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Daily Activity</h3>
+            <p class="premium-card-subtitle">Recent work activities logged today</p>
+        </div>
+        <div class="premium-card-menu"><i class="bi bi-three-dots-vertical"></i></div>
+      </div>
+      
+      <?php if (empty($daily_activity_var['items'])): ?>
+      <p class="text-muted" style="font-size:0.9rem;">No activity today.</p>
+      <?php else: ?>
+      <div class="premium-table-wrap">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Project</th>
+              <th>Client</th>
+              <th>Action / Status</th>
+              <th>Created By</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach (array_slice($daily_activity_var['items'], 0, 5) as $row): ?>
+            <?php 
+                // Determine badge color based on action
+                $action_lower = strtolower($row['action']);
+                $badge_class = 'badge-gray-light';
+                if (strpos($action_lower, 'add') !== false || strpos($action_lower, 'create') !== false) $badge_class = 'badge-success-light';
+                elseif (strpos($action_lower, 'updat') !== false || strpos($action_lower, 'edit') !== false) $badge_class = 'badge-info-light';
+                elseif (strpos($action_lower, 'delet') !== false || strpos($action_lower, 'remov') !== false) $badge_class = 'badge-warning-light';
+                elseif (strpos($action_lower, 'note') !== false || strpos($action_lower, 'comment') !== false) $badge_class = 'badge-purple-light';
+            ?>
+            <tr>
+              <td>
+                <a href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>" class="premium-title-link" title="<?php echo esc_view($row['detail'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?>
+                </a>
+              </td>
+              <td><?php echo esc_view($row['project_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><?php echo esc_view($row['client_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><span class="premium-badge <?php echo $badge_class; ?>"><?php echo esc_view($row['action'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+              <td><?php echo esc_view($row['user_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td class="text-nowrap text-muted"><?php echo esc_view(date('M j, H:i', strtotime($row['at'])), ENT_QUOTES, 'UTF-8'); ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
+      
+      <div class="premium-footer">
+        <a href="<?php echo site_url('daily-activity/list'); ?>" class="premium-footer-link">View All Daily Activity <i class="bi bi-chevron-right" style="font-size:0.75rem;"></i></a>
+      </div>
+    </div>
+    <?php $adhoc_history_var = $section('adhoc_history'); if (!is_array($adhoc_history_var)) { $adhoc_history_var = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
+    <div class="premium-card">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-orange">
+            <i class="bi bi-lightning"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Ad hoc History</h3>
+            <p class="premium-card-subtitle">Updates on ad hoc assignments</p>
+        </div>
+        <div class="premium-card-menu"><i class="bi bi-three-dots-vertical"></i></div>
+      </div>
+      
+      <?php if (empty($adhoc_history_var['items'])): ?>
+      <p class="text-muted" style="font-size:0.9rem;">No activity today.</p>
+      <?php else: ?>
+      <div class="premium-table-wrap">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Project</th>
+              <th>Client</th>
+              <th>Action / Status</th>
+              <th>Created By</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach (array_slice($adhoc_history_var['items'], 0, 5) as $row): ?>
+            <?php 
+                // Determine badge color based on action
+                $action_lower = strtolower($row['action']);
+                $badge_class = 'badge-gray-light';
+                if (strpos($action_lower, 'add') !== false || strpos($action_lower, 'create') !== false) $badge_class = 'badge-success-light';
+                elseif (strpos($action_lower, 'updat') !== false || strpos($action_lower, 'edit') !== false) $badge_class = 'badge-info-light';
+                elseif (strpos($action_lower, 'delet') !== false || strpos($action_lower, 'remov') !== false) $badge_class = 'badge-warning-light';
+                elseif (strpos($action_lower, 'note') !== false || strpos($action_lower, 'comment') !== false) $badge_class = 'badge-purple-light';
+            ?>
+            <tr>
+              <td>
+                <a href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>" class="premium-title-link" title="<?php echo esc_view($row['detail'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?>
+                </a>
+              </td>
+              <td><?php echo esc_view($row['project_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><?php echo esc_view($row['client_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><span class="premium-badge <?php echo $badge_class; ?>"><?php echo esc_view($row['action'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+              <td><?php echo esc_view($row['user_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td class="text-nowrap text-muted"><?php echo esc_view(date('M j, H:i', strtotime($row['at'])), ENT_QUOTES, 'UTF-8'); ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
+      
+      <div class="premium-footer">
+        <a href="<?php echo site_url('my-works'); ?>" class="premium-footer-link">View All Ad hoc History <i class="bi bi-chevron-right" style="font-size:0.75rem;"></i></a>
+      </div>
+    </div>
+    <?php $project_history_var = $section('project_history'); if (!is_array($project_history_var)) { $project_history_var = array('items' => array(), 'total' => 0, 'more' => 0); } ?>
+    <div class="premium-card">
+      <div class="premium-card-header">
+        <div class="premium-icon-box bg-light-green">
+            <i class="bi bi-kanban"></i>
+        </div>
+        <div>
+            <h3 class="premium-card-title">Project History</h3>
+            <p class="premium-card-subtitle">Latest progress on project updates</p>
+        </div>
+        <div class="premium-card-menu"><i class="bi bi-three-dots-vertical"></i></div>
+      </div>
+      
+      <?php if (empty($project_history_var['items'])): ?>
+      <p class="text-muted" style="font-size:0.9rem;">No activity today.</p>
+      <?php else: ?>
+      <div class="premium-table-wrap">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Project</th>
+              <th>Client</th>
+              <th>Action / Status</th>
+              <th>Created By</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach (array_slice($project_history_var['items'], 0, 5) as $row): ?>
+            <?php 
+                // Determine badge color based on action
+                $action_lower = strtolower($row['action']);
+                $badge_class = 'badge-gray-light';
+                if (strpos($action_lower, 'add') !== false || strpos($action_lower, 'create') !== false) $badge_class = 'badge-success-light';
+                elseif (strpos($action_lower, 'updat') !== false || strpos($action_lower, 'edit') !== false) $badge_class = 'badge-info-light';
+                elseif (strpos($action_lower, 'delet') !== false || strpos($action_lower, 'remov') !== false) $badge_class = 'badge-warning-light';
+                elseif (strpos($action_lower, 'note') !== false || strpos($action_lower, 'comment') !== false) $badge_class = 'badge-purple-light';
+            ?>
+            <tr>
+              <td>
+                <a href="<?php echo esc_view($row['url'], ENT_QUOTES, 'UTF-8'); ?>" class="premium-title-link" title="<?php echo esc_view($row['detail'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php echo esc_view($row['title'], ENT_QUOTES, 'UTF-8'); ?>
+                </a>
+              </td>
+              <td><?php echo esc_view($row['project_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><?php echo esc_view($row['client_name'] ?: '-', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><span class="premium-badge <?php echo $badge_class; ?>"><?php echo esc_view($row['action'], ENT_QUOTES, 'UTF-8'); ?></span></td>
+              <td><?php echo esc_view($row['user_name'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td class="text-nowrap text-muted"><?php echo esc_view(date('M j, H:i', strtotime($row['at'])), ENT_QUOTES, 'UTF-8'); ?></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php endif; ?>
+      
+      <div class="premium-footer">
+        <a href="<?php echo site_url('projects'); ?>" class="premium-footer-link">View All Project History <i class="bi bi-chevron-right" style="font-size:0.75rem;"></i></a>
+      </div>
+    </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var currentTab = urlParams.get('tab');
+    
+    if (currentTab === 'pulse-updates' || currentTab === 'pulse-summary') {
+        var tabBtn = document.getElementById(currentTab + '-tab');
+        if (tabBtn && typeof bootstrap !== 'undefined') {
+            var bsTab = new bootstrap.Tab(tabBtn);
+            bsTab.show();
+        }
+    }
+
+    var tabs = document.querySelectorAll('#pulseTabs .nav-link');
+    tabs.forEach(function(tab) {
+        tab.addEventListener('shown.bs.tab', function(e) {
+            var id = e.target.id.replace('-tab', '');
+            var url = new URL(window.location.href);
+            url.searchParams.set('tab', id);
+            window.history.replaceState({}, '', url);
+        });
+    });
+})();
+</script>
 
 <?php if (!$embed): ?>
 <?php $this->load->view('partials/footer'); ?>

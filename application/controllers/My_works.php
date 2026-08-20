@@ -429,8 +429,12 @@ class My_works extends CI_Controller
         $embed = (bool)$this->input->get('embed');
         if (!$embed) {
             $this->load->helper('my_works');
+            $tab = $this->input->get('tab') ?: 'overview';
+            if ($tab === 'pulse-updates' || $tab === 'pulse-summary') {
+                $tab = 'daily-pulse';
+            }
             $this->load->view('my_works/unified', [
-                'active_tab' => $this->input->get('tab') ?: 'overview',
+                'active_tab' => $tab,
                 'complete_view_on' => dashboard_parse_complete_view($this->input) === 'only',
             ]);
             return;
