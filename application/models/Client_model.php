@@ -81,13 +81,36 @@ class Client_model extends CI_Model {
     }
 
     public function get_clients($filters = [], $limit = null, $offset = 0){
+        $has_acct_mgr = schema_table_has_column($this->db, 'clients', 'account_manager_id');
+        $has_users    = $this->db->table_exists('users');
+
+        // Explicit SELECT to avoid ambiguous column conflicts when joining
+        $select_cols = 'clients.*, ';
+        if ($has_acct_mgr && $has_users) {
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select_cols .= 'COALESCE(NULLIF(TRIM(am.full_name), ""), am.name) AS account_manager_name';
+            } else if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select_cols .= 'am.name AS account_manager_name';
+            } else {
+                $select_cols .= 'NULL AS account_manager_name';
+            }
+        } else {
+            $select_cols .= 'NULL AS account_manager_name';
+        }
+
+        $this->db->select($select_cols, false);
         $this->db->from('clients');
+
+        if ($has_acct_mgr && $has_users) {
+            $this->db->join('users am', 'am.id = clients.account_manager_id', 'left');
+        }
+
         $this->apply_filters($filters);
 
         $allowed_sort = array(
-            'client_type' => 'client_type',
-            'company_name' => 'company_name',
-            'created_at' => 'created_at',
+            'client_type' => 'clients.client_type',
+            'company_name' => 'clients.company_name',
+            'created_at' => 'clients.created_at',
         );
         $sort = isset($filters['sort']) ? (string) $filters['sort'] : '';
         $dir = isset($filters['dir']) ? strtolower((string) $filters['dir']) : 'asc';
@@ -97,11 +120,11 @@ class Client_model extends CI_Model {
         if ($sort !== '' && isset($allowed_sort[$sort])) {
             $this->db->order_by($allowed_sort[$sort], strtoupper($dir));
             if ($sort !== 'company_name') {
-                $this->db->order_by('company_name', 'ASC');
+                $this->db->order_by('clients.company_name', 'ASC');
             }
         } else {
-            $this->db->order_by('company_name', 'ASC');
-            $this->db->order_by('client_type', 'ASC');
+            $this->db->order_by('clients.company_name', 'ASC');
+            $this->db->order_by('clients.client_type', 'ASC');
         }
 
         if ($limit !== null){ $this->db->limit((int)$limit, (int)$offset); }
@@ -132,7 +155,7 @@ class Client_model extends CI_Model {
         if (!empty($filters['ids']) && is_array($filters['ids'])) {
             $ids = array_values(array_filter(array_map('intval', $filters['ids'])));
             if (!empty($ids)) {
-                $this->db->where_in('id', $ids);
+                $this->db->where_in('clients.id', $ids);
             }
         }
     }
