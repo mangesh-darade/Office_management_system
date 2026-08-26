@@ -96,6 +96,50 @@ if (!$embed):
     margin-top: 0.35rem !important;
     border-radius: 8px !important;
 }
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table {
+    table-layout: fixed;
+    width: 100%;
+}
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table th,
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table td {
+    padding: 4px 3px !important;
+}
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(1),
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(1) {
+    width: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(2),
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(2) {
+    width: 48px !important;
+    text-align: center;
+}
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(3),
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(3) {
+    width: 30px !important;
+    text-align: right;
+}
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(4),
+.team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(4) {
+    width: 95px !important;
+    text-align: left;
+}
+.team-dash-index:not(.is-user-filtered) .project-dash-status-select {
+    width: 95px !important;
+    max-width: 95px !important;
+    min-width: 95px !important;
+    font-size: 0.65rem !important;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.1rem 1.15rem 0.1rem 0.3rem !important;
+    border-radius: 4px !important;
+    min-height: 1.45rem;
+    height: auto;
+    background-position: right 0.25rem center !important;
+    background-size: 10px 8px !important;
+}
 </style>
 
 <?php
@@ -312,6 +356,7 @@ if (!$embed) {
       $table_class = isset($options['table_class']) ? (string) $options['table_class'] : 'table table-sm project-dash-task-table mb-0';
       $is_full = !empty($options['full_width']);
       $show_client_project = isset($options['show_client_project']) ? !empty($options['show_client_project']) : $is_full;
+      $show_created_at = isset($options['show_created_at']) ? !empty($options['show_created_at']) : $is_full;
       $show_act = !empty($complete_view_on);
       $allow_add = $can_add_task && !empty($options['allow_add']);
 
@@ -326,7 +371,7 @@ if (!$embed) {
           echo '</div>';
       }
 
-      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . ' team-dash-items-table" data-can-add="' . ($allow_add ? '1' : '0') . '" data-show-client-project="' . ($show_client_project ? '1' : '0') . '">';
+      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . ' team-dash-items-table" data-can-add="' . ($allow_add ? '1' : '0') . '" data-show-client-project="' . ($show_client_project ? '1' : '0') . '" data-show-created-at="' . ($show_created_at ? '1' : '0') . '">';
       echo '<thead><tr>';
       echo '<th>Task</th>';
       if ($show_client_project) {
@@ -334,12 +379,14 @@ if (!$embed) {
           echo '<th>Project</th>';
       }
       echo '<th>Date</th>';
-      echo '<th>Created At</th>';
+      if ($show_created_at) {
+          echo '<th>Created At</th>';
+      }
       echo '<th class="text-end">Est</th>';
       if ($show_act) {
           echo '<th class="text-end">Act</th>';
       }
-      echo '<th>Status</th>';
+      echo '<th class="text-start" style="min-width:95px;">Status</th>';
       echo '</tr></thead><tbody>';
 
       if (!function_exists('estimate_hours_row')) {
@@ -397,7 +444,9 @@ if (!$embed) {
             <td>
               <span class="project-dash-date" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
             </td>
+            <?php if ($show_created_at): ?>
             <td class="text-nowrap text-muted" style="font-size:0.75rem;"><?php echo esc_view($item_created_at !== '' ? $item_created_at : '—'); ?></td>
+            <?php endif; ?>
             <td class="text-end text-nowrap project-dash-est" title="Estimate (hrs)"><?php echo esc_view($item_est); ?></td>
             <?php if ($show_act): ?>
             <td class="text-end text-nowrap project-dash-act" title="Actual (hrs)"><?php echo esc_view($item_act); ?></td>
@@ -582,7 +631,7 @@ if (!$embed) {
     </select>
   </td>
   <td><span class="project-dash-date text-muted">—</span></td>
-  <td class="text-muted" style="font-size:0.75rem;">—</td>
+  <td class="text-muted team-dash-inline-created-cell" style="font-size:0.75rem;">—</td>
   <td class="text-end text-nowrap project-dash-est text-muted">—</td>
   <?php if ($complete_view_on): ?>
   <td class="text-end text-nowrap project-dash-act text-muted">—</td>
@@ -737,6 +786,7 @@ if (!$embed) {
     var client = data.client_name || '—';
     var project = data.project_name || '—';
     var showCP = $table && $table.length ? ($table.attr('data-show-client-project') === '1') : false;
+    var showCreatedAt = $table && $table.length ? ($table.attr('data-show-created-at') === '1') : false;
     var html = '<tr class="project-dash-task-row project-dash-task-row-' + escapeHtml(status) + '" style="--pd-row-status-color:' + escapeHtml(color) + ';background:' + escapeHtml(bg) + ';">';
     html += '<td><a href="' + escapeHtml(url) + '" class="project-dash-task-title" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</a></td>';
     if (showCP) {
@@ -744,6 +794,9 @@ if (!$embed) {
       html += '<td><span class="team-dash-project text-muted" title="' + escapeHtml(project) + '">' + escapeHtml(project) + '</span></td>';
     }
     html += '<td><span class="project-dash-date">—</span></td>';
+    if (showCreatedAt) {
+      html += '<td class="text-muted" style="font-size:0.75rem;">—</td>';
+    }
     html += '<td class="text-end text-nowrap project-dash-est">—</td>';
     if (showAct) {
       html += '<td class="text-end text-nowrap project-dash-act">—</td>';
@@ -845,6 +898,9 @@ if (!$embed) {
       var row = tpl.content.firstElementChild.cloneNode(true);
       if ($table.attr('data-show-client-project') !== '1') {
         $(row).find('.team-dash-inline-client-cell, .team-dash-inline-project-cell').remove();
+      }
+      if ($table.attr('data-show-created-at') !== '1') {
+        $(row).find('.team-dash-inline-created-cell').remove();
       }
       var $col = $(this).closest('[data-assignee-id]');
       if ($col.length) {
