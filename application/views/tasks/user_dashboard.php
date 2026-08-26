@@ -311,6 +311,7 @@ if (!$embed) {
       $table_id = isset($options['table_id']) ? (string) $options['table_id'] : '';
       $table_class = isset($options['table_class']) ? (string) $options['table_class'] : 'table table-sm project-dash-task-table mb-0';
       $is_full = !empty($options['full_width']);
+      $show_client_project = isset($options['show_client_project']) ? !empty($options['show_client_project']) : $is_full;
       $show_act = !empty($complete_view_on);
       $allow_add = $can_add_task && !empty($options['allow_add']);
 
@@ -325,12 +326,15 @@ if (!$embed) {
           echo '</div>';
       }
 
-      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . ' team-dash-items-table" data-can-add="' . ($allow_add ? '1' : '0') . '">';
+      echo '<table' . ($table_id !== '' ? ' id="' . esc_view($table_id, ENT_QUOTES, 'UTF-8') . '"' : '') . ' class="' . esc_view($table_class, ENT_QUOTES, 'UTF-8') . ' team-dash-items-table" data-can-add="' . ($allow_add ? '1' : '0') . '" data-show-client-project="' . ($show_client_project ? '1' : '0') . '">';
       echo '<thead><tr>';
       echo '<th>Task</th>';
-      echo '<th>Client</th>';
-      echo '<th>Project</th>';
+      if ($show_client_project) {
+          echo '<th>Client</th>';
+          echo '<th>Project</th>';
+      }
       echo '<th>Date</th>';
+      echo '<th>Created At</th>';
       echo '<th class="text-end">Est</th>';
       if ($show_act) {
           echo '<th class="text-end">Act</th>';
@@ -350,6 +354,13 @@ if (!$embed) {
               $parsed = strtotime($item_date);
               if ($parsed) {
                   $item_date = date('d M', $parsed);
+              }
+          }
+          $item_created_at = '';
+          if (!empty($item['created_at'])) {
+              $cat_ts = strtotime((string) $item['created_at']);
+              if ($cat_ts) {
+                  $item_created_at = date('d M Y', $cat_ts);
               }
           }
           $badge_color = isset($item['status_color']) ? (string) $item['status_color'] : '#6b7280';
@@ -379,11 +390,14 @@ if (!$embed) {
                 <?php echo esc_view($item_title); ?>
               </a>
             </td>
+            <?php if ($show_client_project): ?>
             <td><span class="team-dash-client text-muted" title="<?php echo esc_view($item_client !== '' ? $item_client : '—', ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_client !== '' ? $item_client : '—'); ?></span></td>
             <td><span class="team-dash-project text-muted" title="<?php echo esc_view($item_project !== '' ? $item_project : '—', ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_project !== '' ? $item_project : '—'); ?></span></td>
+            <?php endif; ?>
             <td>
               <span class="project-dash-date" title="<?php echo esc_view($item_date, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_date); ?></span>
             </td>
+            <td class="text-nowrap text-muted" style="font-size:0.75rem;"><?php echo esc_view($item_created_at !== '' ? $item_created_at : '—'); ?></td>
             <td class="text-end text-nowrap project-dash-est" title="Estimate (hrs)"><?php echo esc_view($item_est); ?></td>
             <?php if ($show_act): ?>
             <td class="text-end text-nowrap project-dash-act" title="Actual (hrs)"><?php echo esc_view($item_act); ?></td>
@@ -426,6 +440,27 @@ if (!$embed) {
       $focus_item_count = count($items);
     ?>
     <div class="table-responsive bg-white border shadow-sm team-dash-focus-table-wrap">
+      <?php
+        // Total est hours stat for focused user
+        $total_est_hrs = 0;
+        foreach ($items as $_it) {
+            if (!empty($_it['estimate_hours'])) {
+                $total_est_hrs += (float) $_it['estimate_hours'];
+            }
+        }
+      ?>
+      <?php if ($total_est_hrs > 0): ?>
+      <div class="d-flex gap-4 px-3 py-2 justify-content-end align-items-center" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+        <div class="d-flex flex-column align-items-end" style="line-height:1.2;">
+          <span class="text-muted" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Items</span>
+          <span class="fw-bold text-dark" style="font-size:0.9rem;"><?php echo (int) $focus_item_count; ?></span>
+        </div>
+        <div class="d-flex flex-column align-items-end" style="line-height:1.2;">
+          <span class="text-muted" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Total Estimated</span>
+          <span class="fw-bold text-primary" style="font-size:0.9rem;"><?php echo number_format($total_est_hrs, 1); ?> <span style="font-size:0.75rem;font-weight:500;">hrs</span></span>
+        </div>
+      </div>
+      <?php endif; ?>
       <?php if (empty($items) && !$can_add_task): ?>
         <div class="text-center py-3 text-muted small">
           <i class="bi bi-inbox d-block mb-1" style="font-size:1.5rem;"></i>
@@ -433,10 +468,11 @@ if (!$embed) {
         </div>
       <?php else: ?>
         <?php $render_team_dash_items_table($items, array(
-          'table_id'    => 'unifiedEmployeeTasksTable',
-          'table_class' => 'table table-hover table-striped datatable sortable-table align-middle mb-0',
-          'full_width'  => true,
-          'allow_add'   => true,
+          'table_id'            => 'unifiedEmployeeTasksTable',
+          'table_class'         => 'table table-hover table-striped datatable sortable-table align-middle mb-0',
+          'full_width'          => true,
+          'allow_add'           => true,
+          'show_client_project' => true,
         )); ?>
       <?php endif; ?>
     </div>
@@ -529,7 +565,7 @@ if (!$embed) {
 <template id="teamDashInlineRowTpl">
 <tr class="team-dash-inline-row project-dash-task-row">
   <td><input type="text" class="form-control form-control-sm team-dash-inline-title" maxlength="500" placeholder="Title" aria-label="Task title"></td>
-  <td>
+  <td class="team-dash-inline-client-cell">
     <select class="form-select form-select-sm team-dash-inline-client" aria-label="Client">
       <option value="">Client</option>
       <?php foreach ($dash_clients as $cl): ?>
@@ -537,7 +573,7 @@ if (!$embed) {
       <?php endforeach; ?>
     </select>
   </td>
-  <td>
+  <td class="team-dash-inline-project-cell">
     <select class="form-select form-select-sm team-dash-inline-project" aria-label="Project">
       <option value="">Project</option>
       <?php foreach ($dash_projects as $pr): ?>
@@ -546,6 +582,7 @@ if (!$embed) {
     </select>
   </td>
   <td><span class="project-dash-date text-muted">—</span></td>
+  <td class="text-muted" style="font-size:0.75rem;">—</td>
   <td class="text-end text-nowrap project-dash-est text-muted">—</td>
   <?php if ($complete_view_on): ?>
   <td class="text-end text-nowrap project-dash-act text-muted">—</td>
@@ -611,6 +648,7 @@ if (!$embed) {
   var createUrl = <?php echo json_encode(site_url('tasks/ajax-dashboard-create-task')); ?>;
   var focusAssigneeId = <?php echo (int) $filter_user_id; ?>;
   var showAct = <?php echo $complete_view_on ? 'true' : 'false'; ?>;
+  var showClientProject = <?php echo !empty($show_client_project) ? 'true' : 'false'; ?>;
   var canAddTask = <?php echo $can_add_task ? 'true' : 'false'; ?>;
   <?php
   $team_dash_status_js = array();
@@ -698,10 +736,13 @@ if (!$embed) {
     var url = data.url || '#';
     var client = data.client_name || '—';
     var project = data.project_name || '—';
+    var showCP = $table && $table.length ? ($table.attr('data-show-client-project') === '1') : false;
     var html = '<tr class="project-dash-task-row project-dash-task-row-' + escapeHtml(status) + '" style="--pd-row-status-color:' + escapeHtml(color) + ';background:' + escapeHtml(bg) + ';">';
     html += '<td><a href="' + escapeHtml(url) + '" class="project-dash-task-title" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</a></td>';
-    html += '<td><span class="team-dash-client text-muted" title="' + escapeHtml(client) + '">' + escapeHtml(client) + '</span></td>';
-    html += '<td><span class="team-dash-project text-muted" title="' + escapeHtml(project) + '">' + escapeHtml(project) + '</span></td>';
+    if (showCP) {
+      html += '<td><span class="team-dash-client text-muted" title="' + escapeHtml(client) + '">' + escapeHtml(client) + '</span></td>';
+      html += '<td><span class="team-dash-project text-muted" title="' + escapeHtml(project) + '">' + escapeHtml(project) + '</span></td>';
+    }
     html += '<td><span class="project-dash-date">—</span></td>';
     html += '<td class="text-end text-nowrap project-dash-est">—</td>';
     if (showAct) {
@@ -802,6 +843,9 @@ if (!$embed) {
       }
       destroyTeamDashDataTable($table);
       var row = tpl.content.firstElementChild.cloneNode(true);
+      if ($table.attr('data-show-client-project') !== '1') {
+        $(row).find('.team-dash-inline-client-cell, .team-dash-inline-project-cell').remove();
+      }
       var $col = $(this).closest('[data-assignee-id]');
       if ($col.length) {
         row.setAttribute('data-assignee-id', $col.attr('data-assignee-id') || '');
@@ -849,8 +893,8 @@ if (!$embed) {
       }
       var payload = {
         title: title,
-        client_id: $row.find('.team-dash-inline-client').val() || '',
-        project_id: $row.find('.team-dash-inline-project').val() || ''
+        client_id: $row.find('.team-dash-inline-client').length ? ($row.find('.team-dash-inline-client').val() || '') : '',
+        project_id: $row.find('.team-dash-inline-project').length ? ($row.find('.team-dash-inline-project').val() || '') : ''
       };
       var assignee = parseInt($row.attr('data-assignee-id') || '0', 10) || 0;
       if (assignee > 0) {

@@ -43,8 +43,8 @@ $this->load->view('partials/header', array('title' => 'Edit Client'));
               <input type="email" name="email" id="email" class="form-control" value="<?php echo esc_view(isset($client->email)?$client->email:''); ?>">
             </div>
             <div class="col-lg-3 col-md-6">
-              <label class="form-label" for="phone">Phone <span class="text-danger">*</span></label>
-              <input type="text" name="phone" id="phone" class="form-control" data-mandatory="true" data-min-length="10" data-max-length="20" data-pattern="^[0-9+\s\-\(\)]+$" required value="<?php echo esc_view(isset($client->phone)?$client->phone:''); ?>">
+              <label class="form-label" for="phone">Phone</label>
+              <input type="text" name="phone" id="phone" class="form-control" data-max-length="20" data-pattern="^[0-9+\s\-\(\)]*$" value="<?php echo esc_view(isset($client->phone)?$client->phone:''); ?>">
             </div>
             <div class="col-lg-3 col-md-6">
               <label class="form-label">Alternate Phone</label>

@@ -584,7 +584,7 @@ class Clients extends CI_Controller {
                 // Mandatory fields
                 $this->form_validation->set_rules('company_name', 'Company Name', 'required|trim|min_length[2]|max_length[255]');
                 $this->form_validation->set_rules('contact_person', 'Contact Person', 'required|trim|min_length[2]|max_length[200]');
-                $this->form_validation->set_rules('phone', 'Phone', 'required|trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
+                $this->form_validation->set_rules('phone', 'Phone', 'trim|max_length[20]|regex_match[/^[0-9+\s\-\(\)]*$/]');
                 
                 if ($this->form_validation->run() == FALSE) {
                     $errors = validation_errors();
@@ -607,11 +607,6 @@ class Clients extends CI_Controller {
                 }
                 if (empty($contact_person)) {
                     $this->session->set_flashdata('error', 'Contact Person is required.');
-                    redirect('clients/create');
-                    return;
-                }
-                if (empty($phone)) {
-                    $this->session->set_flashdata('error', 'Phone is required.');
                     redirect('clients/create');
                     return;
                 }
@@ -1214,7 +1209,7 @@ class Clients extends CI_Controller {
                     // Mandatory fields
                     $this->form_validation->set_rules('company_name', 'Company Name', 'required|trim|min_length[2]|max_length[255]');
                     $this->form_validation->set_rules('contact_person', 'Contact Person', 'required|trim|min_length[2]|max_length[200]');
-                    $this->form_validation->set_rules('phone', 'Phone', 'required|trim|min_length[10]|max_length[20]|regex_match[/^[0-9+\s\-\(\)]+$/]');
+                    $this->form_validation->set_rules('phone', 'Phone', 'trim|max_length[20]|regex_match[/^[0-9+\s\-\(\)]*$/]');
                     
                     if ($this->form_validation->run() == FALSE) {
                         $errors = validation_errors();
@@ -1237,11 +1232,6 @@ class Clients extends CI_Controller {
                     }
                     if (empty($contact_person)) {
                         $this->session->set_flashdata('error', 'Contact Person is required.');
-                        redirect('clients/edit/'.$id);
-                        return;
-                    }
-                    if (empty($phone)) {
-                        $this->session->set_flashdata('error', 'Phone is required.');
                         redirect('clients/edit/'.$id);
                         return;
                     }
@@ -1463,12 +1453,12 @@ class Clients extends CI_Controller {
                 $contact_person = $this->_csv_client_get($opened['map'], $row, 'contact_person');
                 $phone = $this->_csv_client_get($opened['map'], $row, 'phone');
 
-                if ($company_name === '' || $contact_person === '' || $phone === '') {
+                if ($company_name === '' || $contact_person === '') {
                     $skipped++;
-                    csv_import_add_row_error($row_errors, $line, 'company_name, contact_person, and phone are required.');
+                    csv_import_add_row_error($row_errors, $line, 'company_name and contact_person are required.');
                     continue;
                 }
-                if (strlen(preg_replace('/\D+/', '', $phone)) < 10) {
+                if ($phone !== '' && strlen(preg_replace('/\D+/', '', $phone)) < 10) {
                     $skipped++;
                     csv_import_add_row_error($row_errors, $line, 'phone must be at least 10 digits.');
                     continue;
