@@ -139,17 +139,17 @@ class Client_model extends CI_Model {
     }
 
     private function apply_filters($filters){
-        if (!empty($filters['status'])){ $this->db->where('status', $filters['status']); }
-        if (!empty($filters['client_type'])){ $this->db->where('client_type', $filters['client_type']); }
+        if (!empty($filters['status'])){ $this->db->where('clients.status', $filters['status']); }
+        if (!empty($filters['client_type'])){ $this->db->where('clients.client_type', $filters['client_type']); }
         if (!empty($filters['search'])){
             $q = trim((string)$filters['search']);
             $this->db->group_start()
-                ->like('company_name', $q)
-                ->or_like('client_code', $q)
-                ->or_like('contact_person', $q)
-                ->or_like('email', $q)
-                ->or_like('phone', $q)
-                ->or_like('website', $q)
+                ->like('clients.company_name', $q)
+                ->or_like('clients.client_code', $q)
+                ->or_like('clients.contact_person', $q)
+                ->or_like('clients.email', $q)
+                ->or_like('clients.phone', $q)
+                ->or_like('clients.website', $q)
             ->group_end();
         }
         if (!empty($filters['ids']) && is_array($filters['ids'])) {
