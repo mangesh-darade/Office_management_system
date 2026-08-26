@@ -399,6 +399,7 @@ $cl_link_count = function ($c) {
               </a>
             </th>
             <th class="text-start">Contact</th>
+            <th class="text-start">Acc. Manager</th>
             <th class="text-start">Phone</th>
             <th class="text-start">Links</th>
             <th class="text-end text-nowrap" style="width:108px;">Actions</th>
@@ -414,6 +415,7 @@ $cl_link_count = function ($c) {
             $links_n = $cl_link_count($c);
             $phone = isset($c->phone) ? trim((string) $c->phone) : '';
             $contact = isset($c->contact_person) ? trim((string) $c->contact_person) : '';
+            $account_manager = isset($c->account_manager_name) ? trim((string) $c->account_manager_name) : '';
             $row_style = $cl_row_style($status_val);
           ?>
           <tr class="cl-status-row" style="<?php echo $row_style; ?>" data-href="<?php echo esc_view($view_url, ENT_QUOTES, 'UTF-8'); ?>">
@@ -439,6 +441,16 @@ $cl_link_count = function ($c) {
               <div class="cl-contact">
                 <span class="cl-avatar"><?php echo esc_view($cl_initials($contact)); ?></span>
                 <span class="text-truncate" style="max-width:160px;" title="<?php echo esc_view($contact, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($contact); ?></span>
+              </div>
+              <?php else: ?>
+              <span class="text-muted">—</span>
+              <?php endif; ?>
+            </td>
+            <td class="text-start">
+              <?php if ($account_manager !== ''): ?>
+              <div class="cl-contact">
+                <span class="cl-avatar" style="background:#f1f5f9;color:#64748b;border-color:#cbd5e1;"><?php echo esc_view($cl_initials($account_manager)); ?></span>
+                <span class="text-truncate" style="max-width:160px;" title="<?php echo esc_view($account_manager, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($account_manager); ?></span>
               </div>
               <?php else: ?>
               <span class="text-muted">—</span>
@@ -494,6 +506,7 @@ $cl_link_count = function ($c) {
         $status_val = isset($c->status) ? (string) $c->status : 'active';
         $view_url = site_url('clients/view/' . (int) $c->id);
         $contact = isset($c->contact_person) ? trim((string) $c->contact_person) : '';
+        $account_manager = isset($c->account_manager_name) ? trim((string) $c->account_manager_name) : '';
         $phone = isset($c->phone) ? trim((string) $c->phone) : '';
         $card_style = $cl_row_style($status_val);
       ?>
@@ -506,7 +519,10 @@ $cl_link_count = function ($c) {
         </div>
         <div class="mb-2"><span class="cl-pill <?php echo $cl_type_class($type_code); ?>"><span class="cl-pill-dot"></span><?php echo esc_view($type_label); ?></span></div>
         <?php if ($contact !== ''): ?>
-        <div class="cl-contact mb-1"><span class="cl-avatar"><?php echo esc_view($cl_initials($contact)); ?></span><span><?php echo esc_view($contact); ?></span></div>
+        <div class="cl-contact mb-1"><span class="cl-avatar"><?php echo esc_view($cl_initials($contact)); ?></span><span class="text-muted ms-1 small">Contact:</span> <span class="fw-medium text-dark"><?php echo esc_view($contact); ?></span></div>
+        <?php endif; ?>
+        <?php if ($account_manager !== ''): ?>
+        <div class="cl-contact mb-2"><span class="cl-avatar" style="background:#f1f5f9;color:#64748b;border-color:#cbd5e1;"><?php echo esc_view($cl_initials($account_manager)); ?></span><span class="text-muted ms-1 small">Manager:</span> <span class="fw-medium text-dark"><?php echo esc_view($account_manager); ?></span></div>
         <?php endif; ?>
         <?php if ($phone !== ''): ?>
         <div class="mb-2"><a class="cl-phone" href="tel:<?php echo esc_view(preg_replace('/\s+/', '', $phone), ENT_QUOTES, 'UTF-8'); ?>"><i class="bi bi-telephone"></i><?php echo esc_view($phone); ?></a></div>

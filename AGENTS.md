@@ -21,6 +21,12 @@ CodeIgniter 3 internal HR/operations portal (PHP 8.4, MySQL, WAMP).
 
 When adding user-facing functionality, follow `.cursor/rules/new-feature-rbac-and-guide.mdc` (permissions matrix + user guide).
 
+## Token Efficiency (Critical)
+- Write concise code. Avoid outputting unchanged sections of files.
+- Use surgical edits (`replace_file_content` / `multi_replace_file_content`).
+- Do not repeat full file contents unnecessarily to minimize token consumption.
+- Never write placeholder comments if you can avoid it. Keep your output to exactly what needs changing.
+
 ## Source reference
 
 Detailed examples remain in `.github/instructions/` and `.github/copilot-instructions.md`. **Edit `.cursor/rules/*.mdc` for Cursor.**

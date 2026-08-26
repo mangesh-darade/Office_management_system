@@ -1031,7 +1031,6 @@ class Daily_activity extends CI_Controller {
                 $filters['date_to'] = date('Y-m-t');
             }
         }
-        
         // --- Build Query ---
         // Role check
         $is_admin = is_admin_group() || has_module_access('daily_activity_view_all');

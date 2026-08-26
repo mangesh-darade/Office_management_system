@@ -285,6 +285,52 @@ if (!function_exists('my_works_daily_pulse_attendance')) {
     }
 }
 
+if (!function_exists('my_works_daily_pulse_daily_activity_logs')) {
+    /**
+     * Today's daily_work_logs entries for Daily Pulse — uses the actual
+     * Daily Activity module records, not my_work_activity.
+     */
+    function my_works_daily_pulse_daily_activity_logs($db, $today)
+    {
+        if (!$db->table_exists('daily_work_logs')) {
+            return my_works_daily_pulse_trim_list(array());
+        }
+
+        $db->reset_query();
+        $db->select('dl.id, dl.user_id, dl.activity_title, dl.description, dl.work_date, dl.created_at, u.name AS user_name', false);
+        $db->from('daily_work_logs dl');
+        $db->join('users u', 'u.id = dl.user_id', 'left');
+        $db->where('dl.work_date', $today);
+        $db->order_by('dl.created_at', 'DESC');
+        $db->limit(100);
+        $rows = $db->get()->result();
+
+        $out = array();
+        foreach ($rows as $r) {
+            $title = trim((string) ($r->activity_title ?: ''));
+            if ($title === '') {
+                $title = 'Daily Log';
+            }
+            $detail = trim(strip_tags((string) ($r->description ?: '')));
+            if (mb_strlen($detail) > 120) {
+                $detail = mb_substr($detail, 0, 120) . '...';
+            }
+            $out[] = array(
+                'work_id'      => (int) $r->id,
+                'title'        => $title,
+                'action'       => 'created',
+                'detail'       => $detail,
+                'user_name'    => (string) ($r->user_name ?: ''),
+                'project_name' => '',
+                'client_name'  => '',
+                'at'           => (string) $r->created_at,
+                'url'          => site_url('daily-activity'),
+            );
+        }
+        return my_works_daily_pulse_trim_list($out);
+    }
+}
+
 if (!function_exists('my_works_daily_pulse_daily_activity')) {
     function my_works_daily_pulse_daily_activity($db, $today, array $user_map)
     {
@@ -413,7 +459,7 @@ if (!function_exists('my_works_daily_pulse_work_history')) {
                     ->or_where('w.project_id', 0)
                     ->group_end();
             }
-        } else {
+        } elseif ($mode === 'adhoc') {
             // adhoc: no project and no client
             if ($has_project) {
                 $db->group_start()
@@ -428,8 +474,10 @@ if (!function_exists('my_works_daily_pulse_work_history')) {
                     ->group_end();
             }
         }
+        // else ($mode === 'all'): no extra filter — fetch all activity types
 
-        my_works_apply_list_scope($db, $can_view_all, $user_id);
+        // Show overall work history for Daily Pulse without user-specific scope
+        // my_works_apply_list_scope($db, $can_view_all, $user_id);
         $db->order_by('a.created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();
@@ -585,6 +633,100 @@ if (!function_exists('my_works_daily_pulse_overview_today')) {
     }
 }
 
+
+if (!function_exists('my_works_daily_pulse_project_history_overall')) {
+    function my_works_daily_pulse_project_history_overall($db, $today)
+    {
+        if (!my_works_daily_pulse_has_access(array('projects', 'projects_list'))
+            || !$db->table_exists('project_activity') || !$db->table_exists('projects')
+        ) {
+            return my_works_daily_pulse_trim_list(array());
+        }
+        $db->reset_query();
+        $db->select('a.id, a.project_id, a.action, a.detail, a.created_at, u.name AS user_name, p.name AS project_name', false);
+        $db->from('project_activity a');
+        $db->join('projects p', 'p.id = a.project_id', 'inner');
+        $db->join('users u', 'u.id = a.user_id', 'left');
+        $db->where('DATE(a.created_at)', $today);
+        $db->order_by('a.created_at', 'DESC');
+        $db->limit(100);
+        $rows = $db->get()->result();
+
+        $out = array();
+        foreach ($rows as $r) {
+            $action = (string) $r->action;
+            $detail = (string) $r->detail;
+            if ($detail === '') {
+                $detail = ucfirst(str_replace('_', ' ', $action));
+            } else {
+                if (mb_strlen($detail) > 100) {
+                    $detail = mb_substr($detail, 0, 100) . '...';
+                }
+            }
+
+            $out[] = array(
+                'title'        => 'Project Update',
+                'action'       => $action,
+                'detail'       => $detail,
+                'user_name'    => (string) ($r->user_name ?: ''),
+                'project_name' => (string) ($r->project_name ?: ''),
+                'client_name'  => '',
+                'at'           => (string) $r->created_at,
+                'url'          => site_url('projects/show/' . (int) $r->project_id),
+            );
+        }
+        return my_works_daily_pulse_trim_list($out);
+    }
+}
+
+if (!function_exists('my_works_daily_pulse_client_history_overall')) {
+    function my_works_daily_pulse_client_history_overall($db, $today)
+    {
+        if (!my_works_daily_pulse_has_access(array('clients', 'clients_list'))
+            || !$db->table_exists('client_activity') || !$db->table_exists('clients')
+        ) {
+            return my_works_daily_pulse_trim_list(array());
+        }
+        $db->reset_query();
+        $db->select('a.id, a.client_id, a.action, a.new_value, a.created_at, u.name AS user_name, c.company_name AS client_name', false);
+        $db->from('client_activity a');
+        $db->join('clients c', 'c.id = a.client_id', 'inner');
+        $db->join('users u', 'u.id = a.user_id', 'left');
+        $db->where('DATE(a.created_at)', $today);
+        $db->order_by('a.created_at', 'DESC');
+        $db->limit(100);
+        $rows = $db->get()->result();
+
+        $out = array();
+        foreach ($rows as $r) {
+            $action = (string) $r->action;
+            $detail = ucfirst(str_replace('_', ' ', $action));
+            if ($action === 'commented' || $action === 'note') {
+                $detail = 'Added a note';
+                $new = json_decode((string)$r->new_value, true);
+                if (is_array($new) && !empty($new['text'])) {
+                    $detail = strip_tags($new['text']);
+                    if (mb_strlen($detail) > 100) {
+                        $detail = mb_substr($detail, 0, 100) . '...';
+                    }
+                }
+            }
+
+            $out[] = array(
+                'title'        => 'Client Update',
+                'action'       => $action,
+                'detail'       => $detail,
+                'user_name'    => (string) ($r->user_name ?: ''),
+                'project_name' => '',
+                'client_name'  => (string) ($r->client_name ?: ''),
+                'at'           => (string) $r->created_at,
+                'url'          => site_url('clients/view/' . (int) $r->client_id),
+            );
+        }
+        return my_works_daily_pulse_trim_list($out);
+    }
+}
+
 if (!function_exists('my_works_build_daily_pulse')) {
     /**
      * @return array
@@ -613,9 +755,9 @@ if (!function_exists('my_works_build_daily_pulse')) {
             'date'               => $today,
             'clients_added'      => my_works_daily_pulse_clients_added($db, $today),
             'attendance'         => my_works_daily_pulse_attendance($db, $today, $user_map),
-            'daily_activity'     => my_works_daily_pulse_daily_activity($db, $today, $user_map),
-            'project_history'    => my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, 'project'),
-            'client_history'     => my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, 'client'),
+            'daily_activity'     => my_works_daily_pulse_daily_activity_logs($db, $today),
+            'project_history'    => my_works_daily_pulse_project_history_overall($db, $today),
+            'client_history'     => my_works_daily_pulse_client_history_overall($db, $today),
             'adhoc_history'      => my_works_daily_pulse_work_history($db, $today, $can_view_all, $user_id, 'adhoc'),
             'requirements_added' => my_works_daily_pulse_requirements($db, $today),
             'defects_added'      => my_works_daily_pulse_defects($db, $today),

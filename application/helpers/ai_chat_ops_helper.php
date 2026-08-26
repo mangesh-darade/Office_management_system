@@ -113,7 +113,7 @@ if (!function_exists('ai_chat_deep_link')) {
         $map = array(
             'tasks' => 'tasks/view/' . $id,
             'leave' => 'leave_requests/view/' . $id,
-            'projects' => 'projects/view/' . $id,
+            'projects' => 'projects/show/' . $id,
             'attendance' => 'attendance',
             'spl' => 'spl',
             'daily_activity' => 'daily-activity',

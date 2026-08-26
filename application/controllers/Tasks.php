@@ -1685,6 +1685,7 @@ class Tasks extends CI_Controller {
             'status_label'  => $status_label,
             'status_color'  => $status_color,
             'date'          => isset($t->due_date) ? $t->due_date : '',
+            'created_at'    => isset($t->created_at) ? (string) $t->created_at : '',
             'estimate_hours'=> $estimate_hours,
             'actual_hours'  => $actual_hours,
             'url'           => $url,
