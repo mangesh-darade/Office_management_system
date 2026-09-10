@@ -15,6 +15,16 @@ $tabParam = $this->input->get('tab');
 if ($tabParam === 'inactive') {
     $back_query['tab'] = 'inactive';
 }
+if (isset($grace_override) && $grace_override !== null && $grace_override !== '') {
+    $back_query['grace'] = (int) $grace_override;
+}
+$punctuality_filter = (isset($punctuality_filter) && in_array($punctuality_filter, array('late', 'on_time'), true))
+    ? $punctuality_filter
+    : 'all';
+if ($punctuality_filter !== 'all') {
+    $back_query['punctuality'] = $punctuality_filter;
+}
+$graceOptions = array(0, 5, 10, 15, 20, 30, 45, 60);
 $back_url = site_url('reports/attendance-employee') . '?' . http_build_query($back_query);
 ?>
 
@@ -600,6 +610,27 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
       <label class="form-label">Month</label>
       <input type="month" name="month" value="<?php echo isset($month) ? esc_view($month) : date('Y-m'); ?>" class="form-control">
     </div>
+
+    <div class="form-group">
+      <label class="form-label">Grace (min)</label>
+      <select name="grace" class="form-control" id="grace-select" title="Late is calculated against office start + this grace">
+        <option value="" <?php echo (!isset($grace_override) || $grace_override === null || $grace_override === '') ? 'selected' : ''; ?>>Default (shift/settings)</option>
+        <?php foreach ($graceOptions as $graceOpt): ?>
+          <option value="<?php echo (int) $graceOpt; ?>" <?php echo (isset($grace_override) && $grace_override !== null && (int) $grace_override === (int) $graceOpt) ? 'selected' : ''; ?>>
+            <?php echo (int) $graceOpt; ?> min
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Against grace</label>
+      <select name="punctuality" class="form-control" id="punctuality-select" title="Show days matching selected grace rule">
+        <option value="all" <?php echo ($punctuality_filter === 'all') ? 'selected' : ''; ?>>All days</option>
+        <option value="late" <?php echo ($punctuality_filter === 'late') ? 'selected' : ''; ?>>Late only</option>
+        <option value="on_time" <?php echo ($punctuality_filter === 'on_time') ? 'selected' : ''; ?>>On time only</option>
+      </select>
+    </div>
     
     <div class="form-group">
       <button type="submit" class="btn btn-primary">
@@ -636,7 +667,10 @@ $avatar_initial = strtoupper(substr(trim($display_name), 0, 1));
         <div><strong>Office End:</strong> <?php echo esc_view($office_end_time); ?></div>
       <?php endif; ?>
       <?php if (isset($grace_minutes)): ?>
-        <div><strong>Grace Period:</strong> <?php echo $grace_minutes; ?> minutes</div>
+        <div><strong>Grace Period:</strong> <?php echo (int) $grace_minutes; ?> minutes<?php echo (isset($grace_override) && $grace_override !== null) ? ' (filter override)' : ''; ?></div>
+      <?php endif; ?>
+      <?php if (isset($punctuality_filter) && $punctuality_filter !== 'all'): ?>
+        <div><strong>Against grace:</strong> <?php echo $punctuality_filter === 'late' ? 'Late only' : 'On time only'; ?></div>
       <?php endif; ?>
       <?php if (isset($office_start_time) && isset($office_end_time) && isset($grace_minutes)): ?>
         <div><strong>On Time Rule:</strong> Check-in by <?php echo esc_view(date('H:i', strtotime($office_start_time) + ((int)$grace_minutes * 60))); ?> and check-out from <?php echo esc_view($office_end_time); ?></div>

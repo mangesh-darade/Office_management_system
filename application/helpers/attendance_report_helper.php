@@ -16,6 +16,95 @@ if (!function_exists('attendance_report_normalize_period')) {
     }
 }
 
+if (!function_exists('attendance_report_parse_grace_override')) {
+    /**
+     * Optional grace minutes override from report filter (null = use shift/settings).
+     *
+     * @param mixed $raw
+     * @return int|null
+     */
+    function attendance_report_parse_grace_override($raw)
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        if (!is_numeric($raw)) {
+            return null;
+        }
+        $minutes = (int) $raw;
+        if ($minutes < 0 || $minutes > 240) {
+            return null;
+        }
+
+        return $minutes;
+    }
+}
+
+if (!function_exists('attendance_report_parse_punctuality_filter')) {
+    /**
+     * @param mixed $raw
+     * @return string all|late|on_time
+     */
+    function attendance_report_parse_punctuality_filter($raw)
+    {
+        $raw = (string) $raw;
+
+        return in_array($raw, array('late', 'on_time'), true) ? $raw : 'all';
+    }
+}
+
+if (!function_exists('attendance_report_apply_grace_override_to_timing_map')) {
+    /**
+     * @param array<int,array> $timingByUser
+     * @param int|null $graceOverride
+     * @return array<int,array>
+     */
+    function attendance_report_apply_grace_override_to_timing_map(array $timingByUser, $graceOverride)
+    {
+        if ($graceOverride === null) {
+            return $timingByUser;
+        }
+        foreach ($timingByUser as $uid => $timing) {
+            $timingByUser[$uid]['grace_minutes'] = (int) $graceOverride;
+        }
+
+        return $timingByUser;
+    }
+}
+
+if (!function_exists('attendance_report_summary_row_matches_punctuality')) {
+    function attendance_report_summary_row_matches_punctuality($row, $punctuality)
+    {
+        $punctuality = attendance_report_parse_punctuality_filter($punctuality);
+        if ($punctuality === 'all' || !$row) {
+            return true;
+        }
+        $lateDays = isset($row->late_days) ? (float) $row->late_days : 0.0;
+        $onTimeDays = isset($row->on_time_days) ? (float) $row->on_time_days : 0.0;
+        if ($punctuality === 'late') {
+            return $lateDays > 0;
+        }
+
+        return $onTimeDays > 0;
+    }
+}
+
+if (!function_exists('attendance_report_detail_day_matches_punctuality')) {
+    function attendance_report_detail_day_matches_punctuality($day, $punctuality)
+    {
+        $punctuality = attendance_report_parse_punctuality_filter($punctuality);
+        if ($punctuality === 'all' || !$day) {
+            return true;
+        }
+        $lateStatus = isset($day->late_status) ? (string) $day->late_status : '';
+        if ($punctuality === 'late') {
+            return $lateStatus === 'late';
+        }
+
+        return $lateStatus === 'on_time';
+    }
+}
+
 if (!function_exists('attendance_report_date_range_view')) {
     /**
      * Date range for attendance_employee page (matches legacy Reports_attendance logic).
@@ -800,7 +889,8 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
         $today,
         array $holidayDates,
         array $cols,
-        $settings = null
+        $settings = null,
+        $graceOverride = null
     ) {
         $userIds = array_values(array_unique(array_map('intval', array_filter($userIds))));
         $summaries = array();
@@ -808,10 +898,15 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
             $summaries[$uid] = attendance_report_empty_summary_row();
         }
 
+        $timing = attendance_report_get_timing_settings($settings);
+        if ($graceOverride !== null) {
+            $timing['grace_minutes'] = (int) $graceOverride;
+        }
+
         if (empty($userIds) || !$db->table_exists('attendance')) {
             return array(
                 'summaries' => $summaries,
-                'timing'    => attendance_report_get_timing_settings($settings),
+                'timing'    => $timing,
             );
         }
 
@@ -819,8 +914,8 @@ if (!function_exists('attendance_report_build_employee_summaries')) {
         $dateCol = $cols['date_col'];
         $statusCol = $cols['status_col'];
         $fields = $cols['fields'];
-        $timing = attendance_report_get_timing_settings($settings);
         $timingByUser = attendance_report_load_user_timing_map($db, $userIds, $settings);
+        $timingByUser = attendance_report_apply_grace_override_to_timing_map($timingByUser, $graceOverride);
 
         $checkInCol = null;
         $checkOutCol = null;

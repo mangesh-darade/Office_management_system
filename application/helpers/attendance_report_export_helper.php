@@ -580,15 +580,25 @@ if (!function_exists('attendance_report_export_grid_summary_pdf')) {
         );
         $filename = 'attendance_employee_report_' . $period . '_' . date('Y-m-d') . '.pdf';
 
-        if (class_exists('\\Dompdf\\Dompdf')) {
-            $dompdf = new \Dompdf\Dompdf();
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper('A4', 'landscape');
-            $dompdf->render();
+        $CI =& get_instance();
+        if ($CI) {
+            $CI->load->helper('dompdf_bootstrap');
+        }
+
+        $pdfError = null;
+        $pdfBinary = function_exists('dompdf_render_html')
+            ? dompdf_render_html($html, 'A4', 'landscape', $pdfError)
+            : false;
+
+        if ($pdfBinary !== false && $pdfBinary !== '') {
             header('Content-Type: application/pdf');
             header('Content-Disposition: attachment; filename="' . $filename . '"');
-            echo $dompdf->output();
+            echo $pdfBinary;
             exit;
+        }
+
+        if ($pdfError && function_exists('log_message')) {
+            log_message('error', 'Attendance grid PDF export failed: ' . $pdfError);
         }
 
         header('Content-Type: text/html; charset=utf-8');
@@ -1098,26 +1108,35 @@ if (!function_exists('attendance_report_export_employee_detail_pdf')) {
 </body>
 </html>';
             
-            // Try to use DomPDF if available
-            if (class_exists('\\Dompdf\\Dompdf')) {
-                $dompdf = new \Dompdf\Dompdf();
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4', 'landscape');
-                $dompdf->render();
-                
+            // Render via shared Dompdf helper (suppresses PHP 8.4 vendor deprecations).
+            $CI =& get_instance();
+            if ($CI) {
+                $CI->load->helper('dompdf_bootstrap');
+            }
+
+            $pdfError = null;
+            $pdfBinary = function_exists('dompdf_render_html')
+                ? dompdf_render_html($html, 'A4', 'landscape', $pdfError)
+                : false;
+
+            if ($pdfBinary !== false && $pdfBinary !== '') {
                 $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.pdf';
                 header('Content-Type: application/pdf');
                 header('Content-Disposition: attachment; filename="' . $filename . '"');
-                echo $dompdf->output();
-                exit;
-            } else {
-                // Fallback to HTML
-                $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.html';
-                header('Content-Type: text/html; charset=utf-8');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                echo $html;
+                echo $pdfBinary;
                 exit;
             }
+
+            if ($pdfError && function_exists('log_message')) {
+                log_message('error', 'Attendance detail PDF export failed: ' . $pdfError);
+            }
+
+            // Fallback to HTML
+            $filename = 'attendance_detail_' . $userName . '_' . $period . '_' . date('Y-m-d') . '.html';
+            header('Content-Type: text/html; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo $html;
+            exit;
         } catch (Exception $e) {
             log_message('error', 'Export Detail PDF error: ' . $e->getMessage());
             show_error('Error generating PDF export: ' . $e->getMessage(), 500);

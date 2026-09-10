@@ -46,6 +46,8 @@ class Reports_attendance extends Reports_base {
         $user_id = $user_id ? (int) $user_id : 0;
         $employeeTab = $this->input->get('tab');
         $employeeTab = ($employeeTab === 'inactive') ? 'inactive' : 'active';
+        $graceOverride = attendance_report_parse_grace_override($this->input->get('grace'));
+        $punctualityFilter = attendance_report_parse_punctuality_filter($this->input->get('punctuality'));
 
         if ($user_id > 0) {
             $labels = array();
@@ -67,7 +69,7 @@ class Reports_attendance extends Reports_base {
             $this->_attendance_employee_detail(
                 $user_id, $period, $month, $date, $from, $to, $fields,
                 $userCol, $dateCol, $statusCol, $getName, $holidays, $totalWorkingDays,
-                $user_label
+                $user_label, $graceOverride, $punctualityFilter
             );
             return;
         }
@@ -75,7 +77,8 @@ class Reports_attendance extends Reports_base {
         $this->_attendance_employee_summary(
             $period, $month, $date, $from, $to, $today, $fields,
             $userCol, $dateCol, $statusCol, $holidays,
-            $holidayDates, $totalWorkingDays, $employeeTab
+            $holidayDates, $totalWorkingDays, $employeeTab,
+            $graceOverride, $punctualityFilter
         );
     }
 
@@ -85,9 +88,10 @@ class Reports_attendance extends Reports_base {
     private function _attendance_employee_detail(
         $user_id, $period, $month, $date, $from, $to, array $fields,
         $userCol, $dateCol, $statusCol, callable $getName, $holidays, $totalWorkingDays,
-        $user_label = null
+        $user_label = null, $graceOverride = null, $punctualityFilter = 'all'
     ) {
         require_hierarchy_user_access($user_id, true);
+        $punctualityFilter = attendance_report_parse_punctuality_filter($punctualityFilter);
         $fields = $this->db->list_fields('attendance');
         $hasPunchIn = in_array('punch_in', $fields, true);
         $hasCheckIn = in_array('check_in', $fields, true);
@@ -204,6 +208,10 @@ class Reports_attendance extends Reports_base {
                 $timing['standard_hours'] = $standardHours;
             }
         }
+        if ($graceOverride !== null) {
+            $graceMinutes = (int) $graceOverride;
+            $timing['grace_minutes'] = $graceMinutes;
+        }
 
         $holidayMap = array();
         foreach ($holidays as $h) {
@@ -303,6 +311,12 @@ class Reports_attendance extends Reports_base {
             $startTs = strtotime('+1 day', $startTs);
         }
 
+        if ($punctualityFilter !== 'all') {
+            $days = array_values(array_filter($days, function ($day) use ($punctualityFilter) {
+                return attendance_report_detail_day_matches_punctuality($day, $punctualityFilter);
+            }));
+        }
+
         $emp_code = '';
         if ($employee && isset($employee->emp_code) && trim((string) $employee->emp_code) !== '') {
             $emp_code = trim((string) $employee->emp_code);
@@ -325,6 +339,8 @@ class Reports_attendance extends Reports_base {
             'office_start_time' => $officeStart,
             'office_end_time' => $officeEnd,
             'grace_minutes' => $graceMinutes,
+            'grace_override' => $graceOverride,
+            'punctuality_filter' => $punctualityFilter,
             'standard_working_hours' => $standardHours,
             'days' => $days,
             'holidays' => $holidays,
@@ -337,9 +353,11 @@ class Reports_attendance extends Reports_base {
     private function _attendance_employee_summary(
         $period, $month, $date, $from, $to, $today, array $fields,
         $userCol, $dateCol, $statusCol, $holidays,
-        array $holidayDates, $totalWorkingDays, $employeeTab = 'active'
+        array $holidayDates, $totalWorkingDays, $employeeTab = 'active',
+        $graceOverride = null, $punctualityFilter = 'all'
     ) {
         $employeeTab = ($employeeTab === 'inactive') ? 'inactive' : 'active';
+        $punctualityFilter = attendance_report_parse_punctuality_filter($punctualityFilter);
         $allUsers = array();
         if ($this->db->table_exists('users')) {
             $userOptions = array('middle_name' => true);
@@ -378,7 +396,8 @@ class Reports_attendance extends Reports_base {
             $today,
             $holidayDates,
             $cols,
-            $settingsModel
+            $settingsModel,
+            $graceOverride
         );
         $summary = $built['summaries'];
         $timing = $built['timing'];
@@ -386,6 +405,9 @@ class Reports_attendance extends Reports_base {
         $rowsOut = attendance_report_summary_output_rows($allUsers, $summary, $getName, $totalWorkingDays);
         $visibleRows = array();
         foreach ($rowsOut as $row) {
+            if (!attendance_report_summary_row_matches_punctuality($row, $punctualityFilter)) {
+                continue;
+            }
             if ($employeeTab === 'inactive') {
                 $visibleRows[] = $row;
             } elseif (attendance_report_summary_row_has_data($row)) {
@@ -403,6 +425,8 @@ class Reports_attendance extends Reports_base {
             'office_start_time' => $timing['office_start'],
             'office_end_time' => $timing['office_end'],
             'grace_minutes' => $timing['grace_minutes'],
+            'grace_override' => $graceOverride,
+            'punctuality_filter' => $punctualityFilter,
             'standard_working_hours' => $timing['standard_hours'],
             'rows' => $visibleRows,
             'total_employees_in_scope' => count($allUsers),
