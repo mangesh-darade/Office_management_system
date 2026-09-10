@@ -91,7 +91,7 @@ $users = isset($users) && is_array($users) ? $users : array();
             <div class="mb-3">
               <label class="form-label">Message</label>
               <textarea name="body" id="reminderBody" rows="6" class="form-control" placeholder="Hello {name},&#10;&#10;Your reminder for {date} at {time}."></textarea>
-              <div class="form-text">Each person gets their own email with placeholders filled.</div>
+              <div class="form-text">Use <code>**bold**</code> or line breaks — email is sent as formatted HTML. Placeholders: {name}, {email}, {date}, {time}.</div>
             </div>
             <?php
               $role_id = (int) $this->session->userdata('role_id');

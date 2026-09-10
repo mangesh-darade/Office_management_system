@@ -68,6 +68,36 @@ if (!function_exists('reminders_from_for_row')) {
     }
 }
 
+if (!function_exists('reminders_body_to_html')) {
+    /**
+     * Build HTML email body from plain text, light Markdown, or existing HTML.
+     *
+     * @param string $body
+     * @return string
+     */
+    function reminders_body_to_html($body)
+    {
+        $body = (string) $body;
+        if (trim($body) === '') {
+            return '';
+        }
+        // Already HTML (TinyMCE / templates): keep tags, still allow **bold** leftovers
+        if ($body !== strip_tags($body)) {
+            $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $body);
+            return is_string($html) ? $html : $body;
+        }
+
+        $html = htmlspecialchars($body, ENT_QUOTES, 'UTF-8');
+        // **bold** then *italic* (non-greedy, single-line friendly)
+        $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $html);
+        $html = preg_replace('/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/s', '<em>$1</em>', $html);
+        if (!is_string($html)) {
+            $html = htmlspecialchars($body, ENT_QUOTES, 'UTF-8');
+        }
+        return nl2br($html);
+    }
+}
+
 if (!function_exists('reminders_send_one')) {
     /**
      * Deliver a reminder via Settings SMTP (real email). Marks sent/error on the queue row.
@@ -99,14 +129,11 @@ if (!function_exists('reminders_send_one')) {
 
         $to = trim((string) $row->email);
         $name = $to;
-        if (!empty($row->user_id) && $CI->db->table_exists('users')) {
-            $u = $CI->db->select('name, full_name, email')->from('users')->where('id', (int) $row->user_id)->get()->row();
-            if ($u) {
-                if (!empty($u->name)) {
-                    $name = (string) $u->name;
-                } elseif (!empty($u->full_name)) {
-                    $name = (string) $u->full_name;
-                }
+        if (!empty($row->user_id)) {
+            $CI->load->helper('reminders_user');
+            $contact = reminders_fetch_user_contact($CI->db, (int) $row->user_id);
+            if ($contact['name'] !== '') {
+                $name = $contact['name'];
             }
         }
 
@@ -134,14 +161,8 @@ if (!function_exists('reminders_send_one')) {
         $email->from($fromAddr, $fromName);
         $email->to($to);
         $email->subject($subject);
-        // Allow simple HTML from templates; plain text still works.
-        if ($body !== strip_tags($body)) {
-            $email->set_mailtype('html');
-            $email->message($body);
-        } else {
-            $email->set_mailtype('html');
-            $email->message(nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8')));
-        }
+        $email->set_mailtype('html');
+        $email->message(reminders_body_to_html($body));
 
         $ok = false;
         try {
