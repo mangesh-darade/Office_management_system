@@ -177,7 +177,11 @@ if (!function_exists('attendance_status_badge_meta')) {
             ];
         }
         if (strpos($st, 'holiday') !== false) {
-            return ['holiday', 'bi-calendar-event', attendance_status_display_label($status)];
+            return [
+                'class' => 'holiday',
+                'icon'  => 'bi-calendar-event',
+                'label' => attendance_status_display_label($status),
+            ];
         }
         return [
             'class' => '',
