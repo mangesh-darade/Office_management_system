@@ -47,11 +47,6 @@ if (!function_exists('module_type_definitions')) {
             'tasks' => array(
                 array('code' => 'setup_onboarding', 'name' => 'Setup & Onboarding', 'order' => 1),
             ),
-            'client_versions' => array(
-                array('code' => '1.0', 'name' => '1.0', 'order' => 1),
-                array('code' => '1.1', 'name' => '1.1', 'order' => 2),
-                array('code' => '2.0', 'name' => '2.0', 'order' => 3),
-            ),
         );
     }
 }
