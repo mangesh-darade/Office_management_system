@@ -188,7 +188,7 @@
           <label class="form-label">
             <i class="bi bi-hourglass-split me-1"></i>Estimate (hrs)
           </label>
-          <input type="number" name="estimate_hours" class="form-control" min="0" max="9" step="1"
+          <input type="number" name="estimate_hours" class="form-control" min="0" max="9999.99" step="0.01"
                  value="<?php echo isset($task) && isset($task->estimate_hours) && $task->estimate_hours !== null && $task->estimate_hours !== '' ? esc_view(estimate_hours_display($task->estimate_hours)) : ''; ?>"
                  placeholder="e.g. 2">
         </div>

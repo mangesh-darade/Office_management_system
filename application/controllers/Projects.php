@@ -189,7 +189,7 @@ class Projects extends CI_Controller {
                 if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
                     $est = estimate_hours_parse($this->input->post('estimate_hours'));
                     if ($est === false) {
-                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
+                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
                         redirect('projects/create' . ($embed ? '?embed=1' : ''));
                         return;
                     }
@@ -807,7 +807,7 @@ class Projects extends CI_Controller {
                 if (schema_table_has_column($this->db, 'projects', 'estimate_hours')) {
                     $est = estimate_hours_parse($this->input->post('estimate_hours'));
                     if ($est === false) {
-                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
+                        $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
                         redirect('projects/'.$id.'/edit');
                         return;
                     }
@@ -995,7 +995,7 @@ class Projects extends CI_Controller {
                         $est = estimate_hours_parse($est_raw);
                         if ($est === false) {
                             $skipped++;
-                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use whole number 0–9 or leave blank).');
+                            csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use a number 0–9999.99 or leave blank).');
                             continue;
                         }
                         $data['estimate_hours'] = $est;
@@ -1980,7 +1980,7 @@ class Projects extends CI_Controller {
         if ($est_provided) {
             $est = estimate_hours_parse($estimate_hours);
             if ($est === false) {
-                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a single digit (0–9).', 400);
+                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a number between 0 and 9999.99.', 400);
             }
         }
 

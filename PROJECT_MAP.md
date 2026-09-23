@@ -130,6 +130,7 @@ PHP path (WAMP): `C:\wamp64\bin\php\php8.4.0\php.exe`
 | `api_integrations` | ADD `app_secret`, `webhook_verify_token` | Meta WhatsApp webhook HMAC + GET verify | 2026-08-13 |
 | `api_integrations` | MODIFY `auth_token` TEXT | Meta access tokens exceed varchar(255) | 2026-08-13 |
 | `clients` | Repair: dedupe triplicate rows; ADD PRIMARY KEY (`id`); MODIFY `id` AUTO_INCREMENT; ADD UNIQUE `uq_client_code` | Missing AI/PK caused insert_id=0 → "Clients create error" | 2026-08-10 |
+| `clients` | ADD `client_version` varchar(50) NULL AFTER `client_type` | Client-level Version master (module_types `client_versions`) | 2026-09-23 |
 | `project_defects` | MODIFY `project_id` int(11) DEFAULT NULL | Project optional on defect create/edit | 2026-08-11 |
 | `project_defects` | ADD `is_active` tinyint(1) NOT NULL DEFAULT 1 | Active/Inactive toggle on defects list (separate from workflow status) | 2026-08-11 |
 | `requirement_activity` | CREATE TABLE (id, requirement_id, user_id, action, detail, created_at) | Requirement view History (Defects-style notes + change log) | 2026-08-11 |

@@ -64,6 +64,35 @@ class Client_model extends CI_Model {
     }
 
     /**
+     * Version counts for list stats cards (ignores client_version filter; keeps status/type/search).
+     *
+     * @param array $filters
+     * @return array code => int
+     */
+    public function counts_by_client_version($filters = [])
+    {
+        if (!schema_table_has_column($this->db, 'clients', 'client_version')) {
+            return array();
+        }
+        $f = is_array($filters) ? $filters : array();
+        unset($f['client_version'], $f['sort'], $f['dir']);
+        $this->db->select('IFNULL(NULLIF(TRIM(client_version), ""), "") AS client_version, COUNT(*) AS cnt', false);
+        $this->db->from('clients');
+        $this->apply_filters($f);
+        $this->db->group_by('client_version');
+        $rows = $this->db->get()->result();
+        $out = array();
+        foreach ($rows as $r) {
+            $code = isset($r->client_version) ? trim((string) $r->client_version) : '';
+            if ($code === '') {
+                continue;
+            }
+            $out[$code] = (int) $r->cnt;
+        }
+        return $out;
+    }
+
+    /**
      * @param array $ids
      * @return int deleted count
      */
@@ -109,6 +138,7 @@ class Client_model extends CI_Model {
 
         $allowed_sort = array(
             'client_type' => 'clients.client_type',
+            'client_version' => 'clients.client_version',
             'company_name' => 'clients.company_name',
             'created_at' => 'clients.created_at',
         );
@@ -141,6 +171,10 @@ class Client_model extends CI_Model {
     private function apply_filters($filters){
         if (!empty($filters['status'])){ $this->db->where('clients.status', $filters['status']); }
         if (!empty($filters['client_type'])){ $this->db->where('clients.client_type', $filters['client_type']); }
+        if (!empty($filters['client_version'])
+            && schema_table_has_column($this->db, 'clients', 'client_version')) {
+            $this->db->where('clients.client_version', $filters['client_version']);
+        }
         if (!empty($filters['search'])){
             $q = trim((string)$filters['search']);
             $this->db->group_start()
@@ -212,6 +246,9 @@ class Client_model extends CI_Model {
         if (array_key_exists('onboarding_date', $data) && ($data['onboarding_date'] === '' || $data['onboarding_date'] === false)) {
             $data['onboarding_date'] = null;
         }
+        if (array_key_exists('client_version', $data) && !schema_table_has_column($this->db, 'clients', 'client_version')) {
+            unset($data['client_version']);
+        }
         if (!$this->db->insert('clients', $data)) {
             $err = $this->db->error();
             log_message('error', 'clients.create_client insert failed: ' . (isset($err['message']) ? $err['message'] : 'unknown'));
@@ -228,6 +265,9 @@ class Client_model extends CI_Model {
                 // If empty, don't update password (keep existing)
                 unset($data['db_password']);
             }
+        }
+        if (array_key_exists('client_version', $data) && !schema_table_has_column($this->db, 'clients', 'client_version')) {
+            unset($data['client_version']);
         }
         return $this->db->where('id',(int)$id)->update('clients', $data);
     }

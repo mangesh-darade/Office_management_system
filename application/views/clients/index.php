@@ -14,6 +14,7 @@ if (!$embed) {
 <?php
 $st = isset($filters['status']) ? (string) $filters['status'] : '';
 $ct = isset($filters['client_type']) ? (string) $filters['client_type'] : '';
+$cv = isset($filters['client_version']) ? (string) $filters['client_version'] : '';
 $q = isset($filters['search']) ? (string) $filters['search'] : '';
 $sort = isset($filters['sort']) ? (string) $filters['sort'] : '';
 $dir = isset($filters['dir']) ? strtolower((string) $filters['dir']) : 'asc';
@@ -24,7 +25,9 @@ $rows = isset($rows) && is_array($rows) ? $rows : array();
 $lanes = isset($lanes) && is_array($lanes) ? $lanes : array();
 $show_lanes = !empty($show_lanes);
 $client_types = (isset($client_types) && is_array($client_types)) ? $client_types : array();
+$client_versions = (isset($client_versions) && is_array($client_versions)) ? $client_versions : array();
 $type_counts = (isset($type_counts) && is_array($type_counts)) ? $type_counts : array();
+$version_counts = (isset($version_counts) && is_array($version_counts)) ? $version_counts : array();
 $status_counts = (isset($status_counts) && is_array($status_counts)) ? $status_counts : array();
 $stats_total = isset($stats_total) ? (int) $stats_total : 0;
 $pagination = (isset($pagination) && is_array($pagination)) ? $pagination : array('page' => 1, 'per_page' => 25, 'total' => 0, 'total_pages' => 1);
@@ -45,10 +48,11 @@ foreach ($status_records as $sr) {
   $status_colors[(string) $sr->code] = !empty($sr->color) ? (string) $sr->color : '#6c757d';
 }
 
-$cl_url = function ($overrides = array()) use ($st, $ct, $q, $sort, $dir, $active_tab, $embed, $parent_tab) {
+$cl_url = function ($overrides = array()) use ($st, $ct, $cv, $q, $sort, $dir, $active_tab, $embed, $parent_tab) {
   $params = array();
   $status = array_key_exists('status', $overrides) ? $overrides['status'] : $st;
   $type = array_key_exists('client_type', $overrides) ? $overrides['client_type'] : $ct;
+  $version = array_key_exists('client_version', $overrides) ? $overrides['client_version'] : $cv;
   $search = array_key_exists('q', $overrides) ? $overrides['q'] : $q;
   $sort_col = array_key_exists('sort', $overrides) ? $overrides['sort'] : $sort;
   $sort_dir = array_key_exists('dir', $overrides) ? $overrides['dir'] : $dir;
@@ -59,6 +63,9 @@ $cl_url = function ($overrides = array()) use ($st, $ct, $q, $sort, $dir, $activ
   }
   if ($type !== '' && $type !== null) {
     $params['client_type'] = $type;
+  }
+  if ($version !== '' && $version !== null) {
+    $params['client_version'] = $version;
   }
   if ($search !== '' && $search !== null) {
     $params['q'] = $search;
@@ -221,6 +228,28 @@ $cl_link_count = function ($c) {
       <div class="cl-stat-label"><?php echo esc_view($slabel); ?></div>
     </a>
     <?php endforeach; ?>
+    <?php
+    $version_cards = array();
+    foreach ($version_counts as $vcode => $vcnt) {
+      if ((int) $vcnt > 0) {
+        $version_cards[$vcode] = (int) $vcnt;
+      }
+    }
+    foreach ($version_cards as $vcode => $vcnt):
+      $vlabel = (isset($client_versions[$vcode]) && $client_versions[$vcode] !== '')
+        ? (string) $client_versions[$vcode]
+        : (string) $vcode;
+      $ver_href = ($cv === (string) $vcode)
+        ? $cl_url(array('client_version' => '', 'page' => 1))
+        : $cl_url(array('client_version' => (string) $vcode, 'page' => 1));
+    ?>
+    <a class="cl-stat-card <?php echo $cv === (string) $vcode ? 'active' : ''; ?>"
+       href="<?php echo esc_view($ver_href, ENT_QUOTES, 'UTF-8'); ?>"
+       style="border-left: 3px solid #0d6efd;">
+      <div class="cl-stat-value" style="color: #0d6efd;"><?php echo $vcnt; ?></div>
+      <div class="cl-stat-label"><?php echo esc_view($vlabel); ?></div>
+    </a>
+    <?php endforeach; ?>
   </div>
 
   <div class="cl-stat-cards cl-stat-cards-type">
@@ -271,11 +300,19 @@ $cl_link_count = function ($c) {
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if (!empty($client_versions)): ?>
+      <select name="client_version" class="form-select form-select-sm" aria-label="Version" onchange="this.form.submit()">
+        <option value="">All versions</option>
+        <?php foreach ($client_versions as $vcode => $vlabel): ?>
+        <option value="<?php echo esc_view($vcode); ?>" <?php echo $cv === (string) $vcode ? 'selected' : ''; ?>><?php echo esc_view($vlabel); ?></option>
+        <?php endforeach; ?>
+      </select>
+      <?php endif; ?>
       <?php if ($ct !== ''): ?>
       <input type="hidden" name="client_type" value="<?php echo esc_view($ct); ?>">
       <?php endif; ?>
-      <?php if ($st !== '' || $ct !== '' || $q !== ''): ?>
-      <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($cl_url(array('status' => '', 'client_type' => '', 'q' => '', 'sort' => '', 'dir' => 'asc', 'page' => 1, 'tab' => 'list')), ENT_QUOTES, 'UTF-8'); ?>">Reset Filters</a>
+      <?php if ($st !== '' || $ct !== '' || $cv !== '' || $q !== ''): ?>
+      <a class="btn btn-outline-secondary btn-sm" href="<?php echo esc_view($cl_url(array('status' => '', 'client_type' => '', 'client_version' => '', 'q' => '', 'sort' => '', 'dir' => 'asc', 'page' => 1, 'tab' => 'list')), ENT_QUOTES, 'UTF-8'); ?>">Reset Filters</a>
       <?php endif; ?>
     </form>
 
@@ -398,6 +435,11 @@ $cl_link_count = function ($c) {
                 Type <i class="bi bi-arrow-down-up cl-sort-icon"></i>
               </a>
             </th>
+            <th class="text-start">
+              <a class="cl-sort <?php echo $sort === 'client_version' ? 'is-active' : ''; ?>" href="<?php echo esc_view($sort_url('client_version'), ENT_QUOTES, 'UTF-8'); ?>">
+                Version <i class="bi bi-arrow-down-up cl-sort-icon"></i>
+              </a>
+            </th>
             <th class="text-start">Contact</th>
             <th class="text-start">Acc. Manager</th>
             <th class="text-start">Phone</th>
@@ -410,6 +452,10 @@ $cl_link_count = function ($c) {
           <?php
             $type_code = isset($c->client_type) ? (string) $c->client_type : 'company';
             $type_label = isset($client_types[$type_code]) ? $client_types[$type_code] : ucwords(str_replace('_', ' ', $type_code));
+            $ver_code = isset($c->client_version) ? trim((string) $c->client_version) : '';
+            $ver_label = ($ver_code !== '' && isset($client_versions[$ver_code]))
+              ? $client_versions[$ver_code]
+              : ($ver_code !== '' ? $ver_code : '—');
             $status_val = isset($c->status) ? (string) $c->status : 'active';
             $view_url = site_url('clients/view/' . (int) $c->id);
             $links_n = $cl_link_count($c);
@@ -436,6 +482,7 @@ $cl_link_count = function ($c) {
                 <span class="cl-pill-dot"></span><?php echo esc_view($type_label); ?>
               </span>
             </td>
+            <td class="text-start text-nowrap"><span class="text-muted small"><?php echo esc_view($ver_label); ?></span></td>
             <td class="text-start">
               <?php if ($contact !== ''): ?>
               <div class="cl-contact">
@@ -503,6 +550,10 @@ $cl_link_count = function ($c) {
       <?php
         $type_code = isset($c->client_type) ? (string) $c->client_type : 'company';
         $type_label = isset($client_types[$type_code]) ? $client_types[$type_code] : ucwords(str_replace('_', ' ', $type_code));
+        $ver_code = isset($c->client_version) ? trim((string) $c->client_version) : '';
+        $ver_label = ($ver_code !== '' && isset($client_versions[$ver_code]))
+          ? $client_versions[$ver_code]
+          : ($ver_code !== '' ? $ver_code : '');
         $status_val = isset($c->status) ? (string) $c->status : 'active';
         $view_url = site_url('clients/view/' . (int) $c->id);
         $contact = isset($c->contact_person) ? trim((string) $c->contact_person) : '';
@@ -517,7 +568,12 @@ $cl_link_count = function ($c) {
             <?php if (!empty($c->client_code)): ?><div class="cl-id">Client ID · <?php echo esc_view($c->client_code); ?></div><?php endif; ?>
           </div>
         </div>
-        <div class="mb-2"><span class="cl-pill <?php echo $cl_type_class($type_code); ?>"><span class="cl-pill-dot"></span><?php echo esc_view($type_label); ?></span></div>
+        <div class="mb-2">
+          <span class="cl-pill <?php echo $cl_type_class($type_code); ?>"><span class="cl-pill-dot"></span><?php echo esc_view($type_label); ?></span>
+          <?php if ($ver_label !== ''): ?>
+          <span class="badge text-bg-light border ms-1"><?php echo esc_view($ver_label); ?></span>
+          <?php endif; ?>
+        </div>
         <?php if ($contact !== ''): ?>
         <div class="cl-contact mb-1"><span class="cl-avatar"><?php echo esc_view($cl_initials($contact)); ?></span><span class="text-muted ms-1 small">Contact:</span> <span class="fw-medium text-dark"><?php echo esc_view($contact); ?></span></div>
         <?php endif; ?>
@@ -613,7 +669,7 @@ $cl_link_count = function ($c) {
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="small text-muted mb-2">Required columns: <code>company_name</code>, <code>contact_person</code>, <code>phone</code>. Optional: client_code, email, status, client_type, and other export fields.</p>
+          <p class="small text-muted mb-2">Required columns: <code>company_name</code>, <code>contact_person</code>, <code>phone</code>. Optional: client_code, email, status, client_type, client_version, and other export fields.</p>
           <a class="btn btn-outline-secondary btn-sm mb-3" href="<?php echo base_url('assets/samples/clients_import_sample.csv'); ?>" download>
             <i class="bi bi-download me-1"></i>Download sample CSV
           </a>

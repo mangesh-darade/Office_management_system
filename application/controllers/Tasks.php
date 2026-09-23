@@ -194,7 +194,7 @@ class Tasks extends CI_Controller {
             if (in_array('estimate_hours', $task_fields, true)) {
                 $est = estimate_hours_parse($this->input->post('estimate_hours'));
                 if ($est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
                     redirect('tasks/create');
                     return;
                 }
@@ -694,7 +694,7 @@ class Tasks extends CI_Controller {
             if (in_array('estimate_hours', $task_fields, true)) {
                 $est = estimate_hours_parse($this->input->post('estimate_hours'));
                 if ($est === false) {
-                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a single digit (0–9).');
+                    $this->session->set_flashdata('error', 'Estimate (hrs) must be a number between 0 and 9999.99.');
                     redirect('tasks/'.$id.'/edit');
                     return;
                 }
@@ -1245,6 +1245,8 @@ class Tasks extends CI_Controller {
                     'item_type' => $project_id > 0 ? 'project_task' : 'ad_hoc',
                     'item_source' => 'tasks',
                     'status_scope' => 'task',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'created_by_name' => $this->_user_dashboard_display_name($user_id),
                 ),
             )));
     }
@@ -1674,6 +1676,10 @@ class Tasks extends CI_Controller {
         $project_name = !empty($t->project_name) ? trim((string) $t->project_name) : '';
         $client_id = isset($t->client_id) ? (int) $t->client_id : 0;
         $project_id = isset($t->project_id) ? (int) $t->project_id : 0;
+        $created_by_name = '';
+        if (!empty($t->creator_name)) {
+            $created_by_name = trim((string) $t->creator_name);
+        }
 
         return array(
             'item_type'     => $item_type,
@@ -1686,6 +1692,7 @@ class Tasks extends CI_Controller {
             'status_color'  => $status_color,
             'date'          => isset($t->due_date) ? $t->due_date : '',
             'created_at'    => isset($t->created_at) ? (string) $t->created_at : '',
+            'created_by_name' => $created_by_name,
             'estimate_hours'=> $estimate_hours,
             'actual_hours'  => $actual_hours,
             'url'           => $url,
@@ -1731,6 +1738,76 @@ class Tasks extends CI_Controller {
         }
 
         return '';
+    }
+
+    /**
+     * Bulk resolve display names for user ids (employee name → user full_name/name/email).
+     *
+     * @param array $user_ids
+     * @return array<int,string>
+     */
+    private function _user_dashboard_bulk_display_names(array $user_ids)
+    {
+        $user_ids = array_values(array_unique(array_filter(array_map('intval', $user_ids))));
+        $map = array();
+        if (empty($user_ids)) {
+            return $map;
+        }
+
+        if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'name')
+            && schema_table_has_column($this->db, 'employees', 'user_id')) {
+            $rows = $this->db->select('user_id, name')
+                ->from('employees')
+                ->where_in('user_id', $user_ids)
+                ->get()
+                ->result();
+            foreach ($rows as $row) {
+                $uid = (int) $row->user_id;
+                $name = trim((string) $row->name);
+                if ($uid > 0 && $name !== '') {
+                    $map[$uid] = $name;
+                }
+            }
+        }
+
+        $missing = array();
+        foreach ($user_ids as $uid) {
+            if (!isset($map[$uid])) {
+                $missing[] = $uid;
+            }
+        }
+        if (!empty($missing) && $this->db->table_exists('users')) {
+            $select = array('id');
+            if (schema_table_has_column($this->db, 'users', 'full_name')) {
+                $select[] = 'full_name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'name')) {
+                $select[] = 'name';
+            }
+            if (schema_table_has_column($this->db, 'users', 'email')) {
+                $select[] = 'email';
+            }
+            $rows = $this->db->select(implode(',', $select))
+                ->from('users')
+                ->where_in('id', $missing)
+                ->get()
+                ->result();
+            foreach ($rows as $row) {
+                $uid = (int) $row->id;
+                if ($uid < 1 || isset($map[$uid])) {
+                    continue;
+                }
+                if (isset($row->full_name) && trim((string) $row->full_name) !== '') {
+                    $map[$uid] = trim((string) $row->full_name);
+                } elseif (isset($row->name) && trim((string) $row->name) !== '') {
+                    $map[$uid] = trim((string) $row->name);
+                } elseif (!empty($row->email)) {
+                    $map[$uid] = (string) $row->email;
+                }
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -1875,6 +1952,9 @@ class Tasks extends CI_Controller {
             );
             if (schema_table_has_column($this->db, 'requirements', 'project_id')) {
                 $select[] = 'r.project_id';
+            }
+            if (schema_table_has_column($this->db, 'requirements', 'created_by')) {
+                $select[] = 'r.created_by';
             }
             if (schema_table_has_column($this->db, 'requirements', 'expected_delivery_date')) {
                 $select[] = 'r.expected_delivery_date AS due_date';
@@ -2154,6 +2234,18 @@ class Tasks extends CI_Controller {
             }
             return strcmp($dateA, $dateB);
         });
+
+        $creator_ids = array();
+        foreach ($all_items as $row) {
+            if (!empty($row->created_by)) {
+                $creator_ids[] = (int) $row->created_by;
+            }
+        }
+        $creator_names = $this->_user_dashboard_bulk_display_names($creator_ids);
+        foreach ($all_items as $row) {
+            $cid = isset($row->created_by) ? (int) $row->created_by : 0;
+            $row->creator_name = ($cid > 0 && isset($creator_names[$cid])) ? $creator_names[$cid] : '';
+        }
 
         return $all_items;
     }
@@ -2744,7 +2836,7 @@ class Tasks extends CI_Controller {
                     $est = estimate_hours_parse($est_raw);
                     if ($est === false) {
                         $skipped++;
-                        csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use whole number 0–9 or leave blank).');
+                        csv_import_add_row_error($row_errors, $line, 'Invalid estimate_hours (use a number 0–9999.99 or leave blank).');
                         continue;
                     }
                     $data['estimate_hours'] = $est;

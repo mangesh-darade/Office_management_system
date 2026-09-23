@@ -61,6 +61,20 @@ $this->load->view('partials/header', array('title' => 'Edit Client'));
               )); ?>
             </div>
             <div class="col-lg-3 col-md-6">
+              <label class="form-label" for="client_version">Version</label>
+              <?php $cv = isset($client->client_version) ? (string) $client->client_version : ''; ?>
+              <?php $this->load->view('partials/module_type_select', array(
+                'field_name' => 'client_version',
+                'options' => isset($client_versions) ? $client_versions : array(),
+                'current' => $cv,
+                'required' => false,
+                'placeholder' => '— Select version —',
+              )); ?>
+              <?php if (function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
+              <div class="form-text"><a href="<?php echo site_url('settings/client-versions'); ?>">Manage versions</a></div>
+              <?php endif; ?>
+            </div>
+            <div class="col-lg-3 col-md-6">
               <label class="form-label">Status</label>
               <?php $st = isset($client->status) ? (string) $client->status : 'active'; ?>
               <?php $this->load->view('partials/status_select', array(

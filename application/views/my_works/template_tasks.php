@@ -206,8 +206,8 @@ $this->load->view('partials/header', array(
               </div>
               <div class="defect-field">
                 <label class="form-label" for="mw-tt-estimate-hours">Estimate (hrs)</label>
-                <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9" step="1" placeholder="e.g. 2">
-                <div class="form-text">Optional. Single digit 0–9. Auto-filled from catalog when you pick a task; you can override.</div>
+                <input type="number" name="estimate_hours" id="mw-tt-estimate-hours" class="form-control" min="0" max="9999.99" step="0.01" placeholder="e.g. 2">
+                <div class="form-text">Optional. Any number 0–9999.99. Auto-filled from catalog when you pick a task; you can override.</div>
               </div>
               <div class="defect-field">
                 <label class="form-label" for="mw-tt-attachment">Attachment</label>

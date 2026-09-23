@@ -58,6 +58,19 @@
               )); ?>
             </div>
             <div class="col-lg-3 col-md-6">
+              <label class="form-label" for="client_version">Version</label>
+              <?php $this->load->view('partials/module_type_select', array(
+                'field_name' => 'client_version',
+                'options' => isset($client_versions) ? $client_versions : array(),
+                'current' => '',
+                'required' => false,
+                'placeholder' => '— Select version —',
+              )); ?>
+              <?php if (function_exists('has_module_access') && (has_module_access('types') || has_module_access('settings') || has_module_access('admin'))): ?>
+              <div class="form-text"><a href="<?php echo site_url('settings/client-versions'); ?>">Manage versions</a></div>
+              <?php endif; ?>
+            </div>
+            <div class="col-lg-3 col-md-6">
               <label class="form-label">Account Manager</label>
               <select name="account_manager_id" class="form-select">
                 <option value="">— Select —</option>

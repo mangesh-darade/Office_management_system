@@ -56,6 +56,7 @@ if (!function_exists('clients_schema_ensure')) {
                 'demo_url' => "ALTER TABLE `clients` ADD `demo_url` varchar(255) DEFAULT NULL AFTER `website`",
                 'pos_url' => "ALTER TABLE `clients` ADD `pos_url` varchar(255) DEFAULT NULL AFTER `demo_url`",
                 'onboarding_date' => "ALTER TABLE `clients` ADD `onboarding_date` date DEFAULT NULL AFTER `industry`",
+                'client_version' => "ALTER TABLE `clients` ADD `client_version` varchar(50) DEFAULT NULL AFTER `client_type`",
                 'db_name' => "ALTER TABLE `clients` ADD `db_name` varchar(255) DEFAULT NULL AFTER `notes`",
                 'db_username' => "ALTER TABLE `clients` ADD `db_username` varchar(255) DEFAULT NULL AFTER `db_name`",
                 'db_password' => "ALTER TABLE `clients` ADD `db_password` varchar(255) DEFAULT NULL AFTER `db_username`",

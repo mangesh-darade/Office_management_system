@@ -34,6 +34,29 @@ class Clients extends CI_Controller {
     }
 
     /**
+     * @return array<string,string>
+     */
+    private function _client_version_options()
+    {
+        return module_type_options_resolved('client_versions');
+    }
+
+    /**
+     * Optional client version code; empty string if none / invalid.
+     *
+     * @param mixed $posted
+     * @return string
+     */
+    private function _resolve_client_version($posted)
+    {
+        $code = module_type_validate_code($posted, 'client_versions', true, null);
+        if ($code === false || $code === null) {
+            return '';
+        }
+        return (string) $code;
+    }
+
+    /**
      * @param string $field_label
      * @param string $redirect_path
      * @return string|null
@@ -180,15 +203,20 @@ class Clients extends CI_Controller {
         }
 
         try {
+            $client_versions = $this->_client_version_options();
             $filters = [
                 'status' => $this->input->get('status'),
                 'client_type' => $this->input->get('client_type'),
+                'client_version' => $this->input->get('client_version'),
                 'search' => $this->input->get('q'),
                 'sort' => $this->input->get('sort'),
                 'dir' => $this->input->get('dir'),
             ];
             if (!empty($filters['client_type']) && !isset($client_types[$filters['client_type']])) {
                 $filters['client_type'] = '';
+            }
+            if (!empty($filters['client_version']) && !isset($client_versions[$filters['client_version']])) {
+                $filters['client_version'] = '';
             }
             $this->load->helper('module_status');
             if (!empty($filters['status']) && !module_status_is_valid($filters['status'], 'clients')) {
@@ -212,6 +240,23 @@ class Clients extends CI_Controller {
                 foreach ($client_types as $code => $_label) {
                     $type_counts[$code] = isset($raw[$code]) ? (int) $raw[$code] : 0;
                 }
+            }
+
+            $version_counts = array();
+            $vc = safe_db_operation(function () use ($filters) {
+                return $this->clients->counts_by_client_version($filters);
+            }, 'Unable to load version counts.');
+            if (!empty($vc['success']) && is_array($vc['data'])) {
+                $raw_v = $vc['data'];
+                foreach ($client_versions as $vcode => $_vlabel) {
+                    $version_counts[$vcode] = isset($raw_v[$vcode]) ? (int) $raw_v[$vcode] : 0;
+                }
+                foreach ($raw_v as $vcode => $cnt) {
+                    if (!isset($version_counts[$vcode])) {
+                        $version_counts[$vcode] = (int) $cnt;
+                    }
+                }
+                arsort($version_counts, SORT_NUMERIC);
             }
 
             $stats_base = $filters;
@@ -299,13 +344,26 @@ class Clients extends CI_Controller {
                 );
             }
 
+            if (!empty($client_types) && is_array($type_counts)) {
+                uksort($client_types, function ($a, $b) use ($type_counts) {
+                    $ca = isset($type_counts[$a]) ? (int) $type_counts[$a] : 0;
+                    $cb = isset($type_counts[$b]) ? (int) $type_counts[$b] : 0;
+                    if ($ca === $cb) {
+                        return 0;
+                    }
+                    return ($ca > $cb) ? -1 : 1;
+                });
+            }
+
             $this->load->view('clients/index', [
                 'rows' => $rows,
                 'lanes' => $lanes,
                 'show_lanes' => $show_lanes,
                 'filters' => $filters,
                 'client_types' => $client_types,
+                'client_versions' => $client_versions,
                 'type_counts' => $type_counts,
+                'version_counts' => $version_counts,
                 'status_counts' => $status_counts,
                 'stats_total' => $stats_total,
                 'pagination' => $pagination,
@@ -331,7 +389,9 @@ class Clients extends CI_Controller {
             'show_lanes' => true,
             'filters' => array(),
             'client_types' => $client_types,
+            'client_versions' => $this->_client_version_options(),
             'type_counts' => array(),
+            'version_counts' => array(),
             'status_counts' => array(),
             'stats_total' => 0,
             'pagination' => array(
@@ -647,6 +707,7 @@ class Clients extends CI_Controller {
                 }
                 $from_envs = $this->_client_fields_from_envs($url_catalog_rows);
                 
+                $client_version = $this->_resolve_client_version($this->input->post('client_version'));
                 // Prepare data
                 $data = [
                     'client_code' => $client_code,
@@ -668,6 +729,7 @@ class Clients extends CI_Controller {
                     'industry' => trim($this->input->post('industry')),
                     'onboarding_date' => $this->input->post('onboarding_date') ?: null,
                     'client_type' => $this->_resolve_client_type($this->input->post('client_type')),
+                    'client_version' => ($client_version !== '') ? $client_version : null,
                     'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
                     'notes' => trim($this->input->post('notes')),
                     'db_name' => $from_envs['db_name'],
@@ -736,6 +798,7 @@ class Clients extends CI_Controller {
             $this->load->view('clients/create', [
                 'managers'=>$managers,
                 'client_types'=>$this->_client_type_options(),
+                'client_versions'=>$this->_client_version_options(),
                 'url_types'=>$this->_client_url_type_options(),
             ]);
         } catch (Exception $e) {
@@ -1262,6 +1325,7 @@ class Clients extends CI_Controller {
                         return;
                     }
                     $from_envs = $this->_client_fields_from_envs($url_catalog_rows);
+                    $client_version = $this->_resolve_client_version($this->input->post('client_version'));
                     $data = [
                         'company_name' => $company_name,
                         'contact_person' => $contact_person,
@@ -1281,6 +1345,7 @@ class Clients extends CI_Controller {
                         'industry' => trim($this->input->post('industry')),
                         'onboarding_date' => $this->input->post('onboarding_date') ?: null,
                         'client_type' => $this->_resolve_client_type($this->input->post('client_type')),
+                        'client_version' => ($client_version !== '') ? $client_version : null,
                         'account_manager_id' => $this->input->post('account_manager_id') !== '' ? (int)$this->input->post('account_manager_id') : null,
                         'notes' => trim($this->input->post('notes')),
                         'db_name' => $from_envs['db_name'],
@@ -1353,6 +1418,7 @@ class Clients extends CI_Controller {
                 'client'=>$c,
                 'managers'=>$managers,
                 'client_types'=>$this->_client_type_options(),
+                'client_versions'=>$this->_client_version_options(),
                 'url_types'=>$this->_client_url_type_options(),
                 'existing_urls'=>$existing_urls,
             ]);
@@ -1494,6 +1560,18 @@ class Clients extends CI_Controller {
                     continue;
                 }
 
+                $client_version_raw = $this->_csv_client_get($opened['map'], $row, 'client_version');
+                $client_version = '';
+                if ($client_version_raw !== '') {
+                    $cv = module_type_validate_code($client_version_raw, 'client_versions', true, null);
+                    if ($cv === false) {
+                        $skipped++;
+                        csv_import_add_row_error($row_errors, $line, 'Invalid client_version "' . $client_version_raw . '".');
+                        continue;
+                    }
+                    $client_version = ($cv !== null) ? (string) $cv : '';
+                }
+
                 $status_raw = $this->_csv_client_get($opened['map'], $row, 'status', 'active');
                 $status = module_status_sanitize($status_raw, 'clients', 'active');
                 if ($status === false) {
@@ -1537,6 +1615,7 @@ class Clients extends CI_Controller {
                     'industry' => $this->_csv_client_get($opened['map'], $row, 'industry'),
                     'onboarding_date' => $this->_csv_client_get($opened['map'], $row, 'onboarding_date') ?: null,
                     'client_type' => $client_type,
+                    'client_version' => ($client_version !== '') ? $client_version : null,
                     'status' => $status,
                     'notes' => $this->_csv_client_get($opened['map'], $row, 'notes'),
                     'updated_at' => $now,
@@ -1646,6 +1725,7 @@ class Clients extends CI_Controller {
             array('header' => 'industry', 'field' => 'industry'),
             array('header' => 'onboarding_date', 'field' => 'onboarding_date'),
             array('header' => 'client_type', 'field' => 'client_type'),
+            array('header' => 'client_version', 'field' => 'client_version'),
             array('header' => 'status', 'field' => 'status'),
             array('header' => 'notes', 'field' => 'notes'),
         );
@@ -1680,6 +1760,7 @@ class Clients extends CI_Controller {
             'industry' => array('industry'),
             'onboarding_date' => array('onboarding_date', 'onboarding date'),
             'client_type' => array('client_type', 'client type'),
+            'client_version' => array('client_version', 'client version', 'version'),
             'status' => array('status'),
             'notes' => array('notes'),
         );
@@ -2077,7 +2158,7 @@ class Clients extends CI_Controller {
         if ($est_provided && $has_estimate) {
             $est = estimate_hours_parse($estimate_hours);
             if ($est === false) {
-                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a single digit (0–9).', 400);
+                return $this->_inline_json(false, array(), 'Estimate (hrs) must be a number between 0 and 9999.99.', 400);
             }
         }
 

@@ -230,7 +230,7 @@
 
               <label class="form-label fw-semibold" for="mw-estimate-hours">Estimate (hrs)</label>
 
-              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9" step="1"
+              <input type="number" name="estimate_hours" id="mw-estimate-hours" class="form-control" min="0" max="9999.99" step="0.01"
                      value="<?php
                        $est_val = $field('estimate_hours', '');
                        if ($est_val !== '' && $est_val !== null && function_exists('estimate_hours_display')) {

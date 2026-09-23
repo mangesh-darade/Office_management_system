@@ -24,6 +24,16 @@ $company_name = isset($client->company_name) ? (string) $client->company_name : 
 $client_code = isset($client->client_code) ? (string) $client->client_code : '';
 $client_status = isset($client->status) ? (string) $client->status : 'active';
 $client_type = isset($client->client_type) ? (string) $client->client_type : '';
+$client_version = isset($client->client_version) ? trim((string) $client->client_version) : '';
+if ($client_version !== '' && function_exists('module_type_label')) {
+    $this->load->helper('types');
+    $client_version_label = module_type_label($client_version, 'client_versions');
+    if ($client_version_label === '' || $client_version_label === null) {
+        $client_version_label = $client_version;
+    }
+} else {
+    $client_version_label = $client_version;
+}
 
 $history = isset($history) && is_array($history) ? $history : array();
 $history_filters = isset($history_filters) && is_array($history_filters) ? $history_filters : array(
@@ -147,6 +157,9 @@ if ($st_lower === 'active') {
       <h1 class="client-detail-name" title="<?php echo esc_view($company_name); ?>"><?php echo esc_view($company_name); ?></h1>
       <?php if ($client_type !== ''): ?>
       <span class="badge client-detail-pill"><?php echo esc_view(ucfirst($client_type)); ?></span>
+      <?php endif; ?>
+      <?php if ($client_version_label !== ''): ?>
+      <span class="badge text-bg-light border"><?php echo esc_view($client_version_label); ?></span>
       <?php endif; ?>
       <span class="badge bg-<?php echo esc_view($status_class); ?>"><?php echo esc_view(ucfirst($client_status)); ?></span>
     </div>
@@ -567,7 +580,7 @@ if ($st_lower === 'active') {
                 </td>
                 <td class="text-end text-nowrap">
                   <?php if ($can_manage_tasks): ?>
-                  <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9" step="1" placeholder="—" title="Estimate (hrs)" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
+                  <input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.01" placeholder="—" title="Estimate (hrs)" value="<?php echo esc_view($t_est_input, ENT_QUOTES, 'UTF-8'); ?>">
                   <?php else: ?>
                   <span class="small text-muted"><?php echo esc_view($t_est_row); ?></span>
                   <?php endif; ?>
@@ -930,7 +943,7 @@ if ($st_lower === 'active') {
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($task_statuses as $st): ?><option value="<?php echo esc_view($st); ?>"><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-assignee"><option value="">Unassigned</option><?php echo $inline_user_options; ?></select></td>
-  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9" step="1" placeholder="—" title="Estimate (hrs)" value=""></td>
+  <td class="text-end"><input type="number" class="form-control form-control-sm project-inline-estimate text-end" min="0" max="9999.99" step="0.01" placeholder="—" title="Estimate (hrs)" value=""></td>
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_tasks): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
 </template>
@@ -1111,8 +1124,8 @@ if ($st_lower === 'active') {
     }
     if (payload.type === 'task') {
       var estRaw = String(payload.estimate_hours || '').trim();
-      if (estRaw !== '' && (isNaN(Number(estRaw)) || !/^[0-9]$/.test(estRaw) || Number(estRaw) < 0 || Number(estRaw) > 9)) {
-        setRowState(row, 'Estimate (hrs) must be 0–9', true);
+      if (estRaw !== '' && (isNaN(Number(estRaw)) || Number(estRaw) < 0 || Number(estRaw) > 9999.99)) {
+        setRowState(row, 'Estimate (hrs) must be 0–9999.99', true);
         return;
       }
     }

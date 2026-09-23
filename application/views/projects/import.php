@@ -15,7 +15,7 @@
       <ul class="small text-muted mb-3">
         <li><strong>name</strong> — required.</li>
         <li><strong>status</strong> — planned, active, on_hold, completed, cancelled (default planned).</li>
-        <li><strong>estimate_hours</strong> — optional whole number 0–9 (e.g. 2).</li>
+        <li><strong>estimate_hours</strong> — optional number 0–9999.99 (e.g. 2 or 2.5).</li>
         <li>Duplicate <strong>code</strong> values are skipped with a row error.</li>
       </ul>
       <?php $this->load->view('partials/import_errors'); ?>

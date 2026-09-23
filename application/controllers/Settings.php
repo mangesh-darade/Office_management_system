@@ -679,7 +679,21 @@ class Settings extends CI_Controller {
     {
         require_module_access(['types', 'settings'], true);
         $module = trim((string) $this->input->get('module'));
+        if ($module === 'client_versions') {
+            redirect('settings/client-versions');
+            return;
+        }
         $types = $this->module_types->get_all($module !== '' ? $module : null, false);
+        if ($module === '' && is_array($types)) {
+            $filtered = array();
+            foreach ($types as $row) {
+                if (isset($row->module) && (string) $row->module === 'client_versions') {
+                    continue;
+                }
+                $filtered[] = $row;
+            }
+            $types = $filtered;
+        }
         $this->load->view('settings/module_types/index', array(
             'types'           => $types,
             'modules'         => $this->module_types->registry_modules(),
@@ -700,6 +714,11 @@ class Settings extends CI_Controller {
                 'is_active'     => $this->input->post('is_active') ? 1 : 0,
                 'description'   => trim((string) $this->input->post('description')) ?: null,
             );
+            if ($data['module'] === 'client_versions') {
+                $this->session->set_flashdata('error', 'Use Client Versions under Settings to manage versions.');
+                redirect('settings/client-versions/create');
+                return;
+            }
             if ($data['name'] === '' || $data['code'] === '' || $data['module'] === '') {
                 $this->session->set_flashdata('error', 'Name, code, and module are required.');
                 redirect('settings/types/create');
@@ -733,6 +752,10 @@ class Settings extends CI_Controller {
         if (!$type) {
             show_404();
         }
+        if (isset($type->module) && (string) $type->module === 'client_versions') {
+            redirect('settings/client-versions/' . (int) $id . '/edit');
+            return;
+        }
         if ($this->input->method() === 'post') {
             $data = array(
                 'name'          => trim((string) $this->input->post('name')),
@@ -742,6 +765,11 @@ class Settings extends CI_Controller {
                 'is_active'     => $this->input->post('is_active') ? 1 : 0,
                 'description'   => trim((string) $this->input->post('description')) ?: null,
             );
+            if ($data['module'] === 'client_versions') {
+                $this->session->set_flashdata('error', 'Use Client Versions under Settings to manage versions.');
+                redirect('settings/client-versions');
+                return;
+            }
             $existing = $this->module_types->get_by_code($data['code'], $data['module']);
             if ($existing && (int) $existing->id !== (int) $id) {
                 $this->session->set_flashdata('error', 'Type code already exists for this module.');
@@ -774,12 +802,135 @@ class Settings extends CI_Controller {
         if (!$type) {
             show_404();
         }
+        if (isset($type->module) && (string) $type->module === 'client_versions') {
+            redirect('settings/client-versions');
+            return;
+        }
         $this->module_types->delete((int) $id);
         if (function_exists('log_activity')) {
             log_activity('module_types', 'deleted', (int) $id, 'Type removed');
         }
         $this->session->set_flashdata('success', 'Type deleted successfully.');
         redirect('settings/types');
+    }
+
+    /**
+     * Client Versions master list (clients only — not Module Types).
+     * GET /settings/client-versions
+     */
+    public function client_versions()
+    {
+        require_module_access(array('types', 'settings'), true);
+        $types = $this->module_types->get_all('client_versions', false);
+        $this->load->view('settings/client_versions/index', array(
+            'versions' => $types,
+        ));
+    }
+
+    /**
+     * GET/POST /settings/client-versions/create
+     */
+    public function client_versions_create()
+    {
+        require_module_access(array('types', 'settings'), true);
+        if ($this->input->method() === 'post') {
+            $data = array(
+                'name'          => trim((string) $this->input->post('name')),
+                'code'          => trim((string) $this->input->post('code')),
+                'module'        => 'client_versions',
+                'display_order' => $this->input->post('display_order') !== '' ? (int) $this->input->post('display_order') : 0,
+                'is_active'     => $this->input->post('is_active') ? 1 : 0,
+                'description'   => trim((string) $this->input->post('description')) ?: null,
+            );
+            if ($data['name'] === '' || $data['code'] === '') {
+                $this->session->set_flashdata('error', 'Name and code are required.');
+                redirect('settings/client-versions/create');
+                return;
+            }
+            $existing = $this->module_types->get_by_code($data['code'], 'client_versions');
+            if ($existing) {
+                $this->session->set_flashdata('error', 'Version code already exists.');
+                redirect('settings/client-versions/create');
+                return;
+            }
+            $id = $this->module_types->create($data);
+            if (function_exists('log_activity')) {
+                log_activity('client_versions', 'created', (int) $id, 'Version: ' . $data['name']);
+            }
+            $this->session->set_flashdata('success', 'Version created successfully.');
+            redirect('settings/client-versions');
+            return;
+        }
+        $this->load->view('settings/client_versions/form', array(
+            'action' => 'create',
+        ));
+    }
+
+    /**
+     * GET/POST /settings/client-versions/{id}/edit
+     */
+    public function client_versions_edit($id)
+    {
+        require_module_access(array('types', 'settings'), true);
+        $type = $this->module_types->get_by_id((int) $id);
+        if (!$type || (string) $type->module !== 'client_versions') {
+            show_404();
+            return;
+        }
+        if ($this->input->method() === 'post') {
+            $data = array(
+                'name'          => trim((string) $this->input->post('name')),
+                'code'          => trim((string) $this->input->post('code')),
+                'module'        => 'client_versions',
+                'display_order' => $this->input->post('display_order') !== '' ? (int) $this->input->post('display_order') : 0,
+                'is_active'     => $this->input->post('is_active') ? 1 : 0,
+                'description'   => trim((string) $this->input->post('description')) ?: null,
+            );
+            if ($data['name'] === '' || $data['code'] === '') {
+                $this->session->set_flashdata('error', 'Name and code are required.');
+                redirect('settings/client-versions/' . (int) $id . '/edit');
+                return;
+            }
+            $existing = $this->module_types->get_by_code($data['code'], 'client_versions');
+            if ($existing && (int) $existing->id !== (int) $id) {
+                $this->session->set_flashdata('error', 'Version code already exists.');
+                redirect('settings/client-versions/' . (int) $id . '/edit');
+                return;
+            }
+            $this->module_types->update((int) $id, $data);
+            if (function_exists('log_activity')) {
+                log_activity('client_versions', 'updated', (int) $id, 'Version: ' . $data['name']);
+            }
+            $this->session->set_flashdata('success', 'Version updated successfully.');
+            redirect('settings/client-versions');
+            return;
+        }
+        $this->load->view('settings/client_versions/form', array(
+            'action'  => 'edit',
+            'version' => $type,
+        ));
+    }
+
+    /**
+     * POST /settings/client-versions/{id}/delete
+     */
+    public function client_versions_delete($id)
+    {
+        require_module_access(array('types', 'settings'), true);
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+        }
+        $type = $this->module_types->get_by_id((int) $id);
+        if (!$type || (string) $type->module !== 'client_versions') {
+            show_404();
+            return;
+        }
+        $this->module_types->delete((int) $id);
+        if (function_exists('log_activity')) {
+            log_activity('client_versions', 'deleted', (int) $id, 'Version removed');
+        }
+        $this->session->set_flashdata('success', 'Version deleted successfully.');
+        redirect('settings/client-versions');
     }
 
     private function ensure_subscription_builder_schema()

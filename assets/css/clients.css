@@ -45,13 +45,46 @@
 /* Compact stat cards */
 .cl-page .cl-stat-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(5.25rem, 1fr));
+  gap: 0.4rem;
   margin-bottom: 0.55rem;
+  align-items: stretch;
 }
 
 .cl-page .cl-stat-cards-type {
   margin-bottom: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+}
+
+.cl-page .cl-stat-cards .cl-stat-card {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.cl-page .cl-stat-cards .cl-stat-card .cl-stat-value {
+  font-size: clamp(0.9rem, 1.8vw, 1.1rem);
+}
+
+.cl-page .cl-stat-cards .cl-stat-card .cl-stat-label {
+  font-size: clamp(0.58rem, 1.2vw, 0.68rem);
+  margin-top: 0.05rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 575.98px) {
+  .cl-page .cl-stat-cards {
+    grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+    gap: 0.3rem;
+  }
+  .cl-page .cl-stat-cards-type {
+    grid-template-columns: repeat(auto-fit, minmax(4.75rem, 1fr));
+  }
 }
 
 .cl-page .cl-status-filter-wrap {
@@ -79,15 +112,6 @@
 
 .cl-page .cl-status-filter option {
   padding: 0.25rem 0.5rem;
-}
-
-@media (min-width: 768px) {
-  .cl-page .cl-stat-cards-status {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .cl-page .cl-stat-cards-type {
-    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
-  }
 }
 
 .cl-page .cl-stat-card {

@@ -359,6 +359,11 @@ $route['settings/types/create'] = 'settings/module_types_create';
 $route['settings/types/(:num)/edit'] = 'settings/module_types_edit/$1';
 $route['settings/types/(:num)/delete'] = 'settings/module_types_delete/$1';
 
+$route['settings/client-versions'] = 'settings/client_versions';
+$route['settings/client-versions/create'] = 'settings/client_versions_create';
+$route['settings/client-versions/(:num)/edit'] = 'settings/client_versions_edit/$1';
+$route['settings/client-versions/(:num)/delete'] = 'settings/client_versions_delete/$1';
+
 // Holidays Management
 $route['settings/holidays'] = 'settings/holidays';
 $route['settings/holidays/create'] = 'settings/holidays_create';

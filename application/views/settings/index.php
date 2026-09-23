@@ -918,6 +918,19 @@
         </a>
       </div>
     </div>
+    <div class="card shadow-sm mt-4 border-0">
+      <div class="card-header bg-light border-0">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-tag text-primary me-2"></i>Client Versions
+        </h6>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Versions for the Clients module only. Used on client create, edit, and list filters.</p>
+        <a href="<?php echo site_url('settings/client-versions'); ?>" class="btn btn-primary">
+          <i class="bi bi-tag me-1"></i>Manage Client Versions
+        </a>
+      </div>
+    </div>
     <?php endif; ?>
   </div> <!-- End General Tab -->
 

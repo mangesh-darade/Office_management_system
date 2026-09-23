@@ -9,7 +9,7 @@ if (!function_exists('estimate_hours_parse')) {
     /**
      * Parse optional estimate hours from form/CSV.
      * Empty → null. Invalid → false.
-     * EST hr is single digit only: whole numbers 0–9.
+     * Accepts any non-negative number up to DECIMAL(6,2) max (9999.99).
      *
      * @param mixed $raw
      * @return float|null|false
@@ -27,14 +27,10 @@ if (!function_exists('estimate_hours_parse')) {
             return false;
         }
         $v = (float) $s;
-        if ($v < 0 || $v > 9) {
+        if ($v < 0 || $v > 9999.99) {
             return false;
         }
-        // Single digit only — no decimals (2.5 rejected).
-        if (abs($v - round($v)) > 0.001) {
-            return false;
-        }
-        return (float) (int) round($v);
+        return round($v, 2);
     }
 }
 
