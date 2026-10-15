@@ -439,9 +439,13 @@ class Projects extends CI_Controller {
         if ($note === '') {
             $note = trim((string) $this->input->post('comment'));
         }
+        $history_url = 'projects/' . $id . '?tab=history';
+        if ((string) $this->input->get('popup') === '1' || (string) $this->input->post('popup') === '1') {
+            $history_url .= '&popup=1';
+        }
         if ($note === '') {
             $this->session->set_flashdata('error', 'History note cannot be empty.');
-            redirect('projects/' . $id . '#history');
+            redirect($history_url);
             return;
         }
 
@@ -451,7 +455,7 @@ class Projects extends CI_Controller {
         log_activity('projects', 'note', $id, 'History note on project: ' . (isset($project->code) ? $project->code : $project->name));
 
         $this->session->set_flashdata('success', 'History note saved.');
-        redirect('projects/' . $id . '#history');
+        redirect($history_url);
     }
 
     // GET /projects/dashboard
