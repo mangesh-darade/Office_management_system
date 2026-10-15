@@ -1,0 +1,110 @@
+{
+  "setup": {
+    "graph_version": "v23.0",
+    "phone_number_id": "1169968729541279",
+    "waba_id": "1508742840538599",
+    "business_id": "",
+    "dataset_id": "",
+    "to_number": "",
+    "template_name": "hello_world",
+    "template_language": "en_US",
+    "access_token": ""
+  },
+  "notes": [
+    "Paste the System User token only in Graph API Explorer or API Integrations. Do not commit it in this file.",
+    "to_number is digits only, country code included, no plus sign. Use your own test number.",
+    "Remove email and manage_app_solution from the Meta use case. This app does not call them.",
+    "Run whatsapp_business_manage_events only if that permission stays on the use case.",
+    "After a successful call, Meta can take 15-30 minutes to raise the API Calls count."
+  ],
+  "header": {
+    "Authorization": "Bearer ACCESS_TOKEN",
+    "Content-Type": "application/json"
+  },
+  "calls": [
+    {
+      "permission": "whatsapp_business_messaging",
+      "method": "POST",
+      "path": "/{graph_version}/{phone_number_id}/messages",
+      "body": {
+        "messaging_product": "whatsapp",
+        "to": "{to_number}",
+        "type": "template",
+        "template": {
+          "name": "{template_name}",
+          "language": {
+            "code": "{template_language}"
+          }
+        }
+      }
+    },
+    {
+      "permission": "whatsapp_business_management",
+      "method": "GET",
+      "path": "/{graph_version}/{waba_id}/message_templates?fields=name,status,language&limit=5",
+      "body": null
+    },
+    {
+      "permission": "whatsapp_business_management",
+      "method": "GET",
+      "path": "/{graph_version}/{waba_id}/phone_numbers?fields=id,display_phone_number,verified_name",
+      "body": null
+    },
+    {
+      "permission": "whatsapp_business_management",
+      "method": "GET",
+      "path": "/{graph_version}/{phone_number_id}?fields=id,display_phone_number,verified_name,whatsapp_business_account",
+      "body": null
+    },
+    {
+      "permission": "public_profile",
+      "method": "GET",
+      "path": "/{graph_version}/me?fields=id,name",
+      "body": null
+    },
+    {
+      "permission": "business_management",
+      "method": "GET",
+      "path": "/{graph_version}/me/businesses?fields=id,name",
+      "body": null
+    },
+    {
+      "permission": "business_management",
+      "method": "GET",
+      "path": "/{graph_version}/me/assigned_whatsapp_business_accounts?fields=id,name",
+      "body": null
+    },
+    {
+      "permission": "business_management",
+      "method": "GET",
+      "path": "/{graph_version}/{business_id}/owned_whatsapp_business_accounts?fields=id,name",
+      "body": null
+    },
+    {
+      "permission": "whatsapp_business_manage_events",
+      "optional": true,
+      "method": "GET",
+      "path": "/{graph_version}/{waba_id}/dataset?fields=id,name",
+      "body": null
+    },
+    {
+      "permission": "whatsapp_business_manage_events",
+      "optional": true,
+      "method": "POST",
+      "path": "/{graph_version}/{dataset_id}/events",
+      "body": {
+        "data": [
+          {
+            "event_name": "LeadSubmitted",
+            "event_time": 0,
+            "action_source": "business_messaging",
+            "messaging_channel": "whatsapp",
+            "user_data": {
+              "ph": ["{to_number}"]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
