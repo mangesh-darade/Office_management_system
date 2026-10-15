@@ -964,6 +964,7 @@ class Tasks extends CI_Controller {
 
         $filter_user_id = $this->_user_dashboard_parse_filter_id($this->input->get('user_id'));
         $filter_project_id = $this->_user_dashboard_parse_filter_id($this->input->get('project_id'));
+        $filter_department_id = $this->_user_dashboard_parse_filter_id($this->input->get('department_id'));
         $filter_status = $this->input->get('status') !== null ? trim((string) $this->input->get('status')) : 'all';
         if ($filter_status === '') {
             $filter_status = 'all';
@@ -1002,6 +1003,12 @@ class Tasks extends CI_Controller {
             $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
         }
 
+        $filter_departments = array();
+        if ($this->db->table_exists('departments')) {
+            $this->load->model('Department_model');
+            $filter_departments = $this->Department_model->all();
+        }
+
         $this->load->helper('my_works_form');
         $dash_clients = my_works_clients_for_dropdown($this->db);
         $dash_projects = my_works_projects_for_dropdown($this->db);
@@ -1009,6 +1016,9 @@ class Tasks extends CI_Controller {
             && (has_module_access('tasks_add') || has_module_access('tasks'));
 
         $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
+        if ($filter_department_id > 0 && !$can_view_all) {
+            $tasks = $this->_user_dashboard_filter_tasks_by_project_department($tasks, $filter_department_id);
+        }
 
         $type_counts = array(
             'total'        => count($tasks),
@@ -1025,7 +1035,7 @@ class Tasks extends CI_Controller {
         }
 
         if ($can_view_all) {
-            $group_cards = $this->_user_dashboard_employee_cards($tasks, $team_dash_status_maps, $filter_user_id, $complete_view);
+            $group_cards = $this->_user_dashboard_employee_cards($tasks, $team_dash_status_maps, $filter_user_id, $complete_view, $filter_department_id);
             $group_mode = 'employee';
             $page_title = 'Team Dashboard';
             $subtitle = 'All employee tasks, requirements, and work items';
@@ -1041,7 +1051,11 @@ class Tasks extends CI_Controller {
 
         $filters_active = ($filter_user_id > 0
             || $filter_project_id > 0
+            || $filter_department_id > 0
             || ($filter_status !== '' && $filter_status !== 'all'));
+        if ($filter_department_id > 0 && $can_view_all) {
+            $type_counts = $this->_user_dashboard_counts_from_cards($group_cards);
+        }
         if ($filters_active && !empty($group_cards)) {
             if (!function_exists('dashboard_sort_nonempty_first')) {
                 $this->load->helper('my_works');
@@ -1098,9 +1112,11 @@ class Tasks extends CI_Controller {
             'subtitle'      => $subtitle,
             'filter_user_id'    => $filter_user_id,
             'filter_project_id' => $filter_project_id,
+            'filter_department_id' => $filter_department_id,
             'filter_status'     => $filter_status,
             'filter_projects'   => $filter_projects,
             'filter_users'      => $filter_users,
+            'filter_departments' => $filter_departments,
             'dash_clients'      => $dash_clients,
             'dash_projects'     => $dash_projects,
             'can_add_task'      => $can_add_task,
@@ -2255,10 +2271,93 @@ class Tasks extends CI_Controller {
      * @param array $status_rows
      * @return array
      */
-    private function _user_dashboard_employee_cards($tasks, $status_maps = array(), $filter_user_id = -1, $complete_view = 'hide')
+    private function _user_dashboard_filter_tasks_by_project_department($tasks, $department_id)
+    {
+        $department_id = (int) $department_id;
+        if ($department_id < 1 || empty($tasks)) {
+            return $tasks;
+        }
+        if (!$this->db->table_exists('projects') || !schema_table_has_column($this->db, 'projects', 'department_id')) {
+            return $tasks;
+        }
+
+        $project_ids = array();
+        foreach ($tasks as $task) {
+            $project_id = isset($task->project_id) ? (int) $task->project_id : 0;
+            if ($project_id > 0) {
+                $project_ids[$project_id] = true;
+            }
+        }
+        if (empty($project_ids)) {
+            return array();
+        }
+
+        $rows = $this->db->select('id, department_id')
+            ->from('projects')
+            ->where_in('id', array_keys($project_ids))
+            ->get()
+            ->result();
+        $allowed = array();
+        foreach ($rows as $row) {
+            if ((int) $row->department_id === $department_id) {
+                $allowed[(int) $row->id] = true;
+            }
+        }
+
+        $out = array();
+        foreach ($tasks as $task) {
+            $project_id = isset($task->project_id) ? (int) $task->project_id : 0;
+            if ($project_id > 0 && isset($allowed[$project_id])) {
+                $out[] = $task;
+            }
+        }
+        return $out;
+    }
+
+    private function _user_dashboard_counts_from_cards($group_cards)
+    {
+        $counts = array(
+            'total'        => 0,
+            'project_task' => 0,
+            'my_work'      => 0,
+            'ad_hoc'       => 0,
+            'requirement'  => 0,
+        );
+        $seen = array();
+        if (!is_array($group_cards)) {
+            return $counts;
+        }
+        foreach ($group_cards as $card) {
+            $items = isset($card['items']) && is_array($card['items']) ? $card['items'] : array();
+            foreach ($items as $item) {
+                $item_type = isset($item['item_type']) ? (string) $item['item_type'] : 'project_task';
+                $item_id = isset($item['id']) ? (int) $item['id'] : 0;
+                $key = $item_type . ':' . $item_id;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $counts['total']++;
+                if (isset($counts[$item_type])) {
+                    $counts[$item_type]++;
+                }
+            }
+        }
+        return $counts;
+    }
+
+    private function _user_dashboard_employee_cards($tasks, $status_maps = array(), $filter_user_id = -1, $complete_view = 'hide', $filter_department_id = -1)
     {
         $grouped = array();
         $employees_info = array();
+        $filter_department_id = (int) $filter_department_id;
+        $filter_department_name = '';
+        if ($filter_department_id > 0 && $this->db->table_exists('departments')) {
+            $dept_row = $this->db->select('dept_name')->from('departments')->where('id', $filter_department_id)->limit(1)->get()->row();
+            if ($dept_row && isset($dept_row->dept_name)) {
+                $filter_department_name = trim((string) $dept_row->dept_name);
+            }
+        }
 
         if ($this->db->table_exists('employees') && schema_table_has_column($this->db, 'employees', 'user_id')) {
             $select = array('user_id');
@@ -2271,6 +2370,15 @@ class Tasks extends CI_Controller {
             $this->db->select(implode(',', $select));
             if (schema_table_has_column($this->db, 'employees', 'status')) {
                 $this->db->where('status', 'active');
+            }
+            if ($filter_department_id > 0) {
+                if ($filter_department_name !== '' && schema_table_has_column($this->db, 'employees', 'department')) {
+                    $this->db->where('department', $filter_department_name);
+                } elseif (schema_table_has_column($this->db, 'employees', 'department_id')) {
+                    $this->db->where('department_id', $filter_department_id);
+                } else {
+                    $this->db->where('1 = 0', null, false);
+                }
             }
             // If a specific user is being filtered, only load that employee record
             if ($filter_user_id > 0) {
@@ -2304,6 +2412,9 @@ class Tasks extends CI_Controller {
             }
             foreach ($assignee_ids as $assignee_id) {
                 $assignee_id = (int) $assignee_id;
+                if ($filter_department_id > 0 && !isset($employees_info[$assignee_id])) {
+                    continue;
+                }
                 if (!isset($grouped[$assignee_id])) {
                     $grouped[$assignee_id] = array();
                 }

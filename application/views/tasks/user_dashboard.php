@@ -144,6 +144,8 @@ if (!$embed):
 
 <?php
 $filter_user_id = isset($filter_user_id) ? (int) $filter_user_id : -1;
+$filter_department_id = isset($filter_department_id) ? (int) $filter_department_id : -1;
+$filter_departments = isset($filter_departments) ? $filter_departments : array();
 $filter_users = isset($filter_users) ? $filter_users : array();
 $focus_raw = $this->input->get('focus');
 $is_user_focused = ($filter_user_id > 0 && in_array((string) $focus_raw, array('1', 'true'), true));
@@ -219,6 +221,33 @@ if (!$embed) {
       <?php if ($this->input->get('parent_tab')): ?>
       <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
       <?php endif; ?>
+      <?php if (!empty($filter_departments)): ?>
+      <label class="project-dash-filter-label">
+        <span class="project-dash-filter-label-text">Department</span>
+        <select name="department_id" class="form-select form-select-sm project-dash-filter-select">
+          <option value="all"<?php echo $filter_department_id < 1 ? ' selected' : ''; ?>>All Departments</option>
+          <?php
+            $seen_dept_ids = array();
+            $unique_departments = array();
+            foreach ($filter_departments as $fd) {
+                $dept_id = isset($fd->id) ? (int) $fd->id : 0;
+                if ($dept_id < 1 || isset($seen_dept_ids[$dept_id])) {
+                    continue;
+                }
+                $seen_dept_ids[$dept_id] = true;
+                $unique_departments[] = $fd;
+            }
+            usort($unique_departments, function ($a, $b) {
+                return strcasecmp((string) $a->dept_name, (string) $b->dept_name);
+            });
+          ?>
+          <?php foreach ($unique_departments as $fd): ?>
+            <option value="<?php echo (int) $fd->id; ?>"<?php echo $filter_department_id === (int) $fd->id ? ' selected' : ''; ?>><?php echo esc_view($fd->dept_name, ENT_QUOTES, 'UTF-8'); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+      <?php endif; ?>
+
       <?php if (!empty($filter_projects)): ?>
       <label class="project-dash-filter-label">
         <span class="project-dash-filter-label-text">Project</span>
