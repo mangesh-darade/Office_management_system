@@ -191,7 +191,22 @@ $show_project_toolbar = true;
       <span class="project-dash-filter-label-text">Department</span>
       <select name="department_id" class="form-select form-select-sm project-dash-filter-select">
         <option value="all"<?php echo $filter_department_id < 0 ? ' selected' : ''; ?>>All Departments</option>
-        <?php foreach ($filter_departments as $fd): ?>
+        <?php
+          $seen_dept_ids = array();
+          $unique_departments = array();
+          foreach ($filter_departments as $fd) {
+              $dept_id = isset($fd->id) ? (int) $fd->id : 0;
+              if ($dept_id < 1 || isset($seen_dept_ids[$dept_id])) {
+                  continue;
+              }
+              $seen_dept_ids[$dept_id] = true;
+              $unique_departments[] = $fd;
+          }
+          usort($unique_departments, function ($a, $b) {
+              return strcasecmp((string) $a->dept_name, (string) $b->dept_name);
+          });
+        ?>
+        <?php foreach ($unique_departments as $fd): ?>
           <option value="<?php echo (int) $fd->id; ?>"<?php echo $filter_department_id === (int) $fd->id ? ' selected' : ''; ?>><?php echo esc_view($fd->dept_name, ENT_QUOTES, 'UTF-8'); ?></option>
         <?php endforeach; ?>
       </select>
