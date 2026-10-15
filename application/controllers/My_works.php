@@ -195,17 +195,59 @@ class My_works extends CI_Controller
     private function _list_view_data(array $filters, $view_mode)
     {
         $c = $this->_ctx();
+        $can_view_all = $c['can_view_all'];
+        if ($view_mode === 'overview') {
+            $can_view_all = false;
+        }
         return my_works_list_view_data(
             $this->db,
             $this->my_works,
             $filters,
             $view_mode,
             $this->list_cap,
-            $c['can_view_all'],
+            $can_view_all,
             $c['user_id'],
             $c['role_id'],
             array($this, '_apply_list_scope')
         );
+    }
+
+    /**
+     * Overview: assigned to me, or created/assigned by me. Not the whole org.
+     *
+     * @param array $filters
+     * @return array
+     */
+    private function _pin_overview_to_self(array $filters)
+    {
+        $filters['created_for'] = 0;
+        $filters['created_by'] = 0;
+        return $filters;
+    }
+
+    /**
+     * @param array $data
+     * @return array
+     */
+    private function _mark_overview_personal(array $data)
+    {
+        $uid = $this->_current_user_id();
+        $data['can_filter_users'] = false;
+        if (!isset($data['filters']) || !is_array($data['filters'])) {
+            $data['filters'] = array();
+        }
+        $data['filters']['created_for'] = $uid;
+        $self = array();
+        foreach ((array) $data['users'] as $user) {
+            if (is_object($user) && (int) $user->id === $uid) {
+                $self[] = $user;
+                break;
+            }
+        }
+        if (!empty($self)) {
+            $data['users'] = $self;
+        }
+        return $data;
     }
 
     /**
@@ -221,7 +263,7 @@ class My_works extends CI_Controller
         $task_rows = my_works_fetch_overview_project_tasks(
             $this->db,
             $filters,
-            $c['can_view_all'],
+            false,
             $c['user_id'],
             $this->list_cap
         );
@@ -433,6 +475,9 @@ class My_works extends CI_Controller
             if ($tab === 'pulse-updates' || $tab === 'pulse-summary') {
                 $tab = 'daily-pulse';
             }
+            if ($tab === 'list') {
+                $tab = 'overview';
+            }
             $this->load->view('my_works/unified', [
                 'active_tab' => $tab,
                 'complete_view_on' => dashboard_parse_complete_view($this->input) === 'only',
@@ -449,8 +494,12 @@ class My_works extends CI_Controller
         if (!in_array($view_mode, array('overview', 'hub', 'list', 'board', 'matrix'), true)) {
             $view_mode = 'overview';
         }
+        if ($view_mode === 'overview') {
+            $filters = $this->_pin_overview_to_self($filters);
+        }
         $data = $this->_list_view_data($filters, $view_mode);
         if ($view_mode === 'overview') {
+            $data = $this->_mark_overview_personal($data);
             // Overview lanes are for open planning work only — never list Closed/Complete.
             // Project section also includes Tasks-module rows linked to a project.
             $rows = $this->_overview_rows_with_project_tasks($data['rows'], $filters);
@@ -503,8 +552,9 @@ class My_works extends CI_Controller
             show_404();
         }
         require_module_access(array('my_works_list', 'my_works'), true);
-        $filters = $this->_sanitize_filters($this->_parse_filters());
+        $filters = $this->_pin_overview_to_self($this->_sanitize_filters($this->_parse_filters()));
         $data = $this->_list_view_data($filters, 'overview');
+        $data = $this->_mark_overview_personal($data);
         // Match overview cart: section=ad_hoc|project keeps the same badge count.
         $section = strtolower(trim((string) $this->input->get('section')));
         if (!in_array($section, array('ad_hoc', 'project'), true)) {

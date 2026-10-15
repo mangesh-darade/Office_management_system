@@ -36,6 +36,8 @@
 
   $show_status_column = !empty($show_status_column);
 
+  $datatable_lanes = !empty($datatable_lanes);
+
   if (!isset($assignee_names_map) || !is_array($assignee_names_map)) {
     $assignee_names_map = array();
   }
@@ -113,13 +115,34 @@
 
 <div class="<?php echo esc_view($lanes_class); ?>" data-section="<?php echo esc_view($section_key); ?>">
 
+  <?php
+    if ($datatable_lanes && !in_array('pipeline_grid', $lane_keys, true)) {
+      $lane_keys[] = 'pipeline_grid';
+    }
+  ?>
+
   <?php foreach ($lane_keys as $lane): ?>
 
     <?php
 
-      $laneItems = isset($section_lanes[$lane]) ? $section_lanes[$lane] : array();
+      $is_pipeline_grid = $datatable_lanes && (string) $lane === 'pipeline_grid';
 
-      if (in_array((string) $lane, array('future_pipeline', 'back_log', 'yesterday', 'todays_plan'), true) && !empty($laneItems)) {
+      if ($is_pipeline_grid) {
+        $laneItems = array();
+        $this->load->helper('my_works_status');
+        foreach (array('future_pipeline', 'back_log') as $src_lane) {
+          $src_items = isset($section_lanes[$src_lane]) ? $section_lanes[$src_lane] : array();
+          foreach ($src_items as $src_row) {
+            if (!my_works_row_is_finished($src_row)) {
+              $laneItems[] = $src_row;
+            }
+          }
+        }
+      } else {
+        $laneItems = isset($section_lanes[$lane]) ? $section_lanes[$lane] : array();
+      }
+
+      if (!$is_pipeline_grid && in_array((string) $lane, array('future_pipeline', 'back_log', 'yesterday', 'todays_plan'), true) && !empty($laneItems)) {
 
         $this->load->helper('my_works_status');
 
@@ -169,13 +192,35 @@
 
       }
 
-      $show_date = !empty($force_show_date) || my_works_dashboard_lane_shows_date($lane);
+      $show_date = !empty($force_show_date) || $is_pipeline_grid || my_works_dashboard_lane_shows_date($lane);
 
-      $col_count = ($hide_drag_column ? 0 : 1) + 3 + ($show_date ? 1 : 0) + ($hide_project_column ? 0 : 1) + ($show_status_column ? 1 : 0);
+      $lane_as_datatable = $is_pipeline_grid;
+
+      $lane_hide_drag = $hide_drag_column || $lane_as_datatable;
+
+      $lane_hide_project = $hide_project_column;
+
+      $lane_group_by_project = $group_by_project;
+
+      if ($lane_as_datatable) {
+
+        $lane_group_by_project = false;
+
+        if ($section_key === 'project') {
+
+          $lane_hide_project = false;
+
+        }
+
+      }
+
+      $col_count = ($lane_hide_drag ? 0 : 1) + 3 + ($show_date ? 1 : 0) + ($lane_hide_project ? 0 : 1) + ($show_status_column ? 1 : 0);
 
     ?>
 
-    <div class="mw-dash-lane mw-dash-lane-<?php echo esc_view($lane); ?><?php echo $show_date ? ' mw-dash-lane-has-date' : ' mw-dash-lane-no-date'; ?><?php echo $hide_drag_column ? ' mw-dash-lane-no-drag' : ''; ?><?php echo !empty($fullscreen_lane) ? ' mw-dash-lane-fullscreen' : ''; ?><?php echo $hide_project_column ? ' mw-dash-lane-no-project-col' : ''; ?><?php echo $show_status_column ? ' mw-dash-lane-has-status' : ''; ?>" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>">
+    <div class="mw-dash-lane mw-dash-lane-<?php echo esc_view($lane); ?><?php echo $show_date ? ' mw-dash-lane-has-date' : ' mw-dash-lane-no-date'; ?><?php echo $lane_hide_drag ? ' mw-dash-lane-no-drag' : ''; ?><?php echo !empty($fullscreen_lane) ? ' mw-dash-lane-fullscreen' : ''; ?><?php echo $lane_hide_project ? ' mw-dash-lane-no-project-col' : ''; ?><?php echo $show_status_column ? ' mw-dash-lane-has-status' : ''; ?><?php echo $lane_as_datatable ? ' mw-dash-lane-datatable' : ''; ?>" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>">
+
+      <?php if (!$lane_as_datatable): ?>
 
       <div class="mw-dash-lane-head">
 
@@ -193,65 +238,19 @@
 
       </div>
 
+      <?php endif; ?>
+
       <div class="mw-dash-lane-table-wrap<?php echo $unified_table ? ' mw-dash-lane-table-wrap-unified' : ''; ?>">
-
-        <?php if (!$unified_table): ?>
-
-        <table class="mw-dash-lane-table mw-dash-lane-table-head">
-
-          <colgroup>
-
-            <?php if (!$hide_drag_column): ?><col class="mw-dash-col-drag"><?php endif; ?>
-
-            <?php if (!$hide_project_column): ?><col class="mw-dash-col-project"><?php endif; ?>
-
-            <col class="mw-dash-col-title">
-
-            <col class="mw-dash-col-assignee">
-
-            <col class="mw-dash-col-est">
-
-            <?php if ($show_date): ?><col class="mw-dash-col-date"><?php endif; ?>
-
-            <?php if ($show_status_column): ?><col class="mw-dash-col-status"><?php endif; ?>
-
-          </colgroup>
-
-          <thead>
-
-            <tr>
-
-              <?php if (!$hide_drag_column): ?><th class="mw-dash-col-drag" aria-hidden="true"></th><?php endif; ?>
-
-              <?php if (!$hide_project_column): ?><th>Project</th><?php endif; ?>
-
-              <th>Title</th>
-
-              <th class="mw-dash-col-assignee-head">Assign<br>to</th>
-
-              <th class="mw-dash-col-est-head text-end">Est.hr</th>
-
-              <?php if ($show_date): ?><th>Date</th><?php endif; ?>
-
-              <?php if ($show_status_column): ?><th>Status</th><?php endif; ?>
-
-            </tr>
-
-          </thead>
-
-        </table>
-
-        <?php endif; ?>
 
         <div class="mw-dash-lane-body-scroll">
 
-          <table class="mw-dash-lane-table mw-dash-lane-table-body">
+          <table class="mw-dash-lane-table mw-dash-lane-table-body<?php echo $lane_as_datatable ? ' datatable table table-sm table-hover w-100 mb-0' : ''; ?>">
 
             <colgroup>
 
-              <?php if (!$hide_drag_column): ?><col class="mw-dash-col-drag"><?php endif; ?>
+              <?php if (!$lane_hide_drag): ?><col class="mw-dash-col-drag"><?php endif; ?>
 
-              <?php if (!$hide_project_column): ?><col class="mw-dash-col-project"><?php endif; ?>
+              <?php if (!$lane_hide_project): ?><col class="mw-dash-col-project"><?php endif; ?>
 
               <col class="mw-dash-col-title">
 
@@ -265,19 +264,17 @@
 
             </colgroup>
 
-            <?php if ($unified_table): ?>
-
             <thead>
 
               <tr>
 
-                <?php if (!$hide_drag_column): ?><th class="mw-dash-col-drag" aria-hidden="true"></th><?php endif; ?>
+                <?php if (!$lane_hide_drag): ?><th class="mw-dash-col-drag" aria-hidden="true"></th><?php endif; ?>
 
-                <?php if (!$hide_project_column): ?><th>Project</th><?php endif; ?>
+                <?php if (!$lane_hide_project): ?><th>Project</th><?php endif; ?>
 
                 <th>Title</th>
 
-                <th class="mw-dash-col-assignee-head">Assign<br>to</th>
+                <th class="mw-dash-col-assignee-head"><?php echo $lane_as_datatable ? 'Assign to' : 'Assign<br>to'; ?></th>
 
                 <th class="mw-dash-col-est-head text-end">Est.hr</th>
 
@@ -289,15 +286,27 @@
 
             </thead>
 
-            <?php endif; ?>
-
             <tbody class="mw-dash-lane-body" data-lane="<?php echo esc_view($lane); ?>" data-section="<?php echo esc_view($section_key); ?>" data-colspan="<?php echo (int) $col_count; ?>">
 
-            <?php if (empty($laneItems)): ?>
+            <?php if (empty($laneItems) && !$lane_as_datatable): ?>
 
               <tr class="mw-dash-lane-empty-row">
 
-                <td colspan="<?php echo (int) $col_count; ?>" class="mw-dash-lane-empty">No tasks planned for today</td>
+                <td colspan="<?php echo (int) $col_count; ?>" class="mw-dash-lane-empty"><?php
+                  $lane_empty_text = 'No tasks';
+                  if ($lane === 'todays_plan') {
+                      $lane_empty_text = 'No tasks planned for today';
+                  } elseif ($lane === 'yesterday') {
+                      $lane_empty_text = 'Nothing from yesterday';
+                  } elseif ($lane === 'future_pipeline') {
+                      $lane_empty_text = 'No upcoming tasks';
+                  } elseif ($lane === 'back_log') {
+                      $lane_empty_text = 'Back log is empty';
+                  } elseif ($lane === 'need_discussion') {
+                      $lane_empty_text = 'Nothing to discuss';
+                  }
+                  echo esc_view($lane_empty_text, ENT_QUOTES, 'UTF-8');
+                ?></td>
 
               </tr>
 
@@ -305,7 +314,7 @@
 
               <?php
 
-                $lane_groups = $group_by_project
+                $lane_groups = $lane_group_by_project
 
                   ? my_works_dashboard_group_lane_by_project($laneItems)
 
@@ -317,9 +326,9 @@
 
                 <?php
 
-                  $show_project_header = $group_by_project
+                  $show_project_header = $lane_group_by_project
 
-                    && $hide_project_column
+                    && $lane_hide_project
 
                     && (int) $lane_group['project_id'] > 0
 
@@ -420,7 +429,7 @@
 
                       <?php endif; ?>>
 
-                    <?php if (!$hide_drag_column): ?>
+                    <?php if (!$lane_hide_drag): ?>
 
                     <td class="mw-dash-col-drag">
 
@@ -434,7 +443,7 @@
 
                     <?php endif; ?>
 
-                    <?php if (!$hide_project_column): ?>
+                    <?php if (!$lane_hide_project): ?>
 
                     <td title="<?php echo esc_view($projLabel, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($projLabel); ?></td>
 

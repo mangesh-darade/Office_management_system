@@ -101,17 +101,6 @@ if (!$embed) {
         <input type="hidden" name="q" value="<?php echo esc_view((string) $filters['q'], ENT_QUOTES, 'UTF-8'); ?>">
       <?php endif; ?>
       <label class="mw-dash-filter-label">
-        Assigned To:
-        <select name="created_for" class="form-select form-select-sm mw-dash-filter-select" <?php echo empty($can_filter_users) ? 'disabled' : ''; ?>>
-          <option value="0">All Users</option>
-          <?php foreach ((array) $users as $u): ?>
-            <option value="<?php echo (int) $u->id; ?>" <?php echo $filterAssignee === (int) $u->id ? 'selected' : ''; ?>>
-              <?php echo esc_view(my_works_user_label($u->name, $u->email, $u->id), ENT_QUOTES, 'UTF-8'); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </label>
-      <label class="mw-dash-filter-label">
         Project:
         <select name="project_id" class="form-select form-select-sm mw-dash-filter-select">
           <option value="0">All Projects</option>
@@ -136,6 +125,14 @@ if (!$embed) {
         </div>
       </form>
     <?php endif; ?>
+    <div class="btn-group btn-group-sm mw-dash-layout-toggle" role="group" aria-label="Layout">
+      <button type="button" class="btn btn-outline-secondary" data-mw-layout="grid" title="Grid" aria-pressed="false">
+        <i class="bi bi-table"></i><span class="ms-1">Grid</span>
+      </button>
+      <button type="button" class="btn btn-primary" data-mw-layout="card" title="Card" aria-pressed="true">
+        <i class="bi bi-grid-3x3-gap"></i><span class="ms-1">Card</span>
+      </button>
+    </div>
   </div>
 
   <?php foreach ($section_order as $section_key): ?>
@@ -160,6 +157,12 @@ if (!$embed) {
       'assignee_names_map' => isset($assignee_names_map) ? $assignee_names_map : array(),
       'task_assignee_names_map' => isset($task_assignee_names_map) ? $task_assignee_names_map : array(),
     )); ?>
+    <?php $this->load->view('my_works/_overview_grid', array(
+      'section_key' => $section_key,
+      'dashboard_sections' => $dashboard_sections,
+      'users' => isset($users) ? $users : array(),
+      'can_add' => !empty($can_add),
+    )); ?>
   </section>
   <?php endforeach; ?>
 
@@ -178,6 +181,132 @@ if (!$embed) {
 
 <script>
 (function () {
+  var statusUrl = <?php echo json_encode(site_url('tasks/ajax_update_item_status')); ?>;
+  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+
+  function initOverviewGrids(page) {
+    if (!window.DataTable || !page) {
+      return;
+    }
+    var tables = page.querySelectorAll('table.mw-overview-grid-table');
+    var t;
+    for (t = 0; t < tables.length; t++) {
+      var tbl = tables[t];
+      try {
+        if (DataTable.isDataTable && DataTable.isDataTable(tbl)) {
+          new DataTable(tbl).columns.adjust();
+          continue;
+        }
+        new DataTable(tbl, {
+          pageLength: 10,
+          lengthMenu: [10, 25, 50, 100],
+          ordering: true,
+          order: [],
+          searching: true,
+          paging: true,
+          info: false,
+          responsive: false,
+          autoWidth: false,
+          columnDefs: [{ orderable: false, targets: -1 }],
+          language: {
+            search: 'Search:',
+            lengthMenu: '_MENU_ entries per page',
+            emptyTable: 'No items',
+            zeroRecords: 'No matching items'
+          }
+        });
+      } catch (err) {}
+    }
+  }
+
+  if (!window.mwOverviewGridStatusBound) {
+    window.mwOverviewGridStatusBound = true;
+    document.addEventListener('change', function (e) {
+      var sel = e.target.closest('.mw-overview-grid-wrap .project-dash-status-select');
+      if (!sel) {
+        return;
+      }
+      var chosen = sel.options[sel.selectedIndex];
+      var color = chosen ? (chosen.getAttribute('data-color') || '') : '';
+      if (color) {
+        sel.style.color = color;
+        sel.style.backgroundColor = color + '1a';
+        sel.style.borderColor = color + '40';
+        var row = sel.closest('tr');
+        if (row) {
+          row.style.background = color + '14';
+        }
+      }
+      var body = new URLSearchParams();
+      body.set('id', sel.getAttribute('data-item-id') || '');
+      body.set('type', sel.getAttribute('data-item-type') || '');
+      body.set('source', sel.getAttribute('data-item-source') || '');
+      body.set('status', sel.value);
+      body.set('actual_hours', sel.getAttribute('data-actual-hours') || '');
+      body.set(csrfName, csrfHash);
+      fetch(statusUrl, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      }).then(function (res) { return res.json(); }).then(function (data) {
+        if (!data || !data.success) {
+          var prev = sel.getAttribute('data-prev-status');
+          if (prev) {
+            sel.value = prev;
+          }
+          window.alert((data && data.error) ? data.error : 'Failed to update status.');
+          return;
+        }
+        sel.setAttribute('data-prev-status', sel.value);
+      }).catch(function () {
+        window.alert('Failed to update status.');
+      });
+    });
+  }
+
+  var page = document.querySelector('.mw-dash-page');
+  var toggle = document.querySelector('.mw-dash-layout-toggle');
+  if (page && toggle) {
+    var storageKey = 'mw_overview_layout';
+    function applyLayout(layout) {
+      if (layout !== 'grid' && layout !== 'card') {
+        layout = 'card';
+      }
+      page.setAttribute('data-layout', layout);
+      var buttons = toggle.querySelectorAll('[data-mw-layout]');
+      var i;
+      for (i = 0; i < buttons.length; i++) {
+        var on = buttons[i].getAttribute('data-mw-layout') === layout;
+        buttons[i].classList.toggle('btn-primary', on);
+        buttons[i].classList.toggle('btn-outline-secondary', !on);
+        buttons[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+      try {
+        localStorage.setItem(storageKey, layout);
+      } catch (e) {}
+      if (layout === 'grid') {
+        window.requestAnimationFrame(function () {
+          initOverviewGrids(page);
+        });
+      }
+    }
+    var saved = 'card';
+    try {
+      var raw = localStorage.getItem(storageKey);
+      if (raw === 'grid' || raw === 'card') {
+        saved = raw;
+      }
+    } catch (e2) {}
+    applyLayout(saved);
+    toggle.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-mw-layout]');
+      if (!btn) {
+        return;
+      }
+      applyLayout(btn.getAttribute('data-mw-layout'));
+    });
+  }
   var form = document.getElementById('mwDashFilterForm');
   if (!form) { return; }
   var selects = form.querySelectorAll('select');
