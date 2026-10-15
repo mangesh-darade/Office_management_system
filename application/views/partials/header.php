@@ -1,7 +1,45 @@
 <?php
+$oms_popup = isset($this->input) && (string) $this->input->get('popup') === '1';
 $embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
+if (!function_exists('oms_css_href')) {
+    function oms_css_href($rel_path) {
+        $rel_path = ltrim((string) $rel_path, '/');
+        $path_only = $rel_path;
+        $qpos = strpos($path_only, '?');
+        if ($qpos !== false) {
+            $path_only = substr($path_only, 0, $qpos);
+        }
+        $full = FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $path_only);
+        $ver = is_file($full) ? (string) filemtime($full) : (string) time();
+        return base_url($path_only . '?v=' . $ver);
+    }
+}
+if (!function_exists('oms_echo_extra_css')) {
+    function oms_echo_extra_css($extra_css, $header_css) {
+        $files = array();
+        if (is_array($extra_css)) {
+            $files = array_merge($files, $extra_css);
+        }
+        if (is_array($header_css)) {
+            $files = array_merge($files, $header_css);
+        }
+        foreach ($files as $cssFile) {
+            echo '<link href="' . esc_view(oms_css_href($cssFile), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
+        }
+    }
+}
 if ($embed) {
+    oms_echo_extra_css(
+        isset($extra_css) ? $extra_css : array(),
+        isset($header_css) ? $header_css : array()
+    );
     return;
+}
+if ($oms_popup) {
+    $hide_navbar = true;
+    $with_sidebar = false;
+    $full_width = true;
+    $body_class = trim((isset($body_class) ? (string) $body_class : '') . ' oms-popup');
 }
 ?><!doctype html>
 <html lang="en">
@@ -33,32 +71,28 @@ if ($embed) {
       }
     }
   </style>
+  <?php if (!empty($oms_popup)): ?>
+  <style>
+    body.oms-popup { background: #f8f9fb; overflow: auto; }
+    body.oms-popup main { padding: 0.5rem 0.75rem 1rem !important; min-height: 0 !important; }
+    body.oms-popup .project-detail-page { min-height: 0; }
+    body.oms-popup .app-navbar,
+    body.oms-popup .sidebar-shell,
+    body.oms-popup .sidebar-left,
+    body.oms-popup #aiFloatBtn,
+    body.oms-popup .mw-back-btn,
+    body.oms-popup .project-detail-back,
+    body.oms-popup .oms-form-back,
+    body.oms-popup .defect-form-back,
+    body.oms-popup .mw-focus-back-btn,
+    body.oms-popup nav[aria-label="breadcrumb"] { display: none !important; }
+  </style>
+  <?php endif; ?>
   <?php
-    if (!function_exists('oms_css_href')) {
-      function oms_css_href($rel_path) {
-        $rel_path = ltrim((string) $rel_path, '/');
-        // Strip existing query string from path for filemtime lookup.
-        $path_only = $rel_path;
-        $qpos = strpos($path_only, '?');
-        if ($qpos !== false) {
-          $path_only = substr($path_only, 0, $qpos);
-        }
-        $full = FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $path_only);
-        $ver = is_file($full) ? (string) filemtime($full) : (string) time();
-        return base_url($path_only . '?v=' . $ver);
-      }
-    }
-    if (isset($extra_css) && is_array($extra_css)) {
-        foreach ($extra_css as $cssFile) {
-            echo '<link href="' . esc_view(oms_css_href($cssFile), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
-        }
-    }
-    // Also accept header_css alias used by some views.
-    if (isset($header_css) && is_array($header_css)) {
-        foreach ($header_css as $cssFile) {
-            echo '<link href="' . esc_view(oms_css_href($cssFile), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
-        }
-    }
+    oms_echo_extra_css(
+        isset($extra_css) ? $extra_css : null,
+        isset($header_css) ? $header_css : null
+    );
     $coaching_uri = '';
     if (isset($this->uri) && method_exists($this->uri, 'segment')) {
         $coaching_uri = strtolower((string) $this->uri->segment(1));
@@ -1009,7 +1043,7 @@ if ((int)$this->session->userdata('user_id') && $__with_sidebar): ?>
   })();
   </script>
 </div>
-<?php if (empty($hide_navbar)): ?>
+<?php if (empty($hide_navbar) || !empty($oms_popup)): ?>
 <div id="toast-container">
   <?php if($this->session->flashdata('success')): ?>
     <div class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">

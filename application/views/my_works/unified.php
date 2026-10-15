@@ -117,12 +117,6 @@
         <i class="bi bi-people me-1"></i>Team
       </button>
     </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link <?php echo $active_tab === 'list' ? 'active' : ''; ?>" 
-              id="tab-list" data-tab="list" type="button" role="tab">
-        <i class="bi bi-list-ul me-1"></i>List
-      </button>
-    </li>
     <?php if ($can_req_list): ?>
     <li class="nav-item" role="presentation">
       <button class="nav-link <?php echo $active_tab === 'requirements' ? 'active' : ''; ?>" 
@@ -219,14 +213,6 @@
     <div class="tab-pane-content"></div>
   </div>
   
-  <!-- List Tab -->
-  <div class="tab-pane fade <?php echo $active_tab === 'list' ? 'show active' : ''; ?>" id="pane-list" role="tabpanel">
-    <div class="tab-loading-spinner text-center py-5" style="display: none;">
-      <div class="spinner-border text-primary" role="status"></div>
-    </div>
-    <div class="tab-pane-content"></div>
-  </div>
-
   <?php if ($can_req_list): ?>
   <!-- Requirements Tab -->
   <div class="tab-pane fade <?php echo $active_tab === 'requirements' ? 'show active' : ''; ?>" id="pane-requirements" role="tabpanel">
@@ -246,6 +232,23 @@
     <div class="tab-pane-content"></div>
   </div>
   <?php endif; ?>
+</div>
+
+<div class="modal fade mw-screen-popup" id="mwScreenPopup" tabindex="-1" aria-hidden="true" data-bs-focus="false">
+  <div class="modal-dialog modal-dialog-centered mw-screen-popup-dialog">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title fs-6 text-truncate" id="mwScreenPopupTitle">Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mw-screen-popup-loading" id="mwScreenPopupLoading">
+          <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading</span></div>
+        </div>
+        <iframe id="mwScreenPopupFrame" title="Details" src="about:blank"></iframe>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -619,6 +622,164 @@ document.addEventListener('DOMContentLoaded', function() {
     return href;
   }
 
+  function parseAppUrl(href) {
+    try {
+      return new URL(href, window.location.origin);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function shouldIgnoreNavLink(anchor, href) {
+    if (!href) {
+      return true;
+    }
+    var trimmed = String(href).trim();
+    if (trimmed === '' || trimmed.charAt(0) === '#' || trimmed.indexOf('javascript:') === 0) {
+      return true;
+    }
+    if (/^(mailto:|tel:)/i.test(trimmed)) {
+      return true;
+    }
+    if (anchor && anchor.getAttribute('target') === '_blank') {
+      return true;
+    }
+    var url = parseAppUrl(trimmed);
+    if (!url || url.origin !== window.location.origin) {
+      return true;
+    }
+    if (/\/export(\/|$)/i.test(url.pathname) || /\/logout$/i.test(url.pathname)) {
+      return true;
+    }
+    return false;
+  }
+
+  function isActiveTabListUrl(href) {
+    var url = parseAppUrl(href);
+    if (!url) {
+      return false;
+    }
+    var path = url.pathname.replace(/\/+$/, '');
+    var tab = getActiveUnifiedTab();
+    if (tab === 'overview' || tab === 'list') {
+      return /\/my-works$/i.test(path);
+    }
+    if (tab === 'daily-pulse') {
+      return /\/daily-pulse$/i.test(path);
+    }
+    if (tab === 'project-dashboard') {
+      return /\/projects\/dashboard$/i.test(path);
+    }
+    if (tab === 'clients') {
+      return /\/clients$/i.test(path) || /\/clients\/dashboard$/i.test(path);
+    }
+    if (tab === 'team-dashboard') {
+      return /\/tasks\/my-dashboard$/i.test(path);
+    }
+    if (tab === 'requirements') {
+      return /\/requirements$/i.test(path);
+    }
+    if (tab === 'defects') {
+      return /\/defects$/i.test(path) || /\/defects\/index(\/\d+)?$/i.test(path);
+    }
+    return false;
+  }
+
+  function linkLabel(anchor) {
+    if (!anchor) {
+      return 'Details';
+    }
+    var label = anchor.getAttribute('title') || '';
+    if (!label) {
+      label = (anchor.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    return label || 'Details';
+  }
+
+  function toPopupUrl(href) {
+    var url = new URL(href, window.location.origin);
+    url.searchParams.delete('embed');
+    url.searchParams.delete('parent_tab');
+    url.searchParams.set('popup', '1');
+    return url.toString();
+  }
+
+  function setPopupLoading(on) {
+    var loading = document.getElementById('mwScreenPopupLoading');
+    if (loading) {
+      loading.classList.toggle('is-hidden', !on);
+    }
+  }
+
+  function openScreenPopup(href, titleText) {
+    var frame = document.getElementById('mwScreenPopupFrame');
+    var modalEl = document.getElementById('mwScreenPopup');
+    var titleEl = document.getElementById('mwScreenPopupTitle');
+    if (!frame || !modalEl) {
+      window.location.href = href;
+      return;
+    }
+    if (titleEl) {
+      titleEl.textContent = titleText || 'Details';
+    }
+    frame.title = titleText || 'Details';
+    setPopupLoading(true);
+    frame.src = toPopupUrl(href);
+    if (window.bootstrap && bootstrap.Modal) {
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  var popupFrame = document.getElementById('mwScreenPopupFrame');
+  if (popupFrame) {
+    popupFrame.addEventListener('load', function () {
+      var loc = null;
+      try {
+        loc = popupFrame.contentWindow ? popupFrame.contentWindow.location : null;
+      } catch (e) {
+        setPopupLoading(false);
+        return;
+      }
+      if (!loc || !loc.href || loc.href === 'about:blank') {
+        return;
+      }
+      try {
+        var loaded = new URL(loc.href);
+        if (loaded.searchParams.get('popup') !== '1') {
+          loaded.searchParams.set('popup', '1');
+          loaded.searchParams.delete('embed');
+          popupFrame.src = loaded.toString();
+          return;
+        }
+        var docTitle = '';
+        try {
+          docTitle = popupFrame.contentDocument && popupFrame.contentDocument.title
+            ? popupFrame.contentDocument.title
+            : '';
+        } catch (e2) {}
+        var titleEl = document.getElementById('mwScreenPopupTitle');
+        if (titleEl && docTitle) {
+          titleEl.textContent = docTitle;
+        }
+      } catch (e3) {}
+      setPopupLoading(false);
+    });
+  }
+
+  var popupModal = document.getElementById('mwScreenPopup');
+  if (popupModal) {
+    popupModal.addEventListener('hidden.bs.modal', function () {
+      if (popupFrame) {
+        popupFrame.src = 'about:blank';
+      }
+      var titleEl = document.getElementById('mwScreenPopupTitle');
+      if (titleEl) {
+        titleEl.textContent = 'Details';
+      }
+      setPopupLoading(true);
+    });
+  }
+
   function loadTabContent($pane, url, method, data) {
     var $content = $pane.find('.tab-pane-content');
     var $spinner = $pane.find('.tab-loading-spinner');
@@ -626,9 +787,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var tabName = ($pane.attr('id') || '').replace(/^pane-/, '') || getActiveUnifiedTab();
     var resolvedUrl = url;
 
-    // TinyMCE / form pages need full document shell — never AJAX-embed them.
+    // Create/edit pages need their own document (TinyMCE). Open them in the popup.
     if (upperMethod === 'GET' && isFullPageShellUrl(resolvedUrl)) {
-      window.location.href = resolvedUrl;
+      openScreenPopup(resolvedUrl, 'Details');
       return;
     }
 
@@ -743,44 +904,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }, true);
 
-  // Intercept dashboard links natively
-  document.getElementById('unifiedDashboardContent').addEventListener('click', function(e) {
-    var anchor = e.target.closest('a');
-    if (anchor) {
-      var href = anchor.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
-        return;
-      }
-      
-      var isClientsListLink = false;
-      try {
-        var clientsUrl = new URL(href, window.location.origin);
-        var clientsPath = clientsUrl.pathname.replace(/\/+$/, '');
-        isClientsListLink = /\/clients$/.test(clientsPath) || /\/clients\/dashboard$/.test(clientsPath);
-      } catch (err) {
-        isClientsListLink = /\/clients(\?|$)/.test(href) || href.indexOf('clients/dashboard') >= 0 || /[?&]tab=(list|cart|urls)/.test(href);
-      }
-
-      var isDashboardLink = href.indexOf('my-works') >= 0 || 
-                            href.indexOf('projects/dashboard') >= 0 ||
-                            href.indexOf('tasks/my-dashboard') >= 0 ||
-                            isClientsListLink ||
-                            href.indexOf('requirements') >= 0 ||
-                            href.indexOf('defects') >= 0 ||
-                            href.indexOf('daily-pulse') >= 0;
-
-      // Create/edit/import need full page (TinyMCE + CSS). Do not AJAX into the tab.
-      if (isFullPageShellUrl(href)) {
-        return;
-      }
-                            
-      if (isDashboardLink) {
-        e.preventDefault();
-        var $pane = $(anchor).closest('.tab-pane');
-        loadTabContent($pane, resolveUnifiedBackUrl(href), 'GET');
-      }
+  function routeShellNavigation(e, anchor, href, $pane) {
+    if (shouldIgnoreNavLink(anchor, href)) {
+      return;
     }
+    var nextHref = resolveUnifiedBackUrl(href);
+    if (isActiveTabListUrl(nextHref)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if ($pane && $pane.length) {
+        loadTabContent($pane, nextHref, 'GET');
+      }
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    openScreenPopup(nextHref, linkLabel(anchor));
+  }
+
+  // List links stay in the tab. Record / create / other screens open in the popup.
+  document.getElementById('unifiedDashboardContent').addEventListener('click', function(e) {
+    if (e.defaultPrevented) {
+      return;
+    }
+    var anchor = e.target.closest('a');
+    var href = anchor ? anchor.getAttribute('href') : '';
+    var $pane = $(e.target).closest('.tab-pane');
+    if (!anchor) {
+      if (e.target.closest('a, button, input, label, select, textarea')) {
+        return;
+      }
+      var row = e.target.closest('[data-href]');
+      if (!row || !$pane.length) {
+        return;
+      }
+      href = row.getAttribute('data-href') || '';
+      if (shouldIgnoreNavLink(null, href)) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      if (isActiveTabListUrl(resolveUnifiedBackUrl(href))) {
+        loadTabContent($pane, resolveUnifiedBackUrl(href), 'GET');
+      } else {
+        openScreenPopup(resolveUnifiedBackUrl(href), 'Details');
+      }
+      return;
+    }
+    routeShellNavigation(e, anchor, href, $pane);
   }, true);
+
+  var toolbarActions = document.querySelector('.mw-unified-toolbar-actions');
+  if (toolbarActions) {
+    toolbarActions.addEventListener('click', function(e) {
+      var anchor = e.target.closest('a');
+      if (!anchor) {
+        return;
+      }
+      var href = anchor.getAttribute('href');
+      if (shouldIgnoreNavLink(anchor, href)) {
+        return;
+      }
+      e.preventDefault();
+      openScreenPopup(href, linkLabel(anchor));
+    });
+  }
 
   // Handle Tab Pill Buttons click
   buttons.forEach(function(btn) {

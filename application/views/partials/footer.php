@@ -1,5 +1,6 @@
 <?php
 $embed = isset($embed) ? (bool)$embed : (isset($_GET['embed']) ? (bool)$_GET['embed'] : (bool)$this->input->get('embed'));
+$oms_popup = isset($this->input) && (string) $this->input->get('popup') === '1';
 if ($embed) {
     return;
 }
@@ -22,7 +23,7 @@ $__can_ai_widget = function_exists('has_module_access') && (
     has_module_access('ai_chat')
 );
 ?>
-<?php if ($__can_ai_widget): ?>
+<?php if ($__can_ai_widget && empty($oms_popup)): ?>
 <style>
 .ai-float-btn {
   position: fixed;
