@@ -586,6 +586,187 @@
 .project-detail-page .project-history-changes {
   margin: 0;
 }
+/* ===== Projects list — compact theme (/projects) ===== */
+.proj-list-compact {
+  --pl-border: #e2e8f0;
+  --pl-muted: #64748b;
+  --pl-text: #0f172a;
+}
+
+.proj-list-compact .oms-page-head {
+  gap: 0.45rem;
+  margin-bottom: 0.55rem !important;
+}
+
+.proj-list-compact .oms-page-head h1 {
+  font-size: 1.05rem;
+  margin-bottom: 0 !important;
+  line-height: 1.25;
+}
+
+.proj-list-compact .oms-page-head .text-muted {
+  font-size: 0.72rem;
+  margin-top: 0.1rem;
+}
+
+.proj-list-compact .oms-page-actions .btn-sm {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.22rem 0.55rem;
+  border-radius: 6px;
+}
+
+.proj-list-compact .proj-table-card {
+  border-radius: 8px;
+  border: 1px solid var(--pl-border) !important;
+  box-shadow: none !important;
+}
+
+.proj-list-compact .card.oms-datatable-grid .card-body {
+  padding: 0.4rem 0.5rem 0.3rem !important;
+}
+
+.proj-list-compact .proj-list-table {
+  font-size: 0.8125rem;
+}
+
+.proj-list-compact .proj-list-table thead th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--pl-muted);
+  background: #f8fafc !important;
+  border-bottom: 1px solid var(--pl-border);
+  padding: 0.4rem 0.55rem;
+  white-space: nowrap;
+}
+
+.proj-list-compact .proj-list-table tbody td {
+  padding: 0.32rem 0.55rem;
+  border-color: #f1f5f9;
+  vertical-align: middle;
+}
+
+.proj-list-compact .proj-code {
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--pl-muted);
+  background: #f1f5f9;
+  border: 1px solid var(--pl-border);
+  border-radius: 4px;
+  padding: 0.08rem 0.35rem;
+}
+
+.proj-list-compact .proj-name-link {
+  color: var(--pl-text);
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.proj-list-compact .proj-name-link:hover {
+  color: #2563eb;
+}
+
+.proj-list-compact .proj-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.18rem 0.4rem;
+  text-transform: capitalize;
+}
+
+.proj-list-compact .proj-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.proj-list-compact .dt-container .row > .col-md-auto:first-child {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.proj-list-compact .proj-list-filters.proj-dept-inline {
+  margin: 0;
+}
+
+.proj-list-compact .proj-filter-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  min-width: 0;
+  max-width: none;
+}
+
+.proj-list-compact .proj-filter-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--pl-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.proj-list-compact .proj-filter-field .form-select-sm {
+  font-size: 0.75rem;
+  min-height: 1.75rem;
+  width: 11rem;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  border-radius: 6px;
+  border-color: var(--pl-border);
+}
+
+.proj-list-compact .proj-list-table .btn-group-sm .btn {
+  padding: 0.12rem 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.proj-list-compact div.dt-container {
+  font-size: 0.75rem;
+}
+
+.proj-list-compact div.dt-container .dt-layout-row {
+  margin-bottom: 0.25rem;
+}
+
+.proj-list-compact div.dt-container div.dt-search input,
+.proj-list-compact div.dt-container div.dt-length select {
+  font-size: 0.75rem;
+  min-height: 1.75rem;
+  border-radius: 6px;
+  border-color: var(--pl-border);
+  padding: 0.15rem 0.45rem;
+}
+
+.proj-list-compact div.dt-container div.dt-search input {
+  min-width: 11rem;
+}
+
+.proj-list-compact div.dt-container .dt-paging .dt-paging-button {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+}
+
+@media (max-width: 767.98px) {
+  .proj-list-compact .proj-name-link {
+    max-width: 12rem;
+  }
+}
+
 .project-detail-page .project-history-changes li {
   margin-bottom: 0.15rem;
 }

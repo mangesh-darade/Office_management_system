@@ -35,10 +35,42 @@ class Projects extends CI_Controller {
         if ($show_assignee_column) {
             $this->_attach_project_assignee_labels($projects);
         }
+
+        $show_department_column = schema_table_has_column($this->db, 'projects', 'department_id')
+            && $this->db->table_exists('departments')
+            && schema_table_has_column($this->db, 'departments', 'dept_name');
+        $departments = array();
+        if ($show_department_column) {
+            $this->load->model('Department_model');
+            $departments = $this->Department_model->all();
+            if (!is_array($departments)) {
+                $departments = array();
+            }
+            $unique_departments = array();
+            $seen_department_names = array();
+            foreach ($departments as $dept) {
+                $dept_name = isset($dept->dept_name) ? trim((string) $dept->dept_name) : '';
+                $dept_key = strtolower($dept_name);
+                if ($dept_name === '' || isset($seen_department_names[$dept_key])) {
+                    continue;
+                }
+                $seen_department_names[$dept_key] = true;
+                $unique_departments[] = $dept;
+            }
+            $departments = $unique_departments;
+            usort($departments, function ($a, $b) {
+                $an = isset($a->dept_name) ? (string) $a->dept_name : '';
+                $bn = isset($b->dept_name) ? (string) $b->dept_name : '';
+                return strcasecmp($an, $bn);
+            });
+            $this->_attach_project_department_labels($projects);
+        }
         
         $this->load->view('projects/list', [
             'projects' => $projects,
             'show_assignee_column' => $show_assignee_column,
+            'show_department_column' => $show_department_column,
+            'departments' => $departments,
         ]);
     }
 
@@ -1392,6 +1424,32 @@ class Projects extends CI_Controller {
             $tries++;
         }
         return false;
+    }
+
+    private function _attach_project_department_labels(&$projects)
+    {
+        if (empty($projects)) {
+            return;
+        }
+
+        $ids = array();
+        foreach ($projects as $project) {
+            if (!empty($project->department_id)) {
+                $ids[] = (int) $project->department_id;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        $names = array();
+        if (!empty($ids)) {
+            $rows = $this->db->select('id, dept_name')->from('departments')->where_in('id', $ids)->get()->result();
+            foreach ($rows as $row) {
+                $names[(int) $row->id] = isset($row->dept_name) ? (string) $row->dept_name : '';
+            }
+        }
+        foreach ($projects as $project) {
+            $did = isset($project->department_id) ? (int) $project->department_id : 0;
+            $project->department_name = ($did > 0 && isset($names[$did]) && $names[$did] !== '') ? $names[$did] : '';
+        }
     }
 
     private function _attach_project_assignee_labels(&$projects)

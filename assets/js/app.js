@@ -177,6 +177,41 @@
     });
   }
 
+  function bindProjectDepartmentFilter(tbl) {
+    var select = document.getElementById('projDeptFilter');
+    if (!select || !window.DataTable || select.dataset.bound === '1') {
+      return;
+    }
+    var header = tbl.querySelector('thead th.proj-dept-col');
+    if (!header) {
+      return;
+    }
+    var headers = tbl.querySelectorAll('thead th');
+    var colIdx = Array.prototype.indexOf.call(headers, header);
+    if (colIdx < 0) {
+      return;
+    }
+    var api = new DataTable(tbl);
+    var container = tbl.closest('.dt-container');
+    var length = container ? container.querySelector('.dt-length') : null;
+    var startCell = length ? length.parentElement : null;
+    var filterWrap = select.closest('.proj-list-filters');
+    if (startCell && filterWrap) {
+      startCell.appendChild(filterWrap);
+      filterWrap.classList.add('proj-dept-inline');
+    }
+    select.dataset.bound = '1';
+    select.addEventListener('change', function () {
+      var value = select.value || '';
+      if (value === '') {
+        api.column(colIdx).search('').draw();
+        return;
+      }
+      var escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      api.column(colIdx).search('^' + escaped + '$', true, false).draw();
+    });
+  }
+
   function initDataTable(tbl, overrides) {
     if (shouldSkipDataTable(tbl)) {
       return;
@@ -257,6 +292,22 @@
             { responsivePriority: 3, targets: -1 }
           ]
         });
+      }
+
+      var projectsTbl = document.getElementById('projectsTable');
+      if (projectsTbl) {
+        initDataTable(projectsTbl, {
+          responsive: false,
+          paging: true,
+          searching: true,
+          lengthChange: true,
+          info: true,
+          pageLength: 10,
+          lengthMenu: [10, 25, 50, 100],
+          ordering: true,
+          order: parseTableOrder(projectsTbl)
+        });
+        bindProjectDepartmentFilter(projectsTbl);
       }
 
       collectSortableTables().forEach(function(tbl){

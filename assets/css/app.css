@@ -1055,23 +1055,26 @@ table.dataTable thead th.no-sort {
 
 /* Card grids: sort-only DataTables (no search / length / pagination bars) */
 .card div.dt-container div.dt-layout-row:empty,
-.card:not(.tasks-datatable-grid) div.dt-container div.dt-length,
-.card:not(.tasks-datatable-grid) div.dt-container div.dt-search,
-.card:not(.tasks-datatable-grid) div.dt-container div.dt-paging,
-.card:not(.tasks-datatable-grid) div.dt-container div.dt-info {
+.card:not(.tasks-datatable-grid):not(.oms-datatable-grid) div.dt-container div.dt-length,
+.card:not(.tasks-datatable-grid):not(.oms-datatable-grid) div.dt-container div.dt-search,
+.card:not(.tasks-datatable-grid):not(.oms-datatable-grid) div.dt-container div.dt-paging,
+.card:not(.tasks-datatable-grid):not(.oms-datatable-grid) div.dt-container div.dt-info {
   display: none !important;
 }
 
-.card.tasks-datatable-grid .card-body {
+.card.tasks-datatable-grid .card-body,
+.card.oms-datatable-grid .card-body {
   padding: 1rem !important;
 }
 
-.card.tasks-datatable-grid div.dt-container .dt-layout-row:not(:empty) {
+.card.tasks-datatable-grid div.dt-container .dt-layout-row:not(:empty),
+.card.oms-datatable-grid div.dt-container .dt-layout-row:not(:empty) {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
 }
 
-.card.tasks-datatable-grid div.dt-container div.dt-search input {
+.card.tasks-datatable-grid div.dt-container div.dt-search input,
+.card.oms-datatable-grid div.dt-container div.dt-search input {
   min-width: 200px;
   max-width: 100%;
 }
