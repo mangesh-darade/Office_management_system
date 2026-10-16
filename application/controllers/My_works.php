@@ -1322,6 +1322,141 @@ class My_works extends CI_Controller
         exit;
     }
 
+    /**
+     * POST /my-works/ajax-grid-create — Overview grid inline ad hoc row.
+     */
+    public function ajax_grid_create()
+    {
+        if (!$this->input->is_ajax_request() || $this->input->method() !== 'post') {
+            show_404();
+            return;
+        }
+        if (!my_works_can_add()) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Permission denied.')));
+        }
+        $c = $this->_ctx();
+        if ($c['user_id'] < 1) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Not authenticated.')));
+        }
+
+        $title = trim((string) $this->input->post('title'));
+        if ($title === '') {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Title is required.')));
+        }
+        if (strlen($title) > 255) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Task title must be 255 characters or fewer.')));
+        }
+
+        $client_id = (int) $this->input->post('client_id');
+        $project_id = (int) $this->input->post('project_id');
+        $client_name = '';
+        $project_name = '';
+        if ($client_id > 0) {
+            if (!$this->db->table_exists('clients')) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid client.')));
+            }
+            $client_row = $this->db->select('company_name')->where('id', $client_id)->get('clients')->row();
+            if (!$client_row) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid client.')));
+            }
+            $client_name = isset($client_row->company_name) ? (string) $client_row->company_name : '';
+        }
+        if ($project_id > 0) {
+            if (!$this->db->table_exists('projects')) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid project.')));
+            }
+            $project_row = $this->db->where('id', $project_id)->get('projects')->row();
+            if (!$project_row) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Invalid project.')));
+            }
+            if ($client_id > 0
+                && schema_table_has_column($this->db, 'projects', 'client_id')
+                && isset($project_row->client_id)
+                && (int) $project_row->client_id > 0
+                && (int) $project_row->client_id !== $client_id) {
+                return $this->output->set_content_type('application/json')
+                    ->set_output(json_encode(array('success' => false, 'error' => 'Project does not belong to the selected client.')));
+            }
+            if ($client_id < 1
+                && schema_table_has_column($this->db, 'projects', 'client_id')
+                && isset($project_row->client_id)
+                && (int) $project_row->client_id > 0) {
+                $client_id = (int) $project_row->client_id;
+                if ($this->db->table_exists('clients')) {
+                    $client_row = $this->db->select('company_name')->where('id', $client_id)->get('clients')->row();
+                    if ($client_row) {
+                        $client_name = isset($client_row->company_name) ? (string) $client_row->company_name : '';
+                    }
+                }
+            }
+            $project_name = isset($project_row->name) ? (string) $project_row->name : '';
+        }
+
+        $status = my_works_status_is_valid('new') ? 'new' : my_works_status_default_code();
+        $fields = $this->db->list_fields('my_works');
+        $payload = array(
+            'title' => $title,
+            'created_by' => $c['user_id'],
+            'created_for' => $c['user_id'],
+            'status' => $status,
+        );
+        if (in_array('is_urgent', $fields, true)) {
+            $payload['is_urgent'] = 0;
+        }
+        if (in_array('is_important', $fields, true)) {
+            $payload['is_important'] = 0;
+        }
+        if (in_array('client_id', $fields, true)) {
+            $payload['client_id'] = $client_id > 0 ? $client_id : null;
+        }
+        if (in_array('project_id', $fields, true)) {
+            $payload['project_id'] = $project_id > 0 ? $project_id : null;
+        }
+        $id = $this->my_works->insert($payload);
+        if ($id < 1) {
+            return $this->output->set_content_type('application/json')
+                ->set_output(json_encode(array('success' => false, 'error' => 'Failed to create work item.')));
+        }
+        multi_assignees_sync('my_works_assignees', 'work_id', (int) $id, array($c['user_id']));
+        $this->my_works->log_activity($id, $c['user_id'], 'created', 'Work item created (grid)');
+        my_works_notify_assignees($id, array($c['user_id']), $title, $c['user_id']);
+        $this->_clear_dashboard_cache();
+
+        $creator = $this->db->select('name, email')->from('users')->where('id', $c['user_id'])->get()->row();
+        $created_by_name = my_works_user_label(
+            $creator ? $creator->name : '',
+            $creator ? $creator->email : '',
+            $c['user_id']
+        );
+
+        return $this->output->set_content_type('application/json')
+            ->set_output(json_encode(array(
+                'success' => true,
+                'data' => array(
+                    'id' => (int) $id,
+                    'title' => $title,
+                    'status' => $status,
+                    'status_label' => my_works_status_label($status),
+                    'status_color' => my_works_status_hex_color($status),
+                    'client_name' => $client_name,
+                    'project_name' => $project_name,
+                    'url' => site_url('my-works/' . (int) $id),
+                    'item_type' => 'my_work',
+                    'item_source' => 'my_works',
+                    'created_label' => date('d M Y'),
+                    'created_by_name' => $created_by_name,
+                ),
+            )));
+    }
+
     public function create()
     {
         my_works_require_add_access();

@@ -4016,6 +4016,11 @@ body:has(.mw-screen-popup.show) .modal-backdrop {
   justify-content: center;
 }
 
+.mw-overview-grid-inline-row .form-select,
+.mw-overview-grid-inline-row .form-control {
+  min-width: 0;
+}
+
 .mw-overview-grid-table {
   font-size: 0.8125rem;
   margin-bottom: 0;

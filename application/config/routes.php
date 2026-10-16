@@ -195,6 +195,7 @@ $route['my-works/template-tasks/import'] = 'my_works/template_tasks_import';
 $route['my-works/template-tasks/export'] = 'my_works/template_tasks_export';
 $route['my-works/template-tasks/sample-csv'] = 'my_works/template_tasks_sample_csv';
 $route['my-works/quick-add'] = 'my_works/quick_add';
+$route['my-works/ajax-grid-create'] = 'my_works/ajax_grid_create';
 $route['my-works/export'] = 'my_works/export';
 $route['my-works/update-status'] = 'my_works/update_status';
 $route['my-works/update-matrix'] = 'my_works/update_matrix';

@@ -56,7 +56,6 @@
       }
   }
 
-  $add_url = ($section_key === 'project') ? site_url('tasks/create') : site_url('my-works/create');
   $table_id = 'mwOverviewGrid' . ucfirst($section_key);
 ?>
 <div class="mw-dash-grid">
@@ -71,7 +70,7 @@
         <span class="mw-overview-grid-stat-value mw-overview-grid-stat-est"><?php echo number_format($total_est, 1); ?> <span>hrs</span></span>
       </div>
       <?php if ($can_add): ?>
-      <a class="btn btn-primary btn-sm mw-overview-grid-add" href="<?php echo esc_view($add_url, ENT_QUOTES, 'UTF-8'); ?>" title="Add"><i class="bi bi-plus-lg"></i></a>
+      <button type="button" class="btn btn-primary btn-sm mw-overview-grid-add" data-section="<?php echo esc_view($section_key, ENT_QUOTES, 'UTF-8'); ?>" title="Add row" aria-label="Add row"><i class="bi bi-plus-lg"></i></button>
       <?php endif; ?>
     </div>
     <div class="mw-overview-grid-table-host">
