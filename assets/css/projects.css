@@ -729,6 +729,35 @@
   border-color: var(--pl-border);
 }
 
+.proj-list-compact .proj-list-save-msg {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+}
+
+.proj-list-compact .proj-list-save-msg.is-ok {
+  background: #ecfdf3;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.proj-list-compact .proj-list-save-msg.is-err {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.proj-list-compact .proj-field-select {
+  font-size: 0.75rem;
+  min-height: 1.7rem;
+  max-width: 12.5rem;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
+  border-radius: 6px;
+}
+
 .proj-list-compact .proj-list-table .btn-group-sm .btn {
   padding: 0.12rem 0.35rem;
   font-size: 0.75rem;

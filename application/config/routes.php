@@ -130,6 +130,7 @@ $route['projects/dashboard'] = 'projects/dashboard_index';
 $route['projects/create'] = 'projects/create';
 $route['projects/(:num)/dashboard'] = 'projects/dashboard/$1';
 $route['projects/(:num)/inline-save'] = 'projects/inline_save/$1';
+$route['projects/(:num)/list-field'] = 'projects/list_field_save/$1';
 $route['projects/(:num)/inline-delete'] = 'projects/inline_delete/$1';
 $route['projects/add-comment/(:num)'] = 'projects/add_comment/$1';
 $route['projects/(:num)'] = 'projects/show/$1';

@@ -27,6 +27,8 @@ $this->load->view('partials/oms_page_head', array(
 ));
 ?>
 
+<div id="projListSaveMsg" class="proj-list-save-msg d-none" role="status" aria-live="polite"></div>
+
 <?php if (!empty($show_department_column) && !empty($departments)): ?>
 <div class="proj-list-filters">
   <label class="proj-filter-field" for="projDeptFilter">
@@ -87,11 +89,68 @@ $this->load->view('partials/oms_page_head', array(
                 <a class="proj-name-link" href="<?php echo site_url('projects/' . $pid); ?>" title="<?php echo esc_view($p->name); ?>"><?php echo esc_view($p->name); ?></a>
               </td>
               <?php if (!empty($show_department_column)): ?>
-              <?php $dept_label = (isset($p->department_name) && $p->department_name !== '') ? $p->department_name : '—'; ?>
-              <td class="text-truncate" style="max-width:10rem;" title="<?php echo esc_view($dept_label); ?>"><?php echo esc_view($dept_label); ?></td>
+              <?php
+                $dept_label = (isset($p->department_name) && $p->department_name !== '') ? $p->department_name : '—';
+                $dept_id = isset($p->department_id) ? (int) $p->department_id : 0;
+              ?>
+              <td data-search="<?php echo esc_view($dept_label); ?>" data-order="<?php echo esc_view($dept_label); ?>">
+                <?php if (!empty($can_edit_list)): ?>
+                <select class="form-select form-select-sm proj-field-select" data-field="department" data-url="<?php echo site_url('projects/' . $pid . '/list-field'); ?>" data-prev="<?php echo $dept_id; ?>" aria-label="Department">
+                  <option value="">—</option>
+                  <?php
+                    $dept_selected = false;
+                    foreach ($departments as $dept):
+                      $opt_id = isset($dept->id) ? (int) $dept->id : 0;
+                      if ($opt_id < 1) {
+                          continue;
+                      }
+                      $selected = ($dept_id === $opt_id);
+                      if ($selected) {
+                          $dept_selected = true;
+                      }
+                  ?>
+                  <option value="<?php echo $opt_id; ?>"<?php echo $selected ? ' selected' : ''; ?>><?php echo esc_view(isset($dept->dept_name) ? $dept->dept_name : ''); ?></option>
+                  <?php endforeach; ?>
+                  <?php if ($dept_id > 0 && !$dept_selected): ?>
+                  <option value="<?php echo $dept_id; ?>" selected><?php echo esc_view($dept_label); ?></option>
+                  <?php endif; ?>
+                </select>
+                <?php else: ?>
+                <?php echo esc_view($dept_label); ?>
+                <?php endif; ?>
+              </td>
               <?php endif; ?>
               <?php if (!empty($show_assignee_column)): ?>
-              <td class="text-truncate" style="max-width:10rem;" title="<?php echo esc_view(isset($p->assignee_label) ? $p->assignee_label : '—'); ?>"><?php echo esc_view(isset($p->assignee_label) ? $p->assignee_label : '—'); ?></td>
+              <?php
+                $assignee_label = (isset($p->assignee_label) && $p->assignee_label !== '') ? $p->assignee_label : '—';
+                $manager_id = isset($p->manager_id) ? (int) $p->manager_id : 0;
+              ?>
+              <td data-search="<?php echo esc_view($assignee_label); ?>" data-order="<?php echo esc_view($assignee_label); ?>">
+                <?php if (!empty($can_edit_list)): ?>
+                <select class="form-select form-select-sm proj-field-select" data-field="assigned" data-url="<?php echo site_url('projects/' . $pid . '/list-field'); ?>" data-prev="<?php echo $manager_id; ?>" aria-label="Assigned to">
+                  <option value="">—</option>
+                  <?php
+                    $user_selected = false;
+                    if (!empty($assignable_users)) foreach ($assignable_users as $au):
+                      $opt_id = isset($au->id) ? (int) $au->id : 0;
+                      if ($opt_id < 1) {
+                          continue;
+                      }
+                      $selected = ($manager_id === $opt_id);
+                      if ($selected) {
+                          $user_selected = true;
+                      }
+                  ?>
+                  <option value="<?php echo $opt_id; ?>"<?php echo $selected ? ' selected' : ''; ?>><?php echo esc_view(isset($au->label) ? $au->label : ''); ?></option>
+                  <?php endforeach; ?>
+                  <?php if ($manager_id > 0 && !$user_selected): ?>
+                  <option value="<?php echo $manager_id; ?>" selected><?php echo esc_view($assignee_label); ?></option>
+                  <?php endif; ?>
+                </select>
+                <?php else: ?>
+                <?php echo esc_view($assignee_label); ?>
+                <?php endif; ?>
+              </td>
               <?php endif; ?>
               <td><span class="badge proj-badge <?php echo esc_view($st_class); ?>"><?php echo esc_view($st_label); ?></span></td>
               <td class="text-end text-nowrap" data-order="<?php echo isset($p->estimate_hours) && $p->estimate_hours !== null && $p->estimate_hours !== '' ? (float) $p->estimate_hours : -1; ?>">
@@ -122,4 +181,87 @@ $this->load->view('partials/oms_page_head', array(
   </div>
 </div>
 </div>
+<?php if (!empty($can_edit_list)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var table = document.getElementById('projectsTable');
+  var msg = document.getElementById('projListSaveMsg');
+  if (!table || table.dataset.fieldSaveBound === '1') {
+    return;
+  }
+  table.dataset.fieldSaveBound = '1';
+  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+  var hideTimer = null;
+
+  function showMsg(text, ok) {
+    if (!msg) {
+      return;
+    }
+    msg.textContent = text;
+    msg.classList.remove('d-none', 'is-ok', 'is-err');
+    msg.classList.add(ok ? 'is-ok' : 'is-err');
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+    }
+    hideTimer = setTimeout(function () {
+      msg.classList.add('d-none');
+    }, 2500);
+  }
+
+  table.addEventListener('change', function (ev) {
+    var select = ev.target.closest('select.proj-field-select');
+    if (!select || !table.contains(select)) {
+      return;
+    }
+    var prev = select.getAttribute('data-prev') || '';
+    var body = new URLSearchParams();
+    body.set(csrfName, csrfHash);
+    body.set('field', select.getAttribute('data-field') || '');
+    body.set('value', select.value);
+    select.disabled = true;
+    fetch(select.getAttribute('data-url'), {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: body.toString()
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { ok: res.ok, data: data };
+      });
+    }).then(function (result) {
+      if (!result.ok || !result.data || !result.data.ok) {
+        select.value = prev;
+        var err = (result.data && result.data.error) ? result.data.error : 'Could not save.';
+        showMsg(err, false);
+        return;
+      }
+      select.setAttribute('data-prev', select.value);
+      var opt = select.options[select.selectedIndex];
+      var label = opt ? opt.text : '—';
+      var td = select.closest('td');
+      if (td) {
+        td.setAttribute('data-search', label);
+        td.setAttribute('data-order', label);
+      }
+      if (window.DataTable && DataTable.isDataTable(table)) {
+        var api = new DataTable(table);
+        if (td) {
+          api.cell(td).invalidate('dom');
+        }
+        api.draw(false);
+      }
+      showMsg(result.data.message || 'Saved.', true);
+    }).catch(function () {
+      select.value = prev;
+      showMsg('Could not save.', false);
+    }).finally(function () {
+      select.disabled = false;
+    });
+  });
+});
+</script>
+<?php endif; ?>
 <?php $this->load->view('partials/footer'); ?>

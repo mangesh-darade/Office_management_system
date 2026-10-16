@@ -65,13 +65,108 @@ class Projects extends CI_Controller {
             });
             $this->_attach_project_department_labels($projects);
         }
+
+        $can_edit_list = function_exists('has_module_access')
+            && (has_module_access('projects_edit') || has_module_access('projects'));
+        $assignable_users = array();
+        if ($can_edit_list && $show_assignee_column) {
+            foreach ($this->_load_assignable_users() as $user_row) {
+                $assignable_users[] = (object) array(
+                    'id' => (int) $user_row->id,
+                    'label' => $this->_assignable_user_label($user_row),
+                );
+            }
+        }
         
         $this->load->view('projects/list', [
             'projects' => $projects,
             'show_assignee_column' => $show_assignee_column,
             'show_department_column' => $show_department_column,
             'departments' => $departments,
+            'can_edit_list' => $can_edit_list,
+            'assignable_users' => $assignable_users,
         ]);
+    }
+
+    public function list_field_save($id)
+    {
+        if ($this->input->method() !== 'post') {
+            show_error('Method Not Allowed', 405);
+            return;
+        }
+        if (!has_module_access('projects_edit') && !has_module_access('projects')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+
+        $id = (int) $id;
+        $project = $this->db->where('id', $id)->get('projects')->row();
+        if (!$project) {
+            return $this->_inline_json(false, array(), 'Project not found', 404);
+        }
+        if (!$this->_user_can_see_project_row($project)) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+
+        $field = trim((string) $this->input->post('field'));
+        $raw = $this->input->post('value');
+        $value_id = ($raw === '' || $raw === null) ? 0 : (int) $raw;
+        $data = array();
+        $label = '—';
+        $message = 'Saved.';
+
+        if ($field === 'department') {
+            if (!schema_table_has_column($this->db, 'projects', 'department_id')) {
+                return $this->_inline_json(false, array(), 'Department cannot be updated', 400);
+            }
+            $department_id = null;
+            if ($value_id > 0) {
+                $this->load->model('Department_model');
+                $dept = $this->Department_model->find($value_id);
+                if (!$dept) {
+                    return $this->_inline_json(false, array(), 'Please select a valid department.', 400);
+                }
+                $department_id = $value_id;
+                $label = isset($dept->dept_name) ? (string) $dept->dept_name : '—';
+            }
+            $data['department_id'] = $department_id;
+            $message = 'Department saved.';
+        } elseif ($field === 'assigned') {
+            if (!schema_table_has_column($this->db, 'projects', 'manager_id')) {
+                return $this->_inline_json(false, array(), 'Assigned to cannot be updated', 400);
+            }
+            $manager_id = null;
+            if ($value_id > 0) {
+                $user = $this->db->where('id', $value_id)->get('users')->row();
+                if (!$user) {
+                    return $this->_inline_json(false, array(), 'Please select a valid person.', 400);
+                }
+                if (schema_table_has_column($this->db, 'users', 'status') && isset($user->status) && (string) $user->status !== 'active') {
+                    return $this->_inline_json(false, array(), 'Please select a valid person.', 400);
+                }
+                $manager_id = $value_id;
+                $label = $this->_assignable_user_label($user);
+            }
+            $data['manager_id'] = $manager_id;
+            $message = 'Assigned to saved.';
+        } else {
+            return $this->_inline_json(false, array(), 'Invalid field', 400);
+        }
+
+        $this->load->helper('change_tracker');
+        $old_data = track_changes_before('projects', $id);
+        $this->db->where('id', $id)->update('projects', $data);
+        $project_name = isset($project->name) ? (string) $project->name : '';
+        track_changes_after('projects', 'projects', $id, $old_data, $data, 'Project: ' . $project_name);
+        $uid = (int) $this->session->userdata('user_id');
+        $change_lines = $this->Project_model->build_change_details($project, $data);
+        if (!empty($change_lines)) {
+            $this->Project_model->log_activity($id, $uid, 'updated', implode('; ', $change_lines));
+        }
+
+        return $this->_inline_json(true, array(
+            'message' => $message,
+            'label' => $label,
+        ));
     }
 
     public function matrix()
@@ -1125,6 +1220,51 @@ class Projects extends CI_Controller {
         }
         fclose($out);
         exit;
+    }
+
+    private function _assignable_user_label($user)
+    {
+        if (isset($user->emp_name) && trim((string) $user->emp_name) !== '') {
+            return trim((string) $user->emp_name);
+        }
+        if (!empty($user->name)) {
+            return (string) $user->name;
+        }
+        if (!empty($user->full_name)) {
+            return (string) $user->full_name;
+        }
+        return isset($user->email) ? (string) $user->email : '';
+    }
+
+    private function _user_can_see_project_row($project)
+    {
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
+            || has_module_access('projects_view_all')
+            || (function_exists('is_admin_group') && is_admin_group());
+        if ($can_view_all) {
+            return true;
+        }
+
+        $user_id = (int) $this->session->userdata('user_id');
+        if ($user_id < 1) {
+            return false;
+        }
+        if (schema_table_has_column($this->db, 'projects', 'manager_id') && (int) $project->manager_id === $user_id) {
+            return true;
+        }
+        if (schema_table_has_column($this->db, 'projects', 'created_by') && (int) $project->created_by === $user_id) {
+            return true;
+        }
+        if ($this->db->table_exists('project_members')) {
+            $member = $this->db->where('project_id', (int) $project->id)
+                ->where('user_id', $user_id)
+                ->get('project_members')
+                ->row();
+            if ($member) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function _user_can_access_project($project_id)
