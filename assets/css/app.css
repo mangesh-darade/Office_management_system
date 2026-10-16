@@ -734,6 +734,11 @@ i.oms-icon-brain {
 .page-header .title { font-weight: 600; }
 .page-header .chip { display: inline-flex; align-items: center; gap: .5rem; background: #e7f1ff; color: #0b5ed7; padding: .25rem .6rem; border-radius: 999px; font-size: .8rem; font-weight: 600; }
 
+.oms-detail-tabs { border-bottom: 1px solid #e8edf3; }
+.oms-detail-tabs .nav-link { font-size: 0.8125rem; padding: 0.4rem 0.7rem; display: inline-flex; align-items: center; color: #64748b; }
+.oms-detail-tabs .nav-link.active { color: #0f172a; font-weight: 600; }
+.oms-detail-tabs .nav-link .badge { font-size: 0.65rem; font-weight: 600; }
+
 /* Quick action cards */
 .quick-card { border: 1px solid #e9edf3; }
 .quick-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,.07); }
