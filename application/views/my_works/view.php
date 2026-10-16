@@ -216,6 +216,16 @@
 
 
 
+  <?php
+    $history = isset($history) && is_array($history) ? $history : array();
+    $detail_tab = trim((string) $this->input->get('tab')) === 'history' ? 'history' : 'details';
+    $this->load->view('partials/oms_detail_tabs', array(
+      'active_tab' => $detail_tab,
+      'history_count' => count($history),
+    ));
+  ?>
+  <div class="tab-content">
+  <div class="tab-pane fade<?php echo $detail_tab === 'details' ? ' show active' : ''; ?>" id="details" role="tabpanel" aria-labelledby="details-tab">
   <div class="row g-2">
 
     <div class="col-lg-8 order-2 order-lg-1">
@@ -284,7 +294,6 @@
 
 
       <?php
-        $history = isset($history) && is_array($history) ? $history : array();
         $mw_action_label = function ($action) {
           $map = array(
             'created' => 'Created',
@@ -302,77 +311,6 @@
           return isset($map[$key]) ? $map[$key] : ucfirst(str_replace('_', ' ', (string) $action));
         };
       ?>
-      <div class="card border-0 shadow-sm mw-detail-card mb-2" id="history">
-        <div class="card-body">
-          <?php if (!empty($can_comment)): ?>
-            <div class="small text-muted fw-semibold mb-1">Save note</div>
-            <form method="post" action="<?php echo site_url('my-works/' . (int) $item->id . '/comment'); ?>" class="mb-3">
-              <?php $this->load->view('my_works/_csrf'); ?>
-              <?php if ($embed): ?>
-                <input type="hidden" name="embed" value="1">
-                <?php if ($this->input->get('parent_tab')): ?>
-                  <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
-                <?php endif; ?>
-                <input type="hidden" name="redirect" value="<?php echo esc_view('my-works/' . (int) $item->id, ENT_QUOTES, 'UTF-8'); ?>">
-              <?php endif; ?>
-              <textarea name="note" id="myWorkHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
-              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
-            </form>
-          <?php endif; ?>
-          <div class="d-flex align-items-center justify-content-between mb-1">
-            <div class="small text-muted fw-semibold">History</div>
-            <span class="text-muted small"><?php echo count($history); ?></span>
-          </div>
-          <?php if (empty($history)): ?>
-            <p class="text-muted small mb-0">No history yet.</p>
-          <?php else: ?>
-            <div class="table-responsive">
-              <table class="table table-sm table-bordered mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th class="text-start" style="width:9.5rem;">Date</th>
-                    <th>Comments</th>
-                    <th style="width:9rem;">Added By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach ($history as $h): ?>
-                    <?php
-                      $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                      $changed = trim((string) $h->detail);
-                      if ($changed === '') {
-                          $changed = $mw_action_label($h->action);
-                      } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
-                          if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                              $changed = $mw_action_label($h->action) . ': ' . $changed;
-                          }
-                      }
-                      $parts = preg_split('/\s*;\s*/', $changed);
-                    ?>
-                    <tr>
-                      <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                      <td class="small">
-                        <?php if (count($parts) > 1): ?>
-                          <ul class="mb-0 ps-3">
-                            <?php foreach ($parts as $part): ?>
-                              <?php if (trim($part) === '') { continue; } ?>
-                              <li><?php echo esc_view(trim($part)); ?></li>
-                            <?php endforeach; ?>
-                          </ul>
-                        <?php else: ?>
-                          <?php echo nl2br(esc_view($changed)); ?>
-                        <?php endif; ?>
-                      </td>
-                      <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </div>
-          <?php endif; ?>
-        </div>
-      </div>
-
     </div>
 
 
@@ -593,7 +531,80 @@
     </div>
 
   </div>
-
+  </div>
+  <div class="tab-pane fade<?php echo $detail_tab === 'history' ? ' show active' : ''; ?>" id="history" role="tabpanel" aria-labelledby="history-tab">
+    <div class="card border-0 shadow-sm mw-detail-card mb-2">
+      <div class="card-body">
+        <?php if (!empty($can_comment)): ?>
+          <div class="small text-muted fw-semibold mb-1">Save note</div>
+          <form method="post" action="<?php echo site_url('my-works/' . (int) $item->id . '/comment'); ?>" class="mb-3">
+            <?php $this->load->view('my_works/_csrf'); ?>
+            <?php if ($embed): ?>
+              <input type="hidden" name="embed" value="1">
+              <?php if ($this->input->get('parent_tab')): ?>
+                <input type="hidden" name="parent_tab" value="<?php echo esc_view($this->input->get('parent_tab'), ENT_QUOTES, 'UTF-8'); ?>">
+              <?php endif; ?>
+              <input type="hidden" name="redirect" value="<?php echo esc_view('my-works/' . (int) $item->id . '?tab=history', ENT_QUOTES, 'UTF-8'); ?>">
+            <?php endif; ?>
+            <textarea name="note" id="myWorkHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+          </form>
+        <?php endif; ?>
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <div class="small text-muted fw-semibold">History</div>
+          <span class="text-muted small"><?php echo count($history); ?></span>
+        </div>
+        <?php if (empty($history)): ?>
+          <p class="text-muted small mb-0">No history yet.</p>
+        <?php else: ?>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-start" style="width:9.5rem;">Date</th>
+                  <th>Comments</th>
+                  <th style="width:9rem;">Added By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($history as $h): ?>
+                  <?php
+                    $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                    $changed = trim((string) $h->detail);
+                    if ($changed === '') {
+                        $changed = $mw_action_label($h->action);
+                    } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
+                        if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                            $changed = $mw_action_label($h->action) . ': ' . $changed;
+                        }
+                    }
+                    $parts = preg_split('/\s*;\s*/', $changed);
+                  ?>
+                  <tr>
+                    <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                    <td class="small">
+                      <?php if (count($parts) > 1): ?>
+                        <ul class="mb-0 ps-3">
+                          <?php foreach ($parts as $part): ?>
+                            <?php if (trim($part) === '') { continue; } ?>
+                            <li><?php echo esc_view(trim($part)); ?></li>
+                          <?php endforeach; ?>
+                        </ul>
+                      <?php else: ?>
+                        <?php echo nl2br(esc_view($changed)); ?>
+                      <?php endif; ?>
+                    </td>
+                    <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  </div>
 </div>
 
 <?php $this->load->view('my_works/_media_preview_modal'); ?>

@@ -1671,7 +1671,7 @@ class My_works extends CI_Controller
                 $this->_redirect_with_embed($redirect);
                 return;
             }
-            $this->_redirect_with_embed('my-works/' . (int) $id);
+            $this->_redirect_with_embed('my-works/' . (int) $id . '?tab=history');
             return;
         }
         $uploads = $this->_handle_uploads();
@@ -1680,7 +1680,7 @@ class My_works extends CI_Controller
             if ($redirect !== '') {
                 $this->_redirect_with_embed($redirect);
             } else {
-                $this->_redirect_with_embed('my-works/' . (int) $id);
+                $this->_redirect_with_embed('my-works/' . (int) $id . '?tab=history');
             }
             return;
         }
@@ -1696,7 +1696,7 @@ class My_works extends CI_Controller
             $this->_redirect_with_embed($redirect);
             return;
         }
-        $this->_redirect_with_embed('my-works/' . (int) $id);
+        $this->_redirect_with_embed('my-works/' . (int) $id . '?tab=history');
     }
 
     public function delete($id)
