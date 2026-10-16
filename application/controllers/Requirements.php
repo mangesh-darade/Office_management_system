@@ -723,7 +723,7 @@ class Requirements extends CI_Controller {
         }
         if ($note === '') {
             $this->session->set_flashdata('error', 'History note cannot be empty.');
-            redirect('requirements/view/' . $requirement_id . '#history');
+            redirect('requirements/view/' . $requirement_id . '?tab=history');
             return;
         }
 
@@ -755,7 +755,7 @@ class Requirements extends CI_Controller {
         }
 
         $this->session->set_flashdata('success', 'History note saved.');
-        redirect('requirements/view/' . $requirement_id . '#history');
+        redirect('requirements/view/' . $requirement_id . '?tab=history');
     }
 
     // GET /requirements/{requirement_id}/comments (AJAX JSON)
