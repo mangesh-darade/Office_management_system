@@ -189,6 +189,15 @@ $this->load->view('partials/header', array(
   </div>
   <?php endif; ?>
 
+  <?php
+    $detail_tab = trim((string) $this->input->get('tab')) === 'history' ? 'history' : 'details';
+    $this->load->view('partials/oms_detail_tabs', array(
+      'active_tab' => $detail_tab,
+      'history_count' => count($history),
+    ));
+  ?>
+  <div class="tab-content">
+  <div class="tab-pane fade<?php echo $detail_tab === 'details' ? ' show active' : ''; ?>" id="details" role="tabpanel" aria-labelledby="details-tab">
   <div class="row g-2">
     <div class="col-12 col-lg-8">
       <div class="card mb-2">
@@ -214,72 +223,6 @@ $this->load->view('partials/header', array(
               <a href="<?php echo base_url($task->attachment_path); ?>" target="_blank" rel="noopener">
                 <i class="bi bi-paperclip me-1"></i>Download attachment
               </a>
-            </div>
-          <?php endif; ?>
-        </div>
-      </div>
-
-      <div class="card mb-2" id="history">
-        <div class="card-body py-2 px-3">
-          <?php if ($can_note): ?>
-            <div class="small text-muted fw-semibold mb-1">Save note</div>
-            <form method="post" action="<?php echo site_url('tasks/add-comment/' . (int) $task->id); ?>" class="mb-3">
-              <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
-              <textarea name="note" id="taskHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
-              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
-            </form>
-          <?php endif; ?>
-
-          <div class="d-flex align-items-center justify-content-between mb-1">
-            <div class="small text-muted fw-semibold">History</div>
-            <span class="text-muted small"><?php echo count($history); ?></span>
-          </div>
-
-          <?php if (empty($history)): ?>
-            <p class="text-muted small mb-0">No history yet.</p>
-          <?php else: ?>
-            <div class="table-responsive">
-              <table class="table table-sm table-bordered mb-0 align-middle defect-history-grid">
-                <thead class="table-light">
-                  <tr>
-                    <th class="text-start" style="width:9.5rem;">Date</th>
-                    <th>Comments</th>
-                    <th style="width:9rem;">Added By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach ($history as $h): ?>
-                    <?php
-                      $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                      $changed = trim((string) $h->detail);
-                      if ($changed === '') {
-                          $changed = $action_label($h->action);
-                      } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment' && strtolower((string) $h->action) !== 'commented') {
-                          if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                              $changed = $action_label($h->action) . ': ' . $changed;
-                          }
-                      }
-                      $parts = preg_split('/\s*;\s*/', $changed);
-                    ?>
-                    <tr>
-                      <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                      <td class="small">
-                        <?php if (count($parts) > 1): ?>
-                          <ul class="mb-0 ps-3 defect-history-changes">
-                            <?php foreach ($parts as $part): ?>
-                              <?php if (trim($part) === '') { continue; } ?>
-                              <li><?php echo esc_view(trim($part)); ?></li>
-                            <?php endforeach; ?>
-                          </ul>
-                        <?php else: ?>
-                          <?php echo nl2br(esc_view($changed)); ?>
-                        <?php endif; ?>
-                      </td>
-                      <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
             </div>
           <?php endif; ?>
         </div>
@@ -321,6 +264,73 @@ $this->load->view('partials/header', array(
         </div>
       </div>
     </div>
+  </div>
+  </div>
+  <div class="tab-pane fade<?php echo $detail_tab === 'history' ? ' show active' : ''; ?>" id="history" role="tabpanel" aria-labelledby="history-tab">
+    <div class="card mb-2">
+      <div class="card-body py-2 px-3">
+        <?php if ($can_note): ?>
+          <div class="small text-muted fw-semibold mb-1">Save note</div>
+          <form method="post" action="<?php echo site_url('tasks/add-comment/' . (int) $task->id); ?>" class="mb-3">
+            <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+            <textarea name="note" id="taskHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+          </form>
+        <?php endif; ?>
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <div class="small text-muted fw-semibold">History</div>
+          <span class="text-muted small"><?php echo count($history); ?></span>
+        </div>
+        <?php if (empty($history)): ?>
+          <p class="text-muted small mb-0">No history yet.</p>
+        <?php else: ?>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0 align-middle defect-history-grid">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-start" style="width:9.5rem;">Date</th>
+                  <th>Comments</th>
+                  <th style="width:9rem;">Added By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($history as $h): ?>
+                  <?php
+                    $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                    $changed = trim((string) $h->detail);
+                    if ($changed === '') {
+                        $changed = $action_label($h->action);
+                    } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment' && strtolower((string) $h->action) !== 'commented') {
+                        if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                            $changed = $action_label($h->action) . ': ' . $changed;
+                        }
+                    }
+                    $parts = preg_split('/\s*;\s*/', $changed);
+                  ?>
+                  <tr>
+                    <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                    <td class="small">
+                      <?php if (count($parts) > 1): ?>
+                        <ul class="mb-0 ps-3 defect-history-changes">
+                          <?php foreach ($parts as $part): ?>
+                            <?php if (trim($part) === '') { continue; } ?>
+                            <li><?php echo esc_view(trim($part)); ?></li>
+                          <?php endforeach; ?>
+                        </ul>
+                      <?php else: ?>
+                        <?php echo nl2br(esc_view($changed)); ?>
+                      <?php endif; ?>
+                    </td>
+                    <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
   </div>
 </div>
 

@@ -3186,7 +3186,7 @@ class Tasks extends CI_Controller {
         }
         if ($note === '') {
             $this->session->set_flashdata('error', 'History note cannot be empty.');
-            redirect('tasks/' . $task_id . '#history');
+            redirect('tasks/' . $task_id . '?tab=history');
             return;
         }
 
@@ -3212,7 +3212,7 @@ class Tasks extends CI_Controller {
         }
 
         $this->session->set_flashdata('success', 'History note saved.');
-        redirect('tasks/' . $task_id . '#history');
+        redirect('tasks/' . $task_id . '?tab=history');
     }
 
     // GET /tasks/{task_id}/comments (AJAX JSON)
