@@ -799,7 +799,7 @@ class Defects extends CI_Controller
 
             $this->session->set_flashdata('error', 'History note cannot be empty.');
 
-            redirect('defects/view/' . (int) $id);
+            redirect('defects/view/' . (int) $id . '?tab=history');
 
             return;
 
@@ -812,7 +812,7 @@ class Defects extends CI_Controller
 
         $this->session->set_flashdata('success', 'History note saved.');
 
-        redirect('defects/view/' . (int) $id);
+        redirect('defects/view/' . (int) $id . '?tab=history');
 
     }
 
