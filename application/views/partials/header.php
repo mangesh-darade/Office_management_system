@@ -100,6 +100,9 @@ if ($oms_popup) {
     if ($coaching_uri === 'coaching' || strpos($coaching_uri, 'coaching-') === 0) {
         echo '<link href="' . esc_view(oms_css_href('assets/css/coaching.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
     }
+    if (!empty($oms_popup)) {
+        echo '<link href="' . esc_view(oms_css_href('assets/css/popup-compact.css'), ENT_QUOTES, 'UTF-8') . '" rel="stylesheet">' . PHP_EOL;
+    }
   ?>
   <!-- jQuery must be loaded early so that inline view scripts relying on it (e.g., chats/app.php) can use $.ajax and delegated events -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
