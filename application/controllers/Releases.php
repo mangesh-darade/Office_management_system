@@ -414,7 +414,7 @@ class Releases extends CI_Controller
 
             $this->session->set_flashdata('error', 'History note cannot be empty.');
 
-            redirect('releases/view/' . $id);
+            redirect('releases/view/' . $id . '?tab=history');
 
             return;
 
@@ -426,7 +426,7 @@ class Releases extends CI_Controller
 
         $this->session->set_flashdata('success', 'History note saved.');
 
-        redirect('releases/view/' . $id . '#history');
+        redirect('releases/view/' . $id . '?tab=history');
 
     }
 

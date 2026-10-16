@@ -11,6 +11,16 @@ $this->load->view('partials/oms_page_head', ['title' => esc_view($item->version)
 ?>
 <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
 <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
+<?php
+  $detail_tab = trim((string) $this->input->get('tab')) === 'history' ? 'history' : 'details';
+  $history = isset($history) && is_array($history) ? $history : array();
+  $this->load->view('partials/oms_detail_tabs', array(
+    'active_tab' => $detail_tab,
+    'history_count' => count($history),
+  ));
+?>
+<div class="tab-content">
+<div class="tab-pane fade<?php echo $detail_tab === 'details' ? ' show active' : ''; ?>" id="details" role="tabpanel" aria-labelledby="details-tab">
 <div class="row g-3">
   <div class="col-lg-8">
     <div class="card shadow-soft mb-3"><div class="card-body">
@@ -41,83 +51,6 @@ $this->load->view('partials/oms_page_head', ['title' => esc_view($item->version)
     </div></div>
     <?php endif; ?>
 
-    <?php
-      $history = isset($history) && is_array($history) ? $history : array();
-      $can_note = function_exists('has_module_access') && (has_module_access('releases_view') || has_module_access('releases_list') || has_module_access('releases'));
-      $release_action_label = function ($action) {
-        $map = array(
-          'created' => 'Created',
-          'updated' => 'Updated',
-          'note' => 'Note',
-          'comment' => 'Note',
-        );
-        $key = strtolower((string) $action);
-        return isset($map[$key]) ? $map[$key] : ucfirst(str_replace('_', ' ', (string) $action));
-      };
-    ?>
-    <div class="card shadow-soft mb-3" id="history">
-      <div class="card-body">
-        <?php if ($can_note): ?>
-          <div class="small text-muted fw-semibold mb-1">Save note</div>
-          <form method="post" action="<?php echo site_url('releases/add-comment/' . (int) $item->id); ?>" class="mb-3">
-            <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
-            <textarea name="note" id="releaseHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
-          </form>
-        <?php endif; ?>
-        <div class="d-flex align-items-center justify-content-between mb-1">
-          <div class="small text-muted fw-semibold">History</div>
-          <span class="text-muted small"><?php echo count($history); ?></span>
-        </div>
-        <?php if (empty($history)): ?>
-          <p class="text-muted small mb-0">No history yet.</p>
-        <?php else: ?>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th class="text-start" style="width:9.5rem;">Date</th>
-                  <th>Comments</th>
-                  <th style="width:9rem;">Added By</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php foreach ($history as $h): ?>
-                  <?php
-                    $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                    $changed = trim((string) $h->detail);
-                    if ($changed === '') {
-                        $changed = $release_action_label($h->action);
-                    } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
-                        if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                            $changed = $release_action_label($h->action) . ': ' . $changed;
-                        }
-                    }
-                    $parts = preg_split('/\s*;\s*/', $changed);
-                  ?>
-                  <tr>
-                    <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                    <td class="small">
-                      <?php if (count($parts) > 1): ?>
-                        <ul class="mb-0 ps-3">
-                          <?php foreach ($parts as $part): ?>
-                            <?php if (trim($part) === '') { continue; } ?>
-                            <li><?php echo esc_view(trim($part)); ?></li>
-                          <?php endforeach; ?>
-                        </ul>
-                      <?php else: ?>
-                        <?php echo nl2br(esc_view($changed)); ?>
-                      <?php endif; ?>
-                    </td>
-                    <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        <?php endif; ?>
-      </div>
-    </div>
   </div>
   <div class="col-lg-4">
     <div class="card shadow-soft"><div class="card-body">
@@ -131,6 +64,86 @@ $this->load->view('partials/oms_page_head', ['title' => esc_view($item->version)
       </dl>
     </div></div>
   </div>
+</div>
+</div>
+<?php
+  $can_note = function_exists('has_module_access') && (has_module_access('releases_view') || has_module_access('releases_list') || has_module_access('releases'));
+  $release_action_label = function ($action) {
+    $map = array(
+      'created' => 'Created',
+      'updated' => 'Updated',
+      'note' => 'Note',
+      'comment' => 'Note',
+    );
+    $key = strtolower((string) $action);
+    return isset($map[$key]) ? $map[$key] : ucfirst(str_replace('_', ' ', (string) $action));
+  };
+?>
+<div class="tab-pane fade<?php echo $detail_tab === 'history' ? ' show active' : ''; ?>" id="history" role="tabpanel" aria-labelledby="history-tab">
+  <div class="card shadow-soft mb-0">
+    <div class="card-body">
+      <?php if ($can_note): ?>
+        <div class="small text-muted fw-semibold mb-1">Save note</div>
+        <form method="post" action="<?php echo site_url('releases/add-comment/' . (int) $item->id); ?>" class="mb-3">
+          <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+          <textarea name="note" id="releaseHistoryNote" class="form-control form-control-sm mb-2" rows="2" placeholder="Add a note to history…"></textarea>
+          <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Save note</button>
+        </form>
+      <?php endif; ?>
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <div class="small text-muted fw-semibold">History</div>
+        <span class="text-muted small"><?php echo count($history); ?></span>
+      </div>
+      <?php if (empty($history)): ?>
+        <p class="text-muted small mb-0">No history yet.</p>
+      <?php else: ?>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th class="text-start" style="width:9.5rem;">Date</th>
+                <th>Comments</th>
+                <th style="width:9rem;">Added By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($history as $h): ?>
+                <?php
+                  $who = ($h->user_name !== '') ? $h->user_name : 'System';
+                  $changed = trim((string) $h->detail);
+                  if ($changed === '') {
+                      $changed = $release_action_label($h->action);
+                  } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
+                      if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                          $changed = $release_action_label($h->action) . ': ' . $changed;
+                      }
+                  }
+                  $parts = preg_split('/\s*;\s*/', $changed);
+                ?>
+                <tr>
+                  <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
+                  <td class="small">
+                    <?php if (count($parts) > 1): ?>
+                      <ul class="mb-0 ps-3">
+                        <?php foreach ($parts as $part): ?>
+                          <?php if (trim($part) === '') { continue; } ?>
+                          <li><?php echo esc_view(trim($part)); ?></li>
+                        <?php endforeach; ?>
+                      </ul>
+                    <?php else: ?>
+                      <?php echo nl2br(esc_view($changed)); ?>
+                    <?php endif; ?>
+                  </td>
+                  <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
 </div>
 </div>
 <?php $this->load->view('partials/footer'); ?>
