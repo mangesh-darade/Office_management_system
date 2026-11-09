@@ -553,7 +553,11 @@ class Attendance extends CI_Controller {
                                 $this->db->where('id', (int)$existing->id)->update('attendance', $updates);
                                 $this->maybe_send_attendance_email($user_id, 'out', $nowDateTime);
                                 $this->award_spl_attendance_points($user_id, 'out', (int) $existing->id, '', $nowDateTime);
+                                $daily_auto = $this->auto_submit_daily_activity($user_id, $today, $cin, $nowDateTime);
                                 $success_msg = get_notification_message('attendance', 'create', 'success');
+                                if ($daily_auto) {
+                                    $success_msg .= ' Your daily activity was submitted automatically.';
+                                }
                                 $this->session->set_flashdata('success', $success_msg);
                             } else {
                                 $this->session->set_flashdata('error', 'Checkout time cannot be before check-in time or on the same day.');
@@ -814,6 +818,32 @@ class Attendance extends CI_Controller {
             'expected_checkin_time' => $expected_checkin_time,
             'today' => $today
         ]);
+    }
+
+    /**
+     * On check-out, submit today's Daily Activity log automatically (status: auto_submitted).
+     * Never blocks the check-out; returns true only when a log was created.
+     */
+    private function auto_submit_daily_activity($user_id, $work_date, $check_in, $check_out)
+    {
+        try {
+            if (!function_exists('has_module_access')
+                || !(has_module_access('daily_activity_add') || has_module_access('daily_activity'))) {
+                return false;
+            }
+            $hours = null;
+            $in_ts = strtotime(strlen((string) $check_in) <= 8 ? ($work_date . ' ' . $check_in) : (string) $check_in);
+            $out_ts = strtotime((string) $check_out);
+            if ($in_ts && $out_ts && $out_ts > $in_ts) {
+                $hours = ($out_ts - $in_ts) / 3600;
+            }
+            $this->load->library('daily_activity_summary');
+            $res = $this->daily_activity_summary->auto_submit((int) $user_id, (string) $work_date, $hours);
+            return is_array($res) && isset($res['status']) && $res['status'] === 'created';
+        } catch (Throwable $e) {
+            log_message('error', 'Daily activity auto-submit failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     private function maybe_send_attendance_email($user_id, $action, $dateTime){

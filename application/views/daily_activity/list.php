@@ -111,6 +111,7 @@
                                     <td>
                                         <?php if ($log->activity_title): ?>
                                             <span class="fw-bold activity-title-text"><?php echo esc_view($log->activity_title); ?></span>
+                                            <?php if (isset($log->status) && $log->status === 'auto_submitted'): ?><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1" title="Submitted automatically at check-out">Auto-submitted</span><?php endif; ?>
                                         <?php elseif ($log->task_title): ?>
                                             <span class="badge bg-info text-dark task-title-text"><?php echo esc_view($log->task_title); ?></span>
                                         <?php else: ?>

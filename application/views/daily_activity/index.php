@@ -125,6 +125,7 @@ $date_short = date('M j, Y', strtotime($date));
               <div class="da-row-main">
                 <div class="da-row-top">
                   <h3 class="da-row-title" title="<?php echo esc_view($title); ?>"><?php echo esc_view($title); ?></h3>
+                  <?php if (isset($log->status) && $log->status === 'auto_submitted'): ?><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1" title="Submitted automatically at check-out">Auto-submitted</span><?php endif; ?>
                   <span class="da-row-time">
                     <i class="bi bi-clock"></i>
                     <?php echo date('g:i A', strtotime($log->created_at)); ?>
