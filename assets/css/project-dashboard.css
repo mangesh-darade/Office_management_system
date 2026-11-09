@@ -1161,3 +1161,12 @@
     flex: 1 1 calc(50% - 0.35rem);
   }
 }
+
+/* Compact team card table (Task | Date | Est | [Act] | Status): fixed widths for narrow cards */
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] thead th.team-col-task { width: auto; }
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] thead th.team-col-date { width: 3.4rem; white-space: nowrap; }
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] thead th.team-col-est { width: 3.6rem; white-space: nowrap; }
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] thead th.team-col-act { width: 3.2rem; white-space: nowrap; }
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] thead th.team-col-status { width: 6.6rem; }
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] tbody td { white-space: nowrap; }
+.team-dash-index .team-dash-items-table[data-show-client-project="0"] tbody td:first-child { white-space: normal; overflow: hidden; text-overflow: ellipsis; }

@@ -56,7 +56,7 @@ class Tasks extends CI_Controller {
         $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
             || has_module_access('tasks_view_all');
         if (!$can_view_all && $user_id) {
-            multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id);
+            multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id, 't.created_by');
         }
         
         // Apply filters
@@ -419,7 +419,7 @@ class Tasks extends CI_Controller {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             $visible_ids = get_accessible_hierarchy_user_ids($user_id, (int)$this->session->userdata('role_id'));
-            $can_see_hierarchy = empty($visible_ids) ? true : in_array($creator, $visible_ids, true);
+            $can_see_hierarchy = empty($visible_ids) ? true : (in_array($creator, $visible_ids, true) || in_array($assigned, $visible_ids, true));
             $is_multi_assignee = multi_assignees_includes_user('task_assignees', 'task_id', (int) $id, $user_id);
             if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id && !$is_multi_assignee) {
                 return $this->output->set_status_header(403)
@@ -611,7 +611,7 @@ class Tasks extends CI_Controller {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
             $visible_ids = get_accessible_hierarchy_user_ids($user_id, (int)$this->session->userdata('role_id'));
-            $can_see_hierarchy = empty($visible_ids) ? true : in_array($creator, $visible_ids, true);
+            $can_see_hierarchy = empty($visible_ids) ? true : (in_array($creator, $visible_ids, true) || in_array($assigned, $visible_ids, true));
             $is_multi_assignee = multi_assignees_includes_user('task_assignees', 'task_id', (int) $id, $user_id);
             if (!$can_see_hierarchy && $assigned !== $user_id && $creator !== $user_id && !$is_multi_assignee) { show_error('Forbidden', 403); }
         }
@@ -638,6 +638,7 @@ class Tasks extends CI_Controller {
         
         $task = $this->db->where('id', (int)$id)->get('tasks')->row();
         if (!$task) show_404();
+        if (!$this->_task_in_scope($task)) { show_error('Forbidden', 403); }
         if ($this->input->method() === 'post') {
             $user_id = (int)$this->session->userdata('user_id');
             if (!$user_id) { redirect('login'); return; }
@@ -995,18 +996,37 @@ class Tasks extends CI_Controller {
 
         $filter_projects = array();
         if ($this->db->table_exists('projects')) {
-            $filter_projects = $this->db->select('id, name')->order_by('name', 'asc')->get('projects')->result();
+            $this->db->select('id, name')->from('projects');
+            data_scope_apply_project_scope($this->db, 'projects');
+            $filter_projects = $this->db->order_by('name', 'asc')->get()->result();
         }
 
         $filter_users = array();
         if ($this->db->table_exists('users')) {
-            $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
+            $this->db->select('id, name')->from('users');
+            $scope_ids = data_scope_visible_user_ids();
+            if ($scope_ids !== null) {
+                $this->db->where_in('id', empty($scope_ids) ? array(0) : $scope_ids);
+            }
+            $filter_users = $this->db->order_by('name', 'asc')->get()->result();
         }
 
         $filter_departments = array();
         if ($this->db->table_exists('departments')) {
             $this->load->model('Department_model');
             $filter_departments = $this->Department_model->all();
+            $scope_ids = data_scope_visible_user_ids();
+            if ($scope_ids !== null) {
+                $allowed_names = array();
+                if (!empty($scope_ids)) {
+                    foreach ($this->db->select('department')->distinct()->where_in('user_id', $scope_ids)->get('employees')->result() as $er) {
+                        $allowed_names[strtolower(trim((string) $er->department))] = true;
+                    }
+                }
+                $filter_departments = array_values(array_filter($filter_departments, function ($d) use ($allowed_names) {
+                    return isset($allowed_names[strtolower(trim((string) $d->dept_name))]);
+                }));
+            }
         }
 
         $this->load->helper('my_works_form');
@@ -1015,8 +1035,10 @@ class Tasks extends CI_Controller {
         $can_add_task = function_exists('has_module_access')
             && (has_module_access('tasks_add') || has_module_access('tasks'));
 
+        $team_scope_ids = data_scope_visible_user_ids();
+        $team_view = $can_view_all || (is_array($team_scope_ids) && count($team_scope_ids) > 1);
         $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
-        if ($filter_department_id > 0 && !$can_view_all) {
+        if ($filter_department_id > 0 && !$team_view) {
             $tasks = $this->_user_dashboard_filter_tasks_by_project_department($tasks, $filter_department_id);
         }
 
@@ -1034,11 +1056,11 @@ class Tasks extends CI_Controller {
             }
         }
 
-        if ($can_view_all) {
+        if ($team_view) {
             $group_cards = $this->_user_dashboard_employee_cards($tasks, $team_dash_status_maps, $filter_user_id, $complete_view, $filter_department_id);
             $group_mode = 'employee';
             $page_title = 'Team Dashboard';
-            $subtitle = 'All employee tasks, requirements, and work items';
+            $subtitle = $can_view_all ? 'All employee tasks, requirements, and work items' : 'Tasks, requirements, and work items of your department';
         } else {
             $group_cards = $this->_user_dashboard_project_cards($tasks, $team_dash_status_maps);
             $group_mode = 'project';
@@ -1053,7 +1075,7 @@ class Tasks extends CI_Controller {
             || $filter_project_id > 0
             || $filter_department_id > 0
             || ($filter_status !== '' && $filter_status !== 'all'));
-        if ($filter_department_id > 0 && $can_view_all) {
+        if ($filter_department_id > 0 && $team_view) {
             $type_counts = $this->_user_dashboard_counts_from_cards($group_cards);
         }
         if ($filters_active && !empty($group_cards)) {
@@ -1108,7 +1130,7 @@ class Tasks extends CI_Controller {
             'display_name'  => $display_name,
             'task_total'    => count($tasks),
             'type_counts'   => $type_counts,
-            'is_admin_view' => $can_view_all,
+            'is_admin_view' => $team_view,
             'subtitle'      => $subtitle,
             'filter_user_id'    => $filter_user_id,
             'filter_project_id' => $filter_project_id,
@@ -1411,12 +1433,6 @@ class Tasks extends CI_Controller {
             return true;
         }
         if (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data()) {
-            return true;
-        }
-        if (function_exists('has_module_access') && has_module_access('tasks_view_all')) {
-            return true;
-        }
-        if (function_exists('is_admin_group') && is_admin_group()) {
             return true;
         }
         return false;
@@ -1932,19 +1948,7 @@ class Tasks extends CI_Controller {
             }
 
             if (!$can_view_all) {
-                $this->db->group_start();
-                multi_assignees_apply_user_match(
-                    $this->db,
-                    't.assigned_to',
-                    'task_assignees',
-                    'task_id',
-                    't.id',
-                    $user_id
-                );
-                if (schema_table_has_column($this->db, 'tasks', 'created_by')) {
-                    $this->db->or_where('t.created_by', $user_id);
-                }
-                $this->db->group_end();
+                data_scope_apply_owner_or_assignee($this->db, array('t.assigned_to', 't.created_by'), array(array('task_assignees', 'task_id', 't.id')));
             }
 
             $task_rows = $this->db->get()->result();
@@ -2043,19 +2047,7 @@ class Tasks extends CI_Controller {
             }
 
             if (!$can_view_all) {
-                $this->db->group_start();
-                multi_assignees_apply_user_match(
-                    $this->db,
-                    'r.assigned_to',
-                    'requirement_assignees',
-                    'requirement_id',
-                    'r.id',
-                    $user_id
-                );
-                if (schema_table_has_column($this->db, 'requirements', 'created_by')) {
-                    $this->db->or_where('r.created_by', $user_id);
-                }
-                $this->db->group_end();
+                data_scope_apply_owner_or_assignee($this->db, array('r.assigned_to', 'r.created_by'), array(array('requirement_assignees', 'requirement_id', 'r.id')));
             }
 
             $req_rows = $this->db->get()->result();
@@ -2195,23 +2187,7 @@ class Tasks extends CI_Controller {
             }
 
             if (!$can_view_all) {
-                if (schema_table_has_column($this->db, 'my_works', 'created_for')) {
-                    $this->db->group_start();
-                    multi_assignees_apply_user_match(
-                        $this->db,
-                        'm.created_for',
-                        'my_works_assignees',
-                        'work_id',
-                        'm.id',
-                        $user_id
-                    );
-                    if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
-                        $this->db->or_where('m.created_by', $user_id);
-                    }
-                    $this->db->group_end();
-                } else if (schema_table_has_column($this->db, 'my_works', 'created_by')) {
-                    $this->db->where('m.created_by', $user_id);
-                }
+                data_scope_apply_owner_or_assignee($this->db, array('m.created_for', 'm.created_by'), array(array('my_works_assignees', 'work_id', 'm.id')));
             }
 
             $my_work_rows = $this->db->get()->result();
@@ -2351,6 +2327,7 @@ class Tasks extends CI_Controller {
         $grouped = array();
         $employees_info = array();
         $filter_department_id = (int) $filter_department_id;
+        $scope_emp_ids = data_scope_visible_user_ids();
         $filter_department_name = '';
         if ($filter_department_id > 0 && $this->db->table_exists('departments')) {
             $dept_row = $this->db->select('dept_name')->from('departments')->where('id', $filter_department_id)->limit(1)->get()->row();
@@ -2379,6 +2356,9 @@ class Tasks extends CI_Controller {
                 } else {
                     $this->db->where('1 = 0', null, false);
                 }
+            }
+            if ($scope_emp_ids !== null) {
+                $this->db->where_in('user_id', empty($scope_emp_ids) ? array(0) : $scope_emp_ids);
             }
             // If a specific user is being filtered, only load that employee record
             if ($filter_user_id > 0) {
@@ -2413,6 +2393,9 @@ class Tasks extends CI_Controller {
             foreach ($assignee_ids as $assignee_id) {
                 $assignee_id = (int) $assignee_id;
                 if ($filter_department_id > 0 && !isset($employees_info[$assignee_id])) {
+                    continue;
+                }
+                if ($scope_emp_ids !== null && $assignee_id > 0 && !in_array($assignee_id, $scope_emp_ids, true)) {
                     continue;
                 }
                 if (!isset($grouped[$assignee_id])) {
@@ -2484,7 +2467,8 @@ class Tasks extends CI_Controller {
                 $formatted_items[] = $this->_user_dashboard_format_item($t, $status_maps);
             }
 
-            if (empty($formatted_items) && ($complete_view === 'only' || $complete_view === 'hide')) {
+            $keep_blank = ($scope_emp_ids !== null && isset($employees_info[$assignee_id]) && $filter_user_id < 1);
+            if (empty($formatted_items) && !$keep_blank && ($complete_view === 'only' || $complete_view === 'hide')) {
                 continue;
             }
 
@@ -2629,7 +2613,7 @@ class Tasks extends CI_Controller {
             
             // Apply base filters
             if (!$is_admin && $user_id) {
-                multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id);
+                multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id, 't.created_by');
             }
             $this->db->where('t.status', $st);
             
@@ -3191,7 +3175,7 @@ class Tasks extends CI_Controller {
         }
 
         // Persist as history activity (comments UI replaced by History table).
-        $this->Task_model->log_activity($task_id, $user_id, 'note', null, array(
+        $this->Task_model->log_activity($task_id, $user_id, 'commented', null, array(
             'detail' => $note,
             'comment' => mb_substr($note, 0, 2000),
         ));
@@ -3255,6 +3239,22 @@ class Tasks extends CI_Controller {
         redirect('tasks');
     }
 
+    private function _task_in_scope($task)
+    {
+        if (is_admin_group() || has_module_access('tasks_view_all') || has_module_access('tasks_manage')) {
+            return true;
+        }
+        $tid = (int) $task->id;
+        return data_scope_row_visible($task, array('created_by', 'assigned_to'), function ($row, $ids) use ($tid) {
+            foreach ($ids as $uid) {
+                if (multi_assignees_includes_user('task_assignees', 'task_id', $tid, (int) $uid)) {
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
     // GET /tasks/get_by_project/{project_id}
     public function get_by_project($project_id) {
         $project_id = (int)$project_id;
@@ -3269,7 +3269,7 @@ class Tasks extends CI_Controller {
                           ->from('tasks')
                           ->where('project_id', $project_id)
                           ->order_by('id', 'DESC');
-        apply_role_hierarchy_filter($this->db, 'created_by');
+        data_scope_apply_owner_or_assignee($this->db, array('created_by', 'assigned_to'), array(array('task_assignees', 'task_id', 'tasks.id')));
         $tasks = $this->db->get()->result();
                           
         $this->output->set_output(json_encode($tasks));

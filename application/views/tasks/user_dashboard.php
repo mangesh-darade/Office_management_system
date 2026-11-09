@@ -113,23 +113,25 @@ if (!$embed):
 }
 .team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(2),
 .team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(2) {
-    width: 48px !important;
+    width: 46px !important;
     text-align: center;
+    white-space: nowrap;
 }
 .team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(3),
 .team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(3) {
-    width: 30px !important;
+    width: 50px !important;
     text-align: right;
+    white-space: nowrap;
 }
 .team-dash-index:not(.is-user-filtered) .team-dash-items-table th:nth-child(4),
 .team-dash-index:not(.is-user-filtered) .team-dash-items-table td:nth-child(4) {
-    width: 95px !important;
+    width: 100px !important;
     text-align: left;
 }
 .team-dash-index:not(.is-user-filtered) .project-dash-status-select {
-    width: 95px !important;
-    max-width: 95px !important;
-    min-width: 95px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     font-size: 0.65rem !important;
     font-weight: 600;
     line-height: 1.2;
@@ -394,7 +396,7 @@ if (!$embed) {
           return;
       }
 
-      if ($allow_add) {
+      if ($allow_add && empty($options['no_add_bar'])) {
           echo '<div class="team-dash-add-bar d-flex justify-content-end mb-1">';
           echo '<button type="button" class="btn btn-outline-primary btn-sm team-dash-add-btn" title="Add task" aria-label="Add task"><i class="bi bi-plus-lg"></i></button>';
           echo '</div>';
@@ -407,19 +409,19 @@ if (!$embed) {
           echo '<th>Client</th>';
           echo '<th>Project</th>';
       }
-      echo '<th>Task</th>';
+      echo '<th class="team-col-task">Task</th>';
       if ($show_created_at) {
           echo '<th>Created By</th>';
       }
-      echo '<th>Date</th>';
+      echo '<th class="team-col-date">Date</th>';
       if ($show_created_at) {
           echo '<th>Created At</th>';
       }
-      echo '<th class="text-end">Est Hrs</th>';
+      echo '<th class="text-end team-col-est">Est Hrs</th>';
       if ($show_act) {
-          echo '<th class="text-end">Act</th>';
+          echo '<th class="text-end team-col-act">Act</th>';
       }
-      echo '<th class="text-start" style="min-width:95px;">Status</th>';
+      echo '<th class="text-start team-col-status">Status</th>';
       echo '</tr></thead><tbody>';
 
       if (!function_exists('estimate_hours_row')) {
@@ -589,7 +591,7 @@ if (!$embed) {
         <div class="<?php echo esc_view($grid_col_class); ?>" data-team-search="<?php echo esc_view($team_search_hay, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $card_assignee_id > 0 ? ' data-assignee-id="' . $card_assignee_id . '"' : ''; ?>>
           <div class="card project-dash-card">
             <div class="card-body">
-              <div class="project-dash-head">
+              <div class="project-dash-head d-flex align-items-start">
                   <?php if ($entity && isset($entity->id)): ?>
                     <?php 
                       $paramName = ($group_mode === 'employee') ? 'user_id' : 'project_id';
@@ -609,7 +611,7 @@ if (!$embed) {
                       }
                       $targetUrl = site_url('tasks/my-dashboard') . '?' . http_build_query(array_merge($linkParams, $linkExtra)); 
                     ?>
-                    <a href="<?php echo esc_view($targetUrl); ?>" class="project-dash-head-link text-decoration-none d-flex align-items-start justify-content-between w-100" title="View all items for <?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>">
+                    <a href="<?php echo esc_view($targetUrl); ?>" class="project-dash-head-link text-decoration-none d-flex align-items-start justify-content-between flex-grow-1" title="View all items for <?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>">
                       <div class="project-dash-head-main">
                         <span class="project-dash-project-name text-primary fw-semibold"><?php echo esc_view($entity_name); ?></span>
                       </div>
@@ -617,6 +619,9 @@ if (!$embed) {
                         <?php echo (int) $item_count; ?>
                       </span>
                     </a>
+                    <?php if ($can_add_task): ?>
+                    <button type="button" class="btn btn-outline-primary btn-sm team-dash-add-btn ms-1 flex-shrink-0" title="Add task" aria-label="Add task"><i class="bi bi-plus-lg"></i></button>
+                    <?php endif; ?>
                   <?php else: ?>
                     <div class="project-dash-head-main">
                       <span class="project-dash-project-name text-body" title="<?php echo esc_view($entity_name, ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($entity_name); ?></span>
@@ -636,7 +641,7 @@ if (!$embed) {
                 </div>
               <?php else: ?>
                 <div class="project-dash-task-list project-dash-task-list-section">
-                  <?php $render_team_dash_items_table($items, array('allow_add' => true)); ?>
+                  <?php $render_team_dash_items_table($items, array('allow_add' => true, 'no_add_bar' => true)); ?>
                 </div>
               <?php endif; ?>
             </div>

@@ -96,11 +96,21 @@ class Task_model extends CI_Model {
         $task_id = (int) $task_id;
         $rows = array();
 
+        $legacy_comments = $this->get_task_comments($task_id);
+        $legacy_texts = array();
+        foreach ($legacy_comments as $lc) {
+            $legacy_texts[trim((string) (isset($lc->comment) ? $lc->comment : ''))] = true;
+        }
+
         foreach ($this->list_activity($task_id, 200) as $a) {
             $action = isset($a->action) ? (string) $a->action : 'updated';
-            // Legacy comments are merged below; skip duplicate "commented" activity rows.
+            // Legacy comments are merged below; skip "commented" rows only when they duplicate one.
             if ($action === 'commented') {
-                continue;
+                $dup_new = $this->_decode_activity_json(isset($a->new_value) ? $a->new_value : null);
+                $dup_text = trim((string) (isset($dup_new['comment']) ? $dup_new['comment'] : (isset($dup_new['detail']) ? $dup_new['detail'] : '')));
+                if ($dup_text === '' || isset($legacy_texts[$dup_text])) {
+                    continue;
+                }
             }
             $name = '';
             if (!empty($a->user_name)) {
@@ -123,7 +133,7 @@ class Task_model extends CI_Model {
             );
         }
 
-        foreach ($this->get_task_comments($task_id) as $c) {
+        foreach ($legacy_comments as $c) {
             $name = '';
             if (isset($c->name) && trim((string) $c->name) !== '') {
                 $name = (string) $c->name;

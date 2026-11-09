@@ -122,6 +122,28 @@ $this->load->view('partials/header', array(
 ?>
 <script>document.body.classList.add('defect-view-active');</script>
 
+<style>
+.task-view-popup .defect-view-actions { display: none !important; }
+.task-st-btn { background: #fff; border: 1px solid var(--st-c); color: var(--st-c); font-weight: 600; }
+.task-st-btn:hover, .task-st-btn:focus { background: var(--st-bg); color: var(--st-c); border-color: var(--st-c); }
+.task-st-btn.active, .task-st-btn.active:hover { background: var(--st-c); color: #fff; border-color: var(--st-c); }
+.task-st-pending { --st-c: #64748b; --st-bg: #f1f5f9; }
+.task-st-progress { --st-c: #2563eb; --st-bg: #eff6ff; }
+.task-st-done { --st-c: #16a34a; --st-bg: #f0fdf4; }
+.task-st-blocked { --st-c: #dc2626; --st-bg: #fef2f2; }
+</style>
+<script>
+(function () {
+  try {
+    if (window.self !== window.top) {
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.querySelector('.defect-view-simple');
+        if (el) { el.classList.add('task-view-popup'); }
+      });
+    }
+  } catch (e) {}
+})();
+</script>
 <div class="defect-view-simple">
   <div class="defect-view-toolbar mb-3">
     <a href="<?php echo esc_view($back_url); ?>" class="btn btn-sm btn-outline-secondary defect-view-back" title="Back">
@@ -132,10 +154,6 @@ $this->load->view('partials/header', array(
         <h1 class="h5 mb-0 text-truncate" title="<?php echo esc_view($task_title); ?>">
           <?php echo esc_view($task_title !== '' ? $task_title : 'Untitled task'); ?>
         </h1>
-        <span class="<?php echo esc_view($status_pill($task_status)); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $task_status))); ?></span>
-        <?php if ($task_priority !== ''): ?>
-          <span class="<?php echo esc_view($priority_pill($task_priority)); ?>"><?php echo esc_view(ucfirst($task_priority)); ?></span>
-        <?php endif; ?>
         <?php if ($due_overdue): ?>
           <span class="badge text-bg-danger">Overdue</span>
         <?php endif; ?>
@@ -147,6 +165,22 @@ $this->load->view('partials/header', array(
           <a class="text-decoration-none" href="<?php echo site_url('projects/' . $project_id); ?>"><?php echo esc_view($project_name); ?></a>
         <?php endif; ?>
       </div>
+    </div>
+    <div class="task-view-status d-flex flex-wrap align-items-center gap-2 ms-auto">
+      <?php if ($can_edit): ?>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Update status">
+        <button type="button" class="btn task-st-btn task-st-pending<?php echo $task_status === 'pending' ? ' active' : ''; ?>" onclick="updateTaskStatus('pending')">Pending</button>
+        <button type="button" class="btn task-st-btn task-st-progress<?php echo $task_status === 'in_progress' ? ' active' : ''; ?>" onclick="updateTaskStatus('in_progress')">In Progress</button>
+        <button type="button" class="btn task-st-btn task-st-done<?php echo $task_status === 'completed' ? ' active' : ''; ?>" onclick="updateTaskStatus('completed')">Complete</button>
+        <button type="button" class="btn task-st-btn task-st-blocked<?php echo $task_status === 'blocked' ? ' active' : ''; ?>" onclick="updateTaskStatus('blocked')">Blocked</button>
+      </div>
+      <?php else: ?>
+      <span class="<?php echo esc_view($status_pill($task_status)); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', $task_status))); ?></span>
+      <?php endif; ?>
+      <?php if ($task_priority !== ''): ?>
+      <span class="small text-muted fw-semibold ms-2">Priority</span>
+      <span class="<?php echo esc_view($priority_pill($task_priority)); ?>"><?php echo esc_view(ucfirst($task_priority)); ?></span>
+      <?php endif; ?>
     </div>
     <div class="defect-view-actions d-flex align-items-center gap-1 flex-shrink-0">
       <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('tasks'); ?>" title="List"><i class="bi bi-list-ul"></i></a>
@@ -175,19 +209,6 @@ $this->load->view('partials/header', array(
     <div class="alert alert-danger py-2 mb-2"><?php echo esc_view($this->session->flashdata('error')); ?></div>
   <?php endif; ?>
 
-  <?php if ($can_edit): ?>
-  <div class="card mb-2">
-    <div class="card-body py-2 px-3 d-flex flex-wrap align-items-center gap-2">
-      <span class="small text-muted fw-semibold me-1">Status</span>
-      <div class="btn-group btn-group-sm" role="group" aria-label="Update status">
-        <button type="button" class="btn btn-outline-secondary<?php echo $task_status === 'pending' ? ' active' : ''; ?>" onclick="updateTaskStatus('pending')">Pending</button>
-        <button type="button" class="btn btn-outline-secondary<?php echo $task_status === 'in_progress' ? ' active' : ''; ?>" onclick="updateTaskStatus('in_progress')">In Progress</button>
-        <button type="button" class="btn btn-outline-secondary<?php echo $task_status === 'completed' ? ' active' : ''; ?>" onclick="updateTaskStatus('completed')">Complete</button>
-        <button type="button" class="btn btn-outline-secondary<?php echo $task_status === 'blocked' ? ' active' : ''; ?>" onclick="updateTaskStatus('blocked')">Blocked</button>
-      </div>
-    </div>
-  </div>
-  <?php endif; ?>
 
   <?php
     $detail_tab = trim((string) $this->input->get('tab')) === 'history' ? 'history' : 'details';
@@ -281,53 +302,29 @@ $this->load->view('partials/header', array(
           <div class="small text-muted fw-semibold">History</div>
           <span class="text-muted small"><?php echo count($history); ?></span>
         </div>
-        <?php if (empty($history)): ?>
-          <p class="text-muted small mb-0">No history yet.</p>
-        <?php else: ?>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0 align-middle defect-history-grid">
-              <thead class="table-light">
-                <tr>
-                  <th class="text-start" style="width:9.5rem;">Date</th>
-                  <th>Comments</th>
-                  <th style="width:9rem;">Added By</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php foreach ($history as $h): ?>
-                  <?php
-                    $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                    $changed = trim((string) $h->detail);
-                    if ($changed === '') {
-                        $changed = $action_label($h->action);
-                    } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment' && strtolower((string) $h->action) !== 'commented') {
-                        if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                            $changed = $action_label($h->action) . ': ' . $changed;
-                        }
-                    }
-                    $parts = preg_split('/\s*;\s*/', $changed);
-                  ?>
-                  <tr>
-                    <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                    <td class="small">
-                      <?php if (count($parts) > 1): ?>
-                        <ul class="mb-0 ps-3 defect-history-changes">
-                          <?php foreach ($parts as $part): ?>
-                            <?php if (trim($part) === '') { continue; } ?>
-                            <li><?php echo esc_view(trim($part)); ?></li>
-                          <?php endforeach; ?>
-                        </ul>
-                      <?php else: ?>
-                        <?php echo nl2br(esc_view($changed)); ?>
-                      <?php endif; ?>
-                    </td>
-                    <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        <?php endif; ?>
+        <?php
+          $oms_history_rows = array();
+          foreach ($history as $h) {
+              $who = ($h->user_name !== '') ? $h->user_name : 'System';
+              $changed = trim((string) $h->detail);
+              $act = strtolower((string) $h->action);
+              if ($changed === '') {
+                  $changed = $action_label($h->action);
+              } elseif ($act !== '' && $act !== 'note' && $act !== 'comment' && $act !== 'commented') {
+                  if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                      $changed = $action_label($h->action) . ': ' . $changed;
+                  }
+              }
+              $oms_history_rows[] = array(
+                  'date' => $h->created_at,
+                  'who' => $who,
+                  'parts' => preg_split('/\s*;\s*/', $changed),
+                  'text' => $changed,
+              );
+          }
+          $this->load->view('partials/history_table', array('history_rows' => $oms_history_rows));
+        ?>
+
       </div>
     </div>
   </div>
