@@ -35,62 +35,16 @@
 
   <?php if (!$sum_visible): ?>
     <p class="da-summary-empty mb-0">
-      No assigned Tasks / My Works due today (or overdue). Today's comments and history will show under each item when available.
+      No assigned Tasks / My Works for this day. Open work and work completed that day will show here, completed first.
     </p>
   <?php else: ?>
     <div class="da-summary-body">
-      <?php if (!empty($task_items)): ?>
-        <div class="da-summary-section">
-          <div class="da-summary-section-title"><i class="bi bi-list-task" aria-hidden="true"></i> Tasks (<?php echo count($task_items); ?>)</div>
-          <ul class="da-summary-items mb-0">
-            <?php foreach ($task_items as $item): ?>
-              <li class="da-summary-item">
-                <div class="da-summary-item-title">
-                  <?php echo esc_view(isset($item['label']) ? $item['label'] : ''); ?>
-                  <?php if (!empty($item['due_note'])): ?>
-                    <span class="da-summary-due"><?php echo esc_view($item['due_note']); ?></span>
-                  <?php endif; ?>
-                </div>
-                <?php $this->load->view('daily_activity/_summary_history', array(
-                  'history' => isset($item['history']) ? $item['history'] : array(),
-                )); ?>
-              </li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-      <?php endif; ?>
-
-      <?php if (!empty($mw_items)): ?>
-        <div class="da-summary-section">
-          <div class="da-summary-section-title"><i class="bi bi-briefcase" aria-hidden="true"></i> My Works (<?php echo count($mw_items); ?>)</div>
-          <ul class="da-summary-items mb-0">
-            <?php foreach ($mw_items as $item): ?>
-              <li class="da-summary-item">
-                <div class="da-summary-item-title">
-                  <?php echo esc_view(isset($item['label']) ? $item['label'] : ''); ?>
-                  <?php if (!empty($item['due_note'])): ?>
-                    <span class="da-summary-due"><?php echo esc_view($item['due_note']); ?></span>
-                  <?php endif; ?>
-                </div>
-                <?php $this->load->view('daily_activity/_summary_history', array(
-                  'history' => isset($item['history']) ? $item['history'] : array(),
-                )); ?>
-              </li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-      <?php endif; ?>
-
-      <?php if (!empty($tpl_lines)): ?>
-        <div class="da-summary-section">
-          <div class="da-summary-section-title"><i class="bi bi-layout-text-window" aria-hidden="true"></i> Template tasks (<?php echo count($tpl_lines); ?>)</div>
-          <ul class="da-summary-list mb-0">
-            <?php foreach ($tpl_lines as $line): ?>
-              <li><?php echo esc_view($line); ?></li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-      <?php endif; ?>
+      <div class="da-summary-counts">
+        <span><i class="bi bi-list-task" aria-hidden="true"></i> Tasks <strong><?php echo count($task_items); ?></strong></span>
+        <span><i class="bi bi-briefcase" aria-hidden="true"></i> My Works <strong><?php echo count($mw_items); ?></strong></span>
+        <?php if (!empty($tpl_lines)): ?><span><i class="bi bi-layout-text-window" aria-hidden="true"></i> Templates <strong><?php echo count($tpl_lines); ?></strong></span><?php endif; ?>
+      </div>
+      <div class="da-summary-preview"><?php echo sanitize_html_output(isset($today_summary['html']) ? $today_summary['html'] : ''); ?></div>
     </div>
   <?php endif; ?>
 </div>
