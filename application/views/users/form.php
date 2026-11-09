@@ -85,7 +85,7 @@
 
             <?php if (!empty($can_assign_departments)): ?>
             <div class="col-md-4">
-              <label class="form-label" for="access_departments">Access departments <small class="text-muted">(roles with "All" data scope)</small></label>
+              <label class="form-label" for="access_departments">Access departments <small class="text-muted">(Manager / Lead / HR designations only; blank = own department)</small></label>
               <input type="hidden" name="access_departments_present" value="1">
               <select name="access_departments[]" id="access_departments" class="form-select" multiple size="4">
                 <?php $assignedDepts = isset($assigned_department_ids) ? $assigned_department_ids : array(); ?>
