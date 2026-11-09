@@ -745,6 +745,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       try {
         var loaded = new URL(loc.href);
+        if (/\/my-works\/?$/.test(loaded.pathname)) {
+          // Create/edit finished and redirected back to Second Brain: close popup and refresh.
+          popupFrame.src = 'about:blank';
+          var doneModal = document.getElementById('mwScreenPopup');
+          if (doneModal && window.bootstrap && bootstrap.Modal) {
+            var inst = bootstrap.Modal.getInstance(doneModal);
+            if (inst) { inst.hide(); }
+          }
+          window.location.reload();
+          return;
+        }
         if (loaded.searchParams.get('popup') !== '1') {
           loaded.searchParams.set('popup', '1');
           loaded.searchParams.delete('embed');

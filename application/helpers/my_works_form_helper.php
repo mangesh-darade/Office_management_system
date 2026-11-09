@@ -39,11 +39,7 @@ if (!function_exists('my_works_projects_for_dropdown')) {
             $db->where('client_id', (int) $client_id);
         }
         if (function_exists('apply_role_hierarchy_filter')) {
-            if (schema_table_has_column($db, 'projects', 'created_by')) {
-                apply_role_hierarchy_filter($db, 'created_by');
-            } elseif (schema_table_has_column($db, 'projects', 'manager_id')) {
-                apply_role_hierarchy_filter($db, 'manager_id');
-            }
+            data_scope_apply_project_scope($db, 'projects');
         }
         return $db->order_by('name', 'ASC')->get()->result();
     }

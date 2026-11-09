@@ -35,10 +35,14 @@ if (!function_exists('my_works_sanitize_filters')) {
     function my_works_sanitize_filters(array $filters, $can_view_all, $user_id)
     {
         if (!$can_view_all) {
-            if ($filters['created_for'] > 0 && (int) $filters['created_for'] !== (int) $user_id) {
+            $visible = data_scope_visible_user_ids();
+            $visible = is_array($visible) ? $visible : array((int) $user_id);
+            if ($filters['created_for'] > 0 && !in_array((int) $filters['created_for'], $visible, true)) {
                 $filters['created_for'] = 0;
             }
-            $filters['created_by'] = 0;
+            if (count($visible) < 2) {
+                $filters['created_by'] = 0;
+            }
         }
         if (!in_array($filters['involvement'], array('all', 'created', 'assigned'), true)) {
             $filters['involvement'] = 'all';

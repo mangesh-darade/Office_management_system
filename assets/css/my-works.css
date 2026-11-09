@@ -4135,6 +4135,7 @@ body:has(.mw-screen-popup.show) .modal-backdrop {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.35rem;
   margin-bottom: 0.5rem;
 }

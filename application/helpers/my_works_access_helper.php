@@ -18,22 +18,11 @@ if (!function_exists('my_works_apply_list_scope')) {
         if ($can_view_all) {
             return;
         }
-        $user_id = (int) $user_id;
-        if ($user_id < 1) {
-            $db->where('1 = 0', null, false);
-            return;
-        }
-        $db->group_start();
-        $db->where('w.created_by', $user_id);
-        $db->or_where('w.created_for', $user_id);
-        if ($db->table_exists('my_works_assignees')) {
-            $db->or_where(
-                'EXISTS (SELECT 1 FROM `my_works_assignees` _mwa WHERE _mwa.`work_id` = w.id AND _mwa.`user_id` = ' . $user_id . ')',
-                null,
-                false
-            );
-        }
-        $db->group_end();
+        data_scope_apply_owner_or_assignee(
+            $db,
+            array('w.created_by', 'w.created_for'),
+            array(array('my_works_assignees', 'work_id', 'w.id'))
+        );
     }
 }
 

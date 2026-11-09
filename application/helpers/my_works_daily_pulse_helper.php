@@ -62,7 +62,11 @@ if (!function_exists('my_works_daily_pulse_scoped_users')) {
         $CI->load->helper(array('my_works_access', 'schema_columns'));
         $users = my_works_filter_users_for_dropdown($db, $can_view_all, $user_id, $role_id);
         $map = array();
+        $visible = data_scope_visible_user_ids();
         foreach ($users as $u) {
+            if ($visible !== null && (int) $u->id !== (int) $user_id && !in_array((int) $u->id, $visible, true)) {
+                continue;
+            }
             $map[(int) $u->id] = $u;
         }
         return $map;
@@ -85,9 +89,11 @@ if (!function_exists('my_works_daily_pulse_clients_added')) {
         $db->select($select);
         $db->from('clients');
         $db->where('DATE(created_at)', $today);
-        if (function_exists('apply_role_hierarchy_filter')) {
-            apply_role_hierarchy_filter($db, 'created_by');
+        $scopeCols = array('created_by');
+        if (schema_table_has_column($db, 'clients', 'account_manager_id')) {
+            $scopeCols[] = 'account_manager_id';
         }
+        data_scope_apply_owner_or_assignee($db, $scopeCols);
         $db->order_by('created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();
@@ -476,8 +482,7 @@ if (!function_exists('my_works_daily_pulse_work_history')) {
         }
         // else ($mode === 'all'): no extra filter — fetch all activity types
 
-        // Show overall work history for Daily Pulse without user-specific scope
-        // my_works_apply_list_scope($db, $can_view_all, $user_id);
+        my_works_apply_list_scope($db, $can_view_all, $user_id);
         $db->order_by('a.created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();
@@ -519,9 +524,13 @@ if (!function_exists('my_works_daily_pulse_requirements')) {
         $db->select($select);
         $db->from('requirements');
         $db->where('DATE(created_at)', $today);
-        if (function_exists('apply_role_hierarchy_filter') && schema_table_has_column($db, 'requirements', 'created_by')) {
-            apply_role_hierarchy_filter($db, 'created_by');
+        $scopeCols = array();
+        foreach (array('created_by', 'assigned_to', 'owner_id') as $c) {
+            if (schema_table_has_column($db, 'requirements', $c)) {
+                $scopeCols[] = 'requirements.' . $c;
+            }
         }
+        data_scope_apply_owner_or_assignee($db, $scopeCols, array(array('requirement_assignees', 'requirement_id', 'requirements.id')));
         $db->order_by('created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();
@@ -565,9 +574,13 @@ if (!function_exists('my_works_daily_pulse_defects')) {
         if (schema_table_has_column($db, 'project_defects', 'is_deleted')) {
             $db->where('is_deleted', 0);
         }
-        if (function_exists('apply_role_hierarchy_filter') && schema_table_has_column($db, 'project_defects', 'reported_by')) {
-            apply_role_hierarchy_filter($db, 'reported_by');
+        $scopeCols = array();
+        foreach (array('reported_by', 'assigned_to') as $c) {
+            if (schema_table_has_column($db, 'project_defects', $c)) {
+                $scopeCols[] = 'project_defects.' . $c;
+            }
         }
+        data_scope_apply_owner_or_assignee($db, $scopeCols);
         $db->order_by('created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();
@@ -648,6 +661,7 @@ if (!function_exists('my_works_daily_pulse_project_history_overall')) {
         $db->join('projects p', 'p.id = a.project_id', 'inner');
         $db->join('users u', 'u.id = a.user_id', 'left');
         $db->where('DATE(a.created_at)', $today);
+        data_scope_apply_project_scope($db, 'p');
         $db->order_by('a.created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();
@@ -693,6 +707,13 @@ if (!function_exists('my_works_daily_pulse_client_history_overall')) {
         $db->join('clients c', 'c.id = a.client_id', 'inner');
         $db->join('users u', 'u.id = a.user_id', 'left');
         $db->where('DATE(a.created_at)', $today);
+        $scopeCols = array();
+        foreach (array('created_by', 'account_manager_id') as $c) {
+            if (schema_table_has_column($db, 'clients', $c)) {
+                $scopeCols[] = 'c.' . $c;
+            }
+        }
+        data_scope_apply_owner_or_assignee($db, $scopeCols);
         $db->order_by('a.created_at', 'DESC');
         $db->limit(100);
         $rows = $db->get()->result();

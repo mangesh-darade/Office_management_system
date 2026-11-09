@@ -53,12 +53,21 @@ if (!function_exists('my_works_user_in_personal_scope')) {
         if ($user_id < 1) {
             return false;
         }
-        if (((int) $work->created_by === $user_id) || ((int) $work->created_for === $user_id)) {
+        $CI =& get_instance();
+        $ids = ($user_id === (int) $CI->session->userdata('user_id')) ? data_scope_visible_user_ids() : array($user_id);
+        if ($ids === null) {
+            return true;
+        }
+        if (in_array((int) $work->created_by, $ids, true) || in_array((int) $work->created_for, $ids, true)) {
             return true;
         }
         $work_id = isset($work->id) ? (int) $work->id : 0;
         if ($work_id > 0 && function_exists('multi_assignees_includes_user')) {
-            return multi_assignees_includes_user('my_works_assignees', 'work_id', $work_id, $user_id);
+            foreach ($ids as $uid) {
+                if (multi_assignees_includes_user('my_works_assignees', 'work_id', $work_id, (int) $uid)) {
+                    return true;
+                }
+            }
         }
         return false;
     }

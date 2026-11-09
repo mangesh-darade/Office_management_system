@@ -554,53 +554,29 @@
           <div class="small text-muted fw-semibold">History</div>
           <span class="text-muted small"><?php echo count($history); ?></span>
         </div>
-        <?php if (empty($history)): ?>
-          <p class="text-muted small mb-0">No history yet.</p>
-        <?php else: ?>
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th class="text-start" style="width:9.5rem;">Date</th>
-                  <th>Comments</th>
-                  <th style="width:9rem;">Added By</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php foreach ($history as $h): ?>
-                  <?php
-                    $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                    $changed = trim((string) $h->detail);
-                    if ($changed === '') {
-                        $changed = $mw_action_label($h->action);
-                    } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
-                        if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                            $changed = $mw_action_label($h->action) . ': ' . $changed;
-                        }
-                    }
-                    $parts = preg_split('/\s*;\s*/', $changed);
-                  ?>
-                  <tr>
-                    <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                    <td class="small">
-                      <?php if (count($parts) > 1): ?>
-                        <ul class="mb-0 ps-3">
-                          <?php foreach ($parts as $part): ?>
-                            <?php if (trim($part) === '') { continue; } ?>
-                            <li><?php echo esc_view(trim($part)); ?></li>
-                          <?php endforeach; ?>
-                        </ul>
-                      <?php else: ?>
-                        <?php echo nl2br(esc_view($changed)); ?>
-                      <?php endif; ?>
-                    </td>
-                    <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        <?php endif; ?>
+        <?php
+          $oms_history_rows = array();
+          foreach ($history as $h) {
+              $who = ($h->user_name !== '') ? $h->user_name : 'System';
+              $changed = trim((string) $h->detail);
+              $act = strtolower((string) $h->action);
+              if ($changed === '') {
+                  $changed = $mw_action_label($h->action);
+              } elseif ($act !== 'note' && $act !== 'comment' && $act !== 'commented') {
+                  if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                      $changed = $mw_action_label($h->action) . ': ' . $changed;
+                  }
+              }
+              $oms_history_rows[] = array(
+                  'date' => $h->created_at,
+                  'who' => $who,
+                  'parts' => preg_split('/\s*;\s*/', $changed),
+                  'text' => $changed,
+              );
+          }
+          $this->load->view('partials/history_table', array('history_rows' => $oms_history_rows));
+        ?>
+
       </div>
     </div>
   </div>
