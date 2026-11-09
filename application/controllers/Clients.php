@@ -13,6 +13,7 @@ class Clients extends CI_Controller {
         
         $this->ensure_schema();
         $this->load->model('Client_model','clients');
+        $this->clients->enable_scope();
         $this->load->model('Client_url_model', 'client_urls');
     }
 
@@ -459,6 +460,7 @@ class Clients extends CI_Controller {
             // Dropdown: all client-linked projects (name ASC).
             $this->db->select('id, name, client_id');
             $this->db->from('projects');
+            data_scope_apply_project_scope($this->db, 'projects');
             $this->db->where('client_id IS NOT NULL', null, false);
             $this->db->where('client_id >', 0);
             $this->db->order_by('name', 'ASC');
@@ -486,6 +488,7 @@ class Clients extends CI_Controller {
 
                 if (!empty($client_ids)) {
                     $this->db->from('projects');
+                    data_scope_apply_project_scope($this->db, 'projects');
                     $this->db->where_in('client_id', $client_ids);
                     if ($filter_project_id > 0) {
                         $this->db->where('id', $filter_project_id);
@@ -517,6 +520,7 @@ class Clients extends CI_Controller {
             }
             $this->db->select(implode(',', $sel));
             $this->db->from('tasks t');
+            data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
             $this->db->where_in('t.project_id', $all_project_ids);
             if (schema_table_has_column($this->db, 'tasks', 'assigned_to')
                 && $this->db->table_exists('users')
@@ -538,6 +542,7 @@ class Clients extends CI_Controller {
         if ($this->db->table_exists('project_defects') && !empty($all_project_ids)) {
             $this->db->select('d.id, d.project_id');
             $this->db->from('project_defects d');
+            data_scope_apply_owner_or_assignee($this->db, array('d.reported_by', 'd.assigned_to'));
             $this->db->where_in('d.project_id', $all_project_ids);
             if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
                 $this->db->group_start();
@@ -1103,6 +1108,7 @@ class Clients extends CI_Controller {
             && schema_table_has_column($this->db, 'projects', 'client_id')
         ) {
             $this->db->from('projects');
+            data_scope_apply_project_scope($this->db, 'projects');
             $this->db->where('client_id', $client_id);
             $this->db->order_by('name', 'ASC');
             $projects = $this->db->get()->result();
@@ -1123,6 +1129,7 @@ class Clients extends CI_Controller {
             }
             $this->db->select(implode(',', $sel));
             $this->db->from('requirements r');
+            data_scope_apply_owner_or_assignee($this->db, array('r.created_by', 'r.assigned_to', 'r.owner_id'), array(array('requirement_assignees', 'requirement_id', 'r.id')));
             $this->db->where('r.client_id', $client_id);
             if ($this->db->table_exists('projects')) {
                 $this->db->select('p.name AS project_name', false);
@@ -1149,6 +1156,7 @@ class Clients extends CI_Controller {
                 }
             }
             if (!empty($extra_project_ids)) {
+                data_scope_apply_project_scope($this->db, 'projects');
                 $extra_rows = $this->db->from('projects')
                     ->where_in('id', $extra_project_ids)
                     ->order_by('name', 'ASC')
@@ -1194,6 +1202,7 @@ class Clients extends CI_Controller {
             }
             $this->db->select(implode(',', $sel));
             $this->db->from('tasks t');
+            data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
             $this->db->group_start();
             if ($has_task_project_filter) {
                 $this->db->where_in('t.project_id', $project_ids);
@@ -1234,6 +1243,7 @@ class Clients extends CI_Controller {
             }
             $this->db->select(implode(',', $sel));
             $this->db->from('project_defects d');
+            data_scope_apply_owner_or_assignee($this->db, array('d.reported_by', 'd.assigned_to'));
             $this->db->where_in('d.project_id', $project_ids);
             if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
                 $this->db->group_start();
@@ -2245,9 +2255,12 @@ class Clients extends CI_Controller {
         }
 
         $allowed_status = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
-        $allowed_priority = array('low', 'medium', 'high', 'urgent');
+        $allowed_priority = array('low', 'medium', 'high', 'critical');
         if ($status === '' || !in_array($status, $allowed_status, true)) {
             $status = 'received';
+        }
+        if ($priority === 'urgent') {
+            $priority = 'critical';
         }
         if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
             $priority = 'medium';

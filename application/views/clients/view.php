@@ -73,6 +73,7 @@ $req_statuses = array('received', 'under_review', 'approved', 'in_progress', 'co
 $defect_statuses = array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected');
 $task_priorities = array('low', 'medium', 'high', 'urgent');
 $defect_priorities = array('low', 'medium', 'high', 'critical');
+$req_priorities = array('low', 'medium', 'high', 'critical');
 
 $client_view_user_label = function ($u) {
     if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
@@ -135,6 +136,23 @@ if ($st_lower === 'active') {
 }
 ?>
 
+<style>
+.client-view-popup .client-detail-back,
+.client-view-popup .client-detail-actions { display: none !important; }
+.client-detail-tabs .nav-link { display: inline-flex; align-items: center; }
+</style>
+<script>
+(function () {
+  try {
+    if (window.self !== window.top) {
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.querySelector('.client-detail-page');
+        if (el) { el.classList.add('client-view-popup'); }
+      });
+    }
+  } catch (e) {}
+})();
+</script>
 <div class="container-fluid py-1 px-2 client-detail-page client-detail-compact">
   <?php if ($this->session->flashdata('success')): ?>
   <div class="alert alert-success py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('success')); ?></div>
@@ -176,31 +194,21 @@ if ($st_lower === 'active') {
     </div>
   </div>
 
-  <ul class="nav nav-tabs nav-tabs-sm mb-1 client-detail-tabs" id="clientTabs" role="tablist">
+  <ul class="nav nav-tabs nav-tabs-sm mb-1 client-detail-tabs project-detail-tabs" id="clientTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link<?php echo $active_tab === 'overview' ? ' active' : ''; ?>" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="<?php echo $active_tab === 'overview' ? 'true' : 'false'; ?>">
-        Overview
-      </button>
+      <button class="nav-link<?php echo $active_tab === 'overview' ? ' active' : ''; ?>" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="<?php echo $active_tab === 'overview' ? 'true' : 'false'; ?>"><i class="bi bi-info-circle me-1"></i>Overview</button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link<?php echo $active_tab === 'requirements' ? ' active' : ''; ?>" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab" aria-controls="requirements" aria-selected="<?php echo $active_tab === 'requirements' ? 'true' : 'false'; ?>">
-        Requirements <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeRequirements"><?php echo count($requirements); ?></span>
-      </button>
+      <button class="nav-link<?php echo $active_tab === 'tasks' ? ' active' : ''; ?>" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="<?php echo $active_tab === 'tasks' ? 'true' : 'false'; ?>"><i class="bi bi-list-check me-1"></i>Tasks <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeTasks"><?php echo count($tasks); ?></span></button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link<?php echo $active_tab === 'tasks' ? ' active' : ''; ?>" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab" aria-controls="tasks" aria-selected="<?php echo $active_tab === 'tasks' ? 'true' : 'false'; ?>">
-        Tasks <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeTasks"><?php echo count($tasks); ?></span>
-      </button>
+      <button class="nav-link<?php echo $active_tab === 'requirements' ? ' active' : ''; ?>" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab" aria-controls="requirements" aria-selected="<?php echo $active_tab === 'requirements' ? 'true' : 'false'; ?>"><i class="bi bi-clipboard-check me-1"></i>Requirements <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeRequirements"><?php echo count($requirements); ?></span></button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link<?php echo $active_tab === 'defects' ? ' active' : ''; ?>" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="<?php echo $active_tab === 'defects' ? 'true' : 'false'; ?>">
-        Defects <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeDefects"><?php echo count($defects); ?></span>
-      </button>
+      <button class="nav-link<?php echo $active_tab === 'defects' ? ' active' : ''; ?>" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="<?php echo $active_tab === 'defects' ? 'true' : 'false'; ?>"><i class="bi bi-bug me-1"></i>Defects <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeDefects"><?php echo count($defects); ?></span></button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link<?php echo $active_tab === 'history' ? ' active' : ''; ?>" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="<?php echo $active_tab === 'history' ? 'true' : 'false'; ?>">
-        History <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeHistory"><?php echo count($history); ?></span>
-      </button>
+      <button class="nav-link<?php echo $active_tab === 'history' ? ' active' : ''; ?>" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="<?php echo $active_tab === 'history' ? 'true' : 'false'; ?>"><i class="bi bi-clock-history me-1"></i>History <span class="badge rounded-pill bg-light text-dark border ms-1" id="clientBadgeHistory"><?php echo count($history); ?></span></button>
     </li>
   </ul>
 
@@ -348,11 +356,13 @@ if ($st_lower === 'active') {
     <div class="tab-pane fade<?php echo $active_tab === 'requirements' ? ' show active' : ''; ?>" id="requirements" role="tabpanel" aria-labelledby="requirements-tab">
       <div class="card shadow-sm border-0 client-detail-panel project-detail-panel">
         <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Requirements</h6>
-          <?php if ($can_requirements): ?>
-          <a href="<?php echo site_url('requirements?client_id=' . $client_id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
-          <?php endif; ?>
-        </div>
+                <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Requirements</h6>
+                <div class="d-flex gap-1">
+                    <?php if ($can_manage_requirements): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="requirement" title="Add requirement"><i class="bi bi-plus-lg"></i></button>
+                    <?php endif; ?>
+                </div>
+            </div>
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="requirement" data-save-url="<?php echo site_url('clients/' . $client_id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('clients/' . $client_id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_requirements ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_requirements ? '1' : '0'; ?>" data-requires-project="0">
             <thead class="table-light">
@@ -409,7 +419,7 @@ if ($st_lower === 'active') {
                 <td>
                   <?php if ($can_manage_requirements): ?>
                   <select class="form-select form-select-sm project-inline-priority">
-                    <?php foreach ($task_priorities as $pr): ?>
+                    <?php foreach ($req_priorities as $pr): ?>
                     <option value="<?php echo esc_view($pr); ?>" <?php echo $r_priority === $pr ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option>
                     <?php endforeach; ?>
                   </select>
@@ -439,15 +449,6 @@ if ($st_lower === 'active') {
               </tr>
               <?php endforeach; endif; ?>
             </tbody>
-            <?php if ($can_manage_requirements): ?>
-            <tfoot>
-              <tr>
-                <td colspan="6" class="py-1 px-2">
-                  <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add requirement"><i class="bi bi-plus-lg"></i></button>
-                </td>
-              </tr>
-            </tfoot>
-            <?php endif; ?>
           </table>
         </div>
       </div>
@@ -457,19 +458,16 @@ if ($st_lower === 'active') {
     <div class="tab-pane fade<?php echo $active_tab === 'tasks' ? ' show active' : ''; ?>" id="tasks" role="tabpanel" aria-labelledby="tasks-tab">
       <div class="card shadow-sm border-0 client-detail-panel project-detail-panel">
         <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Tasks</h6>
-          <div class="d-flex gap-1">
-            <?php if ($can_tasks): ?>
-            <a href="<?php echo site_url('tasks'); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
-            <?php endif; ?>
-            <?php if ($can_manage_tasks && !$has_client_projects && $can_add_project): ?>
-            <a href="<?php echo esc_view($create_project_url); ?>" class="btn btn-outline-primary btn-sm py-0" title="Create a project for this client"><i class="bi bi-folder-plus"></i><span class="d-none d-md-inline ms-1">New Project</span></a>
-            <?php endif; ?>
-            <?php if ($can_manage_tasks): ?>
-            <button type="button" class="btn btn-primary btn-sm py-0 project-inline-add-trigger" data-inline-target="task" title="Add task"><i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1">Add</span></button>
-            <?php endif; ?>
-          </div>
-        </div>
+                <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Tasks</h6>
+                <div class="d-flex gap-1">
+                    <?php if ($can_manage_tasks && !$has_client_projects && $can_add_project): ?>
+                    <a href="<?php echo esc_view($create_project_url); ?>" class="btn btn-outline-primary btn-sm py-0" title="Create a project for this client"><i class="bi bi-folder-plus"></i><span class="d-none d-md-inline ms-1">New Project</span></a>
+                    <?php endif; ?>
+                    <?php if ($can_manage_tasks): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="task" title="Add task"><i class="bi bi-plus-lg"></i></button>
+                    <?php endif; ?>
+                </div>
+            </div>
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="task" data-save-url="<?php echo site_url('clients/' . $client_id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('clients/' . $client_id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_tasks ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_tasks ? '1' : '0'; ?>" data-requires-project="1" data-create-project-url="<?php echo esc_view($create_project_url); ?>">
             <thead class="table-light">
@@ -573,15 +571,6 @@ if ($st_lower === 'active') {
               </tr>
               <?php endforeach; endif; ?>
             </tbody>
-            <?php if ($can_manage_tasks): ?>
-            <tfoot>
-              <tr>
-                <td colspan="7" class="py-1 px-2">
-                  <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add task"><i class="bi bi-plus-lg"></i></button>
-                </td>
-              </tr>
-            </tfoot>
-            <?php endif; ?>
           </table>
         </div>
       </div>
@@ -591,19 +580,16 @@ if ($st_lower === 'active') {
     <div class="tab-pane fade<?php echo $active_tab === 'defects' ? ' show active' : ''; ?>" id="defects" role="tabpanel" aria-labelledby="defects-tab">
       <div class="card shadow-sm border-0 client-detail-panel project-detail-panel">
         <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
-          <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Defects</h6>
-          <div class="d-flex gap-1">
-            <?php if ($can_defects): ?>
-            <a href="<?php echo site_url('defects'); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
-            <?php endif; ?>
-            <?php if ($can_manage_defects && !$has_client_projects && $can_add_project): ?>
-            <a href="<?php echo esc_view($create_project_url); ?>" class="btn btn-outline-primary btn-sm py-0" title="Create a project for this client"><i class="bi bi-folder-plus"></i><span class="d-none d-md-inline ms-1">New Project</span></a>
-            <?php endif; ?>
-            <?php if ($can_manage_defects): ?>
-            <button type="button" class="btn btn-primary btn-sm py-0 project-inline-add-trigger" data-inline-target="defect" title="Add defect"><i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1">Add</span></button>
-            <?php endif; ?>
-          </div>
-        </div>
+                <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Defects</h6>
+                <div class="d-flex gap-1">
+                    <?php if ($can_manage_defects && !$has_client_projects && $can_add_project): ?>
+                    <a href="<?php echo esc_view($create_project_url); ?>" class="btn btn-outline-primary btn-sm py-0" title="Create a project for this client"><i class="bi bi-folder-plus"></i><span class="d-none d-md-inline ms-1">New Project</span></a>
+                    <?php endif; ?>
+                    <?php if ($can_manage_defects): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="defect" title="Add defect"><i class="bi bi-plus-lg"></i></button>
+                    <?php endif; ?>
+                </div>
+            </div>
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle mb-0 project-inline-table" data-inline-type="defect" data-save-url="<?php echo site_url('clients/' . $client_id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('clients/' . $client_id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_defects ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_defects ? '1' : '0'; ?>" data-requires-project="1" data-create-project-url="<?php echo esc_view($create_project_url); ?>">
             <thead class="table-light">
@@ -692,15 +678,6 @@ if ($st_lower === 'active') {
               </tr>
               <?php endforeach; endif; ?>
             </tbody>
-            <?php if ($can_manage_defects): ?>
-            <tfoot>
-              <tr>
-                <td colspan="6" class="py-1 px-2">
-                  <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add defect"><i class="bi bi-plus-lg"></i></button>
-                </td>
-              </tr>
-            </tfoot>
-            <?php endif; ?>
           </table>
         </div>
       </div>
@@ -967,7 +944,7 @@ if ($st_lower === 'active') {
   <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="500" placeholder="Title"></td>
   <td><select class="form-select form-select-sm project-inline-project"><?php echo $inline_project_options_optional; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($req_statuses as $st): ?><option value="<?php echo esc_view($st); ?>" <?php echo $st === 'received' ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
-  <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
+  <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($req_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-assignee"><option value="">Unassigned</option><?php echo $inline_user_options; ?></select></td>
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_requirements): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
@@ -1021,21 +998,23 @@ if ($st_lower === 'active') {
     if (!tpl || !tpl.content) {
       return;
     }
+    var existingNew = table.querySelector('tbody .project-inline-row-new');
+    if (existingNew) {
+      var t0 = existingNew.querySelector('.project-inline-title');
+      if (t0) { t0.focus(); }
+      return;
+    }
     removeEmptyRow(table);
     var row = tpl.content.firstElementChild.cloneNode(true);
-    table.querySelector('tbody').appendChild(row);
+    var tbodyEl = table.querySelector('tbody');
+    tbodyEl.insertBefore(row, tbodyEl.firstChild);
     var projectSelect = row.querySelector('.project-inline-project');
     if (projectSelect && defaultProjectId && table.getAttribute('data-requires-project') === '1') {
       projectSelect.value = String(defaultProjectId);
     }
     var titleInput = row.querySelector('.project-inline-title');
     if (titleInput) {
-      titleInput.value = defaultTitles[type] || 'New item';
-    }
-    saveRow(row, true);
-    if (titleInput) {
       titleInput.focus();
-      titleInput.select();
     }
   }
 
@@ -1385,16 +1364,37 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  var historyForm = document.getElementById('clientHistoryAddForm');
-  if (historyForm) {
-    historyForm.addEventListener('submit', function () {
-      if (window.tinymce && tinymce.get('clientHistoryNote')) {
-        tinymce.get('clientHistoryNote').save();
-      }
-    });
-  }
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form || form.id !== 'clientHistoryAddForm') { return; }
+    if (window.tinymce && tinymce.get('clientHistoryNote')) {
+      tinymce.get('clientHistoryNote').save();
+    }
+    e.preventDefault();
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; }
+    fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin' })
+      .then(function (res) { return res.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var fresh = doc.getElementById('history');
+        var cur = document.getElementById('history');
+        if (!fresh || !cur) { window.location.reload(); return; }
+        if (window.tinymce && tinymce.get('clientHistoryNote')) {
+          tinymce.get('clientHistoryNote').remove();
+        }
+        historyEditorReady = false;
+        cur.innerHTML = fresh.innerHTML;
+        var freshBadge = doc.querySelector('#history-tab .badge');
+        var curBadge = document.querySelector('#history-tab .badge');
+        if (freshBadge && curBadge) { curBadge.textContent = freshBadge.textContent; }
+        initClientHistoryEditor();
+        bindClientHistoryGrid();
+      })
+      .catch(function () { window.location.reload(); });
+  });
 
-  (function () {
+  function bindClientHistoryGrid() {
     var grid = document.getElementById('clientHistoryGrid');
     if (!grid) return;
     var rows = Array.prototype.slice.call(grid.tBodies[0].rows);
@@ -1408,8 +1408,11 @@ document.addEventListener('DOMContentLoaded', function () {
         window.parent.postMessage({ type: 'mwChildModal', open: open }, '*');
       }
     }
-    hm.addEventListener('show.bs.modal', function () { notifyParent(true); });
-    hm.addEventListener('hidden.bs.modal', function () { notifyParent(false); });
+    if (!hm.__bound) {
+      hm.__bound = true;
+      hm.addEventListener('show.bs.modal', function () { notifyParent(true); });
+      hm.addEventListener('hidden.bs.modal', function () { notifyParent(false); });
+    }
     rows.forEach(function (r) {
       var full = r.querySelector('.client-history-full');
       var txt = (full.textContent || '').replace(/\s+/g, ' ').trim();
@@ -1441,7 +1444,8 @@ document.addEventListener('DOMContentLoaded', function () {
     prev.addEventListener('click', function () { page--; render(); });
     next.addEventListener('click', function () { page++; render(); });
     render();
-  })();
+  }
+  bindClientHistoryGrid();
 
   var tabButtons = document.querySelectorAll('#clientTabs button[data-bs-toggle="tab"]');
   tabButtons.forEach(function (btn) {

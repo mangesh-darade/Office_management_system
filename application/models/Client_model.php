@@ -3,6 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Client_model extends CI_Model {
     private $enc_prefix = 'ENC::';
+    private $scoped = false;
 
     public function __construct(){ 
         parent::__construct(); 
@@ -10,6 +11,23 @@ class Client_model extends CI_Model {
         $this->load->helper('schema_columns'); 
         $this->load->library('encryption');
         $this->encryption->initialize(['key' => $this->config->item('encryption_key')]);
+    }
+
+    /** Limit lists / lookups to clients created by or managed by the visible users. */
+    public function enable_scope()
+    {
+        $this->scoped = true;
+    }
+
+    private function scope_columns()
+    {
+        $cols = array();
+        foreach (array('created_by', 'account_manager_id') as $c) {
+            if (schema_table_has_column($this->db, 'clients', $c)) {
+                $cols[] = $c;
+            }
+        }
+        return $cols;
     }
 
     public function count_clients($filters = []){
@@ -169,6 +187,13 @@ class Client_model extends CI_Model {
     }
 
     private function apply_filters($filters){
+        if ($this->scoped) {
+            $cols = array();
+            foreach ($this->scope_columns() as $c) {
+                $cols[] = 'clients.' . $c;
+            }
+            data_scope_apply_owner_or_assignee($this->db, $cols);
+        }
         if (!empty($filters['status'])){ $this->db->where('clients.status', $filters['status']); }
         if (!empty($filters['client_type'])){ $this->db->where('clients.client_type', $filters['client_type']); }
         if (!empty($filters['client_version'])
@@ -205,6 +230,9 @@ class Client_model extends CI_Model {
 
     public function get_client($id){
         $row = $this->db->where('id',(int)$id)->get('clients')->row();
+        if ($row && $this->scoped && !data_scope_row_visible($row, $this->scope_columns())) {
+            return null;
+        }
         if ($row) {
             // Keep password as is (masked/encrypted) or decrypt if this method is used for edit forms?
             // Usually for edit forms we might leave it blank or show placeholder.
