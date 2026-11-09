@@ -16,7 +16,7 @@ class Defect_model extends CI_Model
         if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
             $this->db->where('d.is_deleted', 0);
         }
-        defects_releases_apply_project_scope($this->db, 'd', 'project_id');
+        data_scope_apply_owner_or_assignee($this->db, array('d.reported_by', 'd.assigned_to'));
         if (!empty($filters['status'])) {
             $this->db->where('d.status', $filters['status']);
         }
@@ -193,14 +193,8 @@ class Defect_model extends CI_Model
         if (!$row) {
             return null;
         }
-        if (!defects_releases_sees_all_org()) {
-            $pid = (int) $row->project_id;
-            if ($pid > 0) {
-                $ids = defects_releases_scoped_project_ids();
-                if (!in_array($pid, $ids, true)) {
-                    return null;
-                }
-            }
+        if (!data_scope_row_visible($row, array('reported_by', 'assigned_to'))) {
+            return null;
         }
         return $row;
     }
@@ -505,12 +499,16 @@ class Defect_model extends CI_Model
         return $this->db->select($select)->order_by('name')->get('projects')->result();
     }
 
-    public function client_options()
+    public function client_options($scoped = false)
     {
         if (!$this->db->table_exists('clients')) {
             return array();
         }
+        $scope_sql = $scoped ? data_scope_client_filter_where('clients') : '';
         $this->db->select('id, company_name')->from('clients');
+        if ($scope_sql !== '') {
+            $this->db->where($scope_sql, null, false);
+        }
         if (schema_table_has_column($this->db, 'clients', 'is_deleted')) {
             $this->db->where('is_deleted', 0);
         }
@@ -667,9 +665,13 @@ class Defect_model extends CI_Model
         return $this->db->order_by('id', 'DESC')->limit(200)->get()->result();
     }
 
-    public function user_options()
+    public function user_options($scoped = false)
     {
         $this->db->select('id, name')->from('users');
+        $scope_ids = $scoped ? data_scope_visible_user_ids() : null;
+        if ($scope_ids !== null) {
+            $this->db->where_in('id', empty($scope_ids) ? array(0) : $scope_ids);
+        }
         if (schema_table_has_column($this->db, 'users', 'status')) {
             $this->db->where('status', 'active');
         }
@@ -688,7 +690,7 @@ class Defect_model extends CI_Model
         if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
             $this->db->where('d.is_deleted', 0);
         }
-        defects_releases_apply_project_scope($this->db, 'd', 'project_id');
+        data_scope_apply_owner_or_assignee($this->db, array('d.reported_by', 'd.assigned_to'));
         $this->db->where_in('d.status', array('open', 'in_progress'));
         $open = (int) $this->db->count_all_results();
 
@@ -697,7 +699,7 @@ class Defect_model extends CI_Model
             if (schema_table_has_column($this->db, 'project_defects', 'is_deleted')) {
                 $this->db->where('d.is_deleted', 0);
             }
-            defects_releases_apply_project_scope($this->db, 'd', 'project_id');
+            data_scope_apply_owner_or_assignee($this->db, array('d.reported_by', 'd.assigned_to'));
             $this->db->where('d.due_date IS NOT NULL', null, false);
             $this->db->where('d.due_date <', date('Y-m-d'));
             $this->db->where_not_in('d.status', array('closed', 'rejected', 'verified'));

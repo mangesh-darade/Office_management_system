@@ -86,9 +86,10 @@ class Defects extends CI_Controller
 
         $this->load->view('defects/index', array(
             'rows' => $rows,
-            'clients' => $this->defects->client_options(),
+            'clients' => $this->defects->client_options(true),
             'projects' => $this->defects->project_options(),
-            'members' => $this->defects->user_options(),
+            'members' => $this->defects->user_options(true),
+            'inline_members' => $this->defects->user_options(false),
             'filters' => $filters,
             'sort' => $sort,
             'dir' => $dir,
@@ -484,6 +485,149 @@ class Defects extends CI_Controller
     }
 
 
+
+    // POST /defects/update-status (JSON)
+    public function update_status()
+    {
+        $json = function ($ok, $data = array(), $err = '', $code = 200) {
+            $this->output->set_status_header($code)->set_content_type('application/json')
+                ->set_output(json_encode(array_merge(array('ok' => (bool) $ok, 'error' => $err), $data)));
+        };
+        if ($this->input->method() !== 'post') {
+            return $json(false, array(), 'Invalid request', 405);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            return $json(false, array(), 'Not authenticated', 401);
+        }
+        $id = (int) $this->input->post('id');
+        $status = trim((string) $this->input->post('status'));
+        $this->load->helper('module_status');
+        if (!has_module_access('defects_edit') && !has_module_access('defects')) {
+            return $json(false, array(), 'Access denied', 403);
+        }
+        $item = $id > 0 ? $this->defects->get_defect($id) : null;
+        if (!$item) {
+            return $json(false, array(), 'Defect not found', 404);
+        }
+        $old = (string) $item->status;
+        $new = module_status_sanitize($status, 'defects', $old);
+        if ($new === false) {
+            return $json(false, array(), 'Invalid status', 400);
+        }
+        if ($new !== $old) {
+            $done = array('fixed', 'verified', 'closed');
+            $resolved = $item->resolved_at;
+            if (in_array($new, $done, true) && !in_array($old, $done, true)) {
+                $resolved = date('Y-m-d H:i:s');
+            } elseif (in_array($old, $done, true) && $new === 'open') {
+                $resolved = null;
+            }
+            $verified = isset($item->verified_by) ? $item->verified_by : null;
+            if ($new === 'verified' && $old !== 'verified') {
+                $verified = $uid;
+            }
+            $this->defects->save_defect(array('status' => $new, 'resolved_at' => $resolved, 'verified_by' => $verified), $id);
+            $this->defects->log_activity($id, $uid, 'status', $old . ' → ' . $new);
+            $notify = (int) $item->assigned_to ?: (int) $item->reported_by;
+            defect_notify_status_change($id, $notify, (string) $item->title, $old, $new);
+        }
+        return $json(true, array('status' => $new));
+    }
+
+    // POST /defects/inline-save — quick add / edit from the list (JSON)
+    public function inline_save()
+    {
+        $json = function ($ok, $data = array(), $err = '', $code = 200) {
+            $this->output->set_status_header($code)->set_content_type('application/json')
+                ->set_output(json_encode(array_merge(array('ok' => (bool) $ok, 'error' => $err), $data)));
+        };
+        if ($this->input->method() !== 'post') {
+            return $json(false, array(), 'Invalid request', 405);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            return $json(false, array(), 'Not authenticated', 401);
+        }
+        $id = (int) $this->input->post('id');
+        if (trim((string) $this->input->post('title')) === '') {
+            return $json(false, array(), 'Title is required', 400);
+        }
+
+        if ($id > 0) {
+            if (!has_module_access('defects_edit') && !has_module_access('defects')) {
+                return $json(false, array(), 'Access denied', 403);
+            }
+            $item = $this->defects->get_defect($id);
+            if (!$item) {
+                return $json(false, array(), 'Defect not found', 404);
+            }
+            // keep fields the list does not edit
+            $_POST['priority'] = (string) $item->priority;
+            $_POST['release_id'] = $item->release_id ? (string) $item->release_id : '';
+            $_POST['task_id'] = $item->task_id ? (string) $item->task_id : '';
+            $payload = $this->_build_payload($uid, $item);
+            if ($payload === false) {
+                return $json(false, array(), 'Invalid data', 400);
+            }
+            $this->defects->save_defect($payload, $id);
+            $change_lines = $this->defects->build_change_details($item, $payload);
+            $this->defects->log_activity($id, $uid, 'updated', !empty($change_lines) ? implode('; ', $change_lines) : 'Details updated');
+            $old_assignee = (int) $item->assigned_to;
+            $new_assignee = isset($payload['assigned_to']) ? (int) $payload['assigned_to'] : 0;
+            if ($new_assignee !== $old_assignee) {
+                if ($new_assignee) {
+                    defect_notify_assignee($id, $new_assignee, $payload['title'], $uid);
+                }
+                $this->defects->log_activity($id, $uid, 'reassigned', 'Assignee: ' . $this->defects->user_display_name($old_assignee) . ' → ' . $this->defects->user_display_name($new_assignee));
+            }
+            if ($payload['status'] !== (string) $item->status) {
+                $this->defects->log_activity($id, $uid, 'status', $item->status . ' → ' . $payload['status']);
+                defect_notify_status_change($id, $new_assignee ?: (int) $item->reported_by, $payload['title'], (string) $item->status, $payload['status']);
+            }
+            $new_id = $id;
+        } else {
+            if (!has_module_access('defects_add') && !has_module_access('defects')) {
+                return $json(false, array(), 'Access denied', 403);
+            }
+            $payload = $this->_build_payload($uid);
+            if ($payload === false) {
+                return $json(false, array(), 'Invalid data', 400);
+            }
+            $payload['defect_number'] = $this->defects->next_defect_number();
+            $payload['reported_by'] = $uid;
+            $new_id = $this->defects->save_defect($payload);
+            if (!$new_id) {
+                return $json(false, array(), 'Save failed', 500);
+            }
+            $this->defects->log_activity($new_id, $uid, 'created', 'Defect logged');
+            if (!empty($payload['assigned_to'])) {
+                defect_notify_assignee($new_id, (int) $payload['assigned_to'], $payload['title'], $uid);
+                $this->defects->log_activity($new_id, $uid, 'reassigned', 'Assigned to user #' . (int) $payload['assigned_to']);
+            }
+        }
+
+        $row = $this->defects->get_defect((int) $new_id);
+        if (!$row) {
+            return $json(false, array(), 'Saved, but row not visible in your scope', 200);
+        }
+        return $json(true, array(
+            'id' => (int) $new_id,
+            'defect_number' => (string) $row->defect_number,
+            'title' => (string) $row->title,
+            'project_id' => (int) $row->project_id,
+            'project_name' => (string) ($row->project_name ?: ''),
+            'client_name' => (string) (isset($row->client_name) ? $row->client_name : ''),
+            'severity' => (string) $row->severity,
+            'status' => (string) $row->status,
+            'due' => (string) ($row->due_date ?: ''),
+            'assigned_id' => (int) $row->assigned_to,
+            'assignee_name' => (string) ($row->assignee_name ?: ''),
+            'created_by_name' => (string) ($row->reporter_name ?: ''),
+            'created_at' => $row->created_at ? date('Y-m-d H:i', strtotime($row->created_at)) : '',
+            'view_url' => site_url('defects/view/' . (int) $new_id),
+        ));
+    }
 
     public function create()
 

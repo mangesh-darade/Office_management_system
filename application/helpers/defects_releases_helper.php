@@ -7,19 +7,17 @@ if (!function_exists('defects_releases_sees_all_org')) {
         if (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data()) {
             return true;
         }
-        if (function_exists('has_module_access') && has_module_access('projects_view_all')) {
-            return true;
-        }
         return false;
     }
 }
 
 if (!function_exists('defects_releases_apply_project_scope')) {
     /**
-     * Limit rows to projects the current user belongs to (unless org-wide access).
+     * Limit rows to projects visible to the user (created by / managed by / member of,
+     * or of the assigned departments' users). Org-wide access: no limit.
      *
      * @param CI_DB_query_builder $db
-     * @param string              $tableAlias   e.g. d
+     * @param string              $tableAlias   e.g. r
      * @param string              $projectColumn default project_id
      */
     function defects_releases_apply_project_scope($db, $tableAlias = 'd', $projectColumn = 'project_id')
@@ -27,18 +25,12 @@ if (!function_exists('defects_releases_apply_project_scope')) {
         if (defects_releases_sees_all_org()) {
             return $db;
         }
-        $CI =& get_instance();
-        $uid = (int) $CI->session->userdata('user_id');
-        if ($uid < 1 || !$CI->db->table_exists('project_members')) {
+        $ids = defects_releases_scoped_project_ids();
+        if (empty($ids)) {
             $db->where('1 = 0', null, false);
             return $db;
         }
-        $col = $tableAlias . '.' . $projectColumn;
-        $db->where(
-            $col . ' IN (SELECT project_id FROM project_members WHERE user_id = ' . $uid . ')',
-            null,
-            false
-        );
+        $db->where_in($tableAlias . '.' . $projectColumn, $ids);
         return $db;
     }
 }
@@ -50,28 +42,38 @@ if (!function_exists('defects_releases_scoped_project_ids')) {
         if (!$CI->db->table_exists('projects')) {
             return array();
         }
-        if (defects_releases_sees_all_org()) {
-            $rows = $CI->db->select('id')->get('projects')->result();
-            $ids = array();
-            foreach ($rows as $r) {
-                $ids[] = (int) $r->id;
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        // Raw query so a caller's in-progress query builder chain is not disturbed.
+        $sql = 'SELECT p.id FROM `projects` p';
+        $uids = data_scope_visible_user_ids();
+        if (!defects_releases_sees_all_org() && $uids !== null) {
+            if (empty($uids)) {
+                return $cache = array();
             }
-            return $ids;
+            $in = implode(',', $uids);
+            $parts = array();
+            if (schema_table_has_column($CI->db, 'projects', 'created_by')) {
+                $parts[] = 'p.`created_by` IN (' . $in . ')';
+            }
+            if (schema_table_has_column($CI->db, 'projects', 'manager_id')) {
+                $parts[] = 'p.`manager_id` IN (' . $in . ')';
+            }
+            if ($CI->db->table_exists('project_members')) {
+                $parts[] = 'EXISTS (SELECT 1 FROM `project_members` pm WHERE pm.`project_id` = p.`id` AND pm.`user_id` IN (' . $in . '))';
+            }
+            if (empty($parts)) {
+                return $cache = array();
+            }
+            $sql .= ' WHERE ' . implode(' OR ', $parts);
         }
-        $uid = (int) $CI->session->userdata('user_id');
-        if ($uid < 1 || !$CI->db->table_exists('project_members')) {
-            return array();
-        }
-        $rows = $CI->db->select('project_id')
-            ->from('project_members')
-            ->where('user_id', $uid)
-            ->get()
-            ->result();
         $ids = array();
-        foreach ($rows as $r) {
-            $ids[] = (int) $r->project_id;
+        foreach ($CI->db->query($sql)->result() as $r) {
+            $ids[] = (int) $r->id;
         }
-        return $ids;
+        return $cache = $ids;
     }
 }
 

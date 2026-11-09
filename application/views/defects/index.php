@@ -114,7 +114,6 @@ if ($can_export) {
 }
 if ($can_add) {
     echo '<a class="btn btn-outline-secondary" href="' . site_url('defects/import') . '" title="Import CSV"><i class="bi bi-upload me-1"></i>Import</a>';
-    echo '<a class="btn btn-primary" href="' . esc_view($create_url) . '" title="Log Defect"><i class="bi bi-plus-lg me-1"></i>Log Defect</a>';
 }
 $actions = ob_get_clean();
 if (!$embed) {
@@ -302,6 +301,11 @@ if (!$embed) {
 
   <!-- Desktop table -->
   <div class="card border-0 shadow-sm defect-list-table-card d-none d-md-block">
+    <?php if ($can_add): ?>
+    <div class="defect-add-bar px-2 py-1 border-bottom d-flex justify-content-end">
+      <button type="button" class="btn btn-sm btn-outline-primary defect-inline-add py-0 px-2" title="Add defect"><i class="bi bi-plus-lg"></i></button>
+    </div>
+    <?php endif; ?>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0 defect-list-table">
         <thead>
@@ -326,7 +330,7 @@ if (!$embed) {
               $overdue = function_exists('defect_is_overdue') && defect_is_overdue($r);
               $client_name = isset($r->client_name) && $r->client_name !== '' ? $r->client_name : '—';
             ?>
-            <tr class="<?php echo $overdue ? 'defect-row-overdue' : ''; ?><?php echo empty($r->is_active) ? ' defect-row-inactive' : ''; ?>" data-defect-id="<?php echo (int) $r->id; ?>">
+            <tr class="defect-row <?php echo $overdue ? 'defect-row-overdue' : ''; ?><?php echo empty($r->is_active) ? ' defect-row-inactive' : ''; ?>" data-defect-id="<?php echo (int) $r->id; ?>" data-project-id="<?php echo (int) $r->project_id; ?>" data-severity="<?php echo esc_view((string) $r->severity); ?>" data-status="<?php echo esc_view((string) $r->status); ?>" data-due="<?php echo esc_view((string) $r->due_date); ?>" data-assigned-id="<?php echo (int) $r->assigned_to; ?>">
               <td>
                 <a class="defect-id-link" href="<?php echo site_url('defects/view/' . (int) $r->id); ?>"><?php echo esc_view($r->defect_number); ?></a>
               </td>
@@ -371,7 +375,7 @@ if (!$embed) {
               <td class="text-end text-nowrap">
                 <div class="btn-group btn-group-sm" role="group" aria-label="Actions">
                   <?php if ($can_edit): ?>
-                    <a href="<?php echo site_url('defects/edit/' . (int) $r->id); ?>" class="btn btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                    <button type="button" class="btn btn-outline-primary defect-inline-edit" title="Edit row"><i class="bi bi-pencil"></i></button>
                   <?php endif; ?>
                 </div>
               </td>
@@ -390,6 +394,157 @@ if (!$embed) {
   <?php endif; ?>
 <?php endif; ?>
 </div>
+<script>
+(function () {
+  var table = document.querySelector('.defect-list-table');
+  if (!table) { return; }
+  var card = table.closest('.defect-list-table-card') || table;
+  var saveUrl = <?php echo json_encode(site_url('defects/inline-save')); ?>;
+  var csrfName = <?php echo json_encode($this->security->get_csrf_token_name()); ?>;
+  var csrfHash = <?php echo json_encode($this->security->get_csrf_hash()); ?>;
+  var viewBase = <?php echo json_encode(site_url('defects/view/')); ?>;
+  var projects = <?php echo json_encode(array_map(function ($p) { return array('id' => (int) $p->id, 'name' => (string) $p->name); }, $projects)); ?>;
+  var members = <?php echo json_encode(array_map(function ($m) { return array('id' => (int) $m->id, 'name' => (string) $m->name); }, isset($inline_members) && is_array($inline_members) ? $inline_members : $members)); ?>;
+  var severities = ['low', 'medium', 'high', 'critical'];
+  var statuses = ['open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected'];
+  var userName = <?php echo json_encode((string) $this->session->userdata('name')); ?>;
+
+  function esc(v) { var d = document.createElement('div'); d.textContent = v == null ? '' : String(v); return d.innerHTML; }
+  function label(v) { v = String(v || ''); return v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, ' '); }
+  function opts(list, sel, blank) {
+    var h = blank ? '<option value="">' + esc(blank) + '</option>' : '';
+    list.forEach(function (o) {
+      var v = typeof o === 'object' ? o.id : o, t = typeof o === 'object' ? o.name : label(o);
+      h += '<option value="' + esc(v) + '"' + (String(v) === String(sel) ? ' selected' : '') + '>' + esc(t) + '</option>';
+    });
+    return h;
+  }
+  var sevClass = <?php echo json_encode(array('low' => $sev_class('low'), 'medium' => $sev_class('medium'), 'high' => $sev_class('high'), 'critical' => $sev_class('critical'))); ?>;
+  var stClass = <?php echo json_encode(array_combine(array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected'), array_map($status_class, array('open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected')))); ?>;
+
+  function setState(row, text, isErr) {
+    var el = row.querySelector('.defect-inline-state');
+    if (!el) { return; }
+    el.textContent = text || '';
+    el.classList.toggle('text-danger', !!isErr);
+  }
+
+  function buildEdit(row, d) {
+    var c = row.cells;
+    c[1].innerHTML = '<input type="text" class="form-control form-control-sm def-f-title" maxlength="255" placeholder="Title" value="' + esc(d.title) + '">';
+    c[3].innerHTML = '<select class="form-select form-select-sm def-f-project">' + opts(projects, d.project_id, '— Project —') + '</select>';
+    c[4].innerHTML = '<select class="form-select form-select-sm def-f-severity">' + opts(severities, d.severity) + '</select>';
+    c[5].innerHTML = '<select class="form-select form-select-sm def-f-status">' + opts(statuses, d.status) + '</select>';
+    c[7].innerHTML = '<input type="date" class="form-control form-control-sm def-f-due" value="' + esc(d.due) + '">';
+    c[8].innerHTML = '<select class="form-select form-select-sm def-f-assignee">' + opts(members, d.assigned_id, 'Unassigned') + '</select>';
+    c[11].innerHTML = '<span class="defect-inline-state text-muted small me-1"></span><div class="btn-group btn-group-sm">'
+      + '<button type="button" class="btn btn-primary defect-inline-save" title="Save"><i class="bi bi-check-lg"></i></button>'
+      + '<button type="button" class="btn btn-outline-secondary defect-inline-cancel" title="Cancel"><i class="bi bi-x-lg"></i></button></div>';
+  }
+
+  function readData(row) {
+    return {
+      title: (row.cells[1].textContent || '').replace('Overdue', '').trim(),
+      project_id: row.dataset.projectId || 0,
+      severity: row.dataset.severity || 'medium',
+      status: row.dataset.status || 'open',
+      due: row.dataset.due || '',
+      assigned_id: row.dataset.assignedId || 0
+    };
+  }
+
+  function applyView(row, d) {
+    var c = row.cells;
+    c[0].innerHTML = '<a class="defect-id-link" href="' + esc(d.view_url) + '">' + esc(d.defect_number) + '</a>';
+    c[1].innerHTML = '<div class="defect-title-cell">' + esc(d.title) + '</div>';
+    c[2].innerHTML = '<span class="text-muted">' + esc(d.client_name || '—') + '</span>';
+    c[3].textContent = d.project_name || '—';
+    c[4].innerHTML = '<span class="' + esc(sevClass[d.severity] || '') + '">' + esc(label(d.severity)) + '</span>';
+    c[5].innerHTML = '<span class="' + esc(stClass[d.status] || '') + '">' + esc(label(d.status)) + '</span>';
+    c[7].textContent = d.due || '—';
+    c[8].textContent = d.assignee_name || '—';
+    c[9].textContent = d.created_by_name || '—';
+    c[10].textContent = d.created_at || '—';
+    c[11].innerHTML = '<div class="btn-group btn-group-sm" role="group"><button type="button" class="btn btn-outline-primary defect-inline-edit" title="Edit row"><i class="bi bi-pencil"></i></button></div>';
+    row.dataset.defectId = d.id;
+    row.dataset.projectId = d.project_id || 0;
+    row.dataset.severity = d.severity;
+    row.dataset.status = d.status;
+    row.dataset.due = d.due || '';
+    row.dataset.assignedId = d.assigned_id || 0;
+  }
+
+  function startEdit(row) {
+    if (row.classList.contains('def-editing')) { return; }
+    row.__orig = row.innerHTML;
+    row.classList.add('def-editing');
+    buildEdit(row, readData(row));
+    var t = row.querySelector('.def-f-title');
+    if (t) { t.focus(); t.select(); }
+  }
+  function cancelEdit(row) {
+    if (!row.dataset.defectId || row.dataset.defectId === '0') { row.remove(); return; }
+    row.innerHTML = row.__orig;
+    row.classList.remove('def-editing');
+  }
+
+  function save(row) {
+    if (row.dataset.saving === '1') { return; }
+    var title = row.querySelector('.def-f-title').value.trim();
+    if (!title) { setState(row, 'Title required', true); return; }
+    var body = new URLSearchParams();
+    body.append('id', row.dataset.defectId || '0');
+    body.append('title', title);
+    body.append('project_id', row.querySelector('.def-f-project').value);
+    body.append('severity', row.querySelector('.def-f-severity').value);
+    body.append('status', row.querySelector('.def-f-status').value);
+    body.append('due_date', row.querySelector('.def-f-due').value);
+    body.append('assigned_to', row.querySelector('.def-f-assignee').value);
+    body.append(csrfName, csrfHash);
+    row.dataset.saving = '1';
+    setState(row, 'Saving…');
+    fetch(saveUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(), credentials: 'same-origin' })
+      .then(function (res) { return res.json().then(function (j) { return { ok: res.ok, j: j }; }); })
+      .then(function (r) {
+        if (!r.j || !r.j.ok) { throw new Error((r.j && r.j.error) || 'Save failed'); }
+        applyView(row, r.j);
+        row.classList.remove('def-editing', 'def-new');
+      })
+      .catch(function (e) { setState(row, e.message || 'Error', true); })
+      .finally(function () { row.removeAttribute('data-saving'); });
+  }
+
+  card.addEventListener('click', function (e) {
+    var row = e.target.closest('tr.defect-row');
+    if (e.target.closest('.defect-inline-edit') && row) { startEdit(row); return; }
+    if (e.target.closest('.defect-inline-cancel') && row) { cancelEdit(row); return; }
+    if (e.target.closest('.defect-inline-save') && row) { save(row); return; }
+    if (e.target.closest('.defect-inline-add')) {
+      var tbody = table.tBodies[0];
+      var existing = tbody.querySelector('tr.def-new');
+      if (existing) { existing.querySelector('.def-f-title').focus(); return; }
+      var tr = document.createElement('tr');
+      tr.className = 'defect-row def-new def-editing';
+      tr.dataset.defectId = '0';
+      for (var i = 0; i < 12; i++) { tr.appendChild(document.createElement('td')); }
+      tbody.insertBefore(tr, tbody.firstChild);
+      tr.cells[0].innerHTML = '<span class="text-muted small">New</span>';
+      tr.cells[2].innerHTML = '<span class="text-muted">—</span>';
+      tr.cells[6].innerHTML = '<span class="text-muted small">Active</span>';
+      tr.cells[9].textContent = userName || '—';
+      tr.cells[10].textContent = '—';
+      buildEdit(tr, { title: '', project_id: 0, severity: 'medium', status: 'open', due: '', assigned_id: 0 });
+      tr.querySelector('.def-f-title').focus();
+    }
+  });
+  card.addEventListener('keydown', function (e) {
+    var row = e.target.closest('tr.def-editing');
+    if (!row) { return; }
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(row); }
+    if (e.key === 'Escape') { cancelEdit(row); }
+  });
+})();
+</script>
 <script>
 (function () {
   var clientSel = document.getElementById('fltClient');
