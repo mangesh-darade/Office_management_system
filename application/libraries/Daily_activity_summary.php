@@ -84,9 +84,7 @@ class Daily_activity_summary
             return array('status' => 'skipped', 'reason' => 'no_work');
         }
 
-        $counts = isset($summary['counts']) ? $summary['counts'] : array();
-        $n_items = (int) (isset($counts['tasks']) ? $counts['tasks'] : 0) + (int) (isset($counts['my_works']) ? $counts['my_works'] : 0);
-        $title = 'Daily summary - ' . date('j M Y', strtotime($work_date)) . ($n_items > 0 ? ' (' . $n_items . ' ' . ($n_items === 1 ? 'item' : 'items') . ')' : '');
+        $title = $this->build_auto_title($summary, $work_date);
         $task_id = 0;
 
         $data = array(
@@ -677,6 +675,49 @@ class Daily_activity_summary
      * @param array $entries
      * @return string
      */
+    /**
+     * Meaningful heading for an auto-submitted log, e.g.
+     * "Gulf Pharmacy: 15_July_WhatsApp Offers… +8; ElintOm: ENG_Apparel-One-Software… +1".
+     */
+    public function build_auto_title(array $summary, $work_date)
+    {
+        $short = function ($t, $max = 34) {
+            $t = trim(preg_replace('/\s+/', ' ', (string) $t), " 	
+
+ \"'");
+            return mb_strlen($t) > $max ? rtrim(mb_substr($t, 0, $max - 1)) . '…' : $t;
+        };
+        $groups = array();
+        $items = array_merge(
+            isset($summary['tasks']) ? $summary['tasks'] : array(),
+            isset($summary['my_works']) ? $summary['my_works'] : array()
+        );
+        foreach ($items as $item) {
+            $key = !empty($item['client']) ? $item['client'] : (!empty($item['project']) ? $item['project'] : 'General');
+            $title = !empty($item['title']) ? $item['title'] : (isset($item['label']) ? $item['label'] : '');
+            if ($title === '') {
+                continue;
+            }
+            $groups[$key][] = $title;
+        }
+        if (empty($groups)) {
+            return 'Daily summary - ' . date('j M Y', strtotime($work_date));
+        }
+        $parts = array();
+        $shown_groups = 0;
+        foreach ($groups as $name => $titles) {
+            if ($shown_groups >= 3) {
+                break;
+            }
+            $shown_groups++;
+            $more = count($titles) - 1;
+            $parts[] = $short($name, 22) . ': ' . $short($titles[0], 26) . ($more > 0 ? ' +' . $more : '');
+        }
+        $rest_groups = count($groups) - $shown_groups;
+        $title = implode('; ', $parts) . ($rest_groups > 0 ? '; & ' . $rest_groups . ' more ' . ($rest_groups === 1 ? 'client' : 'clients') : '');
+        return mb_strlen($title) > 160 ? mb_substr($title, 0, 159) . '…' : $title;
+    }
+
     /** Split a note into display steps (one per non-empty line). */
     private function summary_steps_from_text($raw)
     {
