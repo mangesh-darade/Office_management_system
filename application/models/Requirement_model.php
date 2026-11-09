@@ -27,12 +27,24 @@ class Requirement_model extends CI_Model {
             else { $sel[] = "ow.email AS owner_name"; }
             $this->db->join('users u','u.id = r.assigned_to','left');
             $this->db->join('users ow','ow.id = r.owner_id','left');
+            if (schema_table_has_column($this->db, 'requirements', 'created_by') && schema_table_has_column($this->db, 'users', 'name')) {
+                $this->db->join('users cb','cb.id = r.created_by','left');
+                $sel[] = 'cb.name AS created_by_name';
+            }
             $this->db->select(implode(', ', $sel), false);
         }
         $this->apply_filters($filters, 'r');
         $this->db->order_by('r.created_at','DESC');
         if ($limit !== null){ $this->db->limit((int)$limit, (int)$offset); }
         return $this->db->get()->result();
+    }
+
+    private function apply_scope($t, $base){
+        data_scope_apply_owner_or_assignee(
+            $this->db,
+            array($t.'created_by', $t.'assigned_to', $t.'owner_id'),
+            array(array('requirement_assignees', 'requirement_id', $base.'.id'))
+        );
     }
 
     private function apply_filters($filters, $alias = null){
@@ -50,11 +62,7 @@ class Requirement_model extends CI_Model {
                 ->or_like($t.'req_number', $q)
             ->group_end();
         }
-        if ($alias) {
-            apply_role_hierarchy_filter($this->db, $t.'created_by');
-        } else {
-            apply_role_hierarchy_filter($this->db, 'created_by');
-        }
+        $this->apply_scope($t, $alias ? $alias : 'requirements');
     }
 
     public function get_requirement($id){
@@ -77,7 +85,7 @@ class Requirement_model extends CI_Model {
             else if (schema_table_has_column($this->db, 'users', 'name')) { $this->db->select("ow.name AS owner_name", false); }
             else { $this->db->select("ow.email AS owner_name", false); }
         }
-        apply_role_hierarchy_filter($this->db, 'r.created_by');
+        $this->apply_scope('r.', 'r');
         return $this->db->get()->row();
     }
 
@@ -101,18 +109,23 @@ class Requirement_model extends CI_Model {
         return $this->db->where('requirement_id',(int)$requirement_id)->order_by('uploaded_at','DESC')->get('requirement_attachments')->result();
     }
 
-    public function get_clients_for_filter(){
+    public function get_clients_for_filter($scoped = false){
         if (!$this->db->table_exists('clients')){ return []; }
-        return $this->db->select('id, company_name')->from('clients')->order_by('company_name','ASC')->get()->result();
+        $scope_sql = $scoped ? data_scope_client_filter_where('clients') : '';
+        $this->db->select('id, company_name')->from('clients');
+        if ($scope_sql !== '') { $this->db->where($scope_sql, null, false); }
+        return $this->db->order_by('company_name','ASC')->get()->result();
     }
 
-    public function get_team_members(){
+    public function get_team_members($scoped = false){
         if (!$this->db->table_exists('users')){ return []; }
         $sel = ['id','email'];
         if (schema_table_has_column($this->db, 'users', 'full_name')) { $sel[] = 'full_name'; }
         if (schema_table_has_column($this->db, 'users', 'name')) { $sel[] = 'name'; }
         if (schema_table_has_column($this->db, 'users', 'first_name') && schema_table_has_column($this->db, 'users', 'last_name')) { $sel[] = "CONCAT(first_name,' ',last_name) AS full_label"; }
         $this->db->select(implode(',', $sel), false)->from('users');
+        $scope_ids = $scoped ? data_scope_visible_user_ids() : null;
+        if ($scope_ids !== null) { $this->db->where_in('id', empty($scope_ids) ? array(0) : $scope_ids); }
         if (schema_table_has_column($this->db, 'users', 'status')) {
             $this->db->where('status', 'active');
         }

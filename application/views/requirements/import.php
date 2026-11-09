@@ -16,7 +16,7 @@
         <li><strong>client_name</strong> — required; must match Clients list (company name or code).</li>
         <li><strong>title</strong> — required.</li>
         <li><strong>project_name</strong> — optional; project name or code from Projects.</li>
-        <li><strong>priority</strong> — low, medium, high, urgent (default medium).</li>
+        <li><strong>priority</strong> — low, medium, high, critical (default medium; "urgent" is saved as critical).</li>
         <li><strong>status</strong> — received, under_review, approved, in_progress, completed, on_hold, rejected, cancelled (default received).</li>
       </ul>
       <?php $this->load->view('partials/import_errors'); ?>

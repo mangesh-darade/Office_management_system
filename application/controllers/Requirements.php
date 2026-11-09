@@ -72,8 +72,8 @@ class Requirements extends CI_Controller {
             'search' => $this->input->get('q'),
         ];
         $rows = $this->requirements->get_requirements($filters, null, 0);
-        $clients = $this->requirements->get_clients_for_filter();
-        $members = $this->requirements->get_team_members();
+        $clients = $this->requirements->get_clients_for_filter(true);
+        $members = $this->requirements->get_team_members(true);
         $assignee_names_map = array();
         if (!empty($rows) && function_exists('multi_assignees_names_map')) {
             $req_ids = array();
@@ -91,6 +91,8 @@ class Requirements extends CI_Controller {
             'members'=>$members,
             'requirement_types'=>$this->_requirement_type_options(),
             'assignee_names_map' => $assignee_names_map,
+            'inline_clients' => $this->requirements->get_clients_for_filter(false),
+            'inline_members' => $this->requirements->get_team_members(false),
         ]);
     }
 
@@ -247,11 +249,7 @@ class Requirements extends CI_Controller {
         $projects = [];
         if ($this->db->table_exists('projects')) {
             $this->db->select('id,name')->from('projects');
-            if (schema_table_has_column($this->db, 'projects', 'created_by')) {
-                apply_role_hierarchy_filter($this->db, 'created_by');
-            } else if (schema_table_has_column($this->db, 'projects', 'manager_id')) {
-                apply_role_hierarchy_filter($this->db, 'manager_id');
-            }
+            data_scope_apply_project_scope($this->db, 'projects');
             $projects = $this->db->order_by('name','ASC')->get()->result();
         }
         
@@ -458,11 +456,7 @@ class Requirements extends CI_Controller {
         $projects = [];
         if ($this->db->table_exists('projects')) {
             $this->db->select('id,name')->from('projects');
-            if (schema_table_has_column($this->db, 'projects', 'created_by')) {
-                apply_role_hierarchy_filter($this->db, 'created_by');
-            } else if (schema_table_has_column($this->db, 'projects', 'manager_id')) {
-                apply_role_hierarchy_filter($this->db, 'manager_id');
-            }
+            data_scope_apply_project_scope($this->db, 'projects');
             $projects = $this->db->order_by('name','ASC')->get()->result();
         }
         
@@ -582,7 +576,7 @@ class Requirements extends CI_Controller {
             $client_cache = array();
             $project_cache = array();
             $line = 1;
-            $allowed_priority = array('low', 'medium', 'high', 'urgent');
+            $allowed_priority = array('low', 'medium', 'high', 'critical', 'urgent');
             $allowed_status = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
             $prev_debug = $this->db->db_debug;
             $this->db->db_debug = false;
@@ -623,6 +617,9 @@ class Requirements extends CI_Controller {
                 if ($priority === false) {
                     $skipped++;
                     continue;
+                }
+                if ($priority === 'urgent') {
+                    $priority = 'critical';
                 }
                 $status = csv_import_validate_enum(
                     csv_import_get($opened['map'], $row, 'status', 'received'),
@@ -673,6 +670,167 @@ class Requirements extends CI_Controller {
         $this->load->view('requirements/import');
     }
 
+    // POST /requirements/inline-save — quick add / edit from the list (JSON)
+    public function inline_save()
+    {
+        $json = function ($ok, $data = array(), $err = '', $code = 200) {
+            $this->output->set_status_header($code)->set_content_type('application/json')
+                ->set_output(json_encode(array_merge(array('ok' => (bool) $ok, 'error' => $err), $data)));
+        };
+        if ($this->input->method() !== 'post') {
+            return $json(false, array(), 'Invalid request', 405);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            return $json(false, array(), 'Not authenticated', 401);
+        }
+
+        $id = (int) $this->input->post('id');
+        $title = trim((string) $this->input->post('title'));
+        $status = trim((string) $this->input->post('status'));
+        $priority = trim((string) $this->input->post('priority'));
+        $client_id = (int) $this->input->post('client_id');
+        $assigned = (int) $this->input->post('assigned_to');
+        $expected = trim((string) $this->input->post('expected_delivery_date'));
+
+        $allowed_status = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
+        $allowed_priority = array('low', 'medium', 'high', 'critical');
+        if (!in_array($status, $allowed_status, true)) {
+            $status = 'received';
+        }
+        if (!in_array($priority, $allowed_priority, true)) {
+            $priority = 'medium';
+        }
+        $expected = preg_match('/^\d{4}-\d{2}-\d{2}$/', $expected) ? $expected : null;
+        if ($title === '') {
+            return $json(false, array(), 'Title is required', 400);
+        }
+        $now = date('Y-m-d H:i:s');
+
+        if ($id > 0) {
+            if (!has_module_access('requirements_edit') && !has_module_access('requirements')) {
+                return $json(false, array(), 'Access denied', 403);
+            }
+            $req = $this->requirements->get_requirement($id);
+            if (!$req) {
+                return $json(false, array(), 'Requirement not found', 404);
+            }
+            $data = array(
+                'title' => $title,
+                'status' => $status,
+                'priority' => $priority,
+                'client_id' => $client_id > 0 ? $client_id : null,
+                'expected_delivery_date' => $expected,
+                'updated_at' => $now,
+            );
+            $assignee_changed = ((int) $req->assigned_to !== $assigned) && ($assigned > 0 || (int) $req->assigned_to > 0);
+            if ($assignee_changed) {
+                $data['assigned_to'] = $assigned > 0 ? $assigned : null;
+            }
+            $this->requirements->update_requirement($id, $data);
+            if ($assignee_changed) {
+                multi_assignees_sync('requirement_assignees', 'requirement_id', $id, $assigned > 0 ? array($assigned) : array());
+            }
+            $changes = array();
+            foreach (array('title' => 'Title', 'status' => 'Status', 'priority' => 'Priority') as $k => $label) {
+                if ((string) $req->$k !== (string) $data[$k]) {
+                    $changes[] = $label . ': ' . $req->$k . ' → ' . $data[$k];
+                }
+            }
+            if ($assignee_changed) {
+                $changes[] = 'Reassigned';
+            }
+            if (!empty($changes)) {
+                $this->requirements->log_activity($id, $uid, 'updated', implode('; ', $changes));
+            }
+            $new_id = $id;
+            $req_number = $req->req_number;
+        } else {
+            if (!has_module_access('requirements_add') && !has_module_access('requirements')) {
+                return $json(false, array(), 'Access denied', 403);
+            }
+            $req_number = $this->generate_req_number();
+            $data = array(
+                'req_number' => $req_number,
+                'client_id' => $client_id > 0 ? $client_id : null,
+                'title' => $title,
+                'description' => null,
+                'requirement_type' => $this->_resolve_requirement_type('new_feature'),
+                'priority' => $priority,
+                'status' => $status,
+                'received_date' => date('Y-m-d'),
+                'expected_delivery_date' => $expected,
+                'owner_id' => $uid,
+                'assigned_to' => $assigned > 0 ? $assigned : null,
+                'created_by' => $uid,
+                'created_at' => $now,
+                'updated_at' => $now,
+            );
+            $new_id = $this->requirements->create_requirement($data);
+            if (!$new_id) {
+                return $json(false, array(), 'Save failed', 500);
+            }
+            multi_assignees_sync('requirement_assignees', 'requirement_id', (int) $new_id, $assigned > 0 ? array($assigned) : array());
+            $this->requirements->create_version($new_id, 1, $data);
+            $this->requirements->log_activity((int) $new_id, $uid, 'created', 'Requirement created');
+        }
+
+        $name_of = function ($table, $col, $val) {
+            if ($val < 1 || !$this->db->table_exists($table)) {
+                return '';
+            }
+            $r = $this->db->select($col)->where('id', (int) $val)->get($table)->row();
+            return $r ? (string) $r->$col : '';
+        };
+        return $json(true, array(
+            'id' => (int) $new_id,
+            'req_number' => (string) $req_number,
+            'client_name' => $name_of('clients', 'company_name', $client_id),
+            'assigned_name' => $name_of('users', 'name', $assigned),
+            'created_by_name' => $name_of('users', 'name', isset($req) && $id > 0 ? (int) $req->created_by : $uid),
+            'status' => $status,
+            'priority' => $priority,
+            'expected' => (string) ($expected ?: ''),
+            'view_url' => site_url('requirements/view/' . (int) $new_id),
+        ));
+    }
+
+    // POST /requirements/update-status (JSON)
+    public function update_status()
+    {
+        $json = function ($ok, $data = array(), $err = '', $code = 200) {
+            $this->output->set_status_header($code)->set_content_type('application/json')
+                ->set_output(json_encode(array_merge(array('ok' => (bool) $ok, 'error' => $err), $data)));
+        };
+        if ($this->input->method() !== 'post') {
+            return $json(false, array(), 'Invalid request', 405);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            return $json(false, array(), 'Not authenticated', 401);
+        }
+        $id = (int) $this->input->post('id');
+        $status = trim((string) $this->input->post('status'));
+        $this->load->helper('module_status');
+        if (!has_module_access('requirements_edit') && !has_module_access('requirements')) {
+            return $json(false, array(), 'Access denied', 403);
+        }
+        $req = $id > 0 ? $this->requirements->get_requirement($id) : null;
+        if (!$req) {
+            return $json(false, array(), 'Requirement not found', 404);
+        }
+        $old = (string) $req->status;
+        $new = module_status_sanitize($status, 'requirements', $old);
+        if ($new === false) {
+            return $json(false, array(), 'Invalid status', 400);
+        }
+        if ($new !== $old) {
+            $this->requirements->update_requirement($id, array('status' => $new, 'updated_at' => date('Y-m-d H:i:s')));
+            $this->requirements->log_activity($id, $uid, 'status', $old . ' → ' . $new);
+        }
+        return $json(true, array('status' => $new));
+    }
+
     // GET /requirements/export
     public function export(){
         require_module_access(['requirements_export', 'requirements'], true);
@@ -681,17 +839,20 @@ class Requirements extends CI_Controller {
             'priority' => $this->input->get('priority'),
             'client_id' => $this->input->get('client_id'),
             'project_id' => (int) $this->input->get('project_id'),
+            'requirement_type' => $this->input->get('requirement_type'),
+            'assigned_to' => $this->input->get('assigned_to'),
+            'search' => $this->input->get('q'),
         );
         $rows = $this->requirements->get_requirements($filters, null, 0);
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="requirements_'.date('Y-m-d').'.csv"');
         $out = fopen('php://output', 'w');
-        fputcsv($out, array('Req Number','Client','Title','Priority','Status','Expected','Assigned To'));
+        fputcsv($out, array('Req Number','Client','Title','Priority','Status','Expected','Assigned To','Created By'), ',', '"', '');
         foreach ($rows as $r){
             $assigned = isset($r->assigned_to_name) ? $r->assigned_to_name : '';
             $client = isset($r->client_name) ? $r->client_name : '';
             $expected = isset($r->expected_delivery_date) ? $r->expected_delivery_date : '';
-            fputcsv($out, array(isset($r->req_number)?$r->req_number:'', $client, $r->title, isset($r->priority)?$r->priority:'', isset($r->status)?$r->status:'', $expected, $assigned));
+            fputcsv($out, array(isset($r->req_number)?$r->req_number:'', $client, $r->title, isset($r->priority)?$r->priority:'', isset($r->status)?$r->status:'', $expected, $assigned, isset($r->created_by_name) ? $r->created_by_name : ''), ',', '"', '');
         }
         fclose($out);
         exit;
