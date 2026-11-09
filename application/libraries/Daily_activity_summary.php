@@ -167,34 +167,24 @@ class Daily_activity_summary
             $this->db->where('t.created_by', $user_id);
         }
 
-        // Open work (as before) OR any task that had activity today (e.g. completed today).
-        $this->db->group_start();
-        $this->db->group_start();
+        // Everything still assigned to the user (any open status, any due date) plus work completed on this day only.
+        $done_codes = array('completed', 'closed', 'done', 'verified');
         if (schema_table_has_column($this->db, 'tasks', 'status')) {
-            $this->db->where_in('t.status', array('pending', 'in_progress'));
-        }
-        if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
+            $done_in = "'" . implode("','", $done_codes) . "'";
+            $done_day_col = schema_table_has_column($this->db, 'tasks', 'completed_at')
+                ? 'COALESCE(t.completed_at, t.updated_at)'
+                : (schema_table_has_column($this->db, 'tasks', 'updated_at') ? 't.updated_at' : 't.created_at');
             $this->db->group_start();
-            $this->db->where('t.due_date IS NULL', null, false);
-            $this->db->or_where('t.due_date <=', $work_date);
+            $this->db->where('(t.status IS NULL OR t.status NOT IN (' . $done_in . '))', null, false);
+            $this->db->or_where('(t.status IN (' . $done_in . ') AND DATE(' . $done_day_col . ') = ' . $this->db->escape($work_date) . ')', null, false);
             $this->db->group_end();
         }
-        $this->db->group_end();
-        if ($this->db->table_exists('task_activity')) {
-            list($day_start, $day_end) = $this->summary_day_bounds($work_date);
-            $this->db->or_where(
-                'EXISTS (SELECT 1 FROM task_activity ta WHERE ta.task_id = t.id AND ta.created_at >= '
-                . $this->db->escape($day_start) . ' AND ta.created_at <= ' . $this->db->escape($day_end) . ')',
-                null,
-                false
-            );
-        }
-        $this->db->group_end();
         if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
+            $this->db->order_by('t.due_date IS NULL', 'ASC', false);
             $this->db->order_by('t.due_date', 'ASC');
         }
         $this->db->order_by('t.id', 'DESC');
-        $this->db->limit(40);
+        $this->db->limit(150);
         return $this->db->get()->result();
     }
 
@@ -233,15 +223,28 @@ class Daily_activity_summary
             'current_user_id' => $user_id,
         );
         $filters = my_works_sanitize_filters($filters, $can_view_all, $user_id);
-        $rows = my_works_fetch_rows($this->db, $filters, $can_view_all, $user_id, 100, 0, true);
+        $rows = my_works_fetch_rows($this->db, $filters, $can_view_all, $user_id, 200, 0, true);
+        // Work finished on this very day (closed_at / updated_at on $work_date) is reported as completed.
+        $seen_ids = array();
+        foreach ($rows as $r0) {
+            $seen_ids[(int) $r0->id] = true;
+        }
+        $all_rows = my_works_fetch_rows($this->db, $filters, $can_view_all, $user_id, 400, 0, false);
+        foreach ($all_rows as $r1) {
+            if (isset($seen_ids[(int) $r1->id]) || !my_works_row_is_finished($r1)) {
+                continue;
+            }
+            $closed_day = !empty($r1->closed_at) ? substr((string) $r1->closed_at, 0, 10) : (!empty($r1->updated_at) ? substr((string) $r1->updated_at, 0, 10) : '');
+            if ($closed_day === $work_date) {
+                $rows[] = $r1;
+            }
+        }
         $out = array();
         $has_due = schema_table_has_column($this->db, 'my_works', 'due_date');
         foreach ($rows as $row) {
             $due = ($has_due && !empty($row->due_date)) ? (string) $row->due_date : '';
-            if ($due !== '' && $due > $work_date) {
-                continue;
-            }
             $out[] = (object) array(
+                'status' => isset($row->status) ? (string) $row->status : '',
                 'id' => (int) $row->id,
                 'title' => isset($row->title) ? (string) $row->title : '',
                 'client_name' => !empty($row->client_name) ? (string) $row->client_name : '',
