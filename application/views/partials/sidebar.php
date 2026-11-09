@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <?php if(function_exists('has_module_access') && (has_module_access('my_works') || has_module_access('my_works_list'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='my_works'?'active':''; ?>" href="<?php echo site_url('my-works'); ?>"><i class="oms-icon-brain me-2" aria-hidden="true"></i>Second Brain</a>
       <?php endif; ?>
-      <?php if(function_exists('has_module_access') && (has_module_access('todays_plan') || has_module_access('todays_plan_manage') || has_module_access('my_works') || has_module_access('my_works_list'))): ?>
+      <?php if(function_exists('has_module_access') && (has_module_access('todays_plan') || has_module_access('todays_plan_manage'))): ?>
       <a class="nav-link sidebar-link <?php echo $active==='todays_plan'?'active':''; ?>" href="<?php echo site_url('todays-plan'); ?>"><i class="bi bi-calendar-day me-2"></i>Today's Plan</a>
       <?php endif; ?>
       <?php

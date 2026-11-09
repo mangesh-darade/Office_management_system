@@ -15,7 +15,7 @@ class Todays_plan extends CI_Controller
         $this->load->model('Todays_plan_model', 'plan');
         $this->load->model('Reminder_model', 'reminders');
         $this->reminders->ensure_schema();
-        require_module_access(array('todays_plan', 'todays_plan_manage', 'my_works', 'my_works_list'), true);
+        require_module_access(array('todays_plan', 'todays_plan_manage'), true);
     }
 
     public function index()
