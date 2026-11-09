@@ -785,31 +785,41 @@ class Daily_activity_summary
     }
 
     /**
-     * Client-wise report:
-     *   1. Client:
-     *      a. Task title            (green = done, orange = still open)
-     *         i. note / status step
+     * Status-wise report:
+     *   Completed (N)
+     *     1. Client - Task            (green)
+     *        i. note / status step
+     *   Pending (N)                   (everything not completed, status shown in bold)
+     *     1. Client - Task - In Progress   (orange)
      */
     private function render_grouped_html(array $task_items, array $mw_items, array $tpl_lines)
     {
-        $groups = $this->summary_group_items(array_merge($task_items, $mw_items));
-        $html = '<ol type="1">';
-        foreach ($groups as $name => $items) {
-            $html .= '<li><u>' . $this->summary_esc($name) . '</u>:<ol type="a">';
-            foreach ($items as $item) {
+        $sections = array('Completed' => array(), 'Pending' => array());
+        foreach ($this->summary_group_items(array_merge($task_items, $mw_items)) as $list) {
+            foreach ($list as $item) {
+                $sections[$this->summary_is_done_status($item['status_raw']) ? 'Completed' : 'Pending'][] = $item;
+            }
+        }
+        $html = '';
+        foreach ($sections as $name => $list) {
+            if (empty($list)) {
+                continue;
+            }
+            $is_done = ($name === 'Completed');
+            $color = $is_done ? '#2e7d32' : '#ef6c00';
+            $html .= '<p><strong style="color:' . $color . ';">' . $name . ' (' . count($list) . ')</strong></p><ol type="1">';
+            foreach ($list as $item) {
                 $title = $item['title'] !== '' ? $item['title'] : $item['label'];
-                $is_done = $this->summary_is_done_status($item['status_raw']);
-                $color = $is_done ? '#2e7d32' : '#ef6c00';
-                $tip = !empty($item['status_label']) ? 'Status: ' . $item['status_label'] : '';
-                $status_html = !empty($item['status_label'])
+                $ctx = $item['client'] !== '' ? $item['client'] : $item['project'];
+                $label = $ctx !== '' ? $ctx . ' - ' . $title : $title;
+                $status_html = (!$is_done && !empty($item['status_label']))
                     ? ' &ndash; <strong style="color:' . $color . ';">' . $this->summary_esc($item['status_label']) . '</strong>'
                     : '';
-                $html .= '<li><span style="color:' . $color . ';"' . ($tip !== '' ? ' title="' . $this->summary_esc($tip) . '"' : '') . '>' . $this->summary_esc($title) . '</span>' . $status_html;
+                $html .= '<li><span style="color:' . $color . ';">' . $this->summary_esc($label) . '</span>' . $status_html;
                 $steps = array();
                 foreach ((array) $item['history'] as $entry) {
                     if (isset($entry['kind']) && $entry['kind'] === 'comment') {
-                        $lines = $this->summary_steps_from_text(isset($entry['raw']) && $entry['raw'] !== '' ? $entry['raw'] : (isset($entry['text']) ? $entry['text'] : ''));
-                        foreach ($lines as $line) {
+                        foreach ($this->summary_steps_from_text(isset($entry['raw']) && $entry['raw'] !== '' ? $entry['raw'] : (isset($entry['text']) ? $entry['text'] : '')) as $line) {
                             $steps[] = $line;
                         }
                     } elseif (!empty($entry['is_status']) && !empty($entry['text'])) {
@@ -825,16 +835,15 @@ class Daily_activity_summary
                 }
                 $html .= '</li>';
             }
-            $html .= '</ol></li>';
+            $html .= '</ol>';
         }
         if (!empty($tpl_lines)) {
-            $html .= '<li><u>Template tasks</u>:<ol type="a">';
+            $html .= '<p><strong>Template tasks (' . count($tpl_lines) . ')</strong></p><ol type="1">';
             foreach ($tpl_lines as $line) {
                 $html .= '<li>' . $this->summary_esc($line) . '</li>';
             }
-            $html .= '</ol></li>';
+            $html .= '</ol>';
         }
-        $html .= '</ol>';
         return $html;
     }
 
