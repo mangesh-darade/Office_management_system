@@ -163,6 +163,9 @@ class Daily_activity_summary
             $this->db->where('t.created_by', $user_id);
         }
 
+        // Open work (as before) OR any task that had activity today (e.g. completed today).
+        $this->db->group_start();
+        $this->db->group_start();
         if (schema_table_has_column($this->db, 'tasks', 'status')) {
             $this->db->where_in('t.status', array('pending', 'in_progress'));
         }
@@ -171,6 +174,19 @@ class Daily_activity_summary
             $this->db->where('t.due_date IS NULL', null, false);
             $this->db->or_where('t.due_date <=', $work_date);
             $this->db->group_end();
+        }
+        $this->db->group_end();
+        if ($this->db->table_exists('task_activity')) {
+            list($day_start, $day_end) = $this->summary_day_bounds($work_date);
+            $this->db->or_where(
+                'EXISTS (SELECT 1 FROM task_activity ta WHERE ta.task_id = t.id AND ta.created_at >= '
+                . $this->db->escape($day_start) . ' AND ta.created_at <= ' . $this->db->escape($day_end) . ')',
+                null,
+                false
+            );
+        }
+        $this->db->group_end();
+        if (schema_table_has_column($this->db, 'tasks', 'due_date')) {
             $this->db->order_by('t.due_date', 'ASC');
         }
         $this->db->order_by('t.id', 'DESC');
@@ -328,6 +344,7 @@ class Daily_activity_summary
                     'time' => $this->summary_time_label($row->created_at),
                     'user' => $who,
                     'text' => $text,
+                    'raw' => (string) (isset($row->comment) ? $row->comment : ''),
                     'sort' => (string) $row->created_at . '-c' . (int) $row->id,
                 );
             }
@@ -341,15 +358,15 @@ class Daily_activity_summary
             $this->db->where_in('a.task_id', $ids);
             $this->db->where('a.created_at >=', $start);
             $this->db->where('a.created_at <=', $end);
-            $this->db->where_in('a.action', array('status_changed', 'assigned', 'updated', 'created'));
+            $this->db->where_in('a.action', array('status_changed', 'assigned', 'updated', 'created', 'commented'));
             $this->db->order_by('a.created_at', 'ASC');
             $this->db->order_by('a.id', 'ASC');
             $this->db->limit(200);
             foreach ($this->db->get()->result() as $row) {
                 $tid = (int) $row->task_id;
                 $text = '';
-                if (isset($this->Task_model) && method_exists($this->Task_model, 'format_activity_detail')) {
-                    $text = trim((string) $this->Task_model->format_activity_detail($row));
+                if (isset($this->CI->Task_model) && method_exists($this->CI->Task_model, 'format_activity_detail')) {
+                    $text = trim((string) $this->CI->Task_model->format_activity_detail($row));
                 }
                 if ($text === '') {
                     $action = trim((string) $row->action);
@@ -359,11 +376,13 @@ class Daily_activity_summary
                 if (!isset($out[$tid])) {
                     $out[$tid] = array();
                 }
+                $is_note = ((string) $row->action === 'commented');
                 $out[$tid][] = array(
-                    'kind' => 'history',
+                    'kind' => $is_note ? 'comment' : 'history',
                     'time' => $this->summary_time_label($row->created_at),
                     'user' => $who,
-                    'text' => $this->summary_plain_text($text, 180),
+                    'text' => $this->summary_plain_text($text, $is_note ? 280 : 180),
+                    'raw' => $is_note ? $text : '',
                     'sort' => (string) $row->created_at . '-a' . (int) $row->id,
                     'is_status' => ((string) $row->action === 'status_changed'),
                 );
@@ -553,6 +572,7 @@ class Daily_activity_summary
                     'time' => $this->summary_time_label($row->created_at),
                     'user' => $who,
                     'text' => $text,
+                    'raw' => (string) (isset($row->comment) ? $row->comment : ''),
                     'sort' => (string) $row->created_at . '-c' . (int) $row->id,
                 );
             }
@@ -574,6 +594,21 @@ class Daily_activity_summary
                 $detail = trim((string) $row->detail);
                 // Skip noisy duplicate "comment" activity rows when real comment is already shown.
                 if ($action === 'comment') {
+                    continue;
+                }
+                if ($action === 'note' && $detail !== '') {
+                    $who_n = !empty($row->user_name) ? (string) $row->user_name : (!empty($row->user_email) ? (string) $row->user_email : 'User');
+                    if (!isset($out[$wid])) {
+                        $out[$wid] = array();
+                    }
+                    $out[$wid][] = array(
+                        'kind' => 'comment',
+                        'time' => $this->summary_time_label($row->created_at),
+                        'user' => $who_n,
+                        'text' => $this->summary_plain_text($detail, 280),
+                        'raw' => $detail,
+                        'sort' => (string) $row->created_at . '-n' . (int) $row->id,
+                    );
                     continue;
                 }
                 $text = $action !== '' ? $action : 'update';
@@ -636,6 +671,82 @@ class Daily_activity_summary
      * @param array $entries
      * @return string
      */
+    /** Split a note into display steps (one per non-empty line). */
+    private function summary_steps_from_text($raw)
+    {
+        $raw = trim(html_entity_decode(strip_tags(str_replace(array('</p>', '<br>', '<br/>', '<br />', '</li>'), "\n", (string) $raw)), ENT_QUOTES, 'UTF-8'));
+        if ($raw === '') {
+            return array();
+        }
+        $steps = array();
+        foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+            $line = trim(preg_replace('/\s+/', ' ', $line));
+            if ($line !== '') {
+                $steps[] = mb_strlen($line) > 220 ? mb_substr($line, 0, 217) . '...' : $line;
+            }
+        }
+        return $steps;
+    }
+
+    /**
+     * Client-wise report:
+     *   1. Client:
+     *      a. Task title            (green = done, orange = still open)
+     *         i. note / status step
+     */
+    private function render_grouped_html(array $task_items, array $mw_items, array $tpl_lines)
+    {
+        $done_status = array('completed', 'closed', 'done', 'verified', 'resolved', 'released', 'fixed');
+        $groups = array();
+        foreach (array_merge($task_items, $mw_items) as $item) {
+            $key = $item['client'] !== '' ? $item['client'] : ($item['project'] !== '' ? $item['project'] : 'General');
+            if (!isset($groups[$key])) {
+                $groups[$key] = array();
+            }
+            $groups[$key][] = $item;
+        }
+        $html = '<ol type="1">';
+        foreach ($groups as $name => $items) {
+            $html .= '<li><u>' . $this->summary_esc($name) . '</u>:<ol type="a">';
+            foreach ($items as $item) {
+                $title = $item['title'] !== '' ? $item['title'] : $item['label'];
+                $is_done = in_array($item['status_raw'], $done_status, true);
+                $color = $is_done ? '#2e7d32' : '#ef6c00';
+                $tip = !empty($item['status_label']) ? 'Status: ' . $item['status_label'] : '';
+                $html .= '<li><span style="color:' . $color . ';"' . ($tip !== '' ? ' title="' . $this->summary_esc($tip) . '"' : '') . '>' . $this->summary_esc($title) . '</span>';
+                $steps = array();
+                foreach ((array) $item['history'] as $entry) {
+                    if (isset($entry['kind']) && $entry['kind'] === 'comment') {
+                        $lines = $this->summary_steps_from_text(isset($entry['raw']) && $entry['raw'] !== '' ? $entry['raw'] : (isset($entry['text']) ? $entry['text'] : ''));
+                        foreach ($lines as $line) {
+                            $steps[] = $line;
+                        }
+                    } elseif (!empty($entry['is_status']) && !empty($entry['text'])) {
+                        $steps[] = (string) $entry['text'];
+                    }
+                }
+                if (!empty($steps)) {
+                    $html .= '<ol type="i">';
+                    foreach ($steps as $step) {
+                        $html .= '<li><span style="color:' . $color . ';">' . $this->summary_esc($step) . '</span></li>';
+                    }
+                    $html .= '</ol>';
+                }
+                $html .= '</li>';
+            }
+            $html .= '</ol></li>';
+        }
+        if (!empty($tpl_lines)) {
+            $html .= '<li><u>Template tasks</u>:<ol type="a">';
+            foreach ($tpl_lines as $line) {
+                $html .= '<li>' . $this->summary_esc($line) . '</li>';
+            }
+            $html .= '</ol></li>';
+        }
+        $html .= '</ol>';
+        return $html;
+    }
+
     private function render_history_description_html(array $entries)
     {
         if (empty($entries)) {
@@ -783,6 +894,10 @@ class Daily_activity_summary
             $history = isset($task_history_map[$tid]) ? $task_history_map[$tid] : array();
             $task_items[] = array(
                 'id' => $tid,
+                'client' => !empty($task->client_name) ? trim((string) $task->client_name) : '',
+                'project' => !empty($task->project_name) ? trim((string) $task->project_name) : '',
+                'title' => isset($task->title) ? trim((string) $task->title) : '',
+                'status_raw' => isset($task->status) ? strtolower(trim((string) $task->status)) : '',
                 'label' => $label,
                 'due_note' => $this->summary_due_note(!empty($task->due_date) ? $task->due_date : '', $work_date),
                 'status_label' => $this->summary_status_label(isset($task->status) ? $task->status : ''),
@@ -804,6 +919,10 @@ class Daily_activity_summary
             $history = isset($mw_history_map[$wid]) ? $mw_history_map[$wid] : array();
             $mw_items[] = array(
                 'id' => $wid,
+                'client' => !empty($mw->client_name) ? trim((string) $mw->client_name) : '',
+                'project' => !empty($mw->project_name) ? trim((string) $mw->project_name) : '',
+                'title' => isset($mw->title) ? trim((string) $mw->title) : '',
+                'status_raw' => isset($mw->status) ? strtolower(trim((string) $mw->status)) : '',
                 'label' => $label,
                 'due_note' => $this->summary_due_note(!empty($mw->due_date) ? $mw->due_date : '', $work_date),
                 'status_label' => $this->summary_status_label(isset($mw->status) ? $mw->status : ''),
@@ -825,53 +944,7 @@ class Daily_activity_summary
         }
 
         $has_any = !empty($task_items) || !empty($mw_items) || !empty($tpl_lines);
-        $html = '';
-        if ($has_any) {
-            $html .= '<p><strong>Today\'s assigned work — ' . $this->summary_esc($date_label) . '</strong></p>';
-            if (!empty($task_items)) {
-                $html .= '<p><strong>Tasks (' . count($task_items) . ')</strong></p>';
-                foreach ($task_items as $item) {
-                    $html .= '<p><strong>' . $this->summary_esc($item['label']) . '</strong>';
-                    $notes_bits = array();
-                    if (!empty($item['status_label'])) {
-                        $notes_bits[] = 'Status: ' . $item['status_label'];
-                    }
-                    if (!empty($item['due_note'])) {
-                        $notes_bits[] = $item['due_note'];
-                    }
-                    if (!empty($notes_bits)) {
-                        $html .= ' <em>(' . $this->summary_esc(implode(' | ', $notes_bits)) . ')</em>';
-                    }
-                    $html .= '</p>';
-                    $html .= $this->render_history_description_html($item['history']);
-                }
-            }
-            if (!empty($mw_items)) {
-                $html .= '<p><strong>My Works (' . count($mw_items) . ')</strong></p>';
-                foreach ($mw_items as $item) {
-                    $html .= '<p><strong>' . $this->summary_esc($item['label']) . '</strong>';
-                    $notes_bits = array();
-                    if (!empty($item['status_label'])) {
-                        $notes_bits[] = 'Status: ' . $item['status_label'];
-                    }
-                    if (!empty($item['due_note'])) {
-                        $notes_bits[] = $item['due_note'];
-                    }
-                    if (!empty($notes_bits)) {
-                        $html .= ' <em>(' . $this->summary_esc(implode(' | ', $notes_bits)) . ')</em>';
-                    }
-                    $html .= '</p>';
-                    $html .= $this->render_history_description_html($item['history']);
-                }
-            }
-            if (!empty($tpl_lines)) {
-                $html .= '<p><strong>Template tasks (' . count($tpl_lines) . ')</strong></p><ul>';
-                foreach ($tpl_lines as $line) {
-                    $html .= '<li>' . $this->summary_esc($line) . '</li>';
-                }
-                $html .= '</ul>';
-            }
-        }
+        $html = $has_any ? $this->render_grouped_html($task_items, $mw_items, $tpl_lines) : '';
 
         $suggested = $this->build_suggested_activity_title($tasks, $my_works, $task_history_map, $mw_history_map);
 
