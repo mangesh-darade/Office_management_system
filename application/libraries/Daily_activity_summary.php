@@ -68,9 +68,15 @@ class Daily_activity_summary
         }
         $this->ensure_log_schema();
 
-        $exists = (int) $this->db->where('user_id', $user_id)->where('work_date', $work_date)->count_all_results('daily_work_logs');
-        if ($exists > 0) {
-            return array('status' => 'skipped', 'reason' => 'already_logged');
+        // A manual log for the day always wins: never auto-submit on top of what the user wrote.
+        $manual = (int) $this->db->where('user_id', $user_id)->where('work_date', $work_date)
+            ->where('status !=', 'auto_submitted')->count_all_results('daily_work_logs');
+        if ($manual > 0) {
+            return array('status' => 'skipped', 'reason' => 'manual_log_exists');
+        }
+        $auto = (int) $this->db->where('user_id', $user_id)->where('work_date', $work_date)->count_all_results('daily_work_logs');
+        if ($auto > 0) {
+            return array('status' => 'skipped', 'reason' => 'auto_log_exists');
         }
 
         $summary = $this->build_today_work_summary($user_id, $work_date);
