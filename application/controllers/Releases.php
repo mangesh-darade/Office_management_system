@@ -432,6 +432,46 @@ class Releases extends CI_Controller
 
 
 
+    // POST /releases/update-status (JSON)
+    public function update_status()
+    {
+        $json = function ($ok, $data = array(), $err = '', $code = 200) {
+            $this->output->set_status_header($code)->set_content_type('application/json')
+                ->set_output(json_encode(array_merge(array('ok' => (bool) $ok, 'error' => $err), $data)));
+        };
+        if ($this->input->method() !== 'post') {
+            return $json(false, array(), 'Invalid request', 405);
+        }
+        $uid = (int) $this->session->userdata('user_id');
+        if ($uid < 1) {
+            return $json(false, array(), 'Not authenticated', 401);
+        }
+        $id = (int) $this->input->post('id');
+        $status = trim((string) $this->input->post('status'));
+        $this->load->helper('module_status');
+        if (!has_module_access('releases_edit') && !has_module_access('releases')) {
+            return $json(false, array(), 'Access denied', 403);
+        }
+        $item = $id > 0 ? $this->eng->get_release($id) : null;
+        if (!$item) {
+            return $json(false, array(), 'Release not found', 404);
+        }
+        $old = (string) $item->status;
+        $new = module_status_sanitize($status, 'releases', $old);
+        if ($new === false) {
+            return $json(false, array(), 'Invalid status', 400);
+        }
+        if ($new !== $old) {
+            $data = array('status' => $new);
+            if ($new === 'released' && empty($item->released_at)) {
+                $data['released_at'] = date('Y-m-d H:i:s');
+            }
+            $this->eng->save_release($data, $id);
+            $this->eng->log_activity($id, $uid, 'status', $old . ' → ' . $new);
+        }
+        return $json(true, array('status' => $new));
+    }
+
     public function create()
 
     {

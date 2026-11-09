@@ -1,14 +1,45 @@
-<?php $this->load->view('partials/header', ['title' => $item->version . ' — ' . $item->title]); ?>
-<div class="container-fluid py-3">
+<?php $this->load->view('partials/header', ['title' => $item->version . ' — ' . $item->title, 'extra_css' => ['assets/css/defects-form.css']]); ?>
+<script>document.body.classList.add('defect-view-active');</script>
+<div class="defect-view-simple release-detail">
 <?php
 $can_edit = function_exists('has_module_access') && (has_module_access('releases_edit') || has_module_access('releases'));
-$actions = '';
-if ($can_edit) {
-    $actions .= '<a class="btn btn-primary btn-sm" href="'.site_url('releases/edit/'.$item->id).'"><i class="bi bi-pencil me-1"></i>Edit</a> ';
-}
-$actions .= '<a class="btn btn-outline-secondary btn-sm" href="'.site_url('releases').'"><i class="bi bi-arrow-left me-1"></i>All releases</a>';
-$this->load->view('partials/oms_page_head', ['title' => esc_view($item->version), 'icon' => 'bi-rocket-takeoff', 'subtitle' => esc_view($item->title), 'actions_html' => $actions]);
+$rel_status_pill = function ($s) {
+    $s = strtolower((string) $s);
+    if ($s === 'released') { return 'defect-pill defect-pill--fixed'; }
+    if ($s === 'in_progress') { return 'defect-pill defect-pill--progress'; }
+    if ($s === 'cancelled') { return 'defect-pill defect-pill--critical'; }
+    return 'defect-pill defect-pill--muted';
+};
 ?>
+<div class="defect-view-toolbar mb-3">
+  <a href="<?php echo site_url('releases'); ?>" class="btn btn-sm btn-outline-secondary defect-view-back" title="Back to list">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="defect-view-heading min-w-0">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h1 class="h5 mb-0 text-truncate" title="<?php echo esc_view($item->title); ?>"><?php echo esc_view($item->title !== '' ? $item->title : 'Untitled release'); ?></h1>
+    </div>
+    <div class="small text-muted mt-1">
+      <span class="font-monospace fw-semibold text-body"><?php echo esc_view($item->version); ?></span>
+      <?php if (!empty($item->project_name)): ?>
+        <span class="mx-1">·</span><?php echo esc_view($item->project_name); ?>
+      <?php endif; ?>
+    </div>
+  </div>
+  <div class="oms-view-status d-flex flex-wrap align-items-center gap-2 ms-auto">
+    <?php if ($can_edit): ?>
+      <?php $this->load->view('partials/status_quick', array('module_type' => 'releases', 'item_id' => (int) $item->id, 'current' => (string) $item->status, 'url' => site_url('releases/update-status'))); ?>
+    <?php else: ?>
+      <span class="<?php echo esc_view($rel_status_pill($item->status)); ?>"><?php echo esc_view(ucwords(str_replace('_', ' ', (string) $item->status))); ?></span>
+    <?php endif; ?>
+  </div>
+  <div class="defect-view-actions d-flex align-items-center gap-1 flex-shrink-0">
+    <a class="btn btn-sm btn-outline-secondary" href="<?php echo site_url('releases'); ?>" title="List"><i class="bi bi-list-ul"></i></a>
+    <?php if ($can_edit): ?>
+      <a class="btn btn-sm btn-outline-primary" href="<?php echo site_url('releases/edit/' . (int) $item->id); ?>" title="Edit"><i class="bi bi-pencil"></i></a>
+    <?php endif; ?>
+  </div>
+</div>
 <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
 <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
 <?php
@@ -94,53 +125,29 @@ $this->load->view('partials/oms_page_head', ['title' => esc_view($item->version)
         <div class="small text-muted fw-semibold">History</div>
         <span class="text-muted small"><?php echo count($history); ?></span>
       </div>
-      <?php if (empty($history)): ?>
-        <p class="text-muted small mb-0">No history yet.</p>
-      <?php else: ?>
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th class="text-start" style="width:9.5rem;">Date</th>
-                <th>Comments</th>
-                <th style="width:9rem;">Added By</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($history as $h): ?>
-                <?php
-                  $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                  $changed = trim((string) $h->detail);
-                  if ($changed === '') {
-                      $changed = $release_action_label($h->action);
-                  } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
-                      if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                          $changed = $release_action_label($h->action) . ': ' . $changed;
-                      }
+      <?php
+          $oms_history_rows = array();
+          foreach ($history as $h) {
+              $who = ($h->user_name !== '') ? $h->user_name : 'System';
+              $changed = trim((string) $h->detail);
+              $act = strtolower((string) $h->action);
+              if ($changed === '') {
+                  $changed = $release_action_label($h->action);
+              } elseif ($act !== 'note' && $act !== 'comment' && $act !== 'commented') {
+                  if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                      $changed = $release_action_label($h->action) . ': ' . $changed;
                   }
-                  $parts = preg_split('/\s*;\s*/', $changed);
-                ?>
-                <tr>
-                  <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                  <td class="small">
-                    <?php if (count($parts) > 1): ?>
-                      <ul class="mb-0 ps-3">
-                        <?php foreach ($parts as $part): ?>
-                          <?php if (trim($part) === '') { continue; } ?>
-                          <li><?php echo esc_view(trim($part)); ?></li>
-                        <?php endforeach; ?>
-                      </ul>
-                    <?php else: ?>
-                      <?php echo nl2br(esc_view($changed)); ?>
-                    <?php endif; ?>
-                  </td>
-                  <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-      <?php endif; ?>
+              }
+              $oms_history_rows[] = array(
+                  'date' => $h->created_at,
+                  'who' => $who,
+                  'parts' => preg_split('/\s*;\s*/', $changed),
+                  'text' => $changed,
+              );
+          }
+          $this->load->view('partials/history_table', array('history_rows' => $oms_history_rows));
+        ?>
+
     </div>
   </div>
 </div>
