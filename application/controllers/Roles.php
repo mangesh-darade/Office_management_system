@@ -252,5 +252,6 @@ class Roles extends CI_Controller {
     private function ensure_schema() {
         $this->load->helper('org_schema');
         org_schema_ensure_roles($this->db);
+        org_schema_ensure_user_departments($this->db);
     }
 }

@@ -69,6 +69,16 @@ if (!function_exists('org_schema_ensure_designations')) {
             $db->query('ALTER TABLE designations ADD COLUMN deleted_at DATETIME NULL AFTER status');
         }
 
+        if ($db->table_exists('designations') && !schema_table_has_column($db, 'designations', 'designation_key')) {
+            $db->query('ALTER TABLE designations ADD COLUMN designation_key VARCHAR(20) NULL AFTER designation_name');
+            foreach (array('manager', 'lead', 'hr', 'intern', 'developer') as $k) {
+                $db->query(
+                    'UPDATE designations SET designation_key = ? WHERE designation_key IS NULL AND LOWER(designation_name) LIKE ?',
+                    array($k, '%' . ($k === 'developer' ? 'dev' : $k) . '%')
+                );
+            }
+        }
+
         org_schema_ensure_composite_index(
             $db,
             'designations',
@@ -212,5 +222,30 @@ if (!function_exists('org_schema_ensure_all')) {
         org_schema_ensure_departments($db);
         org_schema_ensure_designations($db);
         org_schema_ensure_roles($db);
+        org_schema_ensure_user_departments($db);
+    }
+}
+
+if (!function_exists('org_schema_ensure_user_departments')) {
+    /**
+     * user_departments: departments assigned to a user (used by roles with data_scope = all).
+     *
+     * @param CI_DB_query_builder $db
+     * @return void
+     */
+    function org_schema_ensure_user_departments($db)
+    {
+        if ($db->table_exists('user_departments')) {
+            return;
+        }
+        $db->query("CREATE TABLE IF NOT EXISTS `user_departments` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `user_id` int(11) NOT NULL,
+            `department_id` int(11) NOT NULL,
+            `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uq_user_department` (`user_id`, `department_id`),
+            KEY `idx_ud_department` (`department_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
     }
 }

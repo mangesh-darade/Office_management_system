@@ -16,6 +16,7 @@ CodeIgniter 3 internal HR/operations portal (PHP 8.4, MySQL, WAMP).
 | `DEVELOPMENT_GUIDELINES.md` | Dev standards |
 | `MODULE_DOCUMENTATION.md` | All modules |
 | `DATABASE_DOCUMENTATION.md` | Schema reference |
+| `docs/ROLES_USERS_GROUPS.md` | Roles, group type (admin/user tier), users, data scope |
 
 ## New features checklist
 

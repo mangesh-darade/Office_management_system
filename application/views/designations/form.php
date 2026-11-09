@@ -31,6 +31,16 @@
           <input type="text" name="designation_name" class="form-control" value="<?php echo esc_view(isset($row) && isset($row->designation_name) ? $row->designation_name : ''); ?>" required>
         </div>
         <div class="col-md-6">
+          <label class="form-label">Type (key) <span class="text-danger">*</span></label>
+          <select name="designation_key" class="form-select" required>
+            <option value="">-- Select Type --</option>
+            <?php $curKey = isset($row->designation_key) ? strtolower((string)$row->designation_key) : '';
+            foreach (designation_keys() as $k => $meta): ?>
+              <option value="<?php echo esc_view($k); ?>" <?php echo $curKey === $k ? 'selected' : ''; ?>><?php echo esc_view($meta['label']); ?> (<?php echo $meta['scope'] === 'all' ? 'department data' : 'own data'; ?>)</option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6">
           <label class="form-label">Department</label>
           <select name="department_id" class="form-select">
             <option value="">-- Select Department --</option>

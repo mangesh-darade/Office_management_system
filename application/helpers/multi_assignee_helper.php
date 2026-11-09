@@ -384,9 +384,10 @@ if (!function_exists('multi_assignees_apply_hierarchy_filter')) {
      * @param string $parent_id_sql e.g. t.id
      * @param int|null $user_id
      * @param int|null $role_id
+     * @param string|null $created_col e.g. t.created_by (creator also sees the record)
      * @return CI_DB_query_builder
      */
-    function multi_assignees_apply_hierarchy_filter($db, $primary_col, $junction_table, $fk_col, $parent_id_sql, $user_id = null, $role_id = null)
+    function multi_assignees_apply_hierarchy_filter($db, $primary_col, $junction_table, $fk_col, $parent_id_sql, $user_id = null, $role_id = null, $created_col = null)
     {
         $CI =& get_instance();
         $user_id = $user_id === null ? (int) $CI->session->userdata('user_id') : (int) $user_id;
@@ -413,6 +414,9 @@ if (!function_exists('multi_assignees_apply_hierarchy_filter')) {
 
         $db->group_start();
         $db->where_in($primary_col, $allowed_ids);
+        if ($created_col !== null && preg_match('/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?$/', $created_col)) {
+            $db->or_where_in($created_col, $allowed_ids);
+        }
         if ($use_junction) {
             $db->or_where(
                 'EXISTS (SELECT 1 FROM `' . $junction_table . '` _ma WHERE _ma.`' . $fk_col . '` = ' . $parent_id_sql . ' AND _ma.`user_id` IN (' . $ids_sql . '))',

@@ -83,6 +83,19 @@
               <?php if (form_error('role_id')): ?><div class="invalid-feedback"><?php echo form_error('role_id'); ?></div><?php endif; ?>
             </div>
 
+            <?php if (!empty($can_assign_departments)): ?>
+            <div class="col-md-4">
+              <label class="form-label" for="access_departments">Access departments <small class="text-muted">(roles with "All" data scope)</small></label>
+              <input type="hidden" name="access_departments_present" value="1">
+              <select name="access_departments[]" id="access_departments" class="form-select" multiple size="4">
+                <?php $assignedDepts = isset($assigned_department_ids) ? $assigned_department_ids : array(); ?>
+                <?php if (isset($departments) && !empty($departments)) : foreach ($departments as $d): ?>
+                  <option value="<?php echo (int)$d->id; ?>" <?php echo in_array((int)$d->id, $assignedDepts, true) ? 'selected' : ''; ?>><?php echo esc_view($d->dept_name); ?></option>
+                <?php endforeach; endif; ?>
+              </select>
+            </div>
+            <?php endif; ?>
+
             <div class="col-md-4">
               <label class="form-label">Shift</label>
               <select name="shift_id" class="form-select">
@@ -98,8 +111,8 @@
             </div>
 
             <div class="col-md-4">
-              <label class="form-label" for="department_id">Department</label>
-              <select name="department_id" id="department_id" class="form-select">
+              <label class="form-label" for="department_id">Department <span class="text-danger">*</span></label>
+              <select name="department_id" id="department_id" class="form-select" required>
                 <option value="">-- Select department --</option>
                 <?php
                   $currentDeptName = (isset($employee) && isset($employee->department)) ? (string)$employee->department : '';

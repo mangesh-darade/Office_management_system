@@ -210,11 +210,143 @@ if (!function_exists('hierarchy_expand_with_spl_group_peers')) {
     }
 }
 
+if (!function_exists('hierarchy_ensure_scope_schema')) {
+    function hierarchy_ensure_scope_schema()
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        $CI =& get_instance();
+        if (!isset($CI->db) || !$CI->db) {
+            return;
+        }
+        if (!function_exists('org_schema_ensure_designations')) {
+            $CI->load->helper('org_schema');
+        }
+        org_schema_ensure_designations($CI->db);
+        org_schema_ensure_user_departments($CI->db);
+    }
+}
+
+if (!function_exists('designation_keys')) {
+    /**
+     * Hardcoded designation keys => data scope (all = assigned departments, own = created by / assigned to me).
+     */
+    function designation_keys()
+    {
+        return array(
+            'manager'   => array('label' => 'Manager',   'scope' => 'all'),
+            'lead'      => array('label' => 'Lead',      'scope' => 'all'),
+            'hr'        => array('label' => 'HR',        'scope' => 'all'),
+            'developer' => array('label' => 'Developer', 'scope' => 'own'),
+            'intern'    => array('label' => 'Intern',    'scope' => 'own'),
+        );
+    }
+}
+
+if (!function_exists('get_user_designation_key')) {
+    function get_user_designation_key($user_id)
+    {
+        static $cache = array();
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return '';
+        }
+        if (isset($cache[$user_id])) {
+            return $cache[$user_id];
+        }
+        $CI =& get_instance();
+        $key = '';
+        if ($CI->db->table_exists('employees') && $CI->db->table_exists('designations')) {
+            hierarchy_ensure_scope_schema();
+            $row = $CI->db->query(
+                'SELECT g.`designation_key` FROM `employees` e
+                 INNER JOIN `designations` g ON g.`designation_name` = e.`designation`
+                 WHERE e.`user_id` = ? AND g.`designation_key` IS NOT NULL AND g.`designation_key` <> \'\'
+                 ORDER BY (g.`status` = \'active\') DESC LIMIT 1',
+                array($user_id)
+            )->row();
+            $key = $row ? strtolower(trim((string) $row->designation_key)) : '';
+        }
+        return $cache[$user_id] = $key;
+    }
+}
+
+if (!function_exists('data_scope_role_mode')) {
+    /**
+     * org = admin group (everything); all = designation key with "all" scope (assigned departments); own = created by / assigned to me.
+     */
+    function data_scope_role_mode($role_id = null, $user_id = null)
+    {
+        $CI =& get_instance();
+        $role_id = $role_id === null ? (int) $CI->session->userdata('role_id') : (int) $role_id;
+        $user_id = $user_id === null ? (int) $CI->session->userdata('user_id') : (int) $user_id;
+        if ($role_id <= 0) {
+            return 'own';
+        }
+        if (hierarchy_filter_sees_all_records($role_id)) {
+            return 'org';
+        }
+        $map = designation_keys();
+        $key = get_user_designation_key($user_id);
+        return (isset($map[$key]) && $map[$key]['scope'] === 'all') ? 'all' : 'own';
+    }
+}
+
+if (!function_exists('get_user_department_ids')) {
+    function get_user_department_ids($user_id)
+    {
+        $CI =& get_instance();
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return array();
+        }
+        hierarchy_ensure_scope_schema();
+        if (!$CI->db->table_exists('user_departments')) {
+            return array();
+        }
+        $rows = $CI->db->query('SELECT `department_id` FROM `user_departments` WHERE `user_id` = ?', array($user_id))->result();
+        $ids = array();
+        foreach ($rows as $r) {
+            $ids[] = (int) $r->department_id;
+        }
+        return array_values(array_unique(array_filter($ids)));
+    }
+}
+
+if (!function_exists('get_department_member_user_ids')) {
+    /**
+     * User IDs whose employees.department matches any of the given department IDs (by name).
+     */
+    function get_department_member_user_ids(array $department_ids)
+    {
+        $CI =& get_instance();
+        $department_ids = array_values(array_filter(array_map('intval', $department_ids)));
+        if (empty($department_ids) || !$CI->db->table_exists('employees') || !$CI->db->table_exists('departments')) {
+            return array();
+        }
+        $ph = implode(',', array_fill(0, count($department_ids), '?'));
+        $rows = $CI->db->query(
+            'SELECT DISTINCT e.`user_id` FROM `employees` e
+             INNER JOIN `departments` d ON d.`dept_name` = e.`department`
+             WHERE d.`id` IN (' . $ph . ') AND e.`user_id` > 0',
+            $department_ids
+        )->result();
+        $ids = array();
+        foreach ($rows as $r) {
+            $ids[] = (int) $r->user_id;
+        }
+        return array_values(array_unique($ids));
+    }
+}
+
 if (!function_exists('get_accessible_hierarchy_user_ids')) {
     /**
-     * User IDs the current role may see in lists/reports.
-     * Admin → [] (no restriction). Lead → mapped team + self. Manager / team-progress → department peers. Staff → self only.
-     * SPL group members are always included for assign-to / team dropdowns when the user belongs to an active group.
+     * User IDs whose records the current user may see.
+     * Admin group => [] (no restriction). User group, scope "all" => members of assigned departments + self.
+     * User group, scope "own" => self only (assigned-to-me is added per module).
      */
     function get_accessible_hierarchy_user_ids($user_id = null, $role_id = null)
     {
@@ -224,31 +356,24 @@ if (!function_exists('get_accessible_hierarchy_user_ids')) {
 
         if ($user_id <= 0) { return []; }
 
-        if (function_exists('hierarchy_filter_sees_all_records') && hierarchy_filter_sees_all_records($role_id)) {
+        $mode = data_scope_role_mode($role_id, $user_id);
+        if ($mode === 'org') {
             return [];
         }
-
-        $role_name = get_role_name_by_id($role_id);
-        $is_lead = (defined('ROLE_LEAD') && $role_id === ROLE_LEAD) || $role_name === 'lead';
-        if ($is_lead) {
-            $mapped = get_mapped_user_ids_for_lead($user_id);
-            $mapped[] = $user_id;
-            return hierarchy_expand_with_spl_group_peers(
-                array_values(array_unique(array_map('intval', $mapped))),
-                $user_id
-            );
+        if ($mode === 'all') {
+            $dept_ids = get_user_department_ids($user_id);
+            if (empty($dept_ids)) {
+                $row = $CI->db->query(
+                    'SELECT d.`id` FROM `employees` e INNER JOIN `departments` d ON d.`dept_name` = e.`department` WHERE e.`user_id` = ? LIMIT 1',
+                    array($user_id)
+                )->row();
+                $dept_ids = $row ? array((int) $row->id) : array();
+            }
+            $ids = get_department_member_user_ids($dept_ids);
+            $ids[] = $user_id;
+            return array_values(array_unique(array_map('intval', $ids)));
         }
-
-        $is_manager = (defined('ROLE_MANAGER') && $role_id === ROLE_MANAGER) || $role_name === 'manager';
-        if ($is_manager) {
-            return hierarchy_expand_with_spl_group_peers(get_department_peer_user_ids($user_id), $user_id);
-        }
-
-        if (function_exists('has_module_access') && has_module_access('training_screen_ta_team_progress')) {
-            return hierarchy_expand_with_spl_group_peers(get_department_peer_user_ids($user_id), $user_id);
-        }
-
-        return hierarchy_expand_with_spl_group_peers(array($user_id), $user_id);
+        return array($user_id);
     }
 }
 

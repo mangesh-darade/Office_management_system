@@ -26,12 +26,7 @@ class Users extends CI_Controller {
         $roleFilter = null;
         $userIdFilter = null;
         $currentUserId = (int)$this->session->userdata('user_id');
-        // Admin sees all; others see own record only (unless explicit view-all permission)
-        if (!function_exists('data_scope_sees_all_org_data') || !data_scope_sees_all_org_data()) {
-            if (!has_module_access('users_view_all') && $currentUserId > 0) {
-                $userIdFilter = $currentUserId;
-            }
-        }
+        // Admin sees all; others see users per data scope (own = self, all = department users) via list_users hierarchy filter
         $rows = $this->users->list_users($q, 250, $roleFilter, $userIdFilter, $userTab);
         
         // Check face registration status for each user
@@ -98,6 +93,8 @@ class Users extends CI_Controller {
             'designations' => $org['designations'],
             'employee' => null,
             'current_shift_id' => null,
+            'can_assign_departments' => $this->_can_assign_departments(),
+            'assigned_department_ids' => array(),
         ];
         $this->load->view('users/form', $data);
     }
@@ -127,6 +124,11 @@ class Users extends CI_Controller {
         $roleId = (int)$roleIdPost;
         if (!isset($roles[$roleId])) {
             $this->session->set_flashdata('error', 'Please select a valid role.');
+            redirect('users/create');
+            return;
+        }
+        if (!$this->_valid_department_posted()) {
+            $this->session->set_flashdata('error', 'Department is required.');
             redirect('users/create');
             return;
         }
@@ -174,6 +176,7 @@ class Users extends CI_Controller {
                 $description = 'User: ' . (isset($data['name']) ? $data['name'] : (isset($data['email']) ? $data['email'] : 'User #' . $new_id));
                 auto_track_insert('users', $new_id, $data, $description);
 
+                $this->_save_user_departments($new_id);
                 // Sync shift / department / designation onto linked employee
                 $this->_sync_linked_employee(
                     $new_id,
@@ -220,6 +223,8 @@ class Users extends CI_Controller {
             'designations' => $org['designations'],
             'employee' => $employee,
             'current_shift_id' => $employee ? $employee->shift_id : null,
+            'can_assign_departments' => $this->_can_assign_departments(),
+            'assigned_department_ids' => $this->_assigned_department_ids($id),
         ];
         $this->load->view('users/form', $data);
     }
@@ -254,6 +259,11 @@ class Users extends CI_Controller {
         $roleId = (int)$roleIdPost;
         if (!isset($roles[$roleId])) {
             $this->session->set_flashdata('error', 'Please select a valid role.');
+            redirect('users/edit/'.$id);
+            return;
+        }
+        if (!$this->_valid_department_posted()) {
+            $this->session->set_flashdata('error', 'Department is required.');
             redirect('users/edit/'.$id);
             return;
         }
@@ -319,6 +329,7 @@ class Users extends CI_Controller {
 
         // Sync shift / department / designation onto linked employee
         if ($ok) {
+            $this->_save_user_departments($id);
             $this->_sync_linked_employee(
                 $id,
                 isset($data['name']) ? $data['name'] : $row->name,
@@ -376,6 +387,40 @@ class Users extends CI_Controller {
      * Load department/designation select lists (same as Employees form).
      * @return array{departments: array, designations: array}
      */
+    private function _valid_department_posted() {
+        $did = (int) $this->input->post('department_id', true);
+        if ($did < 1) {
+            return false;
+        }
+        return !$this->db->table_exists('departments')
+            || (bool) $this->db->where('id', $did)->get('departments')->row();
+    }
+
+    private function _can_assign_departments() {
+        return function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data();
+    }
+
+    private function _assigned_department_ids($user_id) {
+        $this->load->helper('hierarchy_filter');
+        return get_user_department_ids((int) $user_id);
+    }
+
+    /** Replace departments assigned to a user (only admin group may change). */
+    private function _save_user_departments($user_id) {
+        if (!$this->_can_assign_departments() || !is_array($this->input->post('access_departments')) && $this->input->post('access_departments_present') === null) {
+            return;
+        }
+        $this->load->helper(array('org_schema', 'hierarchy_filter'));
+        org_schema_ensure_user_departments($this->db);
+        $ids = $this->input->post('access_departments');
+        $ids = is_array($ids) ? array_values(array_unique(array_filter(array_map('intval', $ids)))) : array();
+        $user_id = (int) $user_id;
+        $this->db->where('user_id', $user_id)->delete('user_departments');
+        foreach ($ids as $did) {
+            $this->db->insert('user_departments', array('user_id' => $user_id, 'department_id' => $did));
+        }
+    }
+
     private function _departments_designations() {
         $departments = [];
         $designations = [];

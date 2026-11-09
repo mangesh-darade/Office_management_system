@@ -19,7 +19,7 @@ class Designations extends CI_Controller {
     }
 
     private function ensure_schema(){
-        $this->load->helper('org_schema');
+        $this->load->helper(['org_schema', 'hierarchy_filter']);
         org_schema_ensure_designations($this->db);
     }
 
@@ -39,7 +39,12 @@ class Designations extends CI_Controller {
             $designation_name = trim((string)$this->input->post('designation_name'));
             $department_id = $this->input->post('department_id') !== '' ? (int)$this->input->post('department_id') : null;
             $level = (int)($this->input->post('level') ?: 1);
-            
+            $designation_key = strtolower(trim((string)$this->input->post('designation_key')));
+
+            if (!array_key_exists($designation_key, designation_keys())) {
+                $this->session->set_flashdata('error', 'Designation type is required');
+                redirect('designations/create'); return;
+            }
             if (empty($designation_code)) {
                 $this->session->set_flashdata('error', 'Designation code is required');
                 redirect('designations/create'); return;
@@ -58,6 +63,7 @@ class Designations extends CI_Controller {
             $data = [
                 'designation_code' => $designation_code,
                 'designation_name' => $designation_name,
+                'designation_key' => $designation_key,
                 'department_id' => $department_id,
                 'level' => $level,
                 'status' => 'active',
@@ -96,7 +102,12 @@ class Designations extends CI_Controller {
             $designation_name = trim((string)$this->input->post('designation_name'));
             $department_id = $this->input->post('department_id') !== '' ? (int)$this->input->post('department_id') : null;
             $level = (int)($this->input->post('level') ?: 1);
-            
+            $designation_key = strtolower(trim((string)$this->input->post('designation_key')));
+
+            if (!array_key_exists($designation_key, designation_keys())) {
+                $this->session->set_flashdata('error', 'Designation type is required');
+                redirect('designations/'.$id.'/edit'); return;
+            }
             if (empty($designation_code)) {
                 $this->session->set_flashdata('error', 'Designation code is required');
                 redirect('designations/'.$id.'/edit'); return;
@@ -115,6 +126,7 @@ class Designations extends CI_Controller {
             $data = [
                 'designation_code' => $designation_code,
                 'designation_name' => $designation_name,
+                'designation_key' => $designation_key,
                 'department_id' => $department_id,
                 'level' => $level,
             ];
