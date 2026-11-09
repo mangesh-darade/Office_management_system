@@ -798,7 +798,10 @@ class Daily_activity_summary
                 $is_done = $this->summary_is_done_status($item['status_raw']);
                 $color = $is_done ? '#2e7d32' : '#ef6c00';
                 $tip = !empty($item['status_label']) ? 'Status: ' . $item['status_label'] : '';
-                $html .= '<li><span style="color:' . $color . ';"' . ($tip !== '' ? ' title="' . $this->summary_esc($tip) . '"' : '') . '>' . $this->summary_esc($title) . '</span>';
+                $status_html = !empty($item['status_label'])
+                    ? ' &ndash; <strong style="color:' . $color . ';">' . $this->summary_esc($item['status_label']) . '</strong>'
+                    : '';
+                $html .= '<li><span style="color:' . $color . ';"' . ($tip !== '' ? ' title="' . $this->summary_esc($tip) . '"' : '') . '>' . $this->summary_esc($title) . '</span>' . $status_html;
                 $steps = array();
                 foreach ((array) $item['history'] as $entry) {
                     if (isset($entry['kind']) && $entry['kind'] === 'comment') {
