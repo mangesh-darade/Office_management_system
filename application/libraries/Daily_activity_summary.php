@@ -78,11 +78,10 @@ class Daily_activity_summary
             return array('status' => 'skipped', 'reason' => 'no_work');
         }
 
-        $title = trim((string) (isset($summary['suggested_activity_title']) ? $summary['suggested_activity_title'] : ''));
-        if ($title === '') {
-            $title = 'Daily summary - ' . date('j M Y', strtotime($work_date));
-        }
-        $task_id = isset($summary['suggested_task_id']) ? (int) $summary['suggested_task_id'] : 0;
+        $counts = isset($summary['counts']) ? $summary['counts'] : array();
+        $n_items = (int) (isset($counts['tasks']) ? $counts['tasks'] : 0) + (int) (isset($counts['my_works']) ? $counts['my_works'] : 0);
+        $title = 'Daily summary - ' . date('j M Y', strtotime($work_date)) . ($n_items > 0 ? ' (' . $n_items . ' ' . ($n_items === 1 ? 'item' : 'items') . ')' : '');
+        $task_id = 0;
 
         $data = array(
             'user_id' => $user_id,
