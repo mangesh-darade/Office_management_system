@@ -692,13 +692,13 @@ class Daily_activity_summary
             isset($summary['tasks']) ? $summary['tasks'] : array(),
             isset($summary['my_works']) ? $summary['my_works'] : array()
         );
-        foreach ($items as $item) {
-            $key = !empty($item['client']) ? $item['client'] : (!empty($item['project']) ? $item['project'] : 'General');
-            $title = !empty($item['title']) ? $item['title'] : (isset($item['label']) ? $item['label'] : '');
-            if ($title === '') {
-                continue;
+        foreach ($this->summary_group_items($items) as $key => $list) {
+            foreach ($list as $item) {
+                $title = !empty($item['title']) ? $item['title'] : (isset($item['label']) ? $item['label'] : '');
+                if ($title !== '') {
+                    $groups[$key][] = $title;
+                }
             }
-            $groups[$key][] = $title;
         }
         if (empty($groups)) {
             return 'Daily summary - ' . date('j M Y', strtotime($work_date));
@@ -716,6 +716,52 @@ class Daily_activity_summary
         $rest_groups = count($groups) - $shown_groups;
         $title = implode('; ', $parts) . ($rest_groups > 0 ? '; & ' . $rest_groups . ' more ' . ($rest_groups === 1 ? 'client' : 'clients') : '');
         return mb_strlen($title) > 160 ? mb_substr($title, 0, 159) . '…' : $title;
+    }
+
+    private function summary_is_done_status($status)
+    {
+        return in_array(strtolower(trim((string) $status)), array('completed', 'closed', 'done', 'verified', 'resolved', 'released', 'fixed'), true);
+    }
+
+    /**
+     * Group items by client (fallback project, General). Completed work comes first:
+     * inside each group completed items are on top, and groups that have completed
+     * work are listed before the rest.
+     *
+     * @return array name => list of items
+     */
+    private function summary_group_items(array $items)
+    {
+        $groups = array();
+        foreach ($items as $item) {
+            $key = !empty($item['client']) ? $item['client'] : (!empty($item['project']) ? $item['project'] : 'General');
+            $groups[$key][] = $item;
+        }
+        $order = array_keys($groups);
+        $done_count = array();
+        foreach ($groups as $name => $list) {
+            $done = array();
+            $open = array();
+            foreach ($list as $it) {
+                if ($this->summary_is_done_status(isset($it['status_raw']) ? $it['status_raw'] : '')) {
+                    $done[] = $it;
+                } else {
+                    $open[] = $it;
+                }
+            }
+            $groups[$name] = array_merge($done, $open);
+            $done_count[$name] = count($done);
+        }
+        usort($order, function ($a, $b) use ($done_count) {
+            $da = $done_count[$a] > 0 ? 1 : 0;
+            $db = $done_count[$b] > 0 ? 1 : 0;
+            return $db - $da;
+        });
+        $sorted = array();
+        foreach ($order as $name) {
+            $sorted[$name] = $groups[$name];
+        }
+        return $sorted;
     }
 
     /** Split a note into display steps (one per non-empty line). */
@@ -743,21 +789,13 @@ class Daily_activity_summary
      */
     private function render_grouped_html(array $task_items, array $mw_items, array $tpl_lines)
     {
-        $done_status = array('completed', 'closed', 'done', 'verified', 'resolved', 'released', 'fixed');
-        $groups = array();
-        foreach (array_merge($task_items, $mw_items) as $item) {
-            $key = $item['client'] !== '' ? $item['client'] : ($item['project'] !== '' ? $item['project'] : 'General');
-            if (!isset($groups[$key])) {
-                $groups[$key] = array();
-            }
-            $groups[$key][] = $item;
-        }
+        $groups = $this->summary_group_items(array_merge($task_items, $mw_items));
         $html = '<ol type="1">';
         foreach ($groups as $name => $items) {
             $html .= '<li><u>' . $this->summary_esc($name) . '</u>:<ol type="a">';
             foreach ($items as $item) {
                 $title = $item['title'] !== '' ? $item['title'] : $item['label'];
-                $is_done = in_array($item['status_raw'], $done_status, true);
+                $is_done = $this->summary_is_done_status($item['status_raw']);
                 $color = $is_done ? '#2e7d32' : '#ef6c00';
                 $tip = !empty($item['status_label']) ? 'Status: ' . $item['status_label'] : '';
                 $html .= '<li><span style="color:' . $color . ';"' . ($tip !== '' ? ' title="' . $this->summary_esc($tip) . '"' : '') . '>' . $this->summary_esc($title) . '</span>';
