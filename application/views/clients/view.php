@@ -176,28 +176,6 @@ if ($st_lower === 'active') {
     </div>
   </div>
 
-  <div class="client-detail-stats mb-1">
-    <div class="client-detail-stat-card">
-      <span class="client-detail-stat-label">Requirements</span>
-      <strong class="client-detail-stat-value" id="clientStatRequirements"><?php echo count($requirements); ?></strong>
-    </div>
-    <div class="client-detail-stat-card">
-      <span class="client-detail-stat-label">Tasks</span>
-      <strong class="client-detail-stat-value" id="clientStatTasks"><?php echo count($tasks); ?></strong>
-    </div>
-    <div class="client-detail-stat-card">
-      <span class="client-detail-stat-label">Defects</span>
-      <strong class="client-detail-stat-value" id="clientStatDefects"><?php echo count($defects); ?></strong>
-    </div>
-    <div class="client-detail-stat-card client-detail-stat-meta">
-      <span class="client-detail-stat-label">Contact</span>
-      <strong class="client-detail-stat-value client-detail-stat-value-sm text-truncate" title="<?php echo esc_view(isset($client->contact_person) ? $client->contact_person : ''); ?>"><?php echo esc_view(isset($client->contact_person) && $client->contact_person !== '' ? $client->contact_person : '—'); ?></strong>
-      <div class="client-detail-dates text-muted">
-        <span><i class="bi bi-telephone"></i> <?php echo esc_view(isset($client->phone) && $client->phone !== '' ? $client->phone : '—'); ?></span>
-      </div>
-    </div>
-  </div>
-
   <ul class="nav nav-tabs nav-tabs-sm mb-1 client-detail-tabs" id="clientTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link<?php echo $active_tab === 'overview' ? ' active' : ''; ?>" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="<?php echo $active_tab === 'overview' ? 'true' : 'false'; ?>">
@@ -230,7 +208,7 @@ if ($st_lower === 'active') {
     <!-- Overview -->
     <div class="tab-pane fade<?php echo $active_tab === 'overview' ? ' show active' : ''; ?>" id="overview" role="tabpanel" aria-labelledby="overview-tab">
       <div class="row g-1">
-        <div class="col-lg-8">
+        <div class="col-12">
           <div class="card shadow-sm border-0 client-detail-panel mb-1">
             <div class="card-header bg-white">
               <h6 class="mb-0">Client details</h6>
@@ -349,17 +327,17 @@ if ($st_lower === 'active') {
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-12">
           <div class="card shadow-sm border-0 client-detail-panel mb-1">
             <div class="card-header bg-white">
               <h6 class="mb-0">Meta</h6>
             </div>
             <div class="card-body client-detail-meta">
-              <div><span>Created</span> <?php echo esc_view(isset($client->created_at) ? $client->created_at : ''); ?></div>
-              <div><span>Updated</span> <?php echo esc_view(isset($client->updated_at) ? $client->updated_at : ''); ?></div>
-              <div><span>DB name</span> <?php echo esc_view(isset($client->db_name) ? $client->db_name : ''); ?></div>
-              <div><span>DB user</span> <?php echo esc_view(isset($client->db_username) ? $client->db_username : ''); ?></div>
-              <div><span>DB pass</span> <?php echo esc_view(isset($client->db_password) ? $client->db_password : ''); ?></div>
+              <div><span>Created</span><b><?php echo esc_view(isset($client->created_at) ? $client->created_at : ''); ?></b></div>
+              <div><span>Updated</span><b><?php echo esc_view(isset($client->updated_at) ? $client->updated_at : ''); ?></b></div>
+              <div><span>DB name</span><b><?php echo esc_view(isset($client->db_name) ? $client->db_name : ''); ?></b></div>
+              <div><span>DB user</span><b><?php echo esc_view(isset($client->db_username) ? $client->db_username : ''); ?></b></div>
+              <div><span>DB pass</span><b><?php echo esc_view(isset($client->db_password) ? $client->db_password : ''); ?></b></div>
             </div>
           </div>
         </div>
@@ -733,15 +711,13 @@ if ($st_lower === 'active') {
       <div class="card shadow-sm border-0 client-detail-panel mb-1">
         <div class="card-body py-2 px-3">
           <?php if ($can_note): ?>
-            <div class="small text-muted fw-semibold mb-1">Add</div>
-            <form method="post" action="<?php echo site_url('clients/add-comment/' . $client_id); ?>" enctype="multipart/form-data" class="mb-3" id="clientHistoryAddForm">
+            <form method="post" action="<?php echo site_url('clients/add-comment/' . $client_id); ?>" enctype="multipart/form-data" class="mb-2" id="clientHistoryAddForm">
               <?php echo form_hidden($this->security->get_csrf_token_name(), $this->security->get_csrf_hash()); ?>
+              <?php if (!empty($_GET['embed'])): ?><input type="hidden" name="embed" value="1"><?php endif; ?><?php if (!empty($_GET['popup'])): ?><input type="hidden" name="popup" value="1"><?php endif; ?>
               <textarea name="note" id="clientHistoryNote" class="form-control form-control-sm mb-2" rows="4" placeholder="Add a note to history…"></textarea>
               <div class="row g-2 align-items-end mb-2 mt-1">
                 <div class="col-md-8">
-                  <label class="form-label small text-muted mb-0" for="clientHistoryAttachments">Attachment</label>
-                  <input type="file" name="attachments[]" id="clientHistoryAttachments" class="form-control form-control-sm" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
-                  <div class="form-text">Optional. Up to 5 files, 5 MB each.</div>
+                  <input type="file" name="attachments[]" id="clientHistoryAttachments" class="form-control form-control-sm" multiple title="Optional. Up to 5 files, 5 MB each." accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
                 </div>
                 <div class="col-md-4 text-md-end">
                   <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Add</button>
@@ -752,6 +728,7 @@ if ($st_lower === 'active') {
 
           <form method="get" action="<?php echo site_url('clients/view/' . $client_id); ?>" class="row g-2 align-items-end mb-3 client-history-filters">
             <input type="hidden" name="tab" value="history">
+            <?php if (!empty($_GET['embed'])): ?><input type="hidden" name="embed" value="1"><?php endif; ?><?php if (!empty($_GET['popup'])): ?><input type="hidden" name="popup" value="1"><?php endif; ?>
             <div class="col-md-3">
               <label class="form-label small text-muted mb-0">Search</label>
               <input type="search" name="q" value="<?php echo esc_view(isset($history_filters['q']) ? $history_filters['q'] : ''); ?>" class="form-control form-control-sm" placeholder="Comment, user, file…">
@@ -799,7 +776,7 @@ if ($st_lower === 'active') {
             </div>
             <div class="col-md-1 d-flex gap-1">
               <button type="submit" class="btn btn-sm btn-outline-secondary" title="Filter"><i class="bi bi-funnel"></i></button>
-              <a href="<?php echo site_url('clients/view/' . $client_id . '?tab=history'); ?>" class="btn btn-sm btn-outline-secondary" title="Clear"><i class="bi bi-x-lg"></i></a>
+              <a href="<?php echo site_url('clients/view/' . $client_id . '?tab=history' . (!empty($_GET['embed']) ? '&embed=1' : '') . (!empty($_GET['popup']) ? '&popup=1' : '')); ?>" class="btn btn-sm btn-outline-secondary" title="Clear"><i class="bi bi-x-lg"></i></a>
             </div>
           </form>
 
@@ -811,8 +788,8 @@ if ($st_lower === 'active') {
           <?php if (empty($history)): ?>
             <p class="text-muted small mb-0">No history yet.</p>
           <?php else: ?>
-            <div class="table-responsive">
-              <table class="table table-sm table-bordered mb-0 align-middle client-history-grid">
+            <div class="table-responsive client-history-scroll">
+              <table class="table table-sm table-bordered mb-0 align-middle client-history-grid" id="clientHistoryGrid">
                 <thead class="table-light">
                   <tr>
                     <th class="text-start" style="width:9.5rem;">Date</th>
@@ -838,9 +815,11 @@ if ($st_lower === 'active') {
                       $parts = $is_note ? array($changed) : preg_split('/\s*;\s*/', $changed);
                       $atts = !empty($h->attachments) && is_array($h->attachments) ? $h->attachments : array();
                     ?>
-                    <tr>
+                    <tr class="client-history-row" title="Click to view full details">
                       <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
                       <td class="small client-history-comment">
+                        <div class="client-history-preview"></div>
+                        <div class="client-history-full" hidden>
                         <?php if ($is_note): ?>
                           <div class="client-history-rich"><?php echo sanitize_html_output($changed); ?></div>
                         <?php elseif (count($parts) > 1): ?>
@@ -853,6 +832,7 @@ if ($st_lower === 'active') {
                         <?php else: ?>
                           <?php echo nl2br(esc_view($changed)); ?>
                         <?php endif; ?>
+                        </div>
                       </td>
                       <td class="small client-history-attachments">
                         <?php if (empty($atts)): ?>
@@ -887,8 +867,43 @@ if ($st_lower === 'active') {
                 </tbody>
               </table>
             </div>
+            <div class="d-flex align-items-center justify-content-between mt-2 small" id="clientHistoryPager">
+              <span class="text-muted" id="clientHistoryPagerInfo"></span>
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" id="clientHistoryPrev"><i class="bi bi-chevron-left"></i></button>
+                <span class="btn btn-light disabled" id="clientHistoryPageLabel"></span>
+                <button type="button" class="btn btn-outline-secondary" id="clientHistoryNext"><i class="bi bi-chevron-right"></i></button>
+              </div>
+            </div>
           <?php endif; ?>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="clientHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2 px-3">
+        <div class="min-w-0">
+          <h6 class="modal-title mb-1"><i class="bi bi-clock-history me-1 text-primary"></i>History Details</h6>
+          <div class="d-flex flex-wrap gap-2 chm-meta">
+            <span class="badge rounded-pill text-bg-light border fw-normal"><i class="bi bi-calendar3 me-1"></i><span id="chmDate"></span></span>
+            <span class="badge rounded-pill text-bg-light border fw-normal"><i class="bi bi-person me-1"></i><span id="chmUser"></span></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-3 py-3">
+        <div class="client-history-rich chm-body" id="chmBody"></div>
+        <div id="chmAttWrap" class="chm-att mt-3" hidden>
+          <div class="chm-att-title"><i class="bi bi-paperclip me-1"></i>Attachments</div>
+          <div id="chmAtt"></div>
+        </div>
+      </div>
+      <div class="modal-footer py-2 px-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -1341,9 +1356,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var isNarrow = window.matchMedia && window.matchMedia('(max-width: 767.98px)').matches;
     tinymce.init({
       selector: '#clientHistoryNote',
-      height: isNarrow ? 180 : 220,
+      height: isNarrow ? 120 : 110,
+      statusbar: false,
       menubar: false,
-      statusbar: true,
       branding: false,
       convert_urls: false,
       default_link_target: '_blank',
@@ -1378,6 +1393,55 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
+  (function () {
+    var grid = document.getElementById('clientHistoryGrid');
+    if (!grid) return;
+    var rows = Array.prototype.slice.call(grid.tBodies[0].rows);
+    var hm = document.getElementById('clientHistoryModal');
+    function notifyParent(open) {
+      if (window.parent && window.parent !== window) {
+        try {
+          var pm = window.parent.document.getElementById('mwScreenPopup');
+          if (pm) { pm.classList.toggle('mw-child-modal-open', open); }
+        } catch (e) {}
+        window.parent.postMessage({ type: 'mwChildModal', open: open }, '*');
+      }
+    }
+    hm.addEventListener('show.bs.modal', function () { notifyParent(true); });
+    hm.addEventListener('hidden.bs.modal', function () { notifyParent(false); });
+    rows.forEach(function (r) {
+      var full = r.querySelector('.client-history-full');
+      var txt = (full.textContent || '').replace(/\s+/g, ' ').trim();
+      r.querySelector('.client-history-preview').textContent = txt.length > 140 ? txt.slice(0, 140) + '…' : txt;
+      r.addEventListener('click', function (e) {
+        if (e.target.closest('a,button')) return;
+        document.getElementById('chmDate').textContent = r.cells[0].textContent.trim();
+        document.getElementById('chmUser').textContent = r.cells[3].textContent.trim();
+        document.getElementById('chmBody').innerHTML = full.innerHTML;
+        var att = r.cells[2].querySelector('ul');
+        document.getElementById('chmAttWrap').hidden = !att;
+        document.getElementById('chmAtt').innerHTML = att ? att.outerHTML : '';
+        bootstrap.Modal.getOrCreateInstance(hm).show();
+      });
+    });
+    var size = 10, page = 1, pages = Math.max(1, Math.ceil(rows.length / size));
+    var info = document.getElementById('clientHistoryPagerInfo');
+    var label = document.getElementById('clientHistoryPageLabel');
+    var prev = document.getElementById('clientHistoryPrev');
+    var next = document.getElementById('clientHistoryNext');
+    function render() {
+      rows.forEach(function (r, i) { r.hidden = i < (page - 1) * size || i >= page * size; });
+      var from = (page - 1) * size + 1, to = Math.min(page * size, rows.length);
+      info.textContent = from + '–' + to + ' of ' + rows.length;
+      label.textContent = page + ' / ' + pages;
+      prev.disabled = page <= 1;
+      next.disabled = page >= pages;
+    }
+    prev.addEventListener('click', function () { page--; render(); });
+    next.addEventListener('click', function () { page++; render(); });
+    render();
+  })();
 
   var tabButtons = document.querySelectorAll('#clientTabs button[data-bs-toggle="tab"]');
   tabButtons.forEach(function (btn) {

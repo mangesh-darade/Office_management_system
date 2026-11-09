@@ -3870,8 +3870,8 @@ body:has(.mw-screen-popup.show) .modal-backdrop {
 }
 
 .mw-screen-popup .mw-screen-popup-dialog {
-  width: min(1180px, calc(100vw - 3rem));
-  max-width: 1180px;
+  width: min(980px, calc(100vw - 3rem));
+  max-width: 980px;
   height: calc(100vh - 4.5rem);
   max-height: calc(100vh - 4.5rem);
   min-height: 0;
@@ -5048,4 +5048,22 @@ a.mw-pulse-item-primary:hover {
   .mw-pulse-table-wrap {
     max-width: none;
   }
+}
+
+.mw-screen-popup .modal-header {
+  transition: filter 0.15s;
+}
+.mw-screen-popup .modal-content {
+  position: relative;
+}
+.mw-screen-popup.mw-child-modal-open .modal-header {
+  position: relative;
+}
+.mw-screen-popup.mw-child-modal-open .modal-header::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -1px 0;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: inherit;
+  pointer-events: none;
 }

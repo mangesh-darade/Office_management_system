@@ -777,7 +777,7 @@ class Clients extends CI_Controller {
                 
                 $success_msg = get_notification_message('clients', 'create', 'success');
                 $this->session->set_flashdata('success', $success_msg);
-                redirect('clients/view/'.$id);
+                redirect($this->_view_url($id));
                 return;
                 
             } catch (Exception $e) {
@@ -899,6 +899,21 @@ class Clients extends CI_Controller {
         }
     }
 
+    private function _view_url($id, $tab = '')
+    {
+        $q = array();
+        if ($tab !== '') {
+            $q['tab'] = $tab;
+        }
+        foreach (array('popup', 'embed', 'parent_tab') as $k) {
+            $v = $this->input->post_get($k);
+            if ($v !== null && $v !== '') {
+                $q[$k] = $v;
+            }
+        }
+        return 'clients/view/' . (int) $id . ($q ? '?' . http_build_query($q) : '');
+    }
+
     // POST /clients/add-comment/{id}
     public function add_comment($id = 0)
     {
@@ -930,7 +945,7 @@ class Clients extends CI_Controller {
         $attachments = $this->_upload_client_history_attachments($id);
         if ($note_plain === '' && empty($attachments)) {
             $this->session->set_flashdata('error', 'Add a note or attachment.');
-            redirect('clients/view/' . $id . '?tab=history');
+            redirect($this->_view_url($id, 'history'));
             return;
         }
         if ($note_plain === '' && !empty($attachments)) {
@@ -962,7 +977,7 @@ class Clients extends CI_Controller {
         log_activity('clients', 'note', $id, 'History note on client: ' . $label);
 
         $this->session->set_flashdata('success', 'History entry added.');
-        redirect('clients/view/' . $id . '?tab=history');
+        redirect($this->_view_url($id, 'history'));
     }
 
     /**
@@ -1393,7 +1408,7 @@ class Clients extends CI_Controller {
                     
                     $success_msg = get_notification_message('clients', 'update', 'success');
                     $this->session->set_flashdata('success', $success_msg);
-                    redirect('clients/view/'.$id);
+                    redirect($this->_view_url($id));
                     return;
                     
                 } catch (Exception $e) {
@@ -1852,7 +1867,7 @@ class Clients extends CI_Controller {
             exit;
         }
 
-        redirect('clients/view/' . $id);
+        redirect($this->_view_url($id));
     }
 
     // POST /clients/{id}/inline-save — quick add/update from client detail tabs

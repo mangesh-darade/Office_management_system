@@ -767,11 +767,18 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   var popupModal = document.getElementById('mwScreenPopup');
+  window.addEventListener('message', function (e) {
+    if (e.origin !== window.location.origin || !e.data || e.data.type !== 'mwChildModal' || !popupModal) {
+      return;
+    }
+    popupModal.classList.toggle('mw-child-modal-open', !!e.data.open);
+  });
   if (popupModal) {
     popupModal.addEventListener('hidden.bs.modal', function () {
       if (popupFrame) {
         popupFrame.src = 'about:blank';
       }
+      popupModal.classList.remove('mw-child-modal-open');
       var titleEl = document.getElementById('mwScreenPopupTitle');
       if (titleEl) {
         titleEl.textContent = 'Details';
