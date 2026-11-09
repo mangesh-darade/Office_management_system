@@ -45,7 +45,7 @@ class Reports_projects extends Reports_base {
             $this->db->join('users u','u.id = r.owner_id','left');
         }
         $this->db->from('requirements r');
-        apply_role_hierarchy_filter($this->db, 'r.created_by');
+        data_scope_apply_owner_or_assignee($this->db, array('r.created_by', 'r.assigned_to', 'r.owner_id'), array(array('requirement_assignees', 'requirement_id', 'r.id')));
 
         // Apply filters
         if (!empty($filters['status'])) {
@@ -217,7 +217,7 @@ class Reports_projects extends Reports_base {
         if ($this->db->table_exists('tasks')) {
             // Build base query with filters
             $this->db->select('assigned_to, status, COUNT(*) as cnt')->from('tasks');
-            apply_role_hierarchy_filter($this->db, 'assigned_to');
+            data_scope_apply_owner_or_assignee($this->db, array('created_by', 'assigned_to'), array(array('task_assignees', 'task_id', 'tasks.id')));
             
             // Apply filters
             if (!empty($filters['project_id'])) {
@@ -255,7 +255,7 @@ class Reports_projects extends Reports_base {
             $task_details_map = [];
             
             $this->db->select('assigned_to, title, status, project_id, created_at, due_date')->from('tasks');
-            apply_role_hierarchy_filter($this->db, 'assigned_to');
+            data_scope_apply_owner_or_assignee($this->db, array('created_by', 'assigned_to'), array(array('task_assignees', 'task_id', 'tasks.id')));
             
             // Re-apply same filters for task details
             if (!empty($filters['project_id'])) {
@@ -536,11 +536,7 @@ class Reports_projects extends Reports_base {
             $this->db->select(implode(', ', $select_fields))
                      ->from('projects p')
                      ->join('tasks t','t.project_id = p.id','left');
-            if ($this->schema_has_column('projects', 'created_by')) {
-                apply_role_hierarchy_filter($this->db, 'p.created_by');
-            } else if ($this->schema_has_column('projects', 'manager_id')) {
-                apply_role_hierarchy_filter($this->db, 'p.manager_id');
-            }
+            data_scope_apply_project_scope($this->db, 'p');
             
             // Apply filters
             if (!empty($filters['status'])) {
@@ -708,11 +704,7 @@ class Reports_projects extends Reports_base {
             
             $this->db->select(implode(', ', $select_fields))
                      ->from('projects p');
-            if ($this->schema_has_column('projects', 'created_by')) {
-                apply_role_hierarchy_filter($this->db, 'p.created_by');
-            } else if ($this->schema_has_column('projects', 'manager_id')) {
-                apply_role_hierarchy_filter($this->db, 'p.manager_id');
-            }
+            data_scope_apply_project_scope($this->db, 'p');
             
             // Apply filters
             if (!empty($filters['status'])) {

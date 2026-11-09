@@ -34,7 +34,7 @@ class Chats extends CI_Controller {
         $role_id = (int)$this->session->userdata('role_id');
         
         // Get group-based filters
-        $filters = get_user_group_filter($user_id, $role_id);
+        $filters = array('visible_ids' => data_scope_visible_user_ids());
         
         $conversations = $this->Chat_model->list_conversations($user_id, $filters);
         $users = $this->Chat_model->list_users_for_select($filters);
@@ -50,7 +50,7 @@ class Chats extends CI_Controller {
         $role_id = (int)$this->session->userdata('role_id');
         
         // Get group-based filters
-        $filters = get_user_group_filter($user_id, $role_id);
+        $filters = array('visible_ids' => data_scope_visible_user_ids());
         
         $conversations = $this->Chat_model->list_conversations($user_id, $filters);
         $users = $this->Chat_model->list_users_for_select($filters);

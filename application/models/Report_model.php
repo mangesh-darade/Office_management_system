@@ -67,7 +67,7 @@ class Report_model extends CI_Model {
         if (!empty($filters['to'])) {
             $this->db->where('t.created_at <=', $filters['to'] . ' 23:59:59');
         }
-        apply_role_hierarchy_filter($this->db, 't.created_by');
+        data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
         $this->db->order_by('t.created_at', 'DESC');
         return $this->db->get()->result();
     }
@@ -130,11 +130,7 @@ class Report_model extends CI_Model {
         if (!empty($filters['client_id'])) {
             $this->db->where('p.client_id', (int)$filters['client_id']);
         }
-        if (schema_table_has_column($this->db, 'projects', 'created_by')) {
-            apply_role_hierarchy_filter($this->db, 'p.created_by');
-        } else if (schema_table_has_column($this->db, 'projects', 'manager_id')) {
-            apply_role_hierarchy_filter($this->db, 'p.manager_id');
-        }
+        data_scope_apply_project_scope($this->db, 'p');
         $this->db->group_by('p.id');
         $this->db->order_by('p.created_at', 'DESC');
         return $this->db->get()->result();

@@ -85,7 +85,11 @@ class Chat_model extends CI_Model {
         
         $this->db->select(implode(',', $sel))->from('users');
         
-        // Apply group filtering for non-admin users
+        if (isset($filters['visible_ids']) && is_array($filters['visible_ids'])) {
+            $ids = array_map('intval', $filters['visible_ids']);
+            $ids[] = (int) $this->session->userdata('user_id');
+            $this->db->where_in('id', array_values(array_unique($ids)));
+        }
         if (!empty($filters) && isset($filters['user_id'])) {
             $user_id = $filters['user_id'];
             $this->db->join('employees e', 'e.user_id = users.id');

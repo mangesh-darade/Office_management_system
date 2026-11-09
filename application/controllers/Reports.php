@@ -18,16 +18,12 @@ class Reports extends Reports_base {
 
         if ($this->db->table_exists('tasks')) {
             $this->db->select('status, COUNT(*) as cnt')->from('tasks');
-            apply_role_hierarchy_filter($this->db, 'created_by');
+            data_scope_apply_owner_or_assignee($this->db, array('created_by', 'assigned_to'), array(array('task_assignees', 'task_id', 'tasks.id')));
             $task_status = $this->db->group_by('status')->get()->result();
         }
         if ($this->db->table_exists('projects')) {
             $this->db->select('status, COUNT(*) as cnt')->from('projects');
-            if ($this->schema_has_column('projects', 'created_by')) {
-                apply_role_hierarchy_filter($this->db, 'created_by');
-            } else if ($this->schema_has_column('projects', 'manager_id')) {
-                apply_role_hierarchy_filter($this->db, 'manager_id');
-            }
+            data_scope_apply_project_scope($this->db, 'projects');
             $projects_progress = $this->db->group_by('status')->get()->result();
         }
         if ($this->db->table_exists('leave_requests')) {
@@ -53,7 +49,7 @@ class Reports extends Reports_base {
         if ($this->db->table_exists('tasks')) {
             // Top 10 assignees by number of tasks
             $this->db->select('t.assigned_to, COUNT(*) AS cnt')->from('tasks t')->group_by('t.assigned_to')->order_by('cnt','DESC')->limit(10);
-            apply_role_hierarchy_filter($this->db, 't.created_by');
+            data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
             if ($this->db->table_exists('users')) {
                 $this->db->select('u.email');
                 if ($this->schema_has_column('users', 'full_name')) { $this->db->select('u.full_name'); }
