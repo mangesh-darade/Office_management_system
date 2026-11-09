@@ -23,8 +23,7 @@ class Projects extends CI_Controller {
         $filters = get_user_group_filter($user_id, $role_id);
         
         // Admin sees all projects; others see only projects they belong to
-        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('projects_view_all');
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data());
         if (!$can_view_all) {
             $projects = $this->Project_model->all($filters);
         } else {
@@ -179,8 +178,7 @@ class Projects extends CI_Controller {
         $role_id = (int) $this->session->userdata('role_id');
         $filters = project_matrix_parse_filters($this->input);
 
-        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('projects_view_all');
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data());
         $group_filters = get_user_group_filter($user_id, $role_id);
         if (!$can_view_all) {
             $projects = $this->Project_model->all($group_filters);
@@ -432,7 +430,7 @@ class Projects extends CI_Controller {
             $this->db->from('tasks t');
             $this->db->join('users u', 'u.id = t.assigned_to', 'left');
             $this->db->where('t.project_id', (int)$id);
-            apply_role_hierarchy_filter($this->db, 't.created_by');
+            data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
             $this->db->order_by('t.id', 'DESC');
             $tasks = $this->db->get()->result();
 
@@ -465,7 +463,7 @@ class Projects extends CI_Controller {
                 $this->db->from('requirements r');
                 $this->db->join('users u', 'u.id = r.assigned_to', 'left');
                 $this->db->where('r.project_id', (int) $id);
-                apply_role_hierarchy_filter($this->db, 'r.created_by');
+                data_scope_apply_owner_or_assignee($this->db, array('r.created_by', 'r.assigned_to', 'r.owner_id'), array(array('requirement_assignees', 'requirement_id', 'r.id')));
                 $this->db->order_by('r.id', 'DESC');
                 $requirements = $this->db->get()->result();
             }
@@ -603,8 +601,7 @@ class Projects extends CI_Controller {
         $this->load->helper('my_works');
         $complete_view = dashboard_parse_complete_view($this->input);
 
-        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('projects_view_all');
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data());
         if (!$can_view_all) {
             $projects = $this->Project_model->all($filters);
         } else {
@@ -618,6 +615,19 @@ class Projects extends CI_Controller {
             $this->db->select('id, company_name');
             $this->db->from('clients');
             $this->db->order_by('company_name', 'ASC');
+            $scope_uids = data_scope_visible_user_ids();
+            if ($scope_uids !== null) {
+                $scope_client_ids = array();
+                foreach ($projects as $sp) {
+                    if (!empty($sp->client_id)) {
+                        $scope_client_ids[(int) $sp->client_id] = true;
+                    }
+                }
+                $this->db->group_start()
+                    ->where_in('id', empty($scope_client_ids) ? array(0) : array_keys($scope_client_ids));
+                data_scope_apply_owner_or_assignee_or($this->db, array('created_by', 'account_manager_id'), 'clients');
+                $this->db->group_end();
+            }
             $filter_clients = $this->db->get()->result();
         }
 
@@ -628,6 +638,7 @@ class Projects extends CI_Controller {
                 $this->db->select('client_id');
             }
             $this->db->from('projects');
+            data_scope_apply_project_scope($this->db, 'projects');
             if ($has_project_client && $filter_client_id > 0) {
                 $this->db->where('client_id', $filter_client_id);
             }
@@ -649,11 +660,16 @@ class Projects extends CI_Controller {
 
         $filter_users = array();
         if ($this->db->table_exists('users')) {
-            $filter_users = $this->db->select('id, name')->order_by('name', 'asc')->get('users')->result();
+            $this->db->select('id, name')->from('users');
+            $scope_uids = data_scope_visible_user_ids();
+            if ($scope_uids !== null) {
+                $this->db->where_in('id', empty($scope_uids) ? array(0) : $scope_uids);
+            }
+            $filter_users = $this->db->order_by('name', 'asc')->get()->result();
         }
 
         $this->load->model('Department_model');
-        $filter_departments = $this->Department_model->all();
+        $filter_departments = data_scope_filter_departments($this->Department_model->all());
         $department_map = array();
         foreach ($filter_departments as $dept) {
             $department_map[(int)$dept->id] = (string)$dept->dept_name;
@@ -1158,8 +1174,7 @@ class Projects extends CI_Controller {
         $user_id = (int) $this->session->userdata('user_id');
         $role_id = (int) $this->session->userdata('role_id');
         $filters = get_user_group_filter($user_id, $role_id);
-        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('projects_view_all');
+        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data());
         if (!$can_view_all) {
             $projects = $this->Project_model->all($filters);
         } else {
@@ -1239,46 +1254,24 @@ class Projects extends CI_Controller {
     private function _user_can_see_project_row($project)
     {
         $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('projects_view_all')
             || (function_exists('is_admin_group') && is_admin_group());
         if ($can_view_all) {
             return true;
         }
 
-        $user_id = (int) $this->session->userdata('user_id');
-        if ($user_id < 1) {
-            return false;
-        }
-        if (schema_table_has_column($this->db, 'projects', 'manager_id') && (int) $project->manager_id === $user_id) {
-            return true;
-        }
-        if (schema_table_has_column($this->db, 'projects', 'created_by') && (int) $project->created_by === $user_id) {
-            return true;
-        }
-        if ($this->db->table_exists('project_members')) {
-            $member = $this->db->where('project_id', (int) $project->id)
-                ->where('user_id', $user_id)
-                ->get('project_members')
-                ->row();
-            if ($member) {
-                return true;
-            }
-        }
-        return false;
+        return data_scope_project_visible($project);
     }
 
     private function _user_can_access_project($project_id)
     {
         $project_id = (int) $project_id;
         $user_id = (int) $this->session->userdata('user_id');
-        $can_view_all = is_admin_group() || has_module_access('projects_view_all');
+        $can_view_all = is_admin_group();
         if ($can_view_all) {
             return true;
         }
-        $is_member = $this->db->where('project_id', $project_id)
-            ->where('user_id', $user_id)
-            ->get('project_members')
-            ->row();
+        $project = $this->db->where('id', $project_id)->get('projects')->row();
+        $is_member = data_scope_project_visible($project);
         if (!$is_member) {
             show_error('You do not have access to this project.', 403);
             return false;
@@ -1843,7 +1836,7 @@ class Projects extends CI_Controller {
         $this->db->select('status, COUNT(*) AS cnt', false);
         $this->db->from('tasks');
         $this->db->where('project_id', (int) $project_id);
-        apply_role_hierarchy_filter($this->db, 'created_by');
+        data_scope_apply_owner_or_assignee($this->db, array('created_by', 'assigned_to'), array(array('task_assignees', 'task_id', 'tasks.id')));
         $this->db->group_by('status');
         $rows = $this->db->get()->result();
 
@@ -1926,7 +1919,7 @@ class Projects extends CI_Controller {
         if ($filter_user_id > 0 && schema_table_has_column($this->db, 'tasks', 'assigned_to')) {
             $this->db->where('t.assigned_to', $filter_user_id);
         }
-        apply_role_hierarchy_filter($this->db, 't.created_by');
+        data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
         $this->db->order_by('t.project_id', 'ASC');
         $this->db->order_by('t.title', 'ASC');
         $this->db->order_by('t.id', 'ASC');
@@ -1980,7 +1973,7 @@ class Projects extends CI_Controller {
             $this->db->select(implode(',', $select));
             $this->db->where('t.project_id', (int) $project_id);
             $this->db->where('t.status', (string) $status_code);
-            apply_role_hierarchy_filter($this->db, 't.created_by');
+            data_scope_apply_owner_or_assignee($this->db, array('t.created_by', 't.assigned_to'), array(array('task_assignees', 'task_id', 't.id')));
             $this->db->order_by('t.id', 'DESC');
             $columns[$status_code] = $this->db->get()->result();
         }
@@ -2024,8 +2017,71 @@ class Projects extends CI_Controller {
         if ($type === 'defect') {
             return $this->_inline_save_defect($project_id, $item_id, $title, $status, $priority, $assigned_to);
         }
+        if ($type === 'release') {
+            return $this->_inline_save_release($project_id, $item_id, $title, $status, trim((string) $this->input->post('planned_date')));
+        }
 
         return $this->_inline_json(false, array(), 'Invalid type', 400);
+    }
+
+    private function _inline_save_release($project_id, $item_id, $title, $status, $planned_date)
+    {
+        if (!$this->db->table_exists('project_releases')) {
+            return $this->_inline_json(false, array(), 'Releases module unavailable', 400);
+        }
+        $this->load->model('Engagement_model', 'eng');
+        $uid = (int) $this->session->userdata('user_id');
+        $allowed_status = array('planned', 'in_progress', 'released', 'cancelled');
+        if (!in_array($status, $allowed_status, true)) {
+            $status = 'planned';
+        }
+        $planned = null;
+        if ($planned_date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $planned_date)) {
+            $planned = $planned_date;
+        }
+
+        if ($item_id > 0) {
+            if (!has_module_access('releases_edit') && !has_module_access('releases')) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+            $rel = $this->db->where('id', $item_id)->where('project_id', $project_id)->get('project_releases')->row();
+            if (!$rel) {
+                return $this->_inline_json(false, array(), 'Release not found', 404);
+            }
+            if ($title === '') {
+                return $this->_inline_json(false, array(), 'Title is required', 400);
+            }
+            $data = array('title' => $title, 'status' => $status, 'planned_date' => $planned);
+            if ($status === 'released' && empty($rel->released_at)) {
+                $data['released_at'] = date('Y-m-d H:i:s');
+            }
+            $this->eng->save_release($data, $item_id);
+            return $this->_inline_json(true, array('id' => $item_id));
+        }
+
+        if (!has_module_access('releases_add') && !has_module_access('releases')) {
+            return $this->_inline_json(false, array(), 'Access denied', 403);
+        }
+        if ($title === '') {
+            $title = 'New release';
+        }
+        $n = (int) $this->db->where('project_id', $project_id)->count_all_results('project_releases') + 1;
+        $version = 'v1.0.' . $n;
+        while ($this->eng->version_exists($project_id, $version)) {
+            $n++;
+            $version = 'v1.0.' . $n;
+        }
+        $new_id = $this->eng->save_release(array(
+            'project_id' => $project_id,
+            'version' => $version,
+            'title' => $title,
+            'description' => '',
+            'planned_date' => $planned,
+            'status' => $status,
+            'created_by' => $uid,
+        ));
+        $this->eng->log_activity($new_id, $uid, 'created', 'Created from project tab');
+        return $this->_inline_json(true, array('id' => $new_id, 'version' => $version));
     }
 
     // POST /projects/{id}/inline-delete — delete row from project detail tabs
@@ -2055,6 +2111,18 @@ class Projects extends CI_Controller {
         }
         if ($type === 'defect') {
             return $this->_inline_delete_defect($project_id, $item_id);
+        }
+        if ($type === 'release') {
+            if (!has_module_access('releases_delete') && !has_module_access('releases')) {
+                return $this->_inline_json(false, array(), 'Access denied', 403);
+            }
+            $rel = $this->db->where('id', $item_id)->where('project_id', $project_id)->get('project_releases')->row();
+            if (!$rel) {
+                return $this->_inline_json(false, array(), 'Release not found', 404);
+            }
+            $this->load->model('Engagement_model', 'eng');
+            $this->eng->delete_release($item_id);
+            return $this->_inline_json(true, array('id' => $item_id));
         }
 
         return $this->_inline_json(false, array(), 'Invalid type', 400);
@@ -2247,9 +2315,12 @@ class Projects extends CI_Controller {
         }
 
         $allowed_status = array('received', 'under_review', 'approved', 'in_progress', 'completed', 'on_hold', 'rejected', 'cancelled');
-        $allowed_priority = array('low', 'medium', 'high', 'urgent');
+        $allowed_priority = array('low', 'medium', 'high', 'critical');
         if ($status === '' || !in_array($status, $allowed_status, true)) {
             $status = 'received';
+        }
+        if ($priority === 'urgent') {
+            $priority = 'critical';
         }
         if ($priority === '' || !in_array($priority, $allowed_priority, true)) {
             $priority = 'medium';

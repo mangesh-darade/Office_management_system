@@ -377,11 +377,16 @@
 }
 
 .project-detail-stat-meta {
-  min-width: 8.5rem;
+  min-width: 0;
 }
 
 .project-detail-stat-team {
-  min-width: 10rem;
+  min-width: 0;
+  grid-column: span 2;
+}
+
+.project-detail-team-row {
+  flex-wrap: wrap;
 }
 
 .project-detail-dates {
@@ -798,4 +803,10 @@
 
 .project-detail-page .project-history-changes li {
   margin-bottom: 0.15rem;
+}
+
+/* Project popup (Second Brain modal): hide header actions and stats strip */
+.project-detail-popup .project-detail-actions,
+.project-detail-popup .project-detail-stats {
+  display: none !important;
 }

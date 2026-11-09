@@ -46,30 +46,10 @@ class Project_model extends CI_Model {
         $this->db->select('p.*');
         $this->db->from($this->table . ' p');
 
-        // For non-admin users show projects where they are:
-        //   a) a member in project_members, OR
-        //   b) the manager_id, OR
-        //   c) the created_by
-        // Empty $filters means admin — no restriction.
-        if (!empty($filters) && isset($filters['user_id'])) {
-            $uid = (int) $filters['user_id'];
-            $has_created_by = $this->has_column('created_by');
-            $has_manager_id = $this->has_column('manager_id');
-            $has_members    = $this->db->table_exists('project_members');
-
-            $parts = array();
-            if ($has_members) {
-                $parts[] = 'EXISTS (SELECT 1 FROM `project_members` pm WHERE pm.project_id = p.id AND pm.user_id = ' . $uid . ')';
-            }
-            if ($has_manager_id) {
-                $parts[] = 'p.`manager_id` = ' . $uid;
-            }
-            if ($has_created_by) {
-                $parts[] = 'p.`created_by` = ' . $uid;
-            }
-            if (!empty($parts)) {
-                $this->db->where('(' . implode(' OR ', $parts) . ')', null, false);
-            }
+        // Empty $filters means admin (no restriction); otherwise created by / managed by / member of
+        // me (own scope) or of my assigned departments' users (all scope).
+        if (!empty($filters)) {
+            data_scope_apply_project_scope($this->db, 'p');
         }
 
         return $this->db->order_by('p.id','DESC')->group_by('p.id')->get()->result();

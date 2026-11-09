@@ -1,6 +1,22 @@
 <?php $this->load->view('partials/header', ['title' => 'Project Details', 'extra_css' => ['assets/css/projects.css']]); ?>
 
-<div class="container-fluid py-1 px-2 project-detail-page project-detail-compact">
+<style>
+.project-detail-popup .project-detail-actions,
+.project-detail-popup .project-detail-stats { display: none !important; }
+</style>
+<script>
+(function () {
+  try {
+    if (window.self !== window.top) {
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.querySelector('.project-detail-page');
+        if (el) { el.classList.add('project-detail-popup'); }
+      });
+    }
+  } catch (e) {}
+})();
+</script>
+<div class="container-fluid py-1 px-2 project-detail-page project-detail-compact<?php echo ((string) $this->input->get('popup') === '1') ? ' project-detail-popup' : ''; ?>">
   <?php if ($this->session->flashdata('success')): ?><div class="alert alert-success py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('success')); ?></div><?php endif; ?>
   <?php if ($this->session->flashdata('error')): ?><div class="alert alert-danger py-1 px-2 mb-1 small"><?php echo esc_view($this->session->flashdata('error')); ?></div><?php endif; ?>
   <?php $this->load->view('partials/import_errors'); ?>
@@ -150,6 +166,7 @@
     $release_statuses = array('planned', 'in_progress', 'released', 'cancelled');
     $task_priorities = array('low', 'medium', 'high', 'urgent');
     $defect_priorities = array('low', 'medium', 'high', 'critical');
+    $req_priorities = array('low', 'medium', 'high', 'critical');
 
     $project_view_user_label = function ($u) {
       if (isset($u->emp_name) && trim((string) $u->emp_name) !== '') {
@@ -222,14 +239,10 @@
         <div class="card shadow-sm border-0 project-detail-panel">
             <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Tasks</h6>
-                <div class="d-flex gap-1 flex-wrap justify-content-end">
-                <?php if(function_exists('has_module_access') && (has_module_access('tasks_import') || has_module_access('tasks'))): ?>
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportTasksModal" title="Import tasks from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
-                <?php endif; ?>
-                <?php if(function_exists('has_module_access') && has_module_access('tasks_add')): ?>
-                <a href="<?php echo site_url('projects/'.$project->id.'/dashboard'); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-speedometer2"></i><span class="d-none d-md-inline ms-1">Dashboard</span></a>
-                <a href="<?php echo site_url('tasks/board?project_id='.$project->id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-kanban"></i><span class="d-none d-md-inline ms-1">Board</span></a>
-                <?php endif; ?>
+                <div class="d-flex gap-1">
+                    <?php if ($can_manage_tasks): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="task" title="Add task"><i class="bi bi-plus-lg"></i></button>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="table-responsive">
@@ -327,17 +340,6 @@
                         </tr>
                         <?php endforeach; endif; ?>
                     </tbody>
-                    <?php if ($can_manage_tasks): ?>
-                    <tfoot>
-                        <tr>
-                            <td colspan="6" class="py-1 px-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add task">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    </tfoot>
-                    <?php endif; ?>
                 </table>
             </div>
         </div>
@@ -348,13 +350,10 @@
         <div class="card shadow-sm border-0 project-detail-panel">
             <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Requirements</h6>
-                <div class="d-flex gap-1 flex-wrap justify-content-end">
-                <?php if(function_exists('has_module_access') && (has_module_access('requirements_add') || has_module_access('requirements'))): ?>
-                <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportRequirementsModal" title="Import requirements from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
-                <?php endif; ?>
-                <?php if(function_exists('has_module_access') && (has_module_access('requirements_export') || has_module_access('requirements'))): ?>
-                <a href="<?php echo site_url('requirements/export?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0" title="Export this project's requirements"><i class="bi bi-file-earmark-spreadsheet"></i><span class="d-none d-md-inline ms-1">Export</span></a>
-                <?php endif; ?>
+                <div class="d-flex gap-1">
+                    <?php if ($can_manage_requirements): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="requirement" title="Add requirement"><i class="bi bi-plus-lg"></i></button>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="table-responsive">
@@ -399,7 +398,7 @@
                             <td>
                                 <?php if ($can_manage_requirements): ?>
                                 <select class="form-select form-select-sm project-inline-priority">
-                                    <?php foreach ($task_priorities as $pr): ?>
+                                    <?php foreach ($req_priorities as $pr): ?>
                                     <option value="<?php echo esc_view($pr); ?>" <?php echo $r_priority === $pr ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option>
                                     <?php endforeach; ?>
                                 </select>
@@ -429,17 +428,6 @@
                         </tr>
                         <?php endforeach; endif; ?>
                     </tbody>
-                    <?php if ($can_manage_requirements): ?>
-                    <tfoot>
-                        <tr>
-                            <td colspan="5" class="py-1 px-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add requirement">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    </tfoot>
-                    <?php endif; ?>
                 </table>
             </div>
         </div>
@@ -452,12 +440,8 @@
             <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Defects</h6>
                 <div class="d-flex gap-1">
-                    <a href="<?php echo site_url('defects?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
-                    <?php if (function_exists('has_module_access') && (has_module_access('defects_add') || has_module_access('defects'))): ?>
-                    <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportDefectsModal" title="Import defects from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
-                    <?php endif; ?>
-                    <?php if (function_exists('has_module_access') && (has_module_access('defects_export') || has_module_access('defects_list') || has_module_access('defects'))): ?>
-                    <a href="<?php echo site_url('defects/export?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0" title="Export this project's defects"><i class="bi bi-download"></i><span class="d-none d-md-inline ms-1">Export</span></a>
+                    <?php if ($can_manage_defects): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="defect" title="Add defect"><i class="bi bi-plus-lg"></i></button>
                     <?php endif; ?>
                 </div>
             </div>
@@ -533,17 +517,6 @@
                         </tr>
                         <?php endforeach; endif; ?>
                     </tbody>
-                    <?php if ($can_manage_defects): ?>
-                    <tfoot>
-                        <tr>
-                            <td colspan="5" class="py-1 px-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary project-inline-add py-0 px-2" title="Add defect">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    </tfoot>
-                    <?php endif; ?>
                 </table>
             </div>
         </div>
@@ -557,46 +530,59 @@
             <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 small fw-semibold text-uppercase text-muted">Releases</h6>
                 <div class="d-flex gap-1">
-                    <a href="<?php echo site_url('releases?project_id=' . (int) $project->id); ?>" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-list"></i><span class="d-none d-md-inline ms-1">All</span></a>
-                    <?php if (function_exists('has_module_access') && (has_module_access('releases_add') || has_module_access('releases'))): ?>
-                    <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#projectImportReleasesModal" title="Import releases from CSV"><i class="bi bi-upload"></i><span class="d-none d-md-inline ms-1">Import</span></button>
-                    <?php endif; ?>
                     <?php if ($can_manage_releases): ?>
-                    <a href="<?php echo site_url('releases/create?project_id=' . (int) $project->id); ?>" class="btn btn-primary btn-sm py-0"><i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1">New</span></a>
+                    <button type="button" class="btn btn-sm btn-outline-primary project-inline-add-trigger py-0 px-2" data-inline-target="release" title="Add release"><i class="bi bi-plus-lg"></i></button>
                     <?php endif; ?>
                 </div>
             </div>
             <div class="table-responsive w-100">
-                <table class="table table-sm table-hover align-middle mb-0 w-100" data-no-datatable>
+                <table class="table table-sm table-hover align-middle mb-0 w-100 project-inline-table" data-no-datatable data-inline-type="release" data-save-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-save'); ?>" data-delete-url="<?php echo site_url('projects/' . (int) $project->id . '/inline-delete'); ?>" data-can-manage="<?php echo $can_manage_releases ? '1' : '0'; ?>" data-can-delete="<?php echo $can_delete_releases ? '1' : '0'; ?>">
                     <thead class="table-light">
                         <tr>
-                            <th style="width:40%">Title</th>
+                            <th style="width:38%">Title</th>
                             <th style="width:16%">Status</th>
-                            <th style="width:16%">Planned</th>
+                            <th style="width:18%">Planned</th>
                             <th style="width:16%">Released</th>
                             <th style="width:12%" class="text-end"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (empty($releases)): ?>
-                        <tr><td colspan="5" class="text-center py-3 text-muted small">No releases for this project.</td></tr>
+                        <?php if (empty($releases) && !$can_manage_releases): ?>
+                        <tr class="project-inline-empty"><td colspan="5" class="text-center py-3 text-muted small">No releases for this project.</td></tr>
                         <?php else: foreach ($releases as $rel): ?>
-                        <tr>
+                        <?php $rel_status = isset($rel->status) ? (string) $rel->status : 'planned'; ?>
+                        <tr class="project-inline-row" data-id="<?php echo (int) $rel->id; ?>">
                             <td>
-                                <a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="text-decoration-none fw-medium"><?php echo esc_view($rel->title); ?></a>
-                                <?php if (!empty($rel->version)): ?>
-                                <span class="text-muted small ms-1">(<?php echo esc_view($rel->version); ?>)</span>
+                                <?php if ($can_manage_releases): ?>
+                                <input type="text" class="form-control form-control-sm project-inline-title" value="<?php echo esc_view($rel->title, ENT_QUOTES, 'UTF-8'); ?>" maxlength="255" title="<?php echo esc_view(!empty($rel->version) ? 'Version ' . $rel->version : '', ENT_QUOTES, 'UTF-8'); ?>">
+                                <?php else: ?>
+                                <?php echo esc_view($rel->title); ?><?php if (!empty($rel->version)): ?> <span class="text-muted small">(<?php echo esc_view($rel->version); ?>)</span><?php endif; ?>
                                 <?php endif; ?>
                             </td>
-                            <td><span class="badge bg-light text-dark border"><?php echo esc_view(ucfirst(str_replace('_', ' ', (string) $rel->status))); ?></span></td>
-                            <td><?php echo esc_view(!empty($rel->planned_date) ? $rel->planned_date : '—'); ?></td>
-                            <td><?php echo esc_view(!empty($rel->released_at) ? $rel->released_at : '—'); ?></td>
-                            <td class="text-end text-nowrap">
-                                <?php if (function_exists('has_module_access') && (has_module_access('releases_view') || has_module_access('releases_list') || has_module_access('releases'))): ?>
-                                <a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="btn btn-sm btn-light" title="View"><i class="bi bi-box-arrow-up-right"></i></a>
-                                <?php endif; ?>
+                            <td>
                                 <?php if ($can_manage_releases): ?>
-                                <a href="<?php echo site_url('releases/edit/' . (int) $rel->id); ?>" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <select class="form-select form-select-sm project-inline-status">
+                                    <?php foreach (array('planned', 'in_progress', 'released', 'cancelled') as $st): ?>
+                                    <option value="<?php echo esc_view($st); ?>" <?php echo $rel_status === $st ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php else: ?>
+                                <span class="badge bg-light text-dark border"><?php echo esc_view(ucfirst(str_replace('_', ' ', $rel_status))); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($can_manage_releases): ?>
+                                <input type="date" class="form-control form-control-sm project-inline-planned" value="<?php echo esc_view(!empty($rel->planned_date) ? substr($rel->planned_date, 0, 10) : '', ENT_QUOTES, 'UTF-8'); ?>">
+                                <?php else: ?>
+                                <?php echo esc_view(!empty($rel->planned_date) ? $rel->planned_date : '—'); ?>
+                                <?php endif; ?>
+                            </td>
+                            <td class="small text-muted"><?php echo esc_view(!empty($rel->released_at) ? $rel->released_at : '—'); ?></td>
+                            <td class="text-end text-nowrap">
+                                <span class="project-inline-state text-muted small me-1"></span>
+                                <a href="<?php echo site_url('releases/view/' . (int) $rel->id); ?>" class="btn btn-sm btn-light" title="View"><i class="bi bi-box-arrow-up-right"></i></a>
+                                <?php if ($can_delete_releases): ?>
+                                <button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -626,53 +612,29 @@
             <div class="small text-muted fw-semibold">History</div>
             <span class="text-muted small"><?php echo count($history); ?></span>
           </div>
-          <?php if (empty($history)): ?>
-            <p class="text-muted small mb-0">No history yet.</p>
-          <?php else: ?>
-            <div class="table-responsive">
-              <table class="table table-sm table-bordered mb-0 align-middle project-history-grid">
-                <thead class="table-light">
-                  <tr>
-                    <th class="text-start" style="width:9.5rem;">Date</th>
-                    <th>Comments</th>
-                    <th style="width:9rem;">Added By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php foreach ($history as $h): ?>
-                    <?php
-                      $who = ($h->user_name !== '') ? $h->user_name : 'System';
-                      $changed = trim((string) $h->detail);
-                      if ($changed === '') {
-                          $changed = $project_action_label($h->action);
-                      } elseif (strtolower((string) $h->action) !== 'note' && strtolower((string) $h->action) !== 'comment') {
-                          if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
-                              $changed = $project_action_label($h->action) . ': ' . $changed;
-                          }
-                      }
-                      $parts = preg_split('/\s*;\s*/', $changed);
-                    ?>
-                    <tr>
-                      <td class="small text-nowrap text-muted text-start"><?php echo esc_view($h->created_at); ?></td>
-                      <td class="small">
-                        <?php if (count($parts) > 1): ?>
-                          <ul class="mb-0 ps-3 project-history-changes">
-                            <?php foreach ($parts as $part): ?>
-                              <?php if (trim($part) === '') { continue; } ?>
-                              <li><?php echo esc_view(trim($part)); ?></li>
-                            <?php endforeach; ?>
-                          </ul>
-                        <?php else: ?>
-                          <?php echo nl2br(esc_view($changed)); ?>
-                        <?php endif; ?>
-                      </td>
-                      <td class="small fw-semibold"><?php echo esc_view($who); ?></td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
-              </table>
-            </div>
-          <?php endif; ?>
+          <?php
+          $oms_history_rows = array();
+          foreach ($history as $h) {
+              $who = ($h->user_name !== '') ? $h->user_name : 'System';
+              $changed = trim((string) $h->detail);
+              $act = strtolower((string) $h->action);
+              if ($changed === '') {
+                  $changed = $project_action_label($h->action);
+              } elseif ($act !== 'note' && $act !== 'comment' && $act !== 'commented') {
+                  if (strpos($changed, ':') === false && strpos($changed, '→') === false) {
+                      $changed = $project_action_label($h->action) . ': ' . $changed;
+                  }
+              }
+              $oms_history_rows[] = array(
+                  'date' => $h->created_at,
+                  'who' => $who,
+                  'parts' => preg_split('/\s*;\s*/', $changed),
+                  'text' => $changed,
+              );
+          }
+          $this->load->view('partials/history_table', array('history_rows' => $oms_history_rows));
+        ?>
+
         </div>
       </div>
     </div>
@@ -680,7 +642,7 @@
   </div>
 </div>
 
-<?php if ($can_manage_tasks || $can_manage_requirements || $can_manage_defects || $can_delete_tasks || $can_delete_requirements || $can_delete_defects): ?>
+<?php if ($can_manage_tasks || $can_manage_requirements || $can_manage_defects || $can_manage_releases || $can_delete_tasks || $can_delete_requirements || $can_delete_defects || $can_delete_releases): ?>
 <template id="project-inline-row-template-task">
 <tr class="project-inline-row project-inline-row-new" data-id="0">
   <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="500" placeholder="Title"></td>
@@ -695,7 +657,7 @@
 <tr class="project-inline-row project-inline-row-new" data-id="0">
   <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="500" placeholder="Title"></td>
   <td><select class="form-select form-select-sm project-inline-status"><?php foreach ($req_statuses as $st): ?><option value="<?php echo esc_view($st); ?>" <?php echo $st === 'received' ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
-  <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($task_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
+  <td><select class="form-select form-select-sm project-inline-priority"><?php foreach ($req_priorities as $pr): ?><option value="<?php echo esc_view($pr); ?>" <?php echo $pr === 'medium' ? 'selected' : ''; ?>><?php echo ucfirst($pr); ?></option><?php endforeach; ?></select></td>
   <td><select class="form-select form-select-sm project-inline-assignee"><option value="">Unassigned</option><?php echo $inline_user_options; ?></select></td>
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_requirements): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
@@ -709,19 +671,30 @@
   <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_defects): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
 </tr>
 </template>
+<template id="project-inline-row-template-release">
+<tr class="project-inline-row project-inline-row-new" data-id="0">
+  <td><input type="text" class="form-control form-control-sm project-inline-title" value="" maxlength="255" placeholder="Title"></td>
+  <td><select class="form-select form-select-sm project-inline-status"><?php foreach (array('planned', 'in_progress', 'released', 'cancelled') as $st): ?><option value="<?php echo esc_view($st); ?>" <?php echo $st === 'planned' ? 'selected' : ''; ?>><?php echo ucfirst(str_replace('_', ' ', $st)); ?></option><?php endforeach; ?></select></td>
+  <td><input type="date" class="form-control form-control-sm project-inline-planned" value=""></td>
+  <td class="small text-muted">—</td>
+  <td class="text-end text-nowrap"><span class="project-inline-state text-muted small me-1"></span><?php if ($can_delete_releases): ?><button type="button" class="btn btn-sm btn-outline-danger project-inline-delete" title="Delete"><i class="bi bi-trash"></i></button><?php endif; ?></td>
+</tr>
+</template>
 <script>
 (function () {
   var canDelete = {
     task: <?php echo $can_delete_tasks ? 'true' : 'false'; ?>,
     requirement: <?php echo $can_delete_requirements ? 'true' : 'false'; ?>,
-    defect: <?php echo $can_delete_defects ? 'true' : 'false'; ?>
+    defect: <?php echo $can_delete_defects ? 'true' : 'false'; ?>,
+    release: <?php echo $can_delete_releases ? 'true' : 'false'; ?>
   };
-  var defaultTitles = { task: 'New task', requirement: 'New requirement', defect: 'New defect' };
-  var deleteLabels = { task: 'task', requirement: 'requirement', defect: 'defect' };
+  var defaultTitles = { task: 'New task', requirement: 'New requirement', defect: 'New defect', release: 'New release' };
+  var deleteLabels = { task: 'task', requirement: 'requirement', defect: 'defect', release: 'release' };
   var viewUrls = {
     task: <?php echo json_encode(site_url('tasks/')); ?>,
     requirement: <?php echo json_encode(site_url('requirements/view/')); ?>,
-    defect: <?php echo json_encode(site_url('defects/view/')); ?>
+    defect: <?php echo json_encode(site_url('defects/view/')); ?>,
+    release: <?php echo json_encode(site_url('releases/view/')); ?>
   };
 
   function buildActionsHtml(type, id) {
@@ -744,7 +717,8 @@
       var messages = {
         task: 'No tasks found for this project.',
         requirement: 'No requirements linked to this project.',
-        defect: 'No defects logged for this project.'
+        defect: 'No defects logged for this project.',
+        release: 'No releases for this project.'
       };
       var tr = document.createElement('tr');
       tr.className = 'project-inline-empty';
@@ -756,7 +730,9 @@
 
   function rowPayload(row) {
     var estimateEl = row.querySelector('.project-inline-estimate');
+    var plannedEl = row.querySelector('.project-inline-planned');
     return {
+      planned_date: plannedEl ? (plannedEl.value || '') : '',
       type: row.closest('.project-inline-table').getAttribute('data-inline-type'),
       id: row.getAttribute('data-id') || '0',
       title: (row.querySelector('.project-inline-title') || {}).value || '',
@@ -909,26 +885,6 @@
       if (!canManage) {
         return;
       }
-      var btn = e.target.closest('.project-inline-add');
-      if (!btn) {
-        return;
-      }
-      var tpl = document.getElementById('project-inline-row-template-' + type);
-      if (!tpl || !tpl.content) {
-        return;
-      }
-      removeEmptyRow(table);
-      var row = tpl.content.firstElementChild.cloneNode(true);
-      table.querySelector('tbody').appendChild(row);
-      var titleInput = row.querySelector('.project-inline-title');
-      if (titleInput) {
-        titleInput.value = defaultTitles[type] || 'New item';
-      }
-      saveRow(row, true);
-      if (titleInput) {
-        titleInput.focus();
-        titleInput.select();
-      }
     });
 
     if (!canManage) {
@@ -964,6 +920,37 @@
         saveRow(row, false);
         e.target.blur();
       }
+    });
+  });
+
+  function addInlineRow(table) {
+    if (!table || table.getAttribute('data-can-manage') !== '1') {
+      return;
+    }
+    var type = table.getAttribute('data-inline-type');
+    var existing = table.querySelector('tbody .project-inline-row-new');
+    if (existing) {
+      var t0 = existing.querySelector('.project-inline-title');
+      if (t0) { t0.focus(); }
+      return;
+    }
+    var tpl = document.getElementById('project-inline-row-template-' + type);
+    if (!tpl || !tpl.content) {
+      return;
+    }
+    removeEmptyRow(table);
+    var row = tpl.content.firstElementChild.cloneNode(true);
+    var tbody = table.querySelector('tbody');
+    tbody.insertBefore(row, tbody.firstChild);
+    var titleInput = row.querySelector('.project-inline-title');
+    if (titleInput) {
+      titleInput.focus();
+    }
+  }
+  document.querySelectorAll('.project-inline-add-trigger').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var type = trigger.getAttribute('data-inline-target');
+      addInlineRow(document.querySelector('.project-inline-table[data-inline-type="' + type + '"]'));
     });
   });
 })();
