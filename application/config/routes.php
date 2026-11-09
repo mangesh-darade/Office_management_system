@@ -454,6 +454,7 @@ $route['requirements/board'] = 'requirements/board';
 $route['requirements/calendar'] = 'requirements/calendar';
 $route['requirements/export'] = 'requirements/export';
 $route['requirements/import'] = 'requirements/import';
+$route['requirements/inline-save'] = 'requirements/inline_save';
 
 // Subscription Builder
 $route['subscription-builder'] = 'subscription_builder/index';
@@ -880,6 +881,10 @@ $route['defects/delete/(:num)'] = 'defects/delete/$1';
 $route['defects/toggle-active/(:num)'] = 'defects/toggle_active/$1';
 $route['defects/export'] = 'defects/export';
 $route['defects/import'] = 'defects/import';
+$route['defects/inline-save'] = 'defects/inline_save';
+$route['defects/update-status'] = 'defects/update_status';
+$route['requirements/update-status'] = 'requirements/update_status';
+$route['releases/update-status'] = 'releases/update_status';
 $route['defects/ajax-options/(:num)'] = 'defects/ajax_options/$1';
 $route['defects/add-comment/(:num)'] = 'defects/add_comment/$1';
 $route['defects/attachment/(:num)/(:num)/download'] = 'defects/attachment_download/$1/$2';

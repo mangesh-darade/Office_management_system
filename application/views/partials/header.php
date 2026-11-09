@@ -220,6 +220,21 @@ if ($oms_popup) {
     }
   })();
   </script>
+<script>try { if (window.self !== window.top) { document.documentElement.classList.add('oms-in-popup'); } } catch (e) {}</script>
+<style>
+/* Detail screens opened inside the Second Brain popup: no back / edit / delete / dashboard chrome. */
+.oms-in-popup .defect-view-back,
+.oms-in-popup .defect-view-actions,
+.oms-in-popup .project-detail-back,
+.oms-in-popup .project-detail-actions,
+.oms-in-popup .project-detail-stats,
+.oms-in-popup .client-detail-back,
+.oms-in-popup .client-detail-actions,
+.oms-in-popup .mw-detail-page .mw-back-btn,
+.oms-in-popup .mw-detail-page .mw-detail-actions,
+.oms-in-popup .release-detail .oms-page-actions,
+.oms-in-popup .req-create-task-btn { display: none !important; }
+</style>
 </head>
 <body<?php echo !empty($body_class) ? ' class="' . esc_view((string) $body_class, ENT_QUOTES, 'UTF-8') . '"' : ''; ?>>
 <?php if (empty($hide_navbar)): ?>
