@@ -146,6 +146,7 @@ if (!$embed):
 
 <?php
 $filter_user_id = isset($filter_user_id) ? (int) $filter_user_id : -1;
+$assign_users = isset($assign_users) && is_array($assign_users) ? $assign_users : array();
 $filter_department_id = isset($filter_department_id) ? (int) $filter_department_id : -1;
 $filter_departments = isset($filter_departments) ? $filter_departments : array();
 $filter_users = isset($filter_users) ? $filter_users : array();
@@ -382,12 +383,13 @@ if (!$embed) {
   </div>
 <?php else: ?>
   <?php
-  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options, $complete_view_on, $can_add_task) {
+  $render_team_dash_items_table = function (array $section_items, array $options = array()) use ($team_dash_status_options, $complete_view_on, $can_add_task, $assign_users, $filter_user_id) {
       $table_id = isset($options['table_id']) ? (string) $options['table_id'] : '';
       $table_class = isset($options['table_class']) ? (string) $options['table_class'] : 'table table-sm project-dash-task-table mb-0';
       $is_full = !empty($options['full_width']);
       $show_client_project = isset($options['show_client_project']) ? !empty($options['show_client_project']) : $is_full;
       $show_created_at = isset($options['show_created_at']) ? !empty($options['show_created_at']) : $is_full;
+      $show_assign = $show_client_project && !empty($assign_users);
       $show_act = !empty($complete_view_on);
       $allow_add = $can_add_task && !empty($options['allow_add']);
 
@@ -422,6 +424,9 @@ if (!$embed) {
           echo '<th class="text-end team-col-act">Act</th>';
       }
       echo '<th class="text-start team-col-status">Status</th>';
+      if ($show_assign) {
+          echo '<th class="text-start">Assigned To</th>';
+      }
       echo '</tr></thead><tbody>';
 
       if (!function_exists('estimate_hours_row')) {
@@ -476,6 +481,9 @@ if (!$embed) {
               <a href="<?php echo esc_view($item_url, ENT_QUOTES, 'UTF-8'); ?>" class="project-dash-task-title" title="<?php echo esc_view($item_title, ENT_QUOTES, 'UTF-8'); ?><?php echo $item_detail !== '' ? ' — ' . esc_view($item_detail, ENT_QUOTES, 'UTF-8') : ''; ?>">
                 <?php echo esc_view($item_title); ?>
               </a>
+              <?php if (!$show_client_project && ($item_project !== '' || $item_client !== '')): ?>
+              <div class="text-muted" style="font-size:0.7rem;line-height:1.1;" title="<?php echo esc_view(trim($item_client . ' / ' . $item_project, ' /'), ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_project !== '' ? $item_project : $item_client); ?></div>
+              <?php endif; ?>
             </td>
             <?php if ($show_created_at): ?>
             <td class="text-nowrap text-muted" style="font-size:0.75rem;" title="<?php echo esc_view($item_created_by !== '' ? $item_created_by : '—', ENT_QUOTES, 'UTF-8'); ?>"><?php echo esc_view($item_created_by !== '' ? $item_created_by : '—'); ?></td>
@@ -515,6 +523,19 @@ if (!$embed) {
                 <?php endforeach; ?>
               </select>
             </td>
+            <?php if ($show_assign): ?>
+            <td>
+              <select class="form-select form-select-sm team-dash-assign-select"
+                      data-item-id="<?php echo (int) $item['id']; ?>"
+                      data-item-type="<?php echo esc_view($item['item_type'], ENT_QUOTES, 'UTF-8'); ?>"
+                      data-item-source="<?php echo esc_view(isset($item['item_source']) ? (string) $item['item_source'] : '', ENT_QUOTES, 'UTF-8'); ?>"
+                      data-prev="<?php echo (int) $filter_user_id; ?>">
+                <?php foreach ($assign_users as $au): ?>
+                  <option value="<?php echo (int) $au->user_id; ?>"<?php echo (int) $au->user_id === (int) $filter_user_id ? ' selected' : ''; ?>><?php echo esc_view($au->name); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </td>
+            <?php endif; ?>
           </tr>
           <?php
       }
@@ -1076,6 +1097,14 @@ if (!$embed) {
     });
   }
 
+  $(document).on('change', '.team-dash-assign-select', function() {
+      var $s = $(this), prev = $s.data('prev');
+      $.post(<?php echo json_encode(site_url('tasks/ajax_update_item_assignee')); ?>, {
+          id: $s.data('item-id'), type: $s.data('item-type'), source: $s.data('item-source') || '', assignee: $s.val()
+      }, null, 'json').done(function (r) {
+          if (r && r.success) { $s.closest('tr').fadeOut(300); } else { alert((r && r.error) || 'Failed'); $s.val(prev); }
+      }).fail(function () { alert('Failed'); $s.val(prev); });
+  });
   $(document).on('change', '.project-dash-status-select', function() {
       var $select = $(this);
       var itemId = $select.data('item-id');

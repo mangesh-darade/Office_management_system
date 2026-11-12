@@ -53,8 +53,7 @@ class Tasks extends CI_Controller {
         $this->db->select(implode(',', $select));
         
         // Admin sees all tasks; others see tasks assigned to them / hierarchy (incl. junction)
-        $can_view_all = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('tasks_view_all');
+        $can_view_all = function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data();
         if (!$can_view_all && $user_id) {
             multi_assignees_apply_hierarchy_filter($this->db, 't.assigned_to', 'task_assignees', 'task_id', 't.id', $user_id, $role_id, 't.created_by');
         }
@@ -103,6 +102,10 @@ class Tasks extends CI_Controller {
                 $this->db->select(implode(',', $sel))
                          ->from('users')
                          ->join('employees','employees.user_id = users.id','left');
+                $scope_ids_a = data_scope_visible_user_ids();
+                if ($scope_ids_a !== null) {
+                    $this->db->where_in('users.id', empty($scope_ids_a) ? array(0) : $scope_ids_a);
+                }
                 if ($hasEmpName3) {
                     $this->db->order_by('employees.name IS NULL ASC', '', false)
                              ->order_by('employees.name','ASC');
@@ -413,8 +416,8 @@ class Tasks extends CI_Controller {
         
         // Visibility: non-admin group can only preview tasks assigned to them (or created_by them when available)
         $user_id = (int)$this->session->userdata('user_id');
-        $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
-        
+        $can_view_all = data_scope_sees_all_org_data();
+
         if ($user_id && !$can_view_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
@@ -606,7 +609,7 @@ class Tasks extends CI_Controller {
         
         // Visibility: non-admin group can only view tasks assigned to them (or created_by them when available)
         $user_id = (int)$this->session->userdata('user_id');
-        $can_view_all = is_admin_group() || has_module_access('tasks_view_all');
+        $can_view_all = data_scope_sees_all_org_data();
         if ($user_id && !$can_view_all) {
             $assigned = isset($task->assigned_to) ? (int)$task->assigned_to : 0;
             $creator = (isset($task->created_by) ? (int)$task->created_by : 0);
@@ -1036,7 +1039,11 @@ class Tasks extends CI_Controller {
             && (has_module_access('tasks_add') || has_module_access('tasks'));
 
         $team_scope_ids = data_scope_visible_user_ids();
-        $team_view = $can_view_all || (is_array($team_scope_ids) && count($team_scope_ids) > 1);
+        if (!$can_view_all && is_array($team_scope_ids) && count($team_scope_ids) <= 1 && $filter_user_id <= 0 && (int) $user_id > 0) {
+            $filter_user_id = (int) $user_id; // self-only user: show own full-width view
+            $_GET['focus'] = '1';
+        }
+        $team_view = true; // always employee-wise; scope limits employees (self-only users see own card)
         $tasks = $this->_user_dashboard_fetch_tasks($user_id, $role_id, $can_view_all, $filter_user_id, $filter_project_id, $filter_status, $complete_view);
         if ($filter_department_id > 0 && !$team_view) {
             $tasks = $this->_user_dashboard_filter_tasks_by_project_department($tasks, $filter_department_id);
@@ -1138,6 +1145,7 @@ class Tasks extends CI_Controller {
             'filter_status'     => $filter_status,
             'filter_projects'   => $filter_projects,
             'filter_users'      => $filter_users,
+            'assign_users'      => $this->_assignable_users(),
             'filter_departments' => $filter_departments,
             'dash_clients'      => $dash_clients,
             'dash_projects'     => $dash_projects,
@@ -1402,6 +1410,63 @@ class Tasks extends CI_Controller {
             return $this->output->set_content_type('application/json')
                 ->set_output(json_encode(['success' => false, 'error' => 'Database error.']));
         }
+    }
+
+    /** All employees (assign dropdown). */
+    private function _assignable_users()
+    {
+        $this->db->select('e.user_id, u.name')->from('employees e')->join('users u', 'u.id = e.user_id');
+        return $this->db->order_by('u.name')->get()->result();
+    }
+
+    public function ajax_update_item_assignee()
+    {
+        if (!$this->input->is_ajax_request()) {
+            show_404();
+        }
+        $out = function ($d) {
+            return $this->output->set_content_type('application/json')->set_output(json_encode($d));
+        };
+        $id = (int) $this->input->post('id');
+        $type = (string) $this->input->post('type');
+        $source = trim((string) $this->input->post('source'));
+        $assignee = (int) $this->input->post('assignee');
+        if ($id <= 0 || $assignee <= 0) {
+            return $out(array('success' => false, 'error' => 'Invalid parameters.'));
+        }
+        $user_id = (int) $this->session->userdata('user_id');
+        $is_admin = $this->_user_dashboard_can_view_all((int) $this->session->userdata('role_id'));
+
+        if ($source === 'my_works' || $type === 'my_work') {
+            $table = 'my_works'; $af = 'created_for';
+        } elseif ($source === 'requirements' || $type === 'requirement') {
+            $table = 'requirements'; $af = 'assigned_to';
+        } else {
+            $table = 'tasks'; $af = 'assigned_to';
+        }
+        if (!$this->db->table_exists($table)) {
+            return $out(array('success' => false, 'error' => 'Invalid item type.'));
+        }
+        $item = $this->db->where('id', $id)->get($table)->row();
+        if (!$item) {
+            return $out(array('success' => false, 'error' => 'Item not found.'));
+        }
+        if (!$is_admin && (int) $item->{$af} !== $user_id && (int) (isset($item->created_by) ? $item->created_by : 0) !== $user_id) {
+            return $out(array('success' => false, 'error' => 'Permission denied.'));
+        }
+        $allowed = array();
+        foreach ($this->_assignable_users() as $au) {
+            $allowed[(int) $au->user_id] = true;
+        }
+        if (!isset($allowed[$assignee])) {
+            return $out(array('success' => false, 'error' => 'Invalid employee.'));
+        }
+        $this->db->where('id', $id)->update($table, array($af => $assignee));
+        $this->load->helper('multi_assignee');
+        if ($table === 'tasks' && function_exists('multi_assignees_sync')) {
+            multi_assignees_sync('task_assignees', 'task_id', $id, array($assignee));
+        }
+        return $out(array('success' => true));
     }
 
     /**
@@ -2649,6 +2714,10 @@ class Tasks extends CI_Controller {
                 $this->db->select(implode(',', $sel))
                          ->from('users')
                          ->join('employees','employees.user_id = users.id','left');
+                $scope_ids_a = data_scope_visible_user_ids();
+                if ($scope_ids_a !== null) {
+                    $this->db->where_in('users.id', empty($scope_ids_a) ? array(0) : $scope_ids_a);
+                }
                 if ($hasEmpName3) {
                     $this->db->order_by('employees.name IS NULL ASC', '', false)
                              ->order_by('employees.name','ASC');
@@ -2961,8 +3030,7 @@ class Tasks extends CI_Controller {
 
         $user_id = (int) $this->session->userdata('user_id');
         $role_id = (int) $this->session->userdata('role_id');
-        $is_admin = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data())
-            || has_module_access('tasks_manage');
+        $is_admin = (function_exists('data_scope_sees_all_org_data') && data_scope_sees_all_org_data());
         $filters = get_user_group_filter($user_id, $role_id);
 
         $project_filter = trim((string) $this->input->get('project_id'));
@@ -3241,7 +3309,7 @@ class Tasks extends CI_Controller {
 
     private function _task_in_scope($task)
     {
-        if (is_admin_group() || has_module_access('tasks_view_all') || has_module_access('tasks_manage')) {
+        if (data_scope_sees_all_org_data()) {
             return true;
         }
         $tid = (int) $task->id;
